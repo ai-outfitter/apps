@@ -1,0 +1,51 @@
+name: Outfitter app tooling
+description: Run versioned tooling independently of the caller checkout
+inputs:
+  command:
+    description: plan, check, run, deploy or toolchain
+    required: true
+  app:
+    description: App path relative to the source checkout
+    default: ''
+  config-path:
+    description: Configuration relative to the source checkout
+    default: .outfitter/apps.json
+  source-path:
+    description: Caller checkout directory
+    default: .
+  toolchain-path:
+    description: Absolute path to disposable private SDK checkout (optional adapter)
+    default: ''
+outputs:
+  apps:
+    description: Selected app paths as JSON
+    value: ${{ steps.execute.outputs.apps }}
+  has_apps:
+    description: Whether any apps were selected
+    value: ${{ steps.execute.outputs.has_apps }}
+  validation:
+    description: metadata or scripts
+    value: ${{ steps.execute.outputs.validation }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - id: execute
+      shell: bash
+      working-directory: ${{ inputs.source-path }}
+      env:
+        TOOLING_PATH: ${{ github.action_path }}
+        COMMAND: ${{ inputs.command }}
+        APP: ${{ inputs.app }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        TOOLCHAIN_PATH: ${{ inputs.toolchain-path }}
+      run: |
+        case "$COMMAND" in
+          plan) node "$TOOLING_PATH/scripts/apps.mjs" plan ;;
+          check|run) node "$TOOLING_PATH/scripts/apps.mjs" "$COMMAND" "$APP" ;;
+          deploy) node "$TOOLING_PATH/scripts/deploy.mjs" "$APP" ;;
+          toolchain) node "$TOOLING_PATH/scripts/toolchain.mjs" "$APP" "$TOOLCHAIN_PATH" ;;
+          *) echo 'Unknown tooling command' >&2; exit 1 ;;
+        esac
