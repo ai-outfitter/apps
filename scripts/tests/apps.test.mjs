@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {loadConfig,discoverApps,affectedApps,checkApp,changedFiles} from '../apps.mjs';
+import {loadConfig,discoverApps,affectedApps,checkApp,changedFiles,runApp} from '../apps.mjs';
 function fixture(fn, workspace=false) {
  const root=mkdtempSync(join(tmpdir(),'apps-tooling-'));
  const put=(path,value)=>{mkdirSync(join(root,path,'..'),{recursive:true});writeFileSync(join(root,path),JSON.stringify(value));};
@@ -22,6 +22,7 @@ for(const workspace of [false,true]) test(`discovers and selects ${workspace?'wo
  const config=loadConfig(root),apps=discoverApps(root,config);
  assert.deepEqual(apps.map(x=>x.slug),[a,b]);
  assert.deepEqual(affectedApps(apps,[`${a}/src/a.ts`],config),[a,b]);
+ assert.deepEqual(affectedApps(apps,[`${b}/src/b.ts`],config),[b]);
  assert.deepEqual(affectedApps(apps,['packages/shared/code.ts'],config),[a,b]);
  assert.deepEqual(affectedApps(apps,['README.md','docs/test.md'],config),[]);
  assert.deepEqual(affectedApps(apps,['deleted-package/code.ts'],config),[a,b]);
@@ -45,4 +46,14 @@ test('git diff includes deleted paths and both sides of renames; missing history
  const base=git('rev-parse','HEAD');git('mv','alpha','renamed');git('commit','--quiet','-am','rename');
  const paths=changedFiles(root,{BASE_SHA:base});assert.ok(paths.includes('alpha/app.json'));assert.ok(paths.includes('renamed/app.json'));
  assert.equal(changedFiles(root,{}),null);assert.equal(changedFiles(root,{BASE_SHA:'f'.repeat(40)}),null);
+}));
+
+test('script validation requires the caller lockfile and executes caller commands',()=>fixture(({root,put,a})=>{
+ const config={...loadConfig(root),validation:'scripts',commands:['test']};
+ assert.throws(()=>runApp(a,root,config),/caller-owned package-lock/);
+ put('package-lock.json',{lockfileVersion:3,requires:true,packages:{'':{}}});
+ put(`${a}/package.json`,{name:'caller-app',version:'1.2.3',scripts:{test:`node -e "require('node:fs').writeFileSync('tested.txt','passed')"`}});
+ put(`${a}/app.json`,{version:'1.2.3'});
+ runApp(a,root,config);
+ assert.ok(existsSync(join(root,a,'tested.txt')));
 }));
