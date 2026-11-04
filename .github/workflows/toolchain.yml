@@ -1,0 +1,84 @@
+name: App toolchain
+
+# Temporary full validation until the SDK/build/test packages are public.
+# A maintainer deliberately chooses the exact app commit to execute.
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Reviewed 40-character app repository commit SHA
+        type: string
+        required: true
+
+    secrets:
+      OUTFITTER_TOOLCHAIN_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.plan.outputs.apps }}
+    steps:
+      - name: Validate pinned inputs
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$TOOLCHAIN_SHA" =~ ^[a-f0-9]{40}$ ]]
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          TOOLCHAIN_SHA: ${{ vars.OUTFITTER_TOOLCHAIN_SHA }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - id: plan
+        uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: plan
+
+  app:
+    name: Full validation (${{ matrix.app }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: toolchain
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ai-outfitter/webapp
+          ref: ${{ vars.OUTFITTER_TOOLCHAIN_SHA }}
+          token: ${{ secrets.OUTFITTER_TOOLCHAIN_TOKEN }}
+          path: toolchain
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: toolchain/package-lock.json
+      - run: npm ci
+        working-directory: toolchain
+      - uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: toolchain
+          source-path: source
+          app: ${{ matrix.app }}
+          toolchain-path: ${{ github.workspace }}/toolchain
+      - name: Validation provenance
+        run: |
+          echo "App: $APP; source: $SOURCE_SHA; SDK/toolchain: $TOOLCHAIN_SHA. Check, unit/integration tests, both package modes and browser tests passed. No deployment requested." >> "$GITHUB_STEP_SUMMARY"
+        env:
+          APP: ${{ matrix.app }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          TOOLCHAIN_SHA: ${{ vars.OUTFITTER_TOOLCHAIN_SHA }}

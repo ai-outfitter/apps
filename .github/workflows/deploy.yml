@@ -1,0 +1,51 @@
+name: App deployment requests
+on:
+  workflow_call:
+    inputs:
+      apps:
+        description: Checked app paths as a JSON array
+        required: true
+        type: string
+      destination:
+        description: HTTPS origin of SaaS or self-hosted Outfitter
+        type: string
+        default: https://ai-outfitter.com
+      config-path:
+        type: string
+        default: .outfitter/apps.json
+      environment:
+        description: Caller-owned deployment environment
+        type: string
+        default: outfitter
+      runner:
+        description: Runner label with access to the destination
+        type: string
+        default: ubuntu-latest
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  deploy:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.apps != '[]'
+    runs-on: ${{ inputs.runner }}
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(inputs.apps) }}
+    concurrency:
+      group: outfitter-deploy-${{ github.repository }}-${{ inputs.destination }}-${{ matrix.app }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: deploy
+          app: ${{ matrix.app }}
+          config-path: ${{ inputs.config-path }}
+        env:
+          OUTFITTER_URL: ${{ inputs.destination }}
+          DEPLOY_BRANCH: ${{ github.event.repository.default_branch }}

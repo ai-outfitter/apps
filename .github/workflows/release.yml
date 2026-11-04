@@ -1,0 +1,34 @@
+name: App releases
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        type: string
+        default: .release-please-manifest.json
+    secrets:
+      release-token:
+        required: true
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+concurrency:
+  group: outfitter-app-releases-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit token
+        env:
+          RELEASE_TOKEN: ${{ secrets.release-token }}
+        run: test -n "$RELEASE_TOKEN"
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.release-token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
