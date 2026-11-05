@@ -50,7 +50,7 @@ jobs:
             --jq '.workflow_runs[0].head_sha // empty') || base=
           echo "sha=$base" >> "$GITHUB_OUTPUT"
       - id: plan
-        uses: ai-outfitter/apps@48bfd5783ebf3bae674db9a56e8afa9f7eed7175
+        uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         with:
           command: plan
           config-path: ${{ inputs.config-path }}
@@ -87,11 +87,11 @@ jobs:
         with:
           node-version: 24
       - id: config
-        uses: ai-outfitter/apps@48bfd5783ebf3bae674db9a56e8afa9f7eed7175
+        uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         with:
           command: plan
           config-path: ${{ inputs.config-path }}
-      - uses: ai-outfitter/apps@48bfd5783ebf3bae674db9a56e8afa9f7eed7175
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         with:
           command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
           app: ${{ matrix.app }}
@@ -100,7 +100,7 @@ jobs:
         env:
           APP: ${{ matrix.app }}
           VALIDATION: ${{ steps.config.outputs.validation }}
-          TOOLING_SHA: 48bfd5783ebf3bae674db9a56e8afa9f7eed7175
+          TOOLING_SHA: 4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         run: |
           node --input-type=module -e 'import{writeFileSync}from"node:fs";writeFileSync("outfitter-provenance.json",JSON.stringify({app:process.env.APP,validation:process.env.VALIDATION,sourceRepository:process.env.GITHUB_REPOSITORY,sourceSha:process.env.GITHUB_SHA,toolingSha:process.env.TOOLING_SHA,runId:process.env.GITHUB_RUN_ID},null,2))'
           echo "App: $APP. Validation: $VALIDATION. Metadata checks do not certify app runtime, tests or builds." >> "$GITHUB_STEP_SUMMARY"
