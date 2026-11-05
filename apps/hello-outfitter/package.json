@@ -1,0 +1,14 @@
+{
+  "name": "@ai-outfitter/app-hello-outfitter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check build.mjs",
+    "build": "node build.mjs",
+    "preview:build": "node build.mjs"
+  },
+  "outfitter": {
+    "kind": "app"
+  }
+}

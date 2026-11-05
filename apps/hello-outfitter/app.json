@@ -1,0 +1,17 @@
+{
+  "id": "outfitter/hello-outfitter",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    }
+  },
+  "catalog": {
+    "demo": {
+      "slug": "hello-outfitter",
+      "name": "Hello Outfitter",
+      "description": "An SDK-free example of shared PR preview publishing."
+    }
+  }
+}

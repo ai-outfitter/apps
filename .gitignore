@@ -1,0 +1,3 @@
+node_modules/
+.outfitter-preview/
+apps/*/dist/

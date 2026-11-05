@@ -1,0 +1,21 @@
+name: App PR previews
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number
+        required: true
+        type: number
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  previews:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: ai-outfitter/apps/.github/workflows/preview.yml@705c6a99910624753a7fdbf324521b31ca04bc2b
+    with:
+      pull-request: ${{ github.event.pull_request.number || inputs.pull_request }}
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

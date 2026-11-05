@@ -1,0 +1,11 @@
+{
+  "appGlobs": [
+    "apps/*"
+  ],
+  "sharedInputs": [],
+  "commands": [
+    "check",
+    "build"
+  ],
+  "validation": "scripts"
+}

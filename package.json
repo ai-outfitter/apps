@@ -1,1 +1,14 @@
-{"name":"@ai-outfitter/apps-tooling","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"test":"node --test scripts/tests/*.test.mjs"}}
+{
+  "name": "@ai-outfitter/apps-tooling",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test scripts/tests/*.test.mjs"
+  },
+  "workspaces": [
+    "apps/*"
+  ]
+}
