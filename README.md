@@ -115,3 +115,40 @@ Never invoke it on an unreviewed PR or grant a public PR private SDK credentials
 The adapter modifies a disposable private checkout. Its legacy dependency install
 is not reproducible solely from a source pin. It is separate from generic app
 validation and will be removed when public SDK packages support locked installs.
+
+## Pull-request previews
+
+`preview.yml` discovers changed apps from the PR merge base, builds each selected
+app, and publishes an isolated read-only demo with a stable hostname per
+repository ID, PR number and app path. A separate publication job downloads the
+build artifact without checking out caller source or executing app build scripts.
+It verifies `/api/health` against the exact repository, source SHA and app before
+posting the link on the PR. Closing the PR deletes only Workers in that PR's
+preview namespace. Reopening rebuilds them. Deployment environments also link to
+the verified URLs.
+
+The normal `package` adapter uses a caller-owned npm lockfile and each app's
+`preview:build` script. That script produces `dist/preview.json` (override with
+`preview.output` in the repository configuration), containing a demo `manifest`
+and a managed Worker `artifact` with modules and assets. The shared publisher
+accepts no capabilities, database or storage bindings. It strips viewer cookies
+and authorization, denies writes and platform APIs, and supplies only static
+assets to the app. These previews demonstrate app UI with synthetic fixtures;
+they are not customer installations or authenticated platform integration tests.
+
+A thin caller invokes the shared workflow on same-repository PR opened,
+synchronize, reopened and closed events, passing `pull-request` and the explicit
+`CLOUDFLARE_API_TOKEN` secret. Keep that secret in the caller's `preview-publish`
+environment and configure `OUTFITTER_PREVIEW_ACCOUNT_ID`. The current provider is
+Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
+installation destinations remain the separate main-branch deploy workflow.
+Fork code is not imported automatically.
+
+While the SDK is private, the optional `toolchain` preview adapter accepts only
+`workflow_dispatch`, a reviewed current PR head, a pinned `toolchain-sha`, and a
+repository-read-only `OUTFITTER_TOOLCHAIN_SSH_KEY` in the separate `preview-build`
+environment. It runs the existing private adapter's checks/tests/packaging, then
+builds the demo mode. No Cloudflare credential is available during that build.
+This is a temporary manual step for personal apps, not automatic unreviewed
+private-SDK execution. Closing such a PR still runs cleanup automatically. The
+SDK-free official example demonstrates fully automatic PR publishing.

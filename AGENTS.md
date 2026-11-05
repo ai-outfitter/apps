@@ -14,3 +14,9 @@ commit. Dependabot groups Action upgrades. Do not publish major tooling/app
 versions or use breaking-change commits without explicit authorization.
 Metadata validation is not full app validation. Deployment acceptance is not
 activation. Never put private SDK checkout credentials in public PR checks.
+
+PR previews use demo packages only. Keep build and publication jobs separate;
+never expose hosting credentials to app builds. The private SDK preview adapter
+is manual-dispatch-only against a reviewed PR head with a read-only deploy key.
+Do not call a manually reviewed private-SDK build automatic PR publishing. Verify
+the served source SHA and actual page/assets before reporting a preview as live.
