@@ -1,0 +1,69 @@
+.knowledge-graph-stage {
+  min-width: 0;
+}
+.knowledge-graph-stage .graph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.knowledge-graph-viewport {
+  overflow: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: clamp(480px, 65dvh, 1500px);
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+}
+.knowledge-graph-viewport svg {
+  display: block;
+  flex: none;
+  margin: auto;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+.knowledge-graph-viewport .kg-node {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+.knowledge-graph-viewport .kg-edge-label,
+.knowledge-graph-viewport .kg-node-type {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.knowledge-graph-viewport a {
+  fill: var(--text);
+}
+.knowledge-graph-viewport a:hover .kg-node,
+.knowledge-graph-viewport a:focus .kg-node {
+  stroke: var(--text);
+}
+.knowledge-graph-viewport .kg-edge-label-background {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+.knowledge-graph-stage:focus {
+  outline: none;
+}
+.knowledge-graph-expanded {
+  position: fixed;
+  inset: 16px;
+  z-index: 1000;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.knowledge-graph-expanded .knowledge-graph-viewport {
+  height: 0;
+  flex: 1;
+  min-height: 0;
+}
+body:has(.knowledge-graph-expanded) {
+  overflow: hidden;
+}

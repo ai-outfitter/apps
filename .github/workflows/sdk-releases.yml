@@ -1,0 +1,35 @@
+name: SDK releases
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+concurrency:
+  group: sdk-releases
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.releases_created == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: steps.release.outputs.releases_created == 'true'
+        with:
+          node-version: 24
+      - run: npm ci
+        if: steps.release.outputs.releases_created == 'true'
+      - name: Attach public npm package archives to component releases
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          RELEASE_PATHS: ${{ steps.release.outputs.paths_released }}
+        run: node scripts/publish-sdk-archives.mjs

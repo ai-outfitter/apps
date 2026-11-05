@@ -1,0 +1,5 @@
+---
+interface Props { id?: string; label: string; columns: string[]; className?: string }
+const { id, label, columns, className = "" } = Astro.props;
+---
+<div class:list={["table-scroll", className]} role="region" aria-label={label} tabindex="0"><table class="app-table" aria-label={label}><thead><tr>{columns.map(column => <th scope="col">{column}</th>)}</tr></thead><tbody id={id}><slot /></tbody></table></div>

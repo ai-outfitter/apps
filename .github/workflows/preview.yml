@@ -11,6 +11,10 @@ on:
       build-mode:
         type: string
         default: package
+      sdk-sha:
+        description: Optional full public ai-outfitter/apps SDK commit
+        type: string
+        default: ''
       trusted-build-actors:
         description: Explicit actor and PR-author allowlist for automatic private SDK builds
         type: string
@@ -99,6 +103,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.plan.outputs.sha }}
+          persist-credentials: false
+      - name: Validate public SDK pin
+        if: inputs.sdk-sha != ''
+        env:
+          SDK_SHA: ${{ inputs.sdk-sha }}
+        run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        if: inputs.sdk-sha != ''
+        with:
+          repository: ai-outfitter/apps
+          ref: ${{ inputs.sdk-sha }}
+          path: .outfitter-sdk
           persist-credentials: false
       - uses: actions/checkout@v4
         if: inputs.build-mode == 'toolchain'

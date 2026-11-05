@@ -1,0 +1,43 @@
+---
+import "../styles/index.css";
+import NavBar from "./NavBar.astro";
+import Sidebar from "./Sidebar.astro";
+
+interface Props {
+  title: string;
+  titleProjectId?: string;
+  brand?: string;
+  /** The header's shorter brand; the sidebar brand by default. */
+  headerBrand?: string;
+  homeHref?: string;
+  badge?: string;
+  sidebarLabel?: string;
+  desktopOpen?: boolean;
+  desktopSidebar?: "persistent" | "collapsible";
+  scrollContent?: boolean;
+  className?: string;
+  persistKey?: string;
+  toggleLabel?: string;
+  closeLabel?: string;
+}
+const {
+  title, titleProjectId, brand = "Outfitter", headerBrand = brand, homeHref = "/", badge = "ALPHA",
+  sidebarLabel = "Workspace sidebar", desktopOpen = false,
+  desktopSidebar = "persistent", scrollContent = false, className = "", persistKey,
+  toggleLabel, closeLabel,
+} = Astro.props;
+---
+<div class:list={["app-shell", { "app-shell--collapsible": desktopSidebar === "collapsible" }, className]}>
+  <Sidebar brand={brand} homeHref={homeHref} badge={badge} label={sidebarLabel} desktopOpen={desktopOpen} persistKey={persistKey}>
+    <slot name="navigation" />
+  </Sidebar>
+  <main class="app-main">
+    <button class="sidebar-dismiss" type="button" aria-label="Close sidebar" tabindex="-1" hidden></button>
+    <NavBar title={title} titleProjectId={titleProjectId} brand={headerBrand} homeHref={homeHref} toggleLabel={toggleLabel} closeLabel={closeLabel}><slot name="header-actions" /></NavBar>
+    {scrollContent ? <div class="app-shell-content"><slot /></div> : <slot />}
+  </main>
+  <slot name="overlays" />
+</div>
+<script>
+  import "../scripts/shell";
+</script>

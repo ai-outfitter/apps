@@ -1,0 +1,17 @@
+{
+  "storage": {
+    "buckets": {
+      "main": {
+        "spaces": {
+          "public": { "visibility": "public", "ttl": null, "maxTtl": null },
+          "runs": { "visibility": "organization", "ttl": "90d", "maxTtl": "1y" }
+        }
+      },
+      "media": {
+        "spaces": {
+          "uploads": { "visibility": "organization", "ttl": "1y", "maxTtl": "1y" }
+        }
+      }
+    }
+  }
+}

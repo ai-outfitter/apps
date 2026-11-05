@@ -1,1 +1,28 @@
-{"name":"@ai-outfitter/apps-tooling","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"test":"node --test scripts/tests/*.test.mjs"}}
+{
+  "name": "@ai-outfitter/apps-tooling",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test scripts/tests/*.test.mjs",
+    "test:tooling": "node --test scripts/tests/*.test.mjs",
+    "test:sdk": "npm test --workspaces --if-present",
+    "check:sdk": "npm run check --workspaces --if-present"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "esbuild": "^0.28.2",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

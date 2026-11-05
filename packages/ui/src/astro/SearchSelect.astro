@@ -1,0 +1,62 @@
+---
+export interface SearchOption { value: string; label: string }
+interface Props {
+  id: string;
+  name: string;
+  label: string;
+  searchLabel?: string;
+  placeholder?: string;
+  options: SearchOption[];
+  selected?: string[];
+  endpoint: string;
+  nextCursor?: string;
+  complete?: boolean;
+  maxSelections?: number;
+  loadDelayMs?: number;
+  initialDelayMs?: number;
+  fallbackHref?: string | null;
+}
+const { id, name, label, searchLabel = `Search ${label.toLowerCase()}`, placeholder = "Search by name", options, selected = [], endpoint, nextCursor, complete = false, maxSelections = 50, loadDelayMs = 0, initialDelayMs = loadDelayMs, fallbackHref } = Astro.props;
+const selectedSet = new Set(selected);
+const fallbackOptions = [...options, ...selected.filter(value => !options.some(option => option.value === value)).map(value => ({ value, label: value }))];
+const config = JSON.stringify({ name, options, selected, endpoint, nextCursor, complete, maxSelections, loadDelayMs, initialDelayMs }).replaceAll("<", "\\u003c");
+---
+<outfitter-search-select>
+  <script type="application/json" data-select-config set:html={config} />
+  <fieldset class="search-select">
+    <legend>{label}</legend>
+    <div class="select-chips" data-selected hidden aria-label="Selected options"></div>
+    <label class="search-label" for={`${id}-query`}>{searchLabel}</label>
+    <input id={`${id}-query`} type="search" placeholder={placeholder} autocomplete="off" aria-controls={`${id}-results`} disabled data-query />
+    <div id={`${id}-results`} class="select-options" data-options aria-label="Search results">
+      {fallbackOptions.map(option => <label><input type="checkbox" name={name} value={option.value} checked={selectedSet.has(option.value)} /><span>{option.label}</span></label>)}
+    </div>
+    <div class="select-footer"><p role="status" aria-live="polite" data-status></p><button type="button" class="secondary" data-retry hidden>Retry</button></div>
+    <p role="alert" data-error hidden></p>
+    <noscript><p>Enable JavaScript to search all options.</p>{fallbackHref && <a href={fallbackHref} data-astro-reload>Browse more options</a>}</noscript>
+  </fieldset>
+</outfitter-search-select>
+<script>
+  import "../scripts/search-select";
+</script>
+<style>
+  outfitter-search-select{display:block}
+  .search-select{display:block;margin:0;padding:0;border:0;min-width:0}
+  .search-select legend{padding:0;margin-bottom:.75rem;font-weight:600}
+  .search-label{display:block;text-align:left;margin-bottom:.4rem;font-size:.9rem;color:var(--muted)}
+  .search-select>input{width:100%;box-sizing:border-box;margin:0 0 .65rem}
+  .select-options{max-height:16rem;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);overscroll-behavior:contain}
+  .select-options :global(label){display:flex;flex-direction:row;align-items:center;gap:.65rem;text-align:left;padding:.65rem .8rem;margin:0;border-bottom:1px solid var(--border);cursor:pointer;min-height:2.5rem;box-sizing:border-box}
+  .select-options :global(label:last-child){border-bottom:0}
+  .select-options :global(label:hover){background:var(--soft)}
+  .select-options :global(input){width:1rem;height:1rem;margin:0;flex:0 0 auto;accent-color:var(--accent)}
+  .select-options :global(span){overflow-wrap:anywhere}
+  .select-options :global(p){padding:.75rem;margin:0;color:var(--muted)}
+  .select-chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
+  .select-chips[hidden]{display:none}
+  .select-chips :global(button){display:inline-flex;align-items:center;gap:.5rem;border:1px solid var(--border);border-radius:999px;background:var(--soft);color:var(--text);font:inherit;font-size:.85rem;padding:.4rem .7rem;max-width:100%;cursor:pointer}
+  .select-chips :global(span:first-child){overflow-wrap:anywhere;text-align:left}
+  .select-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.65rem}
+  .select-footer p{margin:0;font-size:.8rem;color:var(--muted)}
+  .select-footer button{font-size:.8rem;white-space:nowrap}
+</style>

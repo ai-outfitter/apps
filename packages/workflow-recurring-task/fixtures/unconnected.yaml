@@ -1,0 +1,23 @@
+workflow: recurring-task
+origin: synthetic
+inputs:
+  collect.inputs.task:
+    title: Draft the market update
+    description: Draft a short market update for clients from what I told you.
+  collect.inputs.owner:
+    kind: member
+    id: fixture-member
+records:
+  collect.outputs.sample:
+    connected: false
+    readAt: 2026-10-16T13:00:00.000Z
+    messages: []
+    events: []
+    unavailable:
+      - gmail
+      - google-calendar
+expect:
+  collect: done
+  write: ready
+  finish: waiting
+  run: running

@@ -1,0 +1,161 @@
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.timeline-entry {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 0.75rem);
+  background: var(--surface, var(--canvas));
+}
+.timeline-entry[data-role="user"] {
+  background: var(--soft);
+}
+.timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.timeline-role {
+  font-weight: 600;
+  color: var(--text);
+}
+.timeline-badge {
+  padding: 0 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.timeline-body {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+.timeline-part {
+  margin: 0;
+}
+.timeline-text {
+  white-space: pre-wrap;
+}
+.timeline-file {
+  max-width: 100%;
+  max-height: 16rem;
+  border-radius: 0.5rem;
+}
+.timeline-details summary {
+  cursor: pointer;
+}
+.timeline-fields {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0;
+}
+.timeline-fields > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) 1fr;
+  gap: 0.5rem;
+}
+.timeline-fields dt {
+  font-weight: 500;
+  color: var(--muted);
+}
+.timeline-fields dd {
+  margin: 0;
+  min-width: 0;
+}
+.timeline-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.timeline-null,
+.timeline-availability {
+  color: var(--muted);
+  font-style: italic;
+}
+.timeline-failure {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+}
+.timeline-artifact[data-availability="available"] .timeline-availability {
+  font-style: normal;
+}
+.timeline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.timeline-empty {
+  color: var(--muted);
+  padding: 0.5rem 0;
+}
+.agent-threads {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+.agent-threads select {
+  max-width: 100%;
+}
+.agent-thread-scope,
+.agent-proposal-ref {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.agent-histories {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+.agent-histories ul,
+.agent-children ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.agent-history {
+  display: grid;
+  gap: 0.5rem;
+}
+.agent-child-action {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* Long names, code and buttons wrap inside narrow sidebars instead of overflowing. */
+.timeline,
+.timeline-entry,
+.timeline-body,
+.agent-history,
+.agent-threads,
+.agent-histories {
+  min-width: 0;
+  max-width: 100%;
+}
+.timeline code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.timeline .ui-button,
+.agent-threads .ui-button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: start;
+  height: auto;
+}

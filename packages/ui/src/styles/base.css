@@ -1,0 +1,87 @@
+:root {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-synthesis: none;
+  color: var(--text);
+  background: var(--canvas);
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  background: var(--canvas);
+  color: var(--text);
+  overscroll-behavior-y: none;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+button {
+  color: inherit;
+}
+a {
+  color: inherit;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: a universal reset must beat every component's motion rule. */
+    scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a universal reset must beat every component's motion rule. */
+    transition: none !important;
+  }
+}
+@media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+}
+/* Shared reset, typography, focus and motion behavior. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+[hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: this file is in a cascade layer, so only !important lets hidden beat unlayered display rules. */
+  display: none !important;
+}

@@ -1,0 +1,8 @@
+node_modules/
+.outfitter-sdk/
+.outfitter-preview/
+.preview-toolchain/
+**/dist/
+**/.astro/
+**/test-results/
+**/.outfitter/packages/

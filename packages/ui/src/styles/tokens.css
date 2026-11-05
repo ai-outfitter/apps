@@ -1,0 +1,26 @@
+/* One semantic palette for Outfitter pages, templates and React islands.
+   Each color pairs its light and dark value with native light-dark(). */
+:root {
+  --font-body:
+    "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+  color-scheme: light dark;
+  --canvas: light-dark(#f7f7f7, #181818);
+  --text: light-dark(#262626, #eeeeee);
+  --sidebar: light-dark(#eeeeee, #202020);
+  --surface: light-dark(#ffffff, #282828);
+  --border: light-dark(#d4d4d4, #464646);
+  --muted: light-dark(#666666, #aaaaaa);
+  --accent: light-dark(#555555, #c2c2c2);
+  --hover: light-dark(#e5e5e5, #343434);
+  --soft: light-dark(#f0f0f0, #303030);
+  --focus: light-dark(#444444, #bdbdbd);
+  --action: light-dark(#444444, #bdbdbd);
+  --on-action: light-dark(#ffffff, #171717);
+  --error: light-dark(#555555, #d0d0d0);
+  --success: light-dark(#555555, #bdbdbd);
+  --warning: light-dark(#555555, #cccccc);
+  --scrim: light-dark(#00000066, #000000aa);
+  --shadow-color: light-dark(#0000001a, #00000080);
+}

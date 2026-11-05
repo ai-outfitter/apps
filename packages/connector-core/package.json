@@ -1,0 +1,47 @@
+{
+  "name": "@ai-outfitter/connector-core",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./manifest": "./src/manifest.ts",
+    "./chat-read": "./src/chat-read.ts",
+    "./http": "./src/http.ts",
+    "./database-read": "./src/database-read.ts",
+    "./vault-metadata": "./src/vault-metadata.ts",
+    "./resident-cli-configuration": "./src/resident-cli-configuration.ts",
+    "./repository-read": "./src/repository-read.ts",
+    "./runtime": "./src/runtime.ts",
+    "./broker": "./src/broker.ts",
+    "./credential-bindings": "./src/credential-bindings.ts",
+    "./mcp": "./src/mcp.ts",
+    "./imported": "./src/imported.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/connector-core"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

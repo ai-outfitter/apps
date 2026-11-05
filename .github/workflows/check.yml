@@ -5,6 +5,10 @@ on:
       config-path:
         type: string
         default: .outfitter/apps.json
+      sdk-sha:
+        description: Optional full public ai-outfitter/apps SDK commit
+        type: string
+        default: ''
       baseline-workflow:
         description: Calling workflow file used to find last successful push
         type: string
@@ -66,6 +70,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Validate public SDK pin
+        if: inputs.sdk-sha != ''
+        env:
+          SDK_SHA: ${{ inputs.sdk-sha }}
+        run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        if: inputs.sdk-sha != ''
+        with:
+          repository: ai-outfitter/apps
+          ref: ${{ inputs.sdk-sha }}
+          path: .outfitter-sdk
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - id: config
         uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
         with:

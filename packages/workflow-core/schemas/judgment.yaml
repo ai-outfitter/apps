@@ -1,0 +1,8 @@
+# A call about what a record means. A step's form narrows `decision` with an enum.
+type: object
+required: [decision, reasoning, confidence, evidence]
+properties:
+  decision: {type: string}
+  reasoning: {type: string}
+  confidence: {type: number, minimum: 0, maximum: 1}
+  evidence: {type: array, items: {type: string}} # record ids the decision rests on

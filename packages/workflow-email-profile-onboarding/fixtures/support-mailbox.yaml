@@ -1,0 +1,64 @@
+# A synthetic support mailbox for agent evaluations to replay: the analysis
+# should suggest a customer request tracker that reads Gmail
+# (connector.gmail.messages.list and messages.get) and counts replies on time.
+# No profile record: an evaluation runs the analyze step on this sample.
+workflow: email-profile-onboarding
+origin: synthetic
+inputs:
+  collect.inputs.identity:
+    name: Sam Rivera
+    email: sam@sample-bakery.example
+  collect.inputs.intro: I run customer support for a small bakery supply shop.
+records:
+  collect.outputs.sample:
+    connectionId: fixture-gmail
+    connectionRevision: fixture-revision
+    received:
+      - id: support-1
+        threadId: support-1
+        from: Dana Customer <dana@customer.example>
+        subject: Order 1042 arrived damaged
+        date: 2026-10-13
+        snippet: Two of the cake tins in order 1042 arrived dented. Can you send replacements before Friday?
+      - id: support-2
+        threadId: support-2
+        from: Lee Customer <lee@customer.example>
+        subject: Where is my order?
+        date: 2026-10-13
+        snippet: I ordered piping bags last week and the tracking hasn't moved since Tuesday.
+      - id: support-3
+        threadId: support-3
+        from: Kim Customer <kim@customer.example>
+        subject: Wholesale pricing question
+        date: 2026-10-14
+        snippet: We're opening a second café. Do you offer wholesale pricing on flour over 200kg a month?
+      - id: support-4
+        threadId: support-2
+        from: Lee Customer <lee@customer.example>
+        subject: "Re: Where is my order?"
+        date: 2026-10-15
+        snippet: Following up again, still no update on the piping bags. Please let me know.
+      - id: support-5
+        threadId: support-5
+        from: Jo Customer <jo@customer.example>
+        subject: Return request
+        date: 2026-10-16
+        snippet: The stand mixer attachment doesn't fit my model. How do I return it?
+    sent:
+      - id: sent-1
+        threadId: support-1
+        from: Sam Rivera <sam@sample-bakery.example>
+        subject: "Re: Order 1042 arrived damaged"
+        date: 2026-10-14
+        snippet: Sorry about that, Dana. Replacements ship tomorrow and you don't need to send the dented tins back.
+      - id: sent-2
+        threadId: support-3
+        from: Sam Rivera <sam@sample-bakery.example>
+        subject: "Re: Wholesale pricing question"
+        date: 2026-10-16
+        snippet: Thanks Kim, yes. I've attached our wholesale price list; orders over 200kg get 12% off.
+expect:
+  collect: done
+  analyze: ready
+  save: waiting
+  run: running

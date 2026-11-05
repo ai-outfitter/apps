@@ -1,0 +1,20 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = {
+  variant?: "primary" | "secondary";
+} & (
+  | (HTMLAttributes<"button"> & { href?: never })
+  | (HTMLAttributes<"a"> & { href: string; disabled?: never })
+);
+
+const { variant = "primary", class: className, type, ...attributes } = Astro.props;
+// Taken out of the spread so it renders once: browsers keep the first of duplicate attributes.
+const buttonType = (type as HTMLAttributes<"button">["type"]) ?? "button";
+const classes = ["ui-button", `ui-button--${variant}`, className];
+---
+{typeof attributes.href === "string" ? (
+  <a {...attributes} type={type} class:list={classes}><slot /></a>
+) : (
+  <button {...attributes} type={buttonType} class:list={classes}><slot /></button>
+)}

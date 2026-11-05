@@ -1,0 +1,40 @@
+{
+  "name": "@ai-outfitter/workflow-email-profile-onboarding",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "outfitter": {
+    "kind": "workflow",
+    "definition": "workflow.yaml"
+  },
+  "exports": {
+    "./definition": "./dist/workflow.json",
+    "./types": "./types.ts"
+  },
+  "scripts": {
+    "build": "outfitter-workflow build",
+    "check": "outfitter-workflow check",
+    "test": "outfitter-workflow check",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@ai-outfitter/workflow-core": "0.1.0"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/workflow-email-profile-onboarding"
+  },
+  "files": [
+    "workflow.yaml",
+    "types.ts",
+    "dist",
+    "fixtures",
+    "schemas",
+    "LICENSE"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "name": "@ai-outfitter/app-sdk",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./migrations": "./src/migrations.ts",
+    "./cloudflare/database": "./src/cloudflare/database.ts",
+    "./cloudflare/middleware": "./src/cloudflare/middleware.ts",
+    "./cloudflare/storage": "./src/cloudflare/storage.ts",
+    "./storage": "./src/storage.ts",
+    "./features": "./src/features.ts",
+    "./workflows": "./src/workflows.ts",
+    "./members": "./src/members.ts",
+    "./agent-context": "./src/agent-context.ts",
+    "./agent-page": "./src/agent-page.ts",
+    "./agent-schema": "./src/agent-schema.ts",
+    "./chat-input": "./src/chat-input.ts",
+    "./agent-store": "./src/agent-store.ts",
+    "./workflow-host": "./src/workflow-host.ts",
+    "./entities": "./src/entities.ts",
+    "./database": "./src/database.ts",
+    "./home-cards": "./src/home-cards.ts",
+    "./operations": "./src/operations.ts",
+    "./actions": "./src/actions.ts",
+    "./action-agent": "./src/action-agent.ts",
+    "./proposal-store": "./src/proposal-store.ts",
+    "./proposal-tables": "./src/proposal-tables.ts",
+    "./evidence": "./src/evidence.ts",
+    "./wiki-proposals": "./src/wiki-proposals.ts",
+    "./wiki": "./src/wiki.ts",
+    "./knowledge-graph": "./src/knowledge-graph.ts",
+    "./wiki-graph": "./src/wiki-graph.ts",
+    "./graph-markdown": "./src/graph-markdown.ts",
+    "./graph-selection": "./src/graph-selection.ts",
+    "./graph-query": "./src/graph-query.ts",
+    "./graph-graphql": "./src/graph-graphql.ts",
+    "./graph-graphql-typed": "./src/graph-graphql-typed.ts",
+    "./graph-graphql-typegen": "./src/graph-graphql-typegen.ts",
+    "./app-graphql": "./src/app-graphql.ts",
+    "./app-documents": "./src/app-documents.ts",
+    "./graph/standard-types.json": "./graph/standard-types.json",
+    "./threads": "./src/threads.ts",
+    "./platform-records": "./src/platform-records.ts",
+    "./host-operation": "./src/host-operation.ts",
+    "./untrusted-text": "./src/untrusted-text.ts",
+    "./guest-chat": "./src/guest-chat.ts",
+    "./graph-templates": "./src/graph-templates.ts",
+    "./data-transfer": "./src/data-transfer.ts"
+  },
+  "dependencies": {
+    "@ai-outfitter/connector-core": "0.1.0",
+    "@ai-outfitter/workflow-core": "0.1.0",
+    "@gql.tada/internal": "^1.2.2",
+    "drizzle-orm": "^0.45.3",
+    "drizzle-zod": "0.8.3",
+    "gql.tada": "^1.11.4",
+    "graphql": "^16.11.0",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "astro": "^7.3.5"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test:integration": "node --import tsx --test tests/*.test.ts",
+    "test": "npm run test:integration"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261011.1",
+    "@libsql/client": "^0.18.0",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/app-sdk"
+  },
+  "files": [
+    "src",
+    "graph",
+    "README.md",
+    "LICENSE"
+  ]
+}

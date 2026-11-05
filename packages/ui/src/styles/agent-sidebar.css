@@ -1,0 +1,186 @@
+/* The agent beside a page (react/AgentSidebar.tsx): a third AppLayout column
+   on desktop, full-screen over the page on phones. Needs the shared UI
+   stylesheet (AppLayout includes it) for tokens, messages and the composer. */
+.agent-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.agent-sidebar-toggle:hover:not(:disabled),
+.agent-sidebar-toggle[aria-expanded="true"] {
+  background: var(--hover);
+}
+.agent-sidebar-toggle .icon {
+  color: var(--accent);
+}
+.agent-sidebar {
+  display: flex;
+  flex-shrink: 0;
+  width: min(26rem, 40vw);
+  min-height: 0;
+  background: var(--canvas);
+}
+.agent-sidebar[hidden] {
+  display: none;
+}
+.agent-sidebar > .ui-chat-panel,
+.agent-sidebar-pending {
+  width: 100%;
+}
+.agent-sidebar-pending {
+  display: flex;
+  flex-direction: column;
+  border-inline-start: 1px solid var(--border);
+}
+.agent-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px 0 20px;
+  height: 78px;
+  flex-shrink: 0;
+}
+.agent-sidebar-title {
+  flex: 1;
+  min-width: 0;
+}
+.agent-sidebar-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.agent-sidebar-title h2 .icon {
+  color: var(--accent);
+}
+.agent-sidebar-focus {
+  display: flex;
+  gap: 6px;
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.agent-sidebar-focus strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-weight: 500;
+}
+.agent-sidebar-focus > span:not(.visually-hidden)::before {
+  content: "·";
+  margin-inline-end: 6px;
+}
+.agent-sidebar-action {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+}
+.agent-sidebar-action:hover:not(:disabled) {
+  background: var(--hover);
+}
+.agent-sidebar .ui-chat-transcript {
+  padding: 4px 20px 12px;
+}
+.agent-sidebar .message.user {
+  margin-left: 24px;
+  padding: 12px 16px;
+}
+.agent-sidebar .composer-wrap {
+  padding: 8px 16px 16px;
+}
+.agent-sidebar-text {
+  white-space: pre-wrap;
+}
+.agent-sidebar-intro,
+.agent-sidebar-moved {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.agent-sidebar-scope,
+.agent-sidebar-moved {
+  font-size: 12px;
+}
+.agent-sidebar-loading {
+  margin: auto;
+  color: var(--muted);
+}
+.agent-sidebar-alert {
+  font-size: 12px;
+  color: var(--error);
+  padding: 10px;
+  line-height: 1.6;
+}
+.agent-sidebar-alert button,
+.agent-sidebar-stale button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+}
+.agent-sidebar-stale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.agent-sidebar-stale p {
+  flex-basis: 100%;
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .agent-sidebar-toggle span {
+    display: none;
+  }
+  .agent-sidebar-toggle {
+    padding: 8px;
+  }
+  /* Follows the visible viewport, like the chat page, so the iOS keyboard
+     does not cover the composer. The variables come from the shared shell's
+     chat-viewport.ts. */
+  .agent-sidebar {
+    position: fixed;
+    top: var(--chat-viewport-top, 0px);
+    left: 0;
+    right: 0;
+    height: var(--chat-viewport-height, 100dvh);
+    z-index: 3;
+    width: auto;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      max(0px, calc(env(safe-area-inset-bottom) - var(--chat-viewport-obscured, 0px)))
+      env(safe-area-inset-left);
+  }
+  .agent-sidebar > .ui-chat-panel,
+  .agent-sidebar-pending {
+    border-inline-start: 0;
+  }
+  .agent-sidebar-header {
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.agent-sidebar-attachment { max-width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; }

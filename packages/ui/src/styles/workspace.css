@@ -1,0 +1,330 @@
+/* Workspace base controls and the conversation sidebar's lists and project dialog,
+ * shared by the platform shell and the Chat app. */
+.eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.intro {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.primary {
+  background: var(--action);
+  color: var(--on-action);
+  border: 0;
+  border-radius: 7px;
+  padding: 12px 14px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+.text-button {
+  border: 0;
+  background: none;
+  width: 100%;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 17px;
+}
+.error {
+  font-size: 12px;
+  color: var(--error);
+  padding: 10px;
+  line-height: 1.6;
+}
+.error button {
+  border: 0;
+  background: none;
+  text-decoration: underline;
+}
+.loading {
+  margin: auto;
+  color: var(--muted);
+}
+
+/* Account sidebar content; the shared package owns the frame. */
+.new-chat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+}
+.new-chat:hover:not(:disabled) {
+  background: var(--hover);
+}
+.sidebar-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* The conversation sidebar's lists and the project dialog. */
+.section-label {
+  font-size: 9px;
+  letter-spacing: 1.6px;
+  color: var(--muted);
+  padding: 32px 14px 14px;
+}
+
+.projects-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+.projects-heading button {
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+}
+.projects-heading a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: inherit;
+}
+.project-dialog {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  color: var(--text);
+  background: var(--surface);
+}
+.project-dialog::backdrop {
+  background: var(--scrim);
+}
+.project-dialog form,
+.project-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.project-dialog form {
+  gap: 18px;
+}
+.project-dialog h2,
+.project-dialog p {
+  margin: 0;
+}
+.project-dialog input,
+.project-dialog select,
+.project-dialog textarea {
+  width: 100%;
+  background: var(--canvas);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+}
+.project-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.project-dialog-actions .primary {
+  width: auto;
+}
+
+.project-dialog-actions .text-button {
+  width: auto;
+  margin-top: 0;
+}
+.project-repositories {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.project-repositories legend {
+  padding: 0;
+  margin-bottom: 10px;
+}
+.project-repositories ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project-repositories ul:empty {
+  display: none;
+}
+.project-repositories li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.project-repositories li .text-button {
+  width: auto;
+  min-height: 44px;
+  margin-top: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.chat-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.chat-row .chat-link {
+  flex: 1;
+  min-width: 0;
+}
+.pin-chat {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+.pin-chat:hover,
+.pin-chat:focus-visible {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.service-notice {
+  margin: 0;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.sidebar-empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.9;
+  padding: 0 14px;
+}
+.sidebar-notice {
+  margin: 0.5rem 14px;
+  color: var(--error);
+  font-size: 12px;
+}
+
+/* The sidebar footer's user menu: the current account, the others signed in on this browser, add, Settings, sign out. */
+.avatar {
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+.app-shell > .sidebar .sidebar-footer {
+  position: relative;
+}
+.account-toggle,
+.account-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.account-toggle {
+  flex: 1;
+  padding: 4px;
+  margin: -4px;
+}
+.account-option {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+}
+a.account-option {
+  text-decoration: none;
+}
+button.account-toggle,
+button.account-option {
+  cursor: pointer;
+}
+button.account-toggle:hover,
+.account-toggle[aria-expanded="true"],
+button.account-option:hover,
+a.account-option:hover {
+  background: var(--hover);
+}
+a.account-option.selected {
+  font-weight: 600;
+}
+.account-divider {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.account-toggle > span:not(.avatar),
+.account-option > span:not(.avatar),
+.account-toggle small,
+.account-option small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+.account-option .avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+.account-option.current .icon {
+  color: var(--accent);
+}

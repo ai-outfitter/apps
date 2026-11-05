@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "c00a16233a232e1d56a92f18960c3014dce5262d",
+  "include-component-in-tag": true,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "plugins": [
+    {
+      "type": "node-workspace",
+      "updatePeerDependencies": true
+    }
+  ],
+  "packages": {
+    "packages/app-build": {
+      "release-type": "node",
+      "component": "app-build"
+    },
+    "packages/app-sdk": {
+      "release-type": "node",
+      "component": "app-sdk"
+    },
+    "packages/app-test": {
+      "release-type": "node",
+      "component": "app-test"
+    },
+    "packages/connector-core": {
+      "release-type": "node",
+      "component": "connector-core"
+    },
+    "packages/connector-google": {
+      "release-type": "node",
+      "component": "connector-google"
+    },
+    "packages/connector-google-calendar": {
+      "release-type": "node",
+      "component": "connector-google-calendar"
+    },
+    "packages/server": {
+      "release-type": "node",
+      "component": "server"
+    },
+    "packages/threads": {
+      "release-type": "node",
+      "component": "threads"
+    },
+    "packages/ui": {
+      "release-type": "node",
+      "component": "ui"
+    },
+    "packages/workflow-core": {
+      "release-type": "node",
+      "component": "workflow-core"
+    },
+    "packages/workflow-email-profile-onboarding": {
+      "release-type": "node",
+      "component": "workflow-email-profile-onboarding"
+    },
+    "packages/workflow-recurring-task": {
+      "release-type": "node",
+      "component": "workflow-recurring-task"
+    }
+  }
+}

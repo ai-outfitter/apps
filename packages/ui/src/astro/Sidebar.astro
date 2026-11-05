@@ -1,0 +1,16 @@
+---
+import Icon from "./Icon.astro";
+interface Props {
+  brand?: string;
+  homeHref?: string;
+  badge?: string;
+  label?: string;
+  desktopOpen?: boolean;
+  persistKey?: string;
+}
+const { brand = "Outfitter", homeHref = "/", badge = "ALPHA", label = "Workspace sidebar", desktopOpen = false, persistKey } = Astro.props;
+---
+<aside id="sidebar" class="sidebar" aria-label={label} data-desktop-open={String(desktopOpen)} {...(persistKey ? { "data-astro-transition-persist": persistKey } : {})}>
+  <a class="brand" href={homeHref} aria-label={`${brand} home`}><span class="brand-mark"><Icon name="spark" size="1em" /></span> {brand} {badge && <span class="alpha">{badge}</span>}</a>
+  <slot />
+</aside>

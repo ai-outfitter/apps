@@ -1,0 +1,38 @@
+{
+  "name": "@ai-outfitter/app-build",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/app-build"
+  },
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "bin": {
+    "outfitter-app-build": "src/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/build.mjs"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "0.1.0",
+    "@ai-outfitter/workflow-core": "0.1.0",
+    "@ai-outfitter/ui": "0.1.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "astro": "^7.3.5"
+  },
+  "scripts": {
+    "test": "node --import tsx --test tests/*.test.mjs"
+  }
+}

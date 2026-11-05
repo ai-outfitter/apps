@@ -1,0 +1,48 @@
+{
+  "name": "@ai-outfitter/workflow-core",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts",
+    "./engine": "./src/engine.ts",
+    "./cron": "./src/cron.ts",
+    "./files": "./src/files.ts",
+    "./schemas/judgment": "./schemas/judgment.yaml",
+    "./artifact": "./src/artifact.ts",
+    "./source": "./src/source.ts",
+    "./execution": "./src/execution.ts"
+  },
+  "bin": {
+    "outfitter-workflow": "./bin/workflow.mjs"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5",
+    "croner": "10.0.1",
+    "yaml": "2.9.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "@types/node": "^26.6.3"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/workflow-core"
+  },
+  "files": [
+    "src",
+    "schemas",
+    "bin",
+    "LICENSE"
+  ]
+}

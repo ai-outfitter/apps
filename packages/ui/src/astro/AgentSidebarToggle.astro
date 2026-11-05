@@ -1,0 +1,18 @@
+---
+// The header button for an AgentSidebar island; disabled until the island enables it.
+import Icon from "./Icon.astro";
+import type { IconName } from "../icons";
+import "../styles/agent-sidebar.css";
+interface Props {
+  /** The AgentSidebar's `id`. */
+  controls: string;
+  label: string;
+  icon?: IconName;
+  /** Keep the button across client-side navigation; required when its AgentSidebar island persists, since the island binds it once. */
+  persist?: boolean;
+}
+const { controls, label, icon = "spark", persist = false } = Astro.props;
+---
+<button {...(persist ? { "data-astro-transition-persist": `${controls}:toggle` } : {})} type="button" class="agent-sidebar-toggle" aria-label={label} data-agent-sidebar-toggle aria-controls={controls} aria-expanded="false" disabled>
+  <Icon name={icon} size={16} /> <span>{label}</span>
+</button>

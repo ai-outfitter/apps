@@ -1,0 +1,38 @@
+workflow: recurring-task
+origin: synthetic
+inputs:
+  collect.inputs.task:
+    title: Weekly follow-up list
+    description: List the people who wrote this week and still need a reply.
+    cadence: Every Monday
+  collect.inputs.owner:
+    kind: member
+    id: fixture-member
+records:
+  collect.outputs.sample:
+    connected: true
+    readAt: 2026-10-16T13:00:00.000Z
+    messages:
+      - id: fixture-mail
+        from: colleague@example.com
+        subject: Weekly planning
+        date: 2026-10-15
+        snippet: <img src=x onerror=alert(1)> Review next week's project plan.
+    events:
+      - id: fixture-event
+        title: Monday planning
+        start: 2026-10-20T15:00:00Z
+        recurring: true
+        attendees: 3
+    unavailable: []
+  write.outputs.result:
+    headline: Two people are waiting on you this week.
+    body: Both threads are planning conversations from the sample.
+    items:
+      - title: Reply to the weekly planning thread
+        detail: It asks for next week's project plan before Monday planning.
+expect:
+  collect: done
+  write: done
+  finish: ready
+  run: running

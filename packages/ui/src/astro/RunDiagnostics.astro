@@ -1,0 +1,86 @@
+---
+/** App-owned private run records in a shared developer-only viewer. The caller
+ * gates rendering and its endpoint with trusted platform diagnostics standing. */
+interface Props { endpoint: string; title?: string }
+const { endpoint, title = "Run diagnostics" } = Astro.props;
+---
+<div data-run-diagnostics data-endpoint={endpoint}>
+  <button type="button" class="run-debug-trigger">Debug runs</button>
+  <dialog aria-label={title}>
+    <header><h2>{title}</h2><button type="button" data-run-close aria-label="Close diagnostics">Close</button></header>
+    <p class="run-debug-note">Developer diagnostics · private to this user and installation · read only</p>
+    <div class="run-debug-toolbar"><button type="button" data-run-refresh>Refresh</button><span role="status" data-run-status></span></div>
+    <div class="run-debug-grid"><nav aria-label="Run history" data-run-history></nav><section aria-label="Selected run" data-run-content><p>Select a run to inspect its retained evidence and workflow state.</p></section></div>
+  </dialog>
+</div>
+<script>
+  type RunSummary = { id: string; status: string; startedAt: string; legacy?: boolean };
+  type RunRecord = RunSummary & Record<string, unknown> & { note?: string };
+  document.querySelectorAll<HTMLElement>("[data-run-diagnostics]").forEach(root => {
+    const dialog = root.querySelector("dialog")!;
+    const history = root.querySelector<HTMLElement>("[data-run-history]")!;
+    const content = root.querySelector<HTMLElement>("[data-run-content]")!;
+    const status = root.querySelector<HTMLElement>("[data-run-status]")!;
+    const base = new URL(location.href); base.pathname = base.pathname.replace(/\/$/, "");
+    const endpoint = new URL(root.dataset.endpoint!, base);
+    let selected = "";
+    const node = (tag: string, value: string) => { const el = document.createElement(tag); el.textContent = value; return el; };
+    async function read<T>(id?: string): Promise<T> {
+      const url = new URL(endpoint); if (id) url.searchParams.set("id", id);
+      if (url.origin !== location.origin) throw Error("Diagnostics must use the current application origin.");
+      const response = await fetch(url);
+      if (!response.ok) throw Error(await response.text());
+      return response.json() as Promise<T>;
+    }
+    function section(title: string, value: unknown, open = false) {
+      const details = document.createElement("details"); details.open = open;
+      details.appendChild(node("summary", title));
+      details.appendChild(node("pre", typeof value === "string" ? value : JSON.stringify(value ?? "Not recorded", null, 2)));
+      return details;
+    }
+    async function inspect(id: string) {
+      selected = id; status.textContent = "Loading run…";
+      const result = await read<{ run: RunRecord; workflow: unknown }>(id), run = result.run;
+      content.replaceChildren(node("h3", `${run.status} · ${run.startedAt}`), node("p", `Run ${run.id}`));
+      if (run.note) content.appendChild(node("p", run.note));
+      if (run.error) content.appendChild(section("Failure", run.error, true));
+      content.appendChild(section("System prompt", run.systemPrompt, true));
+      content.appendChild(section("Model input", run.input));
+      content.appendChild(section("Model output", run.output, true));
+      const advanced = document.createElement("details");
+      advanced.appendChild(node("summary", "Run details"));
+      const parts: [string, unknown][] = [
+        ["Timeline and owner", {owner:run.owner, stages:run.stages, workflowRunId:run.workflowRunId, previewId:run.previewId}],
+        ["Ontology", run.ontology], ["Inference options", run.inference],
+        ["Structured-output schema", run.schema], ["Validation warnings", run.warnings],
+        ["Proposed Wiki changes", run.operations], ["Save receipt", run.saveReceipt ?? run.receipt],
+        ["Platform workflow", result.workflow], ["Complete retained run record", run],
+      ];
+      for (const [title,value] of parts) advanced.appendChild(section(title,value));
+      content.appendChild(advanced);
+      history.querySelectorAll("button").forEach(button => button.setAttribute("aria-current", String(button.dataset.runId === selected)));
+      status.textContent = "Run loaded. Earlier records show only the diagnostics retained at the time.";
+    }
+    async function refresh() {
+      status.textContent = "Loading history…";
+      const result = await read<{ runs: RunSummary[] }>(); history.replaceChildren();
+      for (const run of result.runs) {
+        const button = node("button", `${run.status} · ${run.startedAt}${run.legacy ? " · earlier preview" : ""}`) as HTMLButtonElement;
+        button.type = "button"; button.dataset.runId = run.id;
+        button.addEventListener("click", () => inspect(run.id).catch(showError)); history.appendChild(button);
+      }
+      if (!result.runs.length) history.appendChild(node("p", "No discovery runs yet."));
+      const id = selected || result.runs[0]?.id;
+      if (id) await inspect(id); else status.textContent = "History loaded.";
+    }
+    function showError(error: unknown) { status.textContent = error instanceof Error ? error.message : "Could not load diagnostics."; }
+    root.querySelector(".run-debug-trigger")!.addEventListener("click", () => { dialog.showModal(); refresh().catch(showError); });
+    root.querySelector("[data-run-close]")!.addEventListener("click", () => dialog.close());
+    root.querySelector("[data-run-refresh]")!.addEventListener("click", () => refresh().catch(showError));
+    dialog.addEventListener("click", event => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
+  });
+</script>
+<style>
+.run-debug-trigger{font:inherit;font-size:.8rem;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:6px;padding:6px 10px;cursor:pointer}
+dialog{width:min(1100px,calc(100vw - 32px));max-height:calc(100dvh - 32px);box-sizing:border-box;padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);overflow:auto}dialog::backdrop{background:rgb(0 0 0 / .4)}header{display:flex;align-items:center;justify-content:space-between;gap:16px}h2{margin:0;font-size:1.15rem}.run-debug-note{color:var(--muted);font-size:.8rem}.run-debug-toolbar{display:flex;gap:12px;align-items:center;margin:16px 0;font-size:.8rem}.run-debug-grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:20px}.run-debug-grid nav{display:grid;align-content:start;gap:8px;max-height:65vh;overflow:auto}.run-debug-grid section{min-width:0}button{font:inherit;cursor:pointer}nav :global(button){padding:10px;text-align:left;border:1px solid var(--border);background:var(--soft);color:var(--text);border-radius:6px;font-size:.8rem}nav :global(button[aria-current="true"]){border-color:var(--accent)}section :global(details){margin:12px 0}section :global(summary){cursor:pointer;font-weight:600}section :global(pre){max-height:50vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--soft);padding:12px;font:12px/1.5 monospace}section :global(h3){font-size:.95rem;overflow-wrap:anywhere}section :global(p){overflow-wrap:anywhere;font-size:.8rem}@media(max-width:600px){.run-debug-grid{grid-template-columns:minmax(0,1fr)}.run-debug-grid nav{max-height:150px}dialog{padding:14px}}
+</style>
