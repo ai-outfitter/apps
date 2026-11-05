@@ -39,7 +39,7 @@ jobs:
       apps: ${{ steps.plan.outputs.apps }}
       has_apps: ${{ steps.plan.outputs.has_apps }}
     steps:
-      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
+      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
         id: pr
         with:
           command: preview-plan
@@ -50,6 +50,17 @@ jobs:
           PREVIEW_BUILD_MODE: ${{ inputs.build-mode }}
           TOOLCHAIN_SHA: ${{ inputs.toolchain-sha }}
           TRUSTED_BUILD_ACTORS: ${{ inputs.trusted-build-actors }}
+      - name: Require verified planner outputs
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+          BASE: ${{ steps.pr.outputs.base }}
+          CLOSED: ${{ steps.pr.outputs.closed }}
+          AUTHORIZED: ${{ steps.pr.outputs.private_authorized }}
+          MODE: ${{ inputs.build-mode }}
+        run: |
+          [[ "$SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$BASE" =~ ^[a-f0-9]{40}$ ]]
+          if [ "$MODE" = toolchain ] && [ "$CLOSED" != true ]; then test "$AUTHORIZED" = true; fi
       - uses: actions/checkout@v4
         if: steps.pr.outputs.closed != 'true'
         with:
@@ -62,8 +73,10 @@ jobs:
         env:
           BASE: ${{ steps.pr.outputs.base }}
           HEAD: ${{ steps.pr.outputs.sha }}
-        run: echo "sha=$(git merge-base "$BASE" "$HEAD")" >> "$GITHUB_OUTPUT"
-      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
+        run: |
+          base=$(git merge-base "$BASE" "$HEAD")
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
         if: steps.pr.outputs.closed != 'true'
         id: plan
         with:
@@ -102,7 +115,7 @@ jobs:
         if: inputs.build-mode == 'toolchain'
         run: npm ci
         working-directory: .preview-toolchain
-      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
+      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
         with:
           command: preview-build
           app: ${{ matrix.app }}
@@ -145,7 +158,7 @@ jobs:
         with:
           name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: .outfitter-preview
-      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
+      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
         id: publish
         with:
           command: preview-publish
@@ -179,7 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview-publish
     steps:
-      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
+      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
         with:
           command: preview-cleanup
         env:
