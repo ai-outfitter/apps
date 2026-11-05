@@ -2,7 +2,7 @@ name: Outfitter app tooling
 description: Run versioned tooling independently of the caller checkout
 inputs:
   command:
-    description: plan, check, run, deploy or toolchain
+    description: plan, check, run, deploy, toolchain or preview commands
     required: true
   app:
     description: App path relative to the source checkout
@@ -10,6 +10,9 @@ inputs:
   config-path:
     description: Configuration relative to the source checkout
     default: .outfitter/apps.json
+  build-mode:
+    description: package or temporary private toolchain preview adapter
+    default: package
   source-path:
     description: Caller checkout directory
     default: .
@@ -17,6 +20,9 @@ inputs:
     description: Absolute path to disposable private SDK checkout (optional adapter)
     default: ''
 outputs:
+  url:
+    description: Verified preview URL
+    value: ${{ steps.execute.outputs.url }}
   apps:
     description: Selected app paths as JSON
     value: ${{ steps.execute.outputs.apps }}
@@ -40,6 +46,7 @@ runs:
         COMMAND: ${{ inputs.command }}
         APP: ${{ inputs.app }}
         CONFIG_PATH: ${{ inputs.config-path }}
+        PREVIEW_BUILD_MODE: ${{ inputs.build-mode }}
         TOOLCHAIN_PATH: ${{ inputs.toolchain-path }}
       run: |
         case "$COMMAND" in
@@ -47,5 +54,8 @@ runs:
           check|run) node "$TOOLING_PATH/scripts/apps.mjs" "$COMMAND" "$APP" ;;
           deploy) node "$TOOLING_PATH/scripts/deploy.mjs" "$APP" ;;
           toolchain) node "$TOOLING_PATH/scripts/toolchain.mjs" "$APP" "$TOOLCHAIN_PATH" ;;
+          preview-build) node "$TOOLING_PATH/scripts/preview.mjs" build "$APP" ;;
+          preview-publish) node "$TOOLING_PATH/scripts/preview.mjs" publish ;;
+          preview-cleanup) node "$TOOLING_PATH/scripts/preview.mjs" cleanup ;;
           *) echo 'Unknown tooling command' >&2; exit 1 ;;
         esac
