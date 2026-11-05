@@ -63,9 +63,10 @@ on the next attempt. Avoid cancelling main runs; callers may cancel old PR runs.
 
 ## Releases
 
-The release workflow takes only an explicit `release-token` secret. Pass a GitHub
-App/PAT token, or explicitly pass `github.token` when repository permissions allow
-it. No secret inheritance. Release-please config, versions and changelogs stay in
+The release workflow accepts an optional explicit `release-token` override for
+a GitHub App/PAT. Otherwise it resolves the calling repository's generated
+`github.token` inside the runner job, where that token exists. The caller grants
+the required contents/issues/pull-request write permissions. No secret inheritance. Release-please config, versions and changelogs stay in
 the caller. Components release independently; no automatic merge, npm publication
 or deployment. Shared root behavior changes need app-local release notes for each
 affected component because release-please tracks component paths.
