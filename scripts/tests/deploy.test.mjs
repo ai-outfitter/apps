@@ -44,3 +44,10 @@ test("rejects malformed or insecure deployment origins before requesting credent
     await assert.rejects(requestDeployment("app",{env:{...env,OUTFITTER_URL:url},fetcher:()=>{throw Error("must not fetch");}}));
   }
 });
+
+test("an unenrolled repository fails with installation guidance instead of succeeding silently", async () => {
+  let calls=0;
+  await assert.rejects(requestDeployment("yoga-practice",{env,fetcher:async()=>++calls===1 ? json({value:"token"}) : json({},404)}),
+    /Add the repository and install yoga-practice at https:\/\/ai-outfitter\.com\/apps#app-repositories/);
+  assert.equal(calls,2);
+});

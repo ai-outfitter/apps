@@ -42,6 +42,7 @@ jobs:
       private_authorized: ${{ steps.pr.outputs.private_authorized }}
       apps: ${{ steps.plan.outputs.apps }}
       has_apps: ${{ steps.plan.outputs.has_apps }}
+      sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
     steps:
       - uses: ai-outfitter/apps@48bfd5783ebf3bae674db9a56e8afa9f7eed7175
         id: pr
@@ -105,15 +106,15 @@ jobs:
           ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
       - name: Validate public SDK pin
-        if: inputs.sdk-sha != ''
+        if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
         env:
-          SDK_SHA: ${{ inputs.sdk-sha }}
+          SDK_SHA: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
         run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
       - uses: actions/checkout@v4
-        if: inputs.sdk-sha != ''
+        if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
         with:
           repository: ai-outfitter/apps
-          ref: ${{ inputs.sdk-sha }}
+          ref: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
           path: .outfitter-sdk
           persist-credentials: false
       - uses: actions/checkout@v4

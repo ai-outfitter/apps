@@ -27,6 +27,8 @@ export async function requestDeployment(app, { env = process.env, fetcher = fetc
     body: JSON.stringify({ apps: [app] }),
     signal: AbortSignal.timeout(60_000),
   });
+  if (response.status === 404)
+    throw new Error(`No installed apps match this repository. Add the repository and install ${app} at ${destination.origin}/apps#app-repositories; for an older installation, press Update once.`);
   assert.ok(response.ok, `Deployment request failed (${response.status})`);
   const result = await response.json();
   for (const key of ["started", "unchanged", "failed"])

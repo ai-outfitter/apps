@@ -57,3 +57,14 @@ test('script validation requires the caller lockfile and executes caller command
  runApp(a,root,config);
  assert.ok(existsSync(join(root,a,'tested.txt')));
 }));
+
+test('SDK source pins must be immutable commits',()=>{
+ const root=mkdtempSync(join(tmpdir(),'sdk-pin-'));
+ try {
+  mkdirSync(join(root,'.outfitter'));
+  writeFileSync(join(root,'.outfitter/apps.json'),JSON.stringify({sdkSha:'a'.repeat(40)}));
+  assert.equal(loadConfig(root).sdkSha,'a'.repeat(40));
+  writeFileSync(join(root,'.outfitter/apps.json'),JSON.stringify({sdkSha:'main'}));
+  assert.throws(()=>loadConfig(root),/sdkSha must pin/);
+ } finally {rmSync(root,{recursive:true,force:true});}
+});

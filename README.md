@@ -73,7 +73,8 @@ or deployment. Shared root behavior changes need app-local release notes for eac
 affected component because release-please tracks component paths.
 
 Keep release and deploy as separate caller jobs after the check job. The caller
-chooses triggers, enablement, permissions, secrets and deployment environments.
+chooses triggers, permissions and deployment environments. Successful default-branch
+app checks should call deployment directly; no deployment enablement flag is needed.
 
 ## SaaS and self-hosted auto deployment
 
@@ -83,6 +84,26 @@ for a self-hosted origin. Supply a runner label that can reach private hosts;
 GitHub-hosted runners need a publicly reachable HTTPS destination. The caller
 explicitly grants `contents: read` and `id-token: write`. The deployment job uses
 that caller's environment and OIDC repository identity.
+
+A minimal caller adds deployment after its app-check job:
+
+```yaml
+deploy:
+  needs: apps
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.has_apps == 'true'
+  permissions:
+    contents: read
+    id-token: write
+  uses: ai-outfitter/apps/.github/workflows/deploy.yml@REVIEWED_COMMIT_SHA
+  with:
+    apps: ${{ needs.apps.outputs.apps }}
+```
+
+SaaS is the default, with no platform deployment secret, enablement flag or extra
+wrapper. Before the first automatic update, connect the calling repository and
+install its apps in the destination's Apps settings. That records the destination
+owner and installer authority. For self-hosting, pass `destination`; networking
+and the instance's runtime remain that instance's responsibility.
 
 The existing platform contract landed in
 [webapp #625](https://github.com/ai-outfitter/webapp/pull/625): request a GitHub
@@ -168,9 +189,9 @@ has its existing copy during the consumer migration; removing it is a separate
 platform change.
 
 Until npm trusted publishing is configured, consumers check out this public repo
-at a full reviewed `sdk-sha` into `.outfitter-sdk` and include
+at the full reviewed `sdkSha` in `.outfitter/apps.json` into `.outfitter-sdk` and include
 `.outfitter-sdk/packages/*` in npm workspaces. A committed lockfile pins the
-dependency graph. Both shared `check.yml` and `preview.yml` accept that SDK pin;
+dependency graph. Both shared `check.yml` and `preview.yml` read that SDK pin from caller config;
 no private repository key is needed. Run `npm ci`, `npm run check:sdk` and
 `npm run test:sdk` here.
 
@@ -179,3 +200,7 @@ package independently; the node-workspace plugin updates dependent package pins.
 Merging a release PR creates component tags and GitHub Releases, with public
 `npm pack` archives attached by the same job. Registry publication to npm is not
 configured yet. App versions and changelogs remain in their app repositories.
+
+Pin the SDK once as `sdkSha` in `.outfitter/apps.json`. Check/preview workflows
+and the platform repository build adapter use the same commit and root lockfile.
+The optional workflow `sdk-sha` input remains an explicit override for existing callers.

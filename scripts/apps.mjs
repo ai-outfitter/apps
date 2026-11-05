@@ -7,6 +7,7 @@ const read = (root, path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'
 const deps = pkg => Object.keys({...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies, ...pkg.optionalDependencies});
 export function loadConfig(root = process.cwd(), path = process.env.CONFIG_PATH || '.outfitter/apps.json') {
   const config = existsSync(resolve(root, path)) ? read(root, path) : {};
+  if (config.sdkSha !== undefined) assert.match(config.sdkSha, /^[a-f0-9]{40}$/, 'sdkSha must pin a public SDK commit');
   for (const key of ['appGlobs','sharedInputs','commands'])
     if (config[key] !== undefined) assert.ok(Array.isArray(config[key]) && config[key].every(x => typeof x === 'string' && x.length), `Invalid ${key}`);
   for (const command of config.commands || []) assert.match(command, /^[\w:.-]+$/, 'Commands must name package scripts');
@@ -93,7 +94,7 @@ if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)
   assert.ok(apps.length,'No apps discovered');
   if (command==='plan') {
     const selected=affectedApps(apps,changedFiles(),config);
-    const outputs={apps:JSON.stringify(selected),has_apps:String(selected.length>0),validation:config.validation};
+    const outputs={apps:JSON.stringify(selected),has_apps:String(selected.length>0),validation:config.validation,sdk_sha:config.sdkSha || ''};
     console.log(JSON.stringify(outputs));
     if(process.env.GITHUB_OUTPUT) for(const [k,v] of Object.entries(outputs)) appendFileSync(process.env.GITHUB_OUTPUT,`${k}=${v}\n`);
   } else if(command==='check' || command==='run') {
