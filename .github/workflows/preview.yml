@@ -43,6 +43,7 @@ jobs:
         id: pr
         with:
           command: preview-plan
+          build-mode: ${{ inputs.build-mode }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pull-request }}
