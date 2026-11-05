@@ -13,10 +13,12 @@ separately; when Action code changes, commit it and update these pins in a follo
 commit. Dependabot groups Action upgrades. Do not publish major tooling/app
 versions or use breaking-change commits without explicit authorization.
 Metadata validation is not full app validation. Deployment acceptance is not
-activation. Never put private SDK checkout credentials in public PR checks.
+activation. Private SDK preview access requires reviewed dispatch or explicit caller
+authorization of both the same-repository PR author and triggering actor.
 
 PR previews use demo packages only. Keep build and publication jobs separate;
 never expose hosting credentials to app builds. The private SDK preview adapter
-is manual-dispatch-only against a reviewed PR head with a read-only deploy key.
-Do not call a manually reviewed private-SDK build automatic PR publishing. Verify
+uses a read-only deploy key and a pinned toolchain. Automatic private SDK builds
+require both author and triggering actor in the caller's explicit allowlist; forks
+and untrusted authors never receive private checkout access. Verify
 the served source SHA and actual page/assets before reporting a preview as live.

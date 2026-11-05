@@ -144,11 +144,14 @@ Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
 installation destinations remain the separate main-branch deploy workflow.
 Fork code is not imported automatically.
 
-While the SDK is private, the optional `toolchain` preview adapter accepts only
-`workflow_dispatch`, a reviewed current PR head, a pinned `toolchain-sha`, and a
+While the SDK is private, the optional `toolchain` preview adapter requires
+a reviewed manual dispatch or both the same-repository PR author and triggering
+actor in the explicit `trusted-build-actors` JSON allowlist. It also requires a
+pinned `toolchain-sha` and a
 repository-read-only `OUTFITTER_TOOLCHAIN_SSH_KEY` in the separate `preview-build`
 environment. It runs the existing private adapter's checks/tests/packaging, then
 builds the demo mode. No Cloudflare credential is available during that build.
-This is a temporary manual step for personal apps, not automatic unreviewed
-private-SDK execution. Closing such a PR still runs cleanup automatically. The
-SDK-free official example demonstrates fully automatic PR publishing.
+The default allowlist is empty. Personal repositories can opt their trusted
+authors into automatic builds without waiting for SDK publication. Untrusted
+authors and forks cannot use private source access. Closing a PR still runs
+cleanup automatically.

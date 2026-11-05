@@ -11,6 +11,10 @@ on:
       build-mode:
         type: string
         default: package
+      trusted-build-actors:
+        description: Explicit actor and PR-author allowlist for automatic private SDK builds
+        type: string
+        default: '[]'
       toolchain-sha:
         type: string
         default: ''
@@ -31,22 +35,20 @@ jobs:
     outputs:
       sha: ${{ steps.pr.outputs.sha }}
       closed: ${{ steps.pr.outputs.closed }}
+      private_authorized: ${{ steps.pr.outputs.private_authorized }}
       apps: ${{ steps.plan.outputs.apps }}
       has_apps: ${{ steps.plan.outputs.has_apps }}
     steps:
-      - uses: actions/github-script@v7
+      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
         id: pr
-        env:
-          PR_NUMBER: ${{ inputs.pull-request }}
-          BUILD_MODE: ${{ inputs.build-mode }}
-          TOOLCHAIN_SHA: ${{ inputs.toolchain-sha }}
         with:
-          script: |
-            const {data: pr} = await github.rest.pulls.get({...context.repo, pull_number: Number(process.env.PR_NUMBER)});
-            if (pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) throw Error('Fork previews require a separate reviewed import');
-            if (!['package','toolchain'].includes(process.env.BUILD_MODE)) throw Error('Unknown preview build mode');
-            if (process.env.BUILD_MODE === 'toolchain' && pr.state !== 'closed' && (context.eventName !== 'workflow_dispatch' || !/^[a-f0-9]{40}$/.test(process.env.TOOLCHAIN_SHA))) throw Error('Private SDK previews require manual dispatch and pinned toolchain');
-            core.setOutput('sha',pr.head.sha); core.setOutput('base',pr.base.sha); core.setOutput('closed',pr.state === 'closed');
+          command: preview-plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull-request }}
+          PREVIEW_BUILD_MODE: ${{ inputs.build-mode }}
+          TOOLCHAIN_SHA: ${{ inputs.toolchain-sha }}
+          TRUSTED_BUILD_ACTORS: ${{ inputs.trusted-build-actors }}
       - uses: actions/checkout@v4
         if: steps.pr.outputs.closed != 'true'
         with:
@@ -60,7 +62,7 @@ jobs:
           BASE: ${{ steps.pr.outputs.base }}
           HEAD: ${{ steps.pr.outputs.sha }}
         run: echo "sha=$(git merge-base "$BASE" "$HEAD")" >> "$GITHUB_OUTPUT"
-      - uses: ai-outfitter/apps@c4a6e0ddfddb07ab6ba5119e441b22de7d1a736f
+      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
         if: steps.pr.outputs.closed != 'true'
         id: plan
         with:
@@ -99,7 +101,7 @@ jobs:
         if: inputs.build-mode == 'toolchain'
         run: npm ci
         working-directory: .preview-toolchain
-      - uses: ai-outfitter/apps@c4a6e0ddfddb07ab6ba5119e441b22de7d1a736f
+      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
         with:
           command: preview-build
           app: ${{ matrix.app }}
@@ -108,6 +110,7 @@ jobs:
           config-path: ${{ inputs.config-path }}
         env:
           SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          PRIVATE_PREVIEW_AUTHORIZED: ${{ needs.plan.outputs.private_authorized }}
       - uses: actions/upload-artifact@v4
         with:
           name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
@@ -141,7 +144,7 @@ jobs:
         with:
           name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: .outfitter-preview
-      - uses: ai-outfitter/apps@c4a6e0ddfddb07ab6ba5119e441b22de7d1a736f
+      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
         id: publish
         with:
           command: preview-publish
@@ -175,7 +178,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview-publish
     steps:
-      - uses: ai-outfitter/apps@c4a6e0ddfddb07ab6ba5119e441b22de7d1a736f
+      - uses: ai-outfitter/apps@8946e9585325eb252211a74ab52af440a0605469
         with:
           command: preview-cleanup
         env:
