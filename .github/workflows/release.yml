@@ -10,7 +10,7 @@ on:
         default: .release-please-manifest.json
     secrets:
       release-token:
-        required: true
+        required: false
 permissions:
   contents: write
   issues: write
@@ -23,12 +23,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
-      - name: Require explicit token
+      - name: Require release token
         env:
-          RELEASE_TOKEN: ${{ secrets.release-token }}
+          RELEASE_TOKEN: ${{ secrets.release-token || github.token }}
         run: test -n "$RELEASE_TOKEN"
       - uses: googleapis/release-please-action@v4
         with:
-          token: ${{ secrets.release-token }}
+          token: ${{ secrets.release-token || github.token }}
           config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
