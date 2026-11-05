@@ -1,0 +1,74 @@
+name: Outfitter app tooling
+description: Run versioned tooling independently of the caller checkout
+inputs:
+  command:
+    description: plan, check, run, deploy, toolchain or preview commands
+    required: true
+  app:
+    description: App path relative to the source checkout
+    default: ''
+  config-path:
+    description: Configuration relative to the source checkout
+    default: .outfitter/apps.json
+  build-mode:
+    description: package or temporary private toolchain preview adapter
+    default: package
+  source-path:
+    description: Caller checkout directory
+    default: .
+  toolchain-path:
+    description: Absolute path to disposable private SDK checkout (optional adapter)
+    default: ''
+outputs:
+  sha:
+    description: Verified PR head commit
+    value: ${{ steps.execute.outputs.sha }}
+  base:
+    description: Verified PR base commit
+    value: ${{ steps.execute.outputs.base }}
+  closed:
+    description: Whether the PR is closed
+    value: ${{ steps.execute.outputs.closed }}
+  private_authorized:
+    description: Whether the planner authorized private SDK source access
+    value: ${{ steps.execute.outputs.private_authorized }}
+  url:
+    description: Verified preview URL
+    value: ${{ steps.execute.outputs.url }}
+  apps:
+    description: Selected app paths as JSON
+    value: ${{ steps.execute.outputs.apps }}
+  has_apps:
+    description: Whether any apps were selected
+    value: ${{ steps.execute.outputs.has_apps }}
+  validation:
+    description: metadata or scripts
+    value: ${{ steps.execute.outputs.validation }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - id: execute
+      shell: bash
+      working-directory: ${{ inputs.source-path }}
+      env:
+        TOOLING_PATH: ${{ github.action_path }}
+        COMMAND: ${{ inputs.command }}
+        APP: ${{ inputs.app }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        PREVIEW_BUILD_MODE: ${{ inputs.build-mode }}
+        TOOLCHAIN_PATH: ${{ inputs.toolchain-path }}
+      run: |
+        case "$COMMAND" in
+          plan) node "$TOOLING_PATH/scripts/apps.mjs" plan ;;
+          check|run) node "$TOOLING_PATH/scripts/apps.mjs" "$COMMAND" "$APP" ;;
+          deploy) node "$TOOLING_PATH/scripts/deploy.mjs" "$APP" ;;
+          toolchain) node "$TOOLING_PATH/scripts/toolchain.mjs" "$APP" "$TOOLCHAIN_PATH" ;;
+          preview-plan) node "$TOOLING_PATH/scripts/preview.mjs" plan ;;
+          preview-build) node "$TOOLING_PATH/scripts/preview.mjs" build "$APP" ;;
+          preview-publish) node "$TOOLING_PATH/scripts/preview.mjs" publish ;;
+          preview-cleanup) node "$TOOLING_PATH/scripts/preview.mjs" cleanup ;;
+          *) echo 'Unknown tooling command' >&2; exit 1 ;;
+        esac

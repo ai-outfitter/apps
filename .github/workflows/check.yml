@@ -1,0 +1,104 @@
+name: App checks
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        type: string
+        default: .outfitter/apps.json
+      baseline-workflow:
+        description: Calling workflow file used to find last successful push
+        type: string
+        default: ci.yml
+    outputs:
+      apps:
+        description: Affected app paths
+        value: ${{ jobs.plan.outputs.apps }}
+      has_apps:
+        description: Whether apps were selected
+        value: ${{ jobs.plan.outputs.has_apps }}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.plan.outputs.apps }}
+      has_apps: ${{ steps.plan.outputs.has_apps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Last successful caller push
+        if: github.event_name == 'push'
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_WORKFLOW: ${{ inputs.baseline-workflow }}
+          BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          [[ "$BASELINE_WORKFLOW" =~ ^[a-zA-Z0-9._-]+\.ya?ml$ ]]
+          base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$BASELINE_WORKFLOW/runs" \
+            -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
+            --jq '.workflow_runs[0].head_sha // empty') || base=
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - id: plan
+        uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: plan
+          config-path: ${{ inputs.config-path }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || steps.baseline.outputs.sha }}
+          HEAD_SHA: ${{ github.sha }}
+  app:
+    name: App validation (${{ matrix.app }})
+    needs: plan
+    if: needs.plan.outputs.has_apps == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: config
+        uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: plan
+          config-path: ${{ inputs.config-path }}
+      - uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        with:
+          command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
+          app: ${{ matrix.app }}
+          config-path: ${{ inputs.config-path }}
+      - name: Record validation provenance
+        env:
+          APP: ${{ matrix.app }}
+          VALIDATION: ${{ steps.config.outputs.validation }}
+          TOOLING_SHA: bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71
+        run: |
+          node --input-type=module -e 'import{writeFileSync}from"node:fs";writeFileSync("outfitter-provenance.json",JSON.stringify({app:process.env.APP,validation:process.env.VALIDATION,sourceRepository:process.env.GITHUB_REPOSITORY,sourceSha:process.env.GITHUB_SHA,toolingSha:process.env.TOOLING_SHA,runId:process.env.GITHUB_RUN_ID},null,2))'
+          echo "App: $APP. Validation: $VALIDATION. Metadata checks do not certify app runtime, tests or builds." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-validation-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: outfitter-provenance.json
+          if-no-files-found: error
+  gate:
+    name: CI gate
+    if: always()
+    needs: [plan, app]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          PLAN: ${{ needs.plan.result }}
+          HAS_APPS: ${{ needs.plan.outputs.has_apps }}
+          APPS: ${{ needs.app.result }}
+        run: |
+          test "$PLAN" = success
+          if [ "$HAS_APPS" = true ]; then test "$APPS" = success; fi
