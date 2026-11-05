@@ -1,7 +1,11 @@
-# Shared app tooling
+# Official Outfitter apps and shared tooling
 
-Own reusable Actions, workflow orchestration and tooling tests here. App source,
-domain tests, lockfiles and release manifests belong to caller repositories.
+This repository will host official apps under `apps/<app>/` alongside reusable
+Actions, workflow orchestration and tooling tests. Keep domain tests, fixtures,
+migrations and release metadata with each official app. Personal apps remain in
+external caller repositories and use the same shared tooling. Migrate official
+apps separately after establishing the workflows; keep platform/SDK code outside
+this repository. Preserve independent app checks and releases as apps arrive.
 Run `npm test` and actionlint before pushing. Test flat personal and workspace
 organization layouts. Never assume package scope, modes, or browser tests.
 Pin workflow references to reviewed commits. Workflows pin the shared Action

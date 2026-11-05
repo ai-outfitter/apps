@@ -1,8 +1,26 @@
 # Outfitter apps
 
-Reusable CI, releases and deployment tooling for personal and organization app
-repositories. App source and app-owned tests stay with their repositories. This
-repository does not publish the SDK or migrate apps out of the platform.
+Home for official Outfitter apps and the reusable CI, release and deployment
+tooling used by personal and organization app repositories.
+
+Official app source will live under `apps/<app>/`, with each app's domain tests,
+fixtures, migrations and release metadata. Personal apps stay in their owners'
+repositories and consume the same shared workflows. This PR establishes the
+tooling first; official app migration follows separately. The platform and SDK
+remain a separate repository boundary.
+
+Planned layout:
+
+```text
+apps/                 Official apps, each checked and released independently
+.github/workflows/    Shared workflows and this repository's CI
+scripts/              Shared tooling implementation and its tests
+action.yml            Reusable tooling Action
+```
+
+The official apps will use the same affected-app matrix and independent release
+components as external repositories. Adding them must not make tooling-only
+changes rebuild or deploy every app by default.
 
 Call `.github/workflows/check.yml`, `release.yml` and `deploy.yml` at a reviewed
 commit SHA. The workflows use the versioned composite Action in this repository;
