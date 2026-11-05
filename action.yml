@@ -20,6 +20,18 @@ inputs:
     description: Absolute path to disposable private SDK checkout (optional adapter)
     default: ''
 outputs:
+  sha:
+    description: Verified PR head commit
+    value: ${{ steps.execute.outputs.sha }}
+  base:
+    description: Verified PR base commit
+    value: ${{ steps.execute.outputs.base }}
+  closed:
+    description: Whether the PR is closed
+    value: ${{ steps.execute.outputs.closed }}
+  private_authorized:
+    description: Whether the planner authorized private SDK source access
+    value: ${{ steps.execute.outputs.private_authorized }}
   url:
     description: Verified preview URL
     value: ${{ steps.execute.outputs.url }}
