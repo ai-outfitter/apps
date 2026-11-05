@@ -54,6 +54,7 @@ runs:
           check|run) node "$TOOLING_PATH/scripts/apps.mjs" "$COMMAND" "$APP" ;;
           deploy) node "$TOOLING_PATH/scripts/deploy.mjs" "$APP" ;;
           toolchain) node "$TOOLING_PATH/scripts/toolchain.mjs" "$APP" "$TOOLCHAIN_PATH" ;;
+          preview-plan) node "$TOOLING_PATH/scripts/preview.mjs" plan ;;
           preview-build) node "$TOOLING_PATH/scripts/preview.mjs" build "$APP" ;;
           preview-publish) node "$TOOLING_PATH/scripts/preview.mjs" publish ;;
           preview-cleanup) node "$TOOLING_PATH/scripts/preview.mjs" cleanup ;;

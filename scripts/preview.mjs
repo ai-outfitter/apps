@@ -10,6 +10,32 @@ import {checkApp,loadConfig} from './apps.mjs';
 const shaPattern=/^[a-f0-9]{40}$/;
 const run=(command,args,cwd=process.cwd())=>execFileSync(command,args,{cwd,stdio:'inherit'});
 const read=path=>JSON.parse(readFileSync(path,'utf8'));
+export async function planPreview(env=process.env,fetcher=fetch) {
+  const repository=env.GITHUB_REPOSITORY;
+  assert.match(repository || '',/^[\w.-]+\/[\w.-]+$/);
+  assert.match(env.PR_NUMBER || '',/^[1-9]\d*$/);
+  assert.ok(env.GH_TOKEN,'Missing repository metadata token');
+  const response=await fetcher(`https://api.github.com/repos/${repository}/pulls/${env.PR_NUMBER}`,{
+    headers:{Authorization:`Bearer ${env.GH_TOKEN}`,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(30_000)});
+  assert.ok(response.ok,`Cannot resolve PR source (${response.status})`);
+  const pr=await response.json();
+  assert.equal(pr.head.repo?.full_name?.toLowerCase(),repository.toLowerCase(),'Fork previews require a separate reviewed import');
+  assert.match(pr.head.sha,shaPattern);assert.match(pr.base.sha,shaPattern);
+  const mode=env.PREVIEW_BUILD_MODE || 'package';assert.ok(['package','toolchain'].includes(mode));
+  const closed=pr.state==='closed';let privateAuthorized=false;
+  if(mode==='toolchain' && !closed) {
+    assert.match(env.TOOLCHAIN_SHA || '',shaPattern,'Private SDK requires a pinned toolchain');
+    const trusted=JSON.parse(env.TRUSTED_BUILD_ACTORS || '[]');
+    assert.ok(Array.isArray(trusted) && trusted.every(actor=>typeof actor==='string' && actor.length),'Invalid trusted build actor list');
+    const allowed=actor=>typeof actor==='string' && trusted.some(name=>name.toLowerCase()===actor.toLowerCase());
+    privateAuthorized=env.GITHUB_EVENT_NAME==='workflow_dispatch' ||
+      (env.GITHUB_EVENT_NAME==='pull_request' && allowed(env.GITHUB_ACTOR) && allowed(pr.user?.login));
+    assert.ok(privateAuthorized,'Private SDK preview requires a reviewed dispatch or an explicitly trusted PR author and triggering actor');
+  }
+  const outputs={sha:pr.head.sha,base:pr.base.sha,closed:String(closed),private_authorized:String(privateAuthorized)};
+  if(env.GITHUB_OUTPUT) for(const [key,value] of Object.entries(outputs)) appendFileSync(env.GITHUB_OUTPUT,`${key}=${value}\n`);
+  return outputs;
+}
 export function previewIdentity(repositoryId,number,app) {
   assert.match(String(repositoryId),/^[1-9]\d*$/); assert.match(String(number),/^[1-9]\d*$/);
   assert.ok(typeof app==='string' && app.length && app.length<256);
@@ -69,7 +95,7 @@ export function buildPreview(app,env=process.env) {
   const source={repository:env.SOURCE_REPOSITORY || env.GITHUB_REPOSITORY,sha,app};
   let packagePath;
   if(env.PREVIEW_BUILD_MODE==='toolchain') {
-    assert.equal(env.GITHUB_EVENT_NAME,'workflow_dispatch','Private SDK builds require a manually reviewed source commit');
+    assert.ok(env.GITHUB_EVENT_NAME==='workflow_dispatch' || (env.GITHUB_EVENT_NAME==='pull_request' && env.PRIVATE_PREVIEW_AUTHORIZED==='true'),'Private SDK build was not authorized by the trusted preview planner');
     const toolchain=resolve(env.TOOLCHAIN_PATH || '');assert.ok(existsSync(join(toolchain,'scripts/build-app-repository.mjs')),'Missing private toolchain');
     const slug=selected.manifest?.catalog?.demo?.slug || app.split('/').at(-1);
     assert.match(slug,/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -147,7 +173,8 @@ export async function cleanupPreviews(env=process.env) {
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const [command,app]=process.argv.slice(2);
-  if(command==='build') buildPreview(app);
+  if(command==='plan') await planPreview();
+  else if(command==='build') buildPreview(app);
   else if(command==='publish') await publishPreview();
   else if(command==='cleanup') await cleanupPreviews();
   else throw Error('Usage: preview.mjs build APP|publish|cleanup');
