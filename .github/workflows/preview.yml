@@ -45,7 +45,7 @@ jobs:
             const {data: pr} = await github.rest.pulls.get({...context.repo, pull_number: Number(process.env.PR_NUMBER)});
             if (pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) throw Error('Fork previews require a separate reviewed import');
             if (!['package','toolchain'].includes(process.env.BUILD_MODE)) throw Error('Unknown preview build mode');
-            if (process.env.BUILD_MODE === 'toolchain' && (context.eventName !== 'workflow_dispatch' || !/^[a-f0-9]{40}$/.test(process.env.TOOLCHAIN_SHA))) throw Error('Private SDK previews require manual dispatch and pinned toolchain');
+            if (process.env.BUILD_MODE === 'toolchain' && pr.state !== 'closed' && (context.eventName !== 'workflow_dispatch' || !/^[a-f0-9]{40}$/.test(process.env.TOOLCHAIN_SHA))) throw Error('Private SDK previews require manual dispatch and pinned toolchain');
             core.setOutput('sha',pr.head.sha); core.setOutput('base',pr.base.sha); core.setOutput('closed',pr.state === 'closed');
       - uses: actions/checkout@v4
         if: steps.pr.outputs.closed != 'true'
@@ -145,6 +145,7 @@ jobs:
         id: publish
         with:
           command: preview-publish
+          app: ${{ matrix.app }}
         env:
           APP: ${{ matrix.app }}
           PR_NUMBER: ${{ inputs.pull-request }}
