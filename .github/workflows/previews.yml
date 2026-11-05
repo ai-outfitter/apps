@@ -14,7 +14,7 @@ permissions:
 jobs:
   previews:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
-    uses: ai-outfitter/apps/.github/workflows/preview.yml@705c6a99910624753a7fdbf324521b31ca04bc2b
+    uses: ai-outfitter/apps/.github/workflows/preview.yml@b8f6f3b07dbce1ab2996b0248f376ca3da7bbe6e
     with:
       pull-request: ${{ github.event.pull_request.number || inputs.pull_request }}
     secrets:
