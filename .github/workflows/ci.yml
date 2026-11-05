@@ -21,8 +21,11 @@ jobs:
         run: |
           if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo sdk=true >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$BASE" HEAD | rg '^(packages/|scripts/(check-sdk-packages|publish-sdk-archives)\.mjs$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)'; then
-            echo sdk=true >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
+            if grep -Eq '^(packages/|scripts/(check-sdk-packages|publish-sdk-archives)\.mjs$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
+              echo sdk=true >> "$GITHUB_OUTPUT"
+            fi
           fi
   sdk:
     needs: changes
