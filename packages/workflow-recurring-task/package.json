@@ -36,6 +36,7 @@
     "dist",
     "fixtures",
     "schemas",
-    "LICENSE"
+    "LICENSE",
+    "collect.ts"
   ]
 }
