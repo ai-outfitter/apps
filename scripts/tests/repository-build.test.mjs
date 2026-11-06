@@ -40,7 +40,7 @@ test('hosted demo builds retain pinned source metadata before executing app scri
     put('apps/example/.outfitter/packages/demo.json',{manifest:{id:manifest.id,version:manifest.version,mode:'demo'},artifact:{modules:{},assets:{}}});
    }
   }});
-  assert.deepEqual(calls,[['ci'],['exec','--','playwright','install','--with-deps','chromium'],['run','check'],['run','test'],['run','build']]);
+  assert.deepEqual(calls,[['ci'],['exec','--','playwright','install','chromium'],['run','check'],['run','test'],['run','build']]);
   const metadata=JSON.parse(readFileSync(join(source,'metadata.json'),'utf8'));
   assert.deepEqual(metadata.manifest,manifest);
   assert.equal(metadata.schema,1);

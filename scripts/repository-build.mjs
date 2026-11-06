@@ -49,7 +49,7 @@ export function buildRepository(source,slug,output,{mode='operational',metadataO
   if(existsSync(join(directory,'tests'))) assert.ok(selected.pkg.scripts?.test,'App tests require a test script');
   for(const command of commands) assert.ok(selected.pkg.scripts?.[command],`Missing ${command}`);
   run(['ci'],source);
-  if (selected.pkg.outfitter?.browserTests) run(['exec','--','playwright','install','--with-deps','chromium'], source);
+  if (selected.pkg.outfitter?.browserTests) run(['exec','--','playwright','install','chromium'], source);
   for(const command of commands) run(['run',command],directory);
   const bytes=readFileSync(join(directory,`.outfitter/packages/${mode}.json`));
   const built=JSON.parse(bytes);
