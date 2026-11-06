@@ -17,7 +17,7 @@
     "test": "outfitter-workflow check"
   },
   "dependencies": {
-    "@ai-outfitter/workflow-core": "0.1.1",
+    "@ai-outfitter/workflow-core": "*",
     "zod": "^4.6.5"
   }
 }
