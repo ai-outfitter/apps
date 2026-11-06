@@ -44,7 +44,7 @@ jobs:
       has_apps: ${{ steps.plan.outputs.has_apps }}
       sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
     steps:
-      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
+      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
         id: pr
         with:
           command: preview-plan
@@ -81,7 +81,7 @@ jobs:
         run: |
           base=$(git merge-base "$BASE" "$HEAD")
           echo "sha=$base" >> "$GITHUB_OUTPUT"
-      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
+      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
         if: steps.pr.outputs.closed != 'true'
         id: plan
         with:
@@ -132,7 +132,7 @@ jobs:
         if: inputs.build-mode == 'toolchain'
         run: npm ci
         working-directory: .preview-toolchain
-      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
+      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
         with:
           command: preview-build
           app: ${{ matrix.app }}
@@ -175,7 +175,7 @@ jobs:
         with:
           name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: .outfitter-preview
-      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
+      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
         id: publish
         with:
           command: preview-publish
@@ -209,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview-publish
     steps:
-      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
+      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
         with:
           command: preview-cleanup
         env:
