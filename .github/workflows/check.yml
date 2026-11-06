@@ -50,7 +50,7 @@ jobs:
             --jq '.workflow_runs[0].head_sha // empty') || base=
           echo "sha=$base" >> "$GITHUB_OUTPUT"
       - id: plan
-        uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
+        uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
         with:
           command: plan
           config-path: ${{ inputs.config-path }}
@@ -87,11 +87,11 @@ jobs:
         with:
           node-version: 24
       - id: config
-        uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
+        uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
         with:
           command: plan
           config-path: ${{ inputs.config-path }}
-      - uses: ai-outfitter/apps@0aec26e694bfe20eea4bdae12b073a59c11416d3
+      - uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
         with:
           command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
           app: ${{ matrix.app }}
