@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {gzipSync} from 'node:zlib';
 import {previewIdentity,validateBundle,previewWorker,planPreview} from '../preview.mjs';
 const source={repository:'owner/apps',sha:'a'.repeat(40),app:'apps/hello'};
 const bundle=()=>({schema:1,source,manifest:{mode:'demo',capabilities:[]},artifact:{mainModule:'entry.mjs',compatibilityDate:'2026-09-29',modules:{'entry.mjs':'export default {}'},assets:{}}});
@@ -37,4 +38,11 @@ test('manual builds and closed cleanup remain available; forks never gain SDK ac
  assert.equal((await planPreview({...planEnv,GITHUB_EVENT_NAME:'workflow_dispatch',TRUSTED_BUILD_ACTORS:'[]'},metadata(pr()))).private_authorized,'true');
  const fork=pr();fork.head.repo.full_name='outsider/apps';await assert.rejects(planPreview(planEnv,metadata(fork)));
  const closed=pr();closed.state='closed';assert.equal((await planPreview({...planEnv,GITHUB_ACTOR:'outsider',TRUSTED_BUILD_ACTORS:'[]'},metadata(closed))).closed,'true');
+});
+
+test('compressed CAD assets respect the Workers per-file limit',()=>{
+ const b=bundle();b.artifact.assets['/model.wasm']={content:gzipSync(Buffer.alloc(23*1024*1024)).toString('base64'),encoding:'gzip'};
+ validateBundle(b,source);
+ b.artifact.assets['/model.wasm'].content=gzipSync(Buffer.alloc(26*1024*1024)).toString('base64');
+ assert.throws(()=>validateBundle(b,source));
 });

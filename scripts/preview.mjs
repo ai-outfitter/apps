@@ -8,6 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {gunzipSync} from 'node:zlib';
 import {checkApp,loadConfig} from './apps.mjs';
 const shaPattern=/^[a-f0-9]{40}$/;
+// Match the Workers static asset limit, including decompressed WASM.
+const maxAssetBytes=25*1024*1024;
 const run=(command,args,cwd=process.cwd())=>execFileSync(command,args,{cwd,stdio:'inherit'});
 const read=path=>JSON.parse(readFileSync(path,'utf8'));
 export async function planPreview(env=process.env,fetcher=fetch) {
@@ -65,10 +67,11 @@ export function validateBundle(bundle,expected) {
   }
   for(const [name,value] of Object.entries(artifact.assets)) {
     assert.ok(name.startsWith('/'));path(name.slice(1));
-    assert.equal(typeof value.content,'string');assert.ok(value.content.length<=28*1024*1024);
+    assert.equal(typeof value.content,'string');assert.ok(value.content.length<=Math.ceil(maxAssetBytes/3)*4);
     assert.ok(value.encoding===undefined || value.encoding==='gzip');
     const data=Buffer.from(value.content,'base64');
-    bytes+=(value.encoding==='gzip'?gunzipSync(data,{maxOutputLength:20*1024*1024}):data).length;
+    const size=(value.encoding==='gzip'?gunzipSync(data,{maxOutputLength:maxAssetBytes}):data).length;
+    assert.ok(size<=maxAssetBytes,'Preview asset exceeds size limit');bytes+=size;
   }
   assert.ok(bytes<=100*1024*1024,'Preview artifact exceeds size limit');
   return bundle;
@@ -141,7 +144,7 @@ export async function publishPreview(env=process.env) {
     const put=(path,content)=>{const dest=join(temporary,path);mkdirSync(dirname(dest),{recursive:true});writeFileSync(dest,content);};
     for(const [path,source] of Object.entries(bundle.artifact.modules)) put(`app/${path}`,source);
     for(const [path,value] of Object.entries(bundle.artifact.assets)) {
-      const bytes=Buffer.from(value.content,'base64');put(`assets/${path.slice(1)}`,value.encoding==='gzip'?gunzipSync(bytes,{maxOutputLength:20*1024*1024}):bytes);
+      const bytes=Buffer.from(value.content,'base64');put(`assets/${path.slice(1)}`,value.encoding==='gzip'?gunzipSync(bytes,{maxOutputLength:maxAssetBytes}):bytes);
     }
     mkdirSync(join(temporary,'assets'),{recursive:true});
     put('entry.mjs',previewWorker(bundle.artifact.mainModule,source));
