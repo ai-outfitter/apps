@@ -37,7 +37,7 @@ export function buildRepository(source,slug,output,{mode='operational',metadataO
   assert.ok(['demo', 'operational'].includes(mode), 'Invalid build mode');
   source=resolve(source);
   const config=loadConfig(source);
-  const matches=discoverApps(source,config).filter(app=>(app.manifest?.slug || app.manifest?.catalog?.operational?.slug || basename(app.slug))===slug);
+  const matches=discoverApps(source,config).filter(app=>(app.manifest?.slug || app.manifest?.catalog?.operational?.slug || app.manifest?.catalog?.demo?.slug || basename(app.slug))===slug);
   assert.equal(matches.length,1,'Expected exactly one selected app');
   const selected=matches[0];
   checkApp(selected.slug,source,config);

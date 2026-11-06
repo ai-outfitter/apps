@@ -29,11 +29,11 @@ test('hosted demo builds retain pinned source metadata before executing app scri
  try {
   put('package.json',{workspaces:['apps/*']});put('package-lock.json',{});
   put('apps/example/package.json',{name:'example',version:'0.1.0',scripts:{check:'check',test:'test',build:'build'},outfitter:{browserTests:true}});
-  const manifest={id:'outfitter/example',version:'0.1.0',modes:{demo:{}},catalog:{demo:{slug:'example'},cover:'catalog/cover.webp'}};
+  const manifest={id:'outfitter/demo-only',version:'0.1.0',modes:{demo:{}},catalog:{demo:{slug:'demo-only'},cover:'catalog/cover.webp'}};
   put('apps/example/app.json',manifest);put('apps/example/graph/schema.graphql','type Query { hello: String }');
   put('apps/example/graph/documents.json',{queries:[]});put('apps/example/catalog/cover.webp','image-bytes');
   const calls=[];
-  buildRepository(source,'example',join(source,'built.json'),{mode:'demo',metadataOutput:join(source,'metadata.json'),run:(args)=>{
+  buildRepository(source,'demo-only',join(source,'built.json'),{mode:'demo',metadataOutput:join(source,'metadata.json'),run:(args)=>{
    calls.push(args);
    if(args[1]==='build') {
     put('apps/example/graph/schema.graphql','tampered during build');
@@ -46,7 +46,7 @@ test('hosted demo builds retain pinned source metadata before executing app scri
   assert.equal(metadata.schema,1);
   assert.equal(Buffer.from(metadata.files[0].base64,'base64').toString(),'type Query { hello: String }');
   assert.equal(metadata.files.find(file=>file.path==='catalog/cover.webp').contentType,'image/webp');
-  assert.throws(()=>buildRepository(source,'example',join(source,'bad.json'),{mode:'operational',run:()=>{throw Error('must not run');}}),/does not support/);
+  assert.throws(()=>buildRepository(source,'demo-only',join(source,'bad.json'),{mode:'operational',run:()=>{throw Error('must not run');}}),/does not support/);
  } finally {rmSync(source,{recursive:true,force:true});}
 });
 

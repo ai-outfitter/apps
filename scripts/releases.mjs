@@ -11,7 +11,7 @@ export function releaseEvents(outputs, {root = process.cwd(), config = loadConfi
   assert.ok(Array.isArray(paths) && paths.every(path => typeof path === 'string'), 'Invalid released paths');
   return paths.map(path => {
     const selected = checkApp(path, root, config);
-    const app = selected.manifest?.slug || selected.manifest?.catalog?.operational?.slug || path.split('/').at(-1);
+    const app = selected.manifest?.slug || selected.manifest?.catalog?.operational?.slug || selected.manifest?.catalog?.demo?.slug || path.split('/').at(-1);
     assert.match(app, slugPattern, 'Invalid app slug');
     const prefix = path === '.' ? '' : `${path}--`;
     const tag = outputs[`${prefix}tag_name`];

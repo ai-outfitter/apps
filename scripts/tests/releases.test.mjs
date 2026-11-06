@@ -25,6 +25,9 @@ for (const path of ['example', 'apps/example']) test(`release-please outputs sel
     assert.deepEqual(releaseEvents(outputs, {...options, config: {...options.config, releaseTargets: {}}})[0].targets, []);
     assert.throws(() => releaseEvents({...outputs, [`${path}--sha`]: ''}, options), /immutable commit/);
     assert.throws(() => releaseEvents({...outputs, [`${path}--tag_name`]: ''}, options), /return a tag/);
+    put(`${path}/app.json`, {version: '1.2.3', catalog: {demo: {slug: 'demo-only'}}});
+    const demo = releaseEvents(outputs, {...options, config: {...options.config, releaseTargets: {}}});
+    assert.equal(demo[0].app, 'demo-only');
   } finally {rmSync(root, {recursive: true, force: true});}
 });
 
