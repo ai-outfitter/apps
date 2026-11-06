@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "requestId": "6f1c2b8e-3d4a-4f5b-9c6d-7e8f9a0b1c2d",
+  "kind": "feature",
+  "title": "Export a filtered report as CSV",
+  "problem": "Teams rebuild the same filtered report by hand every week.",
+  "acceptanceCriteria": [
+    { "id": "export-button", "text": "The report page has an Export CSV button." },
+    { "id": "filtered-rows", "text": "The CSV contains only the rows the current filter shows." }
+  ],
+  "delivery": "pull_request",
+  "release": { "trigger": true, "bump": "minor" }
+}
