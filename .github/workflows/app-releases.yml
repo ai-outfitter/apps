@@ -2,6 +2,12 @@ name: Official app releases
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: JSON array of existing releases to notify again
+        required: true
+        type: string
 permissions:
   contents: write
   issues: write
@@ -14,5 +20,6 @@ jobs:
       config-file: .release-please-apps.json
       manifest-file: .release-please-apps-manifest.json
       destination: ${{ vars.OUTFITTER_URL || 'https://ai-outfitter.com' }}
+      releases: ${{ inputs.releases || '' }}
     secrets:
       release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

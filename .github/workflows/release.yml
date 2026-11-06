@@ -20,6 +20,10 @@ on:
       runner:
         type: string
         default: ubuntu-latest
+      releases:
+        description: Existing release objects to notify again on manual dispatch
+        type: string
+        default: ''
     secrets:
       release-token:
         required: false
@@ -33,38 +37,41 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     outputs:
       releases: ${{ steps.events.outputs.releases || '[]' }}
     steps:
       - name: Require release token
+        if: github.event_name == 'push'
         env:
           RELEASE_TOKEN: ${{ secrets.release-token || github.token }}
         run: test -n "$RELEASE_TOKEN"
       - uses: googleapis/release-please-action@v4
         id: release
+        if: github.event_name == 'push'
         with:
           token: ${{ secrets.release-token || github.token }}
           config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
       - uses: actions/checkout@v4
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         with:
           persist-credentials: false
       - name: Select newly published app releases
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         id: events
-        uses: ai-outfitter/apps@c8eaf7710e2a8c46c145bb99dedca3240b1ea166
+        uses: ai-outfitter/apps@2075ad50ec3721517f6a3d558a3978aff650d782
         with:
           command: release-events
           config-path: ${{ inputs.config-path }}
         env:
           RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
+          RECOVERY_RELEASES: ${{ inputs.releases }}
   notify:
     needs: release
     if: needs.release.outputs.releases != '[]'
-    uses: ai-outfitter/apps/.github/workflows/notify.yml@729bd783dc5dde1859c27adba0699be6473bb1f8
+    uses: ai-outfitter/apps/.github/workflows/notify.yml@1c94394f54d501dd68d7074c7e3957342166a3e3
     permissions:
       contents: read
       id-token: write

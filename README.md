@@ -134,9 +134,12 @@ and target authority. Repeating a notification returns the existing records;
 it cannot replace an existing release's commit.
 
 If release-please succeeded but notification failed, rerun the failed notification
-job. For recovery after a whole workflow rerun, dispatch central `notify.yml`
-with `releases` set to a JSON array of the existing release objects above and the
-correct destination. Release-please may produce no new outputs on a whole rerun;
+job. For recovery after a whole workflow rerun, dispatch the calling repository's
+release workflow on its default branch with `releases` set to a JSON array of the
+existing release objects above. Its thin wrapper passes that input to shared
+`release.yml`; this preserves the calling repository's OIDC identity. Dispatching
+the central workflow directly can only register the central repo's releases.
+Release-please may produce no new outputs on a whole rerun;
 manual notification never creates a new version or rebuilds in CI. The server
 rechecks the existing release and the calling repository's authority.
 
