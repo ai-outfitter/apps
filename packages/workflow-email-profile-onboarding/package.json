@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/workflow-email-profile-onboarding",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "outfitter": {
@@ -18,7 +18,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@ai-outfitter/workflow-core": "0.1.0"
+    "@ai-outfitter/workflow-core": "0.1.1"
   },
   "license": "MIT",
   "publishConfig": {
