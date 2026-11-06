@@ -38,7 +38,7 @@ jobs:
       group: outfitter-deploy-${{ github.repository }}-${{ inputs.destination }}-${{ matrix.app }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: ai-outfitter/apps@0c19e627047a1226d0c64e4dd733672fcf394dcf
