@@ -45,7 +45,7 @@ export function validateRelease(release) {
 export async function notifyRelease(input, {env = process.env, fetcher = fetch} = {}) {
   const release = validateRelease(input);
   assert.ok(['push', 'release', 'workflow_dispatch'].includes(env.GITHUB_EVENT_NAME), 'Release notifications require a trusted release workflow');
-  if (env.GITHUB_EVENT_NAME === 'push')
+  if (env.GITHUB_EVENT_NAME === 'push' || env.GITHUB_EVENT_NAME === 'workflow_dispatch')
     assert.equal(env.GITHUB_REF, `refs/heads/${env.DEPLOY_BRANCH || 'main'}`, 'Notify only from the configured branch');
   assert.ok(env.ACTIONS_ID_TOKEN_REQUEST_TOKEN && env.ACTIONS_ID_TOKEN_REQUEST_URL, 'GitHub OIDC permission is required');
   const destination = new URL(env.OUTFITTER_URL || 'https://ai-outfitter.com');
@@ -75,7 +75,13 @@ export async function notifyRelease(input, {env = process.env, fetcher = fetch} 
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === 'events') {
-    const releases = releaseEvents(JSON.parse(process.env.RELEASE_OUTPUTS || '{}'));
+    let releases;
+    if (process.env.RECOVERY_RELEASES) {
+      assert.equal(process.env.GITHUB_EVENT_NAME, 'workflow_dispatch', 'Release recovery requires manual dispatch');
+      const requested = JSON.parse(process.env.RECOVERY_RELEASES);
+      assert.ok(Array.isArray(requested) && requested.length <= 100, 'Invalid recovery releases');
+      releases = requested.map(validateRelease);
+    } else releases = releaseEvents(JSON.parse(process.env.RELEASE_OUTPUTS || '{}'));
     const value = JSON.stringify(releases);
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `releases=${value}\nhas_releases=${releases.length > 0}\n`);
     console.log(`${releases.length} app release notifications selected`);

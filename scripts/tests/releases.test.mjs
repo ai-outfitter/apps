@@ -52,7 +52,7 @@ test('registration only requires no installation and works at self-hosted origin
 });
 
 test('untrusted events, missing credentials and invalid destinations never send requests', async () => {
-  for (const overrides of [{GITHUB_EVENT_NAME: 'pull_request'}, {GITHUB_EVENT_NAME: 'pull_request_target'}, {GITHUB_REF: 'refs/heads/other'}, {ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''}, {OUTFITTER_URL: 'http://example.org'}, {OUTFITTER_URL: 'https://user:secret@example.org'}, {OUTFITTER_URL: 'https://example.org/path'}]) {
+  for (const overrides of [{GITHUB_EVENT_NAME: 'pull_request'}, {GITHUB_EVENT_NAME: 'pull_request_target'}, {GITHUB_REF: 'refs/heads/other'}, {GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/other'}, {ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''}, {OUTFITTER_URL: 'http://example.org'}, {OUTFITTER_URL: 'https://user:secret@example.org'}, {OUTFITTER_URL: 'https://example.org/path'}]) {
     await assert.rejects(notifyRelease(release, {env: {...env, ...overrides}, fetcher: () => {throw Error('must not fetch');}}));
   }
 });
