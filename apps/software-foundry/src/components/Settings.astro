@@ -1,0 +1,25 @@
+---
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import SettingsRow from "@ai-outfitter/ui/astro/SettingsRow.astro";
+---
+<Section id="projects-heading" title="Projects">
+<p>A project groups available repositories. The first project is the highest priority and opens the dashboard.</p>
+<ol id="project-list" class="project-list"></ol>
+<p id="project-list-empty" role="status">Loading projects…</p>
+<form id="project-form" class="project-form" hidden>
+<label for="project-name">Name <input id="project-name" name="name" required maxlength="40" autocomplete="off" placeholder="OUTFITTER"></label>
+<fieldset id="project-repositories"><legend>Repositories</legend></fieldset>
+<div class="project-form-actions"><button id="project-save" type="submit">Create project</button><button id="project-cancel" type="button" class="secondary" hidden>Cancel</button></div>
+<p id="project-form-notice" role="status"></p>
+</form>
+</Section>
+<Section id="repositories-heading" title="Source control">
+<SettingsRow title="GitHub"><p id="repository-summary">Checking your GitHub account and available repositories…</p><a slot="action" data-settings>Set up GitHub ↗</a></SettingsRow>
+<SettingsRow title="Automatic issue triage"><p id="automatic-summary">Checking automatic triage…</p><p>Applies to newly opened issues in available repositories.</p><a slot="action" href="/jobs">Configure workflows ↗</a></SettingsRow>
+<SettingsRow title="Agent pull requests"><p id="draft-summary">Checking the draft policy…</p><p>CODEOWNERS reviews are requested once a pull request is ready for review.</p><span slot="action" class="badge">Workflow preference</span></SettingsRow>
+<SettingsRow title="Forgejo"><p>Use the organization’s verified Forgejo repository allowlist for metadata, issues, and pull requests. Forgejo workflow execution, pushes, and issue or pull-request changes remain unavailable.</p><a slot="action" data-forgejo-settings>Manage Forgejo ↗</a></SettingsRow>
+<SettingsRow title="Commit and push identity"><p>The workflow runtime determines commit authorship. Repository pushes authenticate separately through the site-configured GitHub App.</p><span slot="action" class="badge">Separate identities</span></SettingsRow>
+</Section>
+<Section id="playground-heading" title="Playground"><p>Try Foundry in a separate repository before using it on your projects.</p><a id="playground" hidden target="_blank" rel="noopener noreferrer">Create a repository on GitHub ↗</a><p id="playground-help">Connect your GitHub account first.</p></Section>
+<Section id="milestones-heading" title="Milestones"><p>Follow each milestone's issues and pull requests. Write each milestone's description on GitHub as a press release: who gains what, as if it had shipped.</p><a href="/milestones">Open milestones</a></Section>
+<script>import "../scripts/settings.js";</script>

@@ -1,0 +1,129 @@
+version: beta
+id: issue-to-review
+summary: Triage an issue, implement it on a branch, open a PR, and get an independent review of that exact head.
+actors:
+  triager: {kind: resident}
+  implementer: {kind: resident}
+  reviewer: {kind: resident} # a different resident, so the review is independent because the principal is
+triggers:
+  - on: manual
+$defs:
+  issue:
+    type: object
+    required: [repository, number, url, title] # goal is optional on purpose: triage detects its absence
+    properties:
+      repository: {type: string}
+      number: {type: integer}
+      url: {type: string, format: uri}
+      title: {type: string}
+      goal:
+        type: object
+        properties:
+          persona: {enum: [organization-member, organization-admin, platform-administrator]} # docs/personas.md
+          outcome: {type: string}
+      context: {type: string}
+  subject: # how forge records name an issue
+    type: object
+    required: [repository, number]
+    properties:
+      repository: {type: string}
+      number: {type: integer}
+steps:
+  - id: triage
+    actor: triager
+    uses: [git-forge]
+    inputs:
+      issue: {schema: {$ref: "#/$defs/issue"}}
+    instructions: Read the Goal and a shallow checkout. If the Goal lacks a persona or an outcome, post one comment asking for them; otherwise post one comment containing the plan.
+    outputs:
+      classification:
+        schema:
+          type: object
+          required: [kind, needsDetails]
+          properties:
+            kind: {enum: [bug, feature, chore]}
+            needsDetails: {type: boolean}
+      comment:
+        connector: git-forge
+        record: issue-comment.created
+        match:
+          issue.repository: triage.inputs.issue.repository
+          issue.number: triage.inputs.issue.number
+        schema:
+          type: object
+          required: [issue, kind]
+          properties:
+            issue: {$ref: "#/$defs/subject"}
+            kind: {enum: [plan, needs-details]}
+            summary: {type: string}
+            steps: {type: array, items: {type: string}}
+
+  - id: implement
+    actor: implementer
+    when: triage.outputs.classification.needsDetails == false # false → implement and review are not-applicable; run completes at the comment
+    uses: [git-forge]
+    inputs:
+      issue: triage.inputs.issue
+      plan: triage.outputs.comment
+    instructions: >-
+      Implement the plan on the run branch and open a PR that references the issue,
+      as a draft or ready as the run's draft policy says (the organization's
+      setting); mark a draft ready once it should be reviewed.
+    outputs:
+      branch:
+        connector: git-forge
+        record: branch.pushed
+        match: {repository: triage.inputs.issue.repository}
+        schema:
+          type: object
+          required: [repository, name, headSha]
+          properties:
+            repository: {type: string}
+            name: {type: string}
+            headSha: {type: string}
+      pull-request:
+        connector: git-forge
+        record: pull-request.opened
+        match: # the run's branch, closing the run's issue
+          repository: implement.outputs.branch.repository
+          headSha: implement.outputs.branch.headSha
+          closesIssue.repository: triage.inputs.issue.repository
+          closesIssue.number: triage.inputs.issue.number
+        schema:
+          type: object
+          required: [repository, number, url, headSha, closesIssue]
+          properties:
+            repository: {type: string}
+            number: {type: integer}
+            url: {type: string, format: uri}
+            headSha: {type: string}
+            closesIssue: {$ref: "#/$defs/subject"}
+
+  - id: review
+    actor: reviewer
+    uses: [git-forge]
+    inputs:
+      pullRequest: implement.outputs.pull-request
+    instructions: Review the published head independently; submit a formal review.
+    outputs:
+      review:
+        connector: git-forge
+        record: pull-request-review.submitted
+        # This PR at this head. Attributing the review to the reviewer's own account,
+        # not the implementer's, is the readiness engine's job (#106 step 2).
+        match:
+          repository: implement.outputs.pull-request.repository
+          number: implement.outputs.pull-request.number
+          commitId: implement.outputs.pull-request.headSha # a later push needs a new review
+        schema:
+          type: object
+          required: [repository, number, commitId, state]
+          properties:
+            repository: {type: string}
+            number: {type: integer}
+            commitId: {type: string}
+            state: {enum: [approved, changes-requested, commented]} # any formal review completes the step; its state is the outcome
+outputs:
+  comment: triage.outputs.comment
+  pull-request: implement.outputs.pull-request
+  review: review.outputs.review

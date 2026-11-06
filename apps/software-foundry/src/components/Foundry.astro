@@ -1,0 +1,18 @@
+---
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+---
+<Section id="identity-heading" title="Execution identity">
+  <label for="execution-identity">Run Foundry as</label>
+  <select id="execution-identity">
+    <option value="regular">Regular Foundry runner</option>
+  </select>
+  <p id="identity-notice" role="status">Checking organization residents…</p>
+  <a id="resident-setup" hidden>Set up Resident Agent ↗</a>
+  <p><small>The selected execution identity is distinct from repository authentication. The site-configured GitHub App remains the authenticated pusher; a future resident binding would supply commit-author identity.</small></p>
+</Section>
+<Section id="issues-heading" title="Issues"><button slot="actions" id="refresh" class="secondary">Refresh</button>
+<div class="feed-toolbar"><div class="filter-chips" role="group" aria-label="Workflow status filters"><button class="secondary" data-filter="all" aria-pressed="true">All</button><button class="secondary" data-filter="active" aria-pressed="false">In progress</button><button class="secondary" data-filter="completed" aria-pressed="false">Completed</button><button class="secondary" data-filter="attention" aria-pressed="false">Needs attention</button></div><details class="feed-filters"><summary>Add filters</summary><div class="filter-panel"><input id="search" type="search" aria-label="Search issues" placeholder="Search issues…"><fieldset id="repository-filters"><legend>Repositories</legend></fieldset><button id="oldest" class="secondary" aria-pressed="false">Oldest first</button><button id="clear-filters" class="secondary">Clear filters</button></div></details></div>
+<p class="feed-caption"><span id="issue-count">Loading…</span> · Your workflow activity across repositories</p><p id="issues-notice" role="status"></p><p id="runs-notice" role="status"></p><Table id="issues" label="Issues and workflows" columns={["Issue", "Status", "Updated", "Actions"]} /><p id="empty" role="status">Loading issues and workflow activity…</p><div class="feed-pagination"><button id="more" class="secondary" hidden>Load more issues</button><button id="more-runs" class="secondary" hidden>Load older workflows</button></div>
+</Section>
+<script>import "../scripts/issues.js";</script>

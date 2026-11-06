@@ -1,0 +1,263 @@
+# Software Foundry's Governance "Complete all" (docs/foundry-governance.md):
+# brings a repository's delivery safeguards up to the Governance page's rules,
+# one idempotent part at a time. Every step is a platform action: no actor,
+# only git-forge records, which the webapp writes itself after each GitHub
+# call succeeds. A run is planned from the live governance check, so its
+# `check` inputs switch off the parts already done, and pressing Complete all
+# again resumes the open run.
+#
+# Parts today: the repository settings that let GitHub Actions create and
+# approve pull requests and that allow auto-merge; repository file changes (merge_group triggers in CI
+# workflows, and, for a repository that has opted into agents or on the
+# explicit install action, Outfitter's agent workflows and their .agents/
+# catalog, rendered from templates/ with the deployment's public inference
+# gateway URL and never overwriting a file), landed together by a direct
+# commit or the app's pull request (always the pull request when agent files
+# are part of it); then the merge queue ruleset. Further file changes, such as steering
+# documents or CODEOWNERS, join the same commit through `check.inputs.files`;
+# further settings join as steps gated by their own `check` input.
+#
+# Ordering: CI must listen to merge_group before a queue is required, or the
+# pull request that adds the trigger stalls in the queue. A merge queue step
+# that follows a file change reads that change's record, so it cannot start first.
+version: beta
+id: sdlc-setup
+summary: Bring a repository's delivery safeguards up to the Governance rules, doing only the parts still missing; CI on merge_group and a required merge queue, and, when opted in, Outfitter's agent workflows through the inference gateway.
+actors: {}
+triggers:
+  - on: manual
+$defs:
+  pull-request:
+    type: object
+    required: [repository, number, url, headSha, base]
+    properties:
+      repository: {type: string}
+      number: {type: integer}
+      url: {type: string, format: uri}
+      headSha: {type: string}
+      base: {type: string}
+  ruleset:
+    type: object
+    required: [repository, outcome]
+    properties:
+      repository: {type: string}
+      outcome: {enum: [created, already-present]} # already-present: someone else required a queue first
+      rulesetId: {type: integer}
+steps:
+  - id: check # always applicable: the governance check this run was planned from
+    inputs:
+      repository: {schema: {type: string}}
+      defaultBranch: {schema: {type: string}}
+      revision: {schema: {type: string}}
+      files: # repository paths the file change writes, e.g. .github/workflows/ci.yml or .agents/models.json
+        schema: {type: array, items: {type: string}}
+        default: []
+      commitPath: # how the file change lands: direct when nothing requires pull requests
+        schema: {enum: [direct, pull-request, none]}
+      reviewer: # the signed-in member's linked GitHub login; empty leaves review to a human
+        schema: {type: string}
+        default: ""
+      autoMerge: # skip when a queue already exists (it would stall) or nobody may allow auto-merge
+        schema: {enum: [enable, skip]}
+        default: skip
+      mergeQueue: # when the merge queue ruleset is created, relative to the file change
+        schema: {enum: [now, after-commit, after-merge, skip]}
+        default: skip
+      actionsApproval: # enable when Actions may not yet create and approve pull requests
+        schema: {enum: [enable, skip]}
+        default: skip
+      autoMergeSetting: # enable when the repository's Allow auto-merge is off; independent of the queue and of any pull request
+        schema: {enum: [enable, skip]}
+        default: skip
+      agentWorkflows: # install when an opted-in repository (or the install action) lacks agent files; their paths join `files` and force commitPath pull-request
+        schema: {enum: [install, skip]}
+        default: skip
+    outputs:
+      inspected:
+        connector: git-forge
+        record: repository.inspected
+        match:
+          repository: check.inputs.repository
+          revision: check.inputs.revision
+        schema:
+          type: object
+          required: [repository, defaultBranch, revision, mergeQueue]
+          properties:
+            repository: {type: string}
+            defaultBranch: {type: string}
+            revision: {type: string}
+            mergeQueue: {enum: [present, missing, merge-group-missing]} # the check's merge queue row
+            actionsApproval: {enum: [on, off, unknown]} # the check's Actions setting row
+            autoMergeSetting: {enum: [on, off, unknown]} # the check's Auto-merge available row
+            agentWorkflows: {enum: [met, missing, not-installed, unknown]} # the check's Agent workflows row; not-installed: no agent workflow and no .agents/
+
+  - id: actions-approval # a repository setting, independent of the merge queue ordering
+    when: check.inputs.actionsApproval == enable
+    inputs:
+      inspected: check.outputs.inspected
+    outputs:
+      setting:
+        connector: git-forge
+        record: actions-permissions.updated
+        match: {repository: check.inputs.repository}
+        schema:
+          type: object
+          required: [repository, outcome]
+          properties:
+            repository: {type: string}
+            defaultWorkflowPermissions: {enum: [read, write]} # kept as it was
+            outcome: {enum: [enabled, already-on, forbidden-by-organization]} # forbidden: an organization policy decides; an owner must allow it there
+
+  - id: allow-auto-merge # a repository setting, independent of the merge queue ordering and of the setup pull request
+    when: check.inputs.autoMergeSetting == enable
+    inputs:
+      inspected: check.outputs.inspected
+    outputs:
+      setting:
+        connector: git-forge
+        record: auto-merge-setting.updated
+        match: {repository: check.inputs.repository}
+        schema:
+          type: object
+          required: [repository, outcome]
+          properties:
+            repository: {type: string}
+            outcome: {enum: [enabled]}
+
+  - id: commit # the file change, straight to the default branch, signed and authored by the app
+    when: check.inputs.commitPath == direct
+    inputs:
+      inspected: check.outputs.inspected
+    outputs:
+      commit:
+        connector: git-forge
+        record: branch.pushed
+        match:
+          repository: check.inputs.repository
+          name: check.inputs.defaultBranch
+        schema:
+          type: object
+          required: [repository, name, headSha]
+          properties:
+            repository: {type: string}
+            name: {type: string}
+            headSha: {type: string}
+
+  - id: pull-request # the file change on the app's branch and pull request, reused when already open
+    when: check.inputs.commitPath == pull-request
+    inputs:
+      inspected: check.outputs.inspected
+    outputs:
+      branch:
+        connector: git-forge
+        record: branch.pushed
+        match: {repository: check.inputs.repository}
+        schema:
+          type: object
+          required: [repository, name, headSha]
+          properties:
+            repository: {type: string}
+            name: {type: string}
+            headSha: {type: string}
+      pull-request:
+        connector: git-forge
+        record: pull-request.opened
+        match:
+          repository: check.inputs.repository
+          headSha: pull-request.outputs.branch.headSha
+          base: check.inputs.defaultBranch
+        schema: {$ref: "#/$defs/pull-request"}
+
+  - id: review # the installation token cannot approve for anyone; it asks the member
+    when: check.inputs.reviewer nonEmpty
+    inputs:
+      pullRequest: pull-request.outputs.pull-request
+    outputs:
+      review-request:
+        connector: git-forge
+        record: pull-request.review-requested
+        match:
+          repository: pull-request.outputs.pull-request.repository
+          number: pull-request.outputs.pull-request.number
+          reviewer: check.inputs.reviewer
+        schema:
+          type: object
+          required: [repository, number, reviewer, outcome]
+          properties:
+            repository: {type: string}
+            number: {type: integer}
+            reviewer: {type: string}
+            outcome: {enum: [requested, merged-first]} # merged-first: merged before a request succeeded
+
+  - id: auto-merge
+    when: check.inputs.autoMerge == enable
+    inputs:
+      pullRequest: pull-request.outputs.pull-request
+    outputs:
+      auto-merge:
+        connector: git-forge
+        record: pull-request.auto-merge-enabled
+        match:
+          repository: pull-request.outputs.pull-request.repository
+          number: pull-request.outputs.pull-request.number
+        schema:
+          type: object
+          required: [repository, number, outcome]
+          properties:
+            repository: {type: string}
+            number: {type: integer}
+            mergeMethod: {enum: [SQUASH, MERGE, REBASE]}
+            outcome: {enum: [enabled, merged-first]}
+
+  - id: merge # merged by auto-merge or a person; read from GitHub on the next Complete all
+    inputs:
+      pullRequest: pull-request.outputs.pull-request
+    outputs:
+      merged:
+        connector: git-forge
+        record: pull-request.merged
+        match:
+          repository: pull-request.outputs.pull-request.repository
+          number: pull-request.outputs.pull-request.number
+        schema:
+          type: object
+          required: [repository, number, mergeCommitSha]
+          properties:
+            repository: {type: string}
+            number: {type: integer}
+            mergeCommitSha: {type: string}
+
+  - id: merge-queue # CI already runs on merge_group
+    when: check.inputs.mergeQueue == now
+    inputs:
+      inspected: check.outputs.inspected
+    outputs:
+      ruleset:
+        connector: git-forge
+        record: ruleset.created
+        match: {repository: check.inputs.repository}
+        schema: {$ref: "#/$defs/ruleset"}
+
+  - id: merge-queue-after-commit
+    when: check.inputs.mergeQueue == after-commit
+    inputs:
+      commit: commit.outputs.commit
+    outputs:
+      ruleset:
+        connector: git-forge
+        record: ruleset.created
+        match: {repository: check.inputs.repository}
+        schema: {$ref: "#/$defs/ruleset"}
+
+  - id: merge-queue-after-merge
+    when: check.inputs.mergeQueue == after-merge
+    inputs:
+      merged: merge.outputs.merged
+    outputs:
+      ruleset:
+        connector: git-forge
+        record: ruleset.created
+        match: {repository: check.inputs.repository}
+        schema: {$ref: "#/$defs/ruleset"}
+outputs:
+  inspected: check.outputs.inspected

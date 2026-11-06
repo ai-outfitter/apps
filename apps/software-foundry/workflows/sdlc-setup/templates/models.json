@@ -1,0 +1,31 @@
+{
+  "providers": {
+    "outfitter": {
+      "baseUrl": "http://127.0.0.1:4141/v1",
+      "api": "openai-completions",
+      "apiKey": "$OUTFITTER_INFERENCE_TOKEN",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "GLM-5.3-Flash-EXL3",
+          "name": "GLM-5.3 Flash EXL3 (Outfitter inference)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 900000,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

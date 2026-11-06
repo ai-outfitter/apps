@@ -1,0 +1,56 @@
+---
+import "../styles.css";
+import AppLayout from "../components/FoundryLayout.astro";
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+const docs = [
+  ["AGENTS.md", "Instructions and boundaries for agents."],
+  ["CONTRIBUTING.md", "How to implement, test and submit changes."],
+  ["DESIGN.md", "Architecture and design principles."],
+  ["CODEOWNERS", "Who is responsible for reviewing changes."],
+];
+const rules = [
+  ["Pull requests required", "Changes reach the default branch through a pull request."],
+  ["Direct pushes restricted", "Agents and contributors cannot bypass the pull request process."],
+  ["Required CI checks", "Required build and test checks must pass before merging."],
+  ["Review approval required", "A human or agent reviewer approves the proposed changes."],
+  ["Code-owner approval required", "The owners of affected files approve changes before merging."],
+  ["Squash merging enforced", "Each pull request merges as one commit on the default branch."],
+  ["Auto-merge available", "An approved pull request can merge automatically once its checks pass."],
+  ["Merge queue required", "Pull requests, including stacked pull requests, merge through a queue after CI passes on the combined result."],
+  ["GitHub Actions can create and approve pull requests", "Workflows using the GITHUB_TOKEN may open pull requests and submit approving reviews, so automation can propose changes."],
+  ["Agent workflows", "Managed Outfitter workflows define triage, implementation and independent review. Actions authenticate through GitHub OIDC to Outfitter inference; repository agent instructions are optional context."],
+];
+---
+<AppLayout title="Governance" description="Check the guidance and safeguards for a repository." active="home">
+  <div class="feed-toolbar governance-toolbar">
+    <label for="governance-repository">Repository <select id="governance-repository" disabled><option>Loading repositories…</option></select></label>
+    <button id="governance-refresh" class="secondary" disabled>Refresh</button>
+  </div>
+  <p id="governance-notice" role="status" aria-live="polite">Loading available repositories…</p>
+  <p id="governance-snapshot"></p>
+  <Section id="steering-heading" title="Project Steering Docs">
+    <p>Checks files on the default branch. Presence does not verify their quality or completeness.</p>
+    <Table label="Project steering documents" columns={["Present", "File", "Description"]} className="governance-table">
+      {docs.map(([name, purpose]) => <tr data-document={name} data-status="unknown">
+        <td><input type="checkbox" disabled aria-label={`${name} present`} title="Select a repository" /></td>
+        <td data-file>{name}</td><td>{purpose}<span data-check-note></span></td>
+      </tr>)}
+    </Table>
+  </Section>
+  <Section id="delivery-heading" title="Merge & Delivery Rules">
+    <p>This page reports readiness. Early projects may explicitly allow direct pushes.</p>
+    <Table label="Merge and delivery rules" columns={["Met", "Rule", "Description"]} className="governance-table">
+      {rules.map(([name, description]) => <tr data-rule={name} data-status="unknown">
+        <td><input type="checkbox" disabled aria-label={`${name} met`} title="Not checked yet" /></td>
+        <td>{name}</td><td>{description}<span data-check-note> Not checked yet.</span>{["Merge queue required", "Agent workflows"].includes(name) && <div data-remediation class="governance-remediation"></div>}</td>
+      </tr>)}
+      <tr data-policy="draft-pull-requests" data-status="unknown">
+        <td><input type="checkbox" disabled aria-label="Agent pull requests open as drafts by default" title="Not checked yet" /></td>
+        <td>Agent pull requests open as drafts by default</td><td>An organization policy, not a requirement: when on, agents open drafts and may open one ready when it should be reviewed now; when off, they open ready unless more work is expected.<span data-check-note> Not checked yet.</span> <a data-settings>Change policy ↗</a></td>
+      </tr>
+    </Table>
+    <div id="governance-setup" class="governance-setup" aria-live="polite"></div>
+  </Section>
+</AppLayout>
+<script>import "../scripts/governance.js";</script>

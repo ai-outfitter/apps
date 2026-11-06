@@ -1,0 +1,29 @@
+version: beta
+id: foundry-land-reviewed-change
+summary: Resume protected landing from a verified Foundry review without repeating implementation.
+actors:
+  lander:
+    kind: external
+    binding: land.inputs.landerBinding
+triggers:
+  - on: manual
+steps:
+  - id: land
+    actor: lander
+    instructions: The trusted coordinator rechecks the exact candidate, Actions checks and independent approval, then performs protected landing. No model session is dispatched.
+    inputs:
+      landerBinding:
+        schema: {type: string, minLength: 1}
+      event:
+        schema: {type: object}
+      previous:
+        schema: {type: object}
+      sourceRunId:
+        schema: {type: string, format: uuid}
+      previousRunId:
+        schema: {type: string, format: uuid}
+    outputs:
+      result:
+        schema: {type: object, required: [ready, summary, candidate, merge]}
+outputs:
+  delivery: land.outputs.result

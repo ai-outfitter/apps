@@ -1,0 +1,18 @@
+# An organization policy forbids the setting: the refusal is recorded and the run still completes.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.commitPath: none
+  check.inputs.mergeQueue: now
+  check.inputs.actionsApproval: enable
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing, actionsApproval: "off"}
+  actions-approval.outputs.setting: {repository: northstar/platform, outcome: forbidden-by-organization}
+  merge-queue.outputs.ruleset: {repository: northstar/platform, outcome: created, rulesetId: 7}
+expect:
+  actions-approval: done
+  merge-queue: done
+  run: complete

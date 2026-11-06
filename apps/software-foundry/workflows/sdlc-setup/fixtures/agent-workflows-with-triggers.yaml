@@ -1,0 +1,26 @@
+# The agent files force a pull request: the merge_group triggers and the agent files share it,
+# and the ruleset still waits for its merge.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml, .github/workflows/agent-triage.yml, .github/workflows/agent-implement.yml, .github/workflows/agent-review.yml, .agents/models.json, .agents/agents/engineer/agent.md]
+  check.inputs.commitPath: pull-request
+  check.inputs.autoMerge: enable
+  check.inputs.mergeQueue: after-merge
+  check.inputs.agentWorkflows: install
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing, agentWorkflows: missing}
+  pull-request.outputs.branch: {repository: northstar/platform, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/platform, number: 12, url: https://github.com/northstar/platform/pull/12, headSha: ccccccc, base: main}
+  auto-merge.outputs.auto-merge: {repository: northstar/platform, number: 12, mergeMethod: SQUASH, outcome: enabled}
+expect:
+  commit: not-applicable
+  pull-request: done
+  review: not-applicable
+  auto-merge: done
+  merge: ready
+  merge-queue-after-merge: waiting
+  run: running

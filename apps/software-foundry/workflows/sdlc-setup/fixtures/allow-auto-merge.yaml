@@ -1,0 +1,19 @@
+# Only Allow auto-merge is off, in a repository that already has a merge queue; it is turned on without touching the queue.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.commitPath: none
+  check.inputs.autoMergeSetting: enable
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: present, autoMergeSetting: "off"}
+  allow-auto-merge.outputs.setting: {repository: northstar/platform, outcome: enabled}
+expect:
+  allow-auto-merge: done
+  commit: not-applicable
+  pull-request: not-applicable
+  auto-merge: not-applicable
+  merge-queue: not-applicable
+  run: complete

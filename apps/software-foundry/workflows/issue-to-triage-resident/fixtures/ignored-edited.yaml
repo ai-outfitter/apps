@@ -1,0 +1,25 @@
+workflow: issue-to-triage-resident
+origin: synthetic
+inputs:
+  github-webhook.inputs.event:
+    action: edited
+    repository: {id: 123, full_name: example/playground}
+    issue: {number: 42}
+  github-webhook.inputs.triageBinding: actions-triager
+  github-webhook.inputs.engineerBinding: actions-engineer
+  github-webhook.inputs.reviewerBinding: approved-resident
+  github-webhook.inputs.settings:
+    model: gpt-6-luna
+    reviewerLogin: atlas-fixture
+    engineerProfile: engineer
+    connectionId: github-connection
+    resource: '123'
+records: {}
+expect:
+  github-webhook: ready
+  triage: waiting
+  plan: waiting
+  implement: waiting
+  review: waiting
+  confirm-merge: waiting
+  run: running

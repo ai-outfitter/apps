@@ -1,0 +1,189 @@
+version: beta
+id: issue-triage-observation
+summary: Observe triage, dispatch implementation, and record independent review and protected merge.
+actors:
+  engineer: {kind: external, binding: github-webhook.inputs.engineerBinding}
+  reviewer: {kind: resident, binding: github-webhook.inputs.reviewerBinding}
+triggers:
+  - on: event
+    type: github.issue
+    match: {action: opened}
+    input: github-webhook.inputs.event
+steps:
+  - id: github-webhook
+    source: event
+    inputs:
+      event:
+        schema:
+          type: object
+          required: [action, repository, issue]
+          properties:
+            action: {const: opened}
+            repository:
+              type: object
+              required: [id, full_name]
+              properties:
+                id: {type: integer, minimum: 1}
+                full_name: {type: string, minLength: 3}
+            issue:
+              type: object
+              required: [number]
+              properties:
+                number: {type: integer, minimum: 1}
+      engineerBinding:
+        schema: {type: string, minLength: 1}
+      reviewerBinding:
+        schema: {type: string, minLength: 1}
+      settings:
+        schema:
+          type: object
+          required: [reviewerLogin]
+          properties:
+            reviewerLogin: {type: string, minLength: 1}
+    outputs:
+      started:
+        schema:
+          type: object
+          required: [receiptId]
+          properties:
+            receiptId: {type: string, minLength: 1}
+  - id: triage
+    inputs:
+      event: github-webhook.inputs.event
+      receipt: github-webhook.outputs.started
+    outputs:
+      evidence:
+        connector: database
+        record: observation.issue-triage
+        match:
+          repositoryId: triage.inputs.event.repository.id
+          issueNumber: triage.inputs.event.issue.number
+        schema:
+          type: object
+          required: [repositoryId, issueNumber, actionsRunId, attempt, actionsUrl, commentId, commentUrl, commentBody, conversationRequestKey, usageRecordId, model, ready, plan]
+          properties:
+            repositoryId: {type: integer, minimum: 1}
+            issueNumber: {type: integer, minimum: 1}
+            actionsRunId: {type: integer, minimum: 1}
+            attempt: {type: integer, minimum: 1}
+            actionsUrl: {type: string, format: uri}
+            commentId: {type: integer, minimum: 1}
+            commentUrl: {type: string, format: uri}
+            commentBody: {type: string, minLength: 1}
+            conversationRequestKey: {type: string, minLength: 1}
+            usageRecordId: {type: string, minLength: 1}
+            model: {type: string, pattern: '^(openai/)?gpt-6-(luna|sol|astra)$'}
+            ready: {type: boolean}
+            plan: {type: string, minLength: 1}
+  - id: implement
+    actor: engineer
+    when: triage.outputs.evidence.ready == true
+    inputs:
+      event: github-webhook.inputs.event
+      triage: triage.outputs.evidence
+    instructions: Implement the accepted issue plan, run its checks, and create an issue-closing PR with current-head evidence.
+    outputs:
+      pull-request:
+        connector: git-forge
+        record: github.implementation
+        match:
+          repositoryId: github-webhook.inputs.event.repository.id
+          issueNumber: github-webhook.inputs.event.issue.number
+        schema:
+          type: object
+          required: [repositoryId, issueNumber, actionsRunId, attemptId, number, headSha, url, conversationRequestKey, usageRecordId, model]
+          properties:
+            repositoryId: {type: integer, minimum: 1}
+            issueNumber: {type: integer, minimum: 1}
+            actionsRunId: {type: integer, minimum: 1}
+            attemptId: {type: string, minLength: 1}
+            number: {type: integer, minimum: 1}
+            headSha: {type: string, pattern: '^[a-f0-9]{40}$'}
+            url: {type: string, format: uri}
+            conversationRequestKey: {type: string, minLength: 1}
+            usageRecordId: {type: string, minLength: 1}
+            model: {type: string, minLength: 1}
+  - id: review
+    actor: reviewer
+    inputs:
+      settings: github-webhook.inputs.settings
+      pullRequest: implement.outputs.pull-request
+      plan: triage.outputs.evidence
+    instructions: >-
+      Review this implementation using your own GitHub identity. Read the issue,
+      plan, current PR head, source and diff. Inspect the implementation Actions
+      run results and actual job logs. Open and inspect each requested screenshot
+      linked in the PR, checking that the evidence corresponds to the current head.
+      If GitHub tools are unavailable, use Node.js fetch with the
+      GITHUB_PERSONAL_ACCESS_TOKEN environment variable as a Bearer token for
+      GitHub REST reads. The Actions run, jobs and individual job logs are
+      readable with that token; never print the token. Do not treat an
+      unauthenticated GitHub 404 as missing evidence.
+      Run meaningful tests available in your environment and state which tests
+      you ran and which results you inspected. Missing source, screenshot or
+      Actions evidence blocks approval. GitHub enforces required checks and
+      protected auto-merge. Do not implement changes or merge the PR. Recheck the PR head before submitting a formal
+      APPROVE review when acceptance criteria pass, or REQUEST_CHANGES for defects.
+      Submit the formal review with your authenticated GitHub identity. Return
+      the inspected head SHA, decision and a concise evidence summary. Before
+      completing the task, ensure the response is valid JSON by constructing
+      it with JSON.stringify and checking it with JSON.parse. Return exactly
+      {"outputs":{"review":{"headSha":"...","decision":"approved","summary":"..."}}}.
+    outputs:
+      review:
+        schema:
+          type: object
+          required: [headSha, decision, summary]
+          properties:
+            headSha: {type: string, pattern: '^[a-f0-9]{40}$'}
+            decision: {enum: [approved, changes-requested, blocked]}
+            summary: {type: string, minLength: 1}
+  - id: confirm-review
+    inputs:
+      pullRequest: implement.outputs.pull-request
+      residentResult: review.outputs.review
+    outputs:
+      approval:
+        connector: git-forge
+        record: github.pull-request-review
+        match:
+          repositoryId: github-webhook.inputs.event.repository.id
+          pullRequestNumber: implement.outputs.pull-request.number
+          commitId: implement.outputs.pull-request.headSha
+          reviewer.login: github-webhook.inputs.settings.reviewerLogin
+        schema:
+          type: object
+          required: [repositoryId, pullRequestNumber, commitId, reviewer, state, action]
+          properties:
+            repositoryId: {type: integer}
+            pullRequestNumber: {type: integer}
+            commitId: {type: string}
+            reviewer: {type: object}
+            state: {enum: [approved, APPROVED]}
+            action: {const: submitted}
+  - id: confirm-merge
+    inputs:
+      pullRequest: implement.outputs.pull-request
+      review: confirm-review.outputs.approval
+    outputs:
+      receipt:
+        connector: git-forge
+        record: github.pull-request
+        match:
+          repositoryId: github-webhook.inputs.event.repository.id
+          number: implement.outputs.pull-request.number
+          headSha: confirm-review.outputs.approval.commitId
+        schema:
+          type: object
+          required: [repositoryId, number, headSha, merged, mergeSha]
+          properties:
+            repositoryId: {type: integer}
+            number: {type: integer}
+            headSha: {type: string}
+            merged: {const: true}
+            mergeSha: {type: string, pattern: '^[a-f0-9]{40}$'}
+outputs:
+  triage: triage.outputs.evidence
+  pull-request: implement.outputs.pull-request
+  review: confirm-review.outputs.approval
+  merge: confirm-merge.outputs.receipt

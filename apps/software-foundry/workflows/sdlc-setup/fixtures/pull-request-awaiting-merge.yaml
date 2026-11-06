@@ -1,0 +1,29 @@
+# Pull requests are required: the app's pull request is open, review requested and auto-merge on.
+# The ruleset waits for the merge, so the pull request never queues behind CI that cannot run.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml, .github/workflows/lint.yaml]
+  check.inputs.commitPath: pull-request
+  check.inputs.reviewer: octocat
+  check.inputs.autoMerge: enable
+  check.inputs.mergeQueue: after-merge
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+  pull-request.outputs.branch: {repository: northstar/platform, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/platform, number: 12, url: https://github.com/northstar/platform/pull/12, headSha: ccccccc, base: main}
+  review.outputs.review-request: {repository: northstar/platform, number: 12, reviewer: octocat, outcome: requested}
+  auto-merge.outputs.auto-merge: {repository: northstar/platform, number: 12, mergeMethod: SQUASH, outcome: enabled}
+expect:
+  commit: not-applicable
+  pull-request: done
+  review: done
+  auto-merge: done
+  merge: ready
+  merge-queue: not-applicable
+  merge-queue-after-commit: not-applicable
+  merge-queue-after-merge: waiting
+  run: running

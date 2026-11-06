@@ -1,0 +1,61 @@
+# Stage 3 of Outfitter's agent flow: an independent review of one pull
+# request. Installed by Software Foundry's Governance (Complete all);
+# inference goes through the Outfitter inference gateway with the job's
+# GitHub OIDC identity.
+#
+# Started by agent-implement.yml, by a pull request leaving draft, or by hand:
+#   gh workflow run agent-review.yml -f pr=<number>
+name: Agent review
+run-name: "Agent review #${{ github.event.pull_request.number || inputs.pr }}"
+on:
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to review
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # prove the job identity to the Outfitter inference gateway
+  pull-requests: write
+  issues: read # read the issue the pull request closes
+
+concurrency:
+  group: agent-review-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out the pull request head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr checkout "$PR_NUMBER"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: ai-outfitter/actions@v1
+        with:
+          inference-gateway: {{gatewayUrl}}
+          agent: reviewer
+          prompt: |
+            Review pull request #${{ github.event.pull_request.number || inputs.pr }}
+            in ${{ github.repository }} following your review rules. The
+            pull request head is already checked out.
+      - name: Require the review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          n="$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --jq '[.[] | select(.user.login == "github-actions[bot]")] | length')"
+          [ "$n" -gt 0 ] || { echo "::error::The agent posted no review."; exit 1; }

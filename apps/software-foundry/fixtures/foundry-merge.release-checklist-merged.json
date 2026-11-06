@@ -1,0 +1,87 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-merge.release-checklist-merged",
+  "workflow": "foundry-merge",
+  "description": "Eligible approval, passing checks and an observed squash merge.",
+  "records": {
+    "approval": {
+      "repository": "northstar/platform",
+      "pullRequest": 12,
+      "url": "https://github.com/northstar/platform/pull/12#pullrequestreview-1202",
+      "commitId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reviewer": "maintainer-riley",
+      "state": "APPROVED",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request-review",
+        "id": "1202"
+      }
+    },
+    "checks": {
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "checks": [
+        {
+          "name": "test",
+          "conclusion": "success"
+        },
+        {
+          "name": "lint",
+          "conclusion": "success"
+        }
+      ],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "check-suite",
+        "id": "suite-aaaaaaaa"
+      }
+    },
+    "merge-request": {
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "method": "squash",
+      "requestedBy": "maintainer-riley",
+      "requestedAt": "2026-10-03T10:00:00Z",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/platform#12"
+      }
+    },
+    "merged-pull-request": {
+      "repository": "northstar/platform",
+      "number": 12,
+      "url": "https://github.com/northstar/platform/pull/12",
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "state": "merged",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/platform#12"
+      }
+    },
+    "merge-commit": {
+      "repository": "northstar/platform",
+      "sha": "ffffffffffffffffffffffffffffffffffffffff",
+      "url": "https://github.com/northstar/platform/commit/ffffffffffffffffffffffffffffffffffffffff",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "commit",
+        "id": "ffffffffffffffffffffffffffffffffffffffff"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "approval": "complete",
+      "checks": "complete",
+      "merge": "complete",
+      "merged": "complete"
+    }
+  }
+}

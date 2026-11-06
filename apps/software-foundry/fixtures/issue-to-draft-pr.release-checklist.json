@@ -1,0 +1,37 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "issue-to-draft-pr.release-checklist",
+  "workflow": "issue-to-draft-pr",
+  "description": "Plan, draft PR and a clean first review.",
+  "records": {
+    "plan": {
+      "url": "https://github.com/northstar/platform/issues/11#issuecomment-1101",
+      "needsDetails": false,
+      "summary": "Add a release checklist to CONTRIBUTING.md."
+    },
+    "pull-request": {
+      "repository": "northstar/platform",
+      "number": 12,
+      "url": "https://github.com/northstar/platform/pull/12",
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "state": "draft"
+    },
+    "review": {
+      "repository": "northstar/platform",
+      "pullRequest": 12,
+      "url": "https://github.com/northstar/platform/pull/12#pullrequestreview-1201",
+      "commitId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "verdict": "COMMENT",
+      "unresolvedFindings": []
+    }
+  },
+  "expect": {
+    "nodes": {
+      "triage": "complete",
+      "implement": "complete",
+      "review": "complete"
+    }
+  }
+}

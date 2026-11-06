@@ -1,0 +1,89 @@
+# Stage 2 of Outfitter's agent flow: implement one issue and open a draft pull
+# request, then dispatch agent-review.yml for it. Installed by Software
+# Foundry's Governance (Complete all); inference goes through the Outfitter
+# inference gateway with the job's GitHub OIDC identity.
+#
+# Started by agent-triage.yml, or by a maintainer adding the `outfitter:implement`
+# label (a human's label does trigger workflows), or by hand:
+#   gh workflow run agent-implement.yml -f issue=<number>
+# Address review feedback on an agent pull request (then it is re-reviewed):
+#   gh workflow run agent-implement.yml -f pr=<number>
+name: Agent implement
+run-name: "Agent implement ${{ inputs.pr && format('PR #{0}', inputs.pr) || format('#{0}', github.event.issue.number || inputs.issue) }}"
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to implement
+        required: false
+        type: string
+        default: ""
+      pr:
+        description: Agent pull request to continue with its review feedback
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write # push the agent branch
+  id-token: write # prove the job identity to the Outfitter inference gateway
+  pull-requests: write # open the draft PR
+  issues: write # ask for clarification on the issue
+  actions: write # dispatch agent-review.yml
+
+jobs:
+  implement:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.issue != '' || inputs.pr != '')) ||
+      github.event.label.name == 'outfitter:implement'
+    # In the job, so an unrelated label's skipped run never queues behind or
+    # displaces a real one.
+    concurrency:
+      group: agent-implement-${{ inputs.pr && format('pr-{0}', inputs.pr) || github.event.issue.number || inputs.issue }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+      PR_NUMBER: ${{ inputs.pr }}
+      BRANCH: agent/issue-${{ github.event.issue.number || inputs.issue }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out the pull request to continue
+        if: inputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr checkout "$PR_NUMBER"
+          echo "BRANCH=$(git branch --show-current)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: ai-outfitter/actions@v1
+        with:
+          inference-gateway: {{gatewayUrl}}
+          agent: engineer
+          git-user-name: github-actions[bot]
+          git-user-email: 41898282+github-actions[bot]@users.noreply.github.com
+          prompt: |
+            ${{ inputs.pr != '' && format('Continue pull request #{0} in {1}. Its branch {2} is checked out. Read its reviews and review comments with `gh pr view {0} --comments` and `gh api repos/{1}/pulls/{0}/reviews`, fix every blocking finding and any non-blocking one that is cheap and in scope, run the project''s tests, commit and push to the same branch. Do not open a new pull request. Reply on the pull request with one comment listing what you changed per finding.', inputs.pr, github.repository, env.BRANCH) || format('Implement issue #{0} in {1} on branch {2}, following your implementation rules. Create the branch from {{defaultBranch}}, run the project''s tests, push, and open a draft pull request against {{defaultBranch}}.', github.event.issue.number || inputs.issue, github.repository, env.BRANCH) }}
+
+      # A green agent step is not proof of work: require the pull request,
+      # then start the review. The PR was opened with GITHUB_TOKEN, so its
+      # own pull_request event triggers nothing.
+      - name: Dispatch the review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          pr="${PR_NUMBER:-$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number')}"
+          if [ -z "$pr" ]; then
+            echo "::error::No open pull request from $BRANCH; nothing to review."
+            exit 1
+          fi
+          gh workflow run agent-review.yml --repo "$REPO" -f pr="$pr"
+          echo "Dispatched agent-review.yml for #$pr"

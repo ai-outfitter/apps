@@ -1,0 +1,36 @@
+---
+import AppActionSidebar from "@ai-outfitter/ui/astro/AppActionSidebar.astro";
+import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+
+interface Props { title: string; description: string; active: "home" | "settings"; introVisuallyHidden?: boolean; workflowPage?: boolean; }
+const { title, description, active, introVisuallyHidden, workflowPage = false } = Astro.props;
+---
+<AppLayout name="Software Foundry" brand="OSF" headerBrand="SF" badge="" headerTitle={workflowPage ? "Workflows" : "Loading project…"} titleProjectId={workflowPage ? undefined : "foundry"} {title} {description} {active} {introVisuallyHidden} sidebarLinks={[
+  { label: "Dashboard", href: "/" },
+  { label: "Issues", href: "/issues" },
+  { label: "Milestones", href: "/milestones" },
+  { label: "Jobs", href: "/jobs" },
+  { label: "Workflows", href: "/workflows" },
+  { label: "Governance", href: "/governance" },
+]}>
+  <div slot="sidebar" class="project-panel" hidden={workflowPage}>
+    <label for="project">Project</label>
+    <select id="project" disabled><option>Loading…</option></select>
+    <p class="project-milestones-heading">Active milestones</p>
+    <nav id="project-milestones" aria-label="Active milestones"></nav>
+    <p id="project-milestones-empty" class="project-milestones-empty">No open milestones.</p>
+  </div>
+  <button slot="header-actions" type="button" data-agent-sidebar-toggle aria-controls="software-foundry-agent" aria-expanded="false" disabled>Ask Foundry</button>
+  <slot />
+  <AppActionSidebar slot="overlays" app="software-foundry" label="Software Foundry" focusId="e9500000-0000-4000-8000-000000000003" />
+</AppLayout>
+<script>
+  // Pages swap inside the kept sidebar, but the Workflows page has no project
+  // panel: take its visibility from the next page.
+  document.addEventListener("astro:before-swap", (event) => {
+    const next = (event as Event & { newDocument: Document }).newDocument;
+    const panel = document.querySelector(".project-panel");
+    const nextPanel = next.querySelector(".project-panel");
+    if (panel && nextPanel) panel.toggleAttribute("hidden", nextPanel.hasAttribute("hidden"));
+  });
+</script>

@@ -1,0 +1,60 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-review-repair.settings-focus-resolved",
+  "workflow": "foundry-review-repair",
+  "description": "One round resolves both findings.",
+  "records": {
+    "repair": {
+      "reviewedHead": "cccccccccccccccccccccccccccccccccccccccc",
+      "addressedFindings": [
+        "focus-return",
+        "escape-key"
+      ],
+      "validation": [
+        {
+          "command": "npm test",
+          "result": "passed"
+        }
+      ]
+    },
+    "head": {
+      "repository": "northstar/interface",
+      "sha": "dddddddddddddddddddddddddddddddddddddddd",
+      "url": "https://github.com/northstar/interface/commit/dddddddddddddddddddddddddddddddddddddddd",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "commit",
+        "id": "dddddddddddddddddddddddddddddddddddddddd"
+      }
+    },
+    "review-request": {
+      "headSha": "dddddddddddddddddddddddddddddddddddddddd",
+      "requestedAt": "2026-10-04T15:00:00Z"
+    },
+    "review": {
+      "repository": "northstar/interface",
+      "pullRequest": 28,
+      "url": "https://github.com/northstar/interface/pull/28#pullrequestreview-2802",
+      "commitId": "dddddddddddddddddddddddddddddddddddddddd",
+      "verdict": "COMMENT",
+      "unresolvedFindings": [],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request-review",
+        "id": "2802"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "repair": "complete",
+      "push": "complete",
+      "request": "complete",
+      "re-review": "complete"
+    }
+  }
+}

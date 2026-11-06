@@ -1,0 +1,47 @@
+---
+import "../styles.css";
+import "../milestones.css";
+import AppLayout from "../components/FoundryLayout.astro";
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+const roles = [
+  ["Triage", "Available per issue on the Issues page to organization admins."],
+  ["Planning", "Not available. Foundry does not break a milestone into issues or hand issues to agents yet."],
+  ["Implementation", "Draft pull requests from the Issues page, only for repositories approved for draft PRs. Foundry never merges."],
+  ["Independent review", "Part of the draft PR workflow when its definition declares a review node: a separate agent reviews the exact published PR revision and publishes a GitHub review. It never approves for a human or merges. There is no standalone milestone review action."],
+];
+---
+<AppLayout title="Milestones" description="Follow a larger goal through its GitHub milestone, issues and pull requests." active="home">
+  <div class="feed-toolbar milestone-toolbar">
+    <label for="milestone-repository">Repository <select id="milestone-repository" disabled><option>Loading repositories…</option></select></label>
+    <label for="milestone-state">Show <select id="milestone-state" disabled><option value="open">Open milestones</option><option value="closed">Closed milestones</option></select></label>
+    <button id="milestone-refresh" class="secondary" disabled>Refresh</button>
+  </div>
+  <p id="milestone-notice" role="status" aria-live="polite">Loading available repositories…</p>
+  <Section id="milestone-list-heading" title="Milestones">
+    <Table id="milestone-list" label="Repository milestones" columns={["Milestone", "Due", "Progress"]} className="milestone-table" />
+    <p id="milestone-list-empty" role="status" hidden></p>
+  </Section>
+  <div id="milestone-detail" hidden>
+    <Section id="milestone-detail-heading" title="Milestone">
+      <a slot="actions" id="milestone-github" target="_blank" rel="noopener noreferrer">Open on GitHub ↗</a>
+      <p id="milestone-summary"></p>
+      <p id="milestone-description" class="milestone-description"></p>
+      <p class="feed-caption">Grouped by GitHub milestone membership. Foundry does not infer which pull request resolves which issue.</p>
+      <p id="milestone-truncated" role="status" hidden></p>
+      <h3>Issues</h3>
+      <Table id="milestone-issues" label="Milestone issues" columns={["Issue", "State", "Recorded workflows"]} className="milestone-table" />
+      <p id="milestone-issues-empty" role="status" hidden>No issues in this milestone.</p>
+      <h3>Pull requests</h3>
+      <Table id="milestone-pulls" label="Milestone pull requests" columns={["Pull request", "State", "Updated"]} className="milestone-table" />
+      <p id="milestone-pulls-empty" role="status" hidden>No pull requests in this milestone.</p>
+    </Section>
+  </div>
+  <Section id="milestone-roles-heading" title="Agent roles">
+    <p>Recommended agents and models for each role will come from organization Resident Agent definitions and inference defaults. They are not configurable yet.</p>
+    <Table label="Agent roles and current support" columns={["Role", "Current support"]} className="milestone-table milestone-roles">
+      {roles.map(([role, support]) => <tr><td>{role}</td><td>{support}</td></tr>)}
+    </Table>
+  </Section>
+</AppLayout>
+<script>import "../scripts/milestones.js";</script>

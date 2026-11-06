@@ -1,0 +1,34 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-issue-to-merge.keyboard-navigation",
+  "workflow": "foundry-issue-to-merge",
+  "description": "The repair budget is exhausted with a finding still open.",
+  "inputs": {
+    "issue": {
+      "repository": "northstar/platform",
+      "number": 42,
+      "title": "Clarify keyboard navigation in the command menu",
+      "url": "https://github.com/northstar/platform/issues/42",
+      "updatedAt": "2026-10-05T14:20:00Z"
+    }
+  },
+  "children": {
+    "deliver": "issue-to-draft-pr.keyboard-navigation",
+    "repair": [
+      "foundry-review-repair.keyboard-navigation-unresolved"
+    ]
+  },
+  "outcomes": {
+    "repair": "exhausted"
+  },
+  "expect": {
+    "nodes": {
+      "deliver": "complete",
+      "repair": "ended:exhausted",
+      "ready": "waiting",
+      "merge": "waiting"
+    }
+  }
+}

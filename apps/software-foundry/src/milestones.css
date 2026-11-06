@@ -1,0 +1,19 @@
+.milestone-toolbar { justify-content: flex-start; }
+.milestone-toolbar label { min-width: 0; max-width: 100%; }
+.milestone-toolbar select { max-width: 100%; }
+.milestone-description { white-space: pre-line; overflow-wrap: anywhere; }
+.milestone-description:empty,
+#milestone-notice:empty { display: none; }
+#milestone-detail h3 { margin: 24px 0 8px; font-size: 1rem; }
+.milestone-table .app-table { min-width: 0; table-layout: fixed; }
+.milestone-table .app-table td { overflow-wrap: anywhere; vertical-align: top; }
+.milestone-table .app-table td:nth-child(3) { white-space: normal; }
+.milestone-table a[aria-current] { font-weight: 600; }
+.milestone-runs .workflow-link { white-space: normal; }
+.milestone-roles .app-table th:first-child { width: 36%; }
+.milestone-roles .app-table td:first-child { overflow-wrap: normal; }
+.milestone-roles .app-table th:nth-child(2) { width: auto; }
+@media (max-width: 640px) {
+  .milestone-table .app-table th:nth-child(3),
+  .milestone-table .app-table td:nth-child(3) { display: table-cell; }
+}

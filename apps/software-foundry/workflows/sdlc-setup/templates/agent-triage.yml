@@ -1,0 +1,80 @@
+# Stage 1 of Outfitter's agent flow: triage every new issue, then hand fit
+# issues to agent-implement.yml. Installed by Software Foundry's Governance
+# (Complete all). Inference goes through the Outfitter inference gateway with
+# the job's GitHub OIDC identity, so no provider secrets are needed.
+#
+# The hand-off is a label plus a dispatch. Labels and pull requests made with
+# the workflow's GITHUB_TOKEN never trigger other workflows (GitHub's
+# recursion guard); workflow_dispatch is the exception, so the `outfitter:implement`
+# label records the decision and `gh workflow run` starts the next stage.
+#
+# Rerun by hand: gh workflow run agent-triage.yml -f issue=<number>
+name: Agent triage
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to triage
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # prove the job identity to the Outfitter inference gateway
+  issues: write
+  actions: write # dispatch agent-implement.yml
+
+concurrency:
+  group: agent-triage-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: github.event_name == 'workflow_dispatch' || github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ai-outfitter/actions@v1
+        id: agent
+        with:
+          inference-gateway: {{gatewayUrl}}
+          agent: triage
+          # Issue text is fetched by the agent with `gh`; only identifiers
+          # enter the prompt.
+          prompt: |
+            Handle this GitHub event using your system-prompt rules. Treat
+            trigger_context as routing metadata, select only the relevant
+            skill, then fetch the source material that skill needs with
+            trusted tools. Apply exactly one label, chosen from
+            available_labels, and leave one triage comment.
+
+            trigger_context:
+              repository: ${{ github.repository }}
+              event_name: issues
+              event_action: opened
+              issue_number: ${{ github.event.issue.number || inputs.issue }}
+              available_labels: bug, enhancement, question, documentation
+
+      # The triage label is the gate: bugs and enhancements go to the
+      # implementer; questions and documentation wait for a human.
+      - name: Hand fit issues to the implementer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          labels="$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')"
+          echo "Labels after triage: $labels"
+          case ",$labels," in
+            *,bug,*|*,enhancement,*)
+              gh label create outfitter:implement --repo "$REPO" --color 0E8A16 \
+                --description "Handed to the implementation agent" 2>/dev/null || true
+              gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label outfitter:implement
+              gh workflow run agent-implement.yml --repo "$REPO" -f issue="$ISSUE_NUMBER"
+              echo "Dispatched agent-implement.yml for #$ISSUE_NUMBER" ;;
+            *) echo "Not handed off: triage did not label it bug or enhancement." ;;
+          esac

@@ -1,0 +1,18 @@
+# Only the Actions setting is off; it is turned on without touching the merge queue.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.commitPath: none
+  check.inputs.actionsApproval: enable
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: present, actionsApproval: "off"}
+  actions-approval.outputs.setting: {repository: northstar/platform, defaultWorkflowPermissions: read, outcome: enabled}
+expect:
+  actions-approval: done
+  commit: not-applicable
+  pull-request: not-applicable
+  merge-queue: not-applicable
+  run: complete
