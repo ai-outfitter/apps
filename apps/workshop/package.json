@@ -1,0 +1,52 @@
+{
+  "name": "@ai-outfitter/app-workshop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/ui": "*",
+    "@ai-outfitter/server": "*",
+    "drizzle-kit": "^0.31.11",
+    "astro": "^7.3.5",
+    "@astrojs/cloudflare": "^14.3.3",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5",
+    "graphql": "^16.11.0",
+    "three": "0.185.0",
+    "replicad-threejs-helper": "1.0.0",
+    "@noble/hashes": "2.0.1",
+    "fflate": "0.8.2",
+    "replicad": "1.1.0",
+    "replicad-opencascadejs": "1.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@ai-outfitter/app-test": "*",
+    "@playwright/test": "^1.63.0",
+    "@ai-outfitter/app-build": "*",
+    "@types/three": "0.185.0",
+    "@types/w3c-web-serial": "^1.0.8"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

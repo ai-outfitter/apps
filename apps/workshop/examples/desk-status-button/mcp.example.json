@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "kicad": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "kicad-mcp@0.1.6"]
+    }
+  }
+}

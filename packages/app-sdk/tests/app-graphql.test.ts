@@ -40,7 +40,7 @@ const serve = async (db: Awaited<ReturnType<typeof database>>, query: string, ex
 test("a table serves ID-ordered pages with ids and column filters, and only the chosen columns", async () => {
   const db = await database(5);
   const sdl = printSchema(schema);
-  assert.match(sdl, /items\(first: Int = 100, after: String, ids: \[ID!\], status: \[String!\]\): ItemConnection!/);
+  assert.match(sdl, /items\(\s*first: Int = 100\s+after: String\s+ids: \[ID!\]\s+"""Match text across this collection’s text fields\."""\s+search: String\s+status: \[String!\]\s*\): ItemConnection!/);
   assert.match(sdl, /receivedAt: DateTime!/);
   assert.doesNotMatch(sdl, /secret/);
   const first = await serve(db, `{ items(first: 2, status: ["open"]) { nodes { id title receivedAt } pageInfo { endCursor hasNextPage } aggregate { count } } }`);
@@ -60,7 +60,7 @@ test("a table serves ID-ordered pages with ids and column filters, and only the 
   const referencing = printSchema(new GraphQLSchema({
     query: new GraphQLObjectType({ name: "Query", fields: tableType(items, { field: "items", type: "Item", fields: ["status"], ids: ["status"], filters: ["status"] }) }),
   }));
-  assert.match(referencing, /status: \[ID!\]\): ItemConnection!/);
+  assert.match(referencing, /status: \[ID!\]\s*\): ItemConnection!/);
   assert.match(referencing, /status: ID!/);
 });
 

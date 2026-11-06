@@ -1,0 +1,54 @@
+{
+  "id": "outfitter/workshop",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "storage": {
+    "buckets": {
+      "main": {
+        "spaces": {
+          "concepts": {
+            "visibility": "public",
+            "ttl": null,
+            "maxTtl": null
+          }
+        }
+      }
+    }
+  },
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "data.export",
+        "graph.serve",
+        "organization.workshop.projects",
+        "organization.workshop.agent",
+        "storage.buckets",
+        "workflow.host",
+        "entities.read",
+        "entities.write",
+        "actions.invoke"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "admin-only",
+    "operational": {
+      "slug": "workshop",
+      "name": "Workshop",
+      "description": "Design and record physical product projects with CAD and agent assistance."
+    },
+    "demo": {
+      "slug": "workshop",
+      "name": "Workshop",
+      "description": "Demo: follow a staged project from brief to handoff without saving records or running an agent."
+    }
+  },
+  "dependencies": [
+    "wiki-map"
+  ],
+  "initialize": true
+}

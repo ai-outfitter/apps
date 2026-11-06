@@ -1,0 +1,424 @@
+type Query {
+  workshopProjects(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    createdBy: [ID!]
+    productRevisionId: [ID!]
+  ): WorkshopProjectConnection!
+  workshopUnits(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    partNumber: [String!]
+    mac: [String!]
+    status: [String!]
+    projectId: [ID!]
+  ): WorkshopUnitConnection!
+
+  """
+  Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
+  """
+  workshopProjectHandoff(input: WorkshopProjectHandoffInput!): JSON!
+}
+
+type WorkshopProjectConnection {
+  nodes: [WorkshopProject!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type WorkshopProject {
+  id: ID!
+  name: String!
+  revision: Float!
+  wikiInstallationId: ID
+  productRevisionId: ID
+  productRevisionTitle: String
+  createdBy: ID!
+  updatedBy: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type WorkshopUnitConnection {
+  nodes: [WorkshopUnit!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type WorkshopUnit {
+  id: ID!
+  partNumber: String!
+  mpn: String!
+  mac: String
+  serial: String
+  status: String!
+  location: String!
+  projectId: ID
+  firmware: String!
+  notes: String!
+  revision: Float!
+  createdBy: ID!
+  updatedBy: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+input WorkshopProjectHandoffInput {
+  id: ID!
+}
+
+input CreateWorkshopProjectInput {
+  example: CreateWorkshopProjectInputExample!
+  name: String
+  productRevision: CreateWorkshopProjectInputProductRevision
+}
+
+enum CreateWorkshopProjectInputExample {
+  cube
+  holder
+  button
+  node
+  sensor
+}
+
+input CreateWorkshopProjectInputProductRevision {
+  id: ID!
+  wikiInstallationId: String
+  title: String!
+  url: String
+}
+
+input NameWorkshopProductRevisionInput {
+  id: String!
+  revision: Float!
+  productRevision: NameWorkshopProductRevisionInputProductRevision
+}
+
+input NameWorkshopProductRevisionInputProductRevision {
+  id: ID!
+  wikiInstallationId: String
+  title: String!
+  url: String
+}
+
+input DescribeWorkshopProjectInput {
+  id: String!
+  revision: Float!
+  name: String
+  phase: DescribeWorkshopProjectInputPhase
+  brief: String
+  requirements: String
+}
+
+enum DescribeWorkshopProjectInputPhase {
+  concept
+  prototyping
+  validation
+  pilot
+  manufacturing
+}
+
+input SaveWorkshopAssemblyInput {
+  id: String!
+  revision: Float!
+  assembly: SaveWorkshopAssemblyInputAssembly!
+}
+
+input SaveWorkshopAssemblyInputAssembly {
+  rootId: ID
+  items: [SaveWorkshopAssemblyInputAssemblyItemsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItem {
+  id: ID!
+  number: String!
+  revision: String!
+  name: String!
+  kind: SaveWorkshopAssemblyInputAssemblyItemsItemKind!
+  manufacturer: String
+  mpn: String
+  source: String
+  unitCost: Float
+  trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
+  color: String
+  geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
+  firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
+  notes: String
+  uses: [SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem!]
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemKind {
+  assembly
+  printed
+  cots
+  pcb
+  firmware
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy {
+  none
+  mac
+  serial
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemGeometry {
+  version: Float!
+  units: String!
+  features: [JSON!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
+  repository: String!
+  path: String
+  ref: String!
+  target: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
+  id: ID!
+  itemId: ID!
+  quantity: Int!
+  refdes: String
+  position: [JSON!]
+  rotation: Float
+}
+
+input DeleteWorkshopProjectInput {
+  id: String!
+  revision: Float!
+}
+
+input RemoveWorkshopConceptInput {
+  projectId: ID!
+  conceptId: String!
+  revision: Float!
+}
+
+input PublishWorkshopConceptsInput {
+  projectId: ID!
+  productRevisionId: ID!
+  revision: Float!
+}
+
+input RecordWorkshopUnitInput {
+  partNumber: String!
+  mpn: String
+  mac: String
+  serial: String
+  status: String
+  location: String
+  projectId: ID
+  firmware: String
+  notes: String
+}
+
+input UpdateWorkshopUnitInput {
+  id: ID!
+  revision: Float!
+  unit: UpdateWorkshopUnitInputUnit!
+}
+
+input UpdateWorkshopUnitInputUnit {
+  partNumber: String!
+  mpn: String
+  mac: String
+  serial: String
+  status: String
+  location: String
+  projectId: ID
+  firmware: String
+  notes: String
+}
+
+input DeleteWorkshopUnitInput {
+  id: ID!
+  revision: Float!
+}
+
+type Mutation {
+  """
+  Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.
+  """
+  createWorkshopProject(input: CreateWorkshopProjectInput!): WorkshopProject!
+
+  """
+  Link a project to the Wiki ProductRevision it builds (its record id, Wiki installation, title and link), or unlink it with null, at the revision the caller saw; a stale revision is refused. Answers the project at its next revision.
+  """
+  nameWorkshopProductRevision(input: NameWorkshopProductRevisionInput!): WorkshopProject!
+
+  """
+  Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.
+  """
+  describeWorkshopProject(input: DescribeWorkshopProjectInput!): WorkshopProject!
+
+  """
+  Replace a project's product structure at the revision the caller saw: its items (assemblies, printed parts, COTS parts, PCBs and firmware, each with a part number and revision letter) and the usage lines from each assembly to the items it contains, with quantities, reference designators and placements; the BOM, costs and 3D view derive from it. Item geometry is a CAD plan (JSON) and a placement is [x, y, z] in mm. A stale revision is refused. Answers the project at its next revision.
+  """
+  saveWorkshopAssembly(input: SaveWorkshopAssemblyInput!): WorkshopProject!
+
+  """
+  Delete a project at the revision the caller saw; a stale revision is refused. Answers the deleted id.
+  """
+  deleteWorkshopProject(input: DeleteWorkshopProjectInput!): ID!
+
+  """
+  Remove a design concept mockup and its image from a project at the revision the caller saw; a stale revision is refused. Answers the project as the list shows it, at its next revision.
+  """
+  removeWorkshopConcept(input: RemoveWorkshopConceptInput!): WorkshopProject!
+
+  """
+  Publish a project's design concepts to the owner's Wiki as one Document that is evidence_for the named ProductRevision, written as the caller; the same project revision publishes the same Document again. Answers { documentId, url }.
+  """
+  publishWorkshopConcepts(input: PublishWorkshopConceptsInput!): JSON
+
+  """
+  Add one physical unit to the inventory by part number with its MAC address (any common spelling) or serial number, its status (in-stock, allocated, installed, retired), location, project and firmware, within the cap of 1000 units; a MAC already recorded is refused. Answers the unit.
+  """
+  recordWorkshopUnit(input: RecordWorkshopUnitInput!): WorkshopUnit!
+
+  """
+  Replace a unit's fields (after flashing, installing or moving it) at the revision the caller saw; a stale revision is refused. Answers the unit at its next revision.
+  """
+  updateWorkshopUnit(input: UpdateWorkshopUnitInput!): WorkshopUnit!
+
+  """
+  Remove a unit from the inventory at the revision the caller saw; a stale revision is refused. Answers the deleted id.
+  """
+  deleteWorkshopUnit(input: DeleteWorkshopUnitInput!): ID!
+
+  """Apply project changes using explicit actions"""
+  projectChanges(input: ProjectChangesInput!): ChangeResults
+
+  """Apply unit changes using explicit actions"""
+  unitChanges(input: UnitChangesInput!): ChangeResults
+
+  """Apply concept changes using explicit actions"""
+  conceptChanges(input: ConceptChangesInput!): ChangeResults
+
+  """Apply assembly changes using explicit actions"""
+  assemblyChanges(input: AssemblyChangesInput!): ChangeResults
+
+  """Apply productrevision changes using explicit actions"""
+  productRevisionChanges(input: ProductRevisionChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input ProjectChangesInput {
+  items: [ProjectChangesInputItemsItem!]!
+}
+
+input ProjectChangesInputItemsItem {
+  key: ID!
+  action: ProjectChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ProjectChangesInputItemsItemAction {
+  createWorkshopProject
+  describeWorkshopProject
+  deleteWorkshopProject
+}
+
+input UnitChangesInput {
+  items: [UnitChangesInputItemsItem!]!
+}
+
+input UnitChangesInputItemsItem {
+  key: ID!
+  action: UnitChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum UnitChangesInputItemsItemAction {
+  recordWorkshopUnit
+  updateWorkshopUnit
+  deleteWorkshopUnit
+}
+
+input ConceptChangesInput {
+  items: [ConceptChangesInputItemsItem!]!
+}
+
+input ConceptChangesInputItemsItem {
+  key: ID!
+  action: ConceptChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ConceptChangesInputItemsItemAction {
+  publishWorkshopConcepts
+  removeWorkshopConcept
+}
+
+input AssemblyChangesInput {
+  items: [AssemblyChangesInputItemsItem!]!
+}
+
+input AssemblyChangesInputItemsItem {
+  key: ID!
+  action: AssemblyChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum AssemblyChangesInputItemsItemAction {
+  saveWorkshopAssembly
+}
+
+input ProductRevisionChangesInput {
+  items: [ProductRevisionChangesInputItemsItem!]!
+}
+
+input ProductRevisionChangesInputItemsItem {
+  key: ID!
+  action: ProductRevisionChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ProductRevisionChangesInputItemsItemAction {
+  nameWorkshopProductRevision
+}

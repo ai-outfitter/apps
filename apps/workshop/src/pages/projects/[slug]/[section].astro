@@ -1,0 +1,9 @@
+---
+import WorkshopPage from "../../../components/WorkshopPage.astro";
+import { isSection, slugId } from "../../../lib/sections";
+
+const slug = Astro.params.slug ?? "";
+const section = Astro.params.section ?? "";
+if (!slugId(slug) || !isSection(section) || section === "overview") return new Response("Not found", { status: 404 });
+---
+<WorkshopPage section={section} slug={slug} />

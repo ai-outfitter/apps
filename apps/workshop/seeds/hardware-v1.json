@@ -1,0 +1,141 @@
+{
+  "types": [
+    {
+      "id": "7b000000-0000-4000-8000-000000000001",
+      "category": "edge",
+      "name": "component_of",
+      "title": "component of",
+      "body": "The source PhysicalComponent is a part of the target Product or PhysicalComponent (an assembly). Follow it down from a product to list what it is made of; quantities and costs belong to the revision that chooses them, not to this structural link.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000009"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000015",
+            "71000000-0000-4000-8000-000000000009"
+          ]
+        }
+      },
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000002",
+      "category": "edge",
+      "name": "includes_component",
+      "title": "includes component",
+      "body": "The source ProductRevision is built from the target PhysicalComponent. A hardware revision names the exact parts it pins, the way a software revision pins a commit; a later revision that swaps a part is a new revision.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000002"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000009"
+          ]
+        }
+      },
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000004",
+      "category": "node",
+      "name": "DesignArtifact",
+      "title": "Design artifacts",
+      "body": "## Design artifacts\n\nA design file for a physical component: a 3D model, a PCB project, fabrication outputs or a drawing. The record names the format and the exact design it pins (`designKey`: a content hash, or a repository path and commit); the file itself lives in a repository linked with `source_in` or at a stored URL.\n\nUse `design_of` for the PhysicalComponent it describes. A revision that includes the component pins the design through the artifact's `designKey`.\n\n## For agents\n\nA design artifact is design intent until a manufactured part and bench evidence exist. Never change its `designKey` in place; a changed design is a new artifact.",
+      "properties": [
+        {
+          "name": "format",
+          "type": "string",
+          "description": "File format: STEP, STL, KiCad, Gerber or drawing.",
+          "required": true
+        },
+        {
+          "name": "design_key",
+          "type": "string",
+          "description": "Exact design identity: a content hash, or repository path@commit of the design files.",
+          "required": false
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "description": "Where the file is stored when it is not in a linked repository.",
+          "required": false
+        }
+      ],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000005",
+      "category": "edge",
+      "name": "design_of",
+      "title": "design of",
+      "body": "The source DesignArtifact describes the target PhysicalComponent. One component may have several artifacts (a model, its drawing, its PCB outputs).",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000006",
+      "category": "node",
+      "name": "TelemetryStream",
+      "title": "Telemetry streams",
+      "body": "## Telemetry streams\n\nA stream of measurements a device sends: what carries it (`transport`), the shape of each message (`schema`) and how often it arrives (`interval`).\n\nUse `streams_from` for the PhysicalComponent that produces it and `measures` for each MetricDefinition it feeds. A project that ingests the stream links `collects_telemetry_from`.\n\n## For agents\n\nA stream record is a contract, not proof of data flowing. Keep received observations and their evidence separate from the definition.",
+      "properties": [
+        {
+          "name": "transport",
+          "type": "string",
+          "description": "How messages travel, for example serial, BLE, LoRa, MQTT or HTTPS.",
+          "required": false
+        },
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Message shape: field names, units and encoding, or a reference to the schema file.",
+          "required": false
+        },
+        {
+          "name": "interval",
+          "type": "string",
+          "description": "How often a message is sent, for example every 60 s or on change.",
+          "required": false
+        }
+      ],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000007",
+      "category": "edge",
+      "name": "streams_from",
+      "title": "streams from",
+      "body": "The source TelemetryStream is produced by the target PhysicalComponent.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000008",
+      "category": "edge",
+      "name": "measures",
+      "title": "measures",
+      "body": "The source TelemetryStream carries observations for the target MetricDefinition. The definition explains the measurement; the stream is where its values come from.",
+      "properties": [],
+      "archived": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "7b000000-0000-4000-8000-000000000011",
+      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "slug": "design-concept",
+      "title": "Design concept",
+      "summary": "A Document of concept mockup images showing what a product revision is expected to look like, attached to that revision as evidence.",
+      "body": "{\n  \"artifactKind\": \"design concept\",\n  \"audience\": \"The team and its agents deciding what a physical product will be before parts are chosen; customers once a revision is announced.\",\n  \"purpose\": \"Record, as images, what we think the product will look like at each revision, so a product visibly evolves from rough ideas to a real device.\",\n  \"outputTitle\": \"Design concept\",\n  \"sections\": [\n    \"Subject\",\n    \"Images\",\n    \"What this is not\"\n  ],\n  \"sourceScope\": \"One ProductRevision in its own Wiki. The output is a Document whose body is JSON: subject {id, revision} pinning the revision, and images, a list of {artifact, prompt, model, createdAt, caption} for each generated or drawn mockup, where artifact cites the image file in the shared evidence shape (provider, recordId, uri, contentHash). Link the Document to the revision with evidence_for and documents.\",\n  \"refreshPolicy\": \"Never rewrite a published concept; a new set of images for the same revision is a new Document, so the sequence of concepts stays visible.\",\n  \"revisionPolicy\": \"Each Document pins the revision's graph record revision in its subject; the prompt and model of every image are kept so the picture can be regenerated or compared.\",\n  \"status\": \"proposed\",\n  \"sectionMappings\": [\n    {\n      \"title\": \"Subject\",\n      \"types\": [\n        \"ProductRevision\"\n      ],\n      \"mode\": \"links\"\n    },\n    {\n      \"title\": \"Images\",\n      \"types\": [\n        \"Document\"\n      ],\n      \"mode\": \"fields\",\n      \"fields\": [\n        \"images\"\n      ]\n    }\n  ]\n}",
+      "properties": {},
+      "archived": false
+    }
+  ],
+  "edges": []
+}

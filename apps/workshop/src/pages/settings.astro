@@ -1,0 +1,16 @@
+---
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import SettingsRow from "@ai-outfitter/ui/astro/SettingsRow.astro";
+import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+---
+<AppLayout name="Workshop" title="Workshop settings" description="Project access, evidence and optional bench tools." active="settings" homeLabel="Projects">
+<Section id="access-heading" title="Project access">
+<SettingsRow title="Shared organization projects"><p>Current organization members can review projects. Editing access depends on the installation's permissions. Outfitter stores operational project records and rejects conflicting revisions. Operational installations hold up to 100 projects; export and delete older projects when needed. Exports retain the design and evidence.</p></SettingsRow>
+<SettingsRow title="Evidence"><p>Physical acceptance is recorded by an operator. A render or successful export does not prove physical fit or electrical operation. Changing the electrical baseline invalidates earlier breadboard acceptance.</p></SettingsRow>
+</Section>
+<Section id="tools-heading" title="Optional bench tools">
+<SettingsRow title="USB serial"><p>In a supported browser, explicitly select a connected board to read its logs. Review logs for secrets before attaching them. No device is discovered or connected automatically.</p></SettingsRow>
+<SettingsRow title="Local companion · not paired"><p>KiCad execution, firmware flashing and local tool orchestration remain in the companion workflow. This installed app does not execute commands on your computer or place manufacturing orders.</p></SettingsRow>
+</Section>
+<script>import {setOrganizationLink} from "../../navigation.js";setOrganizationLink("workshop");</script>
+</AppLayout>

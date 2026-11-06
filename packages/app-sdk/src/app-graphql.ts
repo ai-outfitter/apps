@@ -8,7 +8,7 @@
 // which runs mutation operations only, as a write.
 // An app that serves it declares the `graph.serve` capability. A table whose rows
 // are not all readable by every member passes `scope`, which narrows every read of it.
-import { and, asc, count, getTableColumns, gt, inArray, type SQL } from "drizzle-orm";
+import { and, asc, count, getTableColumns, gt, inArray, like, or, type SQL } from "drizzle-orm";
 import type { BaseSQLiteDatabase, SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import {
   GraphQLBoolean, GraphQLEnumType, GraphQLError, type GraphQLFieldConfig, type GraphQLFieldConfigArgumentMap, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID,
@@ -165,6 +165,7 @@ export function mutationField<Input extends z.ZodType, Context = TableContext & 
   const json = z.toJSONSchema(options.input, { io: "input", unrepresentable: "any" }) as JsonSchema;
   return {
     type: options.output ?? JSONScalar, description: options.description,
+    extensions: { batchInput: options.input },
     args: { input: { type: new GraphQLNonNull(inputType(json, `${options.name}Input`)) } },
     resolve: async (_source, args: { input: unknown }, context) => {
       const parsed = options.input.safeParse(args.input);
@@ -227,6 +228,7 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
   });
   const args: GraphQLFieldConfigArgumentMap = {
     ...pageArgs(),
+    search: {type:GraphQLString,description:"Match text across this collection’s text fields."},
     ...Object.fromEntries(filters.map(key => [key, { type: new GraphQLList(nonNull(isId(key) ? GraphQLID : scalars[columns[key].dataType] ?? GraphQLString)) }])),
   };
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));
@@ -242,19 +244,16 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
           const list = idList(values as string[] | null | undefined);
           return list ? inArray(column, list) : undefined;
         };
-        const where = and(visible, matching(columns[id], args.ids), ...filters.map(key => matching(columns[key], args[key])));
+        const search = typeof args.search === "string" ? args.search.trim() : "";
+        if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
+        const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
+        const where = and(visible, matching(columns[id], args.ids), search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined, ...filters.map(key => matching(columns[key], args[key])));
         const db = context.db();
         const rows = await db.select(selection).from(table as SQLiteTable)
           .where(and(where, start === null ? undefined : gt(columns[id], start))).orderBy(asc(columns[id])).limit(first + 1);
         // Rows the response could not hold are cut before they resolve, as maxBytes cuts a list,
         // so a page of large rows comes back truncated; a first row too large still is refused.
-        let room = context.budget.maxBytes - context.budget.bytes, fits = 0;
-        for (const row of rows.slice(0, first)) {
-          room -= JSON.stringify(row).length;
-          if (room < 0) break;
-          fits++;
-        }
-        const kept = fits > 0 && fits < Math.min(first, rows.length) ? fits : first;
+        const kept = rowsWithinBudget(rows, first, context.budget.maxBytes - context.budget.bytes);
         if (kept < first) context.truncated.push([...responsePathAsArray(info.path), "nodes"]);
         return {
           ...page(context, info, rows, row => String(row[id]), kept, start),
@@ -264,4 +263,14 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
       },
     },
   };
+}
+
+function rowsWithinBudget(rows: unknown[], first: number, room: number): number {
+  let fits = 0;
+  for (const row of rows.slice(0, first)) {
+    room -= JSON.stringify(row).length;
+    if (room < 0) break;
+    fits++;
+  }
+  return fits > 0 && fits < Math.min(first, rows.length) ? fits : first;
 }

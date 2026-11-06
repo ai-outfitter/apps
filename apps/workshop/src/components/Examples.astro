@@ -1,0 +1,14 @@
+---
+import { EXAMPLES } from "../lib/project";
+---
+
+{Object.entries(EXAMPLES).map(([id, e]) => (
+  <button class="example-card" data-example={id}>
+    <span class="example-icon" aria-hidden="true">
+      {e.icon}
+    </span>
+    <strong>{e.name}</strong>
+    <p>{e.description}</p>
+    <small>{e.label}</small>
+  </button>
+))}

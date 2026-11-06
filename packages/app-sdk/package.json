@@ -47,7 +47,9 @@
     "./untrusted-text": "./src/untrusted-text.ts",
     "./guest-chat": "./src/guest-chat.ts",
     "./graph-templates": "./src/graph-templates.ts",
-    "./data-transfer": "./src/data-transfer.ts"
+    "./data-transfer": "./src/data-transfer.ts",
+    "./batch-documents": "./src/batch-documents.ts",
+    "./batch-receipts": "./src/batch-receipts.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.1",

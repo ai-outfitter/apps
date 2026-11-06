@@ -1,0 +1,1509 @@
+[
+  {
+    "name": "AssemblyChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply assembly changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation AssemblyChanges($input: AssemblyChangesInput!) {\n  assemblyChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "1baa76c118bb0eff0e43adfafd0e59a5b1391015214d78db536784fc93e69add",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AssemblyChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveWorkshopAssembly"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "assembly": {
+                            "type": "object",
+                            "properties": {
+                              "rootId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "items": {
+                                "maxItems": 200,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "number": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 60
+                                    },
+                                    "revision": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{1,2}$"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 150
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "assembly",
+                                        "printed",
+                                        "cots",
+                                        "pcb",
+                                        "firmware"
+                                      ]
+                                    },
+                                    "manufacturer": {
+                                      "default": "",
+                                      "type": "string",
+                                      "maxLength": 100
+                                    },
+                                    "mpn": {
+                                      "default": "",
+                                      "type": "string",
+                                      "maxLength": 100
+                                    },
+                                    "source": {
+                                      "default": "",
+                                      "type": "string",
+                                      "maxLength": 2000
+                                    },
+                                    "unitCost": {
+                                      "default": 0,
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100000
+                                    },
+                                    "trackBy": {
+                                      "default": "none",
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "mac",
+                                        "serial"
+                                      ]
+                                    },
+                                    "color": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9a-f]{6}$"
+                                    },
+                                    "geometry": {
+                                      "type": "object",
+                                      "properties": {
+                                        "version": {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        "units": {
+                                          "type": "string",
+                                          "const": "mm"
+                                        },
+                                        "features": {
+                                          "minItems": 1,
+                                          "maxItems": 24,
+                                          "type": "array",
+                                          "items": {
+                                            "oneOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "const": "box"
+                                                  },
+                                                  "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "add",
+                                                      "cut"
+                                                    ]
+                                                  },
+                                                  "origin": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "size": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": 1,
+                                                        "maximum": 200
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": 1,
+                                                        "maximum": 200
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": 1,
+                                                        "maximum": 200
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  }
+                                                },
+                                                "required": [
+                                                  "kind",
+                                                  "mode",
+                                                  "origin",
+                                                  "size"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "const": "cylinder"
+                                                  },
+                                                  "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "add",
+                                                      "cut"
+                                                    ]
+                                                  },
+                                                  "base": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -250,
+                                                        "maximum": 250
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "radius": {
+                                                    "type": "number",
+                                                    "minimum": 0.1,
+                                                    "maximum": 200
+                                                  },
+                                                  "height": {
+                                                    "type": "number",
+                                                    "minimum": 1,
+                                                    "maximum": 200
+                                                  },
+                                                  "axis": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "x",
+                                                      "y",
+                                                      "z"
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "kind",
+                                                  "mode",
+                                                  "base",
+                                                  "radius",
+                                                  "height",
+                                                  "axis"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "version",
+                                        "units",
+                                        "features"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "firmware": {
+                                      "type": "object",
+                                      "properties": {
+                                        "repository": {
+                                          "type": "string",
+                                          "maxLength": 2000
+                                        },
+                                        "path": {
+                                          "default": "",
+                                          "type": "string",
+                                          "maxLength": 200
+                                        },
+                                        "ref": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 100
+                                        },
+                                        "target": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 40
+                                        }
+                                      },
+                                      "required": [
+                                        "repository",
+                                        "ref",
+                                        "target"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "notes": {
+                                      "default": "",
+                                      "type": "string",
+                                      "maxLength": 2000
+                                    },
+                                    "uses": {
+                                      "default": [],
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "itemId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "quantity": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 1000
+                                          },
+                                          "refdes": {
+                                            "default": "",
+                                            "type": "string",
+                                            "maxLength": 60
+                                          },
+                                          "position": {
+                                            "default": [
+                                              0,
+                                              0,
+                                              0
+                                            ],
+                                            "type": "array",
+                                            "prefixItems": [
+                                              {
+                                                "type": "number",
+                                                "minimum": -500,
+                                                "maximum": 500
+                                              },
+                                              {
+                                                "type": "number",
+                                                "minimum": -500,
+                                                "maximum": 500
+                                              },
+                                              {
+                                                "type": "number",
+                                                "minimum": -500,
+                                                "maximum": 500
+                                              }
+                                            ],
+                                            "items": false,
+                                            "minItems": 3,
+                                            "maxItems": 3
+                                          },
+                                          "rotation": {
+                                            "default": 0,
+                                            "type": "number",
+                                            "minimum": -360,
+                                            "maximum": 360
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "itemId",
+                                          "quantity"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "number",
+                                    "revision",
+                                    "name",
+                                    "kind"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "items"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "assembly"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "ConceptChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply concept changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ConceptChanges($input: ConceptChangesInput!) {\n  conceptChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "d67f81057873caed5446fa677c25fa0a327f84a5bff501b80bd1c2d08f1454c1",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ConceptChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "publishWorkshopConcepts"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "productRevisionId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "projectId",
+                          "productRevisionId",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "removeWorkshopConcept"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "conceptId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "projectId",
+                          "conceptId",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "CreateWorkshopProject",
+    "kind": "mutation",
+    "story": "As a member, I want to start a project from a starter example on the Workshop page or through an agent, named for the product revision it builds, so that I can refine a working model instead of a blank one.",
+    "query": "mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {\n  createWorkshopProject(input: $input) {\n    id\n    name\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "07731f6899c2d64fdeb36f17a4f0a72a42d2987a5de35d51ccaabcb6c64f19cd",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CreateWorkshopProjectInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteWorkshopProject",
+    "kind": "mutation",
+    "story": "As a member, I want to delete a project at the revision I saw, so that I never remove what someone else just changed.",
+    "query": "mutation DeleteWorkshopProject($input: DeleteWorkshopProjectInput!) {\n  deleteWorkshopProject(input: $input)\n}",
+    "hash": "b10d566a102b39149b2842efb8bd93bf60247c4dabbf8f9f0b6edf65e46c99f9",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteWorkshopProjectInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteWorkshopUnit",
+    "kind": "mutation",
+    "story": "As a member, I want to remove a unit I recorded by mistake or scrapped at the revision I saw, so that the inventory counts only units that exist.",
+    "query": "mutation DeleteWorkshopUnit($input: DeleteWorkshopUnitInput!) {\n  deleteWorkshopUnit(input: $input)\n}",
+    "hash": "1470a8bef714ae5fc9de0b046a9d615067e74f8d71b663f784451d0c75194b38",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteWorkshopUnitInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DescribeWorkshopProject",
+    "kind": "mutation",
+    "story": "As a member, I want an agent to write a project's brief and requirements and move it through its stages as the work progresses, so that the project page says what we are building and how far along it is.",
+    "query": "mutation DescribeWorkshopProject($input: DescribeWorkshopProjectInput!) {\n  describeWorkshopProject(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "5ef67e2d134fc13324cadb4b3695bc8870b974959cb0baa402317fb7d0eaed18",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DescribeWorkshopProjectInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "NameWorkshopProductRevision",
+    "kind": "mutation",
+    "story": "As a member, I want to name the Wiki product revision a project builds, so that its concepts and evidence publish to the right release chain.",
+    "query": "mutation NameWorkshopProductRevision($input: NameWorkshopProductRevisionInput!) {\n  nameWorkshopProductRevision(input: $input) {\n    id\n    name\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "675c0385f6c1b8ba14ac35d0ddf51c1ed6d50828624b2e72cb1fddb4540d88d3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL NameWorkshopProductRevisionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "ProductRevisionChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply productrevision changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ProductRevisionChanges($input: ProductRevisionChangesInput!) {\n  productRevisionChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "712ac4cdf634413c381c182a1a0b9cd1d452d3bfcfcfd4701c5cd4fe4f5e5d92",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ProductRevisionChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "nameWorkshopProductRevision"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "productRevision": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                  },
+                                  "wikiInstallationId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "url": {
+                                    "default": "",
+                                    "type": "string",
+                                    "maxLength": 2000
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "productRevision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "ProjectChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply project changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ProjectChanges($input: ProjectChangesInput!) {\n  projectChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "4b73b282a66d59f7262f47dd804acddeb8de1b157d68f9b919350ec931cffa9c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ProjectChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "createWorkshopProject"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "example": {
+                            "type": "string",
+                            "enum": [
+                              "cube",
+                              "holder",
+                              "button",
+                              "node",
+                              "sensor"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "productRevision": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "wikiInstallationId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "title": {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              "url": {
+                                "default": "",
+                                "type": "string",
+                                "maxLength": 2000
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "example"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "describeWorkshopProject"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "phase": {
+                            "type": "string",
+                            "enum": [
+                              "concept",
+                              "prototyping",
+                              "validation",
+                              "pilot",
+                              "manufacturing"
+                            ]
+                          },
+                          "brief": {
+                            "type": "string",
+                            "maxLength": 5000
+                          },
+                          "requirements": {
+                            "type": "string",
+                            "maxLength": 5000
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteWorkshopProject"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "PublishWorkshopConcepts",
+    "kind": "mutation",
+    "story": "As a member, I want to publish a project's concept mockups to the product revision in our Wiki, so that the release chain shows what the product will look like before anything is built.",
+    "query": "mutation PublishWorkshopConcepts($input: PublishWorkshopConceptsInput!) {\n  publishWorkshopConcepts(input: $input)\n}",
+    "hash": "77cb3f48aa3900f7130d225eed0becf2faa2939022cd1850e69e0444e04046ee",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishWorkshopConceptsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "RecordWorkshopUnit",
+    "kind": "mutation",
+    "story": "As a member, I want to record each board or part I have in hand by its MAC address or serial, so that the assembly shows what is in stock and no unit is entered twice.",
+    "query": "mutation RecordWorkshopUnit($input: RecordWorkshopUnitInput!) {\n  recordWorkshopUnit(input: $input) {\n    id\n    partNumber\n    mpn\n    mac\n    serial\n    status\n    location\n    projectId\n    firmware\n    notes\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "9a611d4e3c40919175075973f0b225804096ae150b4aa53cb53d2381d5eff5b4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordWorkshopUnitInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "RemoveWorkshopConcept",
+    "kind": "mutation",
+    "story": "As a member, I want to remove a concept mockup that no longer shows what we mean to build, so that the gallery and the next publish carry only current design intent.",
+    "query": "mutation RemoveWorkshopConcept($input: RemoveWorkshopConceptInput!) {\n  removeWorkshopConcept(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "94e75c4f923762e525588891ef66f00c7ef6d1140e20facad78cef19e1bde2a3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RemoveWorkshopConceptInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveWorkshopAssembly",
+    "kind": "mutation",
+    "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
+    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "2c2e8819ec5c620695a613658205f746726353fffc69d21c37177eee4fd4c7fb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveWorkshopAssemblyInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "UnitChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply unit changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation UnitChanges($input: UnitChangesInput!) {\n  unitChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "0f127068e2a27ee224e5a423008d398c72845322a37d5a0fa7947b5b2e7e101a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UnitChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "recordWorkshopUnit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "partNumber": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          },
+                          "mpn": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "serial": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "status": {
+                            "default": "in-stock",
+                            "type": "string",
+                            "enum": [
+                              "in-stock",
+                              "allocated",
+                              "installed",
+                              "retired"
+                            ]
+                          },
+                          "location": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "projectId": {
+                            "default": null,
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "firmware": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "notes": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "partNumber"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "updateWorkshopUnit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "unit": {
+                            "type": "object",
+                            "properties": {
+                              "partNumber": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 60
+                              },
+                              "mpn": {
+                                "default": "",
+                                "type": "string",
+                                "maxLength": 100
+                              },
+                              "mac": {
+                                "type": "string"
+                              },
+                              "serial": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "status": {
+                                "default": "in-stock",
+                                "type": "string",
+                                "enum": [
+                                  "in-stock",
+                                  "allocated",
+                                  "installed",
+                                  "retired"
+                                ]
+                              },
+                              "location": {
+                                "default": "",
+                                "type": "string",
+                                "maxLength": 100
+                              },
+                              "projectId": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "firmware": {
+                                "default": "",
+                                "type": "string",
+                                "maxLength": 100
+                              },
+                              "notes": {
+                                "default": "",
+                                "type": "string",
+                                "maxLength": 2000
+                              }
+                            },
+                            "required": [
+                              "partNumber"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "unit"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteWorkshopUnit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "UpdateWorkshopUnit",
+    "kind": "mutation",
+    "story": "As a member, I want to mark a unit flashed, installed in a project or moved to a new bin at the revision I saw, so that the inventory follows each physical unit through the build.",
+    "query": "mutation UpdateWorkshopUnit($input: UpdateWorkshopUnitInput!) {\n  updateWorkshopUnit(input: $input) {\n    id\n    partNumber\n    mpn\n    mac\n    serial\n    status\n    location\n    projectId\n    firmware\n    notes\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "893231b37b8894f34368a90c02445a831ad9a1e47cc159de792a1a2978607051",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateWorkshopUnitInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "WorkshopProjectHandoff",
+    "kind": "query",
+    "story": "As a Planning agent or member, I want to read back one Workshop project's persisted brief, requirements, stage and whole assembly, so that I can verify a hardware handoff from stored state instead of a summary.",
+    "query": "query WorkshopProjectHandoff($input: WorkshopProjectHandoffInput!) {\n  workshopProjectHandoff(input: $input)\n}",
+    "hash": "01ce84b4fbfb1cf9b86bccdb7dba2de923a5477d2f5f981f6f47c7fcfb62ba0b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopProjectHandoffInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "WorkshopProjects",
+    "kind": "query",
+    "story": "As a caller, I want to search workshopProjects with compact results, so that I can select records and continue through every page.",
+    "query": "query WorkshopProjects($first: Int = 20, $after: String, $ids: [ID!], $search: String, $createdBy: [ID!], $productRevisionId: [ID!]) {\n  workshopProjects(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    createdBy: $createdBy\n    productRevisionId: $productRevisionId\n  ) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "8ca08658e451a938830a589e8c854fa6de3d4f6aff595bf4ef2a3b8a2877c0e2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "createdBy": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "productRevisionId": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "WorkshopUnits",
+    "kind": "query",
+    "story": "As a caller, I want to search workshopUnits with compact results, so that I can select records and continue through every page.",
+    "query": "query WorkshopUnits($first: Int = 20, $after: String, $ids: [ID!], $search: String, $partNumber: [String!], $mac: [String!], $status: [String!], $projectId: [ID!]) {\n  workshopUnits(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    partNumber: $partNumber\n    mac: $mac\n    status: $status\n    projectId: $projectId\n  ) {\n    nodes {\n      id\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "fc6b35bb410c0183c57fc8d5190f175e990b9ef96813fdaa5bac460e20d4514f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "partNumber": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "mac": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "status": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "projectId": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  }
+]
