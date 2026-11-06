@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {packArchive} from './lib/sdk-archives.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -10,8 +11,18 @@ for(const path of paths) {
  const pkg=JSON.parse(readFileSync(join(path,'package.json'),'utf8'));
  const destination=mkdtempSync(join(tmpdir(),'outfitter-sdk-release-'));
  try {
-  const packed=JSON.parse(execFileSync('npm',['pack','--json','--pack-destination',destination],{cwd:path,encoding:'utf8'}));
   const tag=`${config.packages[path].component}-v${pkg.version}`;
-  execFileSync('gh',['release','upload',tag,join(destination,packed[0].filename),'--repo',process.env.GITHUB_REPOSITORY],{stdio:'inherit'});
+  const repository=process.env.GITHUB_REPOSITORY;
+  assert.ok(repository,'Missing release repository');
+  const {assets}=JSON.parse(execFileSync('gh',['release','view',tag,'--repo',repository,'--json','assets'],{encoding:'utf8'}));
+  const filename=`${pkg.name.replace(/^@/,'').replace('/','-')}-${pkg.version}.tgz`;
+  if(assets.some(asset=>asset.name===filename)) {
+    console.log(`${tag}: archive already published`);
+    continue;
+  }
+  // Recovery must publish the released package source, never newer package edits.
+  execFileSync('git',['diff','--exit-code',tag,'--',path],{stdio:'inherit'});
+  const packed=packArchive(path,destination);
+  execFileSync('gh',['release','upload',tag,join(destination,packed.filename),'--repo',repository],{stdio:'inherit'});
  } finally {rmSync(destination,{recursive:true,force:true});}
 }
