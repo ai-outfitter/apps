@@ -11,6 +11,7 @@ import { Miniflare, Response as MiniflareResponse } from "miniflare";
 import { type AppActor, encodeActor, identityHeaders, identityHeaderValues } from "@ai-outfitter/app-sdk/server";
 import { type AppMigration, migrateAppDatabase } from "@ai-outfitter/app-sdk/migrations";
 import { type StorageManifest, storageBinding } from "@ai-outfitter/app-sdk/storage";
+import { platformIdentityResponse } from "./platform-identity";
 import type { WorkflowHostScope, WorkflowHostStub } from "@ai-outfitter/app-sdk/workflow-host";
 
 type Package = {
@@ -182,11 +183,16 @@ export async function appWorker(slug: string, packagePath: string | URL, install
       },
       /** Fetch a complete request, including app-owned browser routing headers. */
       fetch(input: string | URL | Request, init?: RequestInit) {
-        return dispatch("", new Request(input, init));
+        const request = new Request(input, init);
+        // As a browser sees the app: the platform answers its identity routes on every app mount.
+        return Promise.resolve(platformIdentityResponse(request.method, request.url) ?? dispatch("", request));
       },
       /** A request as the platform forwards it for `member`; no member sends none.
        * `workflowHost` is the scope the platform would pass as dispatch props. */
       async call(path: string, member?: Member, init: { method?: string; body?: unknown; headers?: HeadersInit; workflowHost?: WorkflowHostScope } = {}) {
+        // The platform answers its identity routes itself; it never forwards them to the app.
+        const identity = platformIdentityResponse(init.method ?? "GET", origin + path);
+        if (identity) return identity;
         const headers = new Headers(init.headers);
         // Identity comes only from `member`; caller headers cannot forge it.
         for (const name of Object.values(identityHeaders)) headers.delete(name);

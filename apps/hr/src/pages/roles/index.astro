@@ -1,0 +1,8 @@
+---
+import HrLayout from "../../components/HrLayout.astro";
+import RoleTable from "../../components/RoleTable.astro";
+---
+<HrLayout title="Roles" description="Open roles first, with where their pipelines stand; approved and planned roles below. Click a role for its funnel, forecast and stage map.">
+<section class="paper"><h2>Request a role</h2><form action="/roles/new/builder" class="request-form"><label class="sr-only" for="role-request">Working title or role description</label><input id="role-request" name="title" required maxlength="600" placeholder="Working title, e.g. Member of Technical Staff, Agentic Engineer" /><button type="submit">Start the request</button></form><details><summary>Start from something optional</summary><p>Describe the problem you need this person to solve, or start with a working title. You can refine the details in the conversation.</p></details><p class="caption">Opens a dedicated recruiting conversation. Work through the brief, MOC, job description, level and pay, interview loop, and approval.</p></section>
+<RoleTable status="Open" title="Open" /><RoleTable status="Approved" title="Approved, not yet open" /><RoleTable status="Planned" title="Planned" />
+</HrLayout>

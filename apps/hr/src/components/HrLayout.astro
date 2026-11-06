@@ -1,0 +1,14 @@
+---
+import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import { sidebarLinks } from "../navigation";
+import "../hr.css";
+interface Props { title: string; description?: string; builder?: boolean; }
+const { title, description = "", builder = false } = Astro.props;
+---
+<AppLayout name="Talent Acquisition" title={title} description={description} active={Astro.url.pathname === "/settings" ? "settings" : "home"} sidebarLinks={sidebarLinks} introVisuallyHidden={builder}>
+  <div class:list={["hr-content", { "builder-content": builder }]}>
+    {builder && <slot name="breadcrumb" />}
+    <slot />
+  </div>
+</AppLayout>
+<script>import "../scripts/preview.js";</script>

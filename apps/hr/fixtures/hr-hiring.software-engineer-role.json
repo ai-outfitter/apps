@@ -1,0 +1,22 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-hiring.software-engineer-role",
+  "workflow": "hr-hiring",
+  "description": "The role child waits for observed publication; nothing downstream starts.",
+  "children": {
+    "role": "hr-role-hiring.software-engineer"
+  },
+  "expect": {
+    "nodes": {
+      "role": "ready",
+      "research": "waiting",
+      "campaign": "waiting",
+      "candidates": "waiting",
+      "decide": "waiting",
+      "offer": "waiting",
+      "enrollment": "waiting"
+    }
+  }
+}

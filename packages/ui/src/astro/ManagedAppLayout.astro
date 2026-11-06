@@ -3,6 +3,8 @@ import AppLayout from "./AppLayout.astro";
 import { ClientRouter } from "astro:transitions";
 import Navigation from "./Navigation.astro";
 import Icon from "./Icon.astro";
+import type { NavigationLink } from "./Navigation.astro";
+import AccountMenu from "./AccountMenu.astro";
 import { WORKSPACE_RETURN_ID } from "../workspace-return";
 
 interface Props {
@@ -30,11 +32,17 @@ interface Props {
   homeLabel?: string;
   /** `active` overrides matching the link against the page path, as relative links need. */
   sidebarLinks?: { label: string; href: string; active?: boolean }[];
-  /** The Settings link; an app served under a path prefix passes a relative one. */
+  /** The app's own Settings link, first in the account menu; an app served under a path prefix passes a relative one. */
   settingsHref?: string;
+  /** The app's Settings link text, "<name> settings" by default, so it never reads as Outfitter's own settings. */
+  settingsLabel?: string;
+  /** More entries the app publishes to the account menu, after its Settings link. */
+  accountLinks?: NavigationLink[];
   introVisuallyHidden?: boolean;
 }
-const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings" } = Astro.props;
+const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
+// Demo builds are read-only fixtures that call no API, so their account footer shows a fixture member.
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
 const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active === "home" }];
 ---
 <!doctype html>
@@ -54,10 +62,10 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
         <slot name="sidebar" />
         <Navigation links={links} />
         <Navigation label="App utilities" utilities links={[
-          { label: "Settings", href: settingsHref, active: active === "settings" },
           { label: "Organization ↗", href: "#", id: "org", active: false },
         ]} />
         {workspaceReturnStyle === "minimal" && <nav class="ui-navigation workspace-return--minimal" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#">Back to Outfitter</a></nav>}
+        <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} appLinks={[{ label: settingsLabel, href: settingsHref, icon: "settings", active: active === "settings" }, ...accountLinks]} />
       </Fragment>
       <div class="ui-content">
         <div class:list={["intro", { "visually-hidden": introVisuallyHidden }]}><div class="intro-heading"><h1>{title}</h1><slot name="intro-actions" /></div><p>{description}</p></div>

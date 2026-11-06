@@ -1,4 +1,5 @@
 import { type BrowserContext, type Page, type Route, defineConfig, expect } from "@playwright/test";
+import { platformIdentityResponse } from "./platform-identity";
 
 /** Paths resolve relative to the app's own Playwright configuration. */
 export function appPlaywrightConfig() {
@@ -29,12 +30,29 @@ export async function fulfillFrom(route: Route, response: Response) {
 
 type Fetcher = { fetch(input: string, init?: RequestInit): Promise<Response> };
 
+export { isPlatformIdentityRequest, testMember } from "./platform-identity";
+import { isPlatformIdentityRequest } from "./platform-identity";
+
+/** Answers the platform's identity routes at `origin` ahead of routes registered earlier. */
+export function routePlatformIdentity(target: Page | BrowserContext, origin: string) {
+  return target.route((url) => url.origin === new URL(origin).origin && isPlatformIdentityRequest(url), fulfillPlatformIdentity);
+}
+
+/** Answers a page's request to the platform's identity routes as the platform would; false for any other request. */
+export async function fulfillPlatformIdentity(route: Route) {
+  const response = platformIdentityResponse(route.request().method(), route.request().url());
+  if (response) await fulfillFrom(route, response);
+  return Boolean(response);
+}
+
 /** Demo mode is read-only fixtures: serve `origin` from the Worker and fail
- * any non-GET or `/api/` request the page makes. */
+ * any non-GET or `/api/` request the page makes but the platform's identity routes. */
 export function routeReadOnly(target: Page | BrowserContext, origin: string, worker: Fetcher, init?: RequestInit) {
   return target.route(`${origin}/**`, async (route) => {
     const request = route.request();
     expect(request.method()).toBe("GET");
+    const identity = platformIdentityResponse(request.method(), request.url());
+    if (identity) return fulfillFrom(route, identity);
     expect(new URL(request.url()).pathname.startsWith("/api/")).toBe(false);
     await fulfillFrom(route, await worker.fetch(request.url(), init));
   });
@@ -56,6 +74,14 @@ export function stayOnPage(page: Page) {
   };
 }
 
+/** Opens the sidebar's account menu when the link `name` is one of its entries, such as the app's settings. */
+export async function openAccountMenuFor(page: Page, name: string) {
+  const sidebar = page.locator("#sidebar");
+  if (await sidebar.locator("#account-menu").getByRole("link", { name, exact: true, includeHidden: true }).count() === 0) return;
+  const toggle = sidebar.getByRole("button", { name: "Accounts", exact: true });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+}
+
 /**
  * Sidebar links must swap pages inside the app shell: no reload, the same
  * content as loading the page directly, the link marked current and no page
@@ -69,7 +95,8 @@ export async function expectClientNavigation(page: Page, start: string, links: s
   await page.goto(start);
   const hrefs = new Map<string, string>();
   for (const name of links) {
-    const href = await sidebar.getByRole("link", { name, exact: true }).getAttribute("href");
+    // includeHidden: an entry of the closed account menu, such as the app's settings.
+    const href = await sidebar.getByRole("link", { name, exact: true, includeHidden: true }).getAttribute("href");
     hrefs.set(name, new URL(href ?? "", start).href);
   }
   const direct = new Map<string, string>();
@@ -82,7 +109,8 @@ export async function expectClientNavigation(page: Page, start: string, links: s
   await visit.mark();
   for (const [round, order] of [["forward", links], ["reverse", [...links].reverse()]] as const)
     for (const name of order) {
-      const link = sidebar.getByRole("link", { name, exact: true });
+      const link = sidebar.getByRole("link", { name, exact: true, includeHidden: true });
+      await openAccountMenuFor(page, name);
       await link.click();
       // Pages may add query parameters after loading, so compare paths.
       await expect.poll(() => new URL(page.url()).pathname, { message: `${round}: ${name}` }).toBe(new URL(hrefs.get(name) ?? "").pathname);

@@ -1,0 +1,9 @@
+---
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import { roles } from "../fixtures";
+interface Props { status: string; title: string; }
+const { status, title } = Astro.props;
+const rows = roles.filter(r => r.status === status);
+---
+<Section id={`roles-${status.replaceAll(" ", "-").toLowerCase()}`} title={`${title} (${rows.length})`}><Table className="scroll-table" label={`${title} roles table`} columns={["Role", "Department", "Hiring manager", "Owner", "Priority", "Status", "Days open", "In process", "Awaiting review", "At offer"]}>{rows.map(role => <tr><td><a href={`/roles/${role.id}`}>{role.title}</a></td><td>{role.department}</td><td>{role.manager}</td><td>{role.owner}</td><td><span class:list={["tag", { high: role.priority === "High" }]}>{role.priority}</span></td><td><span class="tag green">{role.status}</span></td><td>{role.days}</td><td>{role.process}</td><td>{role.review}</td><td>{role.offer}</td></tr>)}</Table></Section>

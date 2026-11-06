@@ -1,0 +1,85 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-candidate.ana-interviewed",
+  "workflow": "hr-candidate",
+  "description": "Calendar acceptance, then a completed interview evaluation.",
+  "records": {
+    "outreach": {
+      "candidateId": "cand-ana",
+      "messageId": "msg-ana-1",
+      "threadId": "thread-ana",
+      "sentAt": "2026-09-11T10:00:00Z",
+      "source": {
+        "connector": "gmail",
+        "capability": "mail.read.v1",
+        "entity": "message",
+        "id": "msg-ana-1"
+      }
+    },
+    "event": {
+      "candidateId": "cand-ana",
+      "eventId": "evt-ana",
+      "eventRevision": 1,
+      "start": "2026-09-21T15:00:00Z",
+      "end": "2026-09-21T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-ana",
+        "resource": "interviews@northstar.example"
+      }
+    },
+    "current-event": {
+      "candidateId": "cand-ana",
+      "eventId": "evt-ana",
+      "eventRevision": 1,
+      "start": "2026-09-21T15:00:00Z",
+      "end": "2026-09-21T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-ana",
+        "resource": "interviews@northstar.example"
+      }
+    },
+    "rsvp": {
+      "candidateId": "cand-ana",
+      "eventId": "evt-ana",
+      "eventRevision": 1,
+      "response": "accepted",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "attendee-response",
+        "id": "evt-ana/ana@people.example",
+        "resource": "interviews@northstar.example"
+      }
+    },
+    "confirmation": {
+      "candidateId": "cand-ana",
+      "eventId": "evt-ana",
+      "eventRevision": 1,
+      "acceptance": "calendar"
+    },
+    "outcome": {
+      "id": "eval-ana-1",
+      "candidateId": "cand-ana",
+      "interviewer": "interviewer-alex",
+      "recommendation": "strong-yes",
+      "summary": "Clear pipeline design and strong testing habits.",
+      "completedAt": "2026-09-21T16:30:00Z"
+    }
+  },
+  "expect": {
+    "nodes": {
+      "outreach": "complete",
+      "schedule": "complete",
+      "confirmation": "complete",
+      "interview": "complete"
+    }
+  }
+}

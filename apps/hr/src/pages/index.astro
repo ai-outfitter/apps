@@ -1,0 +1,11 @@
+---
+import HrLayout from "../components/HrLayout.astro";
+import { roles } from "../fixtures";
+const open = roles.filter(r => r.status === "Open");
+---
+<HrLayout title="TA Dashboard" description="Your hiring pipeline, the work that needs attention, and the next step for every role.">
+<div class="toolbar"><span class="caption">October 2026</span><a class="button" href="/roles#role-request">Request a role</a></div>
+<div class="metrics"><article class="paper"><h2>Open roles</h2><strong>{open.length}</strong><small>Across four departments</small></article><article class="paper"><h2>In process</h2><strong>{open.reduce((n,r) => n+r.process,0)}</strong><small>Candidates across open roles</small></article><article class="paper"><h2>Awaiting review</h2><strong>{open.reduce((n,r) => n+r.review,0)}</strong><small>Application review</small></article><article class="paper"><h2>Approved, not open</h2><strong>3</strong><small>Ready for the next step</small></article></div>
+<section class="paper"><h2>Needs attention</h2><div class="task-row"><div><a href="/screeners/agentic-engineer">Set screening criteria for Agentic Engineer</a><p>50 applications awaiting review. Criteria must come from the role's MOC.</p></div><a class="button secondary" href="/screeners/agentic-engineer">Review screener</a></div><div class="task-row"><div><a href="/roles/software-engineer">Software Engineer is approved</a><p>Review the posting and publication step before opening the role.</p></div><a class="button secondary" href="/roles/software-engineer/builder">Continue role</a></div><div class="task-row"><div><a href="/plan">Seven roles are past their target hire date</a><p>Review priorities, ownership and the next action on the hiring plan.</p></div><a class="button secondary" href="/plan">View plan</a></div></section>
+<section class="paper"><h2>Pipeline by role</h2><div role="region" class="scroll-table" tabindex="0" aria-label="Role data"><table><thead><tr><th>Role</th><th>In process</th><th>Awaiting review</th><th>At offer</th></tr></thead><tbody>{open.map(r => <tr><td><a href={`/roles/${r.id}`}>{r.title}</a></td><td>{r.process}</td><td>{r.review}</td><td>{r.offer}</td></tr>)}</tbody></table></div></section>
+</HrLayout>

@@ -7,10 +7,15 @@ const read = (root, path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'
 const deps = pkg => Object.keys({...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies, ...pkg.optionalDependencies});
 export function loadConfig(root = process.cwd(), path = process.env.CONFIG_PATH || '.outfitter/apps.json') {
   const config = existsSync(resolve(root, path)) ? read(root, path) : {};
+  if (config.releaseManifest !== undefined) assert.ok(typeof config.releaseManifest === 'string' && /^[\w./-]+$/.test(config.releaseManifest) && !config.releaseManifest.split('/').includes('..') && !config.releaseManifest.startsWith('/'), 'Invalid releaseManifest');
   if (config.sdkSha !== undefined) assert.match(config.sdkSha, /^[a-f0-9]{40}$/, 'sdkSha must pin a public SDK commit');
   for (const key of ['appGlobs','sharedInputs','commands'])
     if (config[key] !== undefined) assert.ok(Array.isArray(config[key]) && config[key].every(x => typeof x === 'string' && x.length), `Invalid ${key}`);
   for (const command of config.commands || []) assert.match(command, /^[\w:.-]+$/, 'Commands must name package scripts');
+  if (config.preview?.commands !== undefined) {
+    assert.ok(Array.isArray(config.preview.commands) && config.preview.commands.every(command => typeof command === 'string' && /^[\w:.-]+$/.test(command)), 'Invalid preview commands');
+    assert.ok(config.preview.commands.every(command => (config.commands || ['check','test','build']).includes(command) && command !== 'build'), 'Preview commands must be validation commands');
+  }
   assert.ok(['metadata','scripts'].includes(config.validation || 'metadata'), 'Invalid validation');
   return {appGlobs:['*'], sharedInputs:[], commands:['check','test','build'], validation:'metadata', ...config};
 }
@@ -72,22 +77,25 @@ export function checkApp(slug, root = process.cwd(), config = loadConfig(root)) 
   const app=discoverApps(root,config).find(a=>a.slug===slug);
   assert.ok(app,`Unknown app: ${slug}`);
   const {pkg,manifest}=app;
+  if (pkg.outfitter?.browserTests !== undefined) assert.equal(typeof pkg.outfitter.browserTests, 'boolean', `${slug}: browserTests must be boolean`);
   assert.match(pkg.version || '', /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, `${slug}: invalid version`);
   if (manifest?.version !== undefined) assert.equal(pkg.version,manifest.version,`${slug}: package/app versions differ`);
   for (const command of config.commands) assert.ok(pkg.scripts?.[command],`${slug}: missing ${command}`);
-  const releasePath=resolve(root,'.release-please-manifest.json');
+  const releaseFile=config.releaseManifest || '.release-please-manifest.json';
+  const releasePath=resolve(root,releaseFile);
   if (existsSync(releasePath)) {
-    const versions=read(root,'.release-please-manifest.json');
+    const versions=read(root,releaseFile);
     if (versions[slug] !== undefined) assert.equal(pkg.version,versions[slug],`${slug}: release version differs`);
   }
   return app;
 }
-export function runApp(slug, root=process.cwd(), config=loadConfig(root)) {
-  checkApp(slug,root,config);
+export function runApp(slug, root=process.cwd(), config=loadConfig(root), {execute=execFileSync, env=process.env}={}) {
+  const app=checkApp(slug,root,config);
   assert.equal(config.validation,'scripts','Script execution must be enabled explicitly');
   assert.ok(existsSync(resolve(root,'package-lock.json')), 'Script validation requires a caller-owned package-lock.json');
-  execFileSync('npm',['ci'],{cwd:root,stdio:'inherit'});
-  for (const command of config.commands) execFileSync('npm',['run',command],{cwd:resolve(root,slug),stdio:'inherit'});
+  execute('npm',['ci'],{cwd:root,stdio:'inherit'});
+  if (env.CI && app.pkg.outfitter?.browserTests) execute('npm',['exec','--','playwright','install','--with-deps','chromium'],{cwd:root,stdio:'inherit'});
+  for (const command of config.commands) execute('npm',['run',command],{cwd:resolve(root,slug),stdio:'inherit'});
 }
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const [command,slug]=process.argv.slice(2), config=loadConfig(), apps=discoverApps(process.cwd(),config);

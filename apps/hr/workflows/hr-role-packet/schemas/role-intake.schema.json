@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-outfitter.com/schemas/hr/role-intake.schema.json",
+  "title": "Role brief",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "problem", "location", "requiredExperience", "niceToHaves"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "problem": {
+      "type": "string",
+      "description": "The problem this role is being hired to solve.",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "location": {
+      "type": "string",
+      "description": "Location and remote, hybrid, or on-site working arrangement.",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "requiredExperience": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1000 }
+    },
+    "niceToHaves": {
+      "type": "array",
+      "description": "Optional experience or skills. Empty only when the manager explicitly says there are none.",
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1000 }
+    }
+  }
+}

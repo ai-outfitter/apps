@@ -1,0 +1,157 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-hiring.data-engineer-declined",
+  "workflow": "hr-hiring",
+  "description": "The selected candidate declines the approved offer.",
+  "records": {
+    "candidates": [
+      {
+        "id": "cand-ana",
+        "name": "Ana Ortiz",
+        "email": "ana@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-ana"
+        }
+      },
+      {
+        "id": "cand-ben",
+        "name": "Ben Okafor",
+        "email": "ben@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-ben"
+        }
+      },
+      {
+        "id": "cand-chris",
+        "name": "Chris Varga",
+        "email": "chris@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-chris"
+        }
+      },
+      {
+        "id": "cand-dana",
+        "name": "Dana Ito",
+        "email": "dana@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-dana"
+        }
+      }
+    ],
+    "campaign": {
+      "id": "data-engineer-outreach",
+      "revision": 1,
+      "candidateIds": [
+        "cand-ana",
+        "cand-ben",
+        "cand-chris",
+        "cand-dana"
+      ],
+      "sender": "recruiting@northstar.example",
+      "messageRevision": 1,
+      "maxMessages": 8,
+      "expiresAt": "2026-10-31T00:00:00Z",
+      "approvedBy": "approver-sam"
+    },
+    "approved-candidates": [
+      {
+        "id": "cand-ana",
+        "name": "Ana Ortiz",
+        "email": "ana@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-ana"
+        }
+      },
+      {
+        "id": "cand-ben",
+        "name": "Ben Okafor",
+        "email": "ben@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-ben"
+        }
+      },
+      {
+        "id": "cand-chris",
+        "name": "Chris Varga",
+        "email": "chris@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-chris"
+        }
+      },
+      {
+        "id": "cand-dana",
+        "name": "Dana Ito",
+        "email": "dana@people.example",
+        "source": {
+          "connector": "ashby",
+          "capability": "candidate.read.v1",
+          "entity": "candidate",
+          "id": "ashby-dana"
+        }
+      }
+    ],
+    "selection": {
+      "candidateId": "cand-ana",
+      "evaluationIds": [
+        "eval-ana-1"
+      ],
+      "decidedBy": "approver-sam",
+      "decidedAt": "2026-09-25T12:00:00Z"
+    },
+    "offer": {
+      "candidateId": "cand-ana",
+      "revision": 1,
+      "title": "Member of Technical Staff, Data Engineer",
+      "currency": "USD",
+      "salary": 195000,
+      "start": "2026-11-02",
+      "approvedBy": "approver-sam"
+    }
+  },
+  "children": {
+    "role": "hr-role-hiring.data-engineer",
+    "candidates": {
+      "cand-ana": "hr-candidate.ana-interviewed",
+      "cand-ben": "hr-candidate.ben-awaiting-confirmation",
+      "cand-chris": "hr-candidate.chris-email-confirmed",
+      "cand-dana": "hr-candidate.dana-withdrawn"
+    }
+  },
+  "outcomes": {
+    "offer": "declined"
+  },
+  "expect": {
+    "nodes": {
+      "role": "complete",
+      "research": "complete",
+      "campaign": "complete",
+      "candidates": "ready",
+      "decide": "complete",
+      "offer": "ended:declined",
+      "enrollment": "waiting"
+    }
+  }
+}

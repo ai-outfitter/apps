@@ -1,0 +1,25 @@
+title: Confirmed compensation
+description: Human-confirmed level and pay range.
+type: object
+additionalProperties: false
+required:
+  - level
+  - currency
+  - minimum
+  - maximum
+properties:
+  level:
+    type: string
+    minLength: 1
+  currency:
+    type: string
+    pattern: ^[A-Z]{3}$
+  minimum:
+    type: integer
+    minimum: 0
+  maximum:
+    type: integer
+    minimum: 0
+  notes:
+    type: string
+    minLength: 1

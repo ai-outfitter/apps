@@ -1,0 +1,8 @@
+---
+import HrLayout from "../components/HrLayout.astro";
+import { automations } from "../fixtures";
+---
+<HrLayout title="Automated jobs" description="What runs, what it does, and what it costs. Recruiting and task activity.">
+<section class="paper"><h2>What the robots cost</h2><div class="metrics three spend"><div><h3>Model spend, last 30 days</h3><strong>$12.40</strong></div><div><h3>Résumé screening runs</h3><strong>30</strong></div><div><h3>Tokens in / out</h3><strong>104k / 36k</strong></div></div></section>
+{["Recruiting", "Tasks"].map(group => <section class="paper"><h2>{group}</h2>{automations.filter(a=>a.group===group).map(a=><article class="automation-row"><div><h3>{a.title} <span class="tag">{a.status}</span></h3><p>{a.description}</p><small>{a.schedule}</small><details><summary>View run details</summary><p>{a.last === "Never run" ? "No execution history. Connect the provider and implement the workflow before enabling this job." : "Completed · source fetched · records reconciled."}</p><p>Execution will require the configured organization's connector and authority.</p></details></div><div class="run-summary"><strong>{a.last}</strong><small>{a.runs}</small></div></article>)}</section>)}
+</HrLayout>

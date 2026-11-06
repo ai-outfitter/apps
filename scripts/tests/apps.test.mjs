@@ -68,3 +68,16 @@ test('SDK source pins must be immutable commits',()=>{
   assert.throws(()=>loadConfig(root),/sdkSha must pin/);
  } finally {rmSync(root,{recursive:true,force:true});}
 });
+
+
+test('browser dependencies are installed only for opted-in app CI',()=>fixture(({root,put,a})=>{
+ put('package-lock.json',{lockfileVersion:3,requires:true,packages:{'':{}}});
+ put(`${a}/package.json`,{name:'caller-app',version:'1.2.3',outfitter:{browserTests:true},scripts:{test:'true'}});
+ put(`${a}/app.json`,{version:'1.2.3'});
+ const config={...loadConfig(root),validation:'scripts',commands:['test']};
+ const calls=[];const execute=(command,args)=>calls.push([command,...args]);
+ runApp(a,root,config,{execute,env:{CI:'true'}});
+ assert.deepEqual(calls,[['npm','ci'],['npm','exec','--','playwright','install','--with-deps','chromium'],['npm','run','test']]);
+ calls.length=0;runApp(a,root,config,{execute,env:{}});
+ assert.deepEqual(calls,[['npm','ci'],['npm','run','test']]);
+}));

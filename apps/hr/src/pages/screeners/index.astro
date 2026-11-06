@@ -1,0 +1,7 @@
+---
+import HrLayout from "../../components/HrLayout.astro";
+import { roles, screenerCriteria } from "../../fixtures";
+---
+<HrLayout title="Screeners" description="Role-specific criteria, explicit screening controls, and reviewable results.">
+<section class="paper"><h2>Role screeners</h2><p>Every criterion comes from the role's scorecard. Select a role to review its criteria and readiness before screening.</p><div role="region" class="scroll-table" tabindex="0" aria-label="Role data"><table><thead><tr><th>Role</th><th>Awaiting review</th><th>Readiness</th><th>Last run</th></tr></thead><tbody>{roles.filter(r=>r.status === "Open").map(r=><tr><td><a href={`/screeners/${r.id}`}>{r.title}</a></td><td>{r.review}</td><td><span class="tag">{screenerCriteria[r.id] ? "Review required" : "Criteria not set"}</span></td><td>Never run</td></tr>)}</tbody></table></div></section>
+</HrLayout>

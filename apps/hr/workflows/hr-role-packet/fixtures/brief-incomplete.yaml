@@ -1,0 +1,21 @@
+workflow: hr-role-packet
+origin: synthetic
+inputs:
+  basics.inputs.roleIdea: A data engineer to make product analytics trustworthy.
+  basics.inputs.manager: {kind: member, id: sam-rivera}
+  basics.inputs.approver: {kind: team, id: hr-leads}
+records: {}
+incomplete:
+  basics.outputs.brief: # requiredExperience is still missing
+    title: Member of Technical Staff, Data Engineer
+    problem: Make product analytics trustworthy and fast to query.
+    location: Remote in the US
+    niceToHaves: []
+expect:
+  basics: running
+  moc: waiting
+  description: waiting
+  level: waiting
+  interviews: waiting
+  approval: waiting
+  run: running

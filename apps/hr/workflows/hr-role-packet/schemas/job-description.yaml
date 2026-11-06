@@ -1,0 +1,14 @@
+title: Job description
+description: Versioned public posting text without invented pay or policies.
+type: object
+additionalProperties: false
+required:
+  - revision
+  - body
+properties:
+  revision:
+    type: integer
+    minimum: 1
+  body:
+    type: string
+    minLength: 1

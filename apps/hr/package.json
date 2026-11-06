@@ -1,0 +1,38 @@
+{
+  "name": "@ai-outfitter/app-hr",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build --mode demo",
+    "check": "astro check",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "test": "npm run test:e2e",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/ui": "*",
+    "@ai-outfitter/server": "*",
+    "astro": "^7.3.5",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@ai-outfitter/workflow-hr-role-packet": "0.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@ai-outfitter/app-test": "*",
+    "@playwright/test": "^1.63.0",
+    "@ai-outfitter/app-build": "*"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

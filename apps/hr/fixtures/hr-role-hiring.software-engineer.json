@@ -1,0 +1,82 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-role-hiring.software-engineer",
+  "workflow": "hr-role-hiring",
+  "description": "Packet approved; publication to Ashby not yet observed.",
+  "records": {
+    "brief": {
+      "title": "Software Engineer",
+      "problem": "Improve the reliability and speed of our customer-facing platform.",
+      "ownership": "Ship product features and maintain the services that support them.",
+      "location": "Remote in the US",
+      "manager": "Riley Chen",
+      "arrangement": "Remote",
+      "employment": "Full-time",
+      "mustHaves": [
+        "Experience building production web applications",
+        "Strong API and database fundamentals"
+      ],
+      "niceToHaves": [
+        "Experience with edge runtimes"
+      ]
+    },
+    "moc": {
+      "revision": 1,
+      "mission": "Build a dependable platform for customer teams.",
+      "outcomes": [
+        "Improve release quality and shorten time to resolve user-facing defects."
+      ],
+      "competencies": [
+        "Software design",
+        "debugging",
+        "ownership",
+        "collaboration"
+      ]
+    },
+    "posting": {
+      "revision": 1,
+      "body": "Build and maintain the platform that supports customer workflows."
+    },
+    "compensation": {
+      "level": "Senior IC",
+      "currency": "USD",
+      "minimum": 160000,
+      "maximum": 200000
+    },
+    "interview-loop": {
+      "stages": [
+        {
+          "name": "Recruiter screen",
+          "focus": "motivation and experience"
+        },
+        {
+          "name": "Hiring manager",
+          "focus": "platform ownership"
+        },
+        {
+          "name": "Technical work sample",
+          "focus": "API and database design"
+        }
+      ]
+    },
+    "approval": {
+      "decision": "approved",
+      "approver": "approver-sam",
+      "packetRevision": 1,
+      "decidedAt": "2026-10-01T16:00:00Z"
+    }
+  },
+  "expect": {
+    "nodes": {
+      "basics": "complete",
+      "moc": "complete",
+      "description": "complete",
+      "level": "complete",
+      "interviews": "complete",
+      "approval": "complete",
+      "publish": "ready"
+    }
+  }
+}
