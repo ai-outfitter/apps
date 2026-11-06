@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.3](https://github.com/ai-outfitter/apps/compare/ui-v0.1.2...ui-v0.1.3) (2026-11-06)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.1 to 0.1.2
+
 ## [0.1.2](https://github.com/ai-outfitter/apps/compare/ui-v0.1.1...ui-v0.1.2) (2026-11-06)
 
 

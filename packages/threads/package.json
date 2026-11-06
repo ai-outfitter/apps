@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/threads",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "exports": {
@@ -13,7 +13,7 @@
     "test": "npm run test:integration"
   },
   "dependencies": {
-    "@ai-outfitter/app-sdk": "0.1.1",
+    "@ai-outfitter/app-sdk": "0.1.2",
     "@ai-outfitter/server": "0.1.1",
     "ai": "^7.0.122",
     "drizzle-orm": "^0.45.3",
