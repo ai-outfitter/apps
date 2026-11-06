@@ -1,0 +1,28 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-issue-to-merge.empty-state",
+  "workflow": "foundry-issue-to-merge",
+  "description": "Implementation in progress.",
+  "inputs": {
+    "issue": {
+      "repository": "northstar/interface",
+      "number": 18,
+      "title": "Add an empty state to the project list",
+      "url": "https://github.com/northstar/interface/issues/18",
+      "updatedAt": "2026-10-04T16:00:00Z"
+    }
+  },
+  "children": {
+    "deliver": "issue-to-draft-pr.empty-state"
+  },
+  "expect": {
+    "nodes": {
+      "deliver": "ready",
+      "repair": "waiting",
+      "ready": "waiting",
+      "merge": "waiting"
+    }
+  }
+}

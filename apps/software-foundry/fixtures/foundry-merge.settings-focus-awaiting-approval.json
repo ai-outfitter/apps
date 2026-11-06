@@ -1,0 +1,37 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-merge.settings-focus-awaiting-approval",
+  "workflow": "foundry-merge",
+  "description": "Checks pass on the repaired head; no eligible approval yet.",
+  "records": {
+    "checks": {
+      "headSha": "dddddddddddddddddddddddddddddddddddddddd",
+      "checks": [
+        {
+          "name": "test",
+          "conclusion": "success"
+        },
+        {
+          "name": "lint",
+          "conclusion": "success"
+        }
+      ],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "check-suite",
+        "id": "suite-dddddddd"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "approval": "ready",
+      "checks": "complete",
+      "merge": "waiting",
+      "merged": "waiting"
+    }
+  }
+}

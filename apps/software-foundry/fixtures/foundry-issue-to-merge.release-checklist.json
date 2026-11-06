@@ -1,0 +1,44 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-issue-to-merge.release-checklist",
+  "workflow": "foundry-issue-to-merge",
+  "description": "Clean first review, so no repair round runs; observed merge.",
+  "inputs": {
+    "issue": {
+      "repository": "northstar/platform",
+      "number": 11,
+      "title": "Document the release checklist",
+      "url": "https://github.com/northstar/platform/issues/11",
+      "updatedAt": "2026-10-02T09:10:00Z"
+    }
+  },
+  "records": {
+    "ready": {
+      "repository": "northstar/platform",
+      "number": 12,
+      "url": "https://github.com/northstar/platform/pull/12",
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "state": "open",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/platform#12"
+      }
+    }
+  },
+  "children": {
+    "deliver": "issue-to-draft-pr.release-checklist",
+    "merge": "foundry-merge.release-checklist-merged"
+  },
+  "expect": {
+    "nodes": {
+      "deliver": "complete",
+      "repair": "complete",
+      "ready": "complete",
+      "merge": "complete"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# A pull request whose head is not the recorded push proves nothing; the step waits.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: pull-request
+  check.inputs.mergeQueue: after-merge
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+  pull-request.outputs.branch: {repository: northstar/platform, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/platform, number: 12, url: https://github.com/northstar/platform/pull/12, headSha: eeeeeee, base: main}
+expect:
+  pull-request: waiting
+  merge: waiting
+  run: running

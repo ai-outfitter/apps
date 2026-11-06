@@ -1,0 +1,993 @@
+[
+  {
+    "name": "CreateProject",
+    "kind": "mutation",
+    "story": "As an owner, I want to add a project from the projects page or an agent, so that work can be routed to its repositories.",
+    "query": "mutation CreateProject($input: CreateProjectInput!) {\n  createProject(input: $input) {\n    id\n    name\n    position\n    repositories\n    milestones\n    revision\n    updatedAt\n  }\n}",
+    "hash": "8948a507006d66b464f9e7dd58e8b302d7be7b801d8aa2d7ccc17fde351e4428",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CreateProjectInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DailyShipped",
+    "kind": "query",
+    "story": "As a stakeholder or their agent, I want every pull request merged in a window (yesterday, by default a day) with its kind and the parts of the repository it touched, so that I can read or write a daily report of what shipped.",
+    "query": "query DailyShipped($since: DateTime!, $until: DateTime, $repositories: [String!]) {\n  changes(since: $since, until: $until, repositories: $repositories) {\n    changes {\n      repository\n      number\n      title\n      url\n      mergedAt\n      author\n      mergeCommit\n      kind\n      areas\n    }\n    failed\n    complete\n  }\n}",
+    "hash": "dd4e453a29603f9e9f95febe252054d71f5cdd7e34272a9dbb8a43203e77ed3b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "since": {
+          "description": "GraphQL DateTime!"
+        },
+        "until": {
+          "description": "GraphQL DateTime"
+        },
+        "repositories": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": [
+        "since"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "ProjectChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply project changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ProjectChanges($input: ProjectChangesInput!) {\n  projectChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "4b73b282a66d59f7262f47dd804acddeb8de1b157d68f9b919350ec931cffa9c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ProjectChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "createProject"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]*$"
+                          },
+                          "repositories": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 140,
+                              "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "Projects",
+    "kind": "query",
+    "story": "As a caller, I want to search foundryProjects with compact results, so that I can select records and continue through every page.",
+    "query": "query Projects($first: Int = 20, $after: String, $ids: [ID!], $search: String) {\n  foundryProjects(first: $first, after: $after, ids: $ids, search: $search) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "7f0579bc844b8051d5d3b7752420a08bc03dc7675c29f3e751c94e285b6f71e0",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "RequestChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to submit feature and bug requests for intake and triage, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation RequestChanges($input: RequestChangesInput!) {\n  requestChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "1fb063f32191be89f299dcc2414f7b24edafb2b7759cf907e6d3c242ff9309e4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RequestChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Submit feature or bug requests to app-owned intake and triage. Implementation approval remains separate."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "submit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "requestId": {
+                            "description": "Caller-generated ID. Reuse it to retry an identical request; changed content conflicts.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "target": {
+                            "type": "object",
+                            "properties": {
+                              "repository": {
+                                "type": "string",
+                                "maxLength": 140,
+                                "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$"
+                              },
+                              "project": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "problem": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16000
+                          },
+                          "requestedChange": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16000
+                          },
+                          "acceptanceCriteria": {
+                            "minItems": 1,
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000
+                            }
+                          },
+                          "relatedNodes": {
+                            "default": [],
+                            "description": "Existing active nodes in this organization's Wiki, at their current revisions. Links record relevance, not approval.",
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ref": {
+                                  "type": "object",
+                                  "properties": {
+                                    "installationId": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "const": "graph-node"
+                                    },
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    }
+                                  },
+                                  "required": [
+                                    "installationId",
+                                    "type",
+                                    "id"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "revision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "ref",
+                                "revision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "feature",
+                              "bug"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "target",
+                          "title",
+                          "problem",
+                          "requestedChange",
+                          "acceptanceCriteria",
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "requestChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "RequestFeature",
+    "kind": "mutation",
+    "story": "As a design partner's agent, I want to file a feature request with its problem, requested change and acceptance criteria against an Outfitter repository, so that Outfitter records it in its Wiki, attributed to me, my organization and my role, for its team to review.",
+    "query": "mutation RequestFeature($input: RequestFeatureInput!) {\n  requestFeature(input: $input) {\n    ref {\n      installationId\n      type\n      id\n    }\n    revision\n    repository\n    submittedAt\n    created\n  }\n}",
+    "hash": "6fa5b181b316ac005cf94dc65d05e556cb095d58241792f54559c8e03fc07d15",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RequestFeatureInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "Requests",
+    "kind": "query",
+    "story": "As a caller, I want to search my feature and bug requests, so that I can follow intake and review.",
+    "query": "query Requests($input: RequestsInput! = {}) {\n  requests(input: $input)\n}",
+    "hash": "07f9cb99413591a409bffa23ece5d75fda65a0d7d5fab9611eac5f5ab62be05c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RequestsInput!"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read feature and bug intake requests and their durable triage results."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ShippedChanges",
+    "kind": "query",
+    "story": "As a stakeholder or their agent, I want every pull request merged in a window (yesterday, by default a day) with its kind and the parts of the repository it touched, so that I can read or write a daily report of what shipped.",
+    "query": "query ShippedChanges($since: DateTime!, $until: DateTime, $repositories: [String!]) {\n  changes(since: $since, until: $until, repositories: $repositories) {\n    changes {\n      repository\n      number\n      title\n      url\n      mergedAt\n      author\n      mergeCommit\n      kind\n      areas\n    }\n    failed\n    complete\n  }\n}",
+    "hash": "cb3734d3eec711850d73bcc74946c919bebedcbb30258acf7daf80b289a20119",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "since": {
+          "description": "GraphQL DateTime!"
+        },
+        "until": {
+          "description": "GraphQL DateTime"
+        },
+        "repositories": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": [
+        "since"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "StartWork",
+    "kind": "mutation",
+    "story": "As an agent, I want to start work from a Wiki node, so that the GitHub issue carries the knowledge graph around it and the Wiki Issue links to both.",
+    "query": "mutation StartWork($input: StartWorkInput!) {\n  startWork(input: $input) {\n    submissionId\n    repository\n    issue {\n      number\n      url\n      created\n    }\n    run {\n      id\n      workflow\n      existing\n      status\n      url\n    }\n    execution {\n      status\n      message\n    }\n    wikiIssue {\n      ref {\n        installationId\n        type\n        id\n      }\n      revision\n    }\n    gaps\n  }\n}",
+    "hash": "7f779961a0c68e7d6513e9d7ab87cb6b8f9c70bea78ee11c41650001931eeb19",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StartWorkInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SubmitReleaseEvidence",
+    "kind": "mutation",
+    "story": "As an authorized editor, I want expiring upload links for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
+    "query": "mutation SubmitReleaseEvidence($input: SubmitReleaseEvidenceInput!) {\n  submitReleaseEvidence(input: $input)\n}",
+    "hash": "53eab62fd7bebc359b7c25b63c6e2e6ac7e76ed66b6e824d00cd8da4b8b99d4a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitReleaseEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Get expiring PUT links for PNG/JSON release evidence. Supply stable asset keys, size and SHA-256; upload with the same authenticated account, then repeat to read verified receipts. No approval or deployment."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitReleaseEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SubmitWork",
+    "kind": "mutation",
+    "story": "As an agent, I want to submit hand-written work to a repository, so that Foundry records the issue and starts its workflow.",
+    "query": "mutation SubmitWork($input: SubmitWorkInput!) {\n  submitWork(input: $input) {\n    submissionId\n    repository\n    issue {\n      number\n      url\n      created\n    }\n    run {\n      id\n      workflow\n      existing\n      status\n      url\n    }\n    execution {\n      status\n      message\n    }\n  }\n}",
+    "hash": "ef60adc1e304a7aea1261dc5c217a39f04971191d3dd02033045b72213003553",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitWorkInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "WorkChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply work changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation WorkChanges($input: WorkChangesInput!) {\n  workChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "c0ea39d2ea4df05be53c79eafa6eea6b5da1ab98a20c00c5faffa5d5539da28f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "submitWork"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "target": {
+                            "type": "object",
+                            "properties": {
+                              "repository": {
+                                "type": "string",
+                                "maxLength": 140,
+                                "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$"
+                              },
+                              "project": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "workPackage": {
+                            "type": "object",
+                            "properties": {
+                              "version": {
+                                "type": "number",
+                                "const": 1
+                              },
+                              "rendered": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 40000
+                              },
+                              "digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "sources": {
+                                "minItems": 1,
+                                "maxItems": 256,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "installationId": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "revision": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "installationId",
+                                    "type",
+                                    "id",
+                                    "revision"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "criteria": {
+                                "minItems": 1,
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "installationId": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 128,
+                                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                    },
+                                    "revision": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "condition": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 2000
+                                    },
+                                    "expectedOutcome": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 2000
+                                    }
+                                  },
+                                  "required": [
+                                    "installationId",
+                                    "type",
+                                    "id",
+                                    "revision",
+                                    "condition",
+                                    "expectedOutcome"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "template": {
+                                "type": "object",
+                                "properties": {
+                                  "installationId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128,
+                                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128,
+                                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128,
+                                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                  },
+                                  "revision": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "installationId",
+                                  "type",
+                                  "id",
+                                  "revision"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "version",
+                              "rendered",
+                              "digest",
+                              "sources",
+                              "criteria"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "requestId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 40000
+                          },
+                          "acceptanceCriteria": {
+                            "minItems": 1,
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000
+                            }
+                          },
+                          "issue": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "context": {
+                            "default": [],
+                            "maxItems": 32,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "installationId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128,
+                                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128,
+                                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128,
+                                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "maxLength": 200
+                                }
+                              },
+                              "required": [
+                                "installationId",
+                                "type",
+                                "id"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "target",
+                          "requestId",
+                          "title",
+                          "description",
+                          "acceptanceCriteria"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "startWork"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "requestId": {
+                            "description": "Caller-generated ID. Reuse it to resume; changed content conflicts.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "target": {
+                            "type": "object",
+                            "properties": {
+                              "repository": {
+                                "type": "string",
+                                "maxLength": 140,
+                                "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$"
+                              },
+                              "project": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "root": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "object",
+                                "properties": {
+                                  "installationId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128,
+                                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "const": "graph-node"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128,
+                                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+                                  }
+                                },
+                                "required": [
+                                  "installationId",
+                                  "type",
+                                  "id"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "revision": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "revision"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The Wiki node the work is about, at the revision you read: a Project, UseCase, UserStory, Requirement."
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "target",
+                          "root"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "WorkTargets",
+    "kind": "query",
+    "story": "As an agent, I want the Foundry projects with their repositories, so that I can name a target before submitting or starting work.",
+    "query": "query WorkTargets {\n  foundryProjects(first: 50) {\n    nodes {\n      id\n      name\n      repositories\n    }\n  }\n}",
+    "hash": "905dfdf80d7c5208019e160f63d8e516035a49bf3641dc8533f2d1ee50fe4183",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "hidden": true
+  }
+]

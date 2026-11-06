@@ -1,0 +1,8 @@
+[
+  {
+    "operation": "DeliveryContext",
+    "name": "DeliveryContexts",
+    "description": "Read recorded delivery work and its linked product and release context.",
+    "slug": "delivery-context"
+  }
+]

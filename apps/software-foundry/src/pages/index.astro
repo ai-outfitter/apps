@@ -1,0 +1,34 @@
+---
+import "../styles.css";
+import "../dashboard.css";
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+import AppLayout from "../components/FoundryLayout.astro";
+
+const tiles = [
+  ["merged", "Pull requests merged"],
+  ["closed", "Issues closed"],
+  ["time-to-merge", "Median time to merge"],
+  ["runs", "Agent workflow runs"],
+  ["traffic", "Preview visits"],
+  ["deploys", "Production deploys"],
+];
+---
+<AppLayout title="Dashboard" description="The highest priority project: its last seven days and its milestones, most important first." active="home">
+  <div class="dashboard-tiles" role="list" aria-label="Last seven days">
+    {tiles.map(([id, label]) => (
+      <div class="stat-tile" role="listitem" data-metric={id}>
+        <span class="stat-label">{label}</span>
+        <strong class="stat-value">–</strong>
+        <span class="stat-change"></span>
+        <pre class="stat-spark" aria-hidden="true"></pre>
+      </div>
+    ))}
+  </div>
+  <Section id="dashboard-milestones-heading" title="Milestones">
+    <a slot="actions" id="dashboard-all" href="/milestones">All milestones</a>
+    <Table id="dashboard-milestones" label="Project milestones, most important first" columns={["Milestone", "Progress"]} className="milestone-table ranked-table" />
+    <p id="dashboard-milestones-empty" role="status">Loading milestones…</p>
+  </Section>
+</AppLayout>
+<script>import "../scripts/dashboard.js";</script>

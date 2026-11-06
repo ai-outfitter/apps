@@ -1,0 +1,11 @@
+# Outfitter settings, installed by Software Foundry's Governance (Complete all).
+#
+# ai-outfitter/actions reads a repository's .agents/ as its only catalog, so
+# this file names the public community catalog the agents in agents/ inherit
+# from. The pin keeps every run reproducible: bump the ref on purpose, never
+# remove it.
+default_agent: engineer
+default_harness: pi
+sources:
+  - github: ai-outfitter/community-profiles
+    ref: v1.8.0

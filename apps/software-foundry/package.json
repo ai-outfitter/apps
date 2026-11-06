@@ -1,0 +1,65 @@
+{
+  "name": "@ai-outfitter/app-software-foundry",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build",
+    "build:demo": "outfitter-app-build --mode demo",
+    "build:operational": "outfitter-app-build --mode operational",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:workflow && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "playground": "node scripts/playground.mjs",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json",
+    "test:workflow": "node scripts/check-workflows.mjs"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/server": "*",
+    "@ai-outfitter/ui": "*",
+    "@ai-outfitter/workflow-architecture-reanalysis": "0.1.0",
+    "@ai-outfitter/workflow-dependency-review": "0.1.0",
+    "@ai-outfitter/workflow-issue-to-review": "0.1.0",
+    "@ai-outfitter/workflow-issue-to-triage-resident": "0.1.0",
+    "@ai-outfitter/workflow-issue-triage-observation": "0.1.0",
+    "@ai-outfitter/workflow-sdlc-setup": "0.1.0",
+    "@astrojs/cloudflare": "^14.3.3",
+    "astro": "^7.3.5",
+    "drizzle-orm": "^0.45.3",
+    "graphql": "^16.11.0",
+    "zod": "^4.6.5",
+    "@ai-outfitter/workflow-issue-to-merge-workspace": "0.1.0",
+    "@ai-outfitter/workflow-foundry-workspace-checks": "0.1.0",
+    "@ai-outfitter/workflow-issue-to-merge-actions-ci": "0.1.0",
+    "@ai-outfitter/workflow-foundry-land-reviewed-change": "0.1.0",
+    "@astrojs/react": "^7.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "@ai-outfitter/workflow-foundry-request-intake": "0.1.0"
+  },
+  "devDependencies": {
+    "@ai-outfitter/app-test": "*",
+    "@ai-outfitter/workflow-core": "*",
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "ai": "^7.0.122",
+    "drizzle-kit": "^0.31.11",
+    "miniflare": "5.20260926.0-alpha",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@ai-outfitter/app-build": "*"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

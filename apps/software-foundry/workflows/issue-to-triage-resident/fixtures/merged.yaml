@@ -1,0 +1,41 @@
+workflow: issue-to-triage-resident
+origin: synthetic
+inputs:
+  github-webhook.inputs.event:
+    action: opened
+    repository: {id: 123, full_name: example/playground}
+    issue: {number: 42}
+  github-webhook.inputs.triageBinding: actions-triager
+  github-webhook.inputs.engineerBinding: actions-engineer
+  github-webhook.inputs.reviewerBinding: atlas-resident
+  github-webhook.inputs.settings:
+    model: gpt-6-luna
+    reviewerLogin: atlas-fixture
+    engineerProfile: engineer
+    connectionId: github-connection
+    resource: '123'
+records:
+  github-webhook.outputs.started: {runId: "1001", runAttempt: "1"}
+  triage.outputs.classification: {kind: bug, area: platform, disposition: proceed, summary: Ready to plan}
+  plan.outputs.plan: {proceed: true, summary: Fix the failing feature, checks: [Run the regression test]}
+  implement.outputs.pull-request:
+    number: 43
+    headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    url: https://github.com/example/playground/pull/43
+  implement.outputs.evidence: {tests: [Regression passed], artifacts: []}
+  review.outputs.review:
+    headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    decision: approved
+    summary: Inspected source and CI for this head
+  confirm-merge.outputs.receipt: {repositoryId: 123, number: 43, headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, merged: true, mergeSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
+  confirm-review.outputs.approval: {repositoryId: 123, pullRequestNumber: 43, commitId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, reviewer: {login: atlas-fixture}, state: approved, action: submitted}
+expect:
+  github-webhook: done
+  triage: done
+  plan: done
+  implement: done
+  review: done
+  confirm-merge: done
+  deploy: ready
+  verify-production: waiting
+  run: running

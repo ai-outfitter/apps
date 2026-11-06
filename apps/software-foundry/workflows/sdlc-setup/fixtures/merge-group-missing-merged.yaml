@@ -1,0 +1,20 @@
+# After an admin's bypass merge the run completes; no ruleset step applies.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/interface
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: pull-request
+  check.inputs.autoMerge: skip
+  check.inputs.mergeQueue: skip
+records:
+  check.outputs.inspected: {repository: northstar/interface, defaultBranch: main, revision: aaaaaaa, mergeQueue: merge-group-missing}
+  pull-request.outputs.branch: {repository: northstar/interface, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/interface, number: 31, url: https://github.com/northstar/interface/pull/31, headSha: ccccccc, base: main}
+  merge.outputs.merged: {repository: northstar/interface, number: 31, mergeCommitSha: ddddddd}
+expect:
+  merge: done
+  merge-queue-after-merge: not-applicable
+  run: complete

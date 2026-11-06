@@ -1,0 +1,22 @@
+# An open default branch: the triggers are committed straight to it, then the queue is required.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: direct
+  check.inputs.mergeQueue: after-commit
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+  commit.outputs.commit: {repository: northstar/platform, name: main, headSha: bbbbbbb}
+  merge-queue-after-commit.outputs.ruleset: {repository: northstar/platform, outcome: created, rulesetId: 7}
+expect:
+  commit: done
+  pull-request: not-applicable
+  merge: not-applicable
+  merge-queue: not-applicable
+  merge-queue-after-commit: done
+  merge-queue-after-merge: not-applicable
+  run: complete

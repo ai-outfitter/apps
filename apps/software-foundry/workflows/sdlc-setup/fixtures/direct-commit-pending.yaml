@@ -1,0 +1,16 @@
+# The ruleset cannot start before the trigger commit is recorded.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: direct
+  check.inputs.mergeQueue: after-commit
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+expect:
+  commit: ready
+  merge-queue-after-commit: waiting
+  run: running

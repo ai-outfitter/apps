@@ -1,0 +1,47 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-issue-to-merge.settings-focus",
+  "workflow": "foundry-issue-to-merge",
+  "description": "One repair round resolves the findings; awaiting eligible approval.",
+  "inputs": {
+    "issue": {
+      "repository": "northstar/interface",
+      "number": 27,
+      "title": "Restore focus after closing the settings dialog",
+      "url": "https://github.com/northstar/interface/issues/27",
+      "updatedAt": "2026-10-04T15:30:00Z"
+    }
+  },
+  "records": {
+    "ready": {
+      "repository": "northstar/interface",
+      "number": 28,
+      "url": "https://github.com/northstar/interface/pull/28",
+      "headSha": "dddddddddddddddddddddddddddddddddddddddd",
+      "state": "open",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/interface#28"
+      }
+    }
+  },
+  "children": {
+    "deliver": "issue-to-draft-pr.settings-focus",
+    "repair": [
+      "foundry-review-repair.settings-focus-resolved"
+    ],
+    "merge": "foundry-merge.settings-focus-awaiting-approval"
+  },
+  "expect": {
+    "nodes": {
+      "deliver": "complete",
+      "repair": "complete",
+      "ready": "complete",
+      "merge": "ready"
+    }
+  }
+}

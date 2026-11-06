@@ -1,0 +1,66 @@
+workflow: issue-triage-observation
+origin: synthetic
+inputs:
+  github-webhook.inputs.engineerBinding: engineer-binding
+  github-webhook.inputs.reviewerBinding: reviewer-binding
+  github-webhook.inputs.settings: {reviewerLogin: atlas-unsup}
+  github-webhook.inputs.event:
+    action: opened
+    installation: {id: 9}
+    repository: {id: 7, full_name: ai-outfitter/playground}
+    issue: {number: 41}
+records:
+  github-webhook.outputs.started: {receiptId: event-receipt-1}
+  triage.outputs.evidence:
+    ready: true
+    plan: Implement the issue.
+    repositoryId: 7
+    issueNumber: 41
+    actionsRunId: 12345
+    attempt: 1
+    actionsUrl: https://github.com/ai-outfitter/playground/actions/runs/12345
+    commentId: 83
+    commentUrl: https://github.com/ai-outfitter/playground/issues/41#issuecomment-83
+    commentBody: |
+      <!-- outfitter:triage:12345 -->
+      Ready for work: yes
+      Plan: Implement the issue.
+    conversationRequestKey: actions:request-1
+    usageRecordId: usage-1
+    model: gpt-6-luna
+  implement.outputs.pull-request:
+    repositoryId: 7
+    issueNumber: 41
+    actionsRunId: 12346
+    attemptId: implementation-attempt
+    number: 42
+    headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    url: https://github.com/ai-outfitter/playground/pull/42
+    conversationRequestKey: actions:implementation-1
+    usageRecordId: usage-implementation-1
+    model: gpt-6-luna
+  review.outputs.review:
+    headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    decision: approved
+    summary: Source, screenshots and Actions logs inspected; formal review submitted.
+  confirm-review.outputs.approval:
+    repositoryId: 7
+    pullRequestNumber: 42
+    commitId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    reviewer: {login: atlas-unsup}
+    state: approved
+    action: submitted
+  confirm-merge.outputs.receipt:
+    repositoryId: 7
+    number: 42
+    headSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    merged: true
+    mergeSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+expect:
+  github-webhook: done
+  triage: done
+  implement: done
+  review: done
+  confirm-review: done
+  confirm-merge: done
+  run: complete

@@ -1,0 +1,28 @@
+# Only the agent files are missing on an open default branch: they still arrive as the app's
+# pull request, never a direct commit, so a person reviews what the agents will run.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/agent-triage.yml, .github/workflows/agent-implement.yml, .github/workflows/agent-review.yml, .agents/models.json, .agents/settings.yml, .agents/agents/triage/agent.md, .agents/agents/engineer/agent.md, .agents/agents/reviewer/agent.md]
+  check.inputs.commitPath: pull-request
+  check.inputs.reviewer: octocat
+  check.inputs.agentWorkflows: install
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: present, actionsApproval: "on", agentWorkflows: not-installed}
+  pull-request.outputs.branch: {repository: northstar/platform, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/platform, number: 12, url: https://github.com/northstar/platform/pull/12, headSha: ccccccc, base: main}
+  review.outputs.review-request: {repository: northstar/platform, number: 12, reviewer: octocat, outcome: requested}
+  merge.outputs.merged: {repository: northstar/platform, number: 12, mergeCommitSha: ddddddd}
+expect:
+  actions-approval: not-applicable
+  commit: not-applicable
+  pull-request: done
+  review: done
+  merge: done
+  merge-queue: not-applicable
+  merge-queue-after-commit: not-applicable
+  merge-queue-after-merge: not-applicable
+  run: complete

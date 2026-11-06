@@ -1,0 +1,1 @@
+CREATE TABLE foundry_requests (id TEXT PRIMARY KEY, created_by TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, payload TEXT NOT NULL, fingerprint TEXT NOT NULL, record_id TEXT NOT NULL, triage TEXT, created_at INTEGER NOT NULL) STRICT;

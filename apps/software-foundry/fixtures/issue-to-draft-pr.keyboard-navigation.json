@@ -1,0 +1,39 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "issue-to-draft-pr.keyboard-navigation",
+  "workflow": "issue-to-draft-pr",
+  "description": "First review requests changes.",
+  "records": {
+    "plan": {
+      "url": "https://github.com/northstar/platform/issues/42#issuecomment-4201",
+      "needsDetails": false,
+      "summary": "Restore arrow-key focus movement in the command menu."
+    },
+    "pull-request": {
+      "repository": "northstar/platform",
+      "number": 43,
+      "url": "https://github.com/northstar/platform/pull/43",
+      "headSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state": "draft"
+    },
+    "review": {
+      "repository": "northstar/platform",
+      "pullRequest": 43,
+      "url": "https://github.com/northstar/platform/pull/43#pullrequestreview-4301",
+      "commitId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "verdict": "REQUEST_CHANGES",
+      "unresolvedFindings": [
+        "focus-trap"
+      ]
+    }
+  },
+  "expect": {
+    "nodes": {
+      "triage": "complete",
+      "implement": "complete",
+      "review": "complete"
+    }
+  }
+}

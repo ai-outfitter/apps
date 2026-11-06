@@ -1,0 +1,468 @@
+type WorkConnection {
+  nodes: [Work!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Work {
+  key: ID!
+  requestId: String!
+  repository: String!
+  issue: JSON
+  createdAt: DateTime!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type FoundryProjectConnection {
+  nodes: [FoundryProject!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type FoundryProject {
+  id: ID!
+  name: String!
+  position: Float!
+  repositories: JSON!
+  milestones: JSON!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+type ChangeList {
+  """Newest merge first."""
+  changes: [Change!]!
+
+  """
+  Repositories GitHub did not answer in full; their changes may be missing or partial.
+  """
+  failed: [String!]!
+
+  """
+  False when a repository had more than 250 merges in the window; narrow it.
+  """
+  complete: Boolean!
+}
+
+"""One pull request merged into a repository."""
+type Change {
+  repository: String!
+  number: Int!
+  title: String!
+  url: String!
+  mergedAt: DateTime!
+
+  """GitHub login; null for a deleted account."""
+  author: String
+
+  """The commit the merge put on the base branch."""
+  mergeCommit: String
+
+  """
+  feature, fix or maintenance from a Conventional Commits title prefix (feat:, fix:, or build, chore, ci, deps, docs, perf, refactor, revert, style, test); null otherwise, so classify it yourself.
+  """
+  kind: String
+
+  """
+  Parts of the repository the change touched: each file's first directory, or for a file under apps/ or packages/, that package (catalog/apps/crm). "." is the root. Read from the first 100 files.
+  """
+  areas: [String!]!
+}
+
+input SubmitReleaseEvidenceInput {
+  bundle: String!
+  assets: [SubmitReleaseEvidenceInputAssetsItem!]!
+}
+
+input SubmitReleaseEvidenceInputAssetsItem {
+  path: String!
+  contentType: String!
+  sha256: String!
+  visibility: SubmitReleaseEvidenceInputAssetsItemVisibility
+  size: Int!
+  key: ID!
+}
+
+enum SubmitReleaseEvidenceInputAssetsItemVisibility {
+  organization
+  public
+}
+
+input SubmitRequestInput {
+  requestId: ID!
+  target: SubmitRequestInputTarget!
+  title: String!
+  problem: String!
+  requestedChange: String!
+  acceptanceCriteria: [String!]!
+  relatedNodes: [SubmitRequestInputRelatedNodesItem!]
+  kind: SubmitRequestInputKind!
+}
+
+input SubmitRequestInputTarget {
+  repository: String
+  project: ID
+}
+
+input SubmitRequestInputRelatedNodesItem {
+  ref: SubmitRequestInputRelatedNodesItemRef!
+  revision: Float!
+}
+
+input SubmitRequestInputRelatedNodesItemRef {
+  installationId: String!
+  type: String!
+  id: String!
+}
+
+enum SubmitRequestInputKind {
+  feature
+  bug
+}
+
+type SubmittedWork {
+  """Read it back with work.get."""
+  submissionId: ID!
+  repository: String!
+  issue: SubmittedIssue!
+  run: WorkRun
+  execution: WorkExecution
+}
+
+type SubmittedIssue {
+  number: Int!
+  url: String!
+
+  """
+  False when a retry found the issue (or comment) an earlier attempt wrote, or an existing issue was attached.
+  """
+  created: Boolean!
+}
+
+"""
+The issue's Foundry run; `existing` when it was already running or recorded, so nothing was restarted.
+"""
+type WorkRun {
+  id: ID!
+  workflow: String!
+  existing: Boolean!
+  status: String!
+  url: String!
+}
+
+"""
+Why no run is reported although the issue is recorded: execution is blocked, or its outcome is unknown and must be reconciled.
+"""
+type WorkExecution {
+  status: String!
+  message: String!
+}
+
+input SubmitWorkInput {
+  target: SubmitWorkInputTarget!
+  workPackage: SubmitWorkInputWorkPackage
+  requestId: ID!
+  title: String!
+  description: String!
+  acceptanceCriteria: [String!]!
+  issue: Float
+  context: [SubmitWorkInputContextItem!]
+}
+
+input SubmitWorkInputTarget {
+  repository: String
+  project: String
+}
+
+input SubmitWorkInputWorkPackage {
+  version: Float!
+  rendered: String!
+  digest: String!
+  sources: [SubmitWorkInputWorkPackageSourcesItem!]!
+  criteria: [SubmitWorkInputWorkPackageCriteriaItem!]!
+  template: SubmitWorkInputWorkPackageTemplate
+}
+
+input SubmitWorkInputWorkPackageSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SubmitWorkInputWorkPackageCriteriaItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+  condition: String!
+  expectedOutcome: String!
+}
+
+input SubmitWorkInputWorkPackageTemplate {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SubmitWorkInputContextItem {
+  installationId: String!
+  type: String!
+  id: String!
+  title: String
+}
+
+type StartedWork {
+  """Read it back with work.get."""
+  submissionId: ID!
+  repository: String!
+  issue: SubmittedIssue!
+  run: WorkRun
+  execution: WorkExecution
+  wikiIssue: WikiIssue!
+
+  """What the graph did not supply on this attempt; the work still started."""
+  gaps: [String!]!
+}
+
+"""
+The Wiki Issue holding the rendered request; its website is the GitHub issue.
+"""
+type WikiIssue {
+  ref: EntityRef!
+  revision: Int!
+}
+
+type EntityRef {
+  installationId: String!
+  type: String!
+  id: ID!
+}
+
+input StartWorkInput {
+  requestId: ID!
+  target: StartWorkInputTarget!
+  root: StartWorkInputRoot!
+  title: String
+}
+
+input StartWorkInputTarget {
+  repository: String
+  project: ID
+}
+
+input StartWorkInputRoot {
+  ref: StartWorkInputRootRef!
+  revision: Float!
+}
+
+input StartWorkInputRootRef {
+  installationId: String!
+  type: String!
+  id: String!
+}
+
+"""
+The Wiki FeatureRequest recording the request. No issue is opened and no work starts.
+"""
+type FeatureRequest {
+  ref: EntityRef!
+  revision: Int!
+  repository: String!
+  submittedAt: DateTime!
+
+  """
+  False when a retry with the same requestId found the request an earlier attempt recorded.
+  """
+  created: Boolean!
+}
+
+input RequestFeatureInput {
+  requestId: ID!
+  target: RequestFeatureInputTarget!
+  title: String!
+  problem: String!
+  requestedChange: String!
+  acceptanceCriteria: [String!]!
+  relatedNodes: [RequestFeatureInputRelatedNodesItem!]
+}
+
+input RequestFeatureInputTarget {
+  repository: String
+  project: ID
+}
+
+input RequestFeatureInputRelatedNodesItem {
+  ref: RequestFeatureInputRelatedNodesItemRef!
+  revision: Float!
+}
+
+input RequestFeatureInputRelatedNodesItemRef {
+  installationId: String!
+  type: String!
+  id: String!
+}
+
+input CreateProjectInput {
+  name: String!
+  repositories: [String!]
+}
+
+type Query {
+  work(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    repository: [String!]
+    requestId: [String!]
+  ): WorkConnection!
+  foundryProjects(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+  ): FoundryProjectConnection!
+
+  """
+  Pull requests merged at or after `since` and before `until` (default now; both ISO-8601 with an offset), at most 31 days apart, across `repositories` (owner/name) or, by default, every repository your GitHub connection may read.
+  """
+  changes(since: DateTime!, until: DateTime, repositories: [String!]): ChangeList!
+
+  """Read your submitted feature and bug requests."""
+  requests(input: RequestsInput!): JSON
+}
+
+input RequestsInput {
+  details: Boolean
+  ids: [ID!]
+  search: String
+  first: Int
+  after: String
+}
+
+type Mutation {
+  """
+  Reserve expiring authenticated PUT links for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
+  """
+  submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
+
+  """
+  Record a feature or bug request and start intake/triage. Implementation retains its own approval gates.
+  """
+  submitRequest(input: SubmitRequestInput!): JSON
+
+  """
+  Submit work to a GitHub repository accessible through your account or the organization's GitHub App. Records an issue (or a comment on an existing open issue), then starts the configured Foundry workflow. If execution is unavailable, returns the issue with run: null and execution details; the work is still recorded. An existing run is not restarted. Attribution comes from your authenticated connection. Retry only with the same requestId.
+  """
+  submitWork(input: SubmitWorkInput!): SubmittedWork!
+
+  """
+  Start Foundry work from the Wiki: name a root Wiki node (Project, UseCase, UserStory or Requirement) at its current revision and a repository or Foundry project. The Wiki flattens the knowledge graph around it through the feature request template and stores it as a Wiki Issue; Foundry then opens the GitHub issue and starts the configured workflow (as submitWork does), and the Wiki Issue links to both. The root needs at least one linked AcceptanceCriterion. Retry with the same requestId to resume. Needs an organization installation and editor access.
+  """
+  startWork(input: StartWorkInput!): StartedWork!
+
+  """
+  Record a feature request for a repository or Foundry project in this organization's Wiki: its title, problem, requested change, acceptance criteria and up to 20 related Wiki nodes. The request is attributed to your verified Person or Agent, your organization and your current Governance role; it opens no issue and starts no work. Needs an organization installation and editor access. Retry with the same requestId to resume; changed content conflicts.
+  """
+  requestFeature(input: RequestFeatureInput!): FeatureRequest!
+
+  """
+  Add a Foundry project: a named group of repositories work can be routed to, at the lowest priority. Names are upper case and unique; repositories lower case, once each. Owners and admins only.
+  """
+  createProject(input: CreateProjectInput!): FoundryProject!
+
+  """Submit feature and bug requests for intake and triage"""
+  requestChanges(input: RequestChangesInput!): ChangeResults
+
+  """Apply project changes using explicit actions"""
+  projectChanges(input: ProjectChangesInput!): ChangeResults
+
+  """Apply work changes using explicit actions"""
+  workChanges(input: WorkChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input RequestChangesInput {
+  items: [RequestChangesInputItemsItem!]!
+}
+
+input RequestChangesInputItemsItem {
+  key: ID!
+  action: RequestChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum RequestChangesInputItemsItemAction {
+  submit
+}
+
+input ProjectChangesInput {
+  items: [ProjectChangesInputItemsItem!]!
+}
+
+input ProjectChangesInputItemsItem {
+  key: ID!
+  action: ProjectChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ProjectChangesInputItemsItemAction {
+  createProject
+}
+
+input WorkChangesInput {
+  items: [WorkChangesInputItemsItem!]!
+}
+
+input WorkChangesInputItemsItem {
+  key: ID!
+  action: WorkChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum WorkChangesInputItemsItemAction {
+  submitWork
+  startWork
+}

@@ -116,12 +116,12 @@ const Output = z.union([
 /**
  * Limits for the model answers an app asks for on its own step
  * (`inference.generate` naming the step). Each one omitted is the platform's
- * default. The timeout stays within the 90 s the host gives a workflow phase.
+ * default. The timeout stays within the 14 minutes the host gives a phase.
  */
 export const StepInference = z
   .object({
     maxOutputTokens: z.number().int().min(1).max(32000).optional(),
-    timeoutMs: z.number().int().min(1000).max(90000).optional(),
+    timeoutMs: z.number().int().min(1000).max(840_000).optional(),
     reasoningEffort: z.enum(["none", "low", "medium", "high"]).optional(),
   })
   .strict();
@@ -631,6 +631,8 @@ export const Workflow = z
     version: z.literal("beta"),
     id: slug,
     summary: z.string().min(1).max(500),
+    /** Opt in to generic app task dispatch using existing workflow slots. */
+    task: z.object({ schema: JsonSchema, input: z.string().regex(/^[a-z][a-z0-9-]*\.inputs\.[A-Za-z][A-Za-z0-9]*$/), output: z.string().regex(/^[a-z][a-z0-9-]*\.outputs\.[A-Za-z][A-Za-z0-9]*$/) }).strict().optional(),
     /** Provenance only; a fork is a copy. */
     forkedFrom: slug.nullable().optional(),
     actors: z.record(slotName, Actor),
@@ -649,6 +651,15 @@ export const Workflow = z
   })
   .strict()
   .superRefine((wf, ctx) => {
+    if (wf.task) {
+      const input = slotIndex(wf).get(wf.task.input);
+      const output = slotIndex(wf).get(wf.task.output);
+      if (!input || input.bound || !input.schema || !output || !output.schema || output.bound)
+        ctx.addIssue({ code: "custom", path: ["task"], message: "Task input/output must name unbound schema slots" });
+      const step = wf.steps.find(item => wf.task?.output.startsWith(`${item.id}.outputs.`));
+      if (step?.actor || !step?.outputs || !("connector" in (step.outputs[wf.task.output.split(".")[2]] ?? {})))
+        ctx.addIssue({ code: "custom", path: ["task"], message: "Task output must be an app-collected connector output" });
+    }
     const eventTypes = new Set<string>();
     const eventSources = new Set(wf.steps.filter((step) => step.source === "event").map((step) => step.id));
     const mappedSources = new Set<string>();

@@ -57,6 +57,16 @@ async function probe(context: Context, input: PhaseInput): Promise<Json> {
 }
 
 /** Send, read and cancel one ordinary agent task on the named gateway target. */
+async function routines(host: WorkflowHost<"interactive">) {
+  const id = "routine";
+  return {
+    routines: await outcome(() => host.call("routines.list", {})),
+    routineCreated: await outcome(() => host.call("routines.create", { title: "Fixture task", description: "Do the fixture task.", cadence: "Weekdays at 8am" })),
+    routinePaused: await outcome(() => host.call("routines.update", { id, enabled: false })),
+    platformSchedules: await outcome(() => host.call("platform.document", { document: "Schedules", variables: {} })),
+  };
+}
+
 async function threads(host: WorkflowHost<"interactive">) {
   const threadId = "66666666-6666-4666-8666-666666666666", submissionId = "77777777-7777-4777-8777-777777777777";
   return {
@@ -174,6 +184,11 @@ const phases = workflowPhaseHandler({
       run: await host.call("workflow.read", { id: runId }),
       issue: await host.call("repository.request", { bindingId: text(input, "bindingId"), path: `${repository.path}/issues/1` }),
       approved: await outcome(() => host.call("repository.request", { connectionId: text(input, "connectionId"), path: `${repository.path}/issues/1` })),
+      // A run's retained session: append one checkpoint, then read the export back.
+      sessionAppended: await outcome(() => host.call("session.append", { runId, entry: { id: "fixture.checkpoint", parentId: null, kind: "checkpoint", step: "work", at: "2026-01-01T00:00:00.000Z", data: { ready: true } } })),
+      session: await outcome(() => host.call("session.read", { runId })),
+      // Registered tasks start under a caller-chosen run id; replaying identical inputs succeeds.
+      taskStarted: await outcome(() => host.call("task.start", { task: "fixture-task", id: "66666666-6666-4666-8666-666666666666", inputs: {} })),
       published: await outcome(() => host.call("artifacts.published", { runId })),
       described: await outcome(() => host.call("artifacts.describe", { runId, ids: ["55555555-5555-4555-8555-555555555555"] })),
       // Shared threads need the package's threads.use capability; the fixture exercises the typed contract.
@@ -190,6 +205,8 @@ const phases = workflowPhaseHandler({
       // The fixture workflow declares no schedule trigger, so saving one is refused.
       scheduled: await outcome(() => host.call("schedule.save", { workflow: "fixture-flow", inputs: {} })),
       schedules: await outcome(() => host.call("schedules", {})),
+      // The member's own routines need the package's routines.manage capability.
+      ...(await routines(host)),
       // Entity access is explicitly denied unless this fixture's package
       // declares the corresponding capabilities. Exercise the typed contract
       // while retaining those refusals as observable phase results.

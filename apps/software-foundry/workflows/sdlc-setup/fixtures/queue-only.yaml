@@ -1,0 +1,23 @@
+# CI already runs on merge_group; only the ruleset is missing.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.commitPath: none
+  check.inputs.mergeQueue: now
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+  merge-queue.outputs.ruleset: {repository: northstar/platform, outcome: created, rulesetId: 7}
+expect:
+  check: done
+  commit: not-applicable
+  pull-request: not-applicable
+  review: not-applicable
+  auto-merge: not-applicable
+  merge: not-applicable
+  merge-queue: done
+  merge-queue-after-commit: not-applicable
+  merge-queue-after-merge: not-applicable
+  run: complete

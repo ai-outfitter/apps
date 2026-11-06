@@ -1,0 +1,66 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-merge.external-closed-unmerged",
+  "workflow": "foundry-merge",
+  "description": "Approved and requested, then closed without merging.",
+  "records": {
+    "approval": {
+      "repository": "northstar/interface",
+      "pullRequest": 31,
+      "url": "https://github.com/northstar/interface/pull/31#pullrequestreview-3102",
+      "commitId": "9999999999999999999999999999999999999999",
+      "reviewer": "maintainer-riley",
+      "state": "APPROVED",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request-review",
+        "id": "3102"
+      }
+    },
+    "checks": {
+      "headSha": "9999999999999999999999999999999999999999",
+      "checks": [
+        {
+          "name": "test",
+          "conclusion": "success"
+        },
+        {
+          "name": "lint",
+          "conclusion": "success"
+        }
+      ],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "check-suite",
+        "id": "suite-99999999"
+      }
+    },
+    "merge-request": {
+      "headSha": "9999999999999999999999999999999999999999",
+      "method": "squash",
+      "requestedBy": "maintainer-riley",
+      "requestedAt": "2026-10-03T10:00:00Z",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/interface#31"
+      }
+    }
+  },
+  "outcomes": {
+    "merged": "closed-unmerged"
+  },
+  "expect": {
+    "nodes": {
+      "approval": "complete",
+      "checks": "complete",
+      "merge": "complete",
+      "merged": "ended:closed-unmerged"
+    }
+  }
+}

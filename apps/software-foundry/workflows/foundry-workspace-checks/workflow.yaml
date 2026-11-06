@@ -1,0 +1,58 @@
+version: beta
+id: foundry-workspace-checks
+summary: Validate an exact merge-queue commit in an Outfitter workspace and publish App-owned check results.
+actors:
+  validator:
+    kind: external
+    binding: validate.inputs.validatorBinding
+triggers:
+  - on: manual
+$defs:
+  state: &a1
+    type: object
+    required:
+      - ready
+      - summary
+    properties:
+      ready:
+        type: boolean
+      summary:
+        type: string
+        minLength: 1
+      candidate:
+        type: object
+      checks:
+        type: array
+      review:
+        type:
+          - object
+          - "null"
+      merge:
+        type: object
+      verdict:
+        enum:
+          - approved
+          - changes-requested
+    additionalProperties: true
+steps:
+  - id: validate
+    actor: validator
+    inputs:
+      event:
+        schema:
+          type: object
+      previous:
+        schema: *a1
+      validatorBinding:
+        schema:
+          type: string
+          minLength: 1
+    instructions:
+      Run the approved deterministic validation commands at the signed merge-group commit.
+      Return the actual check results.
+    outputs:
+      result:
+        schema:
+          $ref: "#/$defs/state"
+outputs:
+  checks: validate.outputs.result

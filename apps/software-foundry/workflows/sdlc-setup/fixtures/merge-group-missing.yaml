@@ -1,0 +1,22 @@
+# A queue already exists but CI ignores merge_group: auto-merge would only queue the fix
+# behind checks that never run, so it is skipped and a repository admin merges with bypass.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/interface
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: pull-request
+  check.inputs.autoMerge: skip
+  check.inputs.mergeQueue: skip
+records:
+  check.outputs.inspected: {repository: northstar/interface, defaultBranch: main, revision: aaaaaaa, mergeQueue: merge-group-missing}
+  pull-request.outputs.branch: {repository: northstar/interface, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/interface, number: 31, url: https://github.com/northstar/interface/pull/31, headSha: ccccccc, base: main}
+expect:
+  review: not-applicable
+  auto-merge: not-applicable
+  merge: ready
+  merge-queue-after-merge: waiting # upstream first; not-applicable once merged
+  run: running

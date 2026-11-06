@@ -1,0 +1,108 @@
+{
+  "id": "outfitter/software-foundry",
+  "version": "0.3.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "storage": {
+    "buckets": {
+      "main": {
+        "spaces": {
+          "runs": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
+          },
+          "evidence": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
+          }
+        }
+      }
+    }
+  },
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "data.export",
+        "organization.github.read",
+        "organization.workflows.read",
+        "organization.workflows.start",
+        "workflow.issue-to-review.start",
+        "workflow.sdlc-setup.start",
+        "workflow.dependency-review.start",
+        "workflow.architecture-reanalysis.start",
+        "features.read",
+        "graph.serve",
+        "workflow.issue-to-triage-resident.start",
+        "workflow.issue-triage-observation.start",
+        "event.github.issue",
+        "connector.github.issues.read",
+        "connector.github.issues.comment",
+        "connector.github.issues.create",
+        "connector.github.actions.dispatch",
+        "connector.github.repositories.commit",
+        "connector.github.pulls.read",
+        "connector.github.pulls.create",
+        "connector.github.pulls.update",
+        "connector.github.pulls.review-evidence",
+        "connector.github.pulls.codeowners",
+        "connector.github.pulls.ready",
+        "connector.github.pulls.auto-merge",
+        "workflow.issue-to-merge-workspace.start",
+        "storage.artifacts.read",
+        "storage.artifacts.write",
+        "workflow.foundry-workspace-checks.start",
+        "event.github.merge-group",
+        "workflow.issue-to-merge-actions-ci.start",
+        "workflow.foundry-land-reviewed-change.start",
+        "organization.github.governance",
+        "workflow.host",
+        "actions.publish",
+        "api.serve",
+        "storage.buckets",
+        "home-cards.publish",
+        "threads.provide",
+        "threads.use",
+        "entities.read",
+        "entities.write",
+        "actions.invoke",
+        "platform.records",
+        "workflow.foundry-request-intake.start"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "operational": {
+      "slug": "software-foundry",
+      "name": "Software Foundry",
+      "description": "Turn approved GitHub issues into triage or draft pull requests."
+    },
+    "demo": {
+      "slug": "software-foundry",
+      "name": "Software Foundry",
+      "description": "Demo: inspect staged issues and workflow activity without GitHub or agent calls."
+    },
+    "presentation": {
+      "outcome": "Turn your backlog into reviewed, tested changes your team can ship.",
+      "connectors": [
+        "GitHub App \u00b7 selected repositories"
+      ],
+      "workflow": "issue-to-review",
+      "access": "Actors would receive access only to approved repositories and actions. Creating a draft pull request would not grant merge or repository administration access.",
+      "steps": []
+    },
+    "cover": "catalog/cover.webp"
+  },
+  "preview": {
+    "mode": "operational",
+    "policy": "scripts/preview.mjs"
+  },
+  "dependencies": [
+    "wiki-map"
+  ]
+}

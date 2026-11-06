@@ -1,0 +1,22 @@
+{
+  "name": "@ai-outfitter/workflow-issue-to-triage-resident",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "outfitter": {
+    "kind": "workflow",
+    "definition": "issue-to-triage-resident.yaml"
+  },
+  "exports": {
+    "./definition": "./dist/workflow.json",
+    "./native": "./native.ts"
+  },
+  "scripts": {
+    "build": "outfitter-workflow build",
+    "check": "outfitter-workflow check",
+    "test": "outfitter-workflow check && node --test actions/*.test.mjs"
+  },
+  "dependencies": {
+    "@ai-outfitter/workflow-core": "0.1.1"
+  }
+}

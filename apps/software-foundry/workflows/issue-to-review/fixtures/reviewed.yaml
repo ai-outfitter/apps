@@ -1,0 +1,30 @@
+workflow: issue-to-review
+origin: synthetic
+inputs:
+  triage.inputs.issue:
+    repository: ai-outfitter/webapp
+    number: 42
+    url: https://github.com/ai-outfitter/webapp/issues/42
+    title: Add dark mode
+    goal: {persona: organization-member, outcome: Read the dashboard comfortably at night.}
+records:
+  triage.outputs.classification: {kind: feature, needsDetails: false}
+  triage.outputs.comment:
+    id: c1
+    issue: {repository: ai-outfitter/webapp, number: 42}
+    kind: plan
+    summary: Add a dark theme behind the system preference.
+    steps: [Define dark tokens, Switch on prefers-color-scheme]
+  implement.outputs.branch: {repository: ai-outfitter/webapp, name: outfitter/issue-42, headSha: abc123}
+  implement.outputs.pull-request:
+    repository: ai-outfitter/webapp
+    number: 43
+    url: https://github.com/ai-outfitter/webapp/pull/43
+    headSha: abc123
+    closesIssue: {repository: ai-outfitter/webapp, number: 42}
+  review.outputs.review: {repository: ai-outfitter/webapp, number: 43, commitId: abc123, state: approved}
+expect:
+  triage: done
+  implement: done
+  review: done
+  run: complete

@@ -1,0 +1,40 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "issue-to-draft-pr.settings-focus",
+  "workflow": "issue-to-draft-pr",
+  "description": "First review requests changes.",
+  "records": {
+    "plan": {
+      "url": "https://github.com/northstar/interface/issues/27#issuecomment-2701",
+      "needsDetails": false,
+      "summary": "Return focus to the settings button when the dialog closes."
+    },
+    "pull-request": {
+      "repository": "northstar/interface",
+      "number": 28,
+      "url": "https://github.com/northstar/interface/pull/28",
+      "headSha": "cccccccccccccccccccccccccccccccccccccccc",
+      "state": "draft"
+    },
+    "review": {
+      "repository": "northstar/interface",
+      "pullRequest": 28,
+      "url": "https://github.com/northstar/interface/pull/28#pullrequestreview-2801",
+      "commitId": "cccccccccccccccccccccccccccccccccccccccc",
+      "verdict": "REQUEST_CHANGES",
+      "unresolvedFindings": [
+        "focus-return",
+        "escape-key"
+      ]
+    }
+  },
+  "expect": {
+    "nodes": {
+      "triage": "complete",
+      "implement": "complete",
+      "review": "complete"
+    }
+  }
+}

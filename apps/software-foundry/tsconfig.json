@@ -1,0 +1,31 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "strict": true,
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schemas": [
+          {
+            "name": "software-foundry",
+            "schema": "./graph/schema.graphql",
+            "tadaOutputLocation": "./graph/graphql-env.d.ts"
+          }
+        ]
+      }
+    ]
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "src/**/*",
+    "../AppLayout.astro",
+    "../navigation.js",
+    "../../../packages/ui/src/astro/**/*.astro",
+    "tests/**/*.test.ts",
+    "scripts/graph-schema.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

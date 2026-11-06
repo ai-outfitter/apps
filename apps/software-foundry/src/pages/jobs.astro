@@ -1,0 +1,42 @@
+---
+import "../styles.css";
+import AppLayout from "../components/FoundryLayout.astro";
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Table from "@ai-outfitter/ui/astro/Table.astro";
+// Repository jobs: an agent reads a repository and files ranked issues. They never
+// change code; send the issues worth doing through issue to review.
+const jobs = [
+  {
+    id: "dependency-review",
+    title: "Dependency review",
+    summary:
+      "Dependabot-style, but judged by an agent: what is out of date, what is no longer needed, and what has a better option. One issue per proposed change.",
+    cadence: "every Monday at 14:00 UTC",
+  },
+  {
+    id: "architecture-reanalysis",
+    title: "Architecture reanalysis (ARR)",
+    summary:
+      "Rereads the repository as it is now and files ranked refactor issues for the structure fast shipping left behind, each with evidence and an incremental plan.",
+    cadence: "on the 1st of each month at 14:00 UTC",
+  },
+];
+---
+<AppLayout title="Jobs" description="Run repository jobs that file issues for the work worth doing." active="home">
+  <div class="feed-toolbar">
+    <label for="job-repository">Repository <select id="job-repository" disabled><option>Loading repositories…</option></select></label>
+  </div>
+  <p id="job-notice" role="status" aria-live="polite">Loading available repositories…</p>
+  {jobs.map((job) => (
+    <Section id={`job-${job.id}`} title={job.title}>
+      <button slot="actions" class="secondary" data-job={job.id} disabled>Run now</button>
+      <button slot="actions" class="secondary" data-schedule={job.id} disabled>Schedule</button>
+      <p>{job.summary}</p>
+      <p>Scheduled runs start {job.cadence} as the person who owns the schedule. If they leave or can no longer run it, it pauses with the reason until an admin reassigns it to someone who can.</p>
+      <ul id={`job-schedules-${job.id}`} class="job-schedules"></ul>
+      <Table id={`job-runs-${job.id}`} label={`${job.title} runs`} columns={["Started", "Repository", "Status", "Issues filed"]} />
+      <p id={`job-empty-${job.id}`} role="status">No runs yet.</p>
+    </Section>
+  ))}
+</AppLayout>
+<script>import "../scripts/jobs.js";</script>

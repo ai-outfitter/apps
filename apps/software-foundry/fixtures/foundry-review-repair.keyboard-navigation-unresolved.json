@@ -1,0 +1,61 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-review-repair.keyboard-navigation-unresolved",
+  "workflow": "foundry-review-repair",
+  "description": "The re-review still reports the finding.",
+  "records": {
+    "repair": {
+      "reviewedHead": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "addressedFindings": [
+        "focus-trap"
+      ],
+      "validation": [
+        {
+          "command": "npm test",
+          "result": "passed"
+        }
+      ]
+    },
+    "head": {
+      "repository": "northstar/platform",
+      "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "url": "https://github.com/northstar/platform/commit/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "commit",
+        "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    "review-request": {
+      "headSha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "requestedAt": "2026-10-04T15:00:00Z"
+    },
+    "review": {
+      "repository": "northstar/platform",
+      "pullRequest": 43,
+      "url": "https://github.com/northstar/platform/pull/43#pullrequestreview-4302",
+      "commitId": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "verdict": "REQUEST_CHANGES",
+      "unresolvedFindings": [
+        "focus-trap"
+      ],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request-review",
+        "id": "4302"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "repair": "complete",
+      "push": "complete",
+      "request": "complete",
+      "re-review": "complete"
+    }
+  }
+}

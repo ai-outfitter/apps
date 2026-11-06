@@ -1,0 +1,56 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "foundry-external-pr.closed-unmerged",
+  "workflow": "foundry-external-pr",
+  "description": "A human-authored PR is reviewed, approved and closed unmerged.",
+  "inputs": {
+    "pull-request": {
+      "repository": "northstar/interface",
+      "number": 31,
+      "url": "https://github.com/northstar/interface/pull/31",
+      "headSha": "9999999999999999999999999999999999999999",
+      "state": "open"
+    }
+  },
+  "records": {
+    "included": {
+      "repository": "northstar/interface",
+      "number": 31,
+      "url": "https://github.com/northstar/interface/pull/31",
+      "headSha": "9999999999999999999999999999999999999999",
+      "state": "open",
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request",
+        "id": "northstar/interface#31"
+      }
+    },
+    "review": {
+      "repository": "northstar/interface",
+      "pullRequest": 31,
+      "url": "https://github.com/northstar/interface/pull/31#pullrequestreview-3101",
+      "commitId": "9999999999999999999999999999999999999999",
+      "verdict": "COMMENT",
+      "unresolvedFindings": [],
+      "source": {
+        "connector": "github",
+        "capability": "pull-request.read.v1",
+        "entity": "pull-request-review",
+        "id": "3101"
+      }
+    }
+  },
+  "children": {
+    "merge": "foundry-merge.external-closed-unmerged"
+  },
+  "expect": {
+    "nodes": {
+      "include": "complete",
+      "review": "complete",
+      "merge": "ended:closed-unmerged"
+    }
+  }
+}

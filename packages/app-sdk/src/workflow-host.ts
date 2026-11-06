@@ -1,13 +1,15 @@
 import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
-import { workContextInput, workContextResult, actionDescriptor, actionName } from "./actions";
+import { actionDescriptor, actionName, workContextInput, workContextResult } from "./actions";
 import { entityGet, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
-import { appActor, readJSON } from "./server";
 import { hostPhases } from "./host-operation";
 import { platformRecordOperations } from "./platform-records";
+import { appActor, readJSON } from "./server";
 import { threadOperations } from "./threads";
-export { hostOperation, runningPhases, type HostOperation } from "./host-operation";
+import { sessionEntry, workflowSession } from "./workflow-session";
+
+export { type HostOperation, hostOperation, runningPhases } from "./host-operation";
 
 /** Installed-app workflow host contract. The platform dispatches a workflow phase
  * to the app over trusted RPC props, and the app calls back through the typed
@@ -35,6 +37,17 @@ export const invocationCapability = "invocations.schedule";
  * only when the operator's resident grant explicitly names this installation.
  * Only assigned-work discovery and read-only context are reachable. Catalog packages only. */
 export const agentWorkCapability = "agent-work.discover";
+/** A package may list its member's own routines (their personal workflow schedules)
+ * and runs, turn a task on as a routine, and pause, resume or rewrite one. Running,
+ * deleting and cancelling go through the platform documents (`platform.documents`).
+ * Only on a user's own installation, for that user. Catalog packages only. */
+export const routinesCapability = "routines.manage";
+/** A package may run the platform's own documents (scope and app "platform", such as
+ * Schedules, WorkflowRuns, ScheduleChanges and WorkflowRunChanges) as its member, through
+ * the same MCP tools their MCP client uses. On a user's own installation it reads
+ * every scope the member can; on an organization's, only that organization. Writes
+ * are limited to schedule, task and run changes. Catalog packages only. */
+export const platformDocumentsCapability = "platform.documents";
 export type WorkflowPhase = (typeof workflowPhases)[number];
 const phase = z.enum(workflowPhases);
 
@@ -74,6 +87,8 @@ export const workflowHostScope = z.strictObject({
    * `userId` is the deployment service actor, which has editor standing on the
    * owning organization's installations without a membership. */
   setup: z.literal(true).optional(),
+  /** Platform-verified registered task context; cancellation checkpoint, never authority. */
+  taskRunId: id.optional(),
   runId: id.optional(),
   attemptId: runId.optional(),
   leaseId: id.optional(),
@@ -127,6 +142,46 @@ const publishedArtifact = z.object({
 export type PublishedArtifact = z.infer<typeof publishedArtifact>;
 
 /** An installation schedule as the host reports it. */
+/** A recurring task a member's routine carries out: what `routines.create` turns on. */
+export const routineTask = z.strictObject({
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(800),
+  /** How often it runs, in words: "Every Monday", "Daily at 8am". Weekday mornings when unrecognised. */
+  cadence: z.string().trim().max(80).optional(),
+  steps: z.array(z.string().trim().min(1).max(300)).max(5).optional(),
+  evidence: z.string().trim().max(300).optional(),
+});
+export type RoutineTask = z.infer<typeof routineTask>;
+/** One of the member's routines (`routines.manage`). Times are epoch milliseconds. */
+const memberRoutine = z.object({
+  id,
+  workflowId: id,
+  name: z.string(),
+  /** The cron in words, e.g. "Weekdays at 13:00 America/Chicago". */
+  cadence: z.string(),
+  timezone: z.string(),
+  enabled: z.boolean(),
+  nextRunAt: z.number().nullable(),
+  lastRunId: id.nullable(),
+  lastRunStatus: z.enum(["running", "complete", "failed"]).nullable(),
+  lastOutcome: z.string().nullable(),
+  /** A recurring task's task, which `routines.update` can rewrite; null for any other workflow. */
+  task: routineTask.nullable(),
+});
+export type MemberRoutine = z.infer<typeof memberRoutine>;
+/** One of the member's runs (`routines.manage`). */
+const memberRun = z.object({
+  id,
+  workflowId: id,
+  name: z.string(),
+  status: z.enum(["running", "complete", "failed"]),
+  /** The app that started it, or null for a routine or chat run. */
+  installationId: id.nullable(),
+  scheduleId: id.nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type MemberRun = z.infer<typeof memberRun>;
 const installationSchedule = z.object({
   id,
   workflowId: id,
@@ -230,6 +285,8 @@ const coreOperations = {
       operations: z.array(z.string()), repositories: z.array(z.string()), resource: z.string().optional() })),
   })),
   /** One run of this installation, or null. */
+  "session.append": operation(running, z.strictObject({ runId, entry: sessionEntry }), z.object({id:z.string()})),
+  "session.read": operation(memberPhases, z.strictObject({runId}), workflowSession),
   "workflow.read": operation(memberPhases, z.strictObject({ id }), z.object({
     run: runSummary,
     inputs: jsonObject,
@@ -242,6 +299,8 @@ const coreOperations = {
       progress: jsonObject.optional() })),
   }).nullable()),
   /** Start an approved workflow with a caller-chosen id. Replaying identical inputs succeeds; any other conflict is an error. Editors only. */
+  /** Start this app's registered task using the existing durable dispatch outbox. */
+  "task.start": operation(["interactive", "operator"], z.strictObject({task:id,id:runId,inputs:jsonObject}), z.object({id:runId,task:id,created:z.boolean()})),
   "workflow.start": operation(running, z.strictObject({ workflow: id, id: runId, inputs: jsonObject }),
     z.object({ id, workflow: id, created: z.boolean() })),
   /** Running runs of this installation with the requested input slots, from one slot query. */
@@ -277,6 +336,7 @@ const coreOperations = {
     runId: id,
     slot: z.string().max(256).regex(/^[a-z][a-z0-9-]*\.outputs\.[A-Za-z][A-Za-z0-9-]*$/),
     value: json,
+    complete: z.boolean().default(true),
   }), z.object({ run: z.string(), steps: z.record(z.string(), z.string()) })),
   /** Run one operation on a connection resource, as the scope's member. The
    * host derives access on every call: the installation's manifest must declare
@@ -300,13 +360,14 @@ const coreOperations = {
    * agent step (the run owner's provider, or the platform's). The app owns
    * `instructions` and the result `schema` (a JSON Schema object); `data` is
    * passed to the model as untrusted data, never as instructions. The host
-   * validates the answer against `schema`. Nothing is stored but the usage receipt.
+   * validates the answer against `schema`. Calls naming a session checkpoint retain private inference evidence.
    * Naming `step` applies that step's declared `inference` settings, which win
    * over any the app passes; a setting neither gives is the platform default
    * (1,500 output tokens, a 60 s timeout, the provider's reasoning). */
   "inference.generate": operation(running, z.strictObject({
     runId: runId,
     step: slug.optional(),
+    checkpointId: z.string().max(128).optional(),
     instructions: z.string().min(1).max(64000),
     data: json,
     schema: jsonObject,
@@ -329,6 +390,25 @@ const coreOperations = {
   }).refine((input) => !input.connectionId === !input.resource, "Name a connection with its resource"), installationSchedule),
   /** This installation's schedules. */
   schedules: operation(["operator", "interactive", "schedule"], z.strictObject({}), z.array(installationSchedule)),
+  /** The member's own routines and their 20 newest runs, on a user's own
+   * installation with `routines.manage`. Routines are personal schedules saved
+   * on the main site, not this installation's own (see `schedules`); runs are
+   * every personal run the member started, any workflow or app. */
+  "routines.list": operation(["operator", "interactive", "schedule"], z.strictObject({}), z.object({ routines: z.array(memberRoutine), runs: z.array(memberRun) })),
+  /** Turn a task on as one of the member's routines, as the main site's "Turn on" does: a
+   * recurring task on its cadence ("Weekdays at 8am"), whose first run starts now. */
+  "routines.create": operation(["operator", "interactive"], z.strictObject({ ...routineTask.shape, timezone: z.string().min(1).max(64).optional() }),
+    z.object({ routine: memberRoutine, runId: id })),
+  /** Pause or resume one of the member's routines, or rewrite a recurring task's task and
+   * cadence (`task`). Resuming never starts the occurrences it missed. */
+  "routines.update": operation(["operator", "interactive"], z.strictObject({ id, enabled: z.boolean().optional(), task: routineTask.optional() })
+    .refine((input) => input.enabled !== undefined || input.task, "Change enabled or task"), memberRoutine),
+  /** Run one platform document as the member, as graph_query (kind query, identifiers
+   * included) or graph_mutate does at scope and app "platform"; answers its `data`. With
+   * `platform.documents`; an organization's installation is kept to that organization. */
+  "platform.document": operation(["operator", "interactive"], z.strictObject({
+    document: z.string().regex(/^[A-Z][A-Za-z]{1,63}$/), kind: z.enum(["query", "mutation"]).default("query"), variables: jsonObject.default({}),
+  }), json),
   /** The operator's current declaration of one gateway target configured for this
    * organization installation (`agent-tasks.dispatch`). Never its endpoint or credential. */
   "agent-task.inspect": operation(["operator", ...agentTasks], z.strictObject(agentTarget),
@@ -505,6 +585,8 @@ export function workflowHost<P extends WorkflowPhase = WorkflowPhase>(source: Pr
 /** A phase request body, as the platform dispatches it to {@link workflowHostPath}. */
 export const phaseRequest = z.strictObject({ phase, input: jsonObject });
 export type PhaseInput = z.infer<typeof jsonObject>;
+/** Generic task invocation in an installation's interactive workflow-host phase. */
+export const taskInvocation = z.strictObject({ runId, task: id, inputs: jsonObject });
 /** The node attempt a `prepare` or `finalize` dispatch is about. */
 const node = z.object({ runId: id, nodeId: id, attemptId: runId });
 /** `event` input: a verified connector delivery for one of this installation's

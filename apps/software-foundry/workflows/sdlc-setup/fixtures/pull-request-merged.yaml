@@ -1,0 +1,24 @@
+# After the merge, the next Complete all records it and creates the ruleset.
+workflow: sdlc-setup
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+  check.inputs.defaultBranch: main
+  check.inputs.revision: aaaaaaa
+  check.inputs.files: [.github/workflows/ci.yml]
+  check.inputs.commitPath: pull-request
+  check.inputs.reviewer: octocat
+  check.inputs.autoMerge: enable
+  check.inputs.mergeQueue: after-merge
+records:
+  check.outputs.inspected: {repository: northstar/platform, defaultBranch: main, revision: aaaaaaa, mergeQueue: missing}
+  pull-request.outputs.branch: {repository: northstar/platform, name: outfitter/sdlc-setup, headSha: ccccccc}
+  pull-request.outputs.pull-request: {repository: northstar/platform, number: 12, url: https://github.com/northstar/platform/pull/12, headSha: ccccccc, base: main}
+  review.outputs.review-request: {repository: northstar/platform, number: 12, reviewer: octocat, outcome: merged-first}
+  auto-merge.outputs.auto-merge: {repository: northstar/platform, number: 12, mergeMethod: SQUASH, outcome: enabled}
+  merge.outputs.merged: {repository: northstar/platform, number: 12, mergeCommitSha: ddddddd}
+  merge-queue-after-merge.outputs.ruleset: {repository: northstar/platform, outcome: created, rulesetId: 7}
+expect:
+  merge: done
+  merge-queue-after-merge: done
+  run: complete

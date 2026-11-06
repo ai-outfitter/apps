@@ -1,0 +1,12 @@
+workflow: issue-to-review
+origin: synthetic
+inputs:
+  triage.inputs.issue: {repository: ai-outfitter/webapp, number: 42, url: https://github.com/ai-outfitter/webapp/issues/42, title: Add dark mode}
+records:
+  triage.outputs.classification: {kind: feature, needsDetails: true}
+  triage.outputs.comment: {id: c1, issue: {repository: ai-outfitter/webapp, number: 42}, kind: needs-details, summary: "Which user type, and what should they be able to do?"}
+expect:
+  triage: done
+  implement: not-applicable
+  review: not-applicable
+  run: complete

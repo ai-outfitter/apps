@@ -1,0 +1,22 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "issue-to-draft-pr.empty-state",
+  "workflow": "issue-to-draft-pr",
+  "description": "Plan published; implementation not finished.",
+  "records": {
+    "plan": {
+      "url": "https://github.com/northstar/interface/issues/18#issuecomment-1801",
+      "needsDetails": false,
+      "summary": "Render an empty state with a create action when the project list is empty."
+    }
+  },
+  "expect": {
+    "nodes": {
+      "triage": "complete",
+      "implement": "ready",
+      "review": "waiting"
+    }
+  }
+}
