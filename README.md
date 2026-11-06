@@ -101,7 +101,8 @@ deploy:
 
 SaaS is the default, with no platform deployment secret, enablement flag or extra
 wrapper. Before the first automatic update, connect the calling repository and
-install its apps in the destination's Apps settings. That records the destination
+install the apps you want in the destination's Apps settings. Apps without any
+subscribed installations report nothing to update without failing other deployments. That records the destination
 owner and installer authority. For self-hosting, pass `destination`; networking
 and the instance's runtime remain that instance's responsibility.
 

@@ -28,7 +28,7 @@ export async function requestDeployment(app, { env = process.env, fetcher = fetc
     signal: AbortSignal.timeout(60_000),
   });
   if (response.status === 404)
-    throw new Error(`No installed apps match this repository. Add the repository and install ${app} at ${destination.origin}/apps#app-repositories; for an older installation, press Update once.`);
+    return { started: 0, unchanged: 0, failed: 0, notInstalled: true };
   assert.ok(response.ok, `Deployment request failed (${response.status})`);
   const result = await response.json();
   for (const key of ["started", "unchanged", "failed"])
@@ -43,7 +43,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const selected = checkApp(app);
   const deploySlug = selected.manifest?.slug || selected.manifest?.catalog?.operational?.slug || app.split('/').at(-1);
   const result = await requestDeployment(deploySlug);
-  const summary = `${app}: ${result.started} build/install requests queued; ${result.unchanged} unchanged. Queue acceptance is not completed deployment; inspect the app's installation history for build and activation results.\n`;
+  const summary = result.notInstalled
+    ? `${app}: no subscribed installations at ${process.env.OUTFITTER_URL || "https://ai-outfitter.com"}; nothing to update. Install this app once from Apps to receive automatic updates.\n`
+    : `${app}: ${result.started} build/install requests queued; ${result.unchanged} unchanged. Queue acceptance is not completed deployment; inspect the app's installation history for build and activation results.\n`;
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 }
