@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "exports": {
@@ -22,7 +22,7 @@
     "@types/node": "^26.6.3"
   },
   "dependencies": {
-    "@ai-outfitter/workflow-core": "0.1.1"
+    "@ai-outfitter/workflow-core": "0.1.2"
   },
   "license": "MIT",
   "publishConfig": {

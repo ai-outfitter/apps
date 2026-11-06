@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/workflow-recurring-task",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "outfitter": {
@@ -19,7 +19,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@ai-outfitter/workflow-core": "0.1.1"
+    "@ai-outfitter/workflow-core": "0.1.2"
   },
   "license": "MIT",
   "publishConfig": {
