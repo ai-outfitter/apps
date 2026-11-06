@@ -68,8 +68,8 @@ The release workflow accepts an optional explicit `release-token` override for
 a GitHub App/PAT. Otherwise it resolves the calling repository's generated
 `github.token` inside the runner job, where that token exists. The caller grants
 the required contents/issues/pull-request write permissions. No secret inheritance. Release-please config, versions and changelogs stay in
-the caller. Components release independently; no automatic merge, npm publication
-or deployment. Shared root behavior changes need app-local release notes for each
+the caller. Components release independently; no automatic merge or npm
+publication. The release job does not activate installations. Shared root behavior changes need app-local release notes for each
 affected component because release-please tracks component paths.
 
 ## Production releases and scheduled updates
