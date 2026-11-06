@@ -1,0 +1,37 @@
+workflow: hr-role-packet
+origin: synthetic
+inputs:
+  basics.inputs.roleIdea: A data engineer to make product analytics trustworthy.
+  basics.inputs.manager: {kind: member, id: sam-rivera}
+  basics.inputs.approver: {kind: team, id: hr-leads}
+records:
+  basics.outputs.brief:
+    title: Member of Technical Staff, Data Engineer
+    problem: Make product analytics trustworthy and fast to query.
+    location: Remote in the US
+    requiredExperience: [Production data pipelines, SQL modeling]
+    niceToHaves: []
+  moc.outputs.moc:
+    revision: 1
+    mission: Give every team reliable data to decide with.
+    outcomes: [Daily pipelines complete with tested models.]
+    competencies: [Data modeling, Reliability, Communication]
+  description.outputs.posting: {revision: 1, body: Own the pipelines and models behind product analytics.}
+  level.outputs.response: {level: Senior IC, currency: USD, minimum: 170000, maximum: 210000}
+  interviews.outputs.response:
+    stages:
+      - {name: Recruiter screen, focus: motivation}
+      - {name: Data modeling exercise, focus: SQL modeling}
+  approval.outputs.response:
+    decision: approve
+    reasoning: The packet is grounded in the confirmed brief and the range is approved.
+    confidence: 0.9
+    evidence: [basics.outputs.brief, moc.outputs.moc, description.outputs.posting, level.outputs.response, interviews.outputs.response]
+expect:
+  basics: done
+  moc: done
+  description: done
+  level: done
+  interviews: done
+  approval: done
+  run: complete

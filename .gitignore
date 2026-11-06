@@ -6,3 +6,5 @@ node_modules/
 **/.astro/
 **/test-results/
 **/.outfitter/packages/
+
+**/.wrangler/

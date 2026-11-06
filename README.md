@@ -3,11 +3,9 @@
 Home for official Outfitter apps and the reusable CI, release and deployment
 tooling and public SDK used by personal and organization app repositories.
 
-Official app source will live under `apps/<app>/`, with each app's domain tests,
+Official app source lives under `apps/<app>/`, with each app's domain tests,
 fixtures, migrations and release metadata. Personal apps stay in their owners'
-repositories and consume the same shared workflows. This PR establishes the
-tooling first; official app migration follows separately. The public SDK lives here under `packages/`; the hosted platform remains in its
-separate repository.
+repositories and consume the same shared workflows. HR is the first app being migrated. The public SDK lives under `packages/`; the hosted platform remains in its separate repository.
 
 Planned layout:
 
@@ -39,6 +37,8 @@ A caller's `.outfitter/apps.json` describes its layout:
   "commands": ["check", "test", "build"]
 }
 ```
+
+Apps that run Playwright may set `outfitter.browserTests: true` in their package manifest; the shared check tooling installs Chromium on CI before running that app’s scripts. Set `preview.commands` to a subset of validation commands when the separate app-check job already supplies those gates. The official-app release job produces a demo package and source/digest provenance for each independent release.
 
 App discovery also reads npm `workspaces` (array or `packages` form). A package is
 an app when it has `app.json` or `outfitter.kind: app`. Package names and paths are

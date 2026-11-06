@@ -1,0 +1,79 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-role-hiring.agentic-engineer",
+  "workflow": "hr-role-hiring",
+  "description": "Packet drafted and confirmed; awaiting the configured approver.",
+  "records": {
+    "brief": {
+      "title": "Member of Technical Staff, Agentic Engineer",
+      "problem": "Make our agent tooling reliable enough for daily engineering work.",
+      "ownership": "Build evaluation loops, improve tool reliability, and guide teams through adoption.",
+      "location": "New York or remote in the US",
+      "manager": "Alex Morgan",
+      "arrangement": "Hybrid",
+      "employment": "Full-time",
+      "start": "2026-11-16",
+      "mustHaves": [
+        "Production software engineering",
+        "Experience building and evaluating agents",
+        "Strong debugging and systems judgment"
+      ],
+      "niceToHaves": [
+        "Developer tooling, infrastructure, or applied research experience"
+      ]
+    },
+    "moc": {
+      "revision": 1,
+      "mission": "Make agents dependable collaborators for engineering teams.",
+      "outcomes": [
+        "Reduce failed tool calls and improve task completion quality.",
+        "Establish repeatable evaluations for critical workflows."
+      ],
+      "competencies": [
+        "Systems design",
+        "product judgment",
+        "evaluation design",
+        "clear technical communication"
+      ]
+    },
+    "posting": {
+      "revision": 1,
+      "body": "Build dependable agent workflows for engineers. You will own evaluation, reliability, and practical integration with existing tools."
+    },
+    "compensation": {
+      "level": "Senior IC",
+      "currency": "USD",
+      "minimum": 180000,
+      "maximum": 230000
+    },
+    "interview-loop": {
+      "stages": [
+        {
+          "name": "Recruiter screen",
+          "focus": "motivation and experience"
+        },
+        {
+          "name": "Hiring manager",
+          "focus": "systems judgment"
+        },
+        {
+          "name": "Work sample",
+          "focus": "agent evaluation design"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "nodes": {
+      "basics": "complete",
+      "moc": "complete",
+      "description": "complete",
+      "level": "complete",
+      "interviews": "complete",
+      "approval": "ready",
+      "publish": "waiting"
+    }
+  }
+}

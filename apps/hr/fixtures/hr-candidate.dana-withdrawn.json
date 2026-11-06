@@ -1,0 +1,47 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-candidate.dana-withdrawn",
+  "workflow": "hr-candidate",
+  "description": "The candidate withdraws before confirming.",
+  "records": {
+    "outreach": {
+      "candidateId": "cand-dana",
+      "messageId": "msg-dana-1",
+      "threadId": "thread-dana",
+      "sentAt": "2026-09-14T10:00:00Z",
+      "source": {
+        "connector": "gmail",
+        "capability": "mail.read.v1",
+        "entity": "message",
+        "id": "msg-dana-1"
+      }
+    },
+    "event": {
+      "candidateId": "cand-dana",
+      "eventId": "evt-dana",
+      "eventRevision": 1,
+      "start": "2026-09-24T15:00:00Z",
+      "end": "2026-09-24T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-dana",
+        "resource": "interviews@northstar.example"
+      }
+    }
+  },
+  "outcomes": {
+    "confirmation": "withdrawn"
+  },
+  "expect": {
+    "nodes": {
+      "outreach": "complete",
+      "schedule": "complete",
+      "confirmation": "ended:withdrawn",
+      "interview": "waiting"
+    }
+  }
+}

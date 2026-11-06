@@ -1,0 +1,36 @@
+---
+import HrLayout from "../../../components/HrLayout.astro";
+import { roles, steps } from "../../../fixtures";
+const id = Astro.params.id;
+if (!id) return new Response("Role not found", { status: 404 });
+const role = roles.find(r => r.id === id);
+if (!role && id !== "new") return new Response("Role not found", { status: 404 });
+const title = role?.title || Astro.url.searchParams.get("title")?.slice(0,600) || "New role";
+---
+<HrLayout title="Role builder" description={title} builder>
+<nav slot="breadcrumb" class="builder-breadcrumb" aria-label="Breadcrumb"><a href="/roles">Roles</a><span aria-hidden="true">›</span>{role ? <a href={`/roles/${id}`}>{role.title}</a> : <span>{title}</span>}<span aria-hidden="true">›</span><span aria-current="page">Build role</span></nav>
+<div id="builder" data-role={id} data-title={title}>
+ <div class="builder-top"><span class="agent-mark">K</span><div><strong>KAIZEN · RECRUITING</strong><small>Role assistant</small></div><details><summary>About this assistant</summary><p>Organizes the role brief, scorecard, job description, interview loop, and approval steps.</p></details></div>
+ <div class="builder-grid">
+  <div class="conversation-panel"><div class="channel-caption"># hiring · you and Kaizen</div><div id="messages" class="messages" role="log" aria-label="Role conversation"></div><form id="builder-chat" class="chat-composer"><label class="sr-only" for="chat-message">Message Kaizen</label><textarea id="chat-message" name="message" rows="3" disabled placeholder="Message Kaizen"></textarea><button disabled>Send</button></form></div>
+  <div class="builder-workspace">
+  <nav class="step-rail" aria-label="Role workflow"><span class="caption" id="step-progress">Progress · 1 of 7 steps</span><ol>{steps.map((s,i) => <li><button type="button" data-step={s.id}><span>{i+1}. {s.title}</span><small>{s.description}</small></button></li>)}</ol></nav>
+  <aside class="builder-form" aria-label="Role details"><form id="role-fields">
+   <fieldset data-panel="basics"><legend>The basics</legend>
+    <div class="field-group"><h2>Role</h2><div class="field-grid"><label class="full-field">Working title<input name="title" value={title} /></label><label class="full-field">Problem it solves<textarea name="problem" placeholder="Why does this role exist?" rows="2"></textarea></label><label class="full-field">What they’ll own<textarea name="ownership" rows="2" placeholder="Responsibilities and outcomes"></textarea></label></div></div>
+    <div class="field-group"><h2>Logistics</h2><div class="field-grid"><label>Location<input name="location" placeholder="Not yet" /></label><label>Hiring manager<select aria-label="Hiring manager" name="manager"><option value="">Not yet</option><option>Alex Morgan</option><option>Riley Chen</option><option>Sam Rivera</option></select></label><label>Work mode<select aria-label="Work mode" name="arrangement"><option value="">Not yet</option><option>Onsite</option><option>Hybrid</option><option>Remote</option></select></label><label>Employment<select aria-label="Employment" name="employment"><option value="">Not yet</option><option>Full-time</option><option>Part-time</option><option>Contract</option></select></label><label class="full-field">Target start<input name="start" type="date" /></label></div></div>
+    <div class="field-group"><h2>Requirements</h2><div class="field-grid"><label class="full-field">Must-haves<textarea name="mustHaves" placeholder="Required experience, one per line" rows="3"></textarea></label><label class="full-field">Nice-to-haves<textarea name="niceToHaves" placeholder="Optional skills, or explicitly None" rows="3"></textarea></label></div></div>
+   </fieldset>
+   <fieldset data-panel="moc" hidden><legend>Scorecard (MOC)</legend><p>Mission, Outcomes, Competencies</p><label>Mission<textarea name="mission" rows="3"></textarea></label><label>Outcomes<textarea name="outcomes" rows="4"></textarea></label><label>Competencies<textarea name="competencies" rows="4"></textarea></label><button type="button" data-draft="moc">Draft MOC</button></fieldset>
+   <fieldset data-panel="description" hidden><legend>Job description</legend><label>Public posting<textarea name="description" rows="15" placeholder="Draft the posting from the confirmed role brief."></textarea></label><button type="button" data-draft="description">Draft job description</button></fieldset>
+   <fieldset data-panel="level" hidden><legend>Level and pay</legend><label>Level<input name="level" placeholder="e.g. Senior IC" /></label><label>Currency<select aria-label="Currency" name="currency"><option>USD</option><option>GBP</option><option>EUR</option></select></label><label>Annual salary minimum<input name="salaryMin" type="number" min="0" /></label><label>Annual salary maximum<input name="salaryMax" type="number" min="0" /></label><label>Equity and compensation notes<textarea name="payNotes" rows="4"></textarea></label></fieldset>
+   <fieldset data-panel="interviews" hidden><legend>Interview loop</legend><label>Stages, interviewers and competencies<textarea name="interviews" rows="12" placeholder="Recruiter screen — recruiter — motivation and experience&#10;Hiring manager — role owner — technical judgment&#10;Work sample — team — job-specific competencies"></textarea></label></fieldset>
+   <fieldset data-panel="approval" hidden><legend>Approval</legend><p>Review the role brief, MOC, job description, compensation and interview loop together.</p><p>Approver: <strong id="configured-approver">Jordan Lee</strong> · <a href="/settings">Configure routing</a></p><button type="button" id="preview-approval">Send for approval</button><p id="approval-status" role="status">Draft</p><p class="caption">The assigned approver will review and decide in their own view when this workflow is connected.</p></fieldset>
+   <fieldset data-panel="publish" hidden><legend>Post in Ashby</legend><p><span class="tag">Not connected</span></p><p>After a separate human approval, the posting would be published through the organization's configured connection.</p><p id="publication-status" role="status">Not published · Ashby is not connected.</p></fieldset>
+   <p id="field-status" role="status"></p><div class="actions step-controls"><button type="button" id="previous-step" class="secondary">Back</button><button type="button" id="next-step">Continue</button></div>
+  </form></aside>
+  </div>
+ </div>
+</div>
+</HrLayout>
+<script>import "../../../scripts/builder.js";</script>

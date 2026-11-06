@@ -1,0 +1,86 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-role-hiring.data-engineer",
+  "workflow": "hr-role-hiring",
+  "description": "Approved packet with an observed Ashby posting.",
+  "records": {
+    "brief": {
+      "title": "Member of Technical Staff, Data Engineer",
+      "problem": "Make product analytics trustworthy and fast to query.",
+      "ownership": "Own ingestion pipelines, warehouse models and data quality checks.",
+      "location": "Remote in the US",
+      "manager": "Sam Rivera",
+      "arrangement": "Remote",
+      "employment": "Full-time",
+      "mustHaves": [
+        "Production data pipelines",
+        "SQL modeling"
+      ],
+      "niceToHaves": []
+    },
+    "moc": {
+      "revision": 1,
+      "mission": "Give every team reliable data to decide with.",
+      "outcomes": [
+        "Daily pipelines complete with tested models."
+      ],
+      "competencies": [
+        "Data modeling",
+        "reliability",
+        "communication"
+      ]
+    },
+    "posting": {
+      "revision": 1,
+      "body": "Own the pipelines and models behind product analytics."
+    },
+    "compensation": {
+      "level": "Senior IC",
+      "currency": "USD",
+      "minimum": 170000,
+      "maximum": 210000
+    },
+    "interview-loop": {
+      "stages": [
+        {
+          "name": "Recruiter screen",
+          "focus": "motivation"
+        },
+        {
+          "name": "Data modeling exercise",
+          "focus": "SQL modeling"
+        }
+      ]
+    },
+    "approval": {
+      "decision": "approved",
+      "approver": "approver-sam",
+      "packetRevision": 1,
+      "decidedAt": "2026-09-01T16:00:00Z"
+    },
+    "receipt": {
+      "jobId": "job-data-engineer",
+      "title": "Member of Technical Staff, Data Engineer",
+      "publishedAt": "2026-09-02T09:00:00Z",
+      "source": {
+        "connector": "ashby",
+        "capability": "job-posting.read.v1",
+        "entity": "job-posting",
+        "id": "job-data-engineer"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "basics": "complete",
+      "moc": "complete",
+      "description": "complete",
+      "level": "complete",
+      "interviews": "complete",
+      "approval": "complete",
+      "publish": "complete"
+    }
+  }
+}

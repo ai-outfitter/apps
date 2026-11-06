@@ -1,0 +1,97 @@
+/* The sidebar footer's user menu: the current account, the others signed in on this browser, add, Settings, sign out. */
+.avatar {
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+.app-shell > .sidebar .sidebar-footer {
+  position: relative;
+}
+.account-toggle,
+.account-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.account-toggle {
+  flex: 1;
+  padding: 4px;
+  margin: -4px;
+}
+.account-option {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+}
+a.account-option {
+  text-decoration: none;
+}
+button.account-toggle,
+button.account-option {
+  cursor: pointer;
+}
+button.account-toggle:hover,
+.account-toggle[aria-expanded="true"],
+button.account-option:hover,
+a.account-option:hover {
+  background: var(--hover);
+}
+a.account-option.selected {
+  font-weight: 600;
+}
+.account-divider {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.account-toggle > span:not(.avatar),
+.account-option > span:not(.avatar),
+.account-toggle small,
+.account-option small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+.account-option .avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+.account-option.current .icon {
+  color: var(--accent);
+}
+.account-menu .ui-navigation {
+  gap: 2px;
+}
+a.account-option[aria-current="page"] {
+  font-weight: 600;
+}

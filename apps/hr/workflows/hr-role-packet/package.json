@@ -1,0 +1,22 @@
+{
+  "name": "@ai-outfitter/workflow-hr-role-packet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "outfitter": {
+    "kind": "workflow",
+    "definition": "workflow.yaml"
+  },
+  "exports": {
+    "./definition": "./dist/workflow.json",
+    "./schemas/role-intake": "./schemas/role-intake.schema.json"
+  },
+  "scripts": {
+    "build": "outfitter-workflow build",
+    "check": "outfitter-workflow check",
+    "test": "outfitter-workflow check"
+  },
+  "dependencies": {
+    "@ai-outfitter/workflow-core": "*"
+  }
+}

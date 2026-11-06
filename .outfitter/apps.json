@@ -1,0 +1,15 @@
+{
+  "appGlobs": [
+    "apps/*"
+  ],
+  "validation": "scripts",
+  "commands": [
+    "check",
+    "test",
+    "build"
+  ],
+  "releaseManifest": ".release-please-apps-manifest.json",
+  "preview": {
+    "commands": []
+  }
+}

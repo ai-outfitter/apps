@@ -4,6 +4,21 @@ import { navigatePart, navigatePartName } from "@ai-outfitter/app-sdk/agent-page
 export function appLocation(prefix: string, url: Pick<Location, "pathname" | "search"> = location) {
   return (url.pathname.slice(prefix.length) + url.search).replace(/^\/+/, "");
 }
+/**
+ * The app's mount prefix on the main host (`/o/<org>/<app>` or a personal
+ * `/apps/<id>`), empty on an app's own host. Platform paths that the service
+ * returns (`/api/platform/...`) and the app's own routes are resolved under
+ * it, so a canonical organization page never reads through the root personal
+ * owner, and a path app's CSP never blocks them.
+ */
+export function mountPrefix(pathname: string) {
+  return /^\/o\/[^/]+\/[^/]+/.exec(pathname)?.[0] ?? /^\/apps\/[^/]+/.exec(pathname)?.[0] ?? "";
+}
+/** Scope an app-local API endpoint to the installation, without rebasing an existing mount twice. */
+export function appEndpoint(prefix: string, endpoint: string) {
+  if (!prefix || !endpoint.startsWith("/") || endpoint.startsWith("//") || endpoint === prefix || endpoint.startsWith(`${prefix}/`)) return endpoint;
+  return prefix + endpoint;
+}
 /** The page a reply asked to open: its last navigation part. */
 export function requestedPage(entries: readonly { submissionId?: string | null; status?: string; parts: readonly { type: string }[] }[], submissionId: string) {
   let found: { location: string; label: string } | undefined;

@@ -1,0 +1,77 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-candidate.chris-email-confirmed",
+  "workflow": "hr-candidate",
+  "description": "Human-verified email acceptance satisfies the either-or gate.",
+  "records": {
+    "outreach": {
+      "candidateId": "cand-chris",
+      "messageId": "msg-chris-1",
+      "threadId": "thread-chris",
+      "sentAt": "2026-09-13T10:00:00Z",
+      "source": {
+        "connector": "gmail",
+        "capability": "mail.read.v1",
+        "entity": "message",
+        "id": "msg-chris-1"
+      }
+    },
+    "event": {
+      "candidateId": "cand-chris",
+      "eventId": "evt-chris",
+      "eventRevision": 1,
+      "start": "2026-09-23T15:00:00Z",
+      "end": "2026-09-23T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-chris",
+        "resource": "interviews@northstar.example"
+      }
+    },
+    "current-event": {
+      "candidateId": "cand-chris",
+      "eventId": "evt-chris",
+      "eventRevision": 1,
+      "start": "2026-09-23T15:00:00Z",
+      "end": "2026-09-23T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-chris",
+        "resource": "interviews@northstar.example"
+      }
+    },
+    "email-acceptance": {
+      "candidateId": "cand-chris",
+      "eventId": "evt-chris",
+      "eventRevision": 1,
+      "messageId": "msg-chris-2",
+      "verifiedBy": "coordinator-riley",
+      "source": {
+        "connector": "gmail",
+        "capability": "mail.read.v1",
+        "entity": "message",
+        "id": "msg-chris-2"
+      }
+    },
+    "confirmation": {
+      "candidateId": "cand-chris",
+      "eventId": "evt-chris",
+      "eventRevision": 1,
+      "acceptance": "email"
+    }
+  },
+  "expect": {
+    "nodes": {
+      "outreach": "complete",
+      "schedule": "complete",
+      "confirmation": "complete",
+      "interview": "ready"
+    }
+  }
+}

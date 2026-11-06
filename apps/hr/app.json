@@ -1,0 +1,19 @@
+{
+  "id": "outfitter/hr",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "managing-outfitter-instance",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    }
+  },
+  "catalog": {
+    "access": "demo-only",
+    "demo": {
+      "slug": "hr",
+      "name": "Talent Acquisition",
+      "description": "Demo: explore staged hiring data. No live agents, records or hiring actions."
+    }
+  }
+}

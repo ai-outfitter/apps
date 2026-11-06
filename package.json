@@ -8,12 +8,14 @@
   "scripts": {
     "test": "node --test scripts/tests/*.test.mjs",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
-    "test:sdk": "npm test --workspaces --if-present",
-    "check:sdk": "npm run check --workspaces --if-present"
+    "test:sdk": "node scripts/sdk-workspaces.mjs test",
+    "check:sdk": "node scripts/sdk-workspaces.mjs check",
+    "build:sdk": "node scripts/sdk-workspaces.mjs build"
   },
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "apps/*/workflows/*"
   ],
   "devDependencies": {
     "tsx": "^4.23.15",

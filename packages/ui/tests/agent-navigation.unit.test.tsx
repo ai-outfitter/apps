@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appLocation, pageHref, requestedPage } from "../src/agent-navigation";
+import { appEndpoint, appLocation, pageHref, requestedPage } from "../src/agent-navigation";
 
 test("the page location is relative to the app's mount", () => {
   assert.equal(appLocation("/o/acme/wiki-map", { pathname: "/o/acme/wiki-map/organizations/1/knowledge-graphs", search: "?depth=2" }), "organizations/1/knowledge-graphs?depth=2");
@@ -25,4 +25,17 @@ test("page links stay under the app's mount", () => {
   assert.equal(pageHref("/o/acme/wiki-map", "organizations/1/knowledge-graphs?depth=2", base), "/o/acme/wiki-map/organizations/1/knowledge-graphs?depth=2");
   assert.equal(pageHref("/o/acme/wiki-map", "a/%2e%2e/%2e%2e/other-app", base), null);
   assert.equal(pageHref("", "organizations/1", "https://wiki.example/x"), "/organizations/1");
+});
+
+
+test("sidebar API endpoints use the same installation mount as thread requests", () => {
+  const endpoint = "/api/apps/wiki-map/agent";
+  for (const prefix of ["/apps/wiki-map", "/o/acme/wiki-map"]) {
+    assert.equal(appEndpoint(prefix, endpoint), prefix + endpoint);
+    assert.equal(appEndpoint(prefix, prefix + endpoint), prefix + endpoint);
+    assert.equal(appEndpoint(prefix, "https://app.example/agent"), "https://app.example/agent");
+    assert.equal(appEndpoint(prefix, "//app.example/agent"), "//app.example/agent");
+    assert.equal(appEndpoint(prefix, "agent"), "agent");
+  }
+  assert.equal(appEndpoint("", endpoint), endpoint);
 });

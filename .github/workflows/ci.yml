@@ -5,6 +5,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+  actions: read
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -23,7 +24,7 @@ jobs:
             echo sdk=true >> "$GITHUB_OUTPUT"
           else
             git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
-            if grep -Eq '^(packages/|scripts/(check-sdk-packages|publish-sdk-archives)\.mjs$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
+            if grep -Eq '^(packages/|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
               echo sdk=true >> "$GITHUB_OUTPUT"
             fi
           fi
@@ -42,7 +43,7 @@ jobs:
       - run: npm ci
       - run: npm run check:sdk
       - run: npm run test:sdk
-      - run: npm run build --workspaces --if-present
+      - run: npm run build:sdk
       - run: node scripts/check-sdk-packages.mjs
   test:
     runs-on: ubuntu-latest
@@ -55,3 +56,8 @@ jobs:
           node-version: 24
       - run: npm test
       - uses: docker://rhysd/actionlint:1.7.12
+
+  apps:
+    uses: ./.github/workflows/check.yml
+    with:
+      config-path: .outfitter/apps.json

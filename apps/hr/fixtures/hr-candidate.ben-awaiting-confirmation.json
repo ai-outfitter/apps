@@ -1,0 +1,44 @@
+{
+  "fixture": 1,
+  "revision": 1,
+  "synthetic": true,
+  "id": "hr-candidate.ben-awaiting-confirmation",
+  "workflow": "hr-candidate",
+  "description": "Event created; no acceptance yet, so the gate waits.",
+  "records": {
+    "outreach": {
+      "candidateId": "cand-ben",
+      "messageId": "msg-ben-1",
+      "threadId": "thread-ben",
+      "sentAt": "2026-09-12T10:00:00Z",
+      "source": {
+        "connector": "gmail",
+        "capability": "mail.read.v1",
+        "entity": "message",
+        "id": "msg-ben-1"
+      }
+    },
+    "event": {
+      "candidateId": "cand-ben",
+      "eventId": "evt-ben",
+      "eventRevision": 1,
+      "start": "2026-09-22T15:00:00Z",
+      "end": "2026-09-22T16:00:00Z",
+      "source": {
+        "connector": "calendar",
+        "capability": "calendar.read.v1",
+        "entity": "event",
+        "id": "evt-ben",
+        "resource": "interviews@northstar.example"
+      }
+    }
+  },
+  "expect": {
+    "nodes": {
+      "outreach": "complete",
+      "schedule": "complete",
+      "confirmation": "ready",
+      "interview": "waiting"
+    }
+  }
+}

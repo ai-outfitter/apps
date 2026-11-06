@@ -1,0 +1,7 @@
+---
+import HrLayout from "../components/HrLayout.astro";
+---
+<HrLayout title="Talent Acquisition settings" description="Configure who owns recruiting and who reviews role requests.">
+<section class="paper"><h2>Approval routing</h2><p>An organization admin assigns the HR lead. The admin or HR lead chooses the approver, who may be the CEO or another organization member.</p><form class="local-form"><label>HR lead<select aria-label="HR lead" name="hrLead"><option>Riley Chen</option><option>Alex Morgan</option></select></label><label>Role approver<select aria-label="Role approver" name="approver"><option>Jordan Lee</option><option>Sam Rivera</option><option>Alex Morgan</option></select></label><button>Save routing</button></form></section>
+<section class="paper"><h2>Connections</h2>{["Ashby", "Gmail", "Linear", "Juicebox", "Rippling"].map(name=><div class="task-row"><strong>{name}</strong><span class="tag">Not connected</span></div>)}</section>
+</HrLayout>

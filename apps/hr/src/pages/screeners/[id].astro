@@ -1,0 +1,15 @@
+---
+import HrLayout from "../../components/HrLayout.astro";
+import { roles } from "../../fixtures";
+const role = roles.find(r => r.id === Astro.params.id);
+if (!role) return new Response("Screener not found", { status: 404 });
+---
+<HrLayout title={role.title} description="Screeners · criteria, what the screener said, and what happened next. Nothing on this page moves anyone in Ashby on its own.">
+<div class="toolbar"><a href="/screeners">← Screeners</a><a href={`/roles/${role.id}`}>View role →</a></div>
+<div id="screener" data-role={role.id}>
+<section class="paper"><h2>Before it runs</h2><label class="check-label"><input type="checkbox" id="disclosure" />The job posting tells candidates we use an automated tool.</label><p class="caption">Confirm the disclosure appears in the posting.</p><label class="check-label"><input type="checkbox" id="armed" />Armed</label><p class="caption">I have read the criteria below and they are fair to ask of this role. Saving criteria does not enable screening.</p><div class="readiness" id="readiness" role="status">Not ready · save criteria, confirm disclosure, and arm the screener.</div><div class="toolbar"><span>{role.review} waiting in application review · 0 runs</span><button type="button" id="screen-candidates" disabled>Screen candidates</button></div></section>
+<section class="paper"><div class="toolbar"><h2>What it checks</h2><div class="actions"><button type="button" class="secondary" id="draft-criteria">Draft from the job posting</button><button type="button" class="secondary" id="edit-criteria">Edit</button></div></div><p id="criteria-summary">Nothing saved yet. Every criterion has to come from this role's scorecard — that is what makes it a question about the job rather than about the person.</p><form id="criteria-form" hidden><label>Screening criteria<textarea name="criteria" rows="5" placeholder="One job-related criterion per line"></textarea></label><button>Save criteria</button></form></section>
+<section class="paper"><h2>Results</h2><div id="screening-results" aria-live="polite"><p>Nothing screened yet.</p></div></section>
+</div>
+</HrLayout>
+<script>import "../../scripts/screener.js";</script>

@@ -111,7 +111,7 @@ export function buildPreview(app,env=process.env) {
     assert.ok(existsSync('package-lock.json'),'Preview builds require a root npm lockfile');
     assert.ok(selected.pkg.scripts?.['preview:build'],'App must declare preview:build');
     run('npm',['ci']);
-    for(const command of config.commands.filter(c=>c!=='build')) run('npm',['run',command],resolve(app));
+    for(const command of (config.preview?.commands ?? config.commands.filter(c=>c!=='build'))) run('npm',['run',command],resolve(app));
     run('npm',['run','preview:build'],resolve(app));
     const output=config.preview?.output || 'dist/preview.json';
     assert.ok(!output.startsWith('/') && !output.split('/').includes('..'));

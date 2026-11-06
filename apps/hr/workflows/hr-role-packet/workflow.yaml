@@ -1,0 +1,69 @@
+version: beta
+id: hr-role-packet
+summary: From a role idea to an approved packet — brief, MOC, job description, compensation, interview loop, approval.
+actors:
+  manager: {kind: human}
+  approver: {kind: human}
+  intake: {kind: agent} # the manager's twin
+  writer: {kind: agent}
+triggers:
+  - on: manual
+$defs:
+  principal:
+    type: object
+    required: [kind, id]
+    properties:
+      kind: {enum: [member, team]}
+      id: {type: string}
+steps:
+  - id: basics
+    actor: intake
+    inputs:
+      roleIdea: {schema: {type: string, maxLength: 2000}}
+      manager: {schema: {$ref: "#/$defs/principal"}} # fills `manager`
+      approver: {schema: {$ref: "#/$defs/principal"}} # fills `approver`; a team is fine
+    instructions: Converse with the manager until the role brief is complete and confirmed. Never invent facts or turn preferences into requirements.
+    outputs:
+      brief: {schema: ./schemas/role-intake.schema.json} # existing schema, unchanged; saveable with complete:false
+
+  - id: moc
+    actor: writer
+    inputs: {brief: basics.outputs.brief}
+    instructions: Draft Mission, Outcomes, Competencies grounded in the confirmed brief.
+    outputs:
+      moc: {schema: ./schemas/mission-outcomes-competencies.yaml}
+
+  - id: description
+    actor: writer
+    inputs: {brief: basics.outputs.brief, moc: moc.outputs.moc}
+    instructions: Draft the public job description. No invented compensation or company policy.
+    outputs:
+      posting: {schema: ./schemas/job-description.yaml}
+
+  - id: level
+    actor: manager
+    inputs: {posting: description.outputs.posting}
+    form: {schema: ./schemas/confirmed-compensation.yaml}
+
+  - id: interviews
+    actor: manager
+    inputs: {moc: moc.outputs.moc}
+    form: {schema: ./schemas/confirmed-interview-loop.yaml}
+
+  - id: approval
+    actor: approver
+    inputs:
+      brief: basics.outputs.brief
+      moc: moc.outputs.moc
+      posting: description.outputs.posting
+      compensation: level.outputs.response
+      loop: interviews.outputs.response
+    form: {schema: "@ai-outfitter/workflow-core/schemas/judgment"} # the submission records these five record ids
+outputs:
+  brief: basics.outputs.brief
+  packet:
+    moc: moc.outputs.moc
+    posting: description.outputs.posting
+    compensation: level.outputs.response
+    loop: interviews.outputs.response
+  approval: approval.outputs.response
