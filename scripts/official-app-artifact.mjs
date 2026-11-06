@@ -1,4 +1,4 @@
-// Publish a released app's verified demo package, built without release credentials.
+// Publish verified app packages built without release credentials.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -22,33 +22,48 @@ export function prepare(path, output, env=process.env) {
   assert.match(env.GITHUB_SHA || '',/^[a-f0-9]{40}$/,'Source commit required');
   assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps','Unexpected release repository');
   const pkg=json(join(path,'package.json')), appBytes=readFileSync(join(path,'app.json'));
-  const app=JSON.parse(appBytes), packageBytes=readFileSync(join(path,'.outfitter/packages/demo.json'));
-  const built=JSON.parse(packageBytes);
+  const app=JSON.parse(appBytes);
   assert.equal(pkg.version,app.version,'App version mismatch');
-  assert.equal(built.manifest.id,app.id,'Package identity mismatch');
-  assert.equal(built.manifest.version,app.version,'Package version mismatch');
-  assert.equal(built.manifest.mode,'demo','Only demo artifacts can be published');
-  assert.deepEqual(built.manifest.capabilities,[],'Demo package must not have capabilities');
-  assert.ok(built.artifact.modules[built.artifact.mainModule] && Object.keys(built.artifact.assets).length,'Incomplete package');
+  const modes=Object.keys(app.modes || {demo:{}});
+  assert.ok(modes.length && modes.every(mode=>['demo','operational'].includes(mode)),'Invalid package modes');
+  const hashes={};
   mkdirSync(output,{recursive:true});
   writeFileSync(join(output,`${name}.app.json`),appBytes);
-  writeFileSync(join(output,`${name}.demo.json`),packageBytes);
-  writeFileSync(join(output,`${name}.provenance.json`),JSON.stringify({schema:1,sourceRepository:env.GITHUB_REPOSITORY,sourceCommit:env.GITHUB_SHA,appPath:path,version:app.version,appSha256:digest(appBytes),packageSha256:digest(packageBytes)},null,2)+'\n');
+  for (const mode of modes) {
+    const bytes=readFileSync(join(path,`.outfitter/packages/${mode}.json`)), built=JSON.parse(bytes);
+    assert.equal(built.manifest.id,app.id,'Package identity mismatch');
+    assert.equal(built.manifest.version,app.version,'Package version mismatch');
+    assert.equal(built.manifest.mode,mode,'Package mode mismatch');
+    if(mode==='demo') assert.deepEqual(built.manifest.capabilities,[],'Demo package must not have capabilities');
+    assert.ok(built.artifact.modules[built.artifact.mainModule] && Object.keys(built.artifact.assets).length,'Incomplete package');
+    hashes[mode]=digest(bytes);
+    writeFileSync(join(output,`${name}.${mode}.json`),bytes);
+  }
+  const proof={schema:2,sourceRepository:env.GITHUB_REPOSITORY,sourceCommit:env.GITHUB_SHA,appPath:path,version:app.version,appSha256:digest(appBytes),packages:hashes};
+  writeFileSync(join(output,`${name}.provenance.json`),JSON.stringify(proof,null,2)+'\n');
 }
 export function publish(path,input,env=process.env,execute=execFileSync) {
   const name=component(path), appBytes=readFileSync(join(input,`${name}.app.json`));
-  const packageBytes=readFileSync(join(input,`${name}.demo.json`));
   const proof=json(join(input,`${name}.provenance.json`));
+  assert.equal(proof.schema,2);
   assert.equal(proof.sourceRepository,'ai-outfitter/apps');
   assert.equal(proof.sourceCommit,env.GITHUB_SHA,'Release artifacts do not match this workflow');
-  assert.equal(proof.appPath,path);assert.equal(proof.appSha256,digest(appBytes));assert.equal(proof.packageSha256,digest(packageBytes));
-  const app=JSON.parse(appBytes), pack=JSON.parse(packageBytes);
-  assert.equal(app.version,proof.version);assert.equal(pack.manifest.version,app.version);assert.equal(pack.manifest.id,app.id);assert.equal(pack.manifest.mode,'demo');
+  assert.equal(proof.appPath,path);assert.equal(proof.appSha256,digest(appBytes));
+  const app=JSON.parse(appBytes), modes=Object.keys(app.modes || {demo:{}});
+  assert.ok(modes.length && modes.every(mode=>['demo','operational'].includes(mode)));
+  assert.deepEqual(Object.keys(proof.packages).sort(),modes.sort());
+  assert.equal(app.version,proof.version);
+  for (const mode of modes) {
+    const bytes=readFileSync(join(input,`${name}.${mode}.json`)), pack=JSON.parse(bytes);
+    assert.equal(proof.packages[mode],digest(bytes));
+    assert.equal(pack.manifest.version,app.version);assert.equal(pack.manifest.id,app.id);assert.equal(pack.manifest.mode,mode);
+    if(mode==='demo') assert.deepEqual(pack.manifest.capabilities,[]);
+  }
   const tag=`${name}-v${app.version}`, repo=proof.sourceRepository;
   const ref=JSON.parse(execute('gh',['api',`repos/${repo}/commits/${tag}`,'--jq','{sha:.sha}'],{encoding:'utf8'}));
   assert.equal(ref.sha,proof.sourceCommit,'Release tag is not the validated source commit');
   const release=JSON.parse(execute('gh',['release','view',tag,'--repo',repo,'--json','assets'],{encoding:'utf8'}));
-  for(const filename of [`${name}.app.json`,`${name}.demo.json`,`${name}.provenance.json`]) {
+  for(const filename of [`${name}.app.json`,...modes.map(mode=>`${name}.${mode}.json`),`${name}.provenance.json`]) {
     const local=join(input,filename);
     if(release.assets.some(asset=>asset.name===filename)) {
       const temporary=mkdtempSync(join(tmpdir(),'outfitter-app-asset-'));
