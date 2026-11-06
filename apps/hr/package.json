@@ -11,8 +11,9 @@
     "check": "astro check",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
     "test:e2e": "playwright test --config playwright.config.ts",
-    "test": "npm run test:e2e",
-    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+    "test": "npm run test:workflow && npm run test:e2e",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json",
+    "test:workflow": "npm run test --workspace @ai-outfitter/workflow-hr-role-packet"
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "*",
