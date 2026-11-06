@@ -2,6 +2,12 @@ name: SDK releases
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      paths:
+        description: JSON array of released package paths needing archive recovery
+        required: true
+        type: string
 permissions:
   contents: write
   issues: write
@@ -14,22 +20,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        if: github.event_name == 'push'
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
       - uses: actions/checkout@v4
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         with:
           node-version: 24
       - run: npm ci
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
       - name: Attach public npm package archives to component releases
-        if: steps.release.outputs.releases_created == 'true'
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          RELEASE_PATHS: ${{ steps.release.outputs.paths_released }}
+          RELEASE_PATHS: ${{ steps.release.outputs.paths_released || inputs.paths }}
         run: node scripts/publish-sdk-archives.mjs
