@@ -1,0 +1,28 @@
+{
+  "id": "outfitter/html-starter",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "source": "single-html",
+  "dataLocation": "managing-outfitter-instance",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": []
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "demo": {
+      "slug": "html-starter",
+      "name": "HTML Starter",
+      "description": "Verify your real Outfitter identity in a single HTML app."
+    },
+    "operational": {
+      "slug": "html-starter",
+      "name": "HTML Starter",
+      "description": "A single HTML app with Outfitter authentication."
+    }
+  }
+}

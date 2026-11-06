@@ -88,7 +88,7 @@ export async function buildApp(directory, {mode,output}={}) {
     const html = await readFile(join(directory, "index.html"), "utf8");
     const adapter = await readFile(fileURLToPath(new URL("./html-worker.mjs", import.meta.url)), "utf8");
     await writeFile(join(server, "entry.mjs"),
-      `const html = ${JSON.stringify(html)};\nconst app = ${JSON.stringify(slug)};\n${adapter}\nexport default htmlWorker(html, app);`);
+      `const html = ${JSON.stringify(html)};\nconst app = ${JSON.stringify(slug.split("/").at(-1))};\n${adapter}\nexport default htmlWorker(html, app);`);
     await writeFile(join(client, "tokens.css"),
       await readFile(require.resolve("@ai-outfitter/ui/tokens.css")));
     await writeFile(join(server, "wrangler.json"), JSON.stringify({

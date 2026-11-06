@@ -1,0 +1,33 @@
+{
+  "name": "@ai-outfitter/app-html-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build",
+    "check": "outfitter-app-build",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "test": "npm run test:e2e",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/ui": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@ai-outfitter/app-test": "*",
+    "@ai-outfitter/app-build": "*",
+    "@playwright/test": "^1.63.0"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

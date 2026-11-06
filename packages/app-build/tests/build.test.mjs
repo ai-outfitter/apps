@@ -20,6 +20,7 @@ test('packages both modes outside dist, preserves migrations, and produces a rea
   assert.equal(demo.manifest.mode,'demo');assert.deepEqual(demo.manifest.capabilities,[]);
   assert.equal(demo.manifest.database,undefined);assert.equal(operational.manifest.database.migrations[0].name,'0000');
   assert.match(demo.artifact.modules[demo.artifact.mainModule],/Portable/);
+  assert.match(demo.artifact.modules[demo.artifact.mainModule],/const app = "portable"/);
   assert.ok(demo.artifact.assets['/_astro/tokens.css']);
   const [preview]=await buildApp(root,{mode:'demo',output:'dist/preview.json'});
   assert.equal(JSON.parse(await readFile(preview,'utf8')).manifest.mode,'demo');

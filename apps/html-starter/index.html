@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HTML Starter · Outfitter</title>
+  <link rel="stylesheet" href="/_astro/tokens.css">
+  <style>
+    body { margin: 0; background: var(--canvas); color: var(--text); font: 16px/1.6 var(--font-body); }
+    main { max-width: 42rem; margin: 8vh auto; padding: 24px; }
+    section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    h1 { margin-top: 0; } p { color: var(--muted); }
+    button, a { font: inherit; color: var(--accent); }
+    button { padding: 8px 16px; background: var(--action); color: var(--on-action); border: 0; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+    dt { font-weight: 600; } dd { margin: 0 0 16px; overflow-wrap: anywhere; }
+    nav { display: flex; gap: 16px; align-items: center; }
+    section + section { margin-top: 24px; }
+    code { display: block; overflow-x: auto; white-space: nowrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HTML Starter</h1>
+    <p>One HTML file, with your Outfitter identity.</p>
+    <section aria-label="Authentication">
+      <h2>Who am I?</h2>
+      <p id="status" role="status" aria-live="polite">Checking your sign-in…</p>
+      <dl id="identity" hidden>
+        <dt>Signed in as</dt><dd id="user"></dd>
+        <dt>Organization</dt><dd id="organization"></dd>
+        <dt>Installation</dt><dd id="installation"></dd>
+      </dl>
+      <nav aria-label="Authentication actions">
+        <button id="refresh" type="button">Refresh identity</button>
+        <a id="login" href="/" hidden>Sign in with Outfitter</a>
+      </nav>
+    </section>
+    <section id="agents" aria-labelledby="agents-heading" hidden>
+      <h2 id="agents-heading">Connect a coding agent</h2>
+      <p>Claude Code, Codex or any MCP client can deploy and install apps as you. Outfitter asks you to approve it first.</p>
+      <dl>
+        <dt>Claude Code</dt><dd><code id="agents-claude"></code></dd>
+        <dt>Codex</dt><dd><code id="agents-codex"></code></dd>
+      </dl>
+    </section>
+    <p>Identity is checked by Outfitter on every refresh. App health alone does not prove you are signed in.</p>
+    <noscript>JavaScript is required to display your identity.</noscript>
+  </main>
+  <script>
+    const status = document.getElementById('status');
+    const identity = document.getElementById('identity');
+    const refresh = document.getElementById('refresh');
+    const login = document.getElementById('login');
+    // Reload this document through the normal host login gate, keeping its URL.
+    login.href = location.href;
+    async function checkIdentity() {
+      refresh.disabled = true;
+      identity.hidden = true;
+      login.hidden = true;
+      status.textContent = 'Checking your sign-in…';
+      try {
+        const response = await fetch('/api/whoami', { credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+        if (response.status === 401) {
+          status.textContent = 'Your session has ended. Sign in to continue.';
+          login.hidden = false;
+          return;
+        }
+        if (response.status === 403) {
+          status.textContent = 'You do not have access to this organization.';
+          return;
+        }
+        if (!response.ok) throw new Error('Identity request failed');
+        const result = await response.json();
+        document.getElementById('user').textContent = `${result.user.name} (${result.user.email})`;
+        document.getElementById('organization').textContent = result.organization ? `${result.organization.name} · ${result.organization.role}` : 'Platform preview';
+        document.getElementById('installation').textContent = result.installation ? `${result.installation.template} · ${result.installation.mode}` : 'No installation on this host';
+        identity.hidden = false;
+        if (result.agents?.mcp) {
+          document.getElementById('agents-claude').textContent = `claude mcp add --transport http outfitter ${result.agents.mcp}`;
+          document.getElementById('agents-codex').textContent = `codex mcp add outfitter --url ${result.agents.mcp}`;
+          document.getElementById('agents').hidden = false;
+        }
+        status.textContent = 'You are signed in.';
+      } catch {
+        status.textContent = 'Unable to check your identity. Try again.';
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+    refresh.addEventListener('click', checkIdentity);
+    checkIdentity();
+  </script>
+</body>
+</html>
