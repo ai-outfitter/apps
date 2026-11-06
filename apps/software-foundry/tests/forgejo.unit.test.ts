@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { foundryForge, GithubFoundryForge } from "../src/server/workspace/forge";
+import { type API, foundryForge, GithubFoundryForge } from "../src/server/workspace/forge";
 import { closesIssue, ForgejoFoundryForge } from "../src/server/workspace/forgejo";
 
 const head = "a".repeat(40);
@@ -58,7 +58,7 @@ function fake() {
 }
 
 test("the factory picks Forgejo only when the host names it", () => {
-  const api = async () => ({});
+  const api = (async () => ({})) as unknown as API;
   assert.ok(foundryForge(api, { name: "box/repo", appId: 3, forge: "forgejo" }) instanceof ForgejoFoundryForge);
   assert.ok(foundryForge(api, { name: "acme/app", appId: 3 }) instanceof GithubFoundryForge);
 });
