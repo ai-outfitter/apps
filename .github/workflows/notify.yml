@@ -41,7 +41,7 @@ jobs:
       group: outfitter-release-${{ github.repository }}-${{ inputs.destination }}-${{ matrix.release.app }}
       cancel-in-progress: false
     steps:
-      - uses: ai-outfitter/apps@c8eaf7710e2a8c46c145bb99dedca3240b1ea166
+      - uses: ai-outfitter/apps@2075ad50ec3721517f6a3d558a3978aff650d782
         with:
           command: release-notify
         env:
