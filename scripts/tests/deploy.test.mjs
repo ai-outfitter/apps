@@ -45,9 +45,9 @@ test("rejects malformed or insecure deployment origins before requesting credent
   }
 });
 
-test("an unenrolled repository fails with installation guidance instead of succeeding silently", async () => {
+test("apps without subscribed installations do not fail a repository deployment", async () => {
   let calls=0;
-  await assert.rejects(requestDeployment("yoga-practice",{env,fetcher:async()=>++calls===1 ? json({value:"token"}) : json({},404)}),
-    /Add the repository and install yoga-practice at https:\/\/ai-outfitter\.com\/apps#app-repositories/);
+  const result=await requestDeployment("strength-five",{env,fetcher:async()=>++calls===1 ? json({value:"token"}) : json({},404)});
+  assert.deepEqual(result,{started:0,unchanged:0,failed:0,notInstalled:true});
   assert.equal(calls,2);
 });
