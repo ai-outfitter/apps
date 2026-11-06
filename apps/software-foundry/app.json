@@ -1,6 +1,6 @@
 {
   "id": "outfitter/software-foundry",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
@@ -90,7 +90,7 @@
     "presentation": {
       "outcome": "Turn your backlog into reviewed, tested changes your team can ship.",
       "connectors": [
-        "GitHub App \u00b7 selected repositories"
+        "GitHub App · selected repositories"
       ],
       "workflow": "issue-to-review",
       "access": "Actors would receive access only to approved repositories and actions. Creating a draft pull request would not grant merge or repository administration access.",
