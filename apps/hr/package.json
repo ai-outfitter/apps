@@ -11,9 +11,10 @@
     "check": "astro check",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
     "test:e2e": "playwright test --config playwright.config.ts",
-    "test": "npm run test:workflow && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:workflow && npm run test:e2e",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json",
-    "test:workflow": "npm run test --workspace @ai-outfitter/workflow-hr-role-packet"
+    "test:workflow": "npm run test --workspace @ai-outfitter/workflow-hr-role-packet",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts"
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "*",
@@ -21,7 +22,8 @@
     "@ai-outfitter/server": "*",
     "astro": "^7.3.5",
     "@astrojs/cloudflare": "^14.3.3",
-    "@ai-outfitter/workflow-hr-role-packet": "0.1.0"
+    "@ai-outfitter/workflow-hr-role-packet": "0.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
