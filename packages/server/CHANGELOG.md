@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/ai-outfitter/apps/compare/server-v0.1.1...server-v0.1.2) (2026-11-06)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/workflow-core bumped from 0.1.1 to 0.1.2
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/server-v0.1.0...server-v0.1.1) (2026-11-06)
 
 

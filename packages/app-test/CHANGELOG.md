@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.4](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.3...app-test-v0.1.4) (2026-11-06)
+
+
+### Features
+
+* **foundry:** add standalone official app ([#23](https://github.com/ai-outfitter/apps/issues/23)) ([ceb8ddc](https://github.com/ai-outfitter/apps/commit/ceb8ddc520ba34284147ade6b8ffc16fdfa9c060))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.2 to 0.1.3
+    * @ai-outfitter/server bumped from 0.1.1 to 0.1.2
+    * @ai-outfitter/threads bumped from 0.1.2 to 0.1.3
+
 ## [0.1.3](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.2...app-test-v0.1.3) (2026-11-06)
 
 
