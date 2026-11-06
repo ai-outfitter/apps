@@ -26,6 +26,13 @@ the served source SHA and actual page/assets before reporting a preview as live.
 The public SDK is canonical here. App builders and test hosts must work without
 private webapp source. Release-please owns package versions and dependency bumps.
 
-App deployment follows successful default-branch checks through OIDC. Do not add
-deployment enablement flags. SaaS is the default destination; self-hosting changes
-the destination and runner reachability, not the repository identity contract.
+Production app releases notify Outfitter through audience-bound GitHub OIDC after
+release-please creates the component release. Notifications register immutable
+source versions and optional personal/platform/org update requests; they never
+build or activate inline. Outfitter's scheduled tick reconciles those requests,
+dispatches isolated public-tooling builds and installs successful packages. It
+does not poll repositories for releases. Never restore main-push deployment,
+CI-built production artifacts or webapp descriptor promotion for migrated apps.
+PR previews remain owned by each app repository's Actions/Cloudflare pipeline.
+Do not add deployment enablement flags. SaaS is the default destination;
+self-hosting changes destination/reachability, not repository authority.
