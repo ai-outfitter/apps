@@ -81,3 +81,14 @@ test('browser dependencies are installed only for opted-in app CI',()=>fixture((
  calls.length=0;runApp(a,root,config,{execute,env:{}});
  assert.deepEqual(calls,[['npm','ci'],['npm','run','test']]);
 }));
+
+
+test('custom app release manifests validate versions without reading SDK release metadata',()=>fixture(({root,put,a})=>{
+ put('.outfitter/apps.json',{releaseManifest:'.release-please-apps-manifest.json'});
+ put('.release-please-apps-manifest.json',{[a]:'2.3.5'});
+ assert.throws(()=>checkApp(a,root,loadConfig(root)),/release version differs/);
+ put('.release-please-apps-manifest.json',{[a]:'2.3.4'});
+ assert.equal(checkApp(a,root,loadConfig(root)).slug,a);
+ put('.outfitter/apps.json',{releaseManifest:'../outside.json'});
+ assert.throws(()=>loadConfig(root),/Invalid releaseManifest/);
+}));
