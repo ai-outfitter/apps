@@ -18,7 +18,7 @@ jobs:
       created: ${{ steps.release.outputs.releases_created }}
       paths: ${{ steps.release.outputs.paths_released }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
