@@ -65,7 +65,7 @@ jobs:
       - name: Select newly published app releases
         if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         id: events
-        uses: ai-outfitter/apps@2075ad50ec3721517f6a3d558a3978aff650d782
+        uses: ai-outfitter/apps@7df1b869122bbb6deaf8db7f449a4143ec07a146
         with:
           command: release-events
           config-path: ${{ inputs.config-path }}
