@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791629340087,
+      "tag": "0000_workshop_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793633298059,
+      "tag": "0001_workshop_product_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793758491793,
+      "tag": "0002_workshop_units",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793758491794,
+      "tag": "0003_graph_change_receipts",
+      "breakpoints": true
+    }
+  ]
+}

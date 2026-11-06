@@ -1,0 +1,414 @@
+/* Workbench-specific layout; the app shell, navigation and settings are shared. */
+.workshop .crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+.workshop .crumbs a {
+  color: var(--muted);
+}
+.workshop .phase-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.workshop .workbench,
+.workshop section {
+  min-width: 0;
+}
+.workshop .agent-card {
+  margin: 16px 0 24px;
+}
+.workshop .agent-card .actions {
+  margin-top: 12px;
+}
+.workshop .agent-history {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.workshop .agent-history li + li {
+  margin-top: 6px;
+}
+.workshop small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.workshop .topbar,
+.workshop .section-heading,
+.workshop .candidate-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.workshop .summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+.workshop .two-column,
+.workshop .design-grid,
+.workshop .bench-grid,
+.workshop .overview-grid,
+.workshop .split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.workshop .two-cols,
+.workshop .three-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.workshop .three-cols {
+  grid-template-columns: 2fr repeat(2, minmax(0, 1fr));
+}
+.workshop .stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.workshop .stack > * {
+  margin-bottom: 0;
+}
+.workshop .example-grid,
+.workshop .field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+/* No cards inside cards: a panel is the page's only surface, and the groups
+   inside it are divided by hairlines. */
+.workshop section[data-panel] {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+.workshop .card,
+.workshop .viewer-card {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding: 16px 0;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+.workshop .example-card {
+  text-align: left;
+  white-space: normal;
+  padding: 16px;
+}
+.workshop .example-card strong,
+.workshop .example-card small {
+  display: block;
+}
+.workshop .example-icon {
+  font-size: 1.6rem;
+}
+.workshop label {
+  display: block;
+  margin-bottom: 14px;
+}
+.workshop label span {
+  float: right;
+  color: var(--muted);
+}
+.workshop input,
+.workshop textarea,
+.workshop select {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  font: inherit;
+  padding: 10px;
+  color: var(--text);
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.workshop .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.workshop .checkbox input {
+  width: auto;
+}
+.workshop .viewer-card {
+  padding: 0;
+  overflow: hidden;
+  /* Matches the light CAD scene background in client/viewer.ts. */
+  background: #e8ede5;
+  color: #253a38;
+}
+.workshop .viewer-top,
+.workshop .viewer-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  font-size: 0.8rem;
+}
+.workshop #viewer {
+  display: block;
+  width: 100%;
+  height: 340px;
+}
+.workshop .exports {
+  display: flex;
+  gap: 12px;
+}
+.workshop .checks,
+.workshop .muted,
+.workshop .candidate-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.workshop .candidate-note,
+.workshop pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.workshop pre {
+  max-height: 240px;
+  overflow: auto;
+}
+.workshop .cost-total {
+  text-align: right;
+  padding: 16px;
+}
+.workshop .cost-total small,
+.workshop .cost-total strong {
+  display: block;
+}
+.workshop table {
+  width: 100%;
+  table-layout: fixed;
+}
+.workshop td {
+  overflow-wrap: anywhere;
+}
+.workshop td small {
+  display: block;
+}
+.workshop dialog {
+  max-width: min(700px, 90vw);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--surface);
+  color: var(--text);
+}
+.workshop .dialog-close {
+  float: right;
+}
+@media (max-width: 850px) {
+  .workshop .two-column,
+  .workshop .design-grid,
+  .workshop .bench-grid,
+  .workshop .overview-grid,
+  .workshop .split,
+  .workshop .three-cols {
+    grid-template-columns: 1fr;
+  }
+  .workshop #viewer {
+    height: 290px;
+  }
+}
+
+.workshop .example-card {
+  background: var(--surface);
+  color: inherit;
+}
+.workshop .viewer-top,
+.workshop .viewer-bottom {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.workshop .save-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.workshop .revision-ref {
+  color: var(--muted);
+  margin-left: 0.5rem;
+}
+.workshop .revision-ref a {
+  color: inherit;
+}
+.workshop .revision-picker summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+.workshop .revision-picker label {
+  margin-top: 0.5rem;
+}
+
+/* Design concepts: links over buttons, hairline marks, no cards. */
+.workshop .link,
+.workshop label.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.workshop .concept-form,
+.workshop .concept-publish {
+  max-width: 48rem;
+}
+.workshop .concept-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: baseline;
+  margin: 8px 0 0;
+}
+.workshop .concept-publish {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.workshop .concept-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px 16px;
+  margin-top: 24px;
+}
+.workshop .concept-gallery figure {
+  margin: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.workshop .concept-gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.workshop .concept-gallery figcaption {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.workshop .concept-gallery figcaption b {
+  color: inherit;
+  font-weight: 500;
+}
+.workshop .concept-gallery figcaption p {
+  margin: 4px 0 0;
+}
+.workshop #assembly-viewer {
+  display: block;
+  width: 100%;
+  height: 420px;
+}
+.workshop .bom tr[data-item] {
+  cursor: pointer;
+}
+.workshop .bom tr.selected {
+  background: var(--canvas);
+  outline: 1px solid var(--border);
+}
+.workshop .bom .indent {
+  display: inline-block;
+}
+.workshop .subheading {
+  margin: 24px 0 4px;
+}
+.workshop .bom th:nth-child(1) { width: 20%; }
+.workshop .bom th:nth-child(2) { width: 28%; }
+.workshop .bom th:nth-child(3) { width: 11%; }
+.workshop .bom th:nth-child(4) { width: 5%; }
+.workshop .bom th:nth-child(5) { width: 6%; }
+.workshop .bom th:nth-child(6) { width: 18%; }
+.workshop .bom th:nth-child(7) { width: 12%; }
+.workshop .bom td:first-child { white-space: nowrap; }
+.workshop .units th:nth-child(2) { width: 30%; }
+
+/* Projects home: one row per project, its model and its stage. */
+.workshop .project-list {
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+}
+.workshop .project-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.workshop .project-row:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.workshop .project-row > a {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.workshop .project-row > a:hover strong {
+  text-decoration: underline;
+}
+.workshop .project-row .thumb {
+  width: 120px;
+  height: 75px;
+  flex: none;
+  object-fit: cover;
+  background: var(--canvas);
+}
+.workshop .project-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.workshop .phase-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.workshop .phase-step {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.workshop .phase-step.done {
+  border-top-color: var(--text);
+}
+.workshop .phase-step.current {
+  border-top: 2px solid var(--text);
+  color: var(--text);
+  font-weight: 600;
+}
+@media (max-width: 850px) {
+  .workshop .project-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .workshop .phase-track {
+    font-size: 0.65rem;
+  }
+}

@@ -1,25 +1,45 @@
-// An app's documents: the named GraphQL queries and mutations its pages and agents
-// run, each beside the user story it serves. The app's pages import the same typed
-// (gql.tada) documents the platform lists to agents (graph_documents) and runs by name
-// (graph_graphql, graph_mutate), so the UI and MCP never drift. scripts/graph-schema.ts
-// writes them, checked against the app's schema, to graph/documents.json.
+// Internal GraphQL documents and the app's explicitly curated MCP subset share
+// validation and execution. Publication metadata changes discovery and the MCP
+// representation only; pages retain their original typed GraphQL documents.
 import { type DocumentNode, getOperationAST, type GraphQLError, type GraphQLSchema, Kind, type OperationDefinitionNode, parse, print, type TypeNode, validate } from "graphql";
+import { documentOutputSchema } from "./document-output";
+import { documentFederation, type DocumentFederation } from "./document-federation";
+export type { DocumentFederation } from "./document-federation";
 import { queryHash } from "./graph-graphql-selection";
 
 /** One document and the user story that justifies it: "As a <who>, I want <what>, so that <why>." */
-export type AppDocument = { story: string; document: DocumentNode | string };
+export type McpPublication = { description: string; collection?: true; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string } };
+export type AppDocument = { scheduleSource?: true; mcp?: McpPublication; story: string; document: DocumentNode | string; hidden?: boolean; publicName?: string; inputSchema?: Record<string, unknown> };
 /** What the platform lists and runs: graph/documents.json holds one row per document. */
 export type AppDocumentRow = {
   name: string; kind: "query" | "mutation"; story: string; query: string;
-  /** sha256 hex of `query`; graph_graphql and graph_mutate take it or the name. */
+  /** Internal persisted-query hash. Public MCP calls use document names. */
   hash: string;
   variables: VariablesSchema;
+  hidden?: boolean;
+  scheduleSource?: true;
+  mcp?: McpPublication;
+  outputSchema?: Record<string, unknown>;
+  inputSchema?: Record<string, unknown>;
+  federation?: DocumentFederation;
 };
 export type VariablesSchema = { type: "object"; properties: Record<string, { type?: string; description: string }>; required: string[] };
 
 const story = /^As an? .+, I want .+, so that .+/is;
-/** Documents keyed by their operation name; a document a page or agent no longer needs is deleted, not kept. */
+/** Internal documents are executable but not published to MCP unless explicitly selected. */
 export const defineDocuments = <T extends Record<string, AppDocument>>(documents: T) => documents;
+
+/** App-owned publication decisions; helpers and UI documents remain executable unchanged. */
+export function publishDocuments<T extends Record<string, AppDocument>>(documents: T, publications: Record<string, McpPublication>): T {
+  for (const [name, publication] of Object.entries(publications)) {
+    if (!documents[name]) throw new Error(`Cannot publish missing document ${name}`);
+    if (!publication.description.trim()) throw new Error(`MCP document ${name} needs a concise description`);
+  }
+  return Object.fromEntries(Object.entries(documents).map(([name, entry]) => [name,
+    publications[name] ? {...entry, hidden: false, mcp: publications[name]} : entry,
+  ])) as T;
+}
+
 
 const jsonTypes: Record<string, string> = { Int: "integer", Float: "number", String: "string", ID: "string", Boolean: "boolean" };
 const baseName = (type: TypeNode): string => (type.kind === Kind.NAMED_TYPE ? type.name.value : baseName(type.type));
@@ -53,8 +73,20 @@ export function documentRows(schema: GraphQLSchema, documents: Record<string, Ap
     const invalid = validate(schema, node);
     if (invalid.length) return fail(invalid.map((error: GraphQLError) => error.message).join("; "));
     const query = print(node);
-    return [{ name, kind: operation.operation, story: entry.story.trim().replace(/\s+/g, " "), query, hash: queryHash(query), variables: variablesSchema(operation) }];
+    return [{...documentRow(name, entry, operation, query), ...publicationMetadata(schema, name, entry, operation)}];
   });
   if (problems.length) throw new Error(`Invalid app documents:\n${problems.join("\n")}`);
   return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function documentRow(name: string, entry: AppDocument, operation: NonNullable<ReturnType<typeof getOperationAST>>, query: string): AppDocumentRow {
+  return { ...(entry.scheduleSource ? {scheduleSource:true as const} : {}), name, kind: operation.operation as "query" | "mutation", story: entry.story.trim().replace(/\s+/g, " "), query, hash: queryHash(query), variables: variablesSchema(operation), ...(!entry.mcp || entry.hidden ? { hidden: true } : {}), ...(entry.mcp ? {mcp: entry.mcp} : {}), ...(entry.inputSchema ? { inputSchema: entry.inputSchema } : {}) };
+}
+
+function publicationMetadata(schema: GraphQLSchema, name: string, entry: AppDocument, operation: OperationDefinitionNode) {
+  if (!entry.mcp) return {};
+  const connection = entry.mcp.collection ? documentFederation(schema, operation) : undefined;
+  const federation = connection && {...connection,...(entry.mcp.organizationFilter ? {organizationFilter:entry.mcp.organizationFilter} : {}),...(entry.mcp.markdown ? {markdown:entry.mcp.markdown} : {}),...(entry.mcp.provenance ? {provenance:entry.mcp.provenance} : {})};
+  if (entry.mcp.collection && !federation) throw new Error(`${name}: published collection must select one first/after connection with nodes and pageInfo`);
+  return {...(federation ? {federation} : {}),outputSchema:documentOutputSchema(schema, operation)};
 }

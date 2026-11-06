@@ -1,0 +1,22 @@
+---
+import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import "../styles/workshop.css";
+import { projectPath, SECTIONS, type SectionId } from "../lib/sections";
+import Content from "./Workshop.astro";
+
+interface Props { section: SectionId; slug: string }
+const { section, slug } = Astro.props;
+const current = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+---
+<AppLayout
+  name="Workshop"
+  title={current.label}
+  description="Research, design and record what works on your bench."
+  active="home"
+  sidebarLinks={[
+    { label: "All projects", href: "/", active: false },
+    ...SECTIONS.map((s) => ({ label: s.label, href: projectPath(slug, s.id), active: s.id === section })),
+  ]}
+>
+  <Content section={section} slug={slug} />
+</AppLayout>
