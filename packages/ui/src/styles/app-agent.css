@@ -1,0 +1,63 @@
+.agent-proposal {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 0.75rem);
+  background: var(--surface, var(--canvas));
+  overflow-wrap: anywhere;
+}
+.agent-proposal h3 {
+  margin-block: 0 0.5rem;
+}
+.agent-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+.agent-fields label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+.agent-fields textarea,
+.agent-fields select,
+.agent-fields input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--canvas);
+  color: var(--text);
+  font: inherit;
+}
+.agent-fields textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+.agent-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+.agent-thread-scope,
+.agent-include-draft {
+  font-size: 0.75rem;
+  display: block;
+  padding: 0.5rem 1rem;
+  color: var(--muted);
+}
+
+.agent-unresolved {
+  min-width: 0;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.agent-thread-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 1rem 0.5rem; color: var(--muted); font-size: 0.75rem; }
+.agent-thread-summary details { text-align: end; }
+.agent-thread-summary summary { cursor: pointer; }
+
+@media (max-width: 760px) {
+  .agent-fields textarea, .agent-fields select, .agent-fields input[type="number"] { font-size: 16px; }
+}

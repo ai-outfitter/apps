@@ -1,0 +1,362 @@
+.app-shell {
+  height: 100vh;
+  /* biome-ignore lint/suspicious/noDuplicateProperties: 100vh is the fallback for browsers without dvh. */
+  height: 100dvh;
+  background: var(--canvas);
+  overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  display: flex;
+}
+.app-shell > .sidebar {
+  min-height: 0;
+  overflow-y: auto;
+  width: 268px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 30px 18px 16px;
+  flex-shrink: 0;
+}
+.app-shell > .sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  padding: 0 12px 32px;
+}
+.app-shell > .sidebar .brand-mark {
+  color: var(--accent);
+  font-size: 35px;
+}
+.app-shell > .sidebar .alpha {
+  font-size: 8px;
+  letter-spacing: 1px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 4px;
+  margin-left: 3px;
+  color: var(--muted);
+}
+.icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.app-shell > .sidebar nav {
+  overflow-y: auto;
+}
+.chat-link {
+  background: none;
+  border: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 12px;
+  border-radius: 7px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.chat-link:hover,
+.chat-link.selected {
+  background: var(--hover);
+}
+.chat-link span {
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .app-shell .sidebar-footer {
+    overflow-wrap: anywhere;
+  }
+}
+.app-shell > .sidebar .sidebar-footer {
+  margin-top: auto;
+  padding: 18px 8px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.app-shell > .sidebar .sidebar-footer strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.app-shell > .sidebar .sidebar-footer small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.app-shell > .app-main {
+  flex: 1;
+  min-height: 0;
+  background: var(--canvas);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell .app-header {
+  background: var(--canvas);
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 38px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.header-muted {
+  color: var(--muted);
+  margin-left: 5px;
+}
+.menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+}
+.sidebar-dismiss {
+  display: none;
+}
+@media (max-width: 760px) {
+  .app-shell {
+    --sidebar-width: min(320px, calc(100vw - 56px));
+    position: relative;
+    padding: 0;
+    isolation: isolate;
+  }
+  .app-shell > .sidebar {
+    position: absolute;
+    width: var(--sidebar-width);
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    padding-left: calc(18px + env(safe-area-inset-left));
+    inset: 0 auto 0 0;
+    border: 0;
+    /* The drawer shares the canvas so iOS's toolbars and home-indicator strip,
+       painted from the page background, run into it without a seam. */
+    background: var(--canvas);
+    visibility: hidden;
+    transition: visibility 0s 0.2s;
+  }
+  .app-shell > .sidebar.open {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .app-shell > main {
+    position: relative;
+    z-index: 1;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    transition: transform 0.2s ease;
+  }
+  .sidebar-open > main {
+    transform: translateX(var(--sidebar-width));
+    box-shadow: -1px 0 0 var(--border);
+  }
+  .sidebar-dismiss {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    border: 0;
+    z-index: 2;
+  }
+  .menu {
+    display: flex;
+    font-size: 19px;
+    margin-left: 12px;
+    margin-right: -12px;
+  }
+  /* Clear iOS's status bar and Dynamic Island: Safari can report a smaller
+     top inset than the area it keeps for itself, so leave a margin. */
+  .app-shell .app-header {
+    height: 52px;
+    margin-top: 8px;
+    padding: 0 20px;
+    justify-content: flex-start;
+  }
+  /* Header controls keep their look but take a full-height touch target
+     (about 44pt, Apple's minimum). */
+  .app-shell .app-header :is(button, a) {
+    position: relative;
+  }
+  .app-shell .app-header :is(button, a)::after {
+    content: "";
+    position: absolute;
+    inset: -11px -4px;
+  }
+}
+.header-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-shell-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.app-shell--collapsible .menu {
+  display: flex;
+}
+@media (min-width: 761px) {
+  .app-shell--collapsible
+    > .sidebar:not(.open):is([data-shell-ready], [data-desktop-open="false"]) {
+    display: none;
+  }
+}
+.app-shell--collapsible .app-header {
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+@media (max-width: 760px) {
+  /* Follow the visible viewport when iOS pans or opens the keyboard. */
+  .app-shell--chat {
+    position: fixed;
+    top: var(--chat-viewport-top, 0px);
+    left: 0;
+    right: 0;
+    height: var(--chat-viewport-height, 100dvh);
+  }
+  .app-shell--chat > main {
+    padding-bottom: max(0px, calc(env(safe-area-inset-bottom) - var(--chat-viewport-obscured, 0px)));
+  }
+  .app-shell--chat:has(.composer textarea:focus) .app-header,
+  .app-shell--chat:has(.composer textarea:focus) .welcome {
+    display: none;
+  }
+  .app-shell--chat:has(.composer textarea:focus) .composer-wrap {
+    margin-top: auto;
+  }
+  .app-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+  .app-shell > main {
+    width: 100%;
+    min-width: 0;
+  }
+  .app-shell-content {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+}
+a.chat-link {
+  text-decoration: none;
+  color: inherit;
+}
+.app-shell .chat-link[aria-current="page"] {
+  background: var(--hover);
+}
+.app-header .menu {
+  padding: 0;
+  color: var(--text);
+  border-radius: 8px;
+}
+.app-header a {
+  text-decoration: none;
+}
+.ui-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ui-navigation--utilities {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.ui-content {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 32px 48px;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .ui-content {
+    padding: 12px 16px 32px;
+  }
+}
+
+.workspace-return--minimal { flex-shrink: 0; padding-top: 8px; }
+.workspace-return--minimal .chat-link { font-size: 12px; color: var(--muted); padding: 8px 12px; }
+
+/* Pull down to refresh (installed app). The script sets --pull and --pull-turn. */
+.pull-refresh {
+  --pull: 0px;
+  position: fixed;
+  top: calc(env(safe-area-inset-top) - 40px);
+  left: 50%;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: 0 2px 8px var(--shadow-color);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(var(--pull));
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.pull-refresh[data-state="pulling"],
+.pull-refresh[data-state="ready"] {
+  opacity: 1;
+  transition: none;
+}
+.pull-refresh[data-state="pulling"] svg,
+.pull-refresh[data-state="ready"] svg {
+  transform: rotate(var(--pull-turn, 0deg));
+}
+.pull-refresh[data-state="ready"] {
+  color: var(--text);
+}
+.pull-refresh[data-state="refreshing"] {
+  opacity: 1;
+  color: var(--text);
+}
+.pull-refresh[data-state="refreshing"] svg {
+  animation: pull-refresh-spin 0.8s linear infinite;
+}
+.pull-refresh-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@keyframes pull-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pull-refresh,
+  .pull-refresh[data-state="refreshing"] svg {
+    transition: none;
+    animation: none;
+  }
+}

@@ -11,6 +11,10 @@ on:
       build-mode:
         type: string
         default: package
+      sdk-sha:
+        description: Optional full public ai-outfitter/apps SDK commit
+        type: string
+        default: ''
       trusted-build-actors:
         description: Explicit actor and PR-author allowlist for automatic private SDK builds
         type: string
@@ -38,8 +42,9 @@ jobs:
       private_authorized: ${{ steps.pr.outputs.private_authorized }}
       apps: ${{ steps.plan.outputs.apps }}
       has_apps: ${{ steps.plan.outputs.has_apps }}
+      sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
     steps:
-      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         id: pr
         with:
           command: preview-plan
@@ -76,7 +81,7 @@ jobs:
         run: |
           base=$(git merge-base "$BASE" "$HEAD")
           echo "sha=$base" >> "$GITHUB_OUTPUT"
-      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         if: steps.pr.outputs.closed != 'true'
         id: plan
         with:
@@ -100,6 +105,18 @@ jobs:
         with:
           ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
+      - name: Validate public SDK pin
+        if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
+        env:
+          SDK_SHA: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
+        run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
+        with:
+          repository: ai-outfitter/apps
+          ref: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
+          path: .outfitter-sdk
+          persist-credentials: false
       - uses: actions/checkout@v4
         if: inputs.build-mode == 'toolchain'
         with:
@@ -115,7 +132,7 @@ jobs:
         if: inputs.build-mode == 'toolchain'
         run: npm ci
         working-directory: .preview-toolchain
-      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         with:
           command: preview-build
           app: ${{ matrix.app }}
@@ -158,7 +175,7 @@ jobs:
         with:
           name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: .outfitter-preview
-      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         id: publish
         with:
           command: preview-publish
@@ -192,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview-publish
     steps:
-      - uses: ai-outfitter/apps@131332297932fdb1fc5cdf930be1c3963279acf0
+      - uses: ai-outfitter/apps@4e6db215a47811bffa20fdd78d48e4a1a2bc22d5
         with:
           command: preview-cleanup
         env:

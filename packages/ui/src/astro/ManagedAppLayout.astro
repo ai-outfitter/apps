@@ -1,0 +1,76 @@
+---
+import AppLayout from "./AppLayout.astro";
+import { ClientRouter } from "astro:transitions";
+import Navigation from "./Navigation.astro";
+import Icon from "./Icon.astro";
+import { WORKSPACE_RETURN_ID } from "../workspace-return";
+
+interface Props {
+  name: string;
+  workspaceReturnStyle?: "standard" | "minimal";
+  /**
+   * Client-side navigation, on by default: links swap the page and keep the sidebar.
+   * Page scripts must run their work through `onPageLoad` from `@ai-outfitter/ui/page`.
+   * Pass `navigation={false}` only for a page that cannot do that yet.
+   */
+  navigation?: boolean;
+  /** The kept sidebar's identity; the app name by default. */
+  persistKey?: string;
+  /** Sidebar and header brands, and the sidebar badge; Outfitter's by default. */
+  brand?: string;
+  headerBrand?: string;
+  badge?: string;
+  /** Header text after the brand; the page title by default. */
+  headerTitle?: string;
+  /** Marks the header text for a script to replace, such as an active project. */
+  titleProjectId?: string;
+  title: string;
+  description: string;
+  active: "home" | "settings";
+  homeLabel?: string;
+  /** `active` overrides matching the link against the page path, as relative links need. */
+  sidebarLinks?: { label: string; href: string; active?: boolean }[];
+  /** The Settings link; an app served under a path prefix passes a relative one. */
+  settingsHref?: string;
+  introVisuallyHidden?: boolean;
+}
+const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings" } = Astro.props;
+const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active === "home" }];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    {navigation && <ClientRouter fallback="swap" />}
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title} — {name}</title>
+  </head>
+  <body>
+    <AppLayout {persistKey} title={headerTitle ?? name} {titleProjectId} {brand} {headerBrand} {badge} desktopOpen desktopSidebar="collapsible" scrollContent sidebarLabel={`${name} sidebar`} toggleLabel="Open navigation" closeLabel="Close navigation">
+      <slot name="header-actions" slot="header-actions" />
+      <Fragment slot="navigation">
+        {workspaceReturnStyle === "standard" && <nav class="ui-navigation" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#"><Icon name="back" /> Back to Outfitter</a></nav>}
+        <slot name="sidebar" />
+        <Navigation links={links} />
+        <Navigation label="App utilities" utilities links={[
+          { label: "Settings", href: settingsHref, active: active === "settings" },
+          { label: "Organization ↗", href: "#", id: "org", active: false },
+        ]} />
+        {workspaceReturnStyle === "minimal" && <nav class="ui-navigation workspace-return--minimal" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#">Back to Outfitter</a></nav>}
+      </Fragment>
+      <div class="ui-content">
+        <div class:list={["intro", { "visually-hidden": introVisuallyHidden }]}><div class="intro-heading"><h1>{title}</h1><slot name="intro-actions" /></div><p>{description}</p></div>
+        <p id="notice" role="status" aria-live="polite"></p>
+        <slot />
+      </div>
+      <slot name="overlays" slot="overlays" />
+    </AppLayout>
+  </body>
+</html>
+<script>
+  import { installWorkspaceReturn } from "../workspace-return";
+  import { installAppNavigation } from "../scripts/app-navigation";
+  installWorkspaceReturn();
+  installAppNavigation();
+</script>

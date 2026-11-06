@@ -1,0 +1,4010 @@
+"""Any graph node."""
+interface Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+"""Any JSON value."""
+scalar JSON
+
+enum Direction {
+  OUTGOING
+  INCOMING
+  BOTH
+}
+
+"""
+EXCLUDE (default) hides archived records; on relationships also retired ones, as graph.query traversal does.
+"""
+enum Archived {
+  EXCLUDE
+  INCLUDE
+  ONLY
+}
+
+"""Any stored relationship."""
+interface Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has use case"""
+type HasUseCase implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has requirement"""
+type HasRequirement implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""uses view"""
+type UsesView implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""alternative for"""
+type AlternativeFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+  how: String
+  difference: String
+}
+
+"""belongs to unit"""
+type BelongsToUnit implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""Participant"""
+type Participant implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""reports to"""
+type ReportsTo implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""uses"""
+type Uses implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""developed by"""
+type DevelopedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""designed by"""
+type DesignedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""manufactured by"""
+type ManufacturedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""supplied by"""
+type SuppliedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""pursues"""
+type Pursues implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""measured by"""
+type MeasuredBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""documents"""
+type Documents implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""part of"""
+type PartOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""source in"""
+type SourceIn implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  path: String
+  ref: String
+}
+
+"""collects telemetry from"""
+type CollectsTelemetryFrom implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""produces"""
+type Produces implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""customer of"""
+type CustomerOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""in segment"""
+type InSegment implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""experiences"""
+type Experiences implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""addresses"""
+type Addresses implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""integrates with"""
+type IntegratesWith implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""assigned to"""
+type AssignedTo implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""assigns role"""
+type AssignsRole implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""scoped to"""
+type ScopedTo implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has authority grant"""
+type HasAuthorityGrant implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""defined by"""
+type DefinedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""permits"""
+type Permits implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""packages product"""
+type PackagesProduct implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""offered by"""
+type OfferedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""pays for"""
+type PaysFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""priced by role"""
+type PricedByRole implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  price: Float
+  currency: String
+  billing_interval: String
+}
+
+"""decision type"""
+type DecisionType_00000062 implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""made by"""
+type MadeBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""under assignment"""
+type UnderAssignment implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""establishes"""
+type Establishes implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""lens for"""
+type LensFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""participates in"""
+type ParticipatesIn implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""owns"""
+type Owns implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""has obligation"""
+type HasObligation implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""secured by"""
+type SecuredBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""interacts with"""
+type InteractsWith implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""about"""
+type About implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  evidence: String
+}
+
+"""revision of"""
+type RevisionOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""specifies"""
+type Specifies implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""includes issue"""
+type IncludesIssue implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""governed by"""
+type GovernedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""demonstrates"""
+type Demonstrates implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""evaluates"""
+type Evaluates implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""checks criterion"""
+type ChecksCriterion implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""supported by"""
+type SupportedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""assesses"""
+type Assesses implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""applies definition"""
+type AppliesDefinition implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""release of"""
+type ReleaseOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""verifies release"""
+type VerifiesRelease implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""announces"""
+type Announces implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""for customer"""
+type ForCustomer implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""in scope"""
+type InScope implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""out of scope"""
+type OutOfScope implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  reason: String
+}
+
+"""delivered as"""
+type DeliveredAs implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""evidence for"""
+type EvidenceFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""includes record"""
+type IncludesRecord implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+  record_revision: Float
+  role: String
+}
+
+"""value story"""
+type ValueStory implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""artifact for"""
+type ArtifactFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""friend"""
+type Friend implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""friends with"""
+type FriendsWith implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""commitment owner"""
+type CommitmentOwner implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""implements control"""
+type ImplementsControl implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""commitment subject"""
+type CommitmentSubject implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""obligation commitment"""
+type ObligationCommitment implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""obligation subject"""
+type ObligationSubject implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""control goal"""
+type ControlGoal implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""issue source"""
+type IssueSource implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""control source"""
+type ControlSource implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has acceptance criterion"""
+type HasAcceptanceCriterion implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has issue"""
+type HasIssue implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""targets requirement"""
+type TargetsRequirement implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has story"""
+type HasStory implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""has artifact definition"""
+type HasArtifactDefinition implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Artifact definitions"""
+type ArtifactDefinition implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""User stories"""
+type UserStory implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  valueStoryIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  valueStoryIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
+}
+
+"""Issues"""
+type Issue implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Acceptance criteria"""
+type AcceptanceCriterion implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Organizations"""
+type Organization implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  organization_id: String
+  participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+
+  """as: subject"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""Business Unit"""
+type BusinessUnit implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  belongsToUnit(at: DateTime, archived: Archived = EXCLUDE): [BusinessUnit!]!
+  belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
+  belongsToUnitIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  belongsToUnitIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
+}
+
+"""Projects"""
+type Project implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  belongsToUnit(at: DateTime, archived: Archived = EXCLUDE): [BusinessUnit!]!
+  belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
+  participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  valueStory(at: DateTime, archived: Archived = EXCLUDE): [UserStory!]!
+  valueStoryEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
+}
+
+"""People"""
+type Person implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
+  assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
+  friendIncoming(at: DateTime, archived: Archived = EXCLUDE): [Friendship!]!
+  friendIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
+  friendsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
+  commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
+
+  """as: holder"""
+  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+
+  """as: friend"""
+  friendships(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): FriendshipConnection!
+
+  """as: owner"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""Agent"""
+type Agent implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
+  assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
+
+  """as: holder"""
+  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+}
+
+"""Technologies"""
+type Technology implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Physical Component"""
+type PhysicalComponent implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  kind: String
+  part_number: String
+  manufacturer: String
+  mpn: String
+  datasheet: String
+}
+
+"""Goal"""
+type Goal implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  establishesIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
+  establishesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Establishes!]!
+  controlGoalIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlDefinition!]!
+  controlGoalIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlGoal!]!
+}
+
+"""Metric Definition"""
+type MetricDefinition implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  calculation: String
+  unit: String
+  source: String
+  interval: String
+}
+
+"""Document"""
+type Document implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Entities"""
+type Entity implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Repositories"""
+type Repository implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Products"""
+type Product implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
+  announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
+  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+  issueSourceIncoming(at: DateTime, archived: Archived = EXCLUDE): [SourceIssueEpisode!]!
+  issueSourceIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IssueSource!]!
+  controlSourceIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlDefinition!]!
+  controlSourceIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlSource!]!
+
+  """as: subject"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""Customer segments"""
+type CustomerSegment implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  forCustomerIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  forCustomerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
+}
+
+"""Customer problems"""
+type Problem implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Roles"""
+type Role implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  assignsRoleIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
+  assignsRoleIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
+  commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
+
+  """as: role"""
+  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+
+  """as: owner"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""Role assignments"""
+type RoleAssignment implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  holder(archived: Archived = EXCLUDE): Node
+  role(archived: Archived = EXCLUDE): Role
+  assignedToEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
+  assignsRoleEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
+}
+
+"""Decision types"""
+type DecisionType implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  decisionTypeIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
+  decisionTypeIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
+}
+
+"""Authority definitions"""
+type AuthorityDefinition implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Authority grants"""
+type AuthorityGrant implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Offerings"""
+type Offering implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  price: Float
+  currency: String
+  billing_interval: String
+  pricing_notes: String
+  pricing_model: String
+  markup_percent: Float
+  announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
+  announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
+  forCustomer(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
+  forCustomerEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
+}
+
+"""Decision records"""
+type DecisionRecord implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+  decisionType(at: DateTime, archived: Archived = EXCLUDE): [DecisionType!]!
+  decisionTypeEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
+  establishes(at: DateTime, archived: Archived = EXCLUDE): [Goal!]!
+  establishesEdges(at: DateTime, archived: Archived = EXCLUDE): [Establishes!]!
+}
+
+"""Knowledge graphs"""
+type KnowledgeGraph implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  root_type: String
+  pattern: String
+}
+
+"""Activities"""
+type Activity implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Assets"""
+type Asset implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Financial obligations"""
+type FinancialObligation implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Questions"""
+type Question implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  status: String
+}
+
+"""Product specifications"""
+type ProductSpecification implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Product revisions"""
+type ProductRevision implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  deliveredAsIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
+  deliveredAsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DeliveredAs!]!
+}
+
+"""Demonstrations"""
+type Demonstration implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Evaluation records"""
+type EvaluationRecord implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Readiness assessments"""
+type ReadinessAssessment implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Release records"""
+type ReleaseRecord implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Post-release verifications"""
+type PostReleaseVerification implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Releases"""
+type Release implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  announces(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  announcesEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
+  forCustomer(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
+  forCustomerEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
+  deliveredAs(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  deliveredAsEdges(at: DateTime, archived: Archived = EXCLUDE): [DeliveredAs!]!
+}
+
+"""Requirements"""
+type Requirement implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Friendship"""
+type Friendship implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  friend(archived: Archived = EXCLUDE): [Person!]!
+  friendEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
+  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+
+  """as: subject"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""ControlDefinition"""
+type ControlDefinition implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  state: String
+  policy_version: String
+  threshold: Float
+  unit: String
+  window: String
+  timezone: String
+  success_criterion: String
+  formula_language: String
+  measurement_formula: String
+  deadline_formula: String
+  formula: String
+  source_requirements: String
+  aggregation_formula: String
+  aggregation: String
+  implementsControlIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  implementsControlIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ImplementsControl!]!
+  controlGoal(at: DateTime, archived: Archived = EXCLUDE): [Goal!]!
+  controlGoalEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlGoal!]!
+  controlSource(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
+  controlSourceEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlSource!]!
+
+  """as: control"""
+  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+"""ControlCommitment"""
+type ControlCommitment implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  state: String
+  owner(archived: Archived = EXCLUDE): Node
+  control(archived: Archived = EXCLUDE): ControlDefinition
+  subject(archived: Archived = EXCLUDE): Node
+  commitmentOwnerEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
+  implementsControlEdges(at: DateTime, archived: Archived = EXCLUDE): [ImplementsControl!]!
+  commitmentSubjectEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+  obligationCommitmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [ResponseObligation!]!
+  obligationCommitmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationCommitment!]!
+
+  """as: commitment"""
+  responseObligations(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+}
+
+"""ResponseObligation"""
+type ResponseObligation implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  state: String
+  triggered_at: String
+  due_at: String
+  synthetic: Boolean
+  addressed_at: String
+  evidence_complete: Boolean
+  waived: Boolean
+  commitment(archived: Archived = EXCLUDE): ControlCommitment
+  issue(archived: Archived = EXCLUDE): SourceIssueEpisode
+  obligationCommitmentEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationCommitment!]!
+  obligationSubjectEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationSubject!]!
+}
+
+"""SourceIssueEpisode"""
+type SourceIssueEpisode implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  source: String
+  source_id: String
+  synthetic: Boolean
+  obligationSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ResponseObligation!]!
+  obligationSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationSubject!]!
+  issueSource(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
+  issueSourceEdges(at: DateTime, archived: Archived = EXCLUDE): [IssueSource!]!
+
+  """as: issue"""
+  responseObligations(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+}
+
+type ArtifactDefinitionConnection {
+  nodes: [ArtifactDefinition!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type UserStoryConnection {
+  nodes: [UserStory!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type IssueConnection {
+  nodes: [Issue!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AcceptanceCriterionConnection {
+  nodes: [AcceptanceCriterion!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OrganizationConnection {
+  nodes: [Organization!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type BusinessUnitConnection {
+  nodes: [BusinessUnit!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProjectConnection {
+  nodes: [Project!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PersonConnection {
+  nodes: [Person!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AgentConnection {
+  nodes: [Agent!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type TechnologyConnection {
+  nodes: [Technology!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PhysicalComponentConnection {
+  nodes: [PhysicalComponent!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type GoalConnection {
+  nodes: [Goal!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type MetricDefinitionConnection {
+  nodes: [MetricDefinition!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DocumentConnection {
+  nodes: [Document!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type EntityConnection {
+  nodes: [Entity!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type RepositoryConnection {
+  nodes: [Repository!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProductConnection {
+  nodes: [Product!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CustomerSegmentConnection {
+  nodes: [CustomerSegment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProblemConnection {
+  nodes: [Problem!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type RoleConnection {
+  nodes: [Role!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type RoleAssignmentConnection {
+  nodes: [RoleAssignment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DecisionTypeConnection {
+  nodes: [DecisionType!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AuthorityDefinitionConnection {
+  nodes: [AuthorityDefinition!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AuthorityGrantConnection {
+  nodes: [AuthorityGrant!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OfferingConnection {
+  nodes: [Offering!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DecisionRecordConnection {
+  nodes: [DecisionRecord!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type KnowledgeGraphConnection {
+  nodes: [KnowledgeGraph!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ActivityConnection {
+  nodes: [Activity!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AssetConnection {
+  nodes: [Asset!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type FinancialObligationConnection {
+  nodes: [FinancialObligation!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type QuestionConnection {
+  nodes: [Question!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProductSpecificationConnection {
+  nodes: [ProductSpecification!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProductRevisionConnection {
+  nodes: [ProductRevision!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DemonstrationConnection {
+  nodes: [Demonstration!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type EvaluationRecordConnection {
+  nodes: [EvaluationRecord!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ReadinessAssessmentConnection {
+  nodes: [ReadinessAssessment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ReleaseRecordConnection {
+  nodes: [ReleaseRecord!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PostReleaseVerificationConnection {
+  nodes: [PostReleaseVerification!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ReleaseConnection {
+  nodes: [Release!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type RequirementConnection {
+  nodes: [Requirement!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type FriendshipConnection {
+  nodes: [Friendship!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ControlDefinitionConnection {
+  nodes: [ControlDefinition!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ControlCommitmentConnection {
+  nodes: [ControlCommitment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ResponseObligationConnection {
+  nodes: [ResponseObligation!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type SourceIssueEpisodeConnection {
+  nodes: [SourceIssueEpisode!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Query {
+  """This schema in SDL: a compact alternative to full introspection."""
+  sdl: String!
+  node(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Node
+
+  """
+  Case-insensitive text match over IDs, titles, bodies and stored data; unarchived nodes in ID order.
+  """
+  search(
+    text: String!
+
+    """Node type names or IDs."""
+    types: [String!]
+    first: Int = 20
+  ): [Node!]! @deprecated(reason: "At most 100 matches with no continuation. Use searchConnection for complete, cursor-paginated results.")
+
+  """
+  Case-insensitive text match over IDs, titles, bodies and stored data. Unarchived nodes in ID order, with a total count and cursor pagination. Continue with pageInfo.endCursor as after until hasNextPage is false; keep text, types and Wiki scope unchanged.
+  """
+  searchConnection(
+    text: String!
+
+    """Node type names or IDs."""
+    types: [String!]
+    first: Int = 100
+    after: String
+  ): SearchConnection!
+  artifactDefinition(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ArtifactDefinition
+  artifactDefinitions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ArtifactDefinitionConnection!
+  userStory(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): UserStory
+  userStorys(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): UserStoryConnection!
+  issue(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Issue
+  issues(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): IssueConnection!
+  acceptanceCriterion(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): AcceptanceCriterion
+  acceptanceCriterions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): AcceptanceCriterionConnection!
+  organization(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Organization
+  organizations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OrganizationConnection!
+  businessUnit(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): BusinessUnit
+  businessUnits(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): BusinessUnitConnection!
+  project(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Project
+  projects(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ProjectConnection!
+  person(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Person
+  persons(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): PersonConnection!
+  agent(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Agent
+  agents(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): AgentConnection!
+  technology(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Technology
+  technologys(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): TechnologyConnection!
+  physicalComponent(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): PhysicalComponent
+  physicalComponents(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): PhysicalComponentConnection!
+  goal(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Goal
+  goals(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): GoalConnection!
+  metricDefinition(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): MetricDefinition
+  metricDefinitions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): MetricDefinitionConnection!
+  document(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Document
+  documents(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): DocumentConnection!
+  entity(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Entity
+  entitys(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): EntityConnection!
+  repository(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Repository
+  repositorys(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): RepositoryConnection!
+  product(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Product
+  products(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ProductConnection!
+  customerSegment(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): CustomerSegment
+  customerSegments(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): CustomerSegmentConnection!
+  problem(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Problem
+  problems(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ProblemConnection!
+  role(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Role
+  roles(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): RoleConnection!
+  roleAssignment(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): RoleAssignment
+  roleAssignments(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): RoleAssignmentConnection!
+  decisionType(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): DecisionType
+  decisionTypes(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): DecisionTypeConnection!
+  authorityDefinition(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): AuthorityDefinition
+  authorityDefinitions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): AuthorityDefinitionConnection!
+  authorityGrant(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): AuthorityGrant
+  authorityGrants(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): AuthorityGrantConnection!
+  offering(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Offering
+  offerings(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OfferingConnection!
+  decisionRecord(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): DecisionRecord
+  decisionRecords(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): DecisionRecordConnection!
+  knowledgeGraph(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): KnowledgeGraph
+  knowledgeGraphs(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): KnowledgeGraphConnection!
+  activity(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Activity
+  activitys(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ActivityConnection!
+  asset(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Asset
+  assets(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): AssetConnection!
+  financialObligation(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): FinancialObligation
+  financialObligations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): FinancialObligationConnection!
+  question(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Question
+  questions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): QuestionConnection!
+  productSpecification(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ProductSpecification
+  productSpecifications(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ProductSpecificationConnection!
+  productRevision(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ProductRevision
+  productRevisions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ProductRevisionConnection!
+  demonstration(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Demonstration
+  demonstrations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): DemonstrationConnection!
+  evaluationRecord(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): EvaluationRecord
+  evaluationRecords(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): EvaluationRecordConnection!
+  readinessAssessment(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ReadinessAssessment
+  readinessAssessments(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ReadinessAssessmentConnection!
+  releaseRecord(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ReleaseRecord
+  releaseRecords(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ReleaseRecordConnection!
+  postReleaseVerification(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): PostReleaseVerification
+  postReleaseVerifications(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): PostReleaseVerificationConnection!
+  release(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Release
+  releases(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ReleaseConnection!
+  requirement(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Requirement
+  requirements(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): RequirementConnection!
+  friendship(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Friendship
+  friendships(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): FriendshipConnection!
+  controlDefinition(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ControlDefinition
+  controlDefinitions(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ControlDefinitionConnection!
+  controlCommitment(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ControlCommitment
+  controlCommitments(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ControlCommitmentConnection!
+  responseObligation(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): ResponseObligation
+  responseObligations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): ResponseObligationConnection!
+  sourceIssueEpisode(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): SourceIssueEpisode
+  sourceIssueEpisodes(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): SourceIssueEpisodeConnection!
+}
+
+type SearchConnection {
+  nodes: [Node!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}

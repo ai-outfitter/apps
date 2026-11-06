@@ -1,0 +1,28 @@
+---
+// Opened and submitted by scripts/chat-sidebar.ts; the platform's project APIs enforce ownership.
+interface Props { pluginsHref?: string }
+const { pluginsHref = "/plugins/github" } = Astro.props;
+---
+<dialog id="project-dialog" class="project-dialog" aria-labelledby="project-dialog-title">
+  <form>
+    <h2 id="project-dialog-title">New project</h2>
+    <label>Name<input name="name" required maxlength="100" autofocus /></label>
+    <label>Instructions<textarea name="instructions" rows="7" maxlength="16000" placeholder="What should Outfitter know or do in this project?"></textarea></label>
+    <fieldset class="project-repositories" data-project-repositories>
+      <legend>Repositories</legend>
+      <ul data-project-repository-list></ul>
+      <label>Add a repository
+        <select data-project-repository-picker disabled>
+          <option value="">Loading your GitHub repositories…</option>
+        </select>
+      </label>
+      <p class="intro">Outfitter checks it can read and change code and open issues and pull requests in each one. Missing one? Connect GitHub or install its app in <a href={pluginsHref} data-astro-reload>Plugins</a>.</p>
+    </fieldset>
+    <p class="intro">Instructions and repositories are applied to future replies in this project’s timeline and threads.</p>
+    <p class="error" role="alert" data-project-error hidden></p>
+    <div class="project-dialog-actions">
+      <button type="button" class="text-button" data-project-cancel>Cancel</button>
+      <button class="primary">Save project</button>
+    </div>
+  </form>
+</dialog>

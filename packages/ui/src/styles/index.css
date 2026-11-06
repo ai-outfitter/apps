@@ -1,0 +1,11 @@
+@layer outfitter;
+@import "@fontsource/dm-sans/400.css" layer(outfitter);
+@import "@fontsource/dm-sans/500.css" layer(outfitter);
+@import "@fontsource/dm-sans/600.css" layer(outfitter);
+@import "@fontsource/dm-sans/700.css" layer(outfitter);
+@import "@fontsource/instrument-serif/400.css" layer(outfitter);
+@import "@fontsource/instrument-serif/400-italic.css" layer(outfitter);
+@import "./tokens.css" layer(outfitter);
+@import "./base.css" layer(outfitter);
+@import "./layout.css" layer(outfitter);
+@import "./components.css" layer(outfitter);

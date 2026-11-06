@@ -1,0 +1,457 @@
+@import "./conversation.css" layer(outfitter);
+
+.ui-chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.ui-chat-panel--sidebar {
+  width: min(100%, 26rem);
+  height: 100%;
+  border-inline-start: 1px solid var(--border);
+}
+.ui-chat-transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ui-chat-file-input {
+  display: none;
+}
+.ui-chat-leading {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+}
+.ui-chat-actions {
+  display: contents;
+}
+@media (min-width: 761px) {
+  .ui-chat-composer {
+    display: flex;
+    flex-direction: column;
+  }
+  .ui-chat-composer textarea {
+    order: -1;
+    min-height: 3.2em;
+  }
+}
+.ui-chat-add {
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+}
+.ui-chat-add:hover:not(:disabled) {
+  background: var(--hover);
+}
+.ui-chat-add-menu {
+  inset: auto;
+  margin: 0 0 8px;
+  position-area: block-start span-inline-end;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+.ui-chat-add-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.ui-chat-add-menu button:hover {
+  background: var(--hover);
+}
+.ui-chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+.ui-chat-attachments li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.ui-chat-attachments span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.ui-chat-attachments img {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+.ui-chat-attachments button {
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .ui-chat-attachments {
+    margin: 0 0 0.75rem;
+  }
+  .ui-chat-attachments li {
+    position: relative;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 5.5rem;
+    padding: 0.35rem;
+    background: var(--soft);
+  }
+  .ui-chat-attachments span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    font-size: 0.75rem;
+  }
+  .ui-chat-attachments img {
+    width: 100%;
+    height: 4rem;
+  }
+  .ui-chat-attachments button {
+    align-self: flex-end;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text);
+  }
+  .ui-chat-composer {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 0.25rem;
+    padding: 0.375rem;
+    border-radius: 1.5rem;
+  }
+  .ui-chat-composer textarea {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    max-height: 10rem;
+    padding: 0 0.35rem;
+    line-height: 1.4;
+    overflow-y: auto;
+    font-size: 16px;
+  }
+  .ui-chat-composer:not(.ui-chat-composer--expanded) textarea {
+    height: 1.4em;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .ui-chat-composer .composer-bottom,
+  .ui-chat-composer .composer-actions {
+    display: contents;
+  }
+  .ui-chat-composer .ui-chat-leading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .ui-chat-composer .ui-chat-actions {
+    display: flex;
+    grid-column: 3;
+    grid-row: 1;
+    align-items: center;
+    min-width: 0;
+  }
+  .ui-chat-composer .ui-chat-actions:empty,
+  .ui-chat-composer .ui-chat-leading:empty {
+    display: none;
+  }
+  .ui-chat-composer .send {
+    grid-column: 4;
+    grid-row: 1;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 22px;
+  }
+  .ui-chat-composer .ui-chat-add {
+    width: 44px;
+    height: 44px;
+    border: 0;
+  }
+  .ui-chat-composer .ui-chat-attachments button {
+    min-width: 44px;
+    min-height: 44px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+  }
+  .ui-chat-composer .ui-chat-attachments li:has(img) button {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+  }
+  .ui-chat-composer--expanded {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 1.5rem;
+  }
+  .ui-chat-composer--expanded .ui-chat-attachments,
+  .ui-chat-composer--expanded .error {
+    grid-column: 1;
+    min-width: 0;
+  }
+  .ui-chat-composer--expanded textarea {
+    grid-column: 1;
+    grid-row: auto;
+    align-self: stretch;
+  }
+  .ui-chat-composer--expanded .composer-bottom,
+  .ui-chat-composer--expanded .composer-actions {
+    display: flex;
+    grid-column: 1;
+    align-items: center;
+    min-width: 0;
+    margin: 0;
+  }
+  .ui-chat-composer--expanded .ui-chat-leading {
+    margin-right: auto;
+  }
+  .ui-chat-composer--expanded .ui-chat-leading,
+  .ui-chat-composer--expanded .ui-chat-actions,
+  .ui-chat-composer--expanded .send {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* Explicit compact layout also applies on larger screens. */
+.ui-chat-composer--compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 0.25rem;
+  padding: 0.375rem;
+  border-radius: 1.5rem;
+}
+.ui-chat-composer--compact textarea {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  max-height: 10rem;
+  padding: 0 0.35rem;
+  line-height: 1.4;
+  overflow-y: auto;
+  font-size: 16px;
+}
+.ui-chat-composer--compact:not(.ui-chat-composer--expanded) textarea {
+  height: 1.4em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ui-chat-composer--compact:focus-within {
+  border-color: var(--border);
+  outline: none;
+  box-shadow: none;
+}
+.ui-chat-composer--compact textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+.ui-chat-composer--compact .composer-bottom,
+.ui-chat-composer--compact .composer-actions {
+  display: contents;
+}
+.ui-chat-composer--compact .ui-chat-leading {
+  grid-column: 1;
+  grid-row: 1;
+}
+.ui-chat-composer--compact .ui-chat-actions {
+  display: flex;
+  grid-column: 3;
+  grid-row: 1;
+  align-items: center;
+  min-width: 0;
+}
+.ui-chat-composer--compact .ui-chat-actions:empty,
+.ui-chat-composer--compact .ui-chat-leading:empty {
+  display: none;
+}
+.ui-chat-composer--compact .send {
+  grid-column: 4;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 22px;
+}
+.ui-chat-composer--compact .ui-chat-add {
+  width: 44px;
+  height: 44px;
+  border: 0;
+}
+.ui-chat-composer--compact .ui-chat-attachments button {
+  min-width: 44px;
+  min-height: 44px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.ui-chat-composer--compact .ui-chat-attachments li:has(img) button {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 1.5rem;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded .ui-chat-attachments,
+.ui-chat-composer--compact.ui-chat-composer--expanded .error {
+  grid-column: 1;
+  min-width: 0;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded textarea {
+  grid-column: 1;
+  grid-row: auto;
+  align-self: stretch;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded .composer-bottom,
+.ui-chat-composer--compact.ui-chat-composer--expanded .composer-actions {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded .ui-chat-leading {
+  margin-right: auto;
+}
+.ui-chat-composer--compact.ui-chat-composer--expanded .ui-chat-leading,
+.ui-chat-composer--compact.ui-chat-composer--expanded .ui-chat-actions,
+.ui-chat-composer--compact.ui-chat-composer--expanded .send {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.dictation {
+  display: contents;
+}
+.dictate {
+  display: grid;
+  place-items: center;
+  grid-column: 3;
+  grid-row: 1;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+}
+.dictation-fallback {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  grid-column: 1 / -1;
+  margin-top: 0;
+  text-align: left;
+}
+.dictation-status:empty {
+  display: none;
+}
+.dictate[aria-pressed="true"] {
+  background: var(--action);
+  color: var(--on-action);
+}
+.dictation-status {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  max-height: 4.5em;
+  overflow-y: auto;
+}
+
+.effort-menu {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+}
+.effort-menu summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  color: var(--accent);
+}
+.effort-menu summary::-webkit-details-marker {
+  display: none;
+}
+.effort-menu summary:focus-visible {
+  outline: 2px solid var(--focus);
+}
+.effort-menu[open] summary {
+  background: var(--hover);
+}
+.effort-menu fieldset {
+  position: absolute;
+  bottom: 48px;
+  right: 0;
+  z-index: 2;
+  width: 210px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+.effort-menu legend {
+  background: var(--surface);
+  padding: 0 4px;
+  font-size: 12px;
+}
+.effort-menu label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+}
+.effort-menu small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.effort-menu input {
+  accent-color: var(--accent);
+}
+
+/* The composer supplies the visible focus border; avoid a second rectangle. */
+.composer textarea:focus-visible { outline: none; }

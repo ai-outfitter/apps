@@ -1,0 +1,309 @@
+/*
+ * Cards shared by Chat and platform pages: UI tool cards in a chat message,
+ * the work profile with its suggested routines and apps, Turn on, and a
+ * routine's or run's written result (react/chat/*, react/routines/*).
+ * Import once, unlayered, after the base styles, like chat.css.
+ */
+/* UI tool cards in a chat message. */
+.chat-component {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+.chat-component h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.chat-component p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+.chat-component form,
+.chat-component a.primary {
+  display: inline-block;
+  text-decoration: none;
+}
+/* .primary is a flex row, which drops the space before an arrow. */
+.chat-component .primary {
+  gap: 8px;
+}
+.chat-component-pending {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-component > button + button,
+.chat-component form + button,
+.chat-component a.primary + button {
+  margin-left: 8px;
+}
+/* The work profile card and each suggestion's Turn on. */
+.work-profile {
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  border-radius: 0;
+  padding: 12px 0 0;
+}
+.work-profile h4 {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.work-profile-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+.work-profile-facts div {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 8px;
+}
+.work-profile-facts dt,
+.work-profile-facts small {
+  color: var(--muted);
+}
+.work-profile-facts dd {
+  margin: 0;
+  color: var(--text);
+}
+.work-profile-routines {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.work-profile-routines > li {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.work-profile-routines > li > span,
+.work-profile-routines > li > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.work-profile-routines p {
+  margin: 2px 0 0;
+}
+.work-profile-routines details {
+  font-size: 12px;
+  color: var(--muted);
+}
+.work-profile-routines summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.work-profile-routines ol {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.turn-on-routine {
+  margin-top: 8px;
+}
+.work-profile .alpha-tag {
+  margin-left: 4px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.work-profile-apps .work-profile-facts {
+  margin: 6px 0 2px;
+}
+.work-profile-apps .work-profile-facts ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.work-profile-apps .work-profile-refresh {
+  justify-self: start;
+  margin-top: 8px;
+}
+.work-profile-apps .work-profile-app-later {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.turn-on-routine .primary {
+  width: auto;
+  display: inline-flex;
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.turn-on-routine .primary:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.routine-result ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 12px;
+}
+/* A routine's written result: readable, and copyable item by item. */
+.routine-result-view {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.routine-result-headline {
+  margin: 0;
+}
+.routine-result-body {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, transparent);
+  white-space: normal;
+}
+.routine-result-body > :first-child {
+  margin-top: 0;
+}
+.routine-result-body > :last-child {
+  margin-bottom: 0;
+}
+.routine-result-items {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+.routine-result-items li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+.routine-item-draft,
+.routine-item-event {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+.routine-item-draft p {
+  margin: 0 0 6px;
+}
+.routine-item-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+.routine-item-actions [role="alert"] {
+  font-size: 12px;
+  color: var(--danger, #b42318);
+}
+.routine-write-connect {
+  display: inline;
+  margin: 0;
+}
+.routine-write {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.routine-write:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.routine-result-note,
+.routine-result-actions {
+  margin: 0;
+  color: var(--muted);
+}
+.routine-copy {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.routine-copy:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.routine-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.routine-complete {
+  padding: 4px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-action);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.routine-complete:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.routine-complete[data-completed] {
+  background: transparent;
+  color: var(--accent);
+}
+.turn-on-routine p {
+  margin: 6px 0 0;
+}
+.work-profile-refresh {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.work-profile-refresh:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--soft);
+}
+.work-profile-refresh:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .work-profile-facts div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

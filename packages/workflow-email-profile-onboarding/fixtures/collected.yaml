@@ -1,0 +1,23 @@
+workflow: email-profile-onboarding
+origin: synthetic
+inputs:
+  collect.inputs.identity:
+    name: Member
+    email: member@example.com
+records:
+  collect.outputs.sample:
+    connectionId: fixture-gmail
+    connectionRevision: fixture-revision
+    received:
+      - id: fixture-mail
+        threadId: null
+        from: colleague@example.com
+        subject: Weekly planning
+        date: 2026-10-15
+        snippet: <img src=x onerror=alert(1)> Review next week's project plan.
+    sent: []
+expect:
+  collect: done
+  analyze: ready
+  save: waiting
+  run: running

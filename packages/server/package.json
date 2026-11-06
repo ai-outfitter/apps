@@ -1,0 +1,41 @@
+{
+  "name": "@ai-outfitter/server",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./hosts": "./src/hosts.ts",
+    "./installation": "./src/installation.ts",
+    "./schema": "./src/schema.ts",
+    "./preview": "./src/preview.mjs"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "@types/node": "^26.6.3"
+  },
+  "dependencies": {
+    "@ai-outfitter/workflow-core": "0.1.0"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/server"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

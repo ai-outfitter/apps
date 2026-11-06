@@ -1,0 +1,88 @@
+{
+  "name": "@ai-outfitter/ui",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Shared Outfitter Astro layouts, React chat and agent sidebar components and styles",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./astro/*": "./src/astro/*",
+    "./react/routines/use-run-finish": "./src/react/routines/use-run-finish.ts",
+    "./react/routines/*": "./src/react/routines/*.tsx",
+    "./react/chat/context": "./src/react/chat/context.ts",
+    "./react/chat/message-helpers": "./src/react/chat/message-helpers.ts",
+    "./react/chat/app-suggestions": "./src/react/chat/app-suggestions.ts",
+    "./react/chat/app-build-checks": "./src/react/chat/app-build-checks.ts",
+    "./react/chat/turn-on-routine": "./src/react/chat/turn-on-routine.ts",
+    "./react/chat/use-turn-on-routine": "./src/react/chat/use-turn-on-routine.ts",
+    "./react/chat/*": "./src/react/chat/*.tsx",
+    "./react/*": "./src/react/*.tsx",
+    "./styles.css": "./src/styles/index.css",
+    "./tokens.css": "./src/styles/tokens.css",
+    "./chat.css": "./src/styles/chat.css",
+    "./workflow.css": "./src/styles/workflow.css",
+    "./cards.css": "./src/styles/cards.css",
+    "./routine-result": "./src/routines/routine-result.ts",
+    "./scripts/shell": "./src/scripts/shell.ts",
+    "./icons": "./src/icons.ts",
+    "./workspace-return": "./src/workspace-return.ts",
+    "./page": "./src/page.ts",
+    "./live": "./src/live.ts",
+    "./agent-focus": "./src/agent-focus.ts",
+    "./agent-sidebar.css": "./src/styles/agent-sidebar.css",
+    "./scripts/workflow-card": "./src/scripts/workflow-card.ts",
+    "./knowledge-graph": "./src/graph/viewer.ts",
+    "./knowledge-graph/layout": "./src/graph/layout.ts",
+    "./scripts/chat-sidebar": "./src/scripts/chat-sidebar.ts",
+    "./workspace.css": "./src/styles/workspace.css",
+    "./scripted-agent": "./src/scripted-agent.mjs"
+  },
+  "sideEffects": [
+    "**/*.css",
+    "./src/scripts/shell.ts",
+    "./src/scripts/search-select.ts"
+  ],
+  "peerDependencies": {
+    "astro": "^7.3.5",
+    "react": "^19.3.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "0.1.0",
+    "@ai-outfitter/connector-google": "0.1.0",
+    "@ai-outfitter/connector-google-calendar": "0.1.0",
+    "@ai-outfitter/workflow-email-profile-onboarding": "0.1.0",
+    "@ai-outfitter/workflow-recurring-task": "0.1.0",
+    "@ai-sdk/react": "^4.0.125",
+    "@fontsource/dm-sans": "5.3.0",
+    "@fontsource/instrument-serif": "5.3.0",
+    "ai": "^7.0.122",
+    "elkjs": "^0.12.0",
+    "react-markdown": "^10.1.0",
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:unit": "node --import tsx --test tests/*.unit.test.tsx"
+  },
+  "devDependencies": {
+    "react-dom": "^19.3.0"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/ui"
+  }
+}

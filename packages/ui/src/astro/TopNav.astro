@@ -1,0 +1,15 @@
+---
+interface Props { title?: string; signedIn?: boolean; rootOrigin?: string }
+const { title, signedIn = false, rootOrigin = "" } = Astro.props;
+---
+<header class="top-nav" aria-label="Main navigation">
+  <a class="logo" href={`${rootOrigin}/`} aria-label="Outfitter home">Outfitter</a>
+  {title && <span>{title}</span>}
+  <a class="destination" href={`${rootOrigin}${signedIn ? "/" : "/login"}`}>{signedIn ? "Back to app" : "Sign in"}</a>
+</header>
+<style>
+  .top-nav{display:flex;gap:20px;align-items:center;padding:26px 0;height:auto;border-bottom:1px solid var(--border);font-size:15px;background:var(--canvas)}
+  .logo{font-size:20px;font-weight:650;text-decoration:none;letter-spacing:-.04em}
+  span{color:var(--muted)}.destination{margin-left:auto}
+  @media(max-width:600px){.top-nav{gap:12px;font-size:13px;flex-wrap:wrap}}
+</style>

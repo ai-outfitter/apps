@@ -1,0 +1,39 @@
+{
+  "name": "@ai-outfitter/connector-google",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@ai-outfitter/connector-core": "0.1.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15"
+  },
+  "outfitter": {
+    "legacyConnectionPolicy": "migrations/legacy-connection-policy.sql"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/connector-google"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

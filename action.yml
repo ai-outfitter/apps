@@ -20,6 +20,9 @@ inputs:
     description: Absolute path to disposable private SDK checkout (optional adapter)
     default: ''
 outputs:
+  sdk_sha:
+    description: Public SDK commit from caller configuration
+    value: ${{ steps.execute.outputs.sdk_sha }}
   sha:
     description: Verified PR head commit
     value: ${{ steps.execute.outputs.sha }}

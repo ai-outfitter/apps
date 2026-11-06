@@ -1,0 +1,60 @@
+{
+  "name": "@ai-outfitter/app-test",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    "./worker": "./src/worker.ts",
+    "./prepare": "./src/prepare.ts",
+    "./wiki-fixture": "./src/wiki-fixture.ts",
+    "./assertions": "./src/assertions.ts",
+    "./playwright": "./src/playwright.ts",
+    "./workflow-fixture": "./src/workflow-fixture.ts",
+    "./threads": "./src/threads.ts",
+    "./stories": "./src/stories.ts"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "0.1.0",
+    "miniflare": "5.20260926.0-alpha",
+    "@ai-outfitter/server": "0.1.0",
+    "@ai-outfitter/threads": "0.1.0",
+    "@libsql/client": "^0.18.0",
+    "ai": "^7.0.122",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@playwright/test": "^1.63.0"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "npm run test:integration",
+    "test:integration": "node --import tsx --test tests/*.test.ts"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-outfitter/apps.git",
+    "directory": "packages/app-test"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}
