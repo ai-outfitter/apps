@@ -466,8 +466,11 @@ const coreOperations = {
   /** The repository a binding is approved for. */
   "repository.read": operation(memberPhases, z.strictObject(repositoryTarget), z.object({
     name: z.string(), path: z.string(), repositoryId: z.number(), installationId: z.number().int().positive(),
-    /** The GitHub App the platform acts as: its comments, check runs and reviews carry this id. */
+    /** The GitHub App the platform acts as: its comments, check runs and reviews carry this id.
+     * On Forgejo, the platform's bot user id, which authors its comments and statuses. */
     appId: z.number().int().positive(),
+    /** The forge hosting the repository; absent means GitHub. */
+    forge: z.enum(["github", "forgejo"]).optional(),
   })),
   /** A provider API request confined to the bound repository. Writes only in `finalize`.
    * GraphQL only where the binding grants it for the current phase: read-only,

@@ -3,7 +3,7 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
 import { evidenceKey, evidenceSpace } from "./demo-handoff";
-import { GithubFoundryForge, hostAPI } from "./forge";
+import { foundryForge, hostAPI } from "./forge";
 import { imageDimensions } from "./image-dimensions";
 
 /** A screenshot a workspace agent publishes for its pull request, as the
@@ -36,7 +36,7 @@ export async function publishFoundryEvidence(host: WorkflowHost<"publish">, loca
       !loaded.attempts.some(attempt => attempt.id === input.node.attemptId && attempt.nodeId === input.node.nodeId))
     throw denied();
   const event = z.object({ issue: z.object({ number: z.number().int().positive() }), sourceRunId: z.uuid().optional() }).parse(loaded.inputs["triage.inputs.event"]);
-  const forge = new GithubFoundryForge(hostAPI((request) => host.call("repository.request", request)), repo.name, repo.appId);
+  const forge = foundryForge(hostAPI((request) => host.call("repository.request", request)), repo);
   const branch = `outfitter/issue-${event.issue.number}-${event.sourceRunId ?? loaded.run.id}`;
   await forge.change({ number: input.number, headSha: input.headSha, branch, url: `https://github.com/${repo.name}/pull/${input.number}` },
     event.issue.number, branch, true);
