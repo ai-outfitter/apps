@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "exports": {
@@ -50,8 +50,8 @@
     "./data-transfer": "./src/data-transfer.ts"
   },
   "dependencies": {
-    "@ai-outfitter/connector-core": "0.1.0",
-    "@ai-outfitter/workflow-core": "0.1.0",
+    "@ai-outfitter/connector-core": "0.1.1",
+    "@ai-outfitter/workflow-core": "0.1.1",
     "@gql.tada/internal": "^1.2.2",
     "drizzle-orm": "^0.45.3",
     "drizzle-zod": "0.8.3",

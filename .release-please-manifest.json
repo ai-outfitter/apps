@@ -1,14 +1,14 @@
 {
-  "packages/app-build": "0.1.0",
-  "packages/app-sdk": "0.1.0",
-  "packages/app-test": "0.1.0",
-  "packages/connector-core": "0.1.0",
-  "packages/connector-google": "0.1.0",
-  "packages/connector-google-calendar": "0.1.0",
-  "packages/server": "0.1.0",
-  "packages/threads": "0.1.0",
-  "packages/ui": "0.1.0",
-  "packages/workflow-core": "0.1.0",
-  "packages/workflow-email-profile-onboarding": "0.1.0",
-  "packages/workflow-recurring-task": "0.1.0"
+  "packages/app-build": "0.1.1",
+  "packages/app-sdk": "0.1.1",
+  "packages/app-test": "0.1.1",
+  "packages/connector-core": "0.1.1",
+  "packages/connector-google": "0.1.1",
+  "packages/connector-google-calendar": "0.1.1",
+  "packages/server": "0.1.1",
+  "packages/threads": "0.1.1",
+  "packages/ui": "0.1.1",
+  "packages/workflow-core": "0.1.1",
+  "packages/workflow-email-profile-onboarding": "0.1.1",
+  "packages/workflow-recurring-task": "0.1.1"
 }
