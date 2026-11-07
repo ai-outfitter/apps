@@ -419,12 +419,14 @@ export function answered<T>(part: T | Response | undefined): T {
 
 export type IssueRun = {
   id: string;
+  workflowId?: string;
   title: string;
   status: string;
   updatedAt: number;
 };
 type RunRow = {
   id: string;
+  workflowId?: string;
   title: unknown;
   repository: unknown;
   issue: unknown;
@@ -454,6 +456,7 @@ export function issueRuns(
     if (list.length >= RUNS_PER_ISSUE) continue;
     list.push({
       id: row.id,
+      ...(row.workflowId ? { workflowId: row.workflowId } : {}),
       title: typeof row.title === "string" ? row.title : `#${issue}`,
       status: row.status === "complete" ? "completed" : row.status,
       updatedAt: row.updatedAt,

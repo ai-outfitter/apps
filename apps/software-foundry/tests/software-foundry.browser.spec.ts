@@ -51,6 +51,7 @@ test("Foundry combines repositories with per-issue progress, optional filters an
     status: "running" | "complete",
   ) => ({
     id,
+    workflow: { id: "issue-to-review" },
     status,
     updatedAt: Date.now(),
     inputs: id === "closed-run"
@@ -280,7 +281,7 @@ test("Foundry combines repositories with per-issue progress, optional filters an
   await expect(row("three", 90)).toBeVisible();
   await expect(
     row("one", 12).getByRole("link", { name: "View workflow →" }),
-  ).toHaveAttribute("href", "https://example/o/outfitter/workflow-runs/run-one");
+  ).toHaveAttribute("href", "https://example/o/outfitter/workflows/issue-to-review/runs/run-one");
   await expect(row("one", 12).getByRole("button")).toHaveCount(0);
   await expect(
     page.getByText(/Could not load: outfitter\/three/),

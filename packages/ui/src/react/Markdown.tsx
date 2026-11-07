@@ -37,7 +37,7 @@ void import("react-markdown").then((module) => {
 }, () => undefined);
 
 /**
- * `linkURL` maps a root-relative link (`/workflow-runs/…`) to where this page
+ * `linkURL` maps a root-relative link (`/workflows/…/runs/…`) to where this page
  * reaches it, for hosts mounted under the platform; other links are only
  * sanitized.
  */

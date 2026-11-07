@@ -1,5 +1,5 @@
 import type { WorkProfile } from "@ai-outfitter/app-sdk/platform-records";
-import type { RecurringTaskResult } from "@ai-outfitter/workflow-recurring-task/types";
+import { RECURRING_TASK_WORKFLOW_ID, type RecurringTaskResult } from "@ai-outfitter/workflow-recurring-task/types";
 import { type PlatformURL, ROUTINE_RESULT_SLOT, routineResultOf, routineResultText, samePath } from "../../routines/routine-result";
 
 // Turns a task on as the member's routine from any card: `POST /api/routines`
@@ -94,7 +94,7 @@ export async function firstRunResult(started: StartedRoutine, platformURL: Platf
   }
 }
 
-export const runPath = (runId: string) => `/workflow-runs/${encodeURIComponent(runId)}`;
+export const runPath = (runId: string) => `/workflows/${encodeURIComponent(RECURRING_TASK_WORKFLOW_ID)}/runs/${encodeURIComponent(runId)}`;
 export const routinePath = (scheduleId: string) => `/routines/${encodeURIComponent(scheduleId)}`;
 
 /**

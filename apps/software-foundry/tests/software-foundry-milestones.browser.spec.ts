@@ -75,7 +75,10 @@ test("operational milestones list issues, pull requests and recorded runs with h
         state: "open",
         updatedAt: milestone.updatedAt,
         url: "https://github.com/team/one/issues/42",
-        runs: [{ id: runId, title: "#42", status: "failed", updatedAt: 1 }],
+        runs: [
+          { id: runId, workflowId: "issue-to-merge-workspace", title: "#42", status: "failed", updatedAt: 1 },
+          { id: "legacy-run", title: "#42", status: "running", updatedAt: 0 },
+        ],
       },
       {
         number: 39,
@@ -211,7 +214,8 @@ test("operational milestones list issues, pull requests and recorded runs with h
     );
     await expect(
       page.locator("#milestone-issues a.workflow-link"),
-    ).toHaveAttribute("href", new RegExp(`/workflow-runs/${runId}$`));
+    ).toHaveAttribute("href", new RegExp(`/workflows/issue-to-merge-workspace/runs/${runId}$`));
+    await expect(page.locator("#milestone-issues span.workflow-link")).toHaveCount(1);
     await expect(page.locator("#milestone-issues")).toContainText(
       "None recorded",
     );
