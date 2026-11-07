@@ -14,12 +14,40 @@ const scope = {
   phase: "interactive" as const,
   expiresAt: Date.now() + 3_600_000,
 };
+/** An isolated Planning entities provider. Onto owns this contract fixture, so
+ * browser tests do not require the private Planning source or a built package. */
+function planningFixture() {
+  type Project = { ref: { installationId: string; type: string; id: string }; revision: number; title: string; attributes: Record<string, unknown>; references: never[] };
+  const projects = new Map<string, Project>();
+  return {
+    async call(path: string, _actor: typeof owner, options?: { method?: string; body?: Record<string, unknown> }) {
+      const op = path.split("/").at(-1), input = options?.body ?? {};
+      if (op === "types") return Response.json([{ type: "project", title: "Planning project", description: "A project", schema: {}, writable: true }]);
+      if (op === "list") return Response.json([...projects.values()].slice(Number(input.offset ?? 0), Number(input.offset ?? 0) + Number(input.limit ?? 100)));
+      if (op === "create") {
+        const attributes = input.attributes as Record<string, unknown>;
+        const project: Project = { ref: { installationId: "planning-installation", type: "project", id: crypto.randomUUID() }, revision: 1, title: String(attributes.name), attributes: { ...attributes }, references: [] };
+        projects.set(project.ref.id, project);
+        return Response.json(project);
+      }
+      if (op === "get" || op === "update") {
+        const project = projects.get(String(input.id));
+        if (!project) return new Response("Project not found", { status: 404 });
+        if (op === "update") {
+          if (input.revision !== project.revision) return new Response("Project changed", { status: 409 });
+          project.attributes = { ...project.attributes, ...(input.attributes as Record<string, unknown>) };
+          project.revision++;
+        }
+        return Response.json(project);
+      }
+      return new Response("Unsupported Planning operation", { status: 404 });
+    },
+    async dispose() {},
+  };
+}
+
 async function operational(page: Page, planningAvailable = true) {
-  const planning = await appWorker(
-    "planning",
-    appArtifact(new URL("../../planning/", import.meta.url), "operational"),
-    "planning-installation",
-  );
+  const planning = planningFixture();
   const app = await appWorker(
     "wiki-map",
     appArtifact(new URL("..", import.meta.url), "operational"),
