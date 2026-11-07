@@ -11,4 +11,4 @@ export async function graphSchema({ check = false } = {}) {
   return (await Promise.all([writeSchemaTypes(graphqlSchema, tsconfig, { check }), writeAppDocuments(graphqlSchema, documents, tsconfig, { check })])).flat();
 }
 
-if (import.meta.main) exitIfStale(await graphSchema({ check: process.argv.includes("--check") }), "catalog/apps/creative-team/scripts/graph-schema.ts");
+if (import.meta.main) exitIfStale(await graphSchema({ check: process.argv.includes("--check") }), "apps/creative-team/scripts/graph-schema.ts");

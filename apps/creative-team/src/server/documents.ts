@@ -1,5 +1,5 @@
 import { withBatchDocuments } from "@ai-outfitter/app-sdk/batch-documents";
-import { defineDocuments } from "@ai-outfitter/app-sdk/app-documents";
+import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
 import { documentRunner } from "@ai-outfitter/app-sdk/app-graphql";
 import { graphql } from "../../graph/graphql";
 import { batchGroups } from "./batch-groups";
@@ -52,7 +52,20 @@ const pageDocuments = defineDocuments({
   },
 });
 
-export const documents = withBatchDocuments(pageDocuments, graphqlSchema, batchGroups);
+// What outside agents (the Outfitter connector) can read and change. Writes go
+// through the batch documents, so each change returns a receipt.
+export const documents = publishDocuments(withBatchDocuments(pageDocuments, graphqlSchema, batchGroups), {
+  BrandQuestions: { description: "Read the brand interview: every question, its section and hint, in order." },
+  BrandAnswers: { description: "Read the member's saved brand interview answers (the brand document)." },
+  Sources: { description: "Read content sources: the member's own posts per platform or the people who shaped their thinking, with pasted examples and notes." },
+  ContentProfiles: { description: "Read the content document's synthesis: core ideas, voice, worldview and replicable patterns." },
+  MapNodes: { description: "Read the content map: pillars, topics, ideas and angles, filterable by level or parent." },
+  Drafts: { description: "Read post drafts written from the content map, with format and status." },
+  BrandChanges: { description: "Save brand interview answers in the member's own words. Never write an answer the member did not give." },
+  ContentChanges: { description: "Add, change or delete content sources and save the voice, ideas and worldview synthesis." },
+  MapChanges: { description: "Add content map branches (pillars, topics, ideas, angles), change a node, or delete a branch." },
+  DraftChanges: { description: "Save, revise or delete post drafts. Drafts are never posted anywhere." },
+});
 
 /** Run one of these documents in process, as a page route does (documentRunner). */
 export const runDocument = documentRunner<CreativeContext>(() => graphqlSchema);
