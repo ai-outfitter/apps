@@ -17,6 +17,9 @@ scripts/              Shared tooling implementation and its tests
 action.yml            Reusable tooling Action
 ```
 
+See [public SDK distribution](docs/sdk-distribution.md) for the existing pinned
+workspace checkout, GitHub release archives, and release versus cutover gates.
+
 The official apps will use the same affected-app matrix and independent release
 components as external repositories. Adding them must not make tooling-only
 changes rebuild or deploy every app by default.

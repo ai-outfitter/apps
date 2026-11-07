@@ -420,6 +420,7 @@ test("graph explorer filters records and opens a direct neighborhood", async ({ 
     await page.locator("#graph").getByRole("link", { name: "Graph", exact: true }).click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/knowledge-graphs$/);
     await expect(page.getByRole("heading", { name: "Meze", exact: true })).toBeVisible();
+    await expect(page).toHaveTitle("Meze — Onto");
     await expect(sidebar.getByRole("list", { name: "Knowledge graphs for Meze", exact: true }).getByRole("link", { name: "Project context", exact: true })).toBeVisible();
     const sharedContext = sidebar.getByRole("list", { name: "Knowledge graphs for Meze", exact: true }).getByRole("link", { name: "Delivery context", exact: true });
     await expect(sharedContext).toBeVisible();
