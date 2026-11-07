@@ -10,7 +10,7 @@ export function resolveOnto(host: Host, binding?: { installationId: string }) {
 export function ontoClient(host: Host, provider: GraphProvider) {
   if (!provider.contracts.some(contract => contract.id === ontoContract.id && contract.version === ontoContract.version))
     throw new Response("Provider does not implement the Onto contract", { status: 409 });
-  return { provider, read: (input: Parameters<typeof readGraphProvider>[2]) => readGraphProvider(host, provider, input) };
+  return { provider, read: (input: Parameters<typeof readGraphProvider>[2]) => readGraphProvider(host, provider, input), documents: ontoDocumentsClient(host, provider) };
 }
 
 import { loadKnowledgeGraph, exploreKnowledgeGraph } from "@ai-outfitter/app-sdk/knowledge-graph";
@@ -266,4 +266,29 @@ export function selectWikiGraph(
   const nodeIds = new Set(selected.nodes.map(node => node.id)), edgeIds = new Set(selected.edges.map(edge => edge.id));
   return { ...selected, lens, missingTypes: definition.missingTypes,
     nodes: graph.nodes.filter(record => nodeIds.has(record.ref.id)), edges: graph.edges.filter(record => edgeIds.has(record.ref.id)) };
+}
+
+import { documentOperations, type DocumentOperation, type DocumentOperationInput, type DocumentOperationOutput } from "./contracts";
+export type OntoDocumentsClient = {
+  [Name in DocumentOperation]: (input: DocumentOperationInput<Name>) => Promise<DocumentOperationOutput<Name>>;
+};
+/** Product client bound to one trusted, explicitly selected Onto provider.
+ * Every call re-enters scoped actions dispatch; bindings and captures are never
+ * accepted from document callers, and failures never trigger automatic writes. */
+export function ontoDocumentsClient(host: Pick<Host, "call">, provider: GraphProvider): OntoDocumentsClient {
+  if (!provider.contracts.some(contract => contract.id === ontoContract.id && contract.version === ontoContract.version))
+    throw new Response("Provider does not implement the Onto contract", { status: 409 });
+  // Snapshot the address so caller mutation cannot silently retarget a client.
+  const installationId = z.string().min(1).parse(provider.installationId);
+  async function call<Name extends DocumentOperation>(name: Name, raw: DocumentOperationInput<Name>): Promise<DocumentOperationOutput<Name>> {
+    const operation = documentOperations[name];
+    const input = operation.input.parse(raw);
+    const result = await host.call("actions.call", { installationId, action: operation.action, input, readOnly: operation.readOnly, maxResponseBytes: 8 * 1024 * 1024 });
+    return operation.output.parse(result) as DocumentOperationOutput<Name>;
+  }
+  return {
+    define: input => call("define", input), create: input => call("create", input), live: input => call("live", input),
+    generate: input => call("generate", input), revision: input => call("revision", input), job: input => call("job", input),
+    retry: input => call("retry", input), seal: input => call("seal", input), policy: input => call("policy", input),
+  };
 }

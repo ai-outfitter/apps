@@ -396,3 +396,17 @@ test("Wiki restores only verified same-organization Planning source references a
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("an explicitly mapped local organization can bind its unique older snapshot slug",async()=>{
+  const directory=mkdtempSync(join(tmpdir(),"wiki-slug-binding-"));
+  const wiki=await appWorker("wiki-map",appArtifact(new URL("..",import.meta.url),"operational"),"slug-binding");
+  try {
+    mkdirSync(join(directory,"wiki-snapshots"));
+    const saved={...snapshot,graph:{...snapshot.graph,nodes:snapshot.graph.nodes.map(row=>row.id===uuid(1)?{...row,id:uuid(99)}:row),edges:snapshot.graph.edges.map(row=>row.fromId===uuid(1)?{...row,fromId:uuid(99)}:row)}};
+    const path=join(directory,"wiki-snapshots","alpha-local.json");const contents=JSON.stringify(saved);writeFileSync(path,contents);
+    await seedLocalInstallation({database:wiki.database,dataDirectory:directory,seed,organization:organizations[0]});
+    const graph=await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot",owner));
+    assert.equal(graph.nodes.find(row=>row.id===uuid(99))?.properties?.organization_id,"local-a");
+    assert.equal(readFileSync(path,"utf8"),contents);
+  }finally{await wiki.dispose();rmSync(directory,{recursive:true,force:true});}
+});

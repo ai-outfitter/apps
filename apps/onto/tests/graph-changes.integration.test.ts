@@ -620,3 +620,22 @@ test("source read sets detect newly inserted competing records before any mutati
     assert.equal((await f.get("graph-node", seeded.$keystone.id)).revision, 1);
   } finally { await f.app.dispose(); }
 });
+
+test("immutable type records cannot be edited by entity or graph changes", async () => {
+  const f = await fixture();
+  try {
+    const receipt = await json(await f.apply("immutable-create", [
+      create("$type", "graph-type", {category:"node",name:"ImmutableEvidence",title:"Immutable evidence",body:"Evidence",ontology:{version:2,immutable:true}}),
+      create("$record", "graph-node", {typeId:"$type",title:"Original"}),
+    ]));
+    const update = {operation:"update",ref:"$record",type:"graph-node",id:receipt.$record.id,revision:1,attributes:{title:"Changed"}};
+    assert.equal((await f.apply("immutable-update", [update])).status, 409);
+    assert.equal((await f.app.call(entityPath + "update", owner, {method:"POST",body:{type:"graph-node",id:receipt.$record.id,revision:1,attributes:{archived:true}}})).status, 409);
+    assert.equal((await f.apply("immutable-downgrade", [
+      {operation:"update",ref:"$type",type:"graph-type",id:receipt.$type.id,revision:1,attributes:{ontology:{version:2}}}, update,
+    ])).status, 409);
+    const record = await f.get("graph-node", receipt.$record.id);
+    assert.equal(record.attributes.title, "Original");
+    assert.equal(record.revision, 1);
+  } finally { await f.app.dispose(); }
+});

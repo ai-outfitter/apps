@@ -1,4 +1,3 @@
-import { evidenceList } from "@ai-outfitter/app-sdk/evidence";
 import {
   type AppActor,
   type AppIdentity,
@@ -24,7 +23,7 @@ import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } fr
 // history row. Policies decide what commits without a member: a confidence
 // threshold, a review window that seals the rest, or a first discovery run.
 
-import { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
+import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
 export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
 const operation = graphChangeInput.shape.operations.element;
 

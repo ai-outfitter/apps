@@ -22,21 +22,22 @@
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/onto": "0.1.0",
     "@ai-outfitter/server": "*",
     "@ai-outfitter/ui": "*",
     "@ai-outfitter/workflow-batch-review": "0.1.0",
+    "@ai-outfitter/workflow-document-generation": "0.1.0",
+    "@ai-outfitter/workflow-ontology-audit": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/react": "^7.0.0",
     "astro": "^7.3.5",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
+    "mdast-util-from-markdown": "2.1.0",
     "micromark": "4.0.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5",
-    "@ai-outfitter/workflow-ontology-audit": "0.1.0",
-    "@ai-outfitter/onto": "0.1.0",
-    "@ai-outfitter/workflow-document-generation": "0.1.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",
