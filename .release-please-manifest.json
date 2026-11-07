@@ -10,5 +10,7 @@
   "packages/ui": "0.1.4",
   "packages/workflow-core": "0.1.2",
   "packages/workflow-email-profile-onboarding": "0.1.2",
-  "packages/workflow-recurring-task": "0.1.2"
+  "packages/workflow-recurring-task": "0.1.2",
+  "packages/onto-contracts": "0.1.0",
+  "packages/onto": "0.1.0"
 }
