@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { appWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { core } from "../src/lib/graph";
@@ -8,6 +9,15 @@ import { create } from "./fixtures/relators";
 // The ontology steward reviews each submitted batch in a batch-review workflow
 // run and attaches advisory findings. The run is the audit trail; the batch's
 // policy decides exactly as it would without a review.
+test("operational review capture declares artifact authority while demo remains read-only", () => {
+  const operational = JSON.parse(readFileSync(appArtifact(new URL("..", import.meta.url), "operational"), "utf8"));
+  const demo = JSON.parse(readFileSync(appArtifact(new URL("..", import.meta.url), "demo"), "utf8"));
+  for (const capability of ["storage.artifacts.read", "storage.artifacts.write"]) {
+    assert.ok(operational.manifest.capabilities.includes(capability), `Review capture requires ${capability}`);
+    assert.ok(!demo.manifest.capabilities.includes(capability));
+  }
+});
+
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 // Forerunner calling the Wiki, as platform dispatch forwards it.
 const forerunner = { ...owner, actor: { kind: "app" as const, id: "forerunner" } };
@@ -36,7 +46,8 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
       calls.push({ operation, input: body });
       try {
         if (operation === "workflow.start") return { ok: true, value: { id: body.id, workflow: body.workflow, created: true } };
-        if (operation === "inference.generate") return { ok: true, value: { output: answer(body) } };
+        if (operation === "session.append") return { ok: true, value: { id: (body.entry as Json).id } };
+        if (operation === "inference.generate") return { ok: true, value: { output: await answer(body) } };
         if (operation === "workflow.collect") return { ok: true, value: { run: "complete", steps: { review: "complete" } } };
         return { ok: false, status: 400, message: `Unexpected ${operation}` };
       } catch (error) {
@@ -81,7 +92,7 @@ async function externalProjectBatch(f: Awaited<ReturnType<typeof fixture>>) {
   const policy = { kind: "confidence", threshold: 0.95, version: "test-1" };
   const { batch } = await json(await f.action("batch.open", { title: "Space research", source: { kind: "discovery-run", ref: "run-1" }, policy }, forerunner));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
-    { operation: node("$nasa", 10, core.organization, "NASA"), evidence: cite("nasa"), confidence: 0.99 },
+    { operation: node("$nasa", 10, core.organization, "NASA"), evidence: [{ provider: "gmail", recordId: "message-1", uri: "https://mail.google.com/mail/u/0/#all/message-1", quote: "NASA research" }, { provider: "platform-user", recordId: "owner" }], confidence: 0.99 },
     { operation: node("$veg", 11, core.project, "VEG-05"), evidence: cite("veg"), confidence: 0.97, reason: "A space crop experiment." },
     { operation: edge("$veg-nasa", 12, partOf, "$veg", "$nasa"), evidence: cite("veg"), confidence: 0.97 },
     { operation: node("$tomato", 13, core.technology, "Dwarf tomato cultivar"), evidence: cite("veg"), confidence: 0.6 },
@@ -125,6 +136,26 @@ test("a batch adding an external Project gets an error finding, and its policy c
   assert.equal(review.runId, started[0].input.id);
   const inference = f.calls.find((call) => call.operation === "inference.generate")!;
   assert.equal(inference.input.runId, review.runId);
+  assert.equal(inference.input.checkpointId, "review");
+  const checkpoint = f.calls.find((call) => call.operation === "session.append")!;
+  assert.equal(checkpoint.input.runId, review.runId);
+  assert.equal(checkpoint.input.entry.id, "review");
+  assert.equal(checkpoint.input.entry.step, "review");
+  assert.equal(checkpoint.input.entry.kind, "checkpoint");
+  assert.equal(checkpoint.input.entry.data.format, "outfitter-step-evidence-v1");
+  assert.deepEqual(checkpoint.input.entry.data.inputs, inference.input.data);
+  assert.equal(checkpoint.input.entry.data.complete, true);
+  assert.deepEqual(checkpoint.input.entry.data.sources.slice(0, 3), [
+    { kind: "app-record", installationId: f.app.installationId, recordType: "change-batch", recordId: batchId, label: "Onto batch" },
+    { kind: "connector", provider: "gmail", recordId: "message-1", url: "https://mail.google.com/mail/u/0/#all/message-1", operationRef: "$nasa" },
+    { kind: "platform", provider: "platform-user", recordId: "owner", operationRef: "$nasa" },
+  ]);
+  assert.deepEqual(inference.input.data.operations[0].evidence, [
+    { provider: "gmail", recordId: "message-1", uri: "https://mail.google.com/mail/u/0/#all/message-1", quote: "NASA research" },
+    { provider: "platform-user", recordId: "owner" },
+  ]);
+  assert.ok(f.calls.indexOf(checkpoint) < f.calls.indexOf(inference));
+  assert.ok(!checkpoint.input.entry.data.sources.some((source: Json) => source.kind === "workflow"));
   assert.match(inference.input.instructions, /## Review one batch/);
   assert.equal(inference.input.data.mode, "batch");
   assert.equal(inference.input.data.owner.title, "Artera");
@@ -194,6 +225,11 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.equal(again.batch.review.state, "complete");
   assert.notEqual(again.batch.review.runId, submitted.batch.review.runId);
   assert.equal(f.calls.filter((call) => call.operation === "workflow.start").length, 2);
+  const checkpoints = f.calls.filter((call) => call.operation === "session.append");
+  assert.equal(checkpoints.length, 2);
+  assert.equal(checkpoints[0].input.runId, submitted.batch.review.runId);
+  assert.equal(checkpoints[1].input.runId, again.batch.review.runId);
+  assert.notEqual(checkpoints[0].input.runId, checkpoints[1].input.runId);
   // Decisions are untouched by either review.
   assert.equal(again.counts.committed, 3);
   assert.equal(again.counts.awaiting_review, 1);
@@ -201,4 +237,26 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.equal((await f.app.call("/api/apps/wiki-map/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
   const open = await json(await f.action("batch.open", { title: "Still open" }));
   assert.equal((await f.page("steward-review", { method: "POST", body: { batchId: open.batch.id } })).status, 409);
+});
+
+
+test("a superseded review lease retains its checkpoint but cannot publish stale findings", async (t) => {
+  let f: Awaited<ReturnType<typeof fixture>>;
+  f = await fixture(async (input) => {
+    await f.app.database.prepare("UPDATE onto_review_jobs SET state = 'superseded', leaseId = NULL, leaseUntil = NULL WHERE batchId = ?")
+      .bind(input.data.batch.id).run();
+    return { summary: "Stale answer must not publish.", findings: [] };
+  });
+  t.after(() => f.app.dispose());
+  const batchId = await externalProjectBatch(f);
+  await json(await f.action("batch.submit", { batchId }, forerunner));
+  for (let i = 0; i < 100 && !f.calls.some((call) => call.operation === "workflow.collect"); i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(f.calls.some((call) => call.operation === "session.append"));
+  assert.ok(f.calls.some((call) => call.operation === "workflow.collect"));
+  const read = await json(await f.action("batch.get", { batchId }));
+  assert.equal(read.batch.review, null);
+  assert.equal(read.counts.committed, 3);
+  const job = await f.app.database.prepare("SELECT state FROM onto_review_jobs WHERE batchId = ?").bind(batchId).first();
+  assert.equal(job?.state, "superseded");
 });

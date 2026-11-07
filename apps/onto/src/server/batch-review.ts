@@ -6,6 +6,7 @@
 // is a new run. The review is advisory: it never approves, rejects, holds or
 // commits anything, and the batch's policy decides exactly as it would without it
 // (gating is a deferred governance control, docs/batch-review.md).
+import { type EvidenceItem, evidenceList } from "@ai-outfitter/app-sdk/evidence";
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { type WorkflowHost, workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq, lte, or, sql } from "drizzle-orm";
@@ -80,7 +81,7 @@ export type BatchReview = {
 };
 
 type Op = { ref: string; operation: string; type: string; id?: string; attributes: Record<string, unknown> };
-type Row = { ref: string; operation: Op; confidence: number | null; reason: string | null; state: string };
+type Row = { ref: string; operation: Op; confidence: number | null; reason: string | null; state: string; evidence?: EvidenceItem[] };
 
 /** Structural types the steward exempts from the owner and isolation checks. */
 const structural = new Set(["KnowledgeGraph", "GraphContextTemplate", "DecisionControlTemplate", "DecisionType", "MetricDefinition"]);
@@ -115,7 +116,7 @@ function reviewContext(graph: Graph, who: AppIdentity, batch: typeof graphBatche
       moreRelationships: Math.max(0, edges.length - edgesPerNeighbor),
     };
   });
-  const complete = rows.length <= operationLimit && touched.size <= neighborLimit;
+  const complete = rows.length <= operationLimit && touched.size <= neighborLimit && neighbors.every((node) => node.moreRelationships === 0);
   return {
     complete,
     data: {
@@ -177,7 +178,7 @@ function merge(checks: Finding[], model: Finding[]) {
 
 const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
   live(await loadOperations(db, batchId))
-    .map((row) => ({ ref: row.ref, operation: row.operation as unknown as Op, confidence: row.confidence, reason: row.reason, state: row.state }));
+    .map((row) => ({ ref: row.ref, operation: row.operation as unknown as Op, confidence: row.confidence, reason: row.reason, state: row.state, evidence: evidenceList.parse(row.evidence) }));
 
 /** Review a submitted batch and save the findings on it. Never throws: a review
  * that cannot run is recorded as failed, and the batch is unaffected either way. */
@@ -196,10 +197,24 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   try {
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId ?? crypto.randomUUID(), inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
+    // Capture the exact inputs, including retained citations; a discovery-run source
+    // is an app preview reference, never an inferred platform workflow link.
+    const inputs = JSON.parse(JSON.stringify({ ...data, checks, prompt }));
+    const sources = [
+      { kind: "app-record", installationId: who.installationId, recordType: "change-batch", recordId: batch.id, label: "Onto batch" },
+      ...rows.slice(0, operationLimit).flatMap((row) => (row.evidence ?? []).map((evidence) => ({
+        kind: ["platform-user", "operating-user", "platform"].includes(evidence.provider) ? "platform" : "connector",
+        provider: evidence.provider, recordId: evidence.recordId,
+        ...(evidence.uri ? { url: evidence.uri } : {}), operationRef: row.ref,
+      }))),
+    ];
+    await host.call("session.append", {
+      runId, entry: { id: reviewStep, parentId: null, kind: "checkpoint", step: reviewStep, at: new Date().toISOString(),
+        data: { format: "outfitter-step-evidence-v1", inputs, sources, complete } },
+    });
     const { output } = await host.call("inference.generate", {
-      runId, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
-      // Plain JSON: records, findings and the prompt digest.
-      data: JSON.parse(JSON.stringify({ ...data, checks, prompt })),
+      runId, step: reviewStep, checkpointId: reviewStep, instructions: stewardPrompt, schema: answerSchema,
+      data: inputs,
     });
     const answer = stewardAnswer.parse(output);
     // A finding about an operation the batch does not have is the model's mistake; keep it at batch level.

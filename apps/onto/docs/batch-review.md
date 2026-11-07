@@ -69,3 +69,25 @@ The proposed control:
   coverage and findings) instead of only the latest one.
 
 Until then `requireMemberReview` stays as it is: decisions come from a member or the member's own connection, never from the steward, an app or a resident.
+
+Each new review captures a creator-private `review` checkpoint before inference.
+Its `outfitter-step-evidence-v1` envelope contains the exact inference inputs,
+read completeness, the owning Onto change-batch reference, and per-operation
+artifact references copied from stored evidence. The model request names that
+checkpoint so the platform retains the exact prompt, schema, resolved model and
+result, including a failed attempt. A new review creates a new run and capture;
+it does not overwrite the previous run's evidence.
+
+These artifact references describe retained citations, not fresh connector
+execution or verified source claims. Platform-user citations are distinguished
+from external provider citations. A batch's `discovery-run` source is an app
+preview reference and is never interpreted as a platform workflow-run link.
+The existing session access boundary controls review exports; sharing a batch
+does not grant another member access to its creator's session. Review remains
+advisory and the existing policy, job leases and stale-result fences still apply.
+
+Operational review capture requires the app's explicit
+`storage.artifacts.read` and `storage.artifacts.write` capabilities. Existing
+installations must receive the updated operational manifest through their normal
+package update; missing authority fails capture rather than bypassing platform
+artifact checks. Demo mode grants neither capability.

@@ -25,6 +25,7 @@ test("review schedule requires editor identity and uses its reserved run", async
               ok: true,
               value: { id: value.id, workflow: value.workflow, created: true },
             };
+          if (operation === "session.append") return { ok: true, value: { id: "review" } };
           if (operation === "inference.generate")
             return {
               ok: true,

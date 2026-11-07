@@ -23,6 +23,8 @@
     "operational": {
       "capabilities": [
         "storage.buckets",
+        "storage.artifacts.read",
+        "storage.artifacts.write",
         "workflow.host",
         "invocations.schedule",
         "entities.publish",
