@@ -1,3 +1,4 @@
+import { secureId } from "./chat/secure-id";
 import { agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import { agentPageKey, navigatePart, navigatePartName } from "@ai-outfitter/app-sdk/agent-page";
 import { appLocation, openPage, pageHref, requestedPage } from "../agent-navigation";
@@ -457,8 +458,8 @@ export default function AppAgentSidebar({
     if (demo) {
       setEntries((current) => [
         ...current,
-        { id: crypto.randomUUID(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
-        { id: crypto.randomUUID(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
+        { id: secureId(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
+        { id: secureId(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
       ]);
       return;
     }
@@ -474,7 +475,7 @@ export default function AppAgentSidebar({
       remember(target.id);
       const attachments = await Promise.all(files.map((file) => threads.upload(target.id, file)));
       if (expected !== generation.current) return false;
-      return stream(target, { submissionId: crypto.randomUUID(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
+      return stream(target, { submissionId: secureId(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
     } catch (e) {
       if (expected === generation.current) setError(e instanceof Error ? e.message : "Send failed; your draft is preserved.");
       return false;

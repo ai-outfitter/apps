@@ -1,3 +1,4 @@
+import { secureId } from "./secure-id";
 import { useChat } from "@ai-sdk/react";
 import { defaultEffort, imageAttachments } from "@ai-outfitter/app-sdk/chat-input";
 import { type ThreadEntry, threadClient } from "@ai-outfitter/app-sdk/threads";
@@ -10,7 +11,7 @@ import Markdown from "../Markdown";
 /** The owner's default Chat, as the platform's `/api/default-apps/<mount>` answers it. */
 type ChatHost = { installationId: string; type: string; chatPath: string };
 type Selected = { id: string; messages: UIMessage[]; persisted: boolean };
-const fresh = (): Selected => ({ id: crypto.randomUUID(), messages: [], persisted: false });
+const fresh = (): Selected => ({ id: secureId(), messages: [], persisted: false });
 // The chat useChat holds until the saved conversation loads; it never sends.
 const PENDING = "pending";
 
@@ -132,7 +133,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
   const { messages, sendMessage, status, error, stop, regenerate } = useChat({
     id: selected?.id ?? PENDING,
     messages: selected?.messages ?? [],
-    generateId: () => crypto.randomUUID(),
+    generateId: () => secureId(),
     transport: new DefaultChatTransport({
       api: "/api/platform/threads",
       fetch: async (input, init) => {

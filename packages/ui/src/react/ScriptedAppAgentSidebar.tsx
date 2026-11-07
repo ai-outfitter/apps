@@ -1,3 +1,4 @@
+import { secureId } from "./chat/secure-id";
 import { agentPage, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -37,7 +38,7 @@ export default function ScriptedAppAgentSidebar({
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [error, setError] = useState("");
   const text = (role: AgentMessage["role"], value: string) => ({
-    id: crypto.randomUUID(),
+    id: secureId(),
     role,
     parts: [{ type: "text", text: value }],
   });
