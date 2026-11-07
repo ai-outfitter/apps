@@ -29,7 +29,6 @@ export async function describeOntoGraph(db: Database) {
       "batches",
       "documents",
       ontoSourceFenceCapability,
-      ontoDocumentsContract,
     ],
     types: types.map((type) => ({
       name: type.name,
