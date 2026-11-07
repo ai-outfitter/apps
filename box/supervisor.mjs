@@ -329,7 +329,6 @@ async function main() {
   const repo = await importRepository(adminAuth, env.BOX_REPO_NAME || "repo");
   const artifactsS3 = Object.fromEntries(Object.entries({ ...s3, ATTACHMENTS_S3_BUCKET: "artifacts" })
     .map(([name, value]) => [name.replace("ATTACHMENTS_", "ARTIFACTS_"), value]));
-  const forge = { REPOSITORY_FORGE: "forgejo", FORGEJO_URL: FORGEJO, FORGEJO_TOKEN: bot.token, FORGEJO_BOT_USER_ID: String(bot.botUserId) };
   // box-kube: workspaces as local runtime processes, with git and gh on Forgejo.
   writeFileSync(join(STATE, "kube-token"), "box");
   start("box-kube", "node", [join(HERE, "box-kube.mjs")], {
@@ -340,22 +339,27 @@ async function main() {
   const gatewayToken = secret("gateway");
   start("gateway", "node", [join(CHECKOUT, "workspace/gateway.mjs")], {
     WORKSPACE_GATEWAY_PORT: String(PORTS.gateway), WORKSPACE_DATABASE_URL: `file:${join(STATE, "workspaces.db")}`, KUBERNETES_API_URL: `http://127.0.0.1:${PORTS.kube}`, KUBERNETES_TOKEN_FILE: join(STATE, "kube-token"),
-    WORKSPACE_RUNTIME_ORIGIN: `http://127.0.0.1:${PORTS.kube}/runtime/{namespace}/{id}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...forge, ...(env.BOX_DEBUG_HOST ? { WORKSPACE_DEBUG_ERRORS: "1" } : {}),
+    WORKSPACE_RUNTIME_ORIGIN: `http://127.0.0.1:${PORTS.kube}/runtime/{namespace}/{id}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...(env.BOX_DEBUG_HOST ? { WORKSPACE_DEBUG_ERRORS: "1" } : {}),
+    // The one forge this gateway serves: the platform names each task's, and the two must agree.
+    WORKSPACE_FORGEJO_ORIGIN: FORGEJO,
     // The platform names the box organization's app installation deterministically (scripts/local-dev).
     WORKSPACE_REVIEWERS: JSON.stringify([{ id: "reviewer", login: "reviewer", token: bot.reviewerToken,
       organizationId: `local-${BOX_ORGANIZATION}`, installationId: `local-${BOX_ORGANIZATION}-${APP}` }]),
   }, { modelSettings: true });
   // The platform, serving the box app for inspection: the box organization
-  // with the app installed and a Forgejo-backed repository connection.
-  const owner = await (await fetch(`${FORGEJO}/api/v1/orgs/${OWNER}`, { headers: { Authorization: adminAuth } })).json();
+  // with the app installed and its Forgejo connection preset (the bot's token,
+  // the box repository), as an admin would connect it in organization settings.
   // A driver whose app calls a model from the platform itself (Workshop's
   // design agent) has the platform receive the model settings too.
   const platformModel = driver.platformModel ? Object.fromEntries(Object.entries(env).filter(([name]) => MODEL_SETTINGS.test(name))) : {};
   start("platform", "node", ["--import", "tsx", join(CHECKOUT, "scripts/local-dev/box-platform.ts")], {
     BOX_CHECKOUT: CHECKOUT, BOX_STATE: STATE, BOX_INSPECT_PORT: String(PORTS.webapp), BOX_REPOSITORY: repo.repository,
-    BOX_FORGEJO_OWNER_ID: String(owner.id), BOX_APPS: APP, BOX_TITLE: driver.title ?? `${APP} box`,
+    BOX_FORGEJO_URL: FORGEJO, BOX_FORGEJO_BOT_ID: String(bot.botUserId), BOX_FORGEJO_BOT_LOGIN: BOT, BOX_FORGEJO_TOKEN: bot.token,
+    BOX_APPS: APP, BOX_TITLE: driver.title ?? `${APP} box`,
     BOX_PLATFORM_ENV: JSON.stringify({
-      WORKSPACE_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...forge, ...s3, ...artifactsS3,
+      WORKSPACE_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken,
+      // The operator approves the box's own Forgejo, on this machine, for organization connections.
+      FORGEJO_ALLOWED_ORIGINS: FORGEJO, ...s3, ...artifactsS3,
       ...platformModel, ...(env.BOX_DEBUG_HOST ? { BOX_DEBUG_HOST: "1" } : {}),
     }),
   });

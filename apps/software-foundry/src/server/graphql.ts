@@ -35,14 +35,15 @@ const work = tableType(workSubmissions, {
     return readable?.length ? inArray(sql`lower(${workSubmissions.repository})`, readable) : undefined;
   },
 });
-// Those repositories are the ones work.get admits: in exactly one of the caller's GitHub
+// Those repositories are the ones work.get admits: in exactly one of the caller's GitHub or Forgejo
 // connections (lower case in the snapshot). They are looked up once per request, and only
 // when work is read.
 const resolveWork = work.work.resolve as GraphQLFieldResolver<unknown, TableContext>;
 work.work.resolve = async (source, args, context, info) => {
   const caller = context as Caller;
   caller.repositories ??= caller.host().call("snapshot", {}).then(({ connections }) => {
-    const names = connections.filter((connection) => connection.provider === "github").flatMap((connection) => connection.repositories);
+    const names = connections.filter((connection) => ["github", "forgejo"].includes(connection.provider))
+      .flatMap((connection) => connection.repositories.map((name) => name.toLowerCase()));
     return names.filter((name) => names.indexOf(name) === names.lastIndexOf(name));
   });
   caller.readable = await caller.repositories;

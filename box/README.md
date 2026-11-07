@@ -89,7 +89,7 @@ The harness is copied to `/app/.box/box` and the app to
    access token;
 3. creates the `box` organization and `box/<name>` repository and pushes every
    branch and tag of `/in/repo` into it (the mount is never changed);
-4. starts box-kube, the gateway (`REPOSITORY_FORGE=forgejo`) and the platform
+4. starts box-kube, the gateway (`WORKSPACE_FORGEJO_ORIGIN`) and the platform
    (the webapp's `scripts/local-dev/box-platform.ts`, with `BOX_APPS` set to
    the driver's app) on the inspection port (`8787`);
 5. calls the driver's `run(box)`, ticks workflows every few seconds, and
@@ -114,13 +114,20 @@ The production Node build cannot dispatch apps, so the webapp's
 `dev-local` uses) with one `box` organization that has the box app installed. Sign in at
 `http://outfitter.localhost:8787` as `local@example.test` / `local-orgs-only`.
 
-The organization's repository connection is a `github` provider connection with
-`config.forge: "forgejo"`. With `REPOSITORY_FORGE=forgejo`, the platform answers
-its repository list, metadata and issue reads, `issues.create` and
-`issues.comment`, subscription coverage and binding approval from Forgejo with
-the bot (`src/lib/box-forgejo-connections.ts`). The gateway checks a workspace's
-repository on Forgejo instead of GitHub, and workspaces push with git and use a
-`gh`-compatible shim (`workspace/runtime/forgejo-cli.mjs`) against it.
+The organization's repository connection is a real Forgejo connection
+(provider `forgejo`), preset at startup as an admin would connect it in
+organization settings: the box's Forgejo origin, the `outfitter` bot's id and
+encrypted token, and the box repository. The supervisor, as the operator, lists
+that origin in `FORGEJO_ALLOWED_ORIGINS`, the only way an origin on this machine
+(`http://127.0.0.1:3300`) is accepted. Software Foundry declares
+`connector.forgejo.issues.*`, so the platform answers its repository list,
+metadata and issue reads, `issues.create` and `issues.comment`, subscription
+coverage and binding approval from that connection
+(`src/lib/forgejo-authority.ts` in the webapp), and binds workspaces to the
+repository with its bot. The gateway serves the Forgejo named by
+`WORKSPACE_FORGEJO_ORIGIN` and refuses a task for any other forge; workspaces
+push with git and use a `gh`-compatible shim
+(`workspace/runtime/forgejo-cli.mjs`) against it.
 
 ## Software Foundry: requests, results and releases
 

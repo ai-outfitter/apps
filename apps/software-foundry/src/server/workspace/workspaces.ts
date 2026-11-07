@@ -112,12 +112,17 @@ export function roleTarget(repository: string, resource: string, settings: z.inp
   };
 }
 
-/** The acting user’s GitHub connection and the repository’s immutable ID. */
+/** Forges Foundry works on: GitHub, and an organization's Forgejo connection. */
+const forges = new Set(["github", "forgejo"]);
+
+/** The repository's one connection (the acting user's GitHub, the
+ * organization's GitHub App or its Forgejo) and its immutable ID. */
 async function approvedRepository(host: Editor, snapshot: Snapshot, repository: string) {
   const name = repository.toLowerCase();
-  const matched = snapshot.connections.filter((connection) => connection.provider === "github" && connection.repositories.includes(name));
+  const matched = snapshot.connections.filter((connection) => forges.has(connection.provider) &&
+    connection.repositories.some((listed) => listed.toLowerCase() === name));
   if (matched.length !== 1)
-    throw new Response("Repository unavailable through your GitHub account or this organization's GitHub App connection", { status: 409 });
+    throw new Response("Repository unavailable through your GitHub account or this organization's GitHub App or Forgejo connection", { status: 409 });
   const metadata = z.object({ id: z.number().int().positive(), full_name: z.string() })
     .parse(await host.call("repository.request", { connectionId: matched[0].id, path: `/repos/${name}` }));
   return { connection: matched[0], metadata };
