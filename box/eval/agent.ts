@@ -186,8 +186,8 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
 
 /** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
  * (or the ones named on the command line) through the box, graded by its EVAL.ts.
- * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port)
- * and BOX_MODEL_ENV (an env file with the model settings, box/README.md, "Models"). */
+ * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port),
+ * BOX_TIMEOUT (seconds per run) and BOX_MODEL_ENV (an env file with the model settings, box/README.md, "Models"). */
 export async function runBoxEvals(project: string, box: { name: string; displayName: string; image: string }, app: BoxApp) {
   const env = process.env;
   const port = Number(env.BOX_PORT || 8787);
@@ -195,7 +195,9 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
   // One model: the box routes every call to the model its env file names.
-  const config = { ...resolved, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
+  // BOX_TIMEOUT (seconds) overrides the experiment's timeout: a slower local model needs longer.
+  const timeout = Number(env.BOX_TIMEOUT) > 0 ? Number(env.BOX_TIMEOUT) : resolved.timeout;
+  const config = { ...resolved, timeout, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
   const { fixtures, errors } = loadAllFixtures(join(project, "evals"));
   for (const error of errors) console.error(error.message);
   const selected = process.argv.slice(2);

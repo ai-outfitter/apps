@@ -45,7 +45,7 @@ test("node results are each node's newest report for the run", () => {
 });
 
 test("node steps time every attempt and count its model calls", () => {
-  const calls = [{ input: 900, output: 120 }, { input: 1100, output: 80 }];
+  const calls = [{ input: 100, cacheRead: 700, cacheWrite: 100, output: 120 }, { input: 1100, cacheRead: null, output: 80 }];
   const snapshots = [
     { prompt: `Workflow ${runId}, node review`, startedAt: 70_000, finishedAt: 90_000, status: "completed", stages: [{ session: { usage: { calls: [calls[1]] } } }] },
     { prompt: `Workflow ${runId}, node implement`, startedAt: 10_000, finishedAt: 60_000, status: "completed", stages: [{ session: { usage: { calls: [calls[0]] } } }, {}] },

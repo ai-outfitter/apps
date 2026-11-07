@@ -34,7 +34,10 @@ export function nodeSteps(snapshots, runId) {
   return [...snapshots].sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0)).flatMap((snapshot) => {
     const match = /^Workflow ([a-f0-9-]{36}), node ([a-z0-9-]+)$/.exec(snapshot.prompt ?? "");
     if (match?.[1] !== runId) return [];
-    const calls = (snapshot.stages ?? []).flatMap((stage) => stage.session?.usage?.calls ?? []);
+    // Pi counts cached prompt tokens apart from `input`; the prompt is all three.
+    const calls = (snapshot.stages ?? []).flatMap((stage) => stage.session?.usage?.calls ?? []).map((call) => ({
+      input: Number.isFinite(call.input) ? call.input + (call.cacheRead ?? 0) + (call.cacheWrite ?? 0) : null,
+      output: call.output ?? null }));
     return [stepMetrics({ name: match[2], status: snapshot.status, startedAt: snapshot.startedAt, finishedAt: snapshot.finishedAt, calls })];
   });
 }

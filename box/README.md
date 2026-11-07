@@ -156,6 +156,12 @@ watching, and grades the default branch the box left with the fixture's
 BOX_CLI=podman BOX_MODEL_ENV=model.env node --import tsx apps/software-foundry/box/evals/run.ts subtract-helper
 ```
 
+`BOX_TIMEOUT` sets each run's limit in seconds (the experiment's default is
+1800). A Foundry run on the DGX Spark takes longer than on Luna; give it 4800.
+Each run's time and model use (wall and model seconds, model calls, tokens in
+and out, output tokens per second) is printed after the results and saved in
+`results/<box>-metrics-<time>.json`, so runs on different models can be compared.
+
 ## Models
 
 Only the gateway, which proxies every workspace's inference, receives model
