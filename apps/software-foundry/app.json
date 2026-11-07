@@ -1,6 +1,6 @@
 {
   "id": "outfitter/software-foundry",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
