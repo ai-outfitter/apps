@@ -1,6 +1,7 @@
 import {
   ontoSourceFenceContract,
   ontoSourceFenceCapability,
+  ontoSourceNeighborhoodCapability,
   ontoDocumentsContract,
 } from "@ai-outfitter/onto/contracts";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
@@ -29,6 +30,7 @@ export async function describeOntoGraph(db: Database) {
       "batches",
       "documents",
       ontoSourceFenceCapability,
+      ontoSourceNeighborhoodCapability,
     ],
     types: types.map((type) => ({
       name: type.name,

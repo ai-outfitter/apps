@@ -28,7 +28,7 @@ export function createSourceFenceActions(context: {
   return {
     "source.define": defineAction({
       description:
-        "Review an immutable whole-owner type-membership source definition as owner/admin.",
+        "Review an immutable type-membership or direct-neighborhood source definition as owner/admin.",
       access: "write",
       input: defineSourceFenceInput,
       output: z.json(),

@@ -479,8 +479,16 @@ export async function checkGraphChanges(db: Database, who: AppIdentity, input: I
 
 function validateReadSets(graph: Graph, readSets: NonNullable<Input["readSets"]>) {
   for (const expected of readSets) {
-    const current = records(graph)[expected.type].filter(row => row.typeId === expected.typeId && (expected.includeArchived || !row.archived))
-      .map(row => ({ id: row.id, revision: row.revision })).sort((a, b) => a.id.localeCompare(b.id));
+    const current = records(graph)[expected.type]
+      .filter(row => {
+        if (row.typeId !== expected.typeId || (!expected.includeArchived && row.archived)) return false;
+        if (!expected.endpoint) return true;
+        if (!("fromId" in row) || !("toId" in row)) return false;
+        const endpoint = expected.endpoint.direction === "outgoing" ? row.fromId : row.toId;
+        return endpoint === expected.endpoint.nodeId;
+      })
+      .map(row => ({ id: row.id, revision: row.revision }))
+      .sort((a, b) => a.id.localeCompare(b.id));
     const saved = [...expected.records].sort((a, b) => a.id.localeCompare(b.id));
     if (canonical(current) !== canonical(saved)) fail("Graph source membership changed; refresh the source revisions", 409);
   }

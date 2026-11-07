@@ -17,7 +17,7 @@ needs separate output, identity, history and query/gate parity acceptance.
 ## Reviewed selection and capture
 
 An owner/admin calls `source.define` with a new immutable definition version.
-The only selection is `whole-owner-type-membership-v1`: explicit node/edge type
+The baseline selection is `whole-owner-type-membership-v1`: explicit node/edge type
 IDs and explicit archival flags, plus optional additional record addresses.
 Whole owner means the authenticated installation's personal **or** organization
 owner. No slug selects or widens the owner. Protocol marker types cannot be
@@ -86,3 +86,35 @@ source receipt before declaring their transition complete. Definitions, proofs
 and transition rows are server-private installation tables in migration
 `0015_source_fences`; portable graph imports do not populate them. The existing
 baseline stays unchanged and fresh/legacy installations apply this tail normally.
+
+## Direct-link neighborhoods (draft increment)
+
+A provider advertising `source.fence.direct-neighborhood.v1` additionally supports
+`direct-neighborhood-v1` definitions. Resolve it explicitly with
+`resolveOntoSourceFence(host, { installationId }, "direct-neighborhood-v1")`.
+An owner/admin fixes the root graph-node ID and up to 32 relationship type IDs,
+directions (`outgoing`/`incoming`) and archival flags. Capture callers supply no
+root override, query, endpoint list or completeness assertion.
+
+The server retains the root, every selected edge and every opposite endpoint,
+including archived endpoints, with endpoint/root revisions and type metadata.
+There is no endpoint type filter or traversal: changing an endpoint's type or
+content invalidates its revision precondition. Each complete scoped edge set,
+including empty sets, is recorded with its exact endpoint predicate. Issuance
+and fence use those predicates in the source's atomic `graph.apply` operation;
+new, removed, archived or retargeted links invalidate the proof. Unrelated links
+under another root do not invalidate a previously issued proof. Roots must be
+present, active ordinary nodes; protocol proof/seal nodes cannot be evidence.
+The existing 2,000-per-set, 100-total-precondition and 512-KiB limits apply;
+endpoint fanout exceeding those limits refuses capture.
+
+A root is a selection anchor, **not organization authority**. Installation owner
+and editor authorization are still checked independently. This primitive proves
+only a direct neighborhood, not domain organization binding, transitive scope,
+JSON-property predicates, reviewed GraphQL equivalence, measurement calculations
+or report output parity. In particular, Planning's multi-hop product query and
+Governance's `part_of`/`scoped_to`, commitment and obligation rules still need
+separate reviewed public contracts and conformance fixtures. Neither report is
+migrated. Capture reads remain bounded; the legacy `graph.apply` writer still
+materializes and validates the whole owner graph, so this is not an end-to-end
+bounded transaction claim.

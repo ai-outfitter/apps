@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphReadSetEndpoint } from "@ai-outfitter/onto-contracts";
 
 /** Independent, opt-in Onto capability; ordinary graph providers do not promise fences. */
 export const ontoSourceFenceContract = {
@@ -6,6 +7,8 @@ export const ontoSourceFenceContract = {
   version: 1,
 } as const;
 export const ontoSourceFenceCapability = "source.fence.type-membership.v1";
+export const ontoSourceNeighborhoodCapability =
+  "source.fence.direct-neighborhood.v1";
 const id = z.string().min(1).max(128),
   revision = z.number().int().positive(),
   digest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -26,34 +29,58 @@ export const sourceFenceSubject = z.strictObject({
   revision,
   digest,
 });
+const evidenceRecords = z
+  .array(
+    z.strictObject({
+      type: z.enum(["graph-node", "graph-edge"]),
+      id: z.uuid(),
+    }),
+  )
+  .max(64)
+  .default([]);
 export const sourceFenceDefinition = z
-  .strictObject({
-    version: z.literal(1),
-    selection: z.literal("whole-owner-type-membership-v1"),
-    sets: z
-      .array(
-        z.strictObject({
-          type: z.enum(["graph-node", "graph-edge"]),
-          typeId: z.uuid(),
-          includeArchived: z.boolean(),
-        }),
-      )
-      .min(1)
-      .max(32),
-    records: z
-      .array(
-        z.strictObject({
-          type: z.enum(["graph-node", "graph-edge"]),
-          id: z.uuid(),
-        }),
-      )
-      .max(64)
-      .default([]),
-  })
+  .discriminatedUnion("selection", [
+    z.strictObject({
+      version: z.literal(1),
+      selection: z.literal("whole-owner-type-membership-v1"),
+      sets: z
+        .array(
+          z.strictObject({
+            type: z.enum(["graph-node", "graph-edge"]),
+            typeId: z.uuid(),
+            includeArchived: z.boolean(),
+          }),
+        )
+        .min(1)
+        .max(32),
+      records: evidenceRecords,
+    }),
+    z.strictObject({
+      version: z.literal(1),
+      selection: z.literal("direct-neighborhood-v1"),
+      rootId: z.uuid(),
+      sets: z
+        .array(
+          z.strictObject({
+            type: z.literal("graph-edge"),
+            typeId: z.uuid(),
+            includeArchived: z.boolean(),
+            direction: z.enum(["outgoing", "incoming"]),
+          }),
+        )
+        .min(1)
+        .max(32),
+      records: evidenceRecords,
+    }),
+  ])
   .refine(
     (value) =>
-      new Set(value.sets.map((set) => `${set.type}:${set.typeId}`)).size ===
-      value.sets.length,
+      new Set(
+        value.sets.map(
+          (set) =>
+            `${set.type}:${set.typeId}:${"direction" in set ? set.direction : ""}`,
+        ),
+      ).size === value.sets.length,
     "Duplicate membership sets",
   );
 export const defineSourceFenceInput = z.strictObject({
@@ -81,7 +108,7 @@ export const sourceFenceProof = z.strictObject({
     definitionId: id,
     definitionVersion: revision,
     definitionDigest: digest,
-    kind: z.literal("whole-owner-type-membership-v1"),
+    kind: z.enum(["whole-owner-type-membership-v1", "direct-neighborhood-v1"]),
   }),
   subject: sourceFenceSubject,
   issuedAt: z.number().int(),
@@ -97,6 +124,7 @@ export const sourceFenceProof = z.strictObject({
         type: z.enum(["graph-node", "graph-edge"]),
         typeId: z.uuid(),
         includeArchived: z.boolean(),
+        endpoint: graphReadSetEndpoint.optional(),
         records: z.array(z.strictObject({ id: z.uuid(), revision })).max(2000),
       }),
     )

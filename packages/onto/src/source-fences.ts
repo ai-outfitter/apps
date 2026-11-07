@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   ontoSourceFenceContract,
   ontoSourceFenceCapability,
+  ontoSourceNeighborhoodCapability,
   captureSourceFenceInput,
   defineSourceFenceInput,
   sourceFenceInput,
@@ -16,6 +17,9 @@ export * from "./source-fence-contracts";
 export async function resolveOntoSourceFence(
   host: WorkflowHost<"interactive">,
   binding: { installationId: string },
+  selection:
+    | "whole-owner-type-membership-v1"
+    | "direct-neighborhood-v1" = "whole-owner-type-membership-v1",
 ) {
   const bound = z
     .strictObject({ installationId: z.string().min(1).max(128) })
@@ -24,7 +28,11 @@ export async function resolveOntoSourceFence(
     host,
     {
       contract: ontoSourceFenceContract,
-      capabilities: [ontoSourceFenceCapability],
+      capabilities: [
+        selection === "direct-neighborhood-v1"
+          ? ontoSourceNeighborhoodCapability
+          : ontoSourceFenceCapability,
+      ],
     },
     bound,
   );
@@ -45,11 +53,17 @@ export async function resolveOntoSourceFence(
     });
   return {
     provider: target,
-    define: (input: Omit<z.input<typeof defineSourceFenceInput>, "provider">) =>
-      call(
-        "source.define",
-        defineSourceFenceInput.parse({ ...input, provider: target }),
-      ),
+    define: (
+      input: Omit<z.input<typeof defineSourceFenceInput>, "provider">,
+    ) =>
+      input.definition.selection !== selection
+        ? Promise.reject(
+            new Response("Selection capability differs", { status: 409 }),
+          )
+        : call(
+            "source.define",
+            defineSourceFenceInput.parse({ ...input, provider: target }),
+          ),
     capture: async (
       input: Omit<z.input<typeof captureSourceFenceInput>, "provider">,
     ) => {
@@ -65,6 +79,7 @@ export async function resolveOntoSourceFence(
         await call("source.capture", request),
       );
       if (
+        proof.selection.kind !== selection ||
         proof.provider.installationId !== target.installationId ||
         proof.selection.definitionId !== request.definitionId ||
         proof.selection.definitionVersion !== request.definitionVersion ||
