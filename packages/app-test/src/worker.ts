@@ -9,13 +9,13 @@ import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Miniflare, Response as MiniflareResponse } from "miniflare";
 import { type AppActor, encodeActor, identityHeaders, identityHeaderValues } from "@ai-outfitter/app-sdk/server";
-import { type AppMigration, migrateAppDatabase } from "@ai-outfitter/app-sdk/migrations";
+import { type AppMigration, type AppMigrationBaseline, migrateAppDatabase } from "@ai-outfitter/app-sdk/migrations";
 import { type StorageManifest, storageBinding } from "@ai-outfitter/app-sdk/storage";
 import { platformIdentityResponse } from "./platform-identity";
 import type { WorkflowHostScope, WorkflowHostStub } from "@ai-outfitter/app-sdk/workflow-host";
 
 type Package = {
-  manifest: { database?: { migrations: AppMigration[] }; storage?: StorageManifest };
+  manifest: { database?: { migrations: AppMigration[]; baselines?: AppMigrationBaseline[] }; storage?: StorageManifest };
   artifact: {
     mainModule: string;
     compatibilityDate: string;
@@ -147,6 +147,7 @@ export async function appWorker(slug: string, packagePath: string | URL, install
         },
       },
       pack.manifest.database?.migrations ?? [],
+      pack.manifest.database?.baselines ?? [],
     );
     const origin = `https://${slug}.alpha.localhost`;
     /** A request as platform dispatch sends it; `props` carries a workflow host scope. */

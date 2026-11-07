@@ -12,3 +12,12 @@ package solely to preserve its legacy Wiki exports without duplicating schemas.
 The Onto client depends on app-sdk for entity references, authorization-scoped
 host calls, generic discovery, and graph transport. Batch runtime authorization,
 persistence and review execution remain app-owned.
+
+Portable document definitions and operation contracts are exported from
+`documents.ts`. The definition outer schema accepts bounded provider-owned JSON
+configuration; concrete source adapters must further validate supported source
+kinds. Public contracts do not import the SDK graph query schema or platform
+hosts. `documentOperations` defines the nine authorized action names, read
+intent, input schemas and receipt schemas used by the product client. Retained
+captures and seals describe evidence/integrity; policy receipts do not grant
+access and seals do not claim approval.

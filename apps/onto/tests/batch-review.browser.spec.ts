@@ -1,6 +1,6 @@
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { expect, test } from "@playwright/test";
 import { core } from "../src/lib/graph";
 
@@ -38,7 +38,7 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
     const organization = types.find((type: Json) => type.id === core.organization);
     await action("graph.apply", { requestKey: "bind", operations: [
       { operation: "update", ref: "$org-type", type: "graph-type", id: core.organization, revision: organization.revision,
-        attributes: { properties: [...organization.properties, { name: "organization_id", type: "string", description: "Platform organization", required: false }] } },
+        attributes: { properties: [...organization.properties.filter((p: {name:string}) => p.name !== "organization_id"), { name: "organization_id", type: "string", description: "Platform organization", required: false }] } },
       node("$artera", 1, core.organization, "Artera", { properties: { organization_id: "org" } }),
     ] });
     const { batch } = await action("batch.open", { title: "Space crop research", source: { kind: "discovery-run", ref: "browser" },

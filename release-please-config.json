@@ -66,6 +66,10 @@
     "packages/onto": {
       "release-type": "node",
       "component": "onto"
+    },
+    "packages/connector-github": {
+      "release-type": "node",
+      "component": "connector-github"
     }
   }
 }

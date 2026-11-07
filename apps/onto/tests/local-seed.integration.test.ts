@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { drizzle } from "drizzle-orm/d1";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { loadPersonalSeed } from "../scripts/personal-seed";
 import { core } from "../src/lib/graph";
 import { readGraph } from "../src/server/graph";
@@ -32,10 +32,11 @@ test("local seeds import more than one relationship batch without duplicating on
       title: `Entity ${index}`,
       slug: `batch-entity-${index}`,
     }));
+    const relationshipId = randomUUID();
     const edges = nodes.slice(0, 3).flatMap((from) =>
       nodes.slice(3, 70).map((to) => ({
         id: randomUUID(),
-        typeId: core.uses,
+        typeId: relationshipId,
         fromId: from.id,
         toId: to.id,
         properties: {},
@@ -60,7 +61,7 @@ test("local seeds import more than one relationship batch without duplicating on
         format: "outfitter-graph-entities-v1",
         nodes,
         edges,
-        types: [customType],
+        types: [customType, {id: relationshipId,category: "edge",name: "BulkFixtureRelationship",title: "Bulk fixture relationship",body: "Uncontracted synthetic relationship for pagination coverage.",properties: []}],
       }),
     );
     const host = {

@@ -704,6 +704,209 @@
     }
   },
   {
+    "name": "CreateDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to create a document from a definition, so that I can generate revisions.",
+    "query": "mutation CreateDocument($input: JSON!) {\n  createDocument(input: $input)\n}",
+    "hash": "b7fbe991093f05f5155af017a005da2f29e47e5787376ea231592e5b66378e59",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Create a document from a definition."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createDocument": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "DefineDocument",
+    "kind": "mutation",
+    "story": "As an owner, I want to define trusted document sources, so that generated revisions use authorized bindings.",
+    "query": "mutation DefineDocument($input: JSON!) {\n  defineDocument(input: $input)\n}",
+    "hash": "33775a0c6d96e8113f4fea5ad55698324f12c17063afd9e7e70088b3eb88c2fe",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Define trusted document sources as an owner or admin."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "defineDocument": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "DocumentJob",
+    "kind": "query",
+    "story": "As an editor, I want to inspect generation status, so that I can see errors and supersession.",
+    "query": "query DocumentJob($input: JSON!) {\n  documentJob(input: $input)\n}",
+    "hash": "065a6ce20a56602d856d945749f0bea56381fa23591d34a15383b6d20e8dd1c3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Inspect generation status and failure."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documentJob": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "DocumentLive",
+    "kind": "query",
+    "story": "As an agent, I want to read current document sources, so that I can assess live evidence and completeness.",
+    "query": "query DocumentLive($input: JSON!) {\n  documentLive(input: $input)\n}",
+    "hash": "c8012061472878f3e7843ccdfa6469d049c61aa6364c60e64a2bbdee0230a8e3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read live document sources and completeness."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documentLive": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "DocumentPolicy",
+    "kind": "query",
+    "story": "As an agent, I want to evaluate a revision policy, so that I can determine whether an action is allowed.",
+    "query": "query DocumentPolicy($input: JSON!) {\n  documentPolicy(input: $input)\n}",
+    "hash": "294a664bd5a7ea5fceb2fd685aae530edc279bbdee2c68a8326cb3496a65ea73",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Evaluate exact-revision policy for an action."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documentPolicy": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "DocumentRevision",
+    "kind": "query",
+    "story": "As an agent, I want to read a generated document revision, so that I can inspect its captured evidence.",
+    "query": "query DocumentRevision($input: JSON!) {\n  documentRevision(input: $input)\n}",
+    "hash": "1165ae7ddd53b56334e02b4303092531757c54d35ba78742348449861738d9c6",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a generated revision and captured evidence."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documentRevision": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "GenerateDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to queue document generation, so that a scheduled worker captures evidence.",
+    "query": "mutation GenerateDocument($input: JSON!) {\n  generateDocument(input: $input)\n}",
+    "hash": "12168091d05b267f7ed2ba1f02f5c7edb88abf8fbbfef377bbdf4abafa61427f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Queue document generation."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateDocument": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
@@ -721,6 +924,64 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "RetryDocument",
+    "kind": "mutation",
+    "story": "As an owner, I want to retry a failed generation, so that a transient source failure can be recovered.",
+    "query": "mutation RetryDocument($input: JSON!) {\n  retryDocument(input: $input)\n}",
+    "hash": "31eeb23c03b8e2f8f497475816624fefa60c163179d276a8557cd8dcf18de2a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Retry a failed current generation as an owner or admin."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "retryDocument": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "SealDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to seal a current revision, so that its captured evidence is recorded without implying approval.",
+    "query": "mutation SealDocument($input: JSON!) {\n  sealDocument(input: $input)\n}",
+    "hash": "bcf8769c260b5c5fae18ac1ad6565ae507824fdec8647f7226a234d9f1829dc8",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Seal a revision without granting approval."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "sealDocument": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "StageChanges",

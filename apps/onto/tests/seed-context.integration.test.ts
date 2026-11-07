@@ -35,7 +35,7 @@ test("fresh installations expose the shared type pages to readers and agents", a
       records.push(...page);
       if (page.length < 100) break;
     }
-    assert.ok(records.some((record) => record.ref.id === "71000000-0000-4000-8000-000000000008" && record.attributes.archived), "the migration retains the archived type for provenance");
+    assert.ok(!records.some((record) => record.ref.id === "71000000-0000-4000-8000-000000000008"), "fresh JSON initialization omits retired legacy definitions");
     assert.deepEqual(records.filter((record) => !record.attributes.archived).map((record) => record.ref.id).sort(), defaultTypes.map((type) => type.id).sort());
     for (const name of [
       "Entity",

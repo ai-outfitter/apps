@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { core } from "../src/lib/graph";
 import { create } from "./fixtures/relators";
@@ -55,7 +55,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
     const organization = types.find((type: Json) => type.id === core.organization);
     await json(await action("graph.apply", { requestKey: "bind", operations: [
       { operation: "update", ref: "$org-type", type: "graph-type", id: core.organization, revision: organization.revision,
-        attributes: { properties: [...organization.properties, { name: "organization_id", type: "string", description: "Platform organization", required: false }] } },
+        attributes: { properties: [...organization.properties.filter((property: Json) => property.name !== "organization_id"), { name: "organization_id", type: "string", description: "Platform organization", required: false }] } },
       node("$artera", 1, core.organization, "Artera", { properties: { organization_id: "org" } }),
     ] }));
   } catch (error) {
@@ -104,6 +104,10 @@ test("a batch adding an external Project gets an error finding, and its policy c
 
   const { review } = (await f.reviewed(batchId)).batch;
   assert.equal(review.state, "complete", review.error ?? undefined);
+  const job = await f.app.database.prepare("SELECT state, attempts, contentDigest FROM onto_review_jobs WHERE batchId = ?").bind(batchId).first();
+  assert.equal(job?.state, "complete");
+  assert.equal(job?.attempts, 1);
+  assert.match(String(job?.contentDigest), /^[a-f0-9]{64}$/);
   assert.equal(review.complete, true);
   const foreign = review.findings.find((item: Json) => item.rule === "project.foreign");
   assert.equal(foreign.ref, "$veg");
@@ -127,7 +131,7 @@ test("a batch adding an external Project gets an error finding, and its policy c
   assert.equal(inference.input.data.operations.length, 4);
   assert.ok(inference.input.data.checks.some((item: Json) => item.rule === "project.foreign"));
   assert.match(review.prompt.digest, /^[a-f0-9]{64}$/);
-  assert.equal(review.prompt.path, "catalog/apps/wiki-map/agent/ontology-steward.md");
+  assert.equal(review.prompt.path, "apps/onto/agent/ontology-steward.md");
   const collected = f.calls.find((call) => call.operation === "workflow.collect")!;
   assert.equal(collected.input.slot, "review.outputs.findings");
   assert.equal(collected.input.value.batchId, batchId);
@@ -178,6 +182,10 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   const submitted = await f.reviewed(batchId);
   assert.equal(submitted.counts.committed, 3);
   assert.equal(submitted.batch.review.state, "failed");
+  const retry = await f.app.database.prepare("SELECT state, attempts, nextAttemptAt FROM onto_review_jobs WHERE batchId = ?").bind(batchId).first();
+  assert.equal(retry?.state, "pending");
+  assert.equal(retry?.attempts, 1);
+  assert.ok(Number(retry?.nextAttemptAt) > Date.now());
   assert.equal(submitted.batch.review.complete, false);
   assert.ok(submitted.batch.review.findings.some((item: Json) => item.rule === "project.foreign"));
 

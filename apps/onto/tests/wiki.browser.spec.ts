@@ -1,6 +1,7 @@
 import { fulfillFrom, routeReadOnly, openAccountMenuFor } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker as initializedAppWorker } from "./fixtures/initialized-worker";
 import type { WorkflowHostResult } from "@ai-outfitter/app-sdk/workflow-host";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -48,7 +49,7 @@ function planningFixture() {
 
 async function operational(page: Page, planningAvailable = true) {
   const planning = planningFixture();
-  const app = await appWorker(
+  const app = await initializedAppWorker(
     "wiki-map",
     appArtifact(new URL("..", import.meta.url), "operational"),
     "wiki-map-installation",
@@ -419,6 +420,7 @@ test("graph explorer filters records and opens a direct neighborhood", async ({ 
     await page.locator("#graph").getByRole("link", { name: "Graph", exact: true }).click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/knowledge-graphs$/);
     await expect(page.getByRole("heading", { name: "Meze", exact: true })).toBeVisible();
+    await expect(page).toHaveTitle("Meze — Onto");
     await expect(sidebar.getByRole("list", { name: "Knowledge graphs for Meze", exact: true }).getByRole("link", { name: "Project context", exact: true })).toBeVisible();
     const sharedContext = sidebar.getByRole("list", { name: "Knowledge graphs for Meze", exact: true }).getByRole("link", { name: "Delivery context", exact: true });
     await expect(sharedContext).toBeVisible();
@@ -474,8 +476,8 @@ test("Wiki links preserve the shell across graph, entity, and history navigation
     await expect(page.getByRole("heading", { name: "Project context", exact: true })).toBeVisible();
     await page.goForward();
     await expect(page.getByRole("heading", { name: "Meze", exact: true })).toBeVisible();
-    await openAccountMenuFor(page, "Wiki settings");
-    await page.locator("#sidebar").getByRole("link", { name: "Wiki settings", exact: true }).click();
+    await openAccountMenuFor(page, "Onto settings");
+    await page.locator("#sidebar").getByRole("link", { name: "Onto settings", exact: true }).click();
     await expect(page.getByRole("button", { name: "Download graph and notes", exact: true })).toBeVisible();
     await page.locator("#sidebar").getByRole("link", { name: "Types", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Types", exact: true })).toBeVisible();

@@ -398,12 +398,12 @@ function localOrganizationBinding(
   organization: Organization,
   notices: string[],
 ): Graph {
-  const node = data.nodes.find(
-    (n) =>
-      n.id === organization.sourceId &&
-      n.typeId === core.organization &&
-      !n.archived,
-  );
+  const exact = data.nodes.find(n => n.id === organization.sourceId && n.typeId === core.organization && !n.archived);
+  // Private Wiki snapshots can predate the platform seed's Organization UUID.
+  // The explicitly provisioned local slug may bind a single matching root;
+  // ambiguous roots and existing bindings retain their ordinary refusal rules.
+  const matches = data.nodes.filter(n => n.slug === organization.slug && n.typeId === core.organization && !n.archived);
+  const node = exact ?? (matches.length === 1 ? matches[0] : undefined);
   const type = data.types.find(
     (t) =>
       t.id === core.organization && t.name === "Organization" && !t.archived,

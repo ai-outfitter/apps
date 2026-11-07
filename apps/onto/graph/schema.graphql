@@ -1,4 +1,16 @@
 type Query {
+  """Read an immutable generated revision."""
+  documentRevision(input: JSON!): JSON!
+
+  """Read live authorized sources and completeness."""
+  documentLive(input: JSON!): JSON!
+
+  """Evaluate exact-revision policy; unavailable is not approval."""
+  documentPolicy(input: JSON!): JSON!
+
+  """Inspect generation job status, failure and supersession."""
+  documentJob(input: JSON!): JSON!
+
   """
   Search saved change batches; operations and evidence are selected explicitly.
   """
@@ -9,6 +21,9 @@ type Query {
   """
   changeBatch(id: ID!): ChangeBatch
 }
+
+"""Any JSON value."""
+scalar JSON
 
 type ChangeBatchConnection {
   nodes: [ChangeBatch!]!
@@ -49,9 +64,6 @@ type ChangeBatch {
     refs: [String!]
   ): [StagedChange!]!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -149,6 +161,21 @@ input SubmitBatchInput {
 }
 
 type Mutation {
+  """Create an owner-admin controlled definition version."""
+  defineDocument(input: JSON!): JSON!
+
+  """Create a document from an owned definition."""
+  createDocument(input: JSON!): JSON!
+
+  """Queue a durable generation job."""
+  generateDocument(input: JSON!): JSON!
+
+  """Seal an exact current revision; sealing is not approval."""
+  sealDocument(input: JSON!): JSON!
+
+  """Retry a failed current job as an owner or admin."""
+  retryDocument(input: JSON!): JSON!
+
   """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """

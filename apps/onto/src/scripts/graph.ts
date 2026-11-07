@@ -915,7 +915,7 @@ function entityPage(root: HTMLElement, g: Graph, node: GraphNode) {
   const intro = root.closest(".ui-content")?.querySelector(".intro");
   if (intro) intro.replaceChildren(identity);
   else root.appendChild(identity);
-  document.title = `${node.title} — Wiki`;
+  document.title = `${node.title} — Onto`;
   const view = params.get("tab") ?? root.dataset.view ?? "overview";
   describeEntity(g, node, view);
   const href = entityUrl(node.id);

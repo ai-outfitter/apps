@@ -9,7 +9,8 @@ import {
 } from "@ai-outfitter/app-sdk/home-cards";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker, type Member } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
+import type { Member } from "@ai-outfitter/app-test/worker";
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };

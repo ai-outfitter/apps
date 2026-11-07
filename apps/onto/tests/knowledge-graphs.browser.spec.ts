@@ -1,6 +1,6 @@
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { expect, test, type Page } from "@playwright/test";
 import { core, type Graph } from "../src/lib/graph";
 
@@ -16,6 +16,10 @@ async function setup(page: Page, invalid: boolean, mount = "") {
   const graph = (await snapshot.json()) as Graph;
   const anchor = graph.nodes.find((node) => node.typeId === core.offering)!;
   const lens = graph.nodes.find((node) => node.typeId === core.knowledgeGraph)!;
+  // Keep this navigation fixture explicitly in the legacy property format;
+  // standard JSON declaration ordering and body formats may evolve independently.
+  lens.body = "";
+  lens.properties = { root_type: "Offering", pattern: JSON.stringify({relationships:["offered_by"],max_depth:4}) };
   const second = structuredClone(lens);
   second.id = secondId;
   second.title = "Another lens";

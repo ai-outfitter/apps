@@ -4,6 +4,7 @@ import { connectionType, pageArgs } from "@ai-outfitter/app-sdk/app-graphql";
 import { instructionType, resultInstructions } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
+import { documentMutations, documentQueries, type DocumentContext } from "./documents/graphql";
 // The Wiki's change batches over GraphQL, for agents. Agents stage proposed records with
 // the mutation documents (documents.ts) and a member commits them on the Changes page
 // (batch.review stays a member's step there). graph.mutate runs graphqlSchema; the
@@ -22,7 +23,7 @@ import { z } from "zod";
 import { addToBatch, batchAddInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
-export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
+export type ChangeContext = DocumentContext & { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
   /** Starts the ontology steward's review of a submitted batch in the background (graph.mutate only). */
   afterSubmit?: (batchId: string) => void };
 type MutationContext = ChangeContext & ActionContext;
@@ -77,6 +78,7 @@ const stageInput = z.strictObject({
 }).refine(input => input.batchId || input.title, { message: "Pass batchId, or a title to open a batch", path: ["title"] });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
+  ...documentQueries,
   changeBatches: {
     type: nonNull(connectionType(ChangeBatch)), description: "Search saved change batches; operations and evidence are selected explicitly.",
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},
@@ -103,6 +105,7 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
+    ...documentMutations,
     reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     stageChanges: mutationField({

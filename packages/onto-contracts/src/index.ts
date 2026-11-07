@@ -31,6 +31,7 @@ export const ontologyContract = z.discriminatedUnion("version", [
     version: z.literal(2),
     endpoints: endpointTypes.optional(),
     stereotype: z.enum(["kind", "relator", "event", "assertion"]).optional(),
+    immutable: z.boolean().optional().describe("Records of this type are append-only after creation."),
     symmetric: z.boolean().optional(),
     validity: z.literal("interval").optional(),
     measures: ontologyMeasures.optional(),
@@ -163,3 +164,4 @@ export * from "./wiki-proposals";
 export * from "./changes";
 export * from "./batches";
 export const ontoContract = { id: "outfitter.onto", version: 1 } as const;
+export * from "./documents";

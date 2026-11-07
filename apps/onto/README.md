@@ -8,7 +8,7 @@ The local platform runtime, component release metadata, and automatic production
 
 # Wiki: projects and shared context
 
-> Part of [the knowledge graph](../../../docs/architecture/knowledge-graph.md), Outfitter's central architecture for Wikis, ontology, reads and writes.
+> Onto owns ontology and graph persistence. See [documents and recovery](docs/documents-and-recovery.md) for contracts, authorization, scheduling, export and rollout limits.
 
 People and agents use the same typed records to find, document and connect work.
 The home page lists Organizations. Overview (`/overview`) groups Projects, People,
@@ -32,8 +32,7 @@ constraints before activation. Writes validate the resulting graph; types withou
 their legacy behavior. Writes also check permission, record existence, property
 validity and current revision.
 
-The schema replaces the prototype. Existing prototype installations require an
-explicit reset/recreation; no legacy migration or compatibility layer is provided.
+Fresh installations use a seed-free schema baseline followed by repeatable JSON initialization. Existing installations retain their applied migration lineage and data. Resetting an installation requires explicit authorization; changing migration filenames is not an upgrade.
 
 ## Standard context for every installation
 

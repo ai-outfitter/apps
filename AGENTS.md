@@ -26,8 +26,10 @@ the served source SHA and actual page/assets before reporting a preview as live.
 The public SDK is canonical here. App builders and test hosts must work without
 private webapp source. Release-please owns package versions and dependency bumps.
 
-App deployment follows successful default-branch checks through OIDC. Do not add
+Production app releases notify Outfitter through OIDC after component release-please publication. Notifications record releases and requested updates; the platform scheduled tick dispatches hosted builds and activation. Ordinary pushes and CI artifacts are not production deployment inputs. Keep independent preview builds in app CI. This crossover is gated on deployed platform support and actual installation receipts. Do not add
 deployment enablement flags. SaaS is the default destination; self-hosting changes
 the destination and runner reachability, not the repository identity contract.
 
 Graph interoperability follows [graph providers](docs/graph-providers.md). Keep generic discovery/transport in the SDK and product ontology/assertion/batch schemas in Onto contracts. A source reference or declared capability grants no access. Preserve legacy aliases until consumers and deployed data have a verified migration.
+
+Portable archives are not signed installation restores. For Onto, every new authority or runtime-state table must be registered in `apps/onto/src/server/archive-authorities.ts` before import is exposed. Definitions, generated revisions, seals, workflow jobs, event delivery and publication receipts require their authorized APIs; generic imports cannot recreate their authority. Backup exports retain these rows, and normal in-place database migrations preserve existing history.

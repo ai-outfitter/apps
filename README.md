@@ -17,6 +17,9 @@ scripts/              Shared tooling implementation and its tests
 action.yml            Reusable tooling Action
 ```
 
+See [public SDK distribution](docs/sdk-distribution.md) for the existing pinned
+workspace checkout, GitHub release archives, and release versus cutover gates.
+
 The official apps will use the same affected-app matrix and independent release
 components as external repositories. Adding them must not make tooling-only
 changes rebuild or deploy every app by default.
@@ -206,6 +209,15 @@ Pin the SDK once as `sdkSha` in `.outfitter/apps.json`. Check/preview workflows
 and the platform repository build adapter use the same commit and root lockfile.
 The optional workflow `sdk-sha` input remains an explicit override for existing callers.
 
-## Graph interoperability and Onto
+## Onto extraction and shared graph contracts
 
-[Graph providers and Onto contracts](docs/graph-providers.md) describes the public product contract/client packages, provider-neutral SDK transport, compatibility aliases and conformance checks.
+The public [Onto app](apps/onto/README.md) retains the legacy `wiki-map`
+installation identity during migration. [Provider interoperability](docs/graph-providers.md)
+describes the public SDK discovery/read contracts and Onto-owned contracts.
+[Documents and recovery](apps/onto/docs/documents-and-recovery.md) describes
+versioned definitions, captured revisions, optional policy, scheduled work and
+Git/Obsidian publication, including the remaining migration gates. The platform
+architecture and full delivery sequence are maintained in
+[webapp's Onto architecture](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/onto.md).
+Production cutover requires deployed platform baseline/release support and a
+verified existing-installation update; public source readiness alone is insufficient.

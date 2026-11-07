@@ -1,6 +1,6 @@
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { expect, test } from "@playwright/test";
 import { core } from "../src/lib/graph";
 
@@ -61,14 +61,14 @@ test("read a proposed document from Changes before approving its saved entity", 
     const batchUrl = `${origin}/changes/${batch.id}`;
     await test.step("read the proposal while it has no saved entity", async () => {
       await page.goto(`${origin}/changes`);
-      await expect(page.getByRole("button", { name: "Ask Wiki", exact: true })).toBeEnabled();
+      await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("link", { name: "Hardware milestone research", exact: true }).click();
       await expect(page).toHaveURL(batchUrl);
-      await expect(page.getByRole("button", { name: "Ask Wiki", exact: true })).toBeEnabled();
-      await page.getByRole("button", { name: "Ask Wiki", exact: true }).click();
-      const panel = page.getByRole("complementary", { name: "Wiki chat", exact: true });
+      await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
+      await page.getByRole("button", { name: "Ask Onto", exact: true }).click();
+      const panel = page.getByRole("complementary", { name: "Onto chat", exact: true });
       await expect(panel).toBeVisible();
-      await expect(panel.getByRole("textbox", { name: "Message Wiki" })).toBeEditable();
+      await expect(panel.getByRole("textbox", { name: "Message Onto" })).toBeEditable();
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await info.attach(`ask-wiki-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
@@ -76,7 +76,7 @@ test("read a proposed document from Changes before approving its saved entity", 
           await page.screenshot({ path: `${process.env.WIKI_SCREENSHOTS}/ask-wiki-${width}.png`, fullPage: true });
       }
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.getByRole("button", { name: "Close Wiki chat", exact: true }).click();
+      await page.getByRole("button", { name: "Close Onto chat", exact: true }).click();
       const proposedLink = page.locator(".knowledge-graph-viewport svg a").filter({ hasText: "First hardware and firmware milestone" });
       await expect(proposedLink).toHaveAttribute("href", /^#/);
       await proposedLink.click();

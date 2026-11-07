@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };

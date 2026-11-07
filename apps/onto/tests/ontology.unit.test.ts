@@ -93,3 +93,20 @@ test("unknown contract versions fail closed and type references never resolve fr
     ),
   );
 });
+
+test("immutable ontology records reject edits, removals and policy downgrades", () => {
+  const base = graph();
+  const before = { ...base, types: base.types.map(type => type.id === person ? {...type,ontology:{version:2 as const,immutable:true}} : type.id === relation ? {...type,ontology:{version:2 as const,immutable:true,endpoints:{from:[person],to:[product]}}} : type) };
+  const roundTrip = readType(storeType(typeInput.parse({ category:"node", name:"Evidence", title:"Evidence", body:"Evidence", ontology: {version:2,immutable:true} })));
+  assert.deepEqual("ontology" in roundTrip && roundTrip.ontology, {version:2,immutable:true});
+  const conflict = (fn: () => unknown) => assert.throws(fn, (error: unknown) => error instanceof Response && error.status === 409);
+  requireOntologyValid(before, {...before, nodes:[...before.nodes, {id:crypto.randomUUID(),typeId:person,archived:false}]});
+  conflict(() => requireOntologyValid(before, before, new Map([[from, "$update"]])));
+  conflict(() => requireOntologyValid(before, {...before, edges: before.edges.map(row=>({...row,archived:true}))}));
+  conflict(() => requireOntologyValid(before, {...before, nodes: before.nodes.filter(row=>row.id!==from)}));
+  conflict(() => requireOntologyValid(before, {...before, types:before.types.map(row=>row.id===person?{...row,ontology:undefined}:row)}));
+  conflict(() => requireOntologyValid(before, {...before, types:before.types.map(row=>row.id===person?{...row,archived:true}:row)}));
+  const legacy = graph();
+  conflict(() => requireOntologyValid(legacy, {...legacy, types:legacy.types.map(row=>row.id===person?{...row,ontology:{version:2 as const,immutable:true}}:row)}, new Map([[from,"$rewrite"], [person,"$type"]])));
+
+});

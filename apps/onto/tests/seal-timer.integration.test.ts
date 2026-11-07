@@ -3,7 +3,7 @@ import test from "node:test";
 import { identityHeaderValues } from "@ai-outfitter/app-sdk/server";
 import { type WorkflowHostResult, type WorkflowHostScope, workflowHostPath } from "@ai-outfitter/app-sdk/workflow-host";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { core } from "../src/lib/graph";
 import { create, definitions } from "./fixtures/relators";
 

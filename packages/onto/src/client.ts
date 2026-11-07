@@ -1,22 +1,64 @@
 import { z } from "zod";
-import { resolveGraphProvider, readGraphProvider, type GraphProvider } from "@ai-outfitter/app-sdk/graph-provider";
-import { ontoContract } from "./contracts";
+import {
+  resolveGraphProvider,
+  readGraphProvider,
+  type GraphProvider,
+} from "@ai-outfitter/app-sdk/graph-provider";
+import { ontoContract, ontoDocumentsContract } from "./contracts";
 
 /** Discover Onto explicitly by its advertised contract, with an optional installation binding. */
 export function resolveOnto(host: Host, binding?: { installationId: string }) {
   return resolveGraphProvider(host, { contract: ontoContract }, binding);
 }
+/** Discover document providers by the independent lifecycle contract. */
+export function resolveOntoDocuments(
+  host: Host,
+  binding?: { installationId: string },
+) {
+  return resolveGraphProvider(
+    host,
+    { contract: ontoDocumentsContract },
+    binding,
+  );
+}
 /** Bind every query to the provider selected by its Onto contract; ordinary host authorization still applies. */
 export function ontoClient(host: Host, provider: GraphProvider) {
-  if (!provider.contracts.some(contract => contract.id === ontoContract.id && contract.version === ontoContract.version))
-    throw new Response("Provider does not implement the Onto contract", { status: 409 });
-  return { provider, read: (input: Parameters<typeof readGraphProvider>[2]) => readGraphProvider(host, provider, input) };
+  if (
+    !provider.contracts.some(
+      (contract) =>
+        contract.id === ontoContract.id &&
+        contract.version === ontoContract.version,
+    )
+  )
+    throw new Response("Provider does not implement the Onto contract", {
+      status: 409,
+    });
+  return {
+    provider,
+    read: (input: Parameters<typeof readGraphProvider>[2]) =>
+      readGraphProvider(host, provider, input),
+    get documents() {
+      return ontoDocumentsClient(host, provider);
+    },
+  };
 }
 
-import { loadKnowledgeGraph, exploreKnowledgeGraph } from "@ai-outfitter/app-sdk/knowledge-graph";
-import { wikiGraphReadInput, wikiGraphReadResult, wikiGraph, type WikiGraph } from "./contracts";
+import {
+  loadKnowledgeGraph,
+  exploreKnowledgeGraph,
+} from "@ai-outfitter/app-sdk/knowledge-graph";
+import {
+  wikiGraphReadInput,
+  wikiGraphReadResult,
+  wikiGraph,
+  type WikiGraph,
+} from "./contracts";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { entityRef, type EntityRecord, type EntityRef } from "@ai-outfitter/app-sdk/entities";
+import {
+  entityRef,
+  type EntityRecord,
+  type EntityRef,
+} from "@ai-outfitter/app-sdk/entities";
 
 type Host = WorkflowHost<"interactive">;
 async function existingRecord(host: Host, ref: EntityRef) {
@@ -70,9 +112,12 @@ async function ensureRecord(
     record.ref.id !== fields.id ||
     identityKeys.some((key) => record.attributes[key] !== fields[key])
   )
-    throw new Response(`Existing graph record ${type}:${fields.id} has a conflicting identity (${identityKeys.filter(key => record.attributes[key] !== fields[key]).join(", ")})`, {
-      status: 409,
-    });
+    throw new Response(
+      `Existing graph record ${type}:${fields.id} has a conflicting identity (${identityKeys.filter((key) => record.attributes[key] !== fields[key]).join(", ")})`,
+      {
+        status: 409,
+      },
+    );
   return created;
 }
 function setupRows(graph: WikiGraph): SetupRow[] {
@@ -89,8 +134,15 @@ function setupRows(graph: WikiGraph): SetupRow[] {
 }
 /** A UUID-shaped ID derived from `parts`: the same parts always name the same record. */
 export async function stableGraphId(...parts: unknown[]) {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(parts))));
-  const hex = Array.from(digest, (n) => n.toString(16).padStart(2, "0")).join("");
+  const digest = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(JSON.stringify(parts)),
+    ),
+  );
+  const hex = Array.from(digest, (n) => n.toString(16).padStart(2, "0")).join(
+    "",
+  );
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
@@ -99,34 +151,73 @@ export function wikiAdapter(host: Host, installationId: string) {
   const ref = (type: string, id: string) => ({ installationId, type, id });
   return {
     /** The record, or undefined when it does not exist. */
-    get: (type: "graph-node" | "graph-edge" | "graph-type", id: string) => existingRecord(host, ref(type, id)),
+    get: (type: "graph-node" | "graph-edge" | "graph-type", id: string) =>
+      existingRecord(host, ref(type, id)),
     /** Create a record with a caller-chosen ID; a concurrent or earlier create returns the existing record. */
-    async createOrRead(type: "graph-node" | "graph-edge", attributes: EntityRecord["attributes"] & { id: string }, references: EntityRef[] = []) {
+    async createOrRead(
+      type: "graph-node" | "graph-edge",
+      attributes: EntityRecord["attributes"] & { id: string },
+      references: EntityRef[] = [],
+    ) {
       const existing = await existingRecord(host, ref(type, attributes.id));
       if (existing) return existing;
       try {
-        return await host.call("entities.create", { installationId, type, attributes, references });
+        return await host.call("entities.create", {
+          installationId,
+          type,
+          attributes,
+          references,
+        });
       } catch (error) {
-        const record = error instanceof Response && error.status === 409 ? await existingRecord(host, ref(type, attributes.id)) : undefined;
+        const record =
+          error instanceof Response && error.status === 409
+            ? await existingRecord(host, ref(type, attributes.id))
+            : undefined;
         if (!record) throw error;
         return record;
       }
     },
     /** One relationship per type and endpoints, with a stable ID; refuses an archived or different record there. */
     async link(typeId: string, fromId: string, toId: string) {
-      const id = await stableGraphId("wiki-link-v1", installationId, typeId, fromId, toId);
-      const record = await this.createOrRead("graph-edge", { id, typeId, fromId, toId });
+      const id = await stableGraphId(
+        "wiki-link-v1",
+        installationId,
+        typeId,
+        fromId,
+        toId,
+      );
+      const record = await this.createOrRead("graph-edge", {
+        id,
+        typeId,
+        fromId,
+        toId,
+      });
       const { attributes } = record;
-      if (attributes.archived || attributes.typeId !== typeId || attributes.fromId !== fromId || attributes.toId !== toId)
-        throw new Response("A relationship conflicts with an authored or archived record", { status: 409 });
+      if (
+        attributes.archived ||
+        attributes.typeId !== typeId ||
+        attributes.fromId !== fromId ||
+        attributes.toId !== toId
+      )
+        throw new Response(
+          "A relationship conflicts with an authored or archived record",
+          { status: 409 },
+        );
       return record;
     },
     /** Active type IDs by name. */
     async typeIds() {
       const ids = new Map<string, string>();
       for (let offset = 0; offset < 10_000; offset += 100) {
-        const page = await host.call("entities.list", { installationId, type: "graph-type", offset, limit: 100 });
-        for (const type of page) if (!type.attributes.archived) ids.set(String(type.attributes.name), type.ref.id);
+        const page = await host.call("entities.list", {
+          installationId,
+          type: "graph-type",
+          offset,
+          limit: 100,
+        });
+        for (const type of page)
+          if (!type.attributes.archived)
+            ids.set(String(type.attributes.name), type.ref.id);
         if (page.length < 100) return ids;
       }
       throw new Response("Wiki has too many types", { status: 413 });
@@ -215,31 +306,79 @@ export async function readWikiGraph(
 ) {
   const input = wikiGraphReadInput.parse(options);
   const wiki = await defaultWiki(host);
-  const snapshot = wikiGraphReadResult.parse(await host.call("actions.call", {
-    installationId: wiki.installationId, action: "graph.read", input, readOnly: true, maxResponseBytes: 8 * 1024 * 1024,
-  }));
+  const snapshot = wikiGraphReadResult.parse(
+    await host.call("actions.call", {
+      installationId: wiki.installationId,
+      action: "graph.read",
+      input,
+      readOnly: true,
+      maxResponseBytes: 8 * 1024 * 1024,
+    }),
+  );
   if (snapshot.installationId !== wiki.installationId)
     throw new Response("Wiki installation changed", { status: 409 });
   if (snapshot.truncated || snapshot.selection !== null)
-    throw new Response("Wiki returned a partial graph; refresh before using it", { status: 409 });
-  return { wiki, snapshot, ...wikiGraphRecords(snapshot, "includeArchivedTypes" in input && !!input.includeArchivedTypes) };
+    throw new Response(
+      "Wiki returned a partial graph; refresh before using it",
+      { status: 409 },
+    );
+  return {
+    wiki,
+    snapshot,
+    ...wikiGraphRecords(
+      snapshot,
+      "includeArchivedTypes" in input && !!input.includeArchivedTypes,
+    ),
+  };
 }
 
 /** Convert a Wiki snapshot to canonical entity records without fetching or formatting. */
-export function wikiGraphRecords(snapshot: Pick<z.infer<typeof wikiGraphReadResult>, "installationId" | "types" | "nodes" | "edges">, includeArchivedTypes = false) {
-  function records(type: string, rows: Array<typeof snapshot.nodes[number] | typeof snapshot.types[number]>): EntityRecord[] {
-    return rows.map(row => {
-      const { id, revision, createdBy, updatedBy, createdAt, updatedAt, ...attributes } = row;
+export function wikiGraphRecords(
+  snapshot: Pick<
+    z.infer<typeof wikiGraphReadResult>,
+    "installationId" | "types" | "nodes" | "edges"
+  >,
+  includeArchivedTypes = false,
+) {
+  function records(
+    type: string,
+    rows: Array<
+      (typeof snapshot.nodes)[number] | (typeof snapshot.types)[number]
+    >,
+  ): EntityRecord[] {
+    return rows.map((row) => {
+      const {
+        id,
+        revision,
+        createdBy,
+        updatedBy,
+        createdAt,
+        updatedAt,
+        ...attributes
+      } = row;
       return {
-        ref: { installationId: snapshot.installationId, type, id }, revision,
+        ref: { installationId: snapshot.installationId, type, id },
+        revision,
         title: String(row.title ?? row.name ?? id),
-        attributes: { id, ...attributes, provenance: { createdBy: createdBy ?? null, updatedBy: updatedBy ?? null, createdAt: createdAt ?? null, updatedAt: updatedAt ?? null } },
+        attributes: {
+          id,
+          ...attributes,
+          provenance: {
+            createdBy: createdBy ?? null,
+            updatedBy: updatedBy ?? null,
+            createdAt: createdAt ?? null,
+            updatedAt: updatedAt ?? null,
+          },
+        },
         references: row.source ? [entityRef.parse(row.source)] : [],
       };
     });
   }
   return {
-    types: records("graph-type", snapshot.types.filter(row => includeArchivedTypes || !row.archived)),
+    types: records(
+      "graph-type",
+      snapshot.types.filter((row) => includeArchivedTypes || !row.archived),
+    ),
     nodes: records("graph-node", snapshot.nodes),
     edges: records("graph-edge", snapshot.edges),
   };
@@ -247,23 +386,138 @@ export function wikiGraphRecords(snapshot: Pick<z.infer<typeof wikiGraphReadResu
 
 /** Select a saved lens from a graph already read through Wiki. No additional I/O. */
 export function selectWikiGraph(
-  graph: { types: EntityRecord[]; nodes: EntityRecord[]; edges: EntityRecord[] },
-  input: { rootId: string; lensId: string; allowedNodeIds?: ReadonlySet<string>; priorityNodeIds?: ReadonlySet<string> },
+  graph: {
+    types: EntityRecord[];
+    nodes: EntityRecord[];
+    edges: EntityRecord[];
+  },
+  input: {
+    rootId: string;
+    lensId: string;
+    allowedNodeIds?: ReadonlySet<string>;
+    priorityNodeIds?: ReadonlySet<string>;
+  },
 ) {
-  const rawNode = (record: EntityRecord) => ({ ...record.attributes, id: record.ref.id, typeId: String(record.attributes.typeId) });
-  const types = graph.types.map(record => ({ id: record.ref.id, name: String(record.attributes.name), category: record.attributes.category as "node" | "edge", archived: !!record.attributes.archived }));
-  const lens = graph.nodes.find(record => record.ref.id === input.lensId && !record.attributes.archived);
-  const root = graph.nodes.find(record => record.ref.id === input.rootId && !record.attributes.archived);
-  if (!lens || !root || !types.some(type => type.id === lens.attributes.typeId && type.name === "KnowledgeGraph"))
+  const rawNode = (record: EntityRecord) => ({
+    ...record.attributes,
+    id: record.ref.id,
+    typeId: String(record.attributes.typeId),
+  });
+  const types = graph.types.map((record) => ({
+    id: record.ref.id,
+    name: String(record.attributes.name),
+    category: record.attributes.category as "node" | "edge",
+    archived: !!record.attributes.archived,
+  }));
+  const lens = graph.nodes.find(
+    (record) => record.ref.id === input.lensId && !record.attributes.archived,
+  );
+  const root = graph.nodes.find(
+    (record) => record.ref.id === input.rootId && !record.attributes.archived,
+  );
+  if (
+    !lens ||
+    !root ||
+    !types.some(
+      (type) =>
+        type.id === lens.attributes.typeId && type.name === "KnowledgeGraph",
+    )
+  )
     throw new Response("Knowledge graph or root not found", { status: 409 });
   let definition;
-  try { definition = loadKnowledgeGraph({ types }, rawNode(lens)); }
-  catch { throw new Response("Knowledge graph definition is invalid", { status: 409 }); }
+  try {
+    definition = loadKnowledgeGraph({ types }, rawNode(lens));
+  } catch {
+    throw new Response("Knowledge graph definition is invalid", {
+      status: 409,
+    });
+  }
   if (!definition.rootTypes.includes(String(root.attributes.typeId)))
     throw new Response("Context lens does not match its root", { status: 409 });
-  const selected = exploreKnowledgeGraph({ nodes: graph.nodes.map(rawNode), edges: graph.edges.map(record => ({ ...record.attributes, id: record.ref.id,
-    typeId: String(record.attributes.typeId), fromId: String(record.attributes.fromId), toId: String(record.attributes.toId) })) }, rawNode(root), definition, { allowedNodeIds: input.allowedNodeIds, priorityNodeIds: input.priorityNodeIds });
-  const nodeIds = new Set(selected.nodes.map(node => node.id)), edgeIds = new Set(selected.edges.map(edge => edge.id));
-  return { ...selected, lens, missingTypes: definition.missingTypes,
-    nodes: graph.nodes.filter(record => nodeIds.has(record.ref.id)), edges: graph.edges.filter(record => edgeIds.has(record.ref.id)) };
+  const selected = exploreKnowledgeGraph(
+    {
+      nodes: graph.nodes.map(rawNode),
+      edges: graph.edges.map((record) => ({
+        ...record.attributes,
+        id: record.ref.id,
+        typeId: String(record.attributes.typeId),
+        fromId: String(record.attributes.fromId),
+        toId: String(record.attributes.toId),
+      })),
+    },
+    rawNode(root),
+    definition,
+    {
+      allowedNodeIds: input.allowedNodeIds,
+      priorityNodeIds: input.priorityNodeIds,
+    },
+  );
+  const nodeIds = new Set(selected.nodes.map((node) => node.id)),
+    edgeIds = new Set(selected.edges.map((edge) => edge.id));
+  return {
+    ...selected,
+    lens,
+    missingTypes: definition.missingTypes,
+    nodes: graph.nodes.filter((record) => nodeIds.has(record.ref.id)),
+    edges: graph.edges.filter((record) => edgeIds.has(record.ref.id)),
+  };
+}
+
+import {
+  documentOperations,
+  type DocumentOperation,
+  type DocumentOperationInput,
+  type DocumentOperationOutput,
+} from "./contracts";
+export type OntoDocumentsClient = {
+  [Name in DocumentOperation]: (
+    input: DocumentOperationInput<Name>,
+  ) => Promise<DocumentOperationOutput<Name>>;
+};
+/** Product client bound to one trusted, explicitly selected Onto provider.
+ * Every call re-enters scoped actions dispatch; bindings and captures are never
+ * accepted from document callers, and failures never trigger automatic writes. */
+export function ontoDocumentsClient(
+  host: Pick<Host, "call">,
+  provider: GraphProvider,
+): OntoDocumentsClient {
+  if (
+    !provider.contracts.some(
+      (contract) =>
+        contract.id === ontoDocumentsContract.id &&
+        contract.version === ontoDocumentsContract.version,
+    )
+  )
+    throw new Response(
+      "Provider does not implement the Onto documents contract",
+      { status: 409 },
+    );
+  // Snapshot the address so caller mutation cannot silently retarget a client.
+  const installationId = z.string().min(1).parse(provider.installationId);
+  async function call<Name extends DocumentOperation>(
+    name: Name,
+    raw: DocumentOperationInput<Name>,
+  ): Promise<DocumentOperationOutput<Name>> {
+    const operation = documentOperations[name];
+    const input = operation.input.parse(raw);
+    const result = await host.call("actions.call", {
+      installationId,
+      action: operation.action,
+      input,
+      readOnly: operation.readOnly,
+      maxResponseBytes: 8 * 1024 * 1024,
+    });
+    return operation.output.parse(result) as DocumentOperationOutput<Name>;
+  }
+  return {
+    define: (input) => call("define", input),
+    create: (input) => call("create", input),
+    live: (input) => call("live", input),
+    generate: (input) => call("generate", input),
+    revision: (input) => call("revision", input),
+    job: (input) => call("job", input),
+    retry: (input) => call("retry", input),
+    seal: (input) => call("seal", input),
+    policy: (input) => call("policy", input),
+  };
 }

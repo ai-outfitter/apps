@@ -54,6 +54,11 @@ test("snapshot reads preserve raw graph data and archival retains revision check
       assert.deepEqual(await entitySearch(type, "", { ids: ["missing-exact-id"] }), []);
     }
     const counts = () => app.database.prepare("SELECT 'nodes' AS kind, count(*) AS n, sum(revision) AS revisions FROM graph_nodes UNION ALL SELECT 'edges', count(*), sum(revision) FROM graph_edges UNION ALL SELECT 'types', count(*), sum(revision) FROM graph_types").all();
+    const declaration = await app.call(path, member, {method:"POST",body:{action:"graph.describe",input:{}}});
+    assert.equal(declaration.status,200);
+    const advertised = await declaration.json() as {contracts:{id:string;version:number}[];capabilities:string[]};
+    assert.ok(advertised.contracts.some(c=>c.id === "outfitter.onto.documents" && c.version === 1));
+    assert.ok(advertised.capabilities.includes("documents"));
     const before = await counts();
     const catalog = await app.call("/api/internal/actions/v1/list", member);
     assert.equal(catalog.status, 200);

@@ -1,0 +1,23 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createHash} from 'node:crypto';
+import {loadAppMigrations} from '../src/migrations.mjs';
+test('legacy packages stay unchanged and pinned baseline metadata is deterministic',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'migration-loader-'));t.after(()=>rm(root,{recursive:true,force:true}));
+ await mkdir(join(root,'migrations/baselines'),{recursive:true});
+ const legacy={name:'0000_legacy',sql:'CREATE TABLE sample(id TEXT);'};
+ await writeFile(join(root,'migrations/0000_legacy.sql'),legacy.sql);
+ assert.deepEqual(await loadAppMigrations(root),{migrations:[legacy]});
+ const sql='CREATE TABLE sample(id TEXT);', entry={name:'0000_baseline',file:'migrations/baselines/v1.sql',sha256:createHash('sha256').update(sql).digest('hex'),replaces:['0000_legacy']};
+ await writeFile(join(root,entry.file),sql);
+ const write=async baselines=>writeFile(join(root,'migration-baseline.json'),JSON.stringify({version:1,baselines}));
+ await write([entry]);const result=await loadAppMigrations(root);
+ assert.deepEqual(result,{migrations:[legacy],baselines:[{name:entry.name,sql,replaces:entry.replaces}]});
+ assert.deepEqual(await loadAppMigrations(root),result);
+ await write([{...entry,replaces:['9999_unknown']}]);await assert.rejects(loadAppMigrations(root),/Unknown/);
+ await write([{...entry,file:'../outside.sql'}]);await assert.rejects(loadAppMigrations(root),/Invalid/);
+ await write([entry]);await writeFile(join(root,entry.file),sql+'-- changed');await assert.rejects(loadAppMigrations(root),/digest mismatch/);
+});
