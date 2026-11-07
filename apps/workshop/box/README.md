@@ -22,7 +22,9 @@ the driver against a stand-in platform and a local git remote.
 
 - `driver.mjs`: the box's work once the platform is up (see `box/README.md`
   at the repository root for the harness).
-- `design.mjs`: request checks, the BOM, the result and the evidence bundle.
+- `intake.mjs`, `results.mjs`, `release.mjs`: request checks, the BOM and
+  design-result, and the release with its evidence bundle (the shared
+  `box/release.mjs` step), as the Software Foundry box splits them.
 - `export.ts`: builds a project's model with `src/model/geometry.ts` and
   writes STEP and STL.
 - `evals/`: Agent Eval fixtures and `run.ts`.

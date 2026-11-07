@@ -1,19 +1,20 @@
 // Workshop's driver for the box (box/). The supervisor starts the services and
-// the platform with Workshop installed, then calls run(). For each design
-// request it signs in as the local member, has Workshop's design agent make
-// the project (the first message, then each follow-up), builds the model with
-// the app's own geometry (export.ts: STEP and STL), commits the design
-// revision to the box repository's default branch under designs/<slug>/,
-// stores its files in RustFS and writes /out/results/<requestId>.json. Then it
-// releases the designs that asked for one, with an evidence bundle.
+// the platform with Workshop installed, then calls run(): sign in as the local
+// member, and for each design request have Workshop's design agent make the
+// project (the first message, then each follow-up), build the model with the
+// app's own geometry (export.ts: STEP and STL), store the files in RustFS,
+// commit the design revision to the default branch under designs/<slug>/,
+// write its design-result, and release the designs that asked for one.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { git, nextVersion, sha256 } from "../../../box/lib.mjs";
-import { billOfMaterials, designResult, evidenceBundle, exportSummary, readRequests } from "./design.mjs";
+import { git, sha256 } from "../../../box/lib.mjs";
+import { readRequests } from "./intake.mjs";
+import { releaseDesigns } from "./release.mjs";
+import { billOfMaterials, designResult, exportSummary } from "./results.mjs";
 
 export const app = "workshop";
 export const title = "Workshop box";
@@ -91,20 +92,21 @@ export async function run(box) {
       exported = exportDesign(project, folder);
       bom = billOfMaterials(project, exported);
       writeFileSync(join(folder, "bom.json"), `${JSON.stringify(bom, null, 2)}\n`);
+      // The files are stored before the commit is pushed, so a failed design never reaches the branch.
+      for (const file of ["project.json", "model.step", "model.stl", "bom.json"]) {
+        const bytes = readFileSync(join(folder, file));
+        files.push({ path: `designs/${request.slug}/${file}`, sha256: sha256(bytes), bytes: bytes.length,
+          uri: await box.store(`designs/${request.requestId}/${file}`, bytes, file.endsWith(".json") ? "application/json" : "application/octet-stream") });
+      }
       // The design revision: one commit on the default branch.
       git(repo, ["add", "-A", join("designs", request.slug)]);
       git(repo, ["commit", "--quiet", "-m", `design: ${request.title}\n\nWorkshop project ${project.id} at revision ${project.revision}.\nBox request ${request.requestId}.`], { author: AUTHOR });
       git(repo, ["push", "--quiet", "origin", `HEAD:${box.defaultBranch}`]);
       commitSha = git(repo, ["rev-parse", "HEAD"]).toString().trim();
-      for (const file of ["project.json", "model.step", "model.stl", "bom.json"]) {
-        const bytes = readFileSync(join(folder, file));
-        const path = `designs/${request.slug}/${file}`;
-        files.push({ path, sha256: sha256(bytes), bytes: bytes.length,
-          uri: await box.store(`designs/${request.requestId}/${file}`, bytes, file.endsWith(".json") ? "application/json" : "application/octet-stream") });
-      }
     } catch (caught) {
       error = caught;
-      // A failed design leaves nothing half-committed in the next one.
+      commitSha = undefined;
+      // A failed design leaves nothing behind for the next one.
       git(repo, ["reset", "--quiet", "--hard", `origin/${box.defaultBranch}`]);
       git(repo, ["clean", "-fdq"]);
     }
@@ -115,41 +117,14 @@ export async function run(box) {
     finished.push({ request, result });
     box.log(`${name}: ${result.status}${commitSha ? ` at ${commitSha.slice(0, 8)}` : ` (${result.reason})`}`);
   }
-  release(box, repo, finished).then(() => box.finish(), (failure) => box.finish(failure));
+  release(box, finished).then(() => box.finish(), (failure) => box.finish(failure));
 }
 
-/** Tags the designs that asked for a release, stores the release artifacts and
- * evidence bundle in RustFS, and publishes a Forgejo release linking them. */
-async function release(box, repo, finished) {
+/** Releases the designs that asked for one. */
+async function release(box, finished) {
   const designed = finished.filter(({ request, result }) => request.release?.trigger && result.status === "designed");
   if (!designed.length) return;
-  const startedAt = new Date().toISOString();
-  git(repo, ["fetch", "--quiet", "--tags", "origin"]);
-  const commitSha = git(repo, ["rev-parse", `origin/${box.defaultBranch}`]).toString().trim();
-  const tags = git(repo, ["tag", "--list"]).toString().split("\n").filter(Boolean);
-  const version = nextVersion(tags, designed.map(({ request }) => request.release?.bump ?? "patch"));
-  const tag = `v${version}`;
-  const name = box.repository.split("/")[1];
-  const archive = git(repo, ["archive", "--format=tar.gz", `--prefix=${name}-${version}/`, commitSha]);
-  const directory = join(box.out, "release", tag);
-  mkdirSync(directory, { recursive: true });
-  const archiveName = `${name}-${version}.tar.gz`;
-  writeFileSync(join(directory, archiveName), archive);
-  const artifacts = [{ name: archiveName, uri: await box.store(`releases/${tag}/${archiveName}`, archive, "application/gzip"), sha256: sha256(archive), bytes: archive.length }];
-  const bundle = evidenceBundle({ tag, version, commitSha, model: box.model, designed, artifacts,
-    build: { command: `git archive ${commitSha}; node export.ts per design`, image: box.image, startedAt, finishedAt: new Date().toISOString() } });
-  const bundleBytes = Buffer.from(`${JSON.stringify(bundle, null, 2)}\n`);
-  writeFileSync(join(directory, "evidence-bundle.json"), bundleBytes);
-  const evidence = { uri: await box.store(`releases/${tag}/evidence-bundle.json`, bundleBytes, "application/json"), sha256: sha256(bundleBytes) };
-  const notes = [
-    `Release ${tag} of ${box.repository} at ${commitSha}.`, "",
-    ...designed.map(({ request, result }) => `- ${request.title}: ${result.path} (${result.geometry.bounds.width} x ${result.geometry.bounds.depth} x ${result.geometry.bounds.height} mm)`), "",
-    `Evidence bundle: ${evidence.uri} (sha256 ${evidence.sha256})`,
-    ...artifacts.map((artifact) => `Artifact: ${artifact.name}, ${artifact.uri} (sha256 ${artifact.sha256})`),
-  ].join("\n");
-  const published = await box.forgejo("POST", `/repos/${box.repository}/releases`, { tag_name: tag, target_commitish: commitSha, name: tag, body: notes });
-  const releaseResult = { tag, url: published.html_url, artifacts, evidenceBundle: evidence };
+  const release = await releaseDesigns(box, designed);
   for (const { request, result } of designed)
-    writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify({ ...result, release: releaseResult }, null, 2)}\n`);
-  box.log(`released ${tag}: ${published.html_url}`);
+    writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify({ ...result, release }, null, 2)}\n`);
 }

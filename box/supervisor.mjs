@@ -163,12 +163,20 @@ async function importRepository(adminAuth, name) {
   await api("PUT", `/repos/${OWNER}/${name}/collaborators/${BOT}`, { permission: "write" });
   await api("PUT", `/repos/${OWNER}/${name}/collaborators/reviewer`, { permission: "write" });
   const source = env.BOX_REPO || "/in/repo";
-  const branch = run("git", ["-c", "safe.directory=*", "-C", source, "symbolic-ref", "--short", "HEAD"]);
+  const git = ["-c", "safe.directory=*", "-C", source];
+  // A detached checkout (a CI clone, a commit) becomes BOX_DEFAULT_BRANCH, main by default.
+  let branch, detached = false;
+  try {
+    branch = run("git", [...git, "symbolic-ref", "--short", "HEAD"]);
+  } catch {
+    branch = env.BOX_DEFAULT_BRANCH || "main";
+    detached = true;
+  }
   const remote = `${FORGEJO.replace("http://", `http://box-admin:${secret("forgejo-box-admin-password")}@`)}/${OWNER}/${name}.git`;
   // Push every branch and tag as they are; the mounted repository is never changed.
   // The mount is owned by the host user, so trust it explicitly for git.
-  const git = ["-c", "safe.directory=*", "-C", source];
   run("git", [...git, "push", "--quiet", remote, "--all"]);
+  if (detached) run("git", [...git, "push", "--quiet", "--force", remote, `HEAD:refs/heads/${branch}`]);
   run("git", [...git, "push", "--quiet", remote, "--tags"]);
   await api("PATCH", `/repos/${OWNER}/${name}`, { default_branch: branch });
   return { repository: `${OWNER}/${name}`, defaultBranch: branch };
@@ -249,18 +257,18 @@ function driverContext({ gatewayToken, bot, repo, s3 }) {
   /** Writes the final history of every branch and tag to /out/repo.bundle and,
    * for an eval run (BOX_EXIT_WHEN_DONE), stops the box. */
   const finish = async (failure) => {
+    // The history is written even when the driver's last step (a release) failed.
     try {
-      if (failure) throw failure;
       const directory = join(STATE, "final");
       rmSync(directory, { recursive: true, force: true });
       run("git", ["clone", "--quiet", "--mirror", remote, directory]);
       run("git", ["-C", directory, "bundle", "create", join(OUT, "repo.bundle"), "--all"]);
-      log("all requests finished");
-      if (env.BOX_EXIT_WHEN_DONE) shutdown(0);
     } catch (error) {
-      log(`finishing failed: ${error.message}`);
-      if (env.BOX_EXIT_WHEN_DONE) shutdown(1);
+      failure ??= error;
     }
+    if (failure) log(`finishing failed: ${failure.message ?? failure}`);
+    else log("all requests finished");
+    if (env.BOX_EXIT_WHEN_DONE) shutdown(failure ? 1 : 0);
   };
   return {
     env, log, out: OUT, platform: PLATFORM, port: PORTS.webapp, image: env.BOX_IMAGE || `outfitter/${APP}-box:dev`,

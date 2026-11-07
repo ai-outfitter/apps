@@ -72,8 +72,13 @@ export function readRequests(directory) {
  */
 export async function submitRequest(request, { forgejo, operator, repository }) {
   const marker = requestMarker(request.requestId);
-  const recent = await forgejo("GET", `/repos/${repository}/issues?state=all&type=issues&limit=50`);
-  const found = recent.find((issue) => issue.body?.includes(marker));
+  let found;
+  // Every page, so a retry finds its issue however many the repository has.
+  for (let page = 1; !found; page++) {
+    const issues = await forgejo("GET", `/repos/${repository}/issues?state=all&type=issues&limit=50&page=${page}`);
+    found = issues.find((issue) => issue.body?.includes(marker));
+    if (issues.length < 50) break;
+  }
   const issue = found ?? await forgejo("POST", `/repos/${repository}/issues`, {
     title: request.title,
     body: issueBody(request),

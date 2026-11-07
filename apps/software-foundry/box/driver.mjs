@@ -1,4 +1,4 @@
-// The Software Foundry's driver for the box (box). The supervisor
+// The Software Foundry's driver for the box (box/). The supervisor
 // starts the services and the platform with Software Foundry installed, then
 // calls run(): configure Foundry for the box repository, file each work
 // request as a Forgejo issue and start Foundry on it, write each run-result
@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { readRequests, submitRequest } from "./intake.mjs";
 import { releaseRequests } from "./release.mjs";
-import { nodeResults, runResult } from "./results.mjs";
+import { nodeResults, runResult, terminal } from "./results.mjs";
 
 export const app = "software-foundry";
 export const title = "Foundry box";
@@ -36,23 +36,26 @@ function watchResults(box, pending) {
   const finished = [];
   const platform = createClient({ url: `file:${box.databases.platform}` });
   const gateway = createClient({ url: `file:${box.databases.gateway}` });
-  /** A request's run-result once its run has ended, else undefined. */
-  const resultOf = async (item) => {
-    const [run] = (await platform.execute({ sql: "SELECT status, updatedAt FROM workflow_runs WHERE id=?", args: [item.run.id] })).rows;
-    if (!run) return undefined;
-    const snapshots = (await gateway.execute("SELECT snapshot FROM runs")).rows.map((row) => JSON.parse(String(row.snapshot)));
-    return runResult({ forgejo: box.forgejo, repository: box.repository, request: item.request, issue: item.issue, run,
-      nodes: nodeResults(snapshots, item.run.id), checks: BOX_CHECKS, model: box.model, startedAt: item.startedAt,
-      finishedAt: new Date(Number(run.updatedAt)).toISOString() });
-  };
   const poll = async () => {
-    for (const item of [...pending]) {
-      const result = await resultOf(item).catch((error) => box.log(`${item.name}: result not ready (${error.message})`));
-      if (!result) continue;
-      writeFileSync(join(box.out, "results", `${item.request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
-      pending.splice(pending.indexOf(item), 1);
-      finished.push({ ...item, result });
-      box.log(`${item.name}: ${result.status}${result.change?.mergeSha ? ` at ${result.change.mergeSha.slice(0, 8)}` : ""}`);
+    try {
+      // Only the runs that ended are read further, and the gateway's snapshots once per poll.
+      const ended = [];
+      for (const item of pending) {
+        const [run] = (await platform.execute({ sql: "SELECT status, updatedAt FROM workflow_runs WHERE id=?", args: [item.run.id] })).rows;
+        if (run && terminal.has(String(run.status))) ended.push({ item, run });
+      }
+      const snapshots = ended.length ? (await gateway.execute("SELECT snapshot FROM runs")).rows.map((row) => JSON.parse(String(row.snapshot))) : [];
+      for (const { item, run } of ended) {
+        const result = await runResult({ forgejo: box.forgejo, repository: box.repository, request: item.request, issue: item.issue, run,
+          nodes: nodeResults(snapshots, item.run.id), checks: BOX_CHECKS, model: box.model, startedAt: item.startedAt,
+          finishedAt: new Date(Number(run.updatedAt)).toISOString() });
+        writeFileSync(join(box.out, "results", `${item.request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
+        pending.splice(pending.indexOf(item), 1);
+        finished.push({ ...item, result });
+        box.log(`${item.name}: ${result.status}${result.change?.mergeSha ? ` at ${result.change.mergeSha.slice(0, 8)}` : ""}`);
+      }
+    } catch (error) {
+      box.log(`results not ready (${error.message})`);
     }
     if (pending.length) setTimeout(poll, 10_000).unref?.();
     else release(box, finished).then(() => box.finish(), (error) => box.finish(error));
@@ -64,9 +67,7 @@ function watchResults(box, pending) {
 async function release(box, finished) {
   const released = finished.filter(({ request, result }) => request.release?.trigger && result.status === "landed");
   if (!released.length) return;
-  const release = await releaseRequests({ released, forgejo: box.forgejo, store: box.store, repository: box.repository,
-    remote: box.remote, branch: box.defaultBranch, model: released[0].result.model, out: box.out, image: box.image });
+  const release = await releaseRequests(box, released);
   for (const { request, result } of released)
     writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify({ ...result, release }, null, 2)}\n`);
-  box.log(`released ${release.tag}: ${release.url}`);
 }

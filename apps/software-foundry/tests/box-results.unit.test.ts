@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evidenceBundle, nextVersion } from "../box/release.mjs";
+import { nextVersion } from "../../../box/lib.mjs";
+import { evidenceBundle } from "../box/release.mjs";
 import { nodeResults, runResult } from "../box/results.mjs";
 
 const runId = "b443b27b-37cf-580d-a374-5c600f199d70";

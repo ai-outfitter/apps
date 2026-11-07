@@ -9,6 +9,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from "@vercel/agent-eval";
 import type { Agent, AgentRunOptions, AgentRunResult } from "@vercel/agent-eval";
 
 const require = createRequire(import.meta.url);
@@ -160,4 +161,33 @@ export function boxAgent(box: BoxOptions, app: BoxApp): Agent {
       }
     },
   };
+}
+
+/** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
+ * (or the ones named on the command line) through the box, graded by its EVAL.ts.
+ * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port)
+ * and BOX_MODEL_ENV (an env file with the model settings, box/README.md, "Models"). */
+export async function runBoxEvals(project: string, box: { name: string; displayName: string; image: string }, app: BoxApp) {
+  const env = process.env;
+  const port = Number(env.BOX_PORT || 8787);
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV }, app));
+  const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
+  // One model: the box routes every call to the model its env file names.
+  const config = { ...resolved, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
+  const { fixtures, errors } = loadAllFixtures(join(project, "evals"));
+  for (const error of errors) console.error(error.message);
+  const selected = process.argv.slice(2);
+  const chosen = selected.length ? fixtures.filter((fixture) => selected.includes(fixture.name)) : fixtures;
+  if (!chosen.length) throw new Error(`No ${box.displayName} evals selected`);
+  console.log(`Running ${chosen.map((fixture) => fixture.name).join(", ")}; watch the box at http://outfitter.localhost:${port}`);
+  const results = await runExperiment({
+    config,
+    fixtures: chosen,
+    apiKey: env.OPENAI_API_KEY ?? "",
+    resultsDir: join(project, "results"),
+    experimentName: box.name,
+    onProgress: (event) => console.log(JSON.stringify(event).slice(0, 300)),
+  });
+  console.log(formatResultsTable(results));
+  process.exitCode = results.evals.every((entry) => entry.passedRuns === entry.totalRuns) ? 0 : 1;
 }

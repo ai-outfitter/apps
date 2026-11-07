@@ -5,7 +5,8 @@
 // issue, pull request, statuses and reviews on the box's Forgejo.
 
 const sha = /^[a-f0-9]{40}$/;
-const terminal = new Set(["complete", "failed"]);
+/** Workflow run statuses that end a run. */
+export const terminal = new Set(["complete", "failed"]);
 
 /** The newest reported result of each node of a run, from the gateway's run snapshots.
  * @param {any[]} snapshots

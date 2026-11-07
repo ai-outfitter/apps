@@ -119,8 +119,16 @@ export class Controller {
   constructor({ store, runtimeScript, dataDirectory, gatewayUrl, model, spawnRuntime = defaultSpawn, freePort = findFreePort, log = console.error }) {
     Object.assign(this, { store, runtimeScript, dataDirectory, gatewayUrl, model, spawnRuntime, freePort, log });
     this.processes = new Map();
+    this.pending = Promise.resolve();
   }
-  async reconcile(now = Date.now()) {
+  /** Reconciles every Workspace. Calls run one at a time (the timer and each
+   * API write both call it), so a runtime is never started twice. */
+  reconcile(now) {
+    const next = this.pending.then(() => this.#reconcileAll(now ?? Date.now()));
+    this.pending = next.catch(() => {});
+    return next;
+  }
+  async #reconcileAll(now) {
     for (const workspace of this.store.list("workspaces/")) {
       try {
         await this.#reconcileOne(workspace, now);
@@ -282,7 +290,11 @@ function proxy(req, res, port, path) {
       response.pipe(res);
     },
   );
-  upstream.on("error", () => send(res, 502, { error: "Workspace runtime unavailable" }));
+  upstream.on("error", () => {
+    // A runtime that fails partway through a response has already sent its headers.
+    if (res.headersSent) res.destroy();
+    else send(res, 502, { error: "Workspace runtime unavailable" });
+  });
   req.pipe(upstream);
 }
 
