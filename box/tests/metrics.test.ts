@@ -36,3 +36,14 @@ test("the eval table lines up each run's model and metrics", () => {
   assert.match(table[1], /luna\/gpt-6-luna\s+pass\s+180\s+60\s+3\s+2000\s+600\s+10/);
   assert.match(table[2], /spark\/GLM-5.3-Flash-EXL3\s+fail \(failed\)\s+400\s+–/);
 });
+
+test("evals that score geometry add the parts' IoU, Chamfer distance and watertightness", () => {
+  const table = metricsTable([
+    { eval: "cable-clip", success: true, status: "designed", model: { provider: "luna", id: "gpt-6-luna" }, durationSeconds: 20,
+      geometry: { "cable-clip": { iou: 0.99, chamferMm: 0.01, watertight: true } } },
+    { eval: "l-bracket", success: false, status: "failed", model: { provider: "luna", id: "gpt-6-luna" }, durationSeconds: 30 },
+  ]).split("\n");
+  assert.match(table[0], /IoU\s+chamfer mm\s+watertight$/);
+  assert.match(table[1], /0\.99\s+0\.01\s+yes\s*$/);
+  assert.match(table[2], /–\s+–\s+–\s*$/);
+});

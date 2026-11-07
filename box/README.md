@@ -169,6 +169,32 @@ Each run's time and model use (wall and model seconds, model calls, tokens in
 and out, output tokens per second) is printed after the results and saved in
 `results/<box>-metrics-<time>.json`, so runs on different models can be compared.
 
+### Geometry scoring
+
+`eval/geometry.ts` (`@ai-outfitter/box/geometry`) scores CAD output against a
+reference part the way text-to-CAD benchmarks do (CADPrompt, Text2CAD,
+CAD-Recode): whether the code runs (an OpenSCAD `.scad` file renders, or the
+STL exists), whether the mesh is a valid, watertight solid (closed, manifold,
+consistently wound, positive volume), then volume IoU, Chamfer and Hausdorff
+distance against the reference. Prompts give sizes in millimetres, so parts
+keep their scale; both are centred and the candidate is tried in each of the
+24 axis-aligned orientations. `chamferMm` and `hausdorffMm` measure sampled
+points to the other surface in millimetres; `chamferUnit` is the benchmarks'
+point-to-point form (unit box, squared, x 10^3).
+
+A fixture's `reference/` folder is hidden from the box and copied beside
+`EVAL.ts` for grading, so `EVAL.ts` can call `scoreGeometry` on an exported STL
+and `recordScore` the result. Recorded scores go into the metrics JSON and add
+IoU, Chamfer and watertight columns to the metrics table. Outside an eval:
+
+```sh
+node --import tsx box/eval/score.ts <candidate.stl|.scad> <reference.stl|.scad>
+node --import tsx box/eval/score.ts render apps/workshop/box/evals/evals/*/reference/model.scad
+```
+
+`render` (re)writes each reference's STL with OpenSCAD (`openscad`, or
+`OPENSCAD=<path>`); the STLs are committed, so grading needs no OpenSCAD.
+
 ## Agent sessions
 
 Every agent a request used is recorded as a pi session (`box/sessions.mjs`):

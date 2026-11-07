@@ -27,7 +27,15 @@ the driver against a stand-in platform and a local git remote.
   `box/release.mjs` step), as the Software Foundry box splits them.
 - `export.ts`: builds a project's model with `src/model/geometry.ts` and
   writes STEP and STL.
-- `evals/`: Agent Eval fixtures and `run.ts`.
+- `evals/`: Agent Eval fixtures and `run.ts`. Each fixture is a part described
+  with its dimensions, in the style of Text2CAD's expert prompts and CADPrompt's
+  parts, limited to what Workshop's CAD plans make (boxes and cylinders, added
+  or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`. Its
+  `reference/model.scad` is the part in OpenSCAD, rendered to
+  `reference/model.stl`; `EVAL.ts` scores the box's `model.stl` against it
+  (box/README.md, "Geometry scoring") and passes at IoU >= 0.95 with no surface
+  more than 0.5 mm off. `tests/box-geometry.unit.test.ts` checks that a correct
+  CAD plan passes each and a wrong one fails.
 
 The design agent runs on the platform (the webapp's `src/lib/workshop-design.ts`),
 so the platform gets the model settings; the box signs in as the local member.
