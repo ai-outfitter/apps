@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "requestId": "8c2d4e6f-1a3b-4c5d-8e7f-9a0b1c2d3e4f",
+  "title": "Cable clip",
+  "message": "A 60 x 40 x 20 mm block with a 10 mm diameter hole through its height in the middle.",
+  "followUps": ["Make the hole 12 mm in diameter."],
+  "release": { "trigger": true, "bump": "minor" }
+}

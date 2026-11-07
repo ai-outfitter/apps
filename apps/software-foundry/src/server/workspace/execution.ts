@@ -10,7 +10,8 @@ import {
 import type { StorageLocals } from "@ai-outfitter/app-sdk/storage";
 import {
   type ChangeReceipt,
-  GithubFoundryForge,
+  type FoundryForge,
+  foundryForge,
   hostAPI,
   type ReviewReceipt,
 } from "./forge";
@@ -74,7 +75,7 @@ export function coordinatedRole(target: { ci: string; role: string }, previous?:
     (["repair", "review"].includes(target.role) && approvedCandidate(previous)));
 }
 
-async function actionsValidation(host: Finalize, api: Parameters<typeof actionsChecks>[0], repository: string, forge: GithubFoundryForge,
+async function actionsValidation(host: Finalize, api: Parameters<typeof actionsChecks>[0], repository: string, forge: FoundryForge,
   target: z.infer<typeof workspaceTarget>, previous: Record<string, any>, verified: ChangeReceipt) {
   if (target.role === "review") {
     if (!approvedCandidate(previous)) return { result: { ...previous, review: null } };
@@ -195,12 +196,7 @@ async function finalizeWorkspaceOutputs(
     .parse(outputs.result);
   const repo = await host.call("repository.read", {});
   const api = hostAPI((request) => host.call("repository.request", request));
-  const forge = new GithubFoundryForge(
-    api,
-    repo.name,
-    repo.appId,
-    target.ci === "actions" ? githubActionsAppId : repo.appId,
-  );
+  const forge = foundryForge(api, repo, target.ci === "actions" ? githubActionsAppId : repo.appId);
   if ("merge_group" in event)
     return finalizeMergeGroup(
       forge,
@@ -310,7 +306,7 @@ async function publishIndependentReview(
 }
 
 async function landWorkspaceChange(
-  forge: GithubFoundryForge,
+  forge: FoundryForge,
   target: z.infer<typeof workspaceTarget>,
   previous: Record<string, any>,
   verified: ChangeReceipt,
@@ -341,7 +337,7 @@ function approvedChecks(produced: Record<string, any>, target: z.infer<typeof wo
 }
 
 async function finalizeMergeGroup(
-  forge: GithubFoundryForge,
+  forge: FoundryForge,
   attemptId: string,
   target: z.infer<typeof workspaceTarget>,
   event: unknown,
@@ -367,7 +363,7 @@ async function finalizeMergeGroup(
 }
 
 async function finalizeValidation(
-  forge: GithubFoundryForge,
+  forge: FoundryForge,
   attemptId: string,
   target: z.infer<typeof workspaceTarget>,
   previous: Record<string, any>,

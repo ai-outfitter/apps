@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "requestId": "3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e",
+  "kind": "feature",
+  "title": "Add a subtract helper",
+  "problem": "index.mjs exports add but there is no subtract, so callers write a - b inline.",
+  "acceptanceCriteria": [
+    { "id": "export-subtract", "text": "index.mjs exports subtract(a, b) returning a - b." },
+    { "id": "tested", "text": "A node:test test covers subtract, and npm test passes." }
+  ],
+  "delivery": "pull_request",
+  "release": { "trigger": true, "bump": "minor" }
+}

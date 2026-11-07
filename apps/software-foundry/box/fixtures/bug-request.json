@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "requestId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "kind": "bug",
+  "title": "Totals row double-counts refunds",
+  "problem": "Monthly totals are wrong whenever an order was refunded.",
+  "acceptanceCriteria": [
+    { "id": "refund-once", "text": "A refunded order reduces the total exactly once." }
+  ],
+  "bug": {
+    "stepsToReproduce": ["Create an order for 10", "Refund it", "Open the monthly report"],
+    "expected": "Total is 0",
+    "actual": "Total is -10"
+  },
+  "delivery": "direct_commit"
+}

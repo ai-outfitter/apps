@@ -1,0 +1,18 @@
+{
+  "name": "@ai-outfitter/box",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sealed app boxes: an official app on the real platform with Forgejo and RustFS, JSON in and out, driven by Agent Eval.",
+  "exports": {
+    "./eval": "./eval/agent.ts",
+    "./box-kube": "./box-kube.mjs"
+  },
+  "scripts": {
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@vercel/agent-eval": "2.6.0",
+    "vitest": "2.1.9"
+  }
+}

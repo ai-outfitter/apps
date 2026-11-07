@@ -1,4 +1,5 @@
-/** Provider-neutral receipts used by the workspace workflow. GitHub is the first adapter. */
+/** Provider-neutral receipts used by the workspace workflow. GitHub is the first adapter; Forgejo (forgejo.ts) the second. */
+import { ForgejoFoundryForge } from "./forgejo";
 export type IssueReceipt = {
   number: number;
   repository: string;
@@ -330,4 +331,19 @@ export class GithubFoundryForge {
     )
       throw conflict("Current required checks required");
   }
+}
+
+/** Either adapter: they share receipts, refusals and method signatures. */
+export type FoundryForge = GithubFoundryForge | ForgejoFoundryForge;
+
+/** The adapter for the bound repository's forge (GitHub when the host names none).
+ * `checkAppId` is the GitHub App whose check runs count; Forgejo counts the bot's own statuses. */
+export function foundryForge(
+  api: API,
+  repo: { name: string; appId: number; forge?: "github" | "forgejo" },
+  checkAppId = repo.appId,
+): FoundryForge {
+  return repo.forge === "forgejo"
+    ? new ForgejoFoundryForge(api, repo.name, repo.appId)
+    : new GithubFoundryForge(api, repo.name, repo.appId, checkAppId);
 }

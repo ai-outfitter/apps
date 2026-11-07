@@ -1,0 +1,149 @@
+{
+  "$id": "https://outfitter.ai/schemas/foundry-box/work-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "feature",
+        "bug"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "problem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "acceptanceCriteria": {
+      "minItems": 1,
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "bug": {
+      "type": "object",
+      "properties": {
+        "stepsToReproduce": {
+          "minItems": 1,
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "actual": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "environment": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "stepsToReproduce",
+        "expected",
+        "actual"
+      ],
+      "additionalProperties": false
+    },
+    "delivery": {
+      "default": "pull_request",
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "direct_commit"
+      ]
+    },
+    "release": {
+      "type": "object",
+      "properties": {
+        "trigger": {
+          "type": "boolean"
+        },
+        "bump": {
+          "default": "patch",
+          "type": "string",
+          "enum": [
+            "major",
+            "minor",
+            "patch"
+          ]
+        }
+      },
+      "required": [
+        "trigger"
+      ],
+      "additionalProperties": false
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "maxRepairPasses": {
+          "default": 1,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "kind",
+    "title",
+    "problem",
+    "acceptanceCriteria"
+  ],
+  "additionalProperties": false
+}
