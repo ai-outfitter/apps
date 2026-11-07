@@ -1,0 +1,7 @@
+---
+import Layout from "../../components/Layout.astro";
+---
+<Layout title="Changes" description="Batches of proposed Wiki changes, their evidence and review." page="page" routeDepth={1}>
+  <div id="changes" class="wiki-map changes" aria-busy="true" data-view="list"></div>
+</Layout>
+<script>import "../../scripts/changes.ts";</script>

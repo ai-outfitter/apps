@@ -37,6 +37,9 @@ export const graphSelectionDefinition = z.strictObject({
   stopAtTypes: z.array(typeName).max(32).default([]),
   /** Reached types that expand one more step; what they reach is shown, not expanded. */
   stopAfterTypes: z.array(typeName).max(32).default([]),
+  /** When given, only nodes of these types are reached (roots always are); a node of another
+   * type is neither selected nor expanded through, as if its edges were not followed. */
+  nodeTypes: z.array(typeName).max(64).optional(),
 });
 export type GraphSelectionDefinition = z.infer<typeof graphSelectionDefinition>;
 export type GraphSelectionRule = { type: string; direction: "outgoing" | "incoming"; from_type?: string; to_type?: string };
@@ -138,8 +141,12 @@ export function selectGraph(graph: SelectableGraph, rootIds: readonly string[], 
     stop_after_types: definition.stopAfterTypes,
   });
   const roots = selectionRoots(nodes,rootIds,pattern);
-  const terminalTypeIds = new Set(types.filter(type => !type.archived && (definition.terminalTypes.includes(type.id) || definition.terminalTypes.includes(type.name))).map(type => type.id));
-  const selection = exploreKnowledgeGraph({ nodes, edges }, roots, pattern, { terminalTypeIds });
+  const typeIdsNamed = (names: readonly string[]) => new Set(types.filter(type => !type.archived && (names.includes(type.id) || names.includes(type.name))).map(type => type.id));
+  const terminalTypeIds = typeIdsNamed(definition.terminalTypes);
+  // nodeTypes narrows what the walk may reach: the roots and nodes of those types only.
+  const reachable = definition.nodeTypes ? typeIdsNamed(definition.nodeTypes) : null;
+  const allowedNodeIds = reachable ? new Set([...roots.map(root => root.id), ...nodes.filter(node => reachable.has(node.typeId)).map(node => node.id)]) : undefined;
+  const selection = exploreKnowledgeGraph({ nodes, edges }, roots, pattern, { terminalTypeIds, allowedNodeIds });
   const installationId = roots[0]?.record.ref.installationId ?? graph.nodes[0]?.ref.installationId ?? "";
   const ref = (id: string): EntityRef => ({ installationId, type: "graph-node", id });
   const selectedIds = new Set(selection.nodes.map(node => node.id));

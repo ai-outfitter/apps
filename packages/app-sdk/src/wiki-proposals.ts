@@ -26,7 +26,7 @@ export const wikiProposalRulesText = wikiProposalRules.map((rule) => `- ${rule}`
 
 /**
  * The Wiki's change-batch documents. The Wiki publishes them (its documents.ts),
- * chat clients run them with graph_mutate and graph_graphql, and Forerunner runs
+ * chat clients run them with graph_mutate and graph_query, and Forerunner runs
  * the same text over the Wiki's graph.mutate action, so every writer stages alike.
  */
 export const wikiChangeDocuments = {
@@ -49,11 +49,11 @@ export const wikiChangeDocuments = {
     }`,
   },
   ChangeBatch: {
-    story: "As an agent, I want to see what became of a batch I submitted, so that I know which proposals were committed or rejected and why.",
-    document: `query ChangeBatch($id: ID!) {
+    story: "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
+    document: `query ChangeBatch($id: ID!, $refs: [String!]) {
       changeBatch(id: $id) {
-        id title state reviewBy counts
-        operations { ref state reason decision recordId recordRevision }
+        id title purpose source state policy summary reviewBy createdAt updatedAt expiresAt counts
+        operations(refs: $refs) { ref state operation evidence confidence reason decision recordId recordRevision }
       }
     }`,
   },

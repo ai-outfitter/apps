@@ -1,0 +1,456 @@
+{
+  "format": "outfitter-graph-entities-v1",
+  "nodes": [
+    {
+      "id": "77000000-0000-4000-8000-000000000001",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "slug": "synthetic-release-product",
+      "title": "Synthetic Atlas Console",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional software product used to demonstrate release evidence.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000002",
+      "typeId": "71000000-0000-4000-8000-000000000014",
+      "slug": "synthetic-release-repo",
+      "title": "Synthetic Atlas monorepo",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional source repository. No provider calls or real code evidence.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000003",
+      "typeId": "4a56e759-9bde-4f0a-857d-82526463b092",
+      "slug": "synthetic-release-criterion",
+      "title": "Administrator can install Governance",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"condition\": \"An administrator installs Governance in a clean organization.\",\n  \"expectedOutcome\": \"Installation succeeds, a receipt exists and the Overview and Controls pages open.\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000004",
+      "typeId": "7fe211b7-0176-4cac-9799-886a3ee7936f",
+      "slug": "synthetic-release-requirement",
+      "title": "Install Governance without manual repair",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"statement\": \"Administrators can install Governance from the catalog.\",\n  \"rationale\": \"Organizations need a working default governance workspace.\",\n  \"status\": \"approved\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000005",
+      "typeId": "199e5077-b65f-4c56-a672-06dd6ebe999d",
+      "slug": "synthetic-release-story",
+      "title": "Administrator initializes governance",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"actor\": \"Organization administrator\",\n  \"capability\": \"Install Governance from the catalog\",\n  \"benefit\": \"Start managing controls without manual repair\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000006",
+      "typeId": "76000000-0000-4000-8000-000000000001",
+      "slug": "synthetic-release-spec",
+      "title": "Synthetic Governance installation specification",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"purpose\": \"Allow an administrator to initialize governance.\",\n  \"scope\": \"Installation, receipt and default pages. External provider integrations are excluded.\",\n  \"acceptanceCriteria\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000003\",\n      \"revision\": 1\n    }\n  ]\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000007",
+      "typeId": "2f93a811-9c0a-4848-8193-0ba55e6b1fb5",
+      "slug": "synthetic-release-issue",
+      "title": "Synthetic issue: validate installed pages",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional issue placeholder. No canonical Planning issue exists. Real issues must reference their owning system; status and owner are not copied here.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000008",
+      "typeId": "76000000-0000-4000-8000-000000000002",
+      "slug": "synthetic-release-candidate",
+      "title": "Atlas Console 1.4.0-rc.1 (synthetic)",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"stage\": \"candidate\",\n  \"sourceCommit\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n  \"buildId\": \"synthetic-atlas-build-101\",\n  \"sourcePath\": \"apps/console\",\n  \"specification\": {\n    \"id\": \"77000000-0000-4000-8000-000000000006\",\n    \"revision\": 1\n  },\n  \"includedChanges\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000007\",\n      \"revision\": 1\n    }\n  ]\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000009",
+      "typeId": "76000000-0000-4000-8000-000000000002",
+      "slug": "synthetic-release-next-candidate",
+      "title": "Atlas Console 1.4.0-rc.2 — unchecked (synthetic)",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"stage\": \"candidate\",\n  \"sourceCommit\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n  \"buildId\": \"synthetic-atlas-build-102\",\n  \"sourcePath\": \"apps/console\",\n  \"specification\": {\n    \"id\": \"77000000-0000-4000-8000-000000000006\",\n    \"revision\": 1\n  },\n  \"includedChanges\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000007\",\n      \"revision\": 1\n    }\n  ]\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000010",
+      "typeId": "71000000-0000-4000-8000-000000000012",
+      "slug": "synthetic-release-receipt",
+      "title": "Synthetic installation receipt and check log",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "SIMULATED evidence only. Build 101 installed in synthetic-preview; Overview and Controls returned 200 and an active installation receipt was recorded. This is not an actual installation.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000011",
+      "typeId": "76000000-0000-4000-8000-000000000003",
+      "slug": "synthetic-release-demo",
+      "title": "Synthetic administrator walkthrough",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"subject\": {\n    \"id\": \"77000000-0000-4000-8000-000000000008\",\n    \"revision\": 1\n  },\n  \"environment\": \"synthetic-preview\",\n  \"capturedAt\": \"2026-10-01T10:00:00Z\",\n  \"media\": [\n    \"https://example.invalid/synthetic/atlas-build-101/walkthrough\"\n  ],\n  \"limitations\": [\n    \"Simulated walkthrough location; no actual browser recording or provider acceptance.\"\n  ]\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000012",
+      "typeId": "76000000-0000-4000-8000-000000000004",
+      "slug": "synthetic-release-evaluation",
+      "title": "Synthetic preview installation evaluation",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"subject\": {\n    \"id\": \"77000000-0000-4000-8000-000000000008\",\n    \"revision\": 1\n  },\n  \"criterion\": {\n    \"id\": \"77000000-0000-4000-8000-000000000003\",\n    \"revision\": 1\n  },\n  \"environment\": \"synthetic-preview\",\n  \"method\": \"Simulated clean-organization installation, receipt and page checks.\",\n  \"result\": \"passed\",\n  \"evaluatedAt\": \"2026-10-01T10:05:00Z\",\n  \"evidence\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000010\",\n      \"revision\": 1\n    },\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000011\",\n      \"revision\": 1\n    }\n  ],\n  \"limitations\": [\n    \"Synthetic preview result; production behavior is not established.\"\n  ]\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000013",
+      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "slug": "synthetic-release-definition",
+      "title": "Release package assembly definition",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"artifactKind\": \"release-readiness-package\",\n  \"audience\": \"Release reviewer\",\n  \"purpose\": \"Decide whether this exact candidate is ready to release.\",\n  \"outputTitle\": \"Candidate readiness package\",\n  \"sections\": [\n    \"Candidate source and build\",\n    \"Included issues\",\n    \"Requirements and criteria\",\n    \"Demonstration\",\n    \"Evaluation records and evidence\",\n    \"Missing checks and known limitations\",\n    \"Readiness and accepted exceptions\",\n    \"Approval decision\"\n  ],\n  \"sourceScope\": \"One candidate node revision; criterion, specification and definition revisions; only evidence explicitly tied to that subject.\",\n  \"refreshPolicy\": \"Source changes mark the package stale. Missing checks remain not run.\",\n  \"revisionPolicy\": \"Pin every referenced ID and revision; never carry a prior build pass or approval to another candidate. Preserve previous outputs.\",\n  \"status\": \"proposed\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000014",
+      "typeId": "76000000-0000-4000-8000-000000000005",
+      "slug": "synthetic-release-assessment",
+      "title": "Synthetic rc.1 readiness assessment",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"subject\": {\n    \"id\": \"77000000-0000-4000-8000-000000000008\",\n    \"revision\": 1\n  },\n  \"definition\": {\n    \"id\": \"77000000-0000-4000-8000-000000000013\",\n    \"revision\": 1\n  },\n  \"criteria\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000003\",\n      \"revision\": 1\n    }\n  ],\n  \"evaluations\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000012\",\n      \"revision\": 1\n    }\n  ],\n  \"conclusion\": \"ready_with_exceptions\",\n  \"gaps\": [\n    \"Real provider integration has not been checked.\"\n  ],\n  \"acceptedExceptions\": [\n    \"Synthetic decision accepts excluding provider integration for this fictional internal release only.\"\n  ],\n  \"assessedAt\": \"2026-10-01T10:10:00Z\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000015",
+      "typeId": "71000000-0000-4000-8000-000000000005",
+      "slug": "synthetic-release-reviewer",
+      "title": "Morgan Example (synthetic)",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional release reviewer.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000016",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "slug": "synthetic-release-role",
+      "title": "Synthetic release reviewer",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional release review responsibility; no application permissions.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000017",
+      "typeId": "71000000-0000-4000-8000-000000000019",
+      "slug": "synthetic-release-assignment",
+      "title": "Morgan reviews Atlas releases (synthetic)",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "Fictional assignment used for the simulated decision.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000019",
+      "typeId": "71000000-0000-4000-8000-000000000061",
+      "slug": "synthetic-release-approval",
+      "title": "Approve synthetic rc.1 for internal release",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "## Simulated decision\n\nMorgan Example approved candidate 77000000-0000-4000-8000-000000000008 at node revision 1, commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, build synthetic-atlas-build-101, on 2026-10-01T10:15:00Z.\n\nCondition: internal synthetic environment only. Accept the provider integration exclusion in the linked assessment. This does not approve rc.2, execute a deployment or grant application rights.",
+      "properties": {
+        "status": "decided"
+      }
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000020",
+      "typeId": "76000000-0000-4000-8000-000000000006",
+      "slug": "synthetic-release-release",
+      "title": "Synthetic internal deployment of rc.1",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"subject\": {\n    \"id\": \"77000000-0000-4000-8000-000000000008\",\n    \"revision\": 1\n  },\n  \"approval\": {\n    \"id\": \"77000000-0000-4000-8000-000000000019\",\n    \"revision\": 1\n  },\n  \"environment\": \"synthetic-internal\",\n  \"releasedAt\": \"2026-10-01T10:20:00Z\",\n  \"outcome\": \"succeeded\",\n  \"receipt\": \"SIMULATED activation receipt atlas-101. Not a real deployment.\"\n}",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000021",
+      "typeId": "71000000-0000-4000-8000-000000000012",
+      "slug": "synthetic-release-post-evidence",
+      "title": "Synthetic deployed installation observation",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "SIMULATED environment observation: deployed build 101 can install Governance. No actual environment was contacted.",
+      "properties": {}
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000022",
+      "typeId": "76000000-0000-4000-8000-000000000007",
+      "slug": "synthetic-release-verification",
+      "title": "Synthetic deployed installation verification",
+      "summary": "Synthetic release example. All events and evidence are simulated.",
+      "body": "{\n  \"release\": {\n    \"id\": \"77000000-0000-4000-8000-000000000020\",\n    \"revision\": 1\n  },\n  \"subject\": {\n    \"id\": \"77000000-0000-4000-8000-000000000008\",\n    \"revision\": 1\n  },\n  \"criterion\": {\n    \"id\": \"77000000-0000-4000-8000-000000000003\",\n    \"revision\": 1\n  },\n  \"environment\": \"synthetic-internal\",\n  \"result\": \"passed\",\n  \"verifiedAt\": \"2026-10-01T10:25:00Z\",\n  \"evidence\": [\n    {\n      \"id\": \"77000000-0000-4000-8000-000000000021\",\n      \"revision\": 1\n    }\n  ],\n  \"limitations\": [\n    \"Fictional verification; does not establish real production behavior.\"\n  ]\n}",
+      "properties": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "78000000-0000-4000-8000-000000000001",
+      "typeId": "76000000-0000-4000-8000-000000000008",
+      "fromId": "77000000-0000-4000-8000-000000000008",
+      "toId": "77000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000002",
+      "typeId": "76000000-0000-4000-8000-000000000011",
+      "fromId": "77000000-0000-4000-8000-000000000008",
+      "toId": "77000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000003",
+      "typeId": "76000000-0000-4000-8000-000000000010",
+      "fromId": "77000000-0000-4000-8000-000000000008",
+      "toId": "77000000-0000-4000-8000-000000000007",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000004",
+      "typeId": "71000000-0000-4000-8000-000000000033",
+      "fromId": "77000000-0000-4000-8000-000000000008",
+      "toId": "77000000-0000-4000-8000-000000000002",
+      "properties": {
+        "path": "apps/console",
+        "ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000005",
+      "typeId": "76000000-0000-4000-8000-000000000008",
+      "fromId": "77000000-0000-4000-8000-000000000009",
+      "toId": "77000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000006",
+      "typeId": "76000000-0000-4000-8000-000000000011",
+      "fromId": "77000000-0000-4000-8000-000000000009",
+      "toId": "77000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000007",
+      "typeId": "76000000-0000-4000-8000-000000000010",
+      "fromId": "77000000-0000-4000-8000-000000000009",
+      "toId": "77000000-0000-4000-8000-000000000007",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000008",
+      "typeId": "71000000-0000-4000-8000-000000000033",
+      "fromId": "77000000-0000-4000-8000-000000000009",
+      "toId": "77000000-0000-4000-8000-000000000002",
+      "properties": {
+        "path": "apps/console",
+        "ref": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000009",
+      "typeId": "76000000-0000-4000-8000-000000000009",
+      "fromId": "77000000-0000-4000-8000-000000000006",
+      "toId": "77000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000010",
+      "typeId": "075f93f6-6860-4977-a1b8-b99c4e16c350",
+      "fromId": "77000000-0000-4000-8000-000000000006",
+      "toId": "77000000-0000-4000-8000-000000000004",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000011",
+      "typeId": "075f93f6-6860-4977-a1b8-b99c4e16c350",
+      "fromId": "77000000-0000-4000-8000-000000000005",
+      "toId": "77000000-0000-4000-8000-000000000004",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000012",
+      "typeId": "9d47572a-8a5a-41d7-959b-bd6bf7015527",
+      "fromId": "77000000-0000-4000-8000-000000000004",
+      "toId": "77000000-0000-4000-8000-000000000003",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000013",
+      "typeId": "d7744927-5ed5-46d2-89be-5815d6fe923c",
+      "fromId": "77000000-0000-4000-8000-000000000007",
+      "toId": "77000000-0000-4000-8000-000000000004",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000014",
+      "typeId": "76000000-0000-4000-8000-000000000012",
+      "fromId": "77000000-0000-4000-8000-000000000011",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000015",
+      "typeId": "76000000-0000-4000-8000-000000000013",
+      "fromId": "77000000-0000-4000-8000-000000000012",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000016",
+      "typeId": "76000000-0000-4000-8000-000000000014",
+      "fromId": "77000000-0000-4000-8000-000000000012",
+      "toId": "77000000-0000-4000-8000-000000000003",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000017",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000012",
+      "toId": "77000000-0000-4000-8000-000000000010",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000018",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000012",
+      "toId": "77000000-0000-4000-8000-000000000011",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000019",
+      "typeId": "76000000-0000-4000-8000-000000000016",
+      "fromId": "77000000-0000-4000-8000-000000000014",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000020",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000014",
+      "toId": "77000000-0000-4000-8000-000000000012",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000021",
+      "typeId": "76000000-0000-4000-8000-000000000017",
+      "fromId": "77000000-0000-4000-8000-000000000014",
+      "toId": "77000000-0000-4000-8000-000000000013",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000022",
+      "typeId": "7f80f40e-4857-4841-b060-8039ecfaeb38",
+      "fromId": "77000000-0000-4000-8000-000000000013",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000023",
+      "typeId": "08755272-8498-4671-8f63-ec97acc97f76",
+      "fromId": "77000000-0000-4000-8000-000000000013",
+      "toId": "0601dd79-7419-5a5f-a0b6-10330b3bbcf6",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000024",
+      "typeId": "71000000-0000-4000-8000-000000000062",
+      "fromId": "77000000-0000-4000-8000-000000000019",
+      "toId": "0cdb30f1-1c29-50b2-ac5d-5679e7eeb59d",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000025",
+      "typeId": "71000000-0000-4000-8000-000000000063",
+      "fromId": "77000000-0000-4000-8000-000000000019",
+      "toId": "77000000-0000-4000-8000-000000000015",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000026",
+      "typeId": "71000000-0000-4000-8000-000000000064",
+      "fromId": "77000000-0000-4000-8000-000000000019",
+      "toId": "77000000-0000-4000-8000-000000000017",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000027",
+      "typeId": "71000000-0000-4000-8000-000000000043",
+      "fromId": "77000000-0000-4000-8000-000000000019",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000028",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000019",
+      "toId": "77000000-0000-4000-8000-000000000014",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000029",
+      "typeId": "71000000-0000-4000-8000-000000000041",
+      "fromId": "77000000-0000-4000-8000-000000000017",
+      "toId": "77000000-0000-4000-8000-000000000015",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000030",
+      "typeId": "71000000-0000-4000-8000-000000000042",
+      "fromId": "77000000-0000-4000-8000-000000000017",
+      "toId": "77000000-0000-4000-8000-000000000016",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000031",
+      "typeId": "71000000-0000-4000-8000-000000000043",
+      "fromId": "77000000-0000-4000-8000-000000000017",
+      "toId": "77000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000032",
+      "typeId": "76000000-0000-4000-8000-000000000018",
+      "fromId": "77000000-0000-4000-8000-000000000020",
+      "toId": "77000000-0000-4000-8000-000000000008",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000033",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000020",
+      "toId": "77000000-0000-4000-8000-000000000019",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000034",
+      "typeId": "76000000-0000-4000-8000-000000000019",
+      "fromId": "77000000-0000-4000-8000-000000000022",
+      "toId": "77000000-0000-4000-8000-000000000020",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000035",
+      "typeId": "76000000-0000-4000-8000-000000000014",
+      "fromId": "77000000-0000-4000-8000-000000000022",
+      "toId": "77000000-0000-4000-8000-000000000003",
+      "properties": {}
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000036",
+      "typeId": "76000000-0000-4000-8000-000000000015",
+      "fromId": "77000000-0000-4000-8000-000000000022",
+      "toId": "77000000-0000-4000-8000-000000000021",
+      "properties": {}
+    }
+  ]
+}
