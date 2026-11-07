@@ -16,7 +16,8 @@
     "./broker": "./src/broker.ts",
     "./credential-bindings": "./src/credential-bindings.ts",
     "./mcp": "./src/mcp.ts",
-    "./imported": "./src/imported.ts"
+    "./imported": "./src/imported.ts",
+    "./evidence": "./src/evidence.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",

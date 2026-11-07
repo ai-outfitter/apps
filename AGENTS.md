@@ -29,3 +29,5 @@ private webapp source. Release-please owns package versions and dependency bumps
 App deployment follows successful default-branch checks through OIDC. Do not add
 deployment enablement flags. SaaS is the default destination; self-hosting changes
 the destination and runner reachability, not the repository identity contract.
+
+Graph interoperability follows [graph providers](docs/graph-providers.md). Keep generic discovery/transport in the SDK and product ontology/assertion/batch schemas in Onto contracts. A source reference or declared capability grants no access. Preserve legacy aliases until consumers and deployed data have a verified migration.
