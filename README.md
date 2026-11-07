@@ -205,3 +205,7 @@ configured yet. App versions and changelogs remain in their app repositories.
 Pin the SDK once as `sdkSha` in `.outfitter/apps.json`. Check/preview workflows
 and the platform repository build adapter use the same commit and root lockfile.
 The optional workflow `sdk-sha` input remains an explicit override for existing callers.
+
+## Graph interoperability and Onto
+
+[Graph providers and Onto contracts](docs/graph-providers.md) describes the public product contract/client packages, provider-neutral SDK transport, compatibility aliases and conformance checks.

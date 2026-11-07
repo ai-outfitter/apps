@@ -49,7 +49,10 @@
     "./graph-templates": "./src/graph-templates.ts",
     "./data-transfer": "./src/data-transfer.ts",
     "./batch-documents": "./src/batch-documents.ts",
-    "./batch-receipts": "./src/batch-receipts.ts"
+    "./batch-receipts": "./src/batch-receipts.ts",
+    "./graph-protocol": "./src/graph-protocol.ts",
+    "./graph-provider": "./src/graph-provider.ts",
+    "./document-policy": "./src/document-policy.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.1",
@@ -59,7 +62,8 @@
     "drizzle-zod": "0.8.3",
     "gql.tada": "^1.11.4",
     "graphql": "^16.11.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@ai-outfitter/onto-contracts": "0.1.0"
   },
   "peerDependencies": {
     "astro": "^7.3.5"
