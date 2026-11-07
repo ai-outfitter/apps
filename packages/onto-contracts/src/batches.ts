@@ -73,4 +73,3 @@ export const batchReviewInput = z.strictObject({
   comment: z.string().max(2000).optional(),
 });
 export const recordHistoryInput = z.strictObject({ id: z.uuid() });
-
