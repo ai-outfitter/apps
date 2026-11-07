@@ -13,6 +13,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { createConnection, createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { AwsClient } from "aws4fetch";
 
@@ -173,6 +174,36 @@ async function importRepository(adminAuth, name) {
   return { repository: `${OWNER}/${name}`, defaultBranch: branch };
 }
 
+/**
+ * The gateway accepts plain http model endpoints only on loopback. A model
+ * on the LAN (the DGX Spark at http://192.168.1.176:8888/v1) is relayed
+ * through a loopback port, and its setting rewritten to that port, before
+ * any service starts. https endpoints and loopback ones are left as they are.
+ */
+async function relayModelEndpoints() {
+  let port = Number(env.BOX_MODEL_RELAY_PORT || 18888);
+  for (const name of ["SPARK_BASE_URL", "OPENAI_BASE_URL"]) {
+    if (!env[name] || !URL.canParse(env[name])) continue;
+    const url = new URL(env[name]);
+    if (url.protocol !== "http:" || ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) continue;
+    const target = { host: url.hostname, port: Number(url.port || 80) };
+    const server = createServer((socket) => {
+      const upstream = createConnection(target);
+      socket.pipe(upstream).pipe(socket);
+      const close = () => { socket.destroy(); upstream.destroy(); };
+      socket.on("error", close);
+      upstream.on("error", close);
+    });
+    const relayPort = port++;
+    await new Promise((resolve, reject) => server.once("error", reject).listen(relayPort, "127.0.0.1", resolve));
+    server.unref();
+    // Host headers then name the relay; the model servers here ignore them.
+    url.host = `127.0.0.1:${relayPort}`;
+    env[name] = url.toString().replace(/\/$/, "");
+    log(`${name}: relaying ${target.host}:${target.port} through ${env[name]}`);
+  }
+}
+
 let stopping = false;
 function shutdown(code = 0) {
   stopping = true;
@@ -245,6 +276,7 @@ function driverContext({ gatewayToken, bot, repo, s3 }) {
 }
 
 async function main() {
+  await relayModelEndpoints();
   mkdirSync(STATE, { recursive: true });
   mkdirSync(join(OUT, "results"), { recursive: true });
   // RustFS: release artifacts and evidence.
