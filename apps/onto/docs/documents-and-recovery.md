@@ -103,6 +103,10 @@ preserve the event ID and current authority.
 
 ## GitHub sources and export
 
+The public `@ai-outfitter/connector-github` package owns GitHub API translation;
+Onto only binds its read callback to the authorized host. Graph-provider registration
+and scheduled connector access remain pending.
+
 The `github-report` source uses an explicitly authorized GitHub connection,
 repository, branch and `[start,end)` period. Merged pull requests use `merged_at`;
 commits use the committer timestamp. Captures retain links, SHAs, observations and

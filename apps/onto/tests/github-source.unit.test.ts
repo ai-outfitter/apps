@@ -84,3 +84,30 @@ test("mutable pagination overlap stays deduplicated but cannot claim complete co
   assert.match(result.errors.join(" "), /pagination drift/);
   assert.equal(result.snapshot.mergedPullRequests.length, 100);
 });
+
+test("Onto's compatibility adapter binds every injected read to the authorized connection", async () => {
+  const calls: {
+    operation: string;
+    connectionId: string;
+    method: string;
+    path: string;
+  }[] = [];
+  const host = {
+    call: async (
+      operation: string,
+      request: { connectionId: string; method: string; path: string },
+    ) => {
+      calls.push({ operation, ...request });
+      return request.path.includes("/git/ref/") ? { object: { sha } } : [];
+    },
+  };
+  const result = await captureGithub(host as never, input);
+  assert.equal(result.complete, true);
+  assert.equal(result.provenance.connectionId, input.connectionId);
+  assert.equal(calls.length, 4);
+  for (const call of calls) {
+    assert.equal(call.operation, "repository.request");
+    assert.equal(call.connectionId, input.connectionId);
+    assert.equal(call.method, "GET");
+  }
+});

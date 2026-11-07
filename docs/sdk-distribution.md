@@ -54,11 +54,11 @@ release tag before attaching an archive; an existing asset is left unchanged.
 
 Verified release assets on 2026-11-07 include:
 
-| Package | Published GitHub archive |
-| --- | --- |
-| app-sdk 0.1.3 | [ai-outfitter-app-sdk-0.1.3.tgz](https://github.com/ai-outfitter/apps/releases/download/app-sdk-v0.1.3/ai-outfitter-app-sdk-0.1.3.tgz) |
-| app-build 0.1.5 | [ai-outfitter-app-build-0.1.5.tgz](https://github.com/ai-outfitter/apps/releases/download/app-build-v0.1.5/ai-outfitter-app-build-0.1.5.tgz) |
-| app-test 0.1.4 | [ai-outfitter-app-test-0.1.4.tgz](https://github.com/ai-outfitter/apps/releases/download/app-test-v0.1.4/ai-outfitter-app-test-0.1.4.tgz) |
+| Package              | Published GitHub archive                                                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| app-sdk 0.1.3        | [ai-outfitter-app-sdk-0.1.3.tgz](https://github.com/ai-outfitter/apps/releases/download/app-sdk-v0.1.3/ai-outfitter-app-sdk-0.1.3.tgz)                      |
+| app-build 0.1.5      | [ai-outfitter-app-build-0.1.5.tgz](https://github.com/ai-outfitter/apps/releases/download/app-build-v0.1.5/ai-outfitter-app-build-0.1.5.tgz)                |
+| app-test 0.1.4       | [ai-outfitter-app-test-0.1.4.tgz](https://github.com/ai-outfitter/apps/releases/download/app-test-v0.1.4/ai-outfitter-app-test-0.1.4.tgz)                   |
 | connector-core 0.1.1 | [ai-outfitter-connector-core-0.1.1.tgz](https://github.com/ai-outfitter/apps/releases/download/connector-core-v0.1.1/ai-outfitter-connector-core-0.1.1.tgz) |
 
 An individual archive retains its package's internal dependency version ranges.
@@ -67,8 +67,8 @@ the pinned workspace checkout unless the caller explicitly pins and validates
 all required archives and records them in its lockfile. No automatic archive
 installer or registry fallback is implied.
 
-Anonymous registry checks on 2026-11-07 returned HTTP 404 for the 14 public
-packages in this checkout, including `@ai-outfitter/app-sdk`, `app-build`,
+Anonymous registry checks on 2026-11-07 returned HTTP 404 for the 14 existing public SDK
+packages checked before the new GitHub connector component, including `@ai-outfitter/app-sdk`, `app-build`,
 `app-test`, `onto` and `onto-contracts`. The latest existing archives above do
 not contain the pending Onto document contracts. Recheck actual tags, assets and
 package versions before selecting a later release.
