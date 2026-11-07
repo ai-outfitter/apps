@@ -162,6 +162,26 @@ Each run's time and model use (wall and model seconds, model calls, tokens in
 and out, output tokens per second) is printed after the results and saved in
 `results/<box>-metrics-<time>.json`, so runs on different models can be compared.
 
+## Agent sessions
+
+Every agent a request used is recorded as a pi session (`box/sessions.mjs`):
+each Software Foundry node attempt (pi's own session file from its workspace)
+and each Workshop design-agent turn (the platform's prompt, answer, times and
+tokens, written in pi's format). A request's sessions are:
+
+- written to `/out/sessions/<requestId>/<agent>.jsonl`, with `transcript.jsonl`
+  merging all of them in time order, each message tagged with its agent;
+- committed to the box repository's `outfitter/sessions` branch under
+  `sessions/<requestId>/`, with Git LFS. Forgejo keeps the LFS objects in the
+  `lfs` bucket of the box's RustFS; the default branch is untouched;
+- named in the result's `sessions` field (branch, commit, and each file's hash).
+
+The eval runner hands `transcript.jsonl` to Agent Eval as the run's transcript
+(its `transcript.json` then lists every agent's messages and tool calls with
+timestamps) and copies the session files to `results/<box>-sessions/`.
+`repo.bundle` carries the sessions branch with LFS pointers only; the files
+themselves are in `/out/sessions`.
+
 ## Models
 
 Only the gateway, which proxies every workspace's inference, receives model

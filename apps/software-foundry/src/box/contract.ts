@@ -156,6 +156,13 @@ export const Metrics = z.strictObject({
   })),
 });
 
+/** Every agent session of the request (box/sessions.mjs): files under sessions/<requestId>/ on the repository's sessions branch, stored with Git LFS. */
+export const Sessions = z.strictObject({
+  branch: z.string().min(1).optional(),
+  commitSha: z.string().regex(/^[a-f0-9]{40}$/).optional(),
+  files: z.array(z.strictObject({ agent: z.string().min(1), path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.int().nonnegative() })),
+});
+
 export const RunResult = z
   .strictObject({
     schemaVersion: z.literal(1),
@@ -181,6 +188,7 @@ export const RunResult = z
     model: z.strictObject({ provider: z.enum(["luna", "spark", "replay"]), id: z.string().min(1) }),
     usage: z.strictObject({ inputTokens: z.int().nonnegative(), outputTokens: z.int().nonnegative() }).optional(),
     metrics: Metrics.optional(),
+    sessions: Sessions.optional(),
     startedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime(),
   })

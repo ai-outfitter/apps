@@ -41,11 +41,11 @@ function log(message) {
 }
 
 /** Secrets generated once per box and kept in its state folder. */
-function secret(name) {
+function secret(name, bytes = 24, encoding = "hex") {
   const file = join(STATE, "secrets", name);
   if (existsSync(file)) return readFileSync(file, "utf8").trim();
   mkdirSync(join(STATE, "secrets"), { recursive: true, mode: 0o700 });
-  const value = randomBytes(24).toString("hex");
+  const value = randomBytes(bytes).toString(encoding);
   writeFileSync(file, value, { mode: 0o600 });
   return value;
 }
@@ -85,7 +85,8 @@ async function ready(name, url, attempts = 60) {
   throw new Error(`${name} did not start`);
 }
 
-/** Forgejo's app.ini: SQLite, loopback only, no registration, no outside calls. */
+/** Forgejo's app.ini: SQLite, loopback only, no registration, no outside calls;
+ * Git LFS objects (agent sessions) are kept in RustFS. */
 function forgejoConfig() {
   const dir = join(STATE, "forgejo");
   mkdirSync(join(dir, "custom", "conf"), { recursive: true });
@@ -98,6 +99,15 @@ HTTP_PORT = ${PORTS.forgejo}
 ROOT_URL = ${FORGEJO}/
 DISABLE_SSH = true
 OFFLINE_MODE = true
+LFS_START_SERVER = true
+LFS_JWT_SECRET = ${secret("forgejo-lfs-jwt", 32, "base64url")}
+[lfs]
+STORAGE_TYPE = minio
+MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
+MINIO_ACCESS_KEY_ID = box
+MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
+MINIO_BUCKET = lfs
+MINIO_USE_SSL = false
 [database]
 DB_TYPE = sqlite3
 PATH = ${dir}/forgejo.db
@@ -280,6 +290,8 @@ function driverContext({ gatewayToken, bot, repo, s3 }) {
       platform: join(STATE, "platform", "runtime", runtime, "platform.db"),
       gateway: join(STATE, "workspaces.db"),
     },
+    /** Each workspace's data folder (box-kube), where pi keeps its sessions. */
+    workspaces: join(STATE, "workspaces"),
   };
 }
 
@@ -294,6 +306,9 @@ async function main() {
   start("rustfs", "rustfs", [join(STATE, "rustfs")], {
     RUSTFS_ADDRESS: `127.0.0.1:${PORTS.rustfs}`, RUSTFS_ACCESS_KEY: s3.ATTACHMENTS_S3_ACCESS_KEY_ID, RUSTFS_SECRET_KEY: s3.ATTACHMENTS_S3_SECRET_ACCESS_KEY,
   });
+  run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], s3);
+  // Workflow artifacts (node sessions, evidence) and Forgejo's LFS objects in their own buckets on the same RustFS.
+  for (const bucket of ["artifacts", "lfs"]) run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], { ...s3, ATTACHMENTS_S3_BUCKET: bucket });
   // Forgejo: the git server, issues, PRs, reviews and releases.
   const forgejo = forgejoConfig();
   start("forgejo", "forgejo", ["--config", forgejo.config, "web"], { GITEA_WORK_DIR: forgejo.dir, FORGEJO_WORK_DIR: forgejo.dir });
@@ -301,9 +316,6 @@ async function main() {
   const bot = await forgejoUsers(forgejo);
   const adminAuth = `Basic ${Buffer.from(`box-admin:${secret("forgejo-box-admin-password")}`).toString("base64")}`;
   const repo = await importRepository(adminAuth, env.BOX_REPO_NAME || "repo");
-  run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], s3);
-  // Workflow artifacts (node sessions, evidence) in their own bucket on the same RustFS.
-  run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], { ...s3, ATTACHMENTS_S3_BUCKET: "artifacts" });
   const artifactsS3 = Object.fromEntries(Object.entries({ ...s3, ATTACHMENTS_S3_BUCKET: "artifacts" })
     .map(([name, value]) => [name.replace("ATTACHMENTS_", "ARTIFACTS_"), value]));
   const forge = { REPOSITORY_FORGE: "forgejo", FORGEJO_URL: FORGEJO, FORGEJO_TOKEN: bot.token, FORGEJO_BOT_USER_ID: String(bot.botUserId) };

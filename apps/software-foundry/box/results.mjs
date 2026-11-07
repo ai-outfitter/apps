@@ -42,6 +42,23 @@ export function nodeSteps(snapshots, runId) {
   });
 }
 
+/** Each node attempt's pi session for a run, named by node (and attempt when a node ran more than once).
+ * @param {any[]} snapshots gateway snapshots, each with its runtime run `id`
+ * @param {string} runId
+ * @param {(snapshotId: string) => string[]} files the session files a runtime run wrote
+ * @param {(path: string) => any[]} read
+ */
+export function nodeSessions(snapshots, runId, files, read) {
+  const attempts = {};
+  return [...snapshots].sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0)).flatMap((snapshot) => {
+    const match = /^Workflow ([a-f0-9-]{36}), node ([a-z0-9-]+)$/.exec(snapshot.prompt ?? "");
+    if (match?.[1] !== runId || !snapshot.id) return [];
+    const attempt = (attempts[match[2]] = (attempts[match[2]] ?? 0) + 1);
+    const entries = files(snapshot.id).flatMap(read);
+    return entries.length ? [{ agent: attempt > 1 ? `${match[2]}-${attempt}` : match[2], entries }] : [];
+  });
+}
+
 /** The pull request the run opened for the issue: the newest one that closes it. */
 async function runPull(forgejo, repository, issueNumber) {
   const pulls = await forgejo("GET", `/repos/${repository}/pulls?state=all&limit=50`);

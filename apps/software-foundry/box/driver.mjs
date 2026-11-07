@@ -8,7 +8,8 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { readRequests, submitRequest } from "./intake.mjs";
 import { releaseRequests } from "./release.mjs";
-import { nodeResults, nodeSteps, runResult, terminal } from "./results.mjs";
+import { readSession, recordSessions, sessionFiles } from "../../../box/sessions.mjs";
+import { nodeResults, nodeSessions, nodeSteps, runResult, terminal } from "./results.mjs";
 
 export const app = "software-foundry";
 export const title = "Foundry box";
@@ -44,11 +45,19 @@ function watchResults(box, pending) {
         const [run] = (await platform.execute({ sql: "SELECT status, updatedAt FROM workflow_runs WHERE id=?", args: [item.run.id] })).rows;
         if (run && terminal.has(String(run.status))) ended.push({ item, run });
       }
-      const snapshots = ended.length ? (await gateway.execute("SELECT snapshot FROM runs")).rows.map((row) => JSON.parse(String(row.snapshot))) : [];
+      const snapshots = ended.length ? (await gateway.execute("SELECT id, snapshot FROM runs")).rows
+        .map((row) => ({ id: String(row.id), ...JSON.parse(String(row.snapshot)) })) : [];
       for (const { item, run } of ended) {
         const result = await runResult({ forgejo: box.forgejo, repository: box.repository, request: item.request, issue: item.issue, run,
           nodes: nodeResults(snapshots, item.run.id), steps: nodeSteps(snapshots, item.run.id), checks: BOX_CHECKS, model: box.model, startedAt: item.startedAt,
           finishedAt: new Date(Number(run.updatedAt)).toISOString() });
+        // Every agent's pi session: in /out and on the repository's sessions branch.
+        const sessions = nodeSessions(snapshots, item.run.id, (id) => sessionFiles(box.workspaces, id), readSession);
+        try {
+          result.sessions = recordSessions(box, item.request.requestId, sessions);
+        } catch (error) {
+          box.log(`${item.name}: sessions not recorded (${error.message})`);
+        }
         writeFileSync(join(box.out, "results", `${item.request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
         pending.splice(pending.indexOf(item), 1);
         finished.push({ ...item, result });

@@ -14,9 +14,10 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { git, sha256 } from "../../../box/lib.mjs";
 import { runMetrics, stepMetrics } from "../../../box/metrics.mjs";
+import { recordSessions } from "../../../box/sessions.mjs";
 import { readRequests } from "./intake.mjs";
 import { releaseDesigns } from "./release.mjs";
-import { billOfMaterials, designResult, exportSummary } from "./results.mjs";
+import { billOfMaterials, designResult, designSession, exportSummary } from "./results.mjs";
 
 export const app = "workshop";
 export const title = "Workshop box";
@@ -58,11 +59,12 @@ async function signIn(box) {
   return cookie;
 }
 
-/** One turn with Workshop's design agent; it saves the project and returns it. */
+/** One turn with Workshop's design agent; it saves the project and returns it with the agent's rationale. */
 async function designTurn(box, cookie, body) {
   const response = await platformRequest(box, "workshop.box.outfitter.localhost", "/api/apps/workshop/agent", { method: "POST", body, cookie });
   if (response.status !== 200) throw new Error(`The design agent answered ${response.status}: ${response.text.slice(0, 500)}`);
-  return JSON.parse(response.text).project;
+  const { project, rationale } = JSON.parse(response.text);
+  return { project, rationale };
 }
 
 /** The design agent's model calls between two times, from the platform's usage records (none without the database). */
@@ -74,18 +76,23 @@ async function modelCalls(platform, from, to) {
   return rows.map((row) => ({ input: row.inputTokens === null ? null : Number(row.inputTokens), output: row.outputTokens === null ? null : Number(row.outputTokens) }));
 }
 
-/** Runs one step of a design and records its time and model calls, whether it succeeds or not. */
-async function timed(steps, platform, name, work) {
+/** Runs one step of a design and records its time and model calls, whether it succeeds or not.
+ * A design turn (`message`) is also added to the request's session turns. */
+async function timed({ steps, turns, platform }, name, work, message) {
   const startedAt = Date.now();
-  let status = "failed";
+  let status = "failed", value, error;
   try {
-    const value = await work();
+    value = await work();
     status = "succeeded";
     return value;
+  } catch (caught) {
+    error = caught;
+    throw caught;
   } finally {
     const finishedAt = Date.now();
     const calls = await modelCalls(platform, startedAt, finishedAt).catch(() => []);
     steps.push(stepMetrics({ name, status, startedAt, finishedAt, calls }));
+    if (message !== undefined) turns.push({ message, startedAt, finishedAt, calls, ...(error ? { error } : { response: value }) });
   }
 }
 
@@ -110,15 +117,15 @@ export async function run(box) {
   for (const { name, request } of requests) {
     const startedAt = new Date().toISOString();
     let project, exported, bom = [], files = [], commitSha, error;
-    const steps = [];
+    const trace = { steps: [], turns: [], platform };
     try {
-      project = await timed(steps, platform, "design", () => designTurn(box, cookie, { message: request.message }));
+      ({ project } = await timed(trace, "design", () => designTurn(box, cookie, { message: request.message }), request.message));
       for (const [index, message] of request.followUps.entries())
-        project = await timed(steps, platform, `follow-up ${index + 1}`,
-          () => designTurn(box, cookie, { message, projectId: project.id, revision: project.revision }));
+        ({ project } = await timed(trace, `follow-up ${index + 1}`,
+          () => designTurn(box, cookie, { message, projectId: project.id, revision: project.revision }), message));
       const folder = join(repo, "designs", request.slug);
       mkdirSync(folder, { recursive: true });
-      exported = await timed(steps, platform, "export", async () => exportDesign(project, folder));
+      exported = await timed(trace, "export", async () => exportDesign(project, folder));
       bom = billOfMaterials(project, exported);
       writeFileSync(join(folder, "bom.json"), `${JSON.stringify(bom, null, 2)}\n`);
       // The files are stored before the commit is pushed, so a failed design never reaches the branch.
@@ -141,8 +148,17 @@ export async function run(box) {
     }
     const geometry = exported && { bounds: exported.bounds, volumeMm3: exported.volumeMm3, features: exported.features };
     const finishedAt = new Date().toISOString();
-    const result = designResult({ request, project, geometry, bom, files, commitSha, model: box.model, error,
-      metrics: runMetrics(steps, { startedAt, finishedAt }), startedAt, finishedAt });
+    // The design agent's session: in /out and on the repository's sessions branch.
+    let sessions;
+    try {
+      if (trace.turns.length)
+        sessions = recordSessions(box, request.requestId,
+          [{ agent: "design-agent", entries: designSession({ requestId: request.requestId, model: box.model, turns: trace.turns }) }]);
+    } catch (caught) {
+      box.log(`${name}: sessions not recorded (${caught.message})`);
+    }
+    const result = designResult({ request, project, geometry, bom, files, commitSha, model: box.model, error, sessions,
+      metrics: runMetrics(trace.steps, { startedAt, finishedAt }), startedAt, finishedAt });
     writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
     finished.push({ request, result });
     box.log(`${name}: ${result.status}${commitSha ? ` at ${commitSha.slice(0, 8)}` : ` (${result.reason})`}`);

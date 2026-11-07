@@ -87,6 +87,13 @@ export const Metrics = z.strictObject({
   })),
 });
 
+/** Every agent session of the request (box/sessions.mjs): files under sessions/<requestId>/ on the repository's sessions branch, stored with Git LFS. */
+export const Sessions = z.strictObject({
+  branch: z.string().min(1).optional(),
+  commitSha: z.string().regex(/^[a-f0-9]{40}$/).optional(),
+  files: z.array(z.strictObject({ agent: z.string().min(1), path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.int().nonnegative() })),
+});
+
 /** What happened to one design request (`/out/results/<requestId>.json`). */
 export const DesignResult = z
   .strictObject({
@@ -106,6 +113,7 @@ export const DesignResult = z
     model: Model,
     release: Release.optional(),
     metrics: Metrics.optional(),
+    sessions: Sessions.optional(),
     startedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime(),
   })

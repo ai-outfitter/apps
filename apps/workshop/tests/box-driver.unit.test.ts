@@ -96,6 +96,12 @@ test("the driver designs each request, commits it, and releases it with evidence
   const result = DesignResult.parse(JSON.parse(readFileSync(join(work, "out", "results", `${request.requestId}.json`), "utf8")));
   assert.equal(result.status, "designed");
   assert.equal(result.project?.revision, 2);
+  // The design agent's turns are one pi-format session, on the sessions branch with Git LFS and in /out.
+  assert.deepEqual(result.sessions?.files.map((file) => file.agent), ["design-agent"]);
+  assert.equal(git(join(work, "remote.git"), "rev-parse", "outfitter/sessions").trim(), result.sessions?.commitSha);
+  const session = readFileSync(join(work, "out", "sessions", request.requestId, "design-agent.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(session.filter((entry) => entry.type === "message").map((entry) => entry.message.role), ["user", "assistant", "user", "assistant"]);
+  assert.equal(session[2].message.content[0].text, "ok");
   // Each turn and the export are timed; without the platform database the tokens are unknown.
   assert.deepEqual(result.metrics?.steps.map((step) => [step.name, step.status]), [["design", "succeeded"], ["follow-up 1", "succeeded"], ["export", "succeeded"]]);
   assert.ok(Math.abs((result.geometry?.volumeMm3 ?? 0) - (48000 - Math.PI * 36 * 20)) < 1);

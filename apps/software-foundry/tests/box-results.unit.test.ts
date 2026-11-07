@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { nextVersion } from "../../../box/lib.mjs";
 import { evidenceBundle } from "../box/release.mjs";
-import { nodeResults, nodeSteps, runResult } from "../box/results.mjs";
+import { nodeResults, nodeSessions, nodeSteps, runResult } from "../box/results.mjs";
 
 const runId = "b443b27b-37cf-580d-a374-5c600f199d70";
 const head = "a".repeat(40);
@@ -55,6 +55,19 @@ test("node steps time every attempt and count its model calls", () => {
     { name: "implement", status: "completed", seconds: 50, modelCalls: 1, inputTokens: 900, outputTokens: 120 },
     { name: "review", status: "completed", seconds: 20, modelCalls: 1, inputTokens: 1100, outputTokens: 80 },
   ]);
+});
+
+test("node sessions name each attempt's pi session by node", () => {
+  const snapshots = [
+    { id: "r2", prompt: `Workflow ${runId}, node implement`, startedAt: 2 },
+    { id: "r1", prompt: `Workflow ${runId}, node implement`, startedAt: 1 },
+    { id: "r3", prompt: `Workflow ${runId}, node review`, startedAt: 3 },
+    { id: "r4", prompt: "Workflow 00000000-0000-4000-8000-000000000000, node triage", startedAt: 4 },
+  ];
+  const files: Record<string, string[]> = { r1: ["/w/r1.jsonl"], r2: ["/w/r2.jsonl"], r3: [] };
+  const sessions = nodeSessions(snapshots, runId, (id: string) => files[id] ?? [], (path: string) => [{ type: "message", path }]);
+  assert.deepEqual(sessions.map((session: { agent: string }) => session.agent), ["implement", "implement-2"]);
+  assert.equal(sessions[1].entries[0].path, "/w/r2.jsonl");
 });
 
 test("a landed run's result names its PR, checks, review and merge", async () => {

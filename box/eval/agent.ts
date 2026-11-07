@@ -26,6 +26,8 @@ export type BoxOptions = {
   inspectPort: number;
   /** Env file with the model settings (README, "Models"). */
   modelEnv?: string;
+  /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
+  sessionsDir?: string;
 };
 
 function git(directory: string, ...args: string[]) {
@@ -148,11 +150,17 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         const ran = await runBox(box, work, options.timeout, options.signal);
         const resultFile = join(work, "out", "results", `${request.requestId.toLowerCase()}.json`);
         const result = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "utf8")) : undefined;
+        // Every agent's session (box/sessions.mjs): kept beside the results, and merged for Agent Eval's transcript.
+        const sessions = join(work, "out", "sessions", request.requestId.toLowerCase());
+        if (box.sessionsDir && existsSync(sessions)) cpSync(sessions, join(box.sessionsDir, request.requestId.toLowerCase()), { recursive: true });
+        const transcriptFile = join(sessions, "transcript.jsonl");
+        const transcript = existsSync(transcriptFile) ? readFileSync(transcriptFile, "utf8") : result && JSON.stringify(result);
         const measured = (success: boolean) => runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
           durationSeconds: Math.round((Date.now() - started) / 100) / 10, metrics: result?.metrics });
         if (!result) {
           measured(false);
-          return { success: false, output: ran.log, error: `The box wrote no result (exit ${ran.code})`, duration: Date.now() - started };
+          return { success: false, output: ran.log, error: `The box wrote no result (exit ${ran.code})`, duration: Date.now() - started,
+            ...(transcript ? { transcript } : {}) };
         }
         const tree = finalTree(work, "main");
         const testResult = grade(fixturePath, tree);
@@ -163,7 +171,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         return {
           success: app.succeeded(result) && testResult.success,
           output: ran.log,
-          transcript: JSON.stringify(result),
+          transcript,
           ...(app.succeeded(result) ? {} : { error: `Run ${result.status}: ${result.reason ?? ""}` }),
           duration: Date.now() - started,
           testResult,
@@ -192,7 +200,8 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const env = process.env;
   const port = Number(env.BOX_PORT || 8787);
   const runs: RunMetrics[] = [];
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV }, app, runs));
+  const sessionsDir = join(project, "results", `${box.name}-sessions`);
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV, sessionsDir }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
   // One model: the box routes every call to the model its env file names.
   // BOX_TIMEOUT (seconds) overrides the experiment's timeout: a slower local model needs longer.
@@ -217,6 +226,6 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   mkdirSync(join(project, "results"), { recursive: true });
   const file = join(project, "results", `${box.name}-metrics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   writeFileSync(file, `${JSON.stringify({ image: env.BOX_IMAGE || box.image, runs }, null, 2)}\n`);
-  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}`);
+  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}\nAgent sessions: ${sessionsDir}`);
   process.exitCode = results.evals.every((entry) => entry.passedRuns === entry.totalRuns) ? 0 : 1;
 }
