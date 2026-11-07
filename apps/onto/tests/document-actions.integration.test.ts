@@ -692,3 +692,70 @@ test("graph sources without pagination proof cannot produce a complete revision"
     0,
   );
 });
+
+test("policy subject action derives installation and owner and reveals no document content", async (t) => {
+  const { db, host, context, actions, client } = await fixture();
+  t.after(() => client.close());
+  const { putDefinition, createDocument, readLive, enqueue, lease, complete } =
+    await import("../src/server/documents/service");
+  const { scopeOf } = await import("../src/server/documents/integration");
+  const scope = scopeOf(context.identity);
+  const source = {
+    read: async () => ({ complete: true, provenance: {}, snapshot: {} }),
+    verifyCapture: async () => true,
+    policy: async (binding: any) => ({ binding, decision: "allow" as const }),
+    deliver: async () => ({}),
+  };
+  await putDefinition(db, scope, "subject", 1, {
+    sources: [{ provider: "graph", config: "fixture" }],
+    policy: { provider: "governance", config: "rules", required: true },
+  });
+  await createDocument(db, scope, "subject-doc", "subject", 1);
+  const capture = await readLive(db, scope, "subject-doc", source);
+  await enqueue(db, scope, "subject-doc", "subject-job");
+  await lease(db, scope, "subject-job", "worker", 1, 10);
+  const revision = await complete(
+    db,
+    scope,
+    "subject-job",
+    "worker",
+    2,
+    { secret: "private" },
+    capture,
+  );
+  const binding = {
+    version: 1 as const,
+    producer: { installationId: "onto" },
+    owner: { kind: "organization" as const, id: "org" },
+    documentId: "subject-doc",
+    revision: 1,
+    digest: revision.digest,
+    action: "seal",
+    provider: "governance",
+    config: "rules",
+  };
+  const result = (await actions["document.policy-subject"].invoke(
+    context,
+    binding,
+  )) as { subject: unknown; digest: string };
+  assert.equal(result.digest.length, 64);
+  assert.doesNotMatch(JSON.stringify(result), /private/);
+  await assert.rejects(
+    actions["document.policy-subject"].invoke(context, {
+      ...binding,
+      producer: { installationId: "spoof" },
+    }),
+  );
+  await assert.rejects(
+    actions["document.policy-subject"].invoke(
+      {
+        ...context,
+        identity: {
+          ...context.identity,
+          owner: { kind: "organization", id: "other" },
+        },
+      },
+      binding,
+    ),
+  );
+});

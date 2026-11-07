@@ -3,7 +3,8 @@ import type {
   AgentStatement,
 } from "@ai-outfitter/app-sdk/agent-store";
 
-export type Scope = { owner: string };
+export type Scope = { owner: string; identity?: { owner: { kind: "organization" | "user"; id: string }; installationId: string } };
+import { documentPolicySubjectDigest, type DocumentPolicyBinding } from "@ai-outfitter/app-sdk/document-policy";
 import type {
   DocumentProviderBinding,
   StoredDocumentDefinition,
@@ -25,15 +26,7 @@ export type Capture = {
     observedAt?: string;
   }[];
 };
-export type PolicyBinding = {
-  owner: string;
-  documentId: string;
-  revision: number;
-  digest: string;
-  action: string;
-  provider: string;
-  config: string;
-};
+export type PolicyBinding = DocumentPolicyBinding;
 export type PolicyResult = {
   binding: PolicyBinding;
   decision: "allow" | "deny" | "require-review" | "unavailable";
@@ -506,7 +499,9 @@ export async function seal(
       fail("Required policy did not allow sealing");
   }
   const event: PolicyBinding | undefined = def.eventConsumer && {
-    owner: scope.owner,
+    version: 1,
+    producer: { installationId: scope.identity?.installationId ?? fail("Installation identity required") },
+    owner: scope.identity?.owner ?? fail("Owner identity required"),
     documentId: id,
     revision,
     digest: expectedDigest,
@@ -578,7 +573,9 @@ export async function evaluatePolicy(
       detail: { reason: "no_policy_configured" },
     };
   const binding: PolicyBinding = {
-    owner: scope.owner,
+    version: 1,
+    producer: { installationId: scope.identity?.installationId ?? fail("Installation identity required") },
+    owner: scope.identity?.owner ?? fail("Owner identity required"),
     documentId: id,
     revision,
     digest: r.digest,
@@ -602,6 +599,61 @@ export async function evaluatePolicy(
   )
     return { decision: "unavailable" as const, binding };
   return result;
+}
+/** Read only metadata for the exact current, configured policy binding. */
+export async function policySubject(
+  db: AgentDatabase,
+  scope: Scope,
+  binding: PolicyBinding,
+) {
+  if (
+    !scope.identity ||
+    binding.producer.installationId !== scope.identity.installationId ||
+    canonical(binding.owner) !== canonical(scope.identity.owner)
+  )
+    fail("Producer or owner mismatch");
+  const h = await head(db, scope, binding.documentId);
+  if (Number(h.revision) !== binding.revision) fail("Stale revision");
+  const revision = await getRevision(
+    db,
+    scope,
+    binding.documentId,
+    binding.revision,
+  );
+  if (!revision.complete || revision.digest !== binding.digest)
+    fail("Revision unavailable");
+  const row =
+    (await one(
+      db,
+      "SELECT definition FROM document_definitions WHERE owner=? AND id=? AND version=?",
+      scope.owner,
+      revision.definitionId,
+      revision.definitionVersion,
+    )) ?? fail("Definition unavailable");
+  const policy = parse<Definition>(row.definition).policy;
+  if (
+    !policy ||
+    policy.provider !== binding.provider ||
+    policy.config !== binding.config
+  )
+    fail("Policy binding differs");
+  const subject = {
+    version: 1 as const,
+    binding,
+    definition: {
+      id: revision.definitionId,
+      version: revision.definitionVersion,
+    },
+  };
+  const subjectDigest = await documentPolicySubjectDigest(subject);
+  const current = await head(db, scope, binding.documentId);
+  if (
+    Number(current.revision) !== binding.revision ||
+    current.definition_id !== revision.definitionId ||
+    Number(current.definition_version) !== revision.definitionVersion
+  )
+    fail("Stale revision");
+  return { subject, digest: subjectDigest };
 }
 /** Delivery is host-owned and at-least-once; host must deduplicate by event id. */
 export async function deliverEvents(
@@ -681,7 +733,8 @@ export async function deliverEvents(
         binding.revision,
       );
       if (
-        binding.owner !== scope.owner ||
+        canonical(binding.owner) !== canonical(scope.identity?.owner) ||
+        binding.producer?.installationId !== scope.identity?.installationId ||
         binding.action !== "document.sealed" ||
         revision.digest !== binding.digest ||
         sealed?.digest !== binding.digest ||

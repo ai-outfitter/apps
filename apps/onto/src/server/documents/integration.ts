@@ -3,6 +3,7 @@ import {
   type ActionContext,
 } from "@ai-outfitter/app-sdk/actions";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
+import { documentPolicyBinding, documentPolicyResult, documentPolicySubjectResult } from "@ai-outfitter/app-sdk/document-policy";
 import { graphGraphqlInput } from "@ai-outfitter/app-sdk/graph-protocol";
 import {
   readGraphProvider,
@@ -22,6 +23,7 @@ import {
   createDocument,
   enqueue,
   evaluatePolicy,
+  policySubject,
   getJob,
   getRevision,
   putDefinition,
@@ -52,6 +54,7 @@ const doc = z.strictObject({ id });
 const revisionInput = doc.extend({ revision: z.number().int().positive() });
 const scopeOf = (identity: AppIdentity): Scope => ({
   owner: `${identity.owner.kind}:${identity.owner.id}`,
+  identity: { owner: identity.owner, installationId: identity.installationId },
 });
 const admin = ({ identity }: ActionContext) =>
   identity.canEdit &&
@@ -132,21 +135,7 @@ export function documentHost(
         input: binding,
         readOnly: true,
       });
-      return z
-        .strictObject({
-          binding: z.strictObject({
-            owner: id,
-            documentId: id,
-            revision: z.number().int().positive(),
-            digest: z.string().regex(/^[a-f0-9]{64}$/),
-            action: id,
-            provider: id,
-            config: id,
-          }),
-          decision: z.enum(["allow", "deny", "require-review", "unavailable"]),
-          detail: z.json().optional(),
-        })
-        .parse(result) as PolicyResult;
+      return documentPolicyResult.parse(result) as PolicyResult;
     },
     deliver: async (event) =>
       graphHost.call("actions.call", {
@@ -231,13 +220,11 @@ export function createDocumentActions(context: {
       run: async ({ identity }, i) => {
         await enqueue(context.db(), scopeOf(identity), i.id, i.jobId);
         try {
-          const run = await context
-            .host()
-            .call("task.start", {
-              task: "document-generation",
-              id: crypto.randomUUID(),
-              inputs: { jobId: i.jobId },
-            });
+          const run = await context.host().call("task.start", {
+            task: "document-generation",
+            id: crypto.randomUUID(),
+            inputs: { jobId: i.jobId },
+          });
           return { queued: true, jobId: i.jobId, runId: run.id };
         } catch {
           return {
@@ -277,13 +264,11 @@ export function createDocumentActions(context: {
       run: async ({ identity }, i) => {
         await requeueJob(context.db(), scopeOf(identity), i.id);
         try {
-          const run = await context
-            .host()
-            .call("task.start", {
-              task: "document-generation",
-              id: crypto.randomUUID(),
-              inputs: { jobId: i.id },
-            });
+          const run = await context.host().call("task.start", {
+            task: "document-generation",
+            id: crypto.randomUUID(),
+            inputs: { jobId: i.id },
+          });
           return { queued: true, jobId: i.id, runId: run.id };
         } catch {
           return {
@@ -314,6 +299,15 @@ export function createDocumentActions(context: {
           host(),
           Date.now(),
         ),
+    }),
+    "document.policy-subject": defineAction({
+      description:
+        "Read current policy subject metadata for the exact configured document revision; grants no approval.",
+      access: "read",
+      input: documentPolicyBinding,
+      output: documentPolicySubjectResult,
+      run: ({ identity }, binding) =>
+        policySubject(context.db(), scopeOf(identity), binding),
     }),
     "document.policy": defineAction({
       description:

@@ -160,3 +160,33 @@ UI remain rollout gates; fixture tests alone do not establish these outcomes.
 
 The full target architecture remains the platform architecture document. These
 remaining gates are not optional just because this staged source is buildable.
+
+### Policy subjects (unreleased v1)
+
+The public policy binding includes the platform-resolved producer installation,
+structured owner, exact document revision/digest, action, policy provider and
+configuration. `document.policy-subject` is a discoverable read action: it
+checks the receiving installation and owner, current complete retained revision,
+and its configured policy, then returns metadata and a canonical SHA-256 subject
+digest. It does not disclose document content or grant approval. It rechecks the
+head after constructing the subject. The platform authorizes each dispatched
+read; this action cannot hold a transaction across a later provider decision or
+independently refresh platform authorization during the same call.
+
+The provider must choose and authorize its trusted producer, owner and config
+independently before calling `readDocumentPolicySubject`; the caller's binding
+is not configuration authority. Canonical subject metadata is not a Wiki entity
+and does not replace Wiki's atomic source fence. A Governance adapter still
+needs an explicitly configured mapping, a durable verified Wiki subject bridge,
+current role and decision evidence, and stale/revoked access handling. No domain
+report or decision flow has migrated. Unreleased v1 is refined here and is not a
+published compatibility claim.
+
+Before upgrading any draft installation that has emitted pre-refinement policy
+events, inventory and reconcile pending/retry/leased records against their
+original sealed revisions and configured consumer. Their old binding cannot be
+silently discarded or treated as an authorized v1 binding; preserve those rows
+and block upgrade or delivery until an explicit verified conversion is available.
+The typed client checks source discovery before and after the read; the provider
+must reauthorize again at the protected transition. These checks do not make
+revocation atomic across independent services.

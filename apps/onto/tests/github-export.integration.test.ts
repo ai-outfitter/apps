@@ -60,7 +60,7 @@ async function fixture() {
         "write",
       ),
   };
-  const scope = { owner: "org" };
+  const scope = { owner: "org", identity: { owner: { kind: "organization" as const, id: "org" }, installationId: "onto" } };
   const access: Host = {
     read: async () => ({
       complete: true,
