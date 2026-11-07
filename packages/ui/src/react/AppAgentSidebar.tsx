@@ -1,7 +1,7 @@
 import { secureId } from "./chat/secure-id";
 import { agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import { agentPageKey, navigatePart, navigatePartName } from "@ai-outfitter/app-sdk/agent-page";
-import { appLocation, openPage, pageHref, requestedPage } from "../agent-navigation";
+import { appEndpoint, appLocation, openPage, pageHref, requestedPage } from "../agent-navigation";
 import { changeDiff, type FieldSchema } from "@ai-outfitter/app-sdk/agent-schema";
 import { imageAttachments } from "@ai-outfitter/app-sdk/chat-input";
 import {
@@ -240,8 +240,8 @@ export default function AppAgentSidebar({
   // Switchable previews serve an operational package while explicitly selecting read-only fixtures.
   const demo = configuredDemo || (typeof document !== "undefined" &&
     document.querySelector<HTMLMetaElement>('meta[name="outfitter-preview-mode"]')?.content === "demo");
-  const app = useMemo(() => appClient(endpoint), [endpoint]);
   const prefix = useMemo(() => (typeof location === "undefined" ? "" : mountPrefix(location.pathname)), []);
+  const app = useMemo(() => appClient(appEndpoint(prefix, endpoint)), [prefix, endpoint]);
   const threads = useMemo(() => threadClient({ base: threadsBase ?? `${prefix}/api/platform/threads` }), [threadsBase, prefix]);
   /** History pages arrive through the app endpoint; rebase their platform paths onto this mount. */
   const mountEntry = (entry: ThreadEntry): TimelineEntry => ({
