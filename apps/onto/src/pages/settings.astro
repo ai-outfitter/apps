@@ -1,0 +1,15 @@
+---
+import Section from "@ai-outfitter/ui/astro/Section.astro";
+import Layout from "../components/Layout.astro";
+---
+<Layout title="Settings" description="Export shared context and manage types." page="settings">
+  <Section id="graph-export" title="Graph export">
+    <p>Download documented types, entities, relationships and Obsidian-compatible Markdown notes. IDs preserve identity independently of note names.</p>
+    <button id="export-graph" type="button">Download graph and notes</button>
+  </Section>
+  <Section id="types" title="Type administration">
+    <p>Default types support the project workflows. Additional definitions are optional.</p>
+    <div id="type-administration"></div>
+  </Section>
+</Layout>
+<script>import "../scripts/settings.ts";</script>

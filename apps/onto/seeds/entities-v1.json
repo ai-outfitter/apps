@@ -1,0 +1,737 @@
+{
+  "format": "outfitter-graph-entities-v1",
+  "nodes": [
+    {
+      "id": "73000000-0000-4000-8000-000000000001",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Outfitter",
+      "slug": "outfitter",
+      "summary": "Shared organization context for Outfitter.",
+      "body": "## Purpose\n\nOrganization context for Outfitter projects, people, technologies and agents.\n\n## For agents\n\nLink relevant projects and business units to this organization. Record verified context and distinguish proposed work from completed outcomes. This page does not grant permissions."
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000002",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Unsupervised",
+      "slug": "unsupervised",
+      "summary": "Shared organization context for Unsupervised.",
+      "body": "## Purpose\n\nOrganization context for Unsupervised projects, people, technologies and agents.\n\n## For agents\n\nLink relevant projects and business units to this organization. Do not infer ownership, employment or relationships from a name alone. This page does not grant permissions."
+    },
+    {
+      "id": "2b4793fc-272c-551f-9a47-1b9d881b7840",
+      "typeId": "71000000-0000-4000-8000-000000000011",
+      "title": "Merged pull requests",
+      "slug": "merged-pull-requests",
+      "body": "Count distinct pull requests merged for the project during the reporting period. Count by repository and PR number, using merge time rather than creation or approval time.\n\n- Unit: merged pull requests\n- Target: not specified\n- Source: repository merge records\n- Repository scope and reporting period: to be configured\n\nNo observed value has been recorded."
+    },
+    {
+      "id": "319fe4a9-8c59-5e05-81c0-09e16c201cfe",
+      "typeId": "71000000-0000-4000-8000-000000000011",
+      "title": "Active users with a connection",
+      "slug": "active-users-with-a-connection",
+      "body": "Count distinct active Outfitter users who have at least one connected Google Gmail, Google Calendar, Slack or GitHub account. Count each user once, regardless of how many qualifying connections they have.\n\n- Unit: users\n- Qualifying connections: Google Gmail, Google Calendar, Slack, GitHub\n- Target: not specified\n- Activity definition and reporting window: to be specified before automated reporting\n- Source: user activity and connector connection records\n\n## Observations\n\nThis is a measurement definition; no current value has been recorded."
+    },
+    {
+      "id": "5d996163-25ae-56f4-9260-de62b030436c",
+      "typeId": "71000000-0000-4000-8000-000000000014",
+      "title": "ai-outfitter/webapp",
+      "slug": "ai-outfitter-webapp-repository",
+      "website": "https://github.com/ai-outfitter/webapp"
+    },
+    {
+      "id": "db774c1b-5004-5d6c-8ba6-916e2fe2094d",
+      "typeId": "71000000-0000-4000-8000-000000000014",
+      "title": "ai-outfitter/apps",
+      "slug": "ai-outfitter-apps-repository",
+      "website": "https://github.com/ai-outfitter/apps"
+    },
+    {
+      "id": "1d9e960b-2318-52d6-ac30-7702c41e37cc",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Stripe",
+      "slug": "stripe",
+      "summary": "Organization behind Stripe payment services.",
+      "website": "https://stripe.com",
+      "body": "## Stripe\n\nOrganization context for the Stripe payment technology. Link the service separately from its provider."
+    },
+    {
+      "id": "cf511077-48cf-551b-95c0-7c93592085c8",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Stripe Payments",
+      "slug": "stripe-payments",
+      "summary": "Payment service and potential source of payment and revenue records.",
+      "website": "https://stripe.com/payments",
+      "body": "## Stripe Payments\n\nA payment service. Projects can document intended use with `uses`; metric definitions can identify it as a proposed source through `measured_by`.\n\nA graph relationship does not configure a Stripe connector, establish accounting treatment or prove that payments have been collected."
+    },
+    {
+      "id": "cafd0d91-d87f-505f-9845-934f6753c6d4",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Google",
+      "slug": "google",
+      "summary": "Organization behind Gmail and Google Calendar.",
+      "body": "## Google\n\nOrganization context for Gmail and Google Calendar. Product relationships are documented separately from Outfitter’s proposed use of those products."
+    },
+    {
+      "id": "5f0b933f-a50c-5872-8539-caec80f3a3dc",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Gmail",
+      "slug": "gmail",
+      "summary": "Email technology linked to Outfitter’s communication context.",
+      "body": "## Gmail\n\nGoogle email product. Outfitter’s proposed uses relationship documents email context and connector intent; it does not establish an active account connection."
+    },
+    {
+      "id": "d2659273-933a-5d97-97b4-c4785cee2b20",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Google Calendar",
+      "slug": "google-calendar",
+      "summary": "Calendar technology linked to Outfitter’s scheduling context.",
+      "body": "## Google Calendar\n\nGoogle calendar product. Its integration relationship with Gmail records scheduling and email interoperability context, separately from the Google provider relationship. Outfitter account access must be configured independently."
+    },
+    {
+      "id": "9eb0c8c7-37ae-546f-97bf-9dc9b995f118",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "WhatsApp",
+      "slug": "whatsapp",
+      "summary": "Messaging technology for Outfitter’s proposed communication context.",
+      "body": "## WhatsApp\n\nMessaging product documented as a proposed Outfitter dependency. No connected account, installed connector or message access is implied."
+    },
+    {
+      "id": "40ae5a3e-e8c4-5089-b30b-86cc5f61e50f",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "iMessage",
+      "slug": "imessage",
+      "summary": "Messaging technology for Outfitter’s communication context.",
+      "body": "## iMessage\n\nMessaging product documented as an Outfitter dependency. Availability and account access depend on separately configured connectors; this page does not establish operational access."
+    },
+    {
+      "id": "9acacda9-3882-5126-83fd-4db358013131",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Linq",
+      "slug": "linq",
+      "website": "https://linqapp.com",
+      "summary": "Provider of a messaging API with iMessage support.",
+      "body": "## Linq\n\nLinq provides messaging APIs, including iMessage support, according to its [website](https://linqapp.com). Keep the provider separate from the Linq Messaging API technology and from iMessage itself."
+    },
+    {
+      "id": "c2a3b7ad-8122-52d9-9a23-6b3ed286383b",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Linq Messaging API",
+      "slug": "linq-messaging-api",
+      "website": "https://docs.linqapp.com",
+      "summary": "Messaging API offering iMessage access; a proposed integration option for Outfitter.",
+      "body": "## Messaging API\n\nLinq advertises API access to iMessage, RCS and SMS on its [website](https://linqapp.com). See the [API documentation](https://docs.linqapp.com).\n\n## Outfitter context\n\nProposed provider for Outfitter’s iMessage connector. Outfitter uses Linq Messaging API, which integrates with iMessage. This records an integration option, not an installed connector, configured account or verified message delivery."
+    },
+    {
+      "id": "f1fa1826-8521-58cb-ba9d-60658e672a25",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Chief Executive Officer (CEO)",
+      "slug": "ceo",
+      "summary": "Responsible for overall organizational direction, priorities and executive coordination.",
+      "body": "## Responsibilities\n\nResponsible for overall organizational direction, priorities and executive coordination.\n\nSee role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "124e09f2-3724-5a4e-9eda-bcd9bf8837b0",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Chief Product Officer (CPO)",
+      "slug": "cpo",
+      "summary": "Responsible for product strategy, customer needs and product outcomes.",
+      "body": "## Responsibilities\n\nResponsible for product strategy, customer needs and product outcomes.\n\nSee role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "1b7e533a-1ed8-55a8-8acf-3c0610c1b36e",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Chief Financial Officer (CFO)",
+      "slug": "cfo",
+      "summary": "Responsible for financial planning, measurement and stewardship.",
+      "body": "## Responsibilities\n\nResponsible for financial planning, measurement and stewardship.\n\nSee role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "46d20661-b4a0-52ec-a1c3-0a6fdea9506d",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Chief Technology Officer (CTO)",
+      "slug": "cto",
+      "summary": "Responsible for technology strategy, architecture and technical direction.",
+      "body": "## Responsibilities\n\nResponsible for technology strategy, architecture and technical direction.\n\nSee role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "8d790222-eee9-552c-8efa-786a1ceafbe8",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Senior Software Engineer",
+      "slug": "senior-software-engineer",
+      "summary": "Responsible for software design, implementation, technical quality and engineering delivery.",
+      "body": "## Responsibilities\n\nResponsible for software design, implementation, technical quality and engineering delivery.\n\nSee role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "4aa974f1-e369-5dee-a237-74058aed41e5",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "VP of Flight Systems",
+      "slug": "vp-flight-systems",
+      "summary": "Responsible for flight systems leadership and coordination.",
+      "body": "## Responsibilities\n\nLeads flight systems work and coordinates its technical direction and delivery. See role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "1366e2f2-2e52-5b38-9dd7-7ca2e34966c9",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "title": "Codeberg e.V.",
+      "slug": "codeberg-ev",
+      "website": "https://codeberg.org",
+      "summary": "Nonprofit umbrella organization backing Forgejo development.",
+      "body": "## Codeberg e.V.\n\nCodeberg e.V. backs Forgejo development as its umbrella organization. Forgejo is developed by an independent community under that umbrella.\n\nSource: [Codeberg documentation](https://docs.codeberg.org/getting-started/what-is-codeberg/)."
+    },
+    {
+      "id": "aedf2c8a-abfe-5a83-8ffa-fec114e56223",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Forgejo",
+      "slug": "forgejo",
+      "website": "https://forgejo.org",
+      "summary": "Community-developed software forge under the umbrella of Codeberg e.V.",
+      "body": "## Forgejo\n\nA self-hosted software forge developed by a community under the umbrella of Codeberg e.V. The developed_by relationship records that organizational context, rather than asserting that Codeberg is the sole author.\n\nSource: [Forgejo](https://forgejo.org/)."
+    },
+    {
+      "id": "0cdb30f1-1c29-50b2-ac5d-5679e7eeb59d",
+      "typeId": "71000000-0000-4000-8000-000000000050",
+      "title": "Approve Release",
+      "slug": "approve-release",
+      "summary": "Decide whether a release is approved.",
+      "body": "## Approve Release\n\nThe decision to approve a release for an organization. This type is distinct from publishing or executing the release. A concrete approval and its supporting evidence must be recorded by the relevant workflow."
+    },
+    {
+      "id": "90d73df2-7173-5ab9-a644-195969e68f13",
+      "typeId": "71000000-0000-4000-8000-000000000051",
+      "title": "Release approval authority",
+      "slug": "release-approval-authority",
+      "summary": "Authority to decide whether a release is approved.",
+      "body": "## Authority\n\nPermits the Approve Release decision type. The holder acts within the organization named by their role assignment. This does not bypass deployment permissions or existing release controls."
+    },
+    {
+      "id": "0d828cc7-60ea-53a9-9a0d-5b16b72b0fee",
+      "typeId": "71000000-0000-4000-8000-000000000052",
+      "title": "CTO release approval grant",
+      "slug": "cto-release-approval-grant",
+      "summary": "Grants the CTO role release-approval decision authority.",
+      "body": "## Grant\n\nThe CTO role receives Release approval authority. Holders inherit this documented authority only within the scope of their own role assignment. No individual release has been approved by creating this grant."
+    },
+    {
+      "id": "4ad0bb73-2d12-5726-abfe-d8e23897e256",
+      "typeId": "71000000-0000-4000-8000-000000000017",
+      "title": "Data sovereignty",
+      "slug": "data-sovereignty",
+      "summary": "Control where data is stored and processed, who can access it, and which infrastructure operates it.",
+      "body": "## Customer problem\n\nSelf-hosters and enterprises need control over where their data is stored and processed, who can access it, and the infrastructure used to operate their systems.\n\nOutfitter aims to address this shared problem. Specific hosting, access-control and data-handling requirements must be recorded for each deployment; this problem page is not a claim that a deployment already meets them."
+    },
+    {
+      "id": "e7872950-67ea-57a0-b32d-628d8478e201",
+      "typeId": "71000000-0000-4000-8000-000000000016",
+      "title": "Self-hosters",
+      "slug": "self-hosters",
+      "summary": "People and teams running software on infrastructure they control.",
+      "body": "## Customer context\n\nAn Outfitter customer segment that values control of its own infrastructure and data. Shares the Data sovereignty problem with enterprise customers."
+    },
+    {
+      "id": "ac9a2be1-7950-56b1-b148-6410b51b178d",
+      "typeId": "71000000-0000-4000-8000-000000000016",
+      "title": "Enterprise",
+      "slug": "enterprise",
+      "summary": "Organizations needing control over their data and deployment environment.",
+      "body": "## Customer context\n\nAn Outfitter customer segment with organizational requirements for data location, processing, access and infrastructure control. Shares the Data sovereignty problem with self-hosters."
+    },
+    {
+      "id": "814435fc-240b-5d69-939c-cbda37985f20",
+      "typeId": "71000000-0000-4000-8000-000000000018",
+      "title": "Chief Operating Officer (COO)",
+      "slug": "coo",
+      "summary": "Responsible for operations, organizational execution and coordination.",
+      "body": "## Responsibilities\n\nCoordinates organizational operations and delivery. See role assignments for the holder and organizational scope."
+    },
+    {
+      "id": "5b33818e-cdd5-5309-84ea-ab42de9e6a7b",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Outfitter inference service",
+      "slug": "outfitter-inference-service",
+      "summary": "Model inference service offered by Outfitter.",
+      "body": "## Service\n\nInference used to run model requests. Its offering defines customer pricing separately from the product; no provider tariff or model price is asserted here.",
+      "properties": {}
+    },
+    {
+      "id": "0479b761-0ce9-5412-9175-363c207db8c4",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "title": "Outfitter resident agent service",
+      "slug": "outfitter-resident-agent-service",
+      "summary": "Resident agents performing assigned organizational roles.",
+      "body": "## Service\n\nResident agents operating in assigned roles. Commercial rates are attached to the offering’s role tiers. A purchased tier does not itself assign a role or grant authority.",
+      "properties": {}
+    },
+    {
+      "id": "43f950db-67b4-5b90-a1c8-09e79bbad23e",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "title": "Inference with markup",
+      "slug": "outfitter-inference-offering",
+      "summary": "Inference priced as provider cost plus an Outfitter markup.",
+      "body": "## Pricing basis\n\nCustomer inference price is provider inference cost plus Outfitter’s markup. The markup percentage, providers, models, currency and billing unit are not specified yet.",
+      "properties": {
+        "pricing_model": "cost_plus",
+        "pricing_notes": "Provider cost plus markup. Markup percentage, currency and billing unit remain unspecified."
+      }
+    },
+    {
+      "id": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "title": "Role-priced resident agents",
+      "slug": "outfitter-resident-agent-offering",
+      "summary": "Resident-agent pricing depends on the agent’s role.",
+      "body": "## Pricing basis\n\nResident-agent rates vary by role. Role tiers reference the same Role entities used for assignments; the price for each role and its billing interval remain unspecified.\n\nInference treatment within these tiers has not been defined. This offering does not configure billing or create resident runtimes.",
+      "properties": {
+        "pricing_model": "role_based",
+        "pricing_notes": "Prices and billing intervals for each role remain unspecified."
+      }
+    },
+    {
+      "id": "dd14dec8-b7a6-5069-80f6-fe732e79607f",
+      "typeId": "71000000-0000-4000-8000-000000000010",
+      "title": "10K monthly inference revenue",
+      "slug": "monthly-inference-revenue",
+      "summary": "Reach 10,000 in inference revenue per month.",
+      "body": "## Target\n\nReach 10,000 in inference revenue per month.\n\n## Progress\n\nSee the linked metric definition for counting rules. No measured progress has been recorded."
+    },
+    {
+      "id": "734f7e2d-7d1f-548c-91a5-c5896baabd66",
+      "typeId": "71000000-0000-4000-8000-000000000011",
+      "title": "Monthly inference revenue",
+      "slug": "monthly-inference-revenue-metric",
+      "body": "Sum inference revenue for one calendar month.\n\n- Target: 10,000 per month\n- Currency: not specified; use one configured currency and do not combine currencies without a defined conversion method\n- Scope: inference revenue; resident-agent subscription fees are separate\n- Source: inference billing and revenue records\n- Accounting basis, refunds, tax treatment, timezone and whether the target covers total inference charges or markup revenue: to be defined\n\nNo measured value or billing integration has been recorded."
+    },
+    {
+      "id": "78631eab-bef0-55bd-abef-17a05537c386",
+      "typeId": "71000000-0000-4000-8000-000000000010",
+      "title": "10 resident agents completing a workflow daily",
+      "slug": "daily-resident-workflow-agents",
+      "summary": "Each day, at least 10 distinct resident agents complete at least one workflow.",
+      "body": "## Target\n\nEach day, at least 10 distinct resident agents complete at least one workflow.\n\n## Progress\n\nSee the linked metric definition for counting rules. No measured progress has been recorded."
+    },
+    {
+      "id": "9bdfda47-bbc0-5f78-861e-747b19ced26a",
+      "typeId": "71000000-0000-4000-8000-000000000011",
+      "title": "Daily resident agents with a completed workflow",
+      "slug": "daily-resident-workflow-agents-metric",
+      "body": "Count distinct resident-agent IDs with at least one successfully completed workflow during the reporting day.\n\n- Target: 10 agents per day\n- Unit: distinct resident agents\n- An agent completing several workflows counts once that day\n- Queued, running, failed or cancelled workflows do not count\n- Source: resident-agent identity and workflow completion records\n- Reporting timezone and production/test exclusions: to be configured\n\nNo measured value or automated counter has been recorded."
+    },
+    {
+      "id": "19f5e7bf-34c9-51ef-b50f-ef5c337defc3",
+      "typeId": "71000000-0000-4000-8000-000000000010",
+      "title": "10 reported self-hosted installations",
+      "slug": "reported-self-hosted-installs",
+      "summary": "Reach 10 distinct self-hosted installations reported to Outfitter.",
+      "body": "## Target\n\nReach 10 distinct self-hosted installations reported to Outfitter.\n\n## Progress\n\nSee the linked metric definition for counting rules. No measured progress has been recorded."
+    },
+    {
+      "id": "3b713d9e-21f0-5728-9632-f630253cad98",
+      "typeId": "71000000-0000-4000-8000-000000000011",
+      "title": "Reported self-hosted installations",
+      "slug": "reported-self-hosted-installs-metric",
+      "body": "Count distinct self-hosted installations that report their installation to Outfitter.\n\n- Target: 10 installations\n- Unit: unique installation IDs, deduplicated across repeated reports\n- Scope: self-hosted installations, excluding hosted Outfitter instances\n- Source: voluntarily submitted installation reports\n- Reporting period, test-instance exclusions and retirement handling: to be specified\n- Do not estimate unreported installs or treat this definition as consent to collect telemetry\n\nNo measured value or reporting integration has been recorded."
+    },
+    {
+      "id": "48f84fdf-2b2c-586d-87f1-ca0abd4cb63b",
+      "typeId": "71000000-0000-4000-8000-000000000050",
+      "title": "Set Organization Goals",
+      "slug": "set-organization-goals",
+      "summary": "Set an organization’s goals and measures of success.",
+      "body": "## Set Organization Goals\n\nChoose or revise the organization’s goals and success measures. Record the actual decision separately, including the deciding person, scoped role assignment, rationale and goals established."
+    },
+    {
+      "id": "d355c874-dba2-50b0-ae74-989c8c1a92b8",
+      "typeId": "71000000-0000-4000-8000-000000000051",
+      "title": "Organization goal-setting authority",
+      "slug": "organization-goal-setting-authority",
+      "summary": "Authority to set goals within the role assignment’s organization.",
+      "body": "## Authority\n\nPermits Set Organization Goals within the organization named by the holder’s RoleAssignment. It documents decision authority, not platform access or automatic goal execution."
+    },
+    {
+      "id": "0e360076-1a6d-5347-b956-9eeca5a8663a",
+      "typeId": "71000000-0000-4000-8000-000000000052",
+      "title": "CEO organization goal-setting grant",
+      "slug": "ceo-organization-goal-setting-grant",
+      "summary": "Grants the CEO role organization goal-setting authority.",
+      "body": "## Grant\n\nThe CEO role may set goals within its assigned organization. Read the holder and scope from the RoleAssignment."
+    }
+  ],
+  "projects": [
+    {
+      "id": "73000000-0000-4000-8000-000000000011",
+      "typeId": "71000000-0000-4000-8000-000000000003",
+      "title": "Webapp",
+      "slug": "webapp"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000012",
+      "typeId": "71000000-0000-4000-8000-000000000003",
+      "title": "Deepwork",
+      "slug": "deepwork"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000013",
+      "typeId": "71000000-0000-4000-8000-000000000003",
+      "title": "Software Foundry",
+      "slug": "software-foundry"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000014",
+      "typeId": "71000000-0000-4000-8000-000000000003",
+      "title": "Workshop",
+      "slug": "workshop"
+    }
+  ],
+  "edges": [
+    {
+      "id": "73000000-0000-4000-8000-000000000111",
+      "typeId": "71000000-0000-4000-8000-000000000026",
+      "fromId": "73000000-0000-4000-8000-000000000011",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000112",
+      "typeId": "71000000-0000-4000-8000-000000000026",
+      "fromId": "73000000-0000-4000-8000-000000000012",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000113",
+      "typeId": "71000000-0000-4000-8000-000000000026",
+      "fromId": "73000000-0000-4000-8000-000000000013",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000114",
+      "typeId": "71000000-0000-4000-8000-000000000026",
+      "fromId": "73000000-0000-4000-8000-000000000014",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "bdb44a0a-6cfd-587d-be45-53c8c382e690",
+      "typeId": "71000000-0000-4000-8000-000000000030",
+      "fromId": "73000000-0000-4000-8000-000000000013",
+      "toId": "2b4793fc-272c-551f-9a47-1b9d881b7840"
+    },
+    {
+      "id": "ca79d0e6-738a-5bb2-b186-96c0dcb90225",
+      "typeId": "71000000-0000-4000-8000-000000000030",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "319fe4a9-8c59-5e05-81c0-09e16c201cfe"
+    },
+    {
+      "id": "1e300868-f159-55ac-a9b6-de1438f2d41c",
+      "typeId": "71000000-0000-4000-8000-000000000033",
+      "fromId": "73000000-0000-4000-8000-000000000013",
+      "toId": "db774c1b-5004-5d6c-8ba6-916e2fe2094d",
+      "properties": {
+        "path": "apps/software-foundry",
+        "ref": "main"
+      }
+    },
+    {
+      "id": "494583f2-8c50-5a0b-9d05-f879a7c90b19",
+      "typeId": "71000000-0000-4000-8000-000000000033",
+      "fromId": "73000000-0000-4000-8000-000000000014",
+      "toId": "db774c1b-5004-5d6c-8ba6-916e2fe2094d",
+      "properties": {
+        "path": "apps/workshop",
+        "ref": "main"
+      }
+    },
+    {
+      "id": "601dea20-27e8-54fb-ba58-8790517d8e22",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "cf511077-48cf-551b-95c0-7c93592085c8",
+      "toId": "1d9e960b-2318-52d6-ac30-7702c41e37cc",
+      "body": "Stripe provides Stripe Payments."
+    },
+    {
+      "id": "9d51954c-8206-55d1-9229-28fb8f139bd9",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "5f0b933f-a50c-5872-8539-caec80f3a3dc",
+      "toId": "cafd0d91-d87f-505f-9845-934f6753c6d4",
+      "body": "Product provider is Google.",
+      "properties": {}
+    },
+    {
+      "id": "a896b1e2-7976-5adf-87f8-5eb8c8acd4f2",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "d2659273-933a-5d97-97b4-c4785cee2b20",
+      "toId": "cafd0d91-d87f-505f-9845-934f6753c6d4",
+      "body": "Product provider is Google.",
+      "properties": {}
+    },
+    {
+      "id": "6211f9ba-9b82-55c9-a187-644ca048ce25",
+      "typeId": "71000000-0000-4000-8000-000000000040",
+      "fromId": "d2659273-933a-5d97-97b4-c4785cee2b20",
+      "toId": "5f0b933f-a50c-5872-8539-caec80f3a3dc",
+      "body": "Intended calendar/email integration context; no Outfitter account integration is asserted.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "e707c004-4d17-58ca-b7e3-c996fb9f580f",
+      "typeId": "71000000-0000-4000-8000-000000000024",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "9eb0c8c7-37ae-546f-97bf-9dc9b995f118",
+      "body": "Proposed Outfitter communication or scheduling dependency; connector configuration and live access are separate.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "86e2e5c3-ae98-54b1-a4e1-71590a1f5daf",
+      "typeId": "71000000-0000-4000-8000-000000000024",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "5f0b933f-a50c-5872-8539-caec80f3a3dc",
+      "body": "Proposed Outfitter communication or scheduling dependency; connector configuration and live access are separate.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "dd7d9548-9bf5-57af-8c50-ae7ff7353e4f",
+      "typeId": "71000000-0000-4000-8000-000000000024",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "40ae5a3e-e8c4-5089-b30b-86cc5f61e50f",
+      "body": "Proposed Outfitter communication or scheduling dependency; connector configuration and live access are separate.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b2dc64e3-80aa-5979-adab-ffada12d6e53",
+      "typeId": "71000000-0000-4000-8000-000000000024",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "d2659273-933a-5d97-97b4-c4785cee2b20",
+      "body": "Proposed Outfitter communication or scheduling dependency; connector configuration and live access are separate.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "5ffc7510-c502-5a78-b204-5be17e7cd100",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "c2a3b7ad-8122-52d9-9a23-6b3ed286383b",
+      "toId": "9acacda9-3882-5126-83fd-4db358013131",
+      "body": "Linq provides the messaging API. Source: https://linqapp.com",
+      "properties": {
+        "evidence": "https://linqapp.com"
+      }
+    },
+    {
+      "id": "f5aea3c1-0cc2-57e2-b71f-ae8873513b4b",
+      "typeId": "71000000-0000-4000-8000-000000000040",
+      "fromId": "c2a3b7ad-8122-52d9-9a23-6b3ed286383b",
+      "toId": "40ae5a3e-e8c4-5089-b30b-86cc5f61e50f",
+      "body": "Linq documents iMessage API support. This provider capability has not been exercised by the local Outfitter integration.",
+      "properties": {
+        "status": "documented",
+        "evidence": "https://linqapp.com"
+      }
+    },
+    {
+      "id": "0b58464f-f906-5ba7-8c8b-12e89886f4fe",
+      "typeId": "71000000-0000-4000-8000-000000000024",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "c2a3b7ad-8122-52d9-9a23-6b3ed286383b",
+      "body": "Proposed provider for Outfitter’s iMessage connector. No configured account or active integration is asserted.",
+      "properties": {
+        "status": "proposed",
+        "evidence": "https://linqapp.com"
+      }
+    },
+    {
+      "id": "f4babd8a-05ec-5b9b-be20-49a61591df45",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "aedf2c8a-abfe-5a83-8ffa-fec114e56223",
+      "toId": "1366e2f2-2e52-5b38-9dd7-7ca2e34966c9",
+      "body": "Forgejo is community-developed under the umbrella of Codeberg e.V.; Codeberg backs development rather than being the sole author.",
+      "properties": {
+        "status": "documented",
+        "evidence": "https://forgejo.org/"
+      }
+    },
+    {
+      "id": "3b402fdc-f7d3-5e85-9143-9b7faea0aef3",
+      "typeId": "71000000-0000-4000-8000-000000000053",
+      "fromId": "46d20661-b4a0-52ec-a1c3-0a6fdea9506d",
+      "toId": "0d828cc7-60ea-53a9-9a0d-5b16b72b0fee"
+    },
+    {
+      "id": "5ec116d0-ec12-573d-8054-61f63225b1a4",
+      "typeId": "71000000-0000-4000-8000-000000000054",
+      "fromId": "0d828cc7-60ea-53a9-9a0d-5b16b72b0fee",
+      "toId": "90d73df2-7173-5ab9-a644-195969e68f13"
+    },
+    {
+      "id": "93bb3a6e-a8a0-5730-93d4-b72a807048b3",
+      "typeId": "71000000-0000-4000-8000-000000000055",
+      "fromId": "90d73df2-7173-5ab9-a644-195969e68f13",
+      "toId": "0cdb30f1-1c29-50b2-ac5d-5679e7eeb59d"
+    },
+    {
+      "id": "b79b8148-ee53-5b72-b331-edfe0eb03c56",
+      "typeId": "71000000-0000-4000-8000-000000000036",
+      "fromId": "e7872950-67ea-57a0-b32d-628d8478e201",
+      "toId": "73000000-0000-4000-8000-000000000001",
+      "body": "Intended customer segment for Outfitter.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "a3d4fb51-325b-53c3-82cf-30107dca7d03",
+      "typeId": "71000000-0000-4000-8000-000000000038",
+      "fromId": "e7872950-67ea-57a0-b32d-628d8478e201",
+      "toId": "4ad0bb73-2d12-5726-abfe-d8e23897e256",
+      "body": "Shared need for control over data and deployment infrastructure.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "29f495fa-8259-512e-825e-7601805f63cb",
+      "typeId": "71000000-0000-4000-8000-000000000036",
+      "fromId": "ac9a2be1-7950-56b1-b148-6410b51b178d",
+      "toId": "73000000-0000-4000-8000-000000000001",
+      "body": "Intended customer segment for Outfitter.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "61e08af9-5ade-5a24-a2d7-51c8633e0d8d",
+      "typeId": "71000000-0000-4000-8000-000000000038",
+      "fromId": "ac9a2be1-7950-56b1-b148-6410b51b178d",
+      "toId": "4ad0bb73-2d12-5726-abfe-d8e23897e256",
+      "body": "Shared need for control over data and deployment infrastructure.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "0a349606-a985-5db3-8b06-4880c899d033",
+      "typeId": "71000000-0000-4000-8000-000000000039",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "4ad0bb73-2d12-5726-abfe-d8e23897e256",
+      "body": "Outfitter aims to address the shared data-sovereignty need; deployment-specific evidence remains separate.",
+      "properties": {
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "61c381d0-2f86-501f-9b82-2ea27d44b4ee",
+      "typeId": "71000000-0000-4000-8000-000000000057",
+      "fromId": "43f950db-67b4-5b90-a1c8-09e79bbad23e",
+      "toId": "5b33818e-cdd5-5309-84ea-ab42de9e6a7b"
+    },
+    {
+      "id": "d6c1f80b-ca54-5c0a-8e92-e131ee4052ec",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "43f950db-67b4-5b90-a1c8-09e79bbad23e",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "b1d9c12d-cf0c-550b-a6d0-4ee424b9c1bb",
+      "typeId": "71000000-0000-4000-8000-000000000057",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "0479b761-0ce9-5412-9175-363c207db8c4"
+    },
+    {
+      "id": "5b929697-9fde-512c-b8e4-6a266e9f714d",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "73000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "95805bc9-1a28-5b67-8dd4-388be5bf6aa7",
+      "typeId": "71000000-0000-4000-8000-000000000060",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "124e09f2-3724-5a4e-9eda-bcd9bf8837b0"
+    },
+    {
+      "id": "2771f4af-cdc5-5548-b887-91104fd635d9",
+      "typeId": "71000000-0000-4000-8000-000000000060",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "1b7e533a-1ed8-55a8-8acf-3c0610c1b36e"
+    },
+    {
+      "id": "d463f2c5-7f13-5f4b-823e-149ce1e674d6",
+      "typeId": "71000000-0000-4000-8000-000000000060",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "814435fc-240b-5d69-939c-cbda37985f20"
+    },
+    {
+      "id": "fa516549-3b9c-59d0-b9ea-9e7f2743ad99",
+      "typeId": "71000000-0000-4000-8000-000000000060",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "46d20661-b4a0-52ec-a1c3-0a6fdea9506d"
+    },
+    {
+      "id": "a4e43ee1-4253-5ec5-8850-1e5c578ccab6",
+      "typeId": "71000000-0000-4000-8000-000000000060",
+      "fromId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "toId": "8d790222-eee9-552c-8efa-786a1ceafbe8"
+    },
+    {
+      "id": "d59aa0fd-b097-5f8b-942b-aefcc21332ac",
+      "typeId": "71000000-0000-4000-8000-000000000029",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "dd14dec8-b7a6-5069-80f6-fe732e79607f"
+    },
+    {
+      "id": "e06c3233-ec8a-5675-ad4e-c57ff40b6e5d",
+      "typeId": "71000000-0000-4000-8000-000000000030",
+      "fromId": "dd14dec8-b7a6-5069-80f6-fe732e79607f",
+      "toId": "734f7e2d-7d1f-548c-91a5-c5896baabd66"
+    },
+    {
+      "id": "a0f0ea2f-5b4b-59de-8a47-45273fb3f323",
+      "typeId": "71000000-0000-4000-8000-000000000029",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "78631eab-bef0-55bd-abef-17a05537c386"
+    },
+    {
+      "id": "05528ce2-6dc9-5d07-9939-4bf6167fd0bb",
+      "typeId": "71000000-0000-4000-8000-000000000030",
+      "fromId": "78631eab-bef0-55bd-abef-17a05537c386",
+      "toId": "9bdfda47-bbc0-5f78-861e-747b19ced26a"
+    },
+    {
+      "id": "b160be68-970e-58b4-b7b8-41c611ce3cf0",
+      "typeId": "71000000-0000-4000-8000-000000000029",
+      "fromId": "73000000-0000-4000-8000-000000000001",
+      "toId": "19f5e7bf-34c9-51ef-b50f-ef5c337defc3"
+    },
+    {
+      "id": "28f2e024-00a0-574e-8c79-476fbf5941a0",
+      "typeId": "71000000-0000-4000-8000-000000000030",
+      "fromId": "19f5e7bf-34c9-51ef-b50f-ef5c337defc3",
+      "toId": "3b713d9e-21f0-5728-9632-f630253cad98"
+    },
+    {
+      "id": "e3ec9088-39ad-59b1-a971-171a57d98f08",
+      "typeId": "71000000-0000-4000-8000-000000000053",
+      "fromId": "f1fa1826-8521-58cb-ba9d-60658e672a25",
+      "toId": "0e360076-1a6d-5347-b956-9eeca5a8663a",
+      "properties": {}
+    },
+    {
+      "id": "36a9d307-14d6-5140-94b5-ccf07c86e35a",
+      "typeId": "71000000-0000-4000-8000-000000000054",
+      "fromId": "0e360076-1a6d-5347-b956-9eeca5a8663a",
+      "toId": "d355c874-dba2-50b0-ae74-989c8c1a92b8",
+      "properties": {}
+    },
+    {
+      "id": "4b1ff47b-c0cf-5ccd-a050-1cc70145db37",
+      "typeId": "71000000-0000-4000-8000-000000000055",
+      "fromId": "d355c874-dba2-50b0-ae74-989c8c1a92b8",
+      "toId": "48f84fdf-2b2c-586d-87f1-ca0abd4cb63b",
+      "properties": {}
+    }
+  ]
+}

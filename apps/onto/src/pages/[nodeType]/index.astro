@@ -1,0 +1,11 @@
+---
+import Layout from "../../components/Layout.astro";
+import { canonicalProductRoute } from "../../lib/product-route";
+const { nodeType } = Astro.params;
+const canonical = canonicalProductRoute(Astro.url, nodeType);
+if (canonical) return Astro.redirect(canonical, 308);
+---
+<Layout title="Entities" description="Browse shared context." page="page" routeDepth={1}>
+  <div id="graph" class="wiki-map" aria-busy="true" data-node-type={nodeType}></div>
+</Layout>
+<script>import "../../scripts/graph.ts";</script>

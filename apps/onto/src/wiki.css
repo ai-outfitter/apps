@@ -1,0 +1,306 @@
+/* Only what this app adds to the shared frame; colors come from shared tokens. */
+
+.wiki-map {
+  display: grid;
+  gap: 16px;
+}
+
+.graph-section {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.ui-content .graph-section h2,
+.ui-content .wiki-card h3,
+.ui-content .graph-section p,
+.ui-content .wiki-card p {
+  margin: 0;
+}
+
+.wiki-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wiki-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--canvas);
+}
+
+.graph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.graph-form,
+.graph-fields {
+  display: grid;
+  gap: 16px;
+  max-width: 760px;
+}
+.graph-form label {
+  display: grid;
+  gap: 6px;
+}
+.graph-form fieldset {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.graph-form select[multiple] {
+  min-height: 130px;
+}
+.graph-body {
+  white-space: pre-wrap;
+}
+.graph-viewport {
+  overflow: auto;
+}
+.graph-viewport svg {
+  display: block;
+  width: 100%;
+  min-width: 650px;
+  color: var(--muted);
+}
+.graph-viewport text {
+  fill: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+.graph-viewport .graph-edge-label {
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 5px;
+}
+.graph-viewport .graph-node-type {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.graph-node {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+.graph-viewport a:hover .graph-node {
+  fill: var(--hover);
+}
+.graph-relations {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+}
+.wiki-map > * {
+  margin-block: 0;
+}
+.wiki-map,
+.graph-section,
+.graph-viewport {
+  min-width: 0;
+}
+
+.documentation {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.documentation pre {
+  overflow: auto;
+  padding: 12px;
+  background: var(--surface);
+}
+.graph-form [hidden] {
+  display: none;
+}
+@media (max-width: 650px) {
+  .graph-viewport {
+    display: none;
+  }
+}
+
+/* Graph content sizing belongs to Wiki; renderer styles live in the shared UI. */
+.wiki-map, .graph-section { grid-template-columns: minmax(0, 1fr); }
+.graph-section > * { min-width: 0; }
+.wiki-map > button, .graph-section > button { justify-self: start; max-width: 100%; }
+.ui-content.wiki-graph-content { max-width: none; }
+
+/* Entity reading surface; the surrounding sidebar and shell stay shared. */
+.node-identity { display: grid; gap: 12px; min-width: 0; }
+.node-eyebrow, .node-title-row, .node-navigation, .node-explore { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.node-eyebrow { font-size: 13px; color: var(--muted); gap: 10px; }
+.node-eyebrow > a { font-weight: 600; }
+.node-badge { border: 1px solid var(--border); background: var(--surface); border-radius: 5px; padding: 2px 8px; color: var(--text); }
+.node-title-row { align-items: start; justify-content: space-between; }
+.ui-content .node-title-row h1 { font-size: clamp(25px, 3vw, 34px); line-height: 1.2; max-width: 900px; margin: 0; letter-spacing: -.025em; }
+.ui-content .node-summary { margin: 0; max-width: 82ch; line-height: 1.6; color: var(--muted); }
+.node-reader { display: grid; gap: 24px; min-width: 0; }
+.node-navigation { justify-content: space-between; border-bottom: 1px solid var(--border); gap: 10px; }
+.node-tabs, .wiki-view-tabs { display: flex; overflow-x: auto; gap: 24px; max-width: 100%; }
+.node-tabs button, .wiki-view-tabs a { border: 0; background: transparent; border-radius: 0; padding: 12px 0; white-space: nowrap; color: var(--muted); border-bottom: 2px solid transparent; }
+.node-tabs button[aria-selected="true"], .wiki-view-tabs a[aria-current="page"] { border-color: var(--text); color: var(--text); font-weight: 600; }
+.node-tabs button:focus-visible, .wiki-view-tabs a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.node-explore { font-size: 13px; gap: 16px; padding: 10px 0; }
+.node-overview-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
+.node-main, .node-aside, .node-tab-content { display: grid; gap: 24px; min-width: 0; }
+.node-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; min-width: 0; overflow-wrap: anywhere; }
+.ui-content .node-section h2 { font-size: 18px; margin: 0 0 20px; }
+.ui-content .node-section h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 500; }
+.ui-content .node-section p { line-height: 1.6; margin: 0; }
+.node-field + .node-field { margin-top: 20px; }
+.node-field { min-width: 0; }
+.node-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin: 0; }
+.node-facts dt, .node-relationships dt { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.node-facts dd, .node-relationships dd { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.node-relationships { display: grid; gap: 20px; margin: 0; }
+.node-reference { display: grid; gap: 3px; margin-bottom: 8px; }
+.node-type-label { font-size: 12px; color: var(--muted); }
+.node-readiness { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border: 1px solid var(--border); border-left: 3px solid var(--text); background: var(--soft); border-radius: 8px; padding: 16px 20px; }
+.ui-content .node-readiness p { margin: 4px 0 0; color: var(--muted); line-height: 1.5; }
+.node-table-scroll { overflow-x: auto; max-width: 100%; }
+.node-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.node-table th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 500; }
+.node-table th, .node-table td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; min-width: 90px; }
+.node-table tbody tr:last-child td { border-bottom: 0; }
+.ui-content .node-expression { font-size: 18px; line-height: 1.65; padding: 16px; background: var(--soft); border-radius: 8px; overflow-wrap: anywhere; }
+.ui-content .node-help { color: var(--muted); font-size: 13px; margin-top: 12px; }
+.node-code { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--soft); padding: 16px; border-radius: 8px; max-height: 600px; overflow: auto; }
+.node-section summary { cursor: pointer; font-weight: 600; }
+@media (max-width: 800px) {
+  .node-overview-grid { grid-template-columns: minmax(0,1fr); }
+  .node-section { padding: 18px; }
+  .node-tabs, .wiki-view-tabs { gap: 20px; }
+  .node-title-row > button { font-size: 12px; }
+}
+.node-overview-grid .node-field-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.node-overview-grid .node-field + .node-field { margin-top: 0; }
+@media (max-width: 500px) { .node-overview-grid .node-field-grid { grid-template-columns: minmax(0,1fr); gap: 16px; } }
+#graph[data-node-id], #graph[data-node-id] > .wiki-map, .node-navigation, .node-tabs, .node-overview-grid { min-width: 0; }
+.node-overview-grid { max-width: 100%; }
+.graph-explorer-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.graph-explorer-filters label { display: grid; gap: 4px; }
+.graph-explorer-filters input, .graph-explorer-filters select { min-width: 0; width: 100%; }
+
+.sidebar .chat-link { font-size: 14px; }
+.wiki-sidebar-records { padding: 0; }
+.wiki-sidebar-records .wiki-root-nodes { list-style: none; margin: 0; padding: 0 12px; }
+.wiki-sidebar-records .wiki-root-graphs { list-style: none; margin: 0 0 6px; padding: 0 0 0 12px; }
+.wiki-sidebar-records li { padding-left: 0; }
+.wiki-sidebar-records li a { display: block; padding: 5px 4px; font-size: 12px; border-radius: 8px; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.wiki-sidebar-records li a:hover, .wiki-sidebar-records li a[aria-current="page"] { background: var(--hover); }
+
+.wiki-sidebar-records .chat-link[aria-current="page"] { background: var(--hover); }
+
+.sidebar:has(#wiki-sidebar-records) nav { overflow: visible; flex-shrink: 0; }
+
+.org-chart .knowledge-graph-viewport { align-items: flex-start; }
+.org-chart .knowledge-graph-viewport svg { margin-top: 0; margin-bottom: 0; }
+
+/* Entity view tabs (Overview, Connections, Knowledge graphs, Org chart). */
+.wiki-view-tabs { border-bottom: 1px solid var(--border); }
+.wiki-view-tabs a { margin-bottom: -1px; text-decoration: none; }
+.node-title-row .wiki-view-tabs { margin-left: auto; border-bottom: 0; gap: 20px; }
+.node-title-row .wiki-view-tabs a { padding: 6px 0; font-size: 14px; }
+.ui-content .node-title-row:has(.wiki-view-tabs) { align-items: center; }
+.wiki-view-tabs a:hover { color: var(--text); }
+
+/* Knowledge graph page: graph picker, then the selected graph (unboxed; only the canvas is framed). */
+.knowledge-graph-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.knowledge-graph-picker a { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 13px; text-decoration: none; }
+.knowledge-graph-picker a:hover { background: var(--hover); color: var(--text); }
+.knowledge-graph-picker a[aria-current="page"] { border-color: var(--text); background: var(--soft); color: var(--text); font-weight: 600; }
+.wiki-map.knowledge-graph-page, .wiki-map.knowledge-graph-detail { gap: 12px; }
+.knowledge-graph-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.knowledge-graph-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
+.ui-content .knowledge-graph-description { margin: 0; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Graph viewer inside Wiki pages: compact toolbar and a framed canvas so cards stand out. */
+.wiki-map .knowledge-graph-stage .graph-actions { gap: 6px; }
+.ui-content .wiki-map :is(.knowledge-graph-stage .graph-actions, .knowledge-graph-actions) button { padding: 6px 12px; font-size: 13px; }
+.wiki-map .knowledge-graph-viewport { border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); }
+
+/* Graph views put the graph first: a compact entity header, toolbar floating on the canvas,
+   and a canvas that fills the rest of the window. */
+.wiki-graph-content > .intro { margin-bottom: 12px; }
+.wiki-graph-content .node-identity { gap: 4px; }
+.ui-content.wiki-graph-content .node-title-row h1 { font-size: 24px; }
+.ui-content.wiki-graph-content .node-title-row > button { padding: 6px 12px; font-size: 13px; }
+.wiki-graph-content #graph { gap: 12px; }
+.wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) { position: relative; display: grid; }
+.wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) > .graph-actions { position: absolute; top: 8px; right: 8px; z-index: 1; }
+.wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) > .graph-actions button { background: var(--surface); }
+.wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) .knowledge-graph-viewport { height: max(480px, calc(100dvh - 200px)); padding-top: 48px; }
+@media (max-width: 650px) {
+  .node-title-row .wiki-view-tabs { margin-left: 0; }
+  .wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) { gap: 8px; }
+  .wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) > .graph-actions { position: static; }
+  .wiki-map .knowledge-graph-stage:not(.knowledge-graph-expanded) .knowledge-graph-viewport { padding-top: 12px; }
+}
+
+/* Draft graph controls: one wrapping row of step and stop chips and save actions above the graph. */
+.knowledge-graph-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.knowledge-graph-controls > .knowledge-graph-actions { margin-left: auto; }
+.knowledge-graph-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--canvas); }
+.ui-content .wiki-map .knowledge-graph-chip button { margin-right: -6px; padding: 0 6px; border: 0; background: none; font-size: 14px; line-height: 1; }
+.knowledge-graph-controls input[type="number"] { width: 5em; margin-left: 4px; }
+.knowledge-graph-add { position: relative; }
+.knowledge-graph-add > summary { cursor: pointer; }
+.knowledge-graph-add[open] > form { position: absolute; z-index: 5; top: 100%; left: 0; min-width: 320px; margin-top: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.knowledge-graph-add[open] > form:not(.graph-fields) { display: flex; flex-wrap: wrap; gap: 8px; }
+.knowledge-graph-actions .knowledge-graph-add[open] > form { right: 0; left: auto; }
+
+/* Knowledge graphs: name → instances, hairline rows, instances are the links that matter. */
+.knowledge-graph-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.knowledge-graph-table th, .knowledge-graph-table td { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: baseline; }
+.knowledge-graph-table thead th { padding-top: 0; color: var(--muted); font-size: 12px; font-weight: 500; }
+.knowledge-graph-table tbody th { font-weight: 400; white-space: nowrap; }
+.knowledge-graph-table tbody th a { color: var(--muted); }
+.knowledge-graph-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.knowledge-graph-table tbody tr:last-child > * { border-bottom: 0; }
+.knowledge-graph-empty, .knowledge-graph-instance-type { color: var(--muted); }
+.knowledge-graph-instances ul { margin: 0; padding: 0; list-style: none; }
+.knowledge-graph-instances li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.knowledge-graph-instances li:last-child { border-bottom: 0; }
+.knowledge-graph-instance-type { font-size: 12px; }
+.knowledge-graph-definition { margin-top: 24px; }
+.knowledge-graph-definition > summary { color: var(--muted); font-size: 13px; cursor: pointer; }
+@media (max-width: 640px) {
+  .knowledge-graph-table tbody th { white-space: normal; }
+}
+
+/* Changes: proposed batches and their review. */
+.changes { display: grid; gap: 16px; max-width: 960px; }
+.changes h2 { margin: 0; }
+.change-summary { font-size: 16px; margin: 0; }
+.change-meta { color: var(--muted); font-size: 13px; }
+.change-deadline { margin: 0; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+.change-batches, .change-operations, .change-evidence, .change-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.change-batch, .change-operation { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.change-batch p, .change-operation p { margin: 0; }
+.change-heading { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.change-kind { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.change-state { margin-left: auto; font-size: 13px; color: var(--muted); }
+.change-rejected { opacity: 0.6; }
+.change-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.change-evidence blockquote { margin: 4px 0 0; padding-left: 10px; border-left: 3px solid var(--border); color: var(--muted); }
+.change-history > li { display: grid; gap: 4px; }
+.change-findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.change-finding { padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--border); font-size: 14px; }
+.change-finding p { margin: 2px 0 0; }
+.change-finding-error { border-left-color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
+.change-finding-warning { border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); }

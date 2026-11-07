@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">Wiki map</title>
+  <desc id="desc">A business unit card linked to two project cards, each linked to a person.</desc>
+  <rect width="800" height="480" rx="36" fill="#efeee8"/>
+  <path d="M400 150L240 250M400 150L560 250M240 290L240 360M560 290L560 360" stroke="#9aa48d" stroke-width="8" stroke-linecap="round"/>
+  <rect x="290" y="80" width="220" height="80" rx="20" fill="#60734d"/>
+  <rect x="330" y="112" width="140" height="16" rx="8" fill="#fffefa"/>
+  <rect x="140" y="230" width="200" height="70" rx="18" fill="#fffefa" stroke="#d8dccf" stroke-width="4"/>
+  <rect x="172" y="258" width="136" height="14" rx="7" fill="#9aa48d"/>
+  <rect x="460" y="230" width="200" height="70" rx="18" fill="#fffefa" stroke="#d8dccf" stroke-width="4"/>
+  <rect x="492" y="258" width="136" height="14" rx="7" fill="#9aa48d"/>
+  <circle cx="240" cy="384" r="34" fill="#b0c992"/>
+  <circle cx="560" cy="384" r="34" fill="#b0c992"/>
+  <circle cx="240" cy="374" r="12" fill="#30372b"/>
+  <circle cx="560" cy="374" r="12" fill="#30372b"/>
+</svg>

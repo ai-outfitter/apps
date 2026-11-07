@@ -1,0 +1,46 @@
+---
+import AppActionSidebar from "@ai-outfitter/ui/astro/AppActionSidebar.astro";
+import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import "../wiki.css";
+
+interface Props {
+  routeDepth?: number;
+  collection?: string;
+  title: string;
+  description: string;
+  page: "map" | "graph" | "types" | "page" | "settings";
+}
+const { title, description, page, routeDepth = page === "map" ? 0 : 1 } = Astro.props;
+const rootHref = "../".repeat(Math.max(0, routeDepth - (Astro.url.pathname.endsWith("/") ? 0 : 1))) || "./";
+const segments = Astro.url.pathname.split("/").filter(Boolean);
+const mount = segments.slice(0, segments.length - routeDepth).join("/");
+// Relative links, so the app also works under /apps/<id>/.
+---
+<ManagedAppLayout
+  name="Wiki map"
+  settingsLabel="Wiki settings"
+  workspaceReturnStyle="minimal"
+  persistKey={`wiki-sidebar:${mount}`}
+  {title}
+  {description}
+  active={page === "settings" ? "settings" : "home"}
+  settingsHref={`${rootHref}settings`}
+  sidebarLinks={[
+    { label: "Knowledge graphs", href: `${rootHref}contexts`, active: Astro.url.pathname.endsWith("/contexts") },
+    { label: "Graph explorer", href: `${rootHref}graph`, active: page === "graph" },
+    { label: "Types", href: `${rootHref}types`, active: page === "types" },
+    { label: "Changes", href: `${rootHref}changes`, active: Astro.url.pathname.includes("/changes") },
+  ]}
+>
+  <nav slot="sidebar" id="wiki-sidebar-records" class="wiki-sidebar-records" aria-label="Knowledge graph roots">
+    <div data-sidebar-graphs>Loading roots…</div>
+  </nav>
+  <span id="wiki-routing" data-route-depth={routeDepth} hidden></span>
+  <div slot="header-actions"><slot name="header-actions" /><button type="button" data-agent-sidebar-toggle aria-controls="wiki-map-agent" aria-expanded="false" disabled>Ask Wiki</button></div>
+  <slot />
+  <AppActionSidebar slot="overlays" app="wiki-map" label="Wiki" focusId="e9500000-0000-4000-8000-000000000002" conversationNavigation={false} />
+</ManagedAppLayout>
+<script>
+  import "../scripts/sidebar-records";
+  import "../scripts/navigation";
+</script>

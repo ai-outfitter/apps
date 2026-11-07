@@ -1,0 +1,1176 @@
+{
+  "types": [
+    {
+      "id": "059e57b9-3d99-4b62-8489-c45ae0f8831f",
+      "category": "edge",
+      "name": "has_use_case",
+      "title": "has use case",
+      "body": "The source Project includes the target UseCase in its feature scope. Preserve the UseCase's canonical Planning project association; no execution or completion is implied.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "075f93f6-6860-4977-a1b8-b99c4e16c350",
+      "category": "edge",
+      "name": "has_requirement",
+      "title": "has requirement",
+      "body": "The source Project, ProductSpecification or UserStory includes the target Requirement. Intent does not imply implementation or evaluation.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "08755272-8498-4671-8f63-ec97acc97f76",
+      "category": "edge",
+      "name": "uses_view",
+      "title": "uses view",
+      "body": "The source ArtifactDefinition selects the target KnowledgeGraph lens as a proposed source selection. The definition's section/order/audience rules are separate from the lens traversal; this relationship does not implement rendering.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "artifactKind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Output kind, such as product specification or agent task context."
+          },
+          "audience": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Intended reader or task role."
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "The outcome this artifact supports."
+          },
+          "outputTitle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Intended output title; not an existing generated record."
+          },
+          "sections": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "description": "Ordered section names."
+          },
+          "sourceScope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "Anchor, source records, exclusions and organization scope. A selector design, not permission."
+          },
+          "refreshPolicy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Desired response to source changes."
+          },
+          "revisionPolicy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "How a future renderer should preserve the source/output revision relationship."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "implemented",
+              "retired"
+            ],
+            "description": "Definition maturity; implemented requires independent runtime evidence."
+          },
+          "sectionMappings": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "types": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "links",
+                    "summaries",
+                    "fields"
+                  ]
+                },
+                "fields": {
+                  "type": "array",
+                  "maxItems": 30,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "types"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "artifactKind",
+          "audience",
+          "purpose",
+          "outputTitle",
+          "sections",
+          "sourceScope",
+          "refreshPolicy",
+          "revisionPolicy",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "category": "node",
+      "name": "ArtifactDefinition",
+      "title": "Artifact definitions",
+      "body": "A proposed or implemented recipe for composing selected graph knowledge into a human-readable or agent-consumable artifact. It is distinct from a KnowledgeGraph traversal and from a generated Document. Store structured JSON in body using this schema. artifact_for identifies a local subject; uses_view identifies the relevant graph selection. Source scopes may name an external organization's records without copying them or granting cross-organization access. A definition alone does not implement rendering, refresh, prompt injection or revision storage. Create output Documents only when an output actually exists.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "199e5077-b65f-4c56-a672-06dd6ebe999d",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Who needs this capability? Describe the human or agent role, not an authorization grant."
+          },
+          "capability": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "What does the actor want to be able to do?"
+          },
+          "benefit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Why does the capability matter? State the intended user or business outcome."
+          }
+        },
+        "required": [
+          "actor",
+          "capability",
+          "benefit"
+        ],
+        "additionalProperties": false
+      },
+      "category": "node",
+      "name": "UserStory",
+      "title": "User stories",
+      "body": "## User story\n\nA concise statement of an actor's desired capability and the benefit it should deliver: As an actor, I want a capability, so that I obtain a benefit.\n\nStore structured JSON in body using this type's jsonSchema. Required fields are actor, capability and benefit. A story describes intent; it is distinct from a UseCase's scenario and an implementation issue.\n\n## Relationships and ownership\n\nStories may be linked to canonical project context, relevant Problem records, UseCases and individual AcceptanceCriterion records through separately defined graph relationships. Keep stable entity identities; titles and URLs are not canonical identifiers. Graph relationships and structured documentation do not automatically publish a Planning issue or grant execution authority.\n\nPlanning's existing project userStories text remains independent; defining this type does not migrate, synchronize or replace that field.\n\n## Evidence\n\nA story's existence is not evidence of implementation, customer validation, approval or delivery. Acceptance criteria and evaluations remain separate records. Node revisions preserve edits; evidence should identify the revision evaluated.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "2f93a811-9c0a-4848-8193-0ba55e6b1fb5",
+      "category": "node",
+      "name": "Issue",
+      "title": "Issues",
+      "body": "A graph representation of actionable work owned by a canonical Planning issue or another verified issue source. Include the canonical app reference when creating a sourced node. Follow that reference for current status, assignment, due date and description; do not maintain competing work state in Wiki properties. The issue description may be a rendered artifact; that does not replace the issue identity. Graph links describe scope, not implementation, approval or completion.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "4a56e759-9bde-4f0a-857d-82526463b092",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "The specific behavior, condition or requirement to check."
+          },
+          "expectedOutcome": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "The observable result that demonstrates the criterion is satisfied; state relevant limits or thresholds."
+          },
+          "given": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Optional Given: the initial state, actor permissions and other preconditions."
+          },
+          "when": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Optional When: the action or event under evaluation."
+          },
+          "then": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Optional Then: the observable expected result, consistent with expectedOutcome."
+          }
+        },
+        "required": [
+          "condition",
+          "expectedOutcome"
+        ],
+        "additionalProperties": false
+      },
+      "category": "node",
+      "name": "AcceptanceCriterion",
+      "title": "Acceptance criteria",
+      "body": "## Acceptance criterion\n\nAn individually identifiable, testable condition and its expected observable outcome. A criterion can be associated with a UserStory or UseCase and reused where its meaning is unchanged.\n\nStore structured JSON in body using this type's jsonSchema. Required fields are condition and expectedOutcome. Optional given, when and then fields express the same criterion as a Given/When/Then scenario. When supplied, those fields must remain consistent with condition and expectedOutcome.\n\n## Relationships and evaluation\n\nAssociate a criterion with its subject using separately defined graph relationships. Record tests, observations or review evidence separately, identifying the exact criterion and subject revisions evaluated. Editing a criterion must not carry forward an old pass or approval as if it applied to the new revision.\n\nThe criterion defines what success would mean; it does not contain a self-asserted pass/fail result, execute a test, grant authority or approve landing. EvaluationRecord records the separate result. Automated enforcement and Foundry integration are not established by these definitions.\n\nExisting UseCase successCriteria text and Planning demo/acceptance documents remain independent. No migration or automatic synchronization is performed.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7f80f40e-4857-4841-b060-8039ecfaeb38",
+      "category": "edge",
+      "name": "artifact_for",
+      "title": "artifact for",
+      "body": "The source ArtifactDefinition specifies an artifact about the target local Project or other subject. It is a rendering subject link, not an output artifact or access grant.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7fe211b7-0176-4cac-9799-886a3ee7936f",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "The required behavior or constraint."
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Why the requirement exists."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "approved",
+              "retired"
+            ],
+            "description": "Requirement definition status, not implementation or test status."
+          }
+        },
+        "required": [
+          "statement",
+          "rationale",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "category": "node",
+      "name": "Requirement",
+      "title": "Requirements",
+      "body": "An individually identifiable obligation or constraint on a proposed solution. Store structured JSON in body using this type's schema. Link canonical project context and relevant stories through has_requirement, and testable conditions through has_acceptance_criterion. A proposed requirement is not approved, implemented, tested or delivered merely because this record exists. This type does not create Planning issues or synchronize text fields.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "9d47572a-8a5a-41d7-959b-bd6bf7015527",
+      "category": "edge",
+      "name": "has_acceptance_criterion",
+      "title": "has acceptance criterion",
+      "body": "The source Requirement, UserStory or UseCase is assessed against the target AcceptanceCriterion. The edge does not assert a passing evaluation; evidence must identify exact subject and criterion revisions.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "b232f62e-7780-4123-bf50-81f83e4ff2a8",
+      "category": "edge",
+      "name": "has_issue",
+      "title": "has issue",
+      "body": "The source Project tracks the target Issue as work within its scope. The issue's canonical app record owns work status; this edge does not start execution or imply completion.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "d7744927-5ed5-46d2-89be-5815d6fe923c",
+      "category": "edge",
+      "name": "targets_requirement",
+      "title": "targets requirement",
+      "body": "The source Issue includes the target Requirement in its intended implementation scope. Follow the requirement's acceptance criteria for verification. This relationship is not a claim that the requirement is approved or implemented.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "d8b2e79c-6454-4fde-8b9e-117f3bf2856e",
+      "category": "edge",
+      "name": "has_story",
+      "title": "has story",
+      "body": "The source UseCase is elaborated by the target UserStory. This is a scope relationship, not implementation or approval.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "eccaf23c-de01-4fb8-b6ad-7df7f4924a4b",
+      "category": "edge",
+      "name": "has_artifact_definition",
+      "title": "has artifact definition",
+      "body": "The source Project includes the target ArtifactDefinition in its proposed or implemented feature scope. This is a definition ownership/scope relation, not a claim that the artifact has been generated or that the project's subject is the artifact's runtime subject.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000001",
+      "category": "node",
+      "name": "ProductSpecification",
+      "title": "Product specifications",
+      "body": "Intended behavior, scope, requirements and acceptance criteria for a product. Link requirements using has_requirement and the product using specifies. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Intended user outcome."
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Included behavior and explicit exclusions."
+          },
+          "acceptanceCriteria": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "purpose",
+          "scope",
+          "acceptanceCriteria"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000002",
+      "category": "node",
+      "name": "ProductRevision",
+      "title": "Product revisions",
+      "body": "An exact product version being considered for release, software or hardware. A release candidate is a ProductRevision at the candidate stage, not a second identity; a concept is a revision that exists only as design intent and mockups. Use revision_of for the product, source_in for its repository, includes_issue for changes and includes_component for the physical parts it pins. A software revision pins sourceCommit and buildId; a hardware revision pins designKey (a hash, or repository path@commit of its design files) and may name a targetDate. Never replace its commit, build or design identity in place; create a new candidate. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "concept",
+              "candidate",
+              "released",
+              "withdrawn"
+            ],
+            "description": "concept: design intent and mockups only, nothing pinned yet. candidate: an exact revision under evaluation. released: shipped. withdrawn: abandoned, kept for history."
+          },
+          "sourceCommit": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact immutable commit hash of a software revision. Never a moving branch.",
+            "pattern": "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$"
+          },
+          "buildId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact build or artifact digest of a software revision."
+          },
+          "designKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "Exact design identity of a hardware revision in place of sourceCommit and buildId: a content hash, or repository path@commit of its design files."
+          },
+          "targetDate": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Target date or window for a hardware revision, such as 2027-03. A target, not a commitment."
+          },
+          "sourcePath": {
+            "type": "string",
+            "description": "Repository-relative directory; empty means repository root."
+          },
+          "specification": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "includedChanges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000003",
+      "category": "node",
+      "name": "Demonstration",
+      "title": "Demonstrations",
+      "body": "A recorded experience, such as screenshots, a walkthrough or an interactive preview, tied to the candidate demonstrated. Link demonstrates to that candidate. A demonstration alone is not a passing evaluation. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Where the demonstration was captured."
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Stable evidence URL or recorded artifact location."
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What this demonstration cannot establish."
+            }
+          }
+        },
+        "required": [
+          "subject",
+          "environment",
+          "capturedAt",
+          "media",
+          "limitations"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000004",
+      "category": "node",
+      "name": "EvaluationRecord",
+      "title": "Evaluation records",
+      "body": "A criterion evaluated against one exact candidate revision in a stated environment, with a result and supporting evidence. Use evaluates, checks_criterion and supported_by. Criterion definitions never contain their own pass/fail. Missing checks remain unknown. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "criterion": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Actual environment evaluated."
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What was checked and how."
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not_run"
+            ]
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Coverage limits; a preview pass does not prove production behavior."
+            }
+          }
+        },
+        "required": [
+          "subject",
+          "criterion",
+          "environment",
+          "method",
+          "result",
+          "evaluatedAt",
+          "evidence",
+          "limitations"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000005",
+      "category": "node",
+      "name": "ReadinessAssessment",
+      "title": "Readiness assessments",
+      "body": "A recorded assessment of a candidate against applicable release requirements. Use assesses for the candidate, supported_by for evaluations and applies_definition for the assembly recipe. Distinct from authorization and deployment. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "definition": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "evaluations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready",
+              "ready_with_exceptions",
+              "unknown"
+            ]
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Missing or failing checks."
+            }
+          },
+          "acceptedExceptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Explicit exception, rationale and accepting decision."
+            }
+          },
+          "assessedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "subject",
+          "definition",
+          "criteria",
+          "evaluations",
+          "conclusion",
+          "gaps",
+          "acceptedExceptions",
+          "assessedAt"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000006",
+      "category": "node",
+      "name": "ReleaseRecord",
+      "title": "Release records",
+      "body": "What was actually published or activated, where and when. Link release_of to its exact ProductRevision and supported_by to its approval DecisionRecord. A deployment attempt or approval alone is not a successful release. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "approval": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Destination environment."
+          },
+          "releasedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "rolled_back"
+            ]
+          },
+          "receipt": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Deployment receipt or immutable activation evidence."
+          }
+        },
+        "required": [
+          "subject",
+          "approval",
+          "environment",
+          "releasedAt",
+          "outcome",
+          "receipt"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000007",
+      "category": "node",
+      "name": "PostReleaseVerification",
+      "title": "Post-release verifications",
+      "body": "Evidence checking the actual deployed revision in its real environment. Use verifies_release for the ReleaseRecord and checks_criterion for the checked criterion. Keep separate from pre-release checks and deployment success. Store structured JSON in body. References pin node ID and revision; changing a source requires a new evaluation or explicit reassessment. These records document facts and do not execute checks, authorize operations or deploy software.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "subject": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "criterion": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": false
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Actual deployed environment checked."
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not_run"
+            ]
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Remaining limits of the observation."
+            }
+          }
+        },
+        "required": [
+          "release",
+          "subject",
+          "criterion",
+          "environment",
+          "result",
+          "verifiedAt",
+          "evidence",
+          "limitations"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000008",
+      "category": "edge",
+      "name": "revision_of",
+      "title": "revision of",
+      "body": "ProductRevision → Product. Identity of the product whose exact revision is described.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000009",
+      "category": "edge",
+      "name": "specifies",
+      "title": "specifies",
+      "body": "ProductSpecification → Product. Intended behavior, not implementation evidence.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000010",
+      "category": "edge",
+      "name": "includes_issue",
+      "title": "includes issue",
+      "body": "ProductRevision → Issue. Included work; follow its canonical source for status and ownership.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000011",
+      "category": "edge",
+      "name": "governed_by",
+      "title": "governed by",
+      "body": "ProductRevision → ProductSpecification. Applicable specification; pin its revision in the candidate body.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000012",
+      "category": "edge",
+      "name": "demonstrates",
+      "title": "demonstrates",
+      "body": "Demonstration → ProductRevision. Experience captured for exactly the subject revision recorded in the body.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000013",
+      "category": "edge",
+      "name": "evaluates",
+      "title": "evaluates",
+      "body": "EvaluationRecord → ProductRevision. Result applies only to the subject revision recorded in the evaluation body.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000014",
+      "category": "edge",
+      "name": "checks_criterion",
+      "title": "checks criterion",
+      "body": "EvaluationRecord or PostReleaseVerification → AcceptanceCriterion. Pin the criterion revision in the body.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000015",
+      "category": "edge",
+      "name": "supported_by",
+      "title": "supported by",
+      "body": "An assessment, evaluation, decision, release or verification → its supporting evidence. Evidence is not an inferred approval or pass.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000016",
+      "category": "edge",
+      "name": "assesses",
+      "title": "assesses",
+      "body": "ReadinessAssessment → ProductRevision. The assessment body pins the subject revision.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000017",
+      "category": "edge",
+      "name": "applies_definition",
+      "title": "applies definition",
+      "body": "An assembled artifact or assessment → ArtifactDefinition. Pin the definition revision in the output; the recipe is distinct from its output.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000018",
+      "category": "edge",
+      "name": "release_of",
+      "title": "release of",
+      "body": "ReleaseRecord → ProductRevision. The release body pins the exact candidate revision activated.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000019",
+      "category": "edge",
+      "name": "verifies_release",
+      "title": "verifies release",
+      "body": "PostReleaseVerification → ReleaseRecord. Check the exact deployed record and candidate recorded in the body.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000003",
+      "category": "edge",
+      "name": "evidence_for",
+      "title": "evidence for",
+      "body": "The source Document or Demonstration is evidence about the target ProductRevision, UserStory or other record. It records what was observed or imagined, such as an evidence bundle of screenshots or a design concept of mockup images; it is not an evaluation result, review or approval. A Wiki that created this type itself before it was seeded keeps its own; look the type up by name.",
+      "properties": [],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000004",
+      "category": "edge",
+      "name": "includes_record",
+      "title": "includes record",
+      "body": "The source evidence bundle Document includes the exact target record revision named by record_revision, in the stated role. Bundles enumerate their members with these edges so a reviewer can tell which story, demonstration and receipt versions were captured together. A Wiki that created this type itself before it was seeded keeps its own; look the type up by name.",
+      "properties": [
+        { "name": "record_revision", "type": "number", "description": "Exact target graph record revision included in this bundle.", "required": true },
+        { "name": "role", "type": "string", "description": "Subject, story, flow, demonstration, source receipt, criterion, evaluation, definition or project.", "required": true }
+      ],
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000005",
+      "category": "edge",
+      "name": "value_story",
+      "title": "value story",
+      "body": "The source Project names the target UserStory as its value story: the one end-to-end story that exercises everything that generates value for the project. Its acceptance criteria are the story's named steps, in order, and the project's story spec walks them as one flow, capturing evidence for each step by criterion slug. A project has one value story; this relationship is scope, not implementation, evaluation or approval. A Wiki that created this type itself before it was seeded keeps its own; look the type up by name.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": ["71000000-0000-4000-8000-000000000003"],
+          "to": ["199e5077-b65f-4c56-a672-06dd6ebe999d"]
+        }
+      },
+      "archived": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "77000000-0000-4000-8000-000000000023",
+      "typeId": "71000000-0000-4000-8000-000000000066",
+      "slug": "synthetic-release-graph",
+      "title": "Release candidate evidence",
+      "summary": "Explore one candidate’s checks, readiness, approval, deployment and deployed verification. Missing relationships remain gaps.",
+      "body": "Explore one candidate and its evidence, readiness, approval, deployment and verification. Does not follow revision_of back through the product to other candidates.",
+      "properties": {
+        "root_type": "ProductRevision",
+        "pattern": "{\"relationships\":[\"includes_issue\",\"governed_by\",\"has_requirement\",\"has_acceptance_criterion\",\"checks_criterion\",\"supported_by\",\"applies_definition\",\"decision_type\",\"made_by\",\"under_assignment\",\"assigned_to\",\"assigns_role\",{\"type\":\"demonstrates\",\"direction\":\"incoming\"},{\"type\":\"evaluates\",\"direction\":\"incoming\"},{\"type\":\"assesses\",\"direction\":\"incoming\"},{\"type\":\"scoped_to\",\"direction\":\"incoming\"},{\"type\":\"release_of\",\"direction\":\"incoming\"},{\"type\":\"verifies_release\",\"direction\":\"incoming\"},\"source_in\",\"revision_of\"],\"max_depth\":4}"
+      },
+      "archived": true
+    }
+  ],
+  "edges": []
+}
