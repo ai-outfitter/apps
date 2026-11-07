@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.4...app-test-v0.1.5) (2026-11-07)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.3 to 0.1.4
+    * @ai-outfitter/threads bumped from 0.1.3 to 0.1.4
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.3...app-test-v0.1.4) (2026-11-06)
 
 
