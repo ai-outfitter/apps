@@ -138,11 +138,14 @@ export async function configureFoundryWorkspaces(
   repository: string,
   reviewer: string,
   model = "gpt-6-luna",
+  /** Where checks run: GitHub Actions, or the approved commands in a workspace
+   * (a forge without Actions, such as the sealed box's Forgejo). */
+  ci: "actions" | "workspace" = "actions",
 ) {
   const snapshot = await host.call("snapshot", {});
   const { connection, metadata } = await approvedRepository(host, snapshot, repository);
   const resource = String(metadata.id);
-  const base = { checks: foundryChecks(repository), ci: "actions" as const, reviewer, mergeQueue: repository.toLowerCase() === "ai-outfitter/webapp" };
+  const base = { checks: foundryChecks(repository), ci, reviewer, mergeQueue: repository.toLowerCase() === "ai-outfitter/webapp" };
   async function bindingFor(workflowId: string, actor: string, role: (typeof roles)[keyof typeof roles], ci: "actions" | "workspace" = base.ci) {
     const prompt = `You are the ${role} agent for an Outfitter Software Foundry workflow. Complete only your assigned node, substantiate every external effect, and follow the repository's applicable instructions.`;
     const binding = await host.call("binding.approve", {

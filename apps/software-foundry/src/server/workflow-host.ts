@@ -27,7 +27,8 @@ import { repositoryName } from "./projects";
 /** Gateway operator requests: inspect, configure or start a repository's Foundry workflow. */
 const operatorInput = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("inspect"), repository: repositoryName, reviewer: z.string().min(1).max(128).default("vega"), number: z.number().int().positive().optional() }),
-  z.object({ operation: z.literal("configure"), repository: repositoryName, reviewer: z.string().min(1).max(128).default("vega"), model: z.string().max(128).optional() }),
+  z.object({ operation: z.literal("configure"), repository: repositoryName, reviewer: z.string().min(1).max(128).default("vega"), model: z.string().max(128).optional(),
+    ci: z.enum(["actions", "workspace"]).optional() }),
   z.object({
     operation: z.literal("start"), repository: repositoryName, number: z.number().int().positive(),
     resume: z.object({ runId: z.uuid(), requestId: z.uuid() }).strict().optional(),
@@ -59,7 +60,7 @@ async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<P
   const result = input.operation === "inspect"
     ? await inspectFoundryWorkspace(host, input.repository, input.reviewer, input.number)
     : input.operation === "configure"
-      ? await configureFoundryWorkspaces(host, input.repository, input.reviewer, input.model)
+      ? await configureFoundryWorkspaces(host, input.repository, input.reviewer, input.model, input.ci)
       : await startExistingFoundryIssue(host, input.repository, input.number, input.resume);
   return JSON.parse(JSON.stringify(result));
 }
