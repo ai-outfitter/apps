@@ -10,7 +10,7 @@ export type SignUpProvider = "google" | "github";
  * they act on this chat. In both, `send` posts the member's answer as their
  * next message; signed in, a card's `intent` travels with it as structured data.
  *
- * `platformURL` turns a platform route (`/api/routines`, `/workflow-runs/…`)
+ * `platformURL` turns a platform route (`/api/routines`, `/workflows/…/runs/…`)
  * into the URL a card fetches, posts to or links. Platform pages leave it
  * unset (the path itself); an app mounted under the platform, whose browser
  * adapter rewrites root-relative URLs into its own mount, supplies one that

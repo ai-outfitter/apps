@@ -218,7 +218,7 @@ test("recorded runs attach only to their own repository and issue, newest first"
     issue: unknown,
     status: string,
     title: unknown = id,
-  ) => ({ id, title, repository, issue, status, updatedAt });
+  ) => ({ id, workflowId: "issue-to-merge-workspace", title, repository, issue, status, updatedAt });
   const runs = issueRuns("team/repo", [1, 2], [
     row("old", 1, "team/repo", 1, "running"),
     row("new", 5, "Team/Repo", 1, "complete"),
@@ -237,6 +237,7 @@ test("recorded runs attach only to their own repository and issue, newest first"
       ["old", "old", "running"],
     ],
   );
+  assert.equal(runs.get(1)?.[0].workflowId, "issue-to-merge-workspace");
   assert.equal(runs.has(2), false);
 });
 
