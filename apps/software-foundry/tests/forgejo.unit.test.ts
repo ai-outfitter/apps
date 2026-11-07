@@ -43,7 +43,9 @@ function fake() {
     }
     if (path.startsWith(`/repos/box/repo/commits/${head}/statuses`)) return statuses;
     if (path === `/repos/box/repo/statuses/${head}`) {
-      const status = { id: statuses.length + 1, ...body, creator: { id: bot } };
+      // Forgejo takes `state` but answers with `status`.
+      const { state, ...rest } = body;
+      const status = { id: statuses.length + 1, ...rest, status: state, creator: { id: bot } };
       statuses.push(status);
       return status;
     }
@@ -101,7 +103,7 @@ test("triage comments and check statuses are published once per attempt", async 
 test("merges at the reviewed head only with current approval and passing statuses", async () => {
   const { forge, statuses, reviews, calls } = fake();
   await assert.rejects(forge.merge(candidate, review, ["unit"], true), (error: Response) => error.status === 409);
-  statuses.push({ id: 1, context: "unit", state: "success", creator: { id: bot } });
+  statuses.push({ id: 1, context: "unit", status: "success", creator: { id: bot } });
   reviews[0].stale = true;
   await refused(forge.merge(candidate, review, ["unit"], true), "Current independent formal approval required");
   reviews[0].stale = false;
@@ -112,7 +114,7 @@ test("merges at the reviewed head only with current approval and passing statuse
 
 test("a status from another user does not count as a required check", async () => {
   const { forge, statuses } = fake();
-  statuses.push({ id: 1, context: "unit", state: "success", creator: { id: 99 } });
+  statuses.push({ id: 1, context: "unit", status: "success", creator: { id: 99 } });
   await refused(forge.merge(candidate, review, ["unit"], false), "Current required checks required");
 });
 

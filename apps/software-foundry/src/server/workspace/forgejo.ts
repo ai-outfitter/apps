@@ -18,7 +18,9 @@ export function closesIssue(body: string | null | undefined, issue: number) {
   return new RegExp(`\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s+#${issue}\\b`, "i").test(body ?? "");
 }
 
-type Status = { id: number; context: string; state: string; description?: string; target_url?: string; creator?: { id: number } };
+// Forgejo takes `state` when creating a status but answers with `status`.
+type Status = { id: number; context: string; status?: string; state?: string; description?: string; target_url?: string; creator?: { id: number } };
+const statusState = (status: Status | undefined) => status?.status ?? status?.state;
 
 export class ForgejoFoundryForge {
   /**
@@ -105,7 +107,7 @@ export class ForgejoFoundryForge {
           description,
           ...(result.url ? { target_url: result.url } : {}),
         });
-      if (status.state !== state) throw conflict("Published check could not be verified");
+      if (statusState(status) !== state) throw conflict("Published check could not be verified");
       receipts.push({ name: result.name, headSha: candidate.headSha, passed: result.passed, url: status.target_url || undefined });
     }
     return receipts;
@@ -149,7 +151,7 @@ export class ForgejoFoundryForge {
 
   private async requireChecks(candidate: ChangeReceipt, checkNames: string[]) {
     const statuses = await this.statuses(candidate.headSha);
-    if (!checkNames.length || checkNames.some((name) => this.latest(statuses, name, this.checkUserId)?.state !== "success"))
+    if (!checkNames.length || checkNames.some((name) => statusState(this.latest(statuses, name, this.checkUserId)) !== "success"))
       throw conflict("Current required checks required");
   }
 }
