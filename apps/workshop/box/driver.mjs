@@ -11,7 +11,9 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createClient } from "@libsql/client";
 import { git, sha256 } from "../../../box/lib.mjs";
+import { runMetrics, stepMetrics } from "../../../box/metrics.mjs";
 import { readRequests } from "./intake.mjs";
 import { releaseDesigns } from "./release.mjs";
 import { billOfMaterials, designResult, exportSummary } from "./results.mjs";
@@ -63,6 +65,30 @@ async function designTurn(box, cookie, body) {
   return JSON.parse(response.text).project;
 }
 
+/** The design agent's model calls between two times, from the platform's usage records (none without the database). */
+async function modelCalls(platform, from, to) {
+  if (!platform) return [];
+  const { rows } = await platform.execute({
+    sql: "SELECT inputTokens, outputTokens FROM inference_usage_records WHERE workloadKind='workshop' AND createdAt BETWEEN ? AND ? ORDER BY createdAt",
+    args: [from, to] });
+  return rows.map((row) => ({ input: row.inputTokens === null ? null : Number(row.inputTokens), output: row.outputTokens === null ? null : Number(row.outputTokens) }));
+}
+
+/** Runs one step of a design and records its time and model calls, whether it succeeds or not. */
+async function timed(steps, platform, name, work) {
+  const startedAt = Date.now();
+  let status = "failed";
+  try {
+    const value = await work();
+    status = "succeeded";
+    return value;
+  } finally {
+    const finishedAt = Date.now();
+    const calls = await modelCalls(platform, startedAt, finishedAt).catch(() => []);
+    steps.push(stepMetrics({ name, status, startedAt, finishedAt, calls }));
+  }
+}
+
 /** Builds the project's model and writes its files to a folder. */
 function exportDesign(project, folder) {
   writeFileSync(join(folder, "project.json"), `${JSON.stringify(project, null, 2)}\n`);
@@ -79,17 +105,20 @@ export async function run(box) {
   const repo = join(work, "repo");
   git(work, ["clone", "--quiet", "--branch", box.defaultBranch, box.remote, "repo"]);
   const cookie = await signIn(box);
+  const platform = box.databases?.platform ? createClient({ url: `file:${box.databases.platform}` }) : undefined;
   const finished = [];
   for (const { name, request } of requests) {
     const startedAt = new Date().toISOString();
     let project, exported, bom = [], files = [], commitSha, error;
+    const steps = [];
     try {
-      project = await designTurn(box, cookie, { message: request.message });
-      for (const message of request.followUps)
-        project = await designTurn(box, cookie, { message, projectId: project.id, revision: project.revision });
+      project = await timed(steps, platform, "design", () => designTurn(box, cookie, { message: request.message }));
+      for (const [index, message] of request.followUps.entries())
+        project = await timed(steps, platform, `follow-up ${index + 1}`,
+          () => designTurn(box, cookie, { message, projectId: project.id, revision: project.revision }));
       const folder = join(repo, "designs", request.slug);
       mkdirSync(folder, { recursive: true });
-      exported = exportDesign(project, folder);
+      exported = await timed(steps, platform, "export", async () => exportDesign(project, folder));
       bom = billOfMaterials(project, exported);
       writeFileSync(join(folder, "bom.json"), `${JSON.stringify(bom, null, 2)}\n`);
       // The files are stored before the commit is pushed, so a failed design never reaches the branch.
@@ -111,8 +140,9 @@ export async function run(box) {
       git(repo, ["clean", "-fdq"]);
     }
     const geometry = exported && { bounds: exported.bounds, volumeMm3: exported.volumeMm3, features: exported.features };
+    const finishedAt = new Date().toISOString();
     const result = designResult({ request, project, geometry, bom, files, commitSha, model: box.model, error,
-      startedAt, finishedAt: new Date().toISOString() });
+      metrics: runMetrics(steps, { startedAt, finishedAt }), startedAt, finishedAt });
     writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
     finished.push({ request, result });
     box.log(`${name}: ${result.status}${commitSha ? ` at ${commitSha.slice(0, 8)}` : ` (${result.reason})`}`);

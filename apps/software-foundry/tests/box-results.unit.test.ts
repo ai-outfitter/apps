@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { nextVersion } from "../../../box/lib.mjs";
 import { evidenceBundle } from "../box/release.mjs";
-import { nodeResults, runResult } from "../box/results.mjs";
+import { nodeResults, nodeSteps, runResult } from "../box/results.mjs";
 
 const runId = "b443b27b-37cf-580d-a374-5c600f199d70";
 const head = "a".repeat(40);
@@ -44,6 +44,19 @@ test("node results are each node's newest report for the run", () => {
   assert.equal(nodes.validate.status, "completed");
 });
 
+test("node steps time every attempt and count its model calls", () => {
+  const calls = [{ input: 900, output: 120 }, { input: 1100, output: 80 }];
+  const snapshots = [
+    { prompt: `Workflow ${runId}, node review`, startedAt: 70_000, finishedAt: 90_000, status: "completed", stages: [{ session: { usage: { calls: [calls[1]] } } }] },
+    { prompt: `Workflow ${runId}, node implement`, startedAt: 10_000, finishedAt: 60_000, status: "completed", stages: [{ session: { usage: { calls: [calls[0]] } } }, {}] },
+    { prompt: "Workflow 00000000-0000-4000-8000-000000000000, node triage", startedAt: 1, finishedAt: 2, status: "failed" },
+  ];
+  assert.deepEqual(nodeSteps(snapshots, runId), [
+    { name: "implement", status: "completed", seconds: 50, modelCalls: 1, inputTokens: 900, outputTokens: 120 },
+    { name: "review", status: "completed", seconds: 20, modelCalls: 1, inputTokens: 1100, outputTokens: 80 },
+  ]);
+});
+
 test("a landed run's result names its PR, checks, review and merge", async () => {
   const nodes = { triage: { status: "completed", result: { ready: true, summary: "Plan" } }, implement: { status: "completed", result: { summary: "Implemented." } } };
   const checks = [{ name: "test", commands: [["npm", "ci"], ["npm", "test"]] }];
@@ -57,6 +70,7 @@ test("a landed run's result names its PR, checks, review and merge", async () =>
   assert.deepEqual(result?.review, { verdict: "approved", reviewer: "reviewer", commitSha: head });
   assert.equal(pr.acceptanceCriteria[0].status, "met");
   assert.deepEqual(result?.triage, { plan: "Plan", questions: [] });
+  assert.equal(result?.metrics.wallSeconds, 600);
   assert.equal(await runResult({ forgejo: forgejo(), repository: "box/repo", request, issue, run: { status: "running" }, nodes, model, startedAt: "", finishedAt: "" }), undefined);
 });
 

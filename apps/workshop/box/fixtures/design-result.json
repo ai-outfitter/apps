@@ -3,18 +3,102 @@
   "requestId": "8c2d4e6f-1a3b-4c5d-8e7f-9a0b1c2d3e4f",
   "status": "designed",
   "path": "designs/cable-clip",
-  "project": { "id": "6a1f0c3e-9b2d-4e5f-8a7b-1c2d3e4f5a6b", "revision": 2, "name": "Cable clip" },
+  "project": {
+    "id": "6a1f0c3e-9b2d-4e5f-8a7b-1c2d3e4f5a6b",
+    "revision": 2,
+    "name": "Cable clip"
+  },
   "iterations": [
-    { "message": "A 60 x 40 x 20 mm block with a 10 mm diameter hole through its height in the middle.", "rationale": "A block with a through hole.", "dimensions": { "width": 60, "depth": 40, "height": 20 }, "revision": 1 },
-    { "message": "Make the hole 12 mm in diameter.", "rationale": "Widened the hole.", "dimensions": { "width": 60, "depth": 40, "height": 20 }, "revision": 2 }
+    {
+      "message": "A 60 x 40 x 20 mm block with a 10 mm diameter hole through its height in the middle.",
+      "rationale": "A block with a through hole.",
+      "dimensions": {
+        "width": 60,
+        "depth": 40,
+        "height": 20
+      },
+      "revision": 1
+    },
+    {
+      "message": "Make the hole 12 mm in diameter.",
+      "rationale": "Widened the hole.",
+      "dimensions": {
+        "width": 60,
+        "depth": 40,
+        "height": 20
+      },
+      "revision": 2
+    }
   ],
-  "geometry": { "bounds": { "width": 60, "depth": 40, "height": 20 }, "volumeMm3": 45738.1, "features": 2 },
-  "bom": [ { "part": "Cable clip", "quantity": 1, "kind": "fabricated", "volumeMm3": 45738.1, "bounds": { "width": 60, "depth": 40, "height": 20 } } ],
+  "geometry": {
+    "bounds": {
+      "width": 60,
+      "depth": 40,
+      "height": 20
+    },
+    "volumeMm3": 45738.1,
+    "features": 2
+  },
+  "bom": [
+    {
+      "part": "Cable clip",
+      "quantity": 1,
+      "kind": "fabricated",
+      "volumeMm3": 45738.1,
+      "bounds": {
+        "width": 60,
+        "depth": 40,
+        "height": 20
+      }
+    }
+  ],
   "files": [
-    { "path": "designs/cable-clip/model.step", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "bytes": 19170, "uri": "s3://workshop/designs/8c2d4e6f-1a3b-4c5d-8e7f-9a0b1c2d3e4f/model.step" }
+    {
+      "path": "designs/cable-clip/model.step",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "bytes": 19170,
+      "uri": "s3://workshop/designs/8c2d4e6f-1a3b-4c5d-8e7f-9a0b1c2d3e4f/model.step"
+    }
   ],
   "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "model": { "provider": "spark", "id": "GLM-5.3-Flash-EXL3" },
+  "model": {
+    "provider": "spark",
+    "id": "GLM-5.3-Flash-EXL3"
+  },
+  "metrics": {
+    "wallSeconds": 48.6,
+    "modelSeconds": 41.2,
+    "modelCalls": 2,
+    "inputTokens": 9800,
+    "outputTokens": 2140,
+    "outputTokensPerSecond": 51.9,
+    "steps": [
+      {
+        "name": "design",
+        "status": "succeeded",
+        "seconds": 22.9,
+        "modelCalls": 1,
+        "inputTokens": 4600,
+        "outputTokens": 1180
+      },
+      {
+        "name": "follow-up 1",
+        "status": "succeeded",
+        "seconds": 18.3,
+        "modelCalls": 1,
+        "inputTokens": 5200,
+        "outputTokens": 960
+      },
+      {
+        "name": "export",
+        "status": "succeeded",
+        "seconds": 6.1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    ]
+  },
   "startedAt": "2026-11-07T02:40:00Z",
   "finishedAt": "2026-11-07T02:41:00Z"
 }

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { readRequests, submitRequest } from "./intake.mjs";
 import { releaseRequests } from "./release.mjs";
-import { nodeResults, runResult, terminal } from "./results.mjs";
+import { nodeResults, nodeSteps, runResult, terminal } from "./results.mjs";
 
 export const app = "software-foundry";
 export const title = "Foundry box";
@@ -47,7 +47,7 @@ function watchResults(box, pending) {
       const snapshots = ended.length ? (await gateway.execute("SELECT snapshot FROM runs")).rows.map((row) => JSON.parse(String(row.snapshot))) : [];
       for (const { item, run } of ended) {
         const result = await runResult({ forgejo: box.forgejo, repository: box.repository, request: item.request, issue: item.issue, run,
-          nodes: nodeResults(snapshots, item.run.id), checks: BOX_CHECKS, model: box.model, startedAt: item.startedAt,
+          nodes: nodeResults(snapshots, item.run.id), steps: nodeSteps(snapshots, item.run.id), checks: BOX_CHECKS, model: box.model, startedAt: item.startedAt,
           finishedAt: new Date(Number(run.updatedAt)).toISOString() });
         writeFileSync(join(box.out, "results", `${item.request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
         pending.splice(pending.indexOf(item), 1);

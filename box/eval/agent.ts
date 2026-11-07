@@ -7,7 +7,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from "@vercel/agent-eval";
 import type { Agent, AgentRunOptions, AgentRunResult } from "@vercel/agent-eval";
@@ -103,7 +103,22 @@ function grade(fixture: string, tree: string) {
   return { success: result.status === 0, output: `${result.stdout}${result.stderr}` };
 }
 
-export function boxAgent(box: BoxOptions, app: BoxApp): Agent {
+/** One box run's time and model use, for comparing models (results/<name>-metrics.json). */
+export type RunMetrics = { eval: string; success: boolean; status?: string; model?: { provider: string; id: string };
+  durationSeconds: number; metrics?: any };
+
+/** Each run's metrics, one line per run, so two models' runs can be read side by side. */
+export function metricsTable(runs: RunMetrics[]) {
+  const value = (number: unknown) => (number === null || number === undefined ? "–" : String(number));
+  const rows = runs.map((run) => [run.eval, `${run.model?.provider ?? "?"}/${run.model?.id ?? "?"}`, run.success ? "pass" : `fail (${run.status ?? "no result"})`,
+    value(run.metrics?.wallSeconds ?? run.durationSeconds), value(run.metrics?.modelSeconds), value(run.metrics?.modelCalls),
+    value(run.metrics?.inputTokens), value(run.metrics?.outputTokens), value(run.metrics?.outputTokensPerSecond)]);
+  const header = ["eval", "model", "result", "wall s", "model s", "calls", "tokens in", "tokens out", "out tok/s"];
+  const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column].length)));
+  return [header, ...rows].map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join("  ")).join("\n");
+}
+
+export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []): Agent {
   return {
     name: box.name,
     displayName: box.displayName,
@@ -133,9 +148,15 @@ export function boxAgent(box: BoxOptions, app: BoxApp): Agent {
         const ran = await runBox(box, work, options.timeout, options.signal);
         const resultFile = join(work, "out", "results", `${request.requestId.toLowerCase()}.json`);
         const result = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "utf8")) : undefined;
-        if (!result) return { success: false, output: ran.log, error: `The box wrote no result (exit ${ran.code})`, duration: Date.now() - started };
+        const measured = (success: boolean) => runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
+          durationSeconds: Math.round((Date.now() - started) / 100) / 10, metrics: result?.metrics });
+        if (!result) {
+          measured(false);
+          return { success: false, output: ran.log, error: `The box wrote no result (exit ${ran.code})`, duration: Date.now() - started };
+        }
         const tree = finalTree(work, "main");
         const testResult = grade(fixturePath, tree);
+        measured(app.succeeded(result) && testResult.success);
         const after = files(tree);
         const generatedFiles = Object.fromEntries(after.filter((file) => !original.includes(file) ||
           !readFileSync(join(tree, file)).equals(readFileSync(join(fixturePath, file)))).map((file) => [file, readFileSync(join(tree, file))]));
@@ -170,7 +191,8 @@ export function boxAgent(box: BoxOptions, app: BoxApp): Agent {
 export async function runBoxEvals(project: string, box: { name: string; displayName: string; image: string }, app: BoxApp) {
   const env = process.env;
   const port = Number(env.BOX_PORT || 8787);
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV }, app));
+  const runs: RunMetrics[] = [];
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
   // One model: the box routes every call to the model its env file names.
   const config = { ...resolved, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
@@ -189,5 +211,10 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
     onProgress: (event) => console.log(JSON.stringify(event).slice(0, 300)),
   });
   console.log(formatResultsTable(results));
+  // Time and model use per run, kept next to Agent Eval's results so models can be compared.
+  mkdirSync(join(project, "results"), { recursive: true });
+  const file = join(project, "results", `${box.name}-metrics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+  writeFileSync(file, `${JSON.stringify({ image: env.BOX_IMAGE || box.image, runs }, null, 2)}\n`);
+  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}`);
   process.exitCode = results.evals.every((entry) => entry.passedRuns === entry.totalRuns) ? 0 : 1;
 }

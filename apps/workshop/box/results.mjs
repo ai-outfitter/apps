@@ -31,9 +31,9 @@ export const designIterations = (project) =>
 /**
  * The design-result document for a request.
  * @param {{ request: any, project?: any, geometry?: any, bom?: any[], files?: any[], commitSha?: string,
- *   model: { provider: string, id: string }, error?: unknown, startedAt: string, finishedAt: string }} input
+ *   model: { provider: string, id: string }, metrics?: any, error?: unknown, startedAt: string, finishedAt: string }} input
  */
-export function designResult({ request, project, geometry, bom = [], files = [], commitSha, model, error, startedAt, finishedAt }) {
+export function designResult({ request, project, geometry, bom = [], files = [], commitSha, model, metrics, error, startedAt, finishedAt }) {
   const designed = !error && project && geometry && commitSha;
   return {
     schemaVersion: 1,
@@ -48,6 +48,7 @@ export function designResult({ request, project, geometry, bom = [], files = [],
     files,
     ...(commitSha ? { commitSha } : {}),
     model,
+    ...(metrics ? { metrics } : {}),
     startedAt,
     finishedAt,
   };

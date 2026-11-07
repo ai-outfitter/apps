@@ -137,6 +137,25 @@ export const EvidenceBundle = z.strictObject({
   artifacts: z.array(ReleaseArtifact).min(1),
 });
 
+/** Time and model use (box/metrics.mjs): each step's wall time, model calls and tokens; tokens are null when unreported. */
+const tokens = z.int().nonnegative().nullable();
+export const Metrics = z.strictObject({
+  wallSeconds: z.number().nonnegative(),
+  modelSeconds: z.number().nonnegative(),
+  modelCalls: z.int().nonnegative(),
+  inputTokens: tokens,
+  outputTokens: tokens,
+  outputTokensPerSecond: z.number().nonnegative().nullable(),
+  steps: z.array(z.strictObject({
+    name: z.string().min(1),
+    status: z.string().min(1),
+    seconds: z.number().nonnegative(),
+    modelCalls: z.int().nonnegative(),
+    inputTokens: tokens,
+    outputTokens: tokens,
+  })),
+});
+
 export const RunResult = z
   .strictObject({
     schemaVersion: z.literal(1),
@@ -161,6 +180,7 @@ export const RunResult = z
     }).optional(),
     model: z.strictObject({ provider: z.enum(["luna", "spark", "replay"]), id: z.string().min(1) }),
     usage: z.strictObject({ inputTokens: z.int().nonnegative(), outputTokens: z.int().nonnegative() }).optional(),
+    metrics: Metrics.optional(),
     startedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime(),
   })

@@ -96,6 +96,8 @@ test("the driver designs each request, commits it, and releases it with evidence
   const result = DesignResult.parse(JSON.parse(readFileSync(join(work, "out", "results", `${request.requestId}.json`), "utf8")));
   assert.equal(result.status, "designed");
   assert.equal(result.project?.revision, 2);
+  // Each turn and the export are timed; without the platform database the tokens are unknown.
+  assert.deepEqual(result.metrics?.steps.map((step) => [step.name, step.status]), [["design", "succeeded"], ["follow-up 1", "succeeded"], ["export", "succeeded"]]);
   assert.ok(Math.abs((result.geometry?.volumeMm3 ?? 0) - (48000 - Math.PI * 36 * 20)) < 1);
   assert.equal(result.release?.tag, "v0.1.0");
   // The design revision is one commit on main with the model files.

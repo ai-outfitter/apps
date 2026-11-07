@@ -4,6 +4,8 @@
 // run left behind: the run's status, each node's reported outputs, and the
 // issue, pull request, statuses and reviews on the box's Forgejo.
 
+import { runMetrics, stepMetrics } from "../../../box/metrics.mjs";
+
 const sha = /^[a-f0-9]{40}$/;
 /** Workflow run statuses that end a run. */
 export const terminal = new Set(["complete", "failed"]);
@@ -22,6 +24,19 @@ export function nodeResults(snapshots, runId) {
     results[match[2]] = { status: snapshot.status, error: snapshot.error, result: snapshot.result?.outputs?.result ?? snapshot.nodeOutput?.result };
   }
   return results;
+}
+
+/** Each node attempt of a run, in order, with its time and model calls (box/metrics.mjs).
+ * @param {any[]} snapshots
+ * @param {string} runId
+ */
+export function nodeSteps(snapshots, runId) {
+  return [...snapshots].sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0)).flatMap((snapshot) => {
+    const match = /^Workflow ([a-f0-9-]{36}), node ([a-z0-9-]+)$/.exec(snapshot.prompt ?? "");
+    if (match?.[1] !== runId) return [];
+    const calls = (snapshot.stages ?? []).flatMap((stage) => stage.session?.usage?.calls ?? []);
+    return [stepMetrics({ name: match[2], status: snapshot.status, startedAt: snapshot.startedAt, finishedAt: snapshot.finishedAt, calls })];
+  });
 }
 
 /** The pull request the run opened for the issue: the newest one that closes it. */
@@ -110,10 +125,11 @@ function outcome(runStatus, nodes, pull, review) {
  * while it is still running.
  * @param {{ forgejo: (method: string, path: string) => Promise<any>, repository: string, request: any,
  *   issue: { number: number, url: string }, run: { status: string }, nodes: Record<string, { status?: string, error?: string, result?: any }>,
- *   checks?: { name: string, commands: string[][] }[], model: { provider: string, id: string }, startedAt: string, finishedAt: string }} input
+ *   checks?: { name: string, commands: string[][] }[], model: { provider: string, id: string }, startedAt: string, finishedAt: string,
+ *   steps?: ReturnType<typeof stepMetrics>[] }} input
  * @returns {Promise<any>}
  */
-export async function runResult({ forgejo, repository, request, issue, run, nodes, checks = [], model, startedAt, finishedAt }) {
+export async function runResult({ forgejo, repository, request, issue, run, nodes, checks = [], model, startedAt, finishedAt, steps = [] }) {
   if (!terminal.has(run.status)) return undefined;
   const pull = await runPull(forgejo, repository, issue.number);
   const pr = pull ? await pullRequestDocument({ forgejo, repository, request, issue, pull, nodes, checks }) : undefined;
@@ -131,6 +147,7 @@ export async function runResult({ forgejo, repository, request, issue, run, node
     checks: pr?.tests ?? [],
     ...(pr?.review ? { review: pr.review } : {}),
     model,
+    metrics: runMetrics(steps, { startedAt, finishedAt }),
     startedAt,
     finishedAt,
   };
