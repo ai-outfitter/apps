@@ -328,7 +328,7 @@ const coreOperations = {
     subjects: z.array(z.union([z.string().max(128), z.number().int()])).max(300),
     workflows: z.array(id).min(1).max(16),
     limitPerSubject: z.number().int().min(1).max(10).default(3),
-  }), z.array(z.object({ id, key: json, subject: json, label: json, status: z.string(), updatedAt: z.number() }))),
+  }), z.array(z.object({ id, workflowId: id.optional(), key: json, subject: json, label: json, status: z.string(), updatedAt: z.number() }))),
   /** Fill an app-collected output: a connector output of a step with no actor,
    * on a run of this installation. The host validates the value against the
    * slot's schema, records the scope's user and derives the run's status. Editors only. */

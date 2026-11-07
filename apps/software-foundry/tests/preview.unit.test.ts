@@ -8,6 +8,12 @@ const defined = <T>(value: T | null | undefined): T => {
   return value;
 };
 
+test("legacy browser run routes are not proxied", () => {
+  assert.equal(platformPath("/workflow-runs", "GET"), false);
+  assert.equal(platformPath("/workflow-runs/run-1", "GET"), false);
+  assert.equal(platformPath("/api/workflow-runs/run-1", "GET"), true);
+});
+
 test("one Foundry preview switches fixtures and real APIs with server-side denial", async () => {
   let admin = 200;
   let apiCalls = 0;

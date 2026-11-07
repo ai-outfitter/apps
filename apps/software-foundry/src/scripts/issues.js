@@ -180,11 +180,11 @@ async function foundryBrowser(signal) {
     return actions;
   }
   function appendWorkflowLink(run, actionsCell) {
-    if (!run?.id || !organizationOrigin) return;
+    if (!run?.id || !run.workflow?.id || !organizationOrigin) return;
     const open = text("a", "View workflow →");
     open.href =
       organizationOrigin +
-      "/workflow-runs/" +
+      "/workflows/" + encodeURIComponent(run.workflow.id) + "/runs/" +
       encodeURIComponent(run.id);
     open.className = "workflow-link";
     open.dataset.control = "workflow";
@@ -347,7 +347,7 @@ async function foundryBrowser(signal) {
       workspace: ["issue-to-merge-workspace", "issue-to-merge-actions-ci", "foundry-land-reviewed-change"].includes(run.workflow?.id) || Boolean(event),
       title: issue.title,
       updatedAt: run.updatedAt,
-      workflow: { repository: issue.repository, issue: issue.number },
+      workflow: { id: run.workflow?.id, repository: issue.repository, issue: issue.number },
       summary: { status: run.status === "complete" ? "completed" : run.status },
     };
   }

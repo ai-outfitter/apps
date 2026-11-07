@@ -90,8 +90,8 @@ function runsCell(runs) {
   }
   for (const run of runs) {
     const href =
-      run.id && organizationOrigin
-        ? `${organizationOrigin}/workflow-runs/${encodeURIComponent(run.id)}`
+      run.id && run.workflowId && organizationOrigin
+        ? `${organizationOrigin}/workflows/${encodeURIComponent(run.workflowId)}/runs/${encodeURIComponent(run.id)}`
         : null;
     const link = text(
       href ? "a" : "span",

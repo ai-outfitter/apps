@@ -73,10 +73,8 @@ export function platformPath(path, method) {
         "/api/plugins/github/governance",
         "/api/platform/features/resident-identities",
         "/api/workflow-runs",
-        "/workflow-runs",
         "/plugins/github",
       ].includes(path) ||
-      /^\/workflow-runs\/[a-zA-Z0-9-]+$/.test(path) ||
       /^\/api\/workflow-runs\/[a-zA-Z0-9-]+$/.test(path) ||
       /^\/c\/[a-zA-Z0-9-]+$/.test(path) ||
       /^\/api\/chats\/[a-zA-Z0-9-]+$/.test(path) ||
