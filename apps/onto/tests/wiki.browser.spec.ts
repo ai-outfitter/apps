@@ -475,7 +475,7 @@ test("Wiki links preserve the shell across graph, entity, and history navigation
     await expect(page.getByRole("heading", { name: "Project context", exact: true })).toBeVisible();
     await page.goForward();
     await expect(page.getByRole("heading", { name: "Meze", exact: true })).toBeVisible();
-    await openAccountMenuFor(page, "Wiki settings");
+    await openAccountMenuFor(page, "Onto settings");
     await page.locator("#sidebar").getByRole("link", { name: "Onto settings", exact: true }).click();
     await expect(page.getByRole("button", { name: "Download graph and notes", exact: true })).toBeVisible();
     await page.locator("#sidebar").getByRole("link", { name: "Types", exact: true }).click();

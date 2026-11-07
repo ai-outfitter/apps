@@ -68,7 +68,7 @@ test("read a proposed document from Changes before approving its saved entity", 
       await page.getByRole("button", { name: "Ask Onto", exact: true }).click();
       const panel = page.getByRole("complementary", { name: "Onto chat", exact: true });
       await expect(panel).toBeVisible();
-      await expect(panel.getByRole("textbox", { name: "Message Wiki" })).toBeEditable();
+      await expect(panel.getByRole("textbox", { name: "Message Onto" })).toBeEditable();
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await info.attach(`ask-wiki-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });

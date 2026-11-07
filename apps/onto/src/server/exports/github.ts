@@ -13,7 +13,9 @@ const repository = z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/).refine
 const path = z.string().min(1).max(400).refine(v => v.split("/").every(p => p && p !== "." && p !== ".." && !p.toLowerCase().startsWith(".git")) && !v.includes("\\") && !v.toLowerCase().startsWith(".github/workflows/"));
 export const exportInput = z.strictObject({ publicationId: id, documentId: id, revision: z.number().int().positive(), digest: z.string().regex(/^[a-f0-9]{64}$/),
   readConnectionId: id, writeConnectionId: id, resource: id, repository, baseBranch: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/), baseSha: sha, path,
-  period: z.strictObject({ start: z.iso.datetime({offset:true}), end: z.iso.datetime({offset:true}) }).refine(p => Date.parse(p.start) < Date.parse(p.end)).optional(), format: z.enum(["markdown", "obsidian"]).default("markdown") });
+  period: z.strictObject({ start: z.iso.datetime({offset:true}), end: z.iso.datetime({offset:true}) }).refine(p => Date.parse(p.start) < Date.parse(p.end)).optional(), format: z.enum(["markdown", "obsidian"]).default("markdown"),
+  frontmatter: z.record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/),z.union([z.string().max(1000),z.number().finite(),z.boolean(),z.array(z.string().max(200)).max(32)])).refine(v=>Object.keys(v).length<=32).optional(),
+  vaultLinks: z.array(z.strictObject({url:z.url().max(2000),path:z.string().min(1).max(400).refine(v=>!/[\[\]|\r\n]/.test(v) && v.split("/").every(p=>p && p!=="." && p!==".."))})).max(100).optional() });
 type Input = z.input<typeof exportInput>;
 type InteractiveHost = WorkflowHost<"interactive">;
 const fail = (s: string): never => { throw new Response(s, {status: 409}); };
@@ -25,11 +27,18 @@ const cleanup = stmt("DELETE FROM document_guards");
 export function renderDocument(input: Input, revision: Awaited<ReturnType<typeof getRevision>>) {
   const payload = revision.payload as { document?: { title?: unknown; markdown?: unknown }; provenance?: { period?: unknown } } | null;
   const storedPeriod = payload?.provenance?.period ?? null;
-  const meta = { document: input.documentId, revision: revision.revision, digest: revision.digest, period: storedPeriod,
+  const meta = { ...(input.frontmatter ? {custom:input.frontmatter} : {}), document: input.documentId, revision: revision.revision, digest: revision.digest, period: storedPeriod,
     sources: revision.capture.sources.map(({provider, provenance}) => ({provider, provenance})) };
   const front = Object.entries(meta).map(([key,value]) => `${key}: ${canonical(value)}`).join("\n");
   const title = typeof payload?.document?.title === "string" ? payload.document.title : input.documentId;
-  const markdown = typeof payload?.document?.markdown === "string" ? payload.document.markdown : `\`\`\`json\n${canonical(revision.payload)}\n\`\`\``;
+  let markdown = typeof payload?.document?.markdown === "string" ? payload.document.markdown : `\`\`\`json\n${canonical(revision.payload)}\n\`\`\``;
+  if (input.format === "obsidian" && input.vaultLinks?.length) {
+    const mappings=new Map(input.vaultLinks.map(link=>[link.url,link.path]));
+    // Explicit simple Markdown links only; code fences and complex Markdown stay unchanged.
+    markdown=markdown.split(/(```[^]*?```|`[^`]*`)/g).map((part,index)=>index%2 ? part : part.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,(original,label:string,url:string)=>{
+      const target=mappings.get(url); return target && !/[\[\]|]/.test(label) ? `[[${target}|${label}]]` : original;
+    })).join("");
+  }
   const body = markdown.trimStart().startsWith("# ") ? markdown : `# ${title.replace(/[\r\n]/g, " ")}\n\n${markdown}`;
   // JSON is valid YAML for metadata values; both formats retain ordinary portable Markdown.
   return `---\n${front}\n---\n\n${body}\n`;

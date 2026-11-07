@@ -82,6 +82,7 @@ history or imply a retrospective deletion policy.
 
 `document.seal` checks the exact current revision, content digest and current
 source read set. A seal preserves integrity; it is not approval or adoption.
+The current generic source verification and local seal occur in separate transactions. They do not replace Governance’s existing atomic Wiki membership/read-set seal or exact Wiki gate subject. That source-local fencing and gate bridge must be preserved before migrating the domain flows.
 A configured required policy must return `allow` bound to the owner, instance,
 revision, digest, action and configured provider. `deny`, `require-review`, stale
 receipts and unavailable providers block a protected transition. There is no
@@ -117,6 +118,7 @@ repository, base branch and path are configured separately from source access.
 Before any external write, export verifies current source disclosure authority,
 completeness, required seal and configured policy. It renders the saved document
 body with provenance/frontmatter; a caller cannot replace the saved report period.
+Optional frontmatter is namespaced under `custom`, so it cannot replace document identity or provenance. Obsidian output can map explicit simple Markdown links to configured vault paths; inline code and fenced code stay unchanged. Complex Markdown links remain portable Markdown.
 Publication creates a reviewable draft pull request on a deterministic branch and
 retains the external receipt. This is one-way export, not synchronization.
 
@@ -125,3 +127,27 @@ blocked for reconciliation rather than blindly retrying a possibly completed
 commit or PR. Inspect its durable publication receipt and the destination before
 recovery. Real-provider source/export demonstrations and operator-facing recovery
 UI remain rollout gates; fixture tests alone do not establish these outcomes.
+
+## Remaining acceptance before the full PRD is complete
+
+1. Migrate Planning roadmap and Governance business-review definitions and UI to
+   these public operations, retaining the existing evidence/read-set, revision,
+   schedule/history and seal/replay behavior as parity tests. Provide a real
+   optional Governance policy provider and a configurable replacement.
+2. Move remaining platform/domain consumers from Wiki-specific discovery to
+   explicit compatible bindings. SDK compatibility aliases remain until then.
+3. Publish the SDK, builder and Onto contract dependency closure. Deploy platform
+   baseline/release processing, switch official/personal notification callers,
+   verify receipts, hosted isolated builds and an existing installation upgrade.
+   Only then remove bundled app code and its webapp CI/deployment paths.
+4. Implement a narrowly delegated scheduled GitHub source read and demonstrate a
+   real authorized report capture, including period/pagination semantics.
+5. Demonstrate both export formats against an authorized real destination and
+   document recovery of uncertain connector outcomes. No issue publication is
+   part of this acceptance; feature/bug destinations remain stubbed.
+6. Evaluate the managing agent against seeded/unseeded representative schemas,
+   duplicate mappings, access boundaries and changed connectors. Unit fixtures
+   currently prove mechanics, not the quality of those agent judgments.
+
+The full target architecture remains the platform architecture document. These
+remaining gates are not optional just because this staged source is buildable.

@@ -5,7 +5,7 @@ import { createClient } from "@libsql/client";
 import { migrateAppDatabase } from "@ai-outfitter/app-sdk/migrations";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { putDefinition, createDocument, readLive, enqueue, lease, complete, type Host } from "../src/server/documents/service";
-import { prepareExport, publishGithub } from "../src/server/exports/github";
+import { prepareExport, publishGithub, renderDocument } from "../src/server/exports/github";
 const sha="a".repeat(40), head="b".repeat(40);
 const period={start:"2026-01-01T00:00:00Z",end:"2026-02-01T00:00:00Z"};
 async function fixture() {
@@ -75,3 +75,18 @@ for (const target of ["committing", "opening"] as const)
     const [publication]=await f.db.query({sql:"SELECT state FROM document_publications WHERE owner=? AND id=?",params:[f.scope.owner,f.input.publicationId]});
     assert.equal(publication.state,target==="committing"?"planned":"committed","failed claim must roll back its state transition");
   });
+
+
+test("export formats preserve provenance and apply only explicit Obsidian link mappings",async t=>{
+  const f=await fixture();t.after(()=>f.client.close());
+  const prepared=await prepareExport(f.db,f.scope,f.access,f.input);
+  const revision={...prepared.revision,payload:{document:{title:"Report",markdown:"[Story](https://example.test/story)\n`[Code](https://example.test/story)`"},provenance:{period}}};
+  const options={...f.input,frontmatter:{tags:["roadmap"],document:"custom cannot replace identity"},vaultLinks:[{url:"https://example.test/story",path:"Stories/one"}]};
+  const ordinary=renderDocument({...options,format:"markdown"},revision);
+  const obsidian=renderDocument({...options,format:"obsidian"},revision);
+  assert.match(ordinary,/\[Story\]\(https:\/\/example.test\/story\)/);
+  assert.match(obsidian,/\[\[Stories\/one\|Story\]\]/);
+  assert.match(obsidian,/`\[Code\]\(https:\/\/example.test\/story\)`/);
+  assert.match(obsidian,/document: "report"/); assert.match(obsidian,/custom: .*roadmap/);
+  assert.match(obsidian,new RegExp(f.input.digest));
+});
