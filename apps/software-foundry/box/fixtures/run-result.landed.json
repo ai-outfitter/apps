@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "requestId": "6f1c2b8e-3d4a-4f5b-9c6d-7e8f9a0b1c2d",
+  "status": "landed",
+  "issue": { "number": 1, "url": "http://127.0.0.1:3000/box/repo/issues/1" },
+  "triage": { "plan": "Add an export action to the report page that serializes the filtered rows.", "questions": [] },
+  "change": {
+    "delivery": "pull_request",
+    "mergeSha": "cccccccccccccccccccccccccccccccccccccccc",
+    "pullRequest": {
+      "schemaVersion": 1,
+      "number": 2,
+      "url": "http://127.0.0.1:3000/box/repo/pulls/2",
+      "title": "feat(report): export the filtered report as CSV",
+      "request": { "requestId": "6f1c2b8e-3d4a-4f5b-9c6d-7e8f9a0b1c2d", "kind": "feature", "issueNumber": 1 },
+      "baseBranch": "main",
+      "baseSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "headBranch": "outfitter/issue-1",
+      "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary": "Adds an Export CSV button that downloads the rows the current filter shows.",
+      "changes": [
+        { "path": "src/report.ts", "change": "modified", "reason": "Serialize the filtered rows to CSV." }
+      ],
+      "acceptanceCriteria": [
+        { "id": "export-button", "status": "met", "evidence": [
+          { "kind": "screenshot", "uri": "s3://foundry/runs/1/desktop.png", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "criterionId": "export-button", "viewport": "desktop", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+        ] },
+        { "id": "filtered-rows", "status": "met", "evidence": [
+          { "kind": "log", "uri": "s3://foundry/runs/1/test.log", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "criterionId": "filtered-rows", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+        ] }
+      ],
+      "tests": [ { "name": "unit", "command": "npm test", "conclusion": "success", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } ],
+      "evidence": [],
+      "risks": [],
+      "limitations": ["Large reports are not streamed."],
+      "review": { "verdict": "approved", "reviewer": "reviewer", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "draft": false
+    }
+  },
+  "checks": [ { "name": "unit", "command": "npm test", "conclusion": "success", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } ],
+  "review": { "verdict": "approved", "reviewer": "reviewer", "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+  "release": {
+    "tag": "v0.2.0",
+    "url": "http://127.0.0.1:3000/box/repo/releases/tag/v0.2.0",
+    "artifacts": [ { "name": "repo-0.2.0.tgz", "uri": "s3://foundry/releases/v0.2.0/repo-0.2.0.tgz", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "bytes": 1024 } ],
+    "evidenceBundle": { "uri": "s3://foundry/releases/v0.2.0/evidence-bundle.json", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }
+  },
+  "model": { "provider": "spark", "id": "GLM-5.3-Flash-EXL3" },
+  "startedAt": "2026-11-06T23:00:00Z",
+  "finishedAt": "2026-11-06T23:20:00Z"
+}
