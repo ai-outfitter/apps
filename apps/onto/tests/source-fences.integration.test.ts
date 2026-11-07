@@ -769,6 +769,17 @@ test("snapshot byte overflow never issues a partial proof", async (t) => {
 test("capture reads only bounded selected types and retains explicit evidence", async (t) => {
   const f = await fixture();
   t.after(() => f.app.dispose());
+  await f.app.database
+    .prepare(
+      "UPDATE graph_nodes SET privateData=?, externalProvider=?, externalId='private-' || id WHERE id IN (?,?)",
+    )
+    .bind(
+      JSON.stringify({ connectorSecret: "connector-private-value" }),
+      "private-connector",
+      f.seeded.$row.id,
+      f.subject.id,
+    )
+    .run();
   const queries: { sql: string; params: unknown[] }[] = [];
   const graph = drizzle(f.app.database, {
     logger: {
@@ -790,6 +801,15 @@ test("capture reads only bounded selected types and retains explicit evidence", 
   assert.equal(selection.snapshot.nodes.length, 1);
   assert.equal(selection.snapshot.nodes[0].id, f.seeded.$row.id);
   assert.equal(selection.snapshot.nodes[0].title, "Source value");
+  for (const record of [
+    selection.snapshot.nodes[0],
+    selection.snapshot.subject.attributes,
+  ]) {
+    assert.equal(Object.hasOwn(record, "privateData"), false);
+    assert.equal(Object.hasOwn(record, "externalProvider"), false);
+    assert.equal(Object.hasOwn(record, "externalId"), false);
+  }
+  assert.doesNotMatch(JSON.stringify(selection.snapshot), /connector-private-value/);
   const reads = queries.filter((q) =>
     /from "graph_(nodes|edges|types)"/.test(q.sql),
   );
