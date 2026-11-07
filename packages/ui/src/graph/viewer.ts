@@ -27,6 +27,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 const disposers = new WeakMap<Element, () => void>();
+let markerSequence = 0;
 /** Release observers before replacing a graph's DOM, including closed panels. */
 export function disposeKnowledgeGraphViewers(
   root: Pick<ParentNode, "querySelectorAll">,
@@ -271,7 +272,8 @@ export function createKnowledgeGraphViewer(
       width = result.layout.width ?? 1;
       height = result.layout.height ?? 1;
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      const markerId = `kg-arrow-${crypto.randomUUID()}`;
+      // SVG marker IDs only need DOM uniqueness, including on HTTP VPN origins.
+      const markerId = `kg-arrow-${Date.now()}-${++markerSequence}`;
       const defs = draw(svg, "defs", {});
       const marker = draw(defs, "marker", {
         id: markerId,
