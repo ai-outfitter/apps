@@ -2,6 +2,11 @@ import { z } from "zod";
 
 /** Onto's portable document contract. Providers own the meaning of config;
  * adapters must validate supported configurations before dispatching reads. */
+export const ontoDocumentsContract = {
+  id: "outfitter.onto.documents",
+  version: 1,
+} as const;
+
 const id = z.string().min(1).max(128);
 const version = z.number().int().positive();
 export const documentDigest = z.string().regex(/^[a-f0-9]{64}$/);

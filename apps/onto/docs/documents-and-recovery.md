@@ -18,6 +18,11 @@ The platform-side migration-baseline protocol must deploy first.
 
 ## Definitions and authorized actions
 
+Discover the independently versioned `outfitter.onto.documents` v1 contract
+and explicitly bind its installation (`resolveOntoDocuments` and
+`ontoDocumentsClient` in the public client). Compatible graph discovery alone
+does not establish document support.
+
 Use `document.define` as an owner/admin to register a definition ID and immutable
 version, then `document.create` to bind an instance to it. Subsequent definition
 versions do not silently change instances or authored graph definitions.

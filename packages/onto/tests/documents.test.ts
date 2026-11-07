@@ -6,7 +6,10 @@ import { documentOperations } from "../src/contracts";
 const provider = {
   version: 1 as const,
   installationId: "explicit-onto",
-  contracts: [{ id: "outfitter.onto", version: 1 }],
+  contracts: [
+    { id: "outfitter.onto", version: 1 },
+    { id: "outfitter.onto.documents", version: 1 },
+  ],
   capabilities: ["graphql.read"],
   types: [],
   queryAction: "graph.graphql" as const,
@@ -178,4 +181,33 @@ test("generation and retry preserve dispatched, pending and older queued receipt
   assert.deepEqual(await client.retry(inputs.retry), receipts[3]);
   assert.deepEqual(await client.retry(inputs.retry), receipts[4]);
   assert.equal(index, 5);
+});
+
+test("document capability is independently versioned; graph-only Onto remains readable", () => {
+  const host = {
+    call: async () => ({ data: { title: "current" } }),
+  } as unknown as WorkflowHost<"interactive">;
+  const graphOnly = {
+    ...provider,
+    contracts: [{ id: "outfitter.onto", version: 1 }],
+  };
+  const graphClient = ontoClient(host, graphOnly);
+  assert.equal(typeof graphClient.read, "function");
+  assert.throws(
+    () => graphClient.documents,
+    (error) => error instanceof Response && error.status === 409,
+  );
+  assert.throws(
+    () =>
+      ontoDocumentsClient(host, {
+        ...provider,
+        contracts: [{ id: "outfitter.onto.documents", version: 2 }],
+      }),
+    (error) => error instanceof Response && error.status === 409,
+  );
+  const replacement = ontoDocumentsClient(host, {
+    ...provider,
+    contracts: [{ id: "outfitter.onto.documents", version: 1 }],
+  });
+  assert.equal(typeof replacement.live, "function");
 });

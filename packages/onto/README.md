@@ -22,7 +22,9 @@ and server modules still consume compatibility schema exports; this extraction
 does not claim to migrate the platform or all graph implementation code.
 
 Document producers use `ontoDocumentsClient(host, provider)` or
-`ontoClient(host, provider).documents`, with `provider` selected by `resolveOnto`.
+`ontoClient(host, provider).documents`, with `provider` selected by `resolveOntoDocuments`. The independently versioned
+`outfitter.onto.documents` v1 contract must be advertised; a graph-only Onto
+provider remains valid for graph reads and does not implicitly support documents.
 The typed methods are `define`, `create`, `live`, `generate`, `revision`, `job`,
 `retry`, `seal`, and `policy`. Each validates input and receipts while forwarding
 the call through authorized platform actions; a queued or pending dispatch
