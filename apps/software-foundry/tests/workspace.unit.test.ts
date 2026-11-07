@@ -18,7 +18,7 @@ const reserved = "33333333-3333-4333-8333-333333333333";
 
 /** A workflow host double that remembers approved bindings and subscriptions
  * as the platform would and answers the reads Foundry makes. */
-function platform() {
+function platform(provider = "github") {
   const calls: Call[] = [];
   const bindings: any[] = [];
   const subscriptions: any[] = [];
@@ -27,7 +27,7 @@ function platform() {
     installation: { id: "foundry", activeHash: "hash", hostname: "foundry.example", workflows: [] },
     bindings: bindings.map(({ workspace: _, ...binding }) => binding),
     subscriptions,
-    connections: [{ id: "github", provider: "github", revision: "r", owner: "organization", operations: ["issues.create", "issues.comment"], repositories: ["acme/app"] }],
+    connections: [{ id: provider, provider, revision: "r", owner: "organization", operations: ["issues.create", "issues.comment"], repositories: ["acme/app"] }],
   });
   const answers: Record<string, (input: any) => unknown> = {
     snapshot,
@@ -65,6 +65,15 @@ function platform() {
   } as unknown as WorkflowHost<"operator" | "interactive" | "event">;
   return { host, calls, bindings, subscriptions, references };
 }
+
+test("an organization's Forgejo connection serves configuration as GitHub does", async () => {
+  const { host, calls } = platform("forgejo");
+  const configured = await configureFoundryWorkspaces(host as never, "Acme/App", "vega", "gpt-6-luna", "workspace");
+  assert.equal(configured.resource, "77");
+  assert.ok(calls.some(({ operation, input }) => operation === "repository.request" && input.connectionId === "forgejo"));
+  // Another provider never stands in for a forge.
+  await assert.rejects(configureFoundryWorkspaces(platform("slack").host as never, "acme/app", "vega"), (error: Response) => error.status === 409);
+});
 
 test("configure approves every role, landing and merge-check binding, then one subscription of the role slots", async () => {
   const { host, bindings, subscriptions, calls } = platform();
