@@ -34,6 +34,13 @@ test("source fences require explicit independent contract and capability discove
   const client = await resolveOntoSourceFence(host, {
     installationId: "bound",
   });
+  await assert.rejects(
+    resolveOntoSourceFence(
+      host,
+      { installationId: "bound" },
+      "direct-neighborhood-v1",
+    ),
+  );
   assert.equal(client.provider.installationId, "bound");
   assert.deepEqual(calls[0], { installationId: "bound" });
   const ordinary = {
@@ -151,6 +158,10 @@ test("source clients reject valid-schema foreign receipts", async () => {
   };
   assert.deepEqual(await client.capture(capture), proof);
   for (const foreign of [
+    {
+      ...proof,
+      selection: { ...proof.selection, kind: "direct-neighborhood-v1" },
+    },
     { ...proof, provider: { ...proof.provider, installationId: "foreign" } },
     { ...proof, subject: { ...subject, digest: "d".repeat(64) } },
     { ...proof, selection: { ...proof.selection, definitionId: "other" } },

@@ -180,7 +180,7 @@ async function subject(c: SourceContext, expected: Subject) {
   return { type, record };
 }
 
-/** Bounded selected-type reads only. graph.apply retains its separate legacy writer validation. */
+/** Bounded selected-set reads only. graph.apply retains its separate legacy writer validation. */
 export async function readSourceSelection(
   c: SourceContext,
   definition: SourceFenceDefinition,
@@ -201,7 +201,14 @@ export async function readSourceSelection(
     typeRows.set(id, type);
     return type;
   };
+  const scoped = definition.selection === "direct-neighborhood-v1";
+  const additional = [...definition.records];
+  if (scoped) additional.push({ type: "graph-node", id: definition.rootId });
   for (const set of definition.sets) {
+    const endpoint =
+      scoped && "direction" in set
+        ? { direction: set.direction, nodeId: definition.rootId }
+        : undefined;
     const type = await rememberType(set.typeId);
     if (type.category !== (set.type === "graph-node" ? "node" : "edge"))
       fail("Selected source type changed");
@@ -230,6 +237,14 @@ export async function readSourceSelection(
           .where(
             and(
               eq(graphEdges.typeId, set.typeId),
+              endpoint
+                ? eq(
+                    endpoint.direction === "outgoing"
+                      ? graphEdges.fromId
+                      : graphEdges.toId,
+                    endpoint.nodeId,
+                  )
+                : undefined,
               set.includeArchived ? undefined : eq(graphEdges.archived, false),
             ),
           )
@@ -237,16 +252,33 @@ export async function readSourceSelection(
           .limit(2001)
       ).map(edgeView);
       members = rows.map((row) => ({ id: row.id, revision: row.revision }));
-      for (const row of rows) edges.set(row.id, row);
+      for (const row of rows) {
+        edges.set(row.id, row);
+        if (endpoint)
+          additional.push({
+            type: "graph-node",
+            id: endpoint.direction === "outgoing" ? row.toId : row.fromId,
+          });
+      }
     }
     if (members.length > 2000)
       fail("Source membership exceeds 2000 records", 413);
     readSets.push({
-      ...set,
+      type: set.type,
+      typeId: set.typeId,
+      includeArchived: set.includeArchived,
+      ...(endpoint ? { endpoint } : {}),
       records: members.sort((a, b) => a.id.localeCompare(b.id)),
     });
   }
-  for (const ref of definition.records) {
+  const uniqueAdditional = [
+    ...new Map(
+      additional.map((ref) => [`${ref.type}:${ref.id}`, ref]),
+    ).values(),
+  ];
+  if (uniqueAdditional.length + typeRows.size + records.length + 1 > 100)
+    fail("Source proof exceeds 100 revision preconditions", 413);
+  for (const ref of uniqueAdditional) {
     let record: { id: string; typeId: string; revision: number } | undefined;
     if (ref.type === "graph-node") {
       const [raw] = await c.graph
@@ -273,7 +305,15 @@ export async function readSourceSelection(
     }
     if (!record || [proofType, sealType].includes(record.typeId))
       fail("Additional evidence record unavailable");
-    await rememberType(record.typeId);
+    const recordType = await rememberType(record.typeId);
+    if (recordType.category !== (ref.type === "graph-node" ? "node" : "edge"))
+      fail("Evidence type category differs");
+    if (
+      scoped &&
+      ref.id === definition.rootId &&
+      (record as ReturnType<typeof nodeView>).archived
+    )
+      fail("Selection root is archived");
     records.push({ ...ref, revision: record.revision });
   }
   if (typeRows.size + records.length + 1 > 100)

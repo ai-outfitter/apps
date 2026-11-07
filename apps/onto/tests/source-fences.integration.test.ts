@@ -809,7 +809,10 @@ test("capture reads only bounded selected types and retains explicit evidence", 
     assert.equal(Object.hasOwn(record, "externalProvider"), false);
     assert.equal(Object.hasOwn(record, "externalId"), false);
   }
-  assert.doesNotMatch(JSON.stringify(selection.snapshot), /connector-private-value/);
+  assert.doesNotMatch(
+    JSON.stringify(selection.snapshot),
+    /connector-private-value/,
+  );
   const reads = queries.filter((q) =>
     /from "graph_(nodes|edges|types)"/.test(q.sql),
   );
@@ -923,5 +926,375 @@ test("portable archive imports cannot author source definitions, proofs or fence
       ),
     ),
     before,
+  );
+});
+
+async function scopedFixture(
+  empty = false,
+  direction: "outgoing" | "incoming" = "outgoing",
+) {
+  const f = await fixture();
+  const setup = await f.call("graph.apply", {
+    requestKey: "scope-setup",
+    operations: [
+      {
+        operation: "create",
+        ref: "$organization",
+        type: "graph-type",
+        attributes: {
+          category: "node",
+          name: "ScopedOrganization",
+          title: "Organization",
+          body: "Graph organization roots",
+          properties: [
+            {
+              name: "organization_id",
+              type: "string",
+              description: "Organization identity",
+              required: true,
+            },
+          ],
+        },
+      },
+      {
+        operation: "create",
+        ref: "$root",
+        type: "graph-node",
+        attributes: {
+          typeId: "$organization",
+          title: "Organization A",
+          properties: { organization_id: "org-a" },
+        },
+      },
+      {
+        operation: "create",
+        ref: "$relation",
+        type: "graph-type",
+        attributes: {
+          category: "edge",
+          name: "ScopedSourceLink",
+          title: "Scoped source",
+          body: "Explicit reviewed link",
+        },
+      },
+      {
+        operation: "create",
+        ref: "$otherRoot",
+        type: "graph-node",
+        attributes: {
+          typeId: "$organization",
+          title: "Organization B",
+          properties: { organization_id: "org-b" },
+        },
+      },
+      {
+        operation: "create",
+        ref: "$local",
+        type: "graph-node",
+        attributes: { typeId: f.seeded.$data.id, title: "Local evidence" },
+      },
+      {
+        operation: "create",
+        ref: "$foreign",
+        type: "graph-node",
+        attributes: { typeId: f.seeded.$data.id, title: "Foreign evidence" },
+      },
+      ...(!empty
+        ? [
+            {
+              operation: "create",
+              ref: "$localLink",
+              type: "graph-edge",
+              attributes: {
+                typeId: "$relation",
+                fromId: direction === "outgoing" ? "$root" : "$local",
+                toId: direction === "outgoing" ? "$local" : "$root",
+              },
+            },
+          ]
+        : []),
+      {
+        operation: "create",
+        ref: "$foreignLink",
+        type: "graph-edge",
+        attributes: {
+          typeId: "$relation",
+          fromId: direction === "outgoing" ? "$otherRoot" : "$foreign",
+          toId: direction === "outgoing" ? "$foreign" : "$otherRoot",
+        },
+      },
+    ],
+  });
+  assert.equal(setup.status, 200, await setup.clone().text());
+  const scope = (await setup.json()) as Record<
+    string,
+    { id: string; revision: number }
+  >;
+  await f.db.batch([
+    {
+      sql: "UPDATE graph_nodes SET privateData=?,externalProvider=?,externalId=? || id WHERE id IN (?,?)",
+      params: [
+        JSON.stringify({ token: "scoped-secret" }),
+        "scoped-private-provider",
+        "scoped-private-id",
+        scope.$root.id,
+        scope.$local.id,
+      ],
+    },
+  ]);
+  const definition = {
+    version: 1 as const,
+    selection: "direct-neighborhood-v1" as const,
+    rootId: scope.$root.id,
+    sets: [
+      {
+        type: "graph-edge" as const,
+        typeId: scope.$relation.id,
+        includeArchived: false,
+        direction,
+      },
+    ],
+    records: [],
+  };
+  await defineSource(f.context, f.provider, "scoped", 1, definition);
+  const capture = () =>
+    captureSource(
+      f.context,
+      f.provider,
+      "scoped",
+      1,
+      "scoped-capture",
+      f.subject,
+    );
+  return { ...f, scope, scopedDefinition: definition, scopedCapture: capture };
+}
+
+for (const direction of ["outgoing", "incoming"] as const)
+  test(`reviewed ${direction} neighborhood isolates roots and ignores unrelated links`, async (t) => {
+    const f = await scopedFixture(false, direction);
+    t.after(() => f.app.dispose());
+    const injected = await f.call("source.capture", {
+      ...f.captureInput,
+      definitionId: "scoped",
+      rootId: f.scope.$otherRoot.id,
+    });
+    assert.equal(injected.status, 400);
+    await assert.rejects(
+      defineSource(f.context, f.provider, "scoped", 1, {
+        ...f.scopedDefinition,
+        rootId: f.scope.$otherRoot.id,
+      }),
+    );
+    const proof = await f.scopedCapture();
+    assert.equal(proof.selection.kind, "direct-neighborhood-v1");
+    for (const secret of [
+      "scoped-secret",
+      "scoped-private-provider",
+      "scoped-private-id",
+    ])
+      assert.equal(JSON.stringify(proof).includes(secret), false);
+    const queries: { sql: string; params: unknown[] }[] = [];
+    const scopedGraph = drizzle(f.app.database, {
+      logger: {
+        logQuery(sql, params) {
+          queries.push({ sql, params });
+        },
+      },
+    });
+    await readSourceSelection(
+      { ...f.context, graph: scopedGraph },
+      f.scopedDefinition,
+      f.subject,
+    );
+    const edgeReads = queries.filter((q) =>
+      q.sql.includes('from "graph_edges"'),
+    );
+    assert.equal(edgeReads.length, 1);
+    assert.match(
+      edgeReads[0].sql,
+      /where .*"typeId" = .*and .*"(?:fromId|toId)" = .*limit /i,
+    );
+    assert.ok(edgeReads[0].params.includes(f.scope.$root.id));
+    assert.ok(edgeReads[0].params.includes(2001));
+
+    assert.deepEqual(proof.readSets[0].endpoint, {
+      direction,
+      nodeId: f.scope.$root.id,
+    });
+    const snapshot = proof.snapshot as {
+      nodes: { id: string }[];
+      edges: { id: string }[];
+    };
+    assert.deepEqual(
+      snapshot.nodes.map((n) => n.id).sort(),
+      [f.scope.$root.id, f.scope.$local.id].sort(),
+    );
+    assert.deepEqual(
+      snapshot.edges.map((n) => n.id),
+      [f.scope.$localLink.id],
+    );
+    const changed = await f.call("graph.apply", {
+      requestKey: "foreign-update",
+      operations: [
+        {
+          operation: "create",
+          ref: "$link",
+          type: "graph-edge",
+          attributes: {
+            typeId: f.scope.$relation.id,
+            fromId:
+              direction === "outgoing"
+                ? f.scope.$otherRoot.id
+                : f.scope.$local.id,
+            toId:
+              direction === "outgoing"
+                ? f.scope.$local.id
+                : f.scope.$otherRoot.id,
+          },
+        },
+      ],
+    });
+    assert.equal(changed.status, 200, await changed.clone().text());
+    assert.equal(
+      (
+        await fenceSource(
+          f.context,
+          f.provider,
+          proof.id,
+          f.subject,
+          "scoped-seal",
+        )
+      ).status,
+      "sealed",
+    );
+    await assert.rejects(
+      fenceSource(
+        f.context,
+        f.provider,
+        proof.id,
+        { ...f.subject, digest: "f".repeat(64) },
+        "wrong-subject",
+      ),
+    );
+    const marker = await f.call("graph.apply", {
+      requestKey: "edit-scoped-proof",
+      operations: [
+        {
+          operation: "update",
+          ref: "$proof",
+          type: "graph-node",
+          id: proof.id,
+          revision: 1,
+          attributes: { title: "Forged" },
+        },
+      ],
+    });
+    assert.equal(marker.status, 409);
+  });
+
+for (const change of [
+  "empty-add",
+  "remove",
+  "retarget",
+  "endpoint",
+  "root",
+  "type",
+] as const)
+  test(`scoped fence rejects ${change} in the exact reviewed neighborhood`, async (t) => {
+    const f = await scopedFixture(change === "empty-add");
+    t.after(() => f.app.dispose());
+    const proof = await f.scopedCapture();
+    if (change === "empty-add") assert.deepEqual(proof.readSets[0].records, []);
+    const operation =
+      change === "empty-add"
+        ? {
+            operation: "create",
+            ref: "$new",
+            type: "graph-edge",
+            attributes: {
+              typeId: f.scope.$relation.id,
+              fromId: f.scope.$root.id,
+              toId: f.scope.$local.id,
+            },
+          }
+        : change === "remove" || change === "retarget"
+          ? {
+              operation: "update",
+              ref: "$edge",
+              type: "graph-edge",
+              id: f.scope.$localLink.id,
+              revision: 1,
+              attributes:
+                change === "remove"
+                  ? { archived: true }
+                  : { fromId: f.scope.$otherRoot.id },
+            }
+          : {
+              operation: "update",
+              ref: "$record",
+              type: change === "type" ? "graph-type" : "graph-node",
+              id:
+                change === "type"
+                  ? f.scope.$relation.id
+                  : change === "root"
+                    ? f.scope.$root.id
+                    : f.scope.$local.id,
+              revision: 1,
+              attributes: { title: "Changed scoped evidence" },
+            };
+    const updated = await f.call("graph.apply", {
+      requestKey: `scoped-change-${change}`,
+      operations: [operation],
+    });
+    assert.equal(updated.status, 200, await updated.clone().text());
+    assert.equal(
+      (
+        await fenceSource(
+          f.context,
+          f.provider,
+          proof.id,
+          f.subject,
+          "changed-scope",
+        )
+      ).status,
+      "conflict",
+    );
+  });
+
+test("provider discovery advertises independent neighborhood capability", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const response = await f.call("graph.describe", {});
+  assert.equal(response.status, 200, await response.clone().text());
+  const descriptor = (await response.json()) as { capabilities: string[] };
+  assert.ok(
+    descriptor.capabilities.includes("source.fence.direct-neighborhood.v1"),
+  );
+  assert.ok(
+    descriptor.capabilities.every((value) => typeof value === "string"),
+  );
+});
+
+test("scoped endpoint fanout refuses capture before omitting evidence", async (t) => {
+  const f = await scopedFixture(true);
+  t.after(() => f.app.dispose());
+  await f.db.batch([
+    {
+      sql: "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100) INSERT INTO graph_nodes(id,typeId,slug,title,createdAt,updatedAt) SELECT printf('00000000-0000-4000-8002-%012d',x),?,printf('scoped-limit-%d',x),'Scoped endpoint',1,1 FROM n",
+      params: [f.seeded.$data.id],
+    },
+    {
+      sql: "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100) INSERT INTO graph_edges(id,typeId,fromId,toId,title,createdAt,updatedAt) SELECT printf('00000000-0000-4000-8003-%012d',x),?,?,printf('00000000-0000-4000-8002-%012d',x),'Scoped edge',1,1 FROM n",
+      params: [f.scope.$relation.id, f.scope.$root.id],
+    },
+  ]);
+  await assert.rejects(
+    f.scopedCapture(),
+    (error) => error instanceof Response && error.status === 413,
+  );
+  assert.equal(
+    (await f.db.query({ sql: "SELECT id FROM onto_source_proofs", params: [] }))
+      .length,
+    0,
   );
 });
