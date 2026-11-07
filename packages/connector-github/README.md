@@ -38,3 +38,6 @@ and re-enters the authorized host on every read. Scheduled access continues to
 fail closed when its host cannot authorize the connection. This package does
 not register a graph provider or a platform connector; those integrations remain
 separate work. Export/write connector behavior remains with existing callers.
+
+See [live verification](live-verification.md) for a reproducible read-only check
+against the public apps repository and the limits of that evidence.
