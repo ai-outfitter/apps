@@ -12,11 +12,20 @@ This package is the shared harness. Each app that has a box keeps its side in
 
 | File | What it does |
 | --- | --- |
-| `driver.mjs` | Exports `app` (the app slug), an optional `title`, and `run(box)`, which the supervisor calls once the platform is up to file the requests, watch their runs, write `/out/results` and release. It calls `box.finish()` when everything is written. |
+| `driver.mjs` | Exports `app` (the app slug), an optional `title` and `platformModel`, and `run(box)`, which the supervisor calls once the platform is up to file the requests, watch their runs, write `/out/results` and release. It calls `box.finish()` when everything is written. |
 | `schemas/` | The app's request and result JSON contract. |
 | `evals/` | Agent Eval fixtures and the runner, using `@ai-outfitter/box/eval`. |
 
-Boxes today: Software Foundry (`apps/software-foundry/box`, the Foundry box).
+Boxes today:
+
+- Software Foundry (`apps/software-foundry/box`): feature and bug requests
+  become Forgejo issues that the Foundry takes to merged PRs.
+- Workshop (`apps/workshop/box`): design requests go to Workshop's design
+  agent, and the box commits each design's project, STEP, STL and BOM.
+
+A driver that sets `platformModel = true` (Workshop, whose design agent calls
+the model from the platform) has the model settings passed to the platform too.
+Shared helpers for drivers (git, hashes, release versions) are in `lib.mjs`.
 
 What stays in the webapp: the platform changes a box needs (the Forgejo-backed
 organization connection, the gateway's Forgejo checks, the workspace `gh`
@@ -67,8 +76,8 @@ docker build --build-context webapp=../webapp --build-arg BOX_APP=software-found
   -f box/Dockerfile -t outfitter/software-foundry-box:dev .
 ```
 
-The harness is copied to `/app/.box` and the app's `box/` folder to
-`/app/.box/app`, so both resolve the checkout's modules.
+The harness is copied to `/app/.box/box` and the app to
+`/app/.box/apps/<app>`, so both resolve the checkout's modules.
 
 `supervisor.mjs` is the entrypoint. It:
 
@@ -90,6 +99,7 @@ The driver's `box` has the repository and default branch, `forgejo(method,
 path, body)` (Forgejo's API as the platform bot), `operator(input)` (the app's
 operator workflow requests), `store(key, bytes, type)` (RustFS),
 `databases.platform` and `databases.gateway` (SQLite files to read run state),
+`port` (the platform's port on loopback),
 the model in use, `out`, `log` and `finish(error?)`, which writes
 `/out/repo.bundle` and, with `BOX_EXIT_WHEN_DONE=1`, stops the box.
 
@@ -194,4 +204,4 @@ docker run --rm --network container:<box> -w /app \
   PR document and the evidence bundle; criteria are now judged from the checks
   and the independent review.
 - Replayed model answers for a run with no network at all.
-- A Workshop box.
+- A Workshop box on the forge: change requests as PRs with BOM and cost diffs.

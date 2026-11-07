@@ -2,7 +2,7 @@
 // The box's entrypoint. It starts every service on loopback, prepares Forgejo
 // and RustFS, imports the mounted repository, starts the platform with the
 // box's app installed, and hands the requests to that app's driver
-// (`apps/<app>/box/driver.mjs`, copied to ./app in the image). Only the
+// (`apps/<app>/box/driver.mjs`, BOX_APP naming the app). Only the
 // platform, which serves the app for inspection, listens on the published port.
 //
 //   /in/repo       the repository to work on (mounted read-only)
@@ -31,7 +31,7 @@ const BOT = "outfitter";
 const BOX_ORGANIZATION = "b0c50000-0000-4000-8000-000000000001";
 const children = [];
 
-const driver = await import(env.BOX_DRIVER || join(HERE, "app", "driver.mjs"));
+const driver = await import(env.BOX_DRIVER || join(HERE, "..", "apps", env.BOX_APP || "software-foundry", "box", "driver.mjs"));
 const APP = driver.app;
 if (typeof APP !== "string" || typeof driver.run !== "function") throw new Error("The box driver must export app and run()");
 
@@ -232,7 +232,7 @@ function driverContext({ gatewayToken, bot, repo, s3 }) {
     }
   };
   return {
-    env, log, out: OUT, image: env.BOX_IMAGE || `outfitter/${APP}-box:dev`,
+    env, log, out: OUT, platform: PLATFORM, port: PORTS.webapp, image: env.BOX_IMAGE || `outfitter/${APP}-box:dev`,
     requests: env.BOX_REQUESTS || "/in/requests",
     repository: repo.repository, defaultBranch: repo.defaultBranch, remote,
     model: { provider: env.SPARK_BASE_URL ? "spark" : "luna", id: env.AI_MODEL || "gpt-6-luna" },
@@ -285,12 +285,15 @@ async function main() {
   // The platform, serving the box app for inspection: the box organization
   // with the app installed and a Forgejo-backed repository connection.
   const owner = await (await fetch(`${FORGEJO}/api/v1/orgs/${OWNER}`, { headers: { Authorization: adminAuth } })).json();
+  // A driver whose app calls a model from the platform itself (Workshop's
+  // design agent) has the platform receive the model settings too.
+  const platformModel = driver.platformModel ? Object.fromEntries(Object.entries(env).filter(([name]) => MODEL_SETTINGS.test(name))) : {};
   start("platform", "node", ["--import", "tsx", join(CHECKOUT, "scripts/local-dev/box-platform.ts")], {
     BOX_CHECKOUT: CHECKOUT, BOX_STATE: STATE, BOX_INSPECT_PORT: String(PORTS.webapp), BOX_REPOSITORY: repo.repository,
     BOX_FORGEJO_OWNER_ID: String(owner.id), BOX_APPS: APP, BOX_TITLE: driver.title ?? `${APP} box`,
     BOX_PLATFORM_ENV: JSON.stringify({
       WORKSPACE_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...forge, ...s3, ...artifactsS3,
-      ...(env.BOX_DEBUG_HOST ? { BOX_DEBUG_HOST: "1" } : {}),
+      ...platformModel, ...(env.BOX_DEBUG_HOST ? { BOX_DEBUG_HOST: "1" } : {}),
     }),
   });
   await ready("platform", `${PLATFORM}/api/health`, 600);

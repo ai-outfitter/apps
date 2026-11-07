@@ -4,6 +4,7 @@
 #     -f box/Dockerfile -t outfitter/software-foundry-box:dev .
 # BOX_APP names apps/<app>; that app's box driver (apps/<app>/box/driver.mjs)
 # runs the requests, and its operational package is built from this checkout.
+# Boxes: software-foundry, workshop.
 # Run with no network except the model endpoint (see README):
 #   docker run --rm -p 127.0.0.1:8787:8787 -v "$PWD/repo:/in/repo:ro" \
 #     -v "$PWD/requests:/in/requests:ro" -v "$PWD/out:/out" outfitter/software-foundry-box:dev
@@ -40,9 +41,10 @@ RUN npm run --silent workflow-schema:check && npm run --silent apps:build
 COPY --from=app /package/ /tmp/package/
 RUN cp "/tmp/package/${BOX_APP}.operational.json" "src/generated/apps/${BOX_APP}.operational.json"
 RUN cd workspace/runtime && npm ci --omit=dev --no-audit --no-fund
-# The box harness and the app's driver, inside the checkout so they resolve its modules.
-COPY box /app/.box
-COPY apps/${BOX_APP}/box /app/.box/app
+# The box harness and the box app (its driver and the sources it uses), laid
+# out as in this repository, inside the checkout so they resolve its modules.
+COPY box /app/.box/box
+COPY apps/${BOX_APP} /app/.box/apps/${BOX_APP}
 
 FROM docker.io/library/node:24-bookworm-slim
 ARG BOX_APP=software-foundry
@@ -56,9 +58,9 @@ COPY --from=build --chown=node:node /app /app
 # The workspace runtime (pi and its tools), as the workspace image installs it.
 COPY --from=build /app/workspace/runtime /opt/workspace
 WORKDIR /app
-ENV NODE_ENV=development PATH="/opt/workspace/node_modules/.bin:${PATH}" BOX_IMAGE="outfitter/${BOX_APP}-box:dev"
+ENV NODE_ENV=development PATH="/opt/workspace/node_modules/.bin:${PATH}" BOX_APP="${BOX_APP}" BOX_IMAGE="outfitter/${BOX_APP}-box:dev"
 RUN mkdir -p /box /in /out && chown -R node:node /box /out
 USER node
 EXPOSE 8787
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["node", "/app/.box/supervisor.mjs"]
+CMD ["node", "/app/.box/box/supervisor.mjs"]
