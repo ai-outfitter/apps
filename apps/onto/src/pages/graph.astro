@@ -1,0 +1,7 @@
+---
+import Layout from "../components/Layout.astro";
+---
+<Layout title="Graph explorer" description="Explore entities and their relationships across this Wiki." page="graph" routeDepth={1}>
+  <div id="graph-explorer" class="wiki-map" aria-busy="true"></div>
+</Layout>
+<script>import "../scripts/graph-explorer.ts";</script>

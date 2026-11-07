@@ -10,7 +10,26 @@ export type ArchivedFilter = "exclude" | "include" | "only";
 export type GraphRow = Record<string, unknown> & { id: string; typeId: string; revision: number };
 export type EdgeRow = GraphRow & { fromId: string; toId: string };
 /** `slugs` are exact node slugs: a Wiki's addresses, unique across its node types (edges have none). */
-export type NodeQuery = { typeIds?: string[]; ids?: string[]; slugs?: string[]; archived?: ArchivedFilter; text?: string };
+export type SourceRef = { installationId: string; type: string; id: string };
+export type PropertyFilter = Record<string, string | number | boolean>;
+export type NodeQuery = { typeIds?: string[]; ids?: string[]; slugs?: string[]; archived?: ArchivedFilter; text?: string;
+  /** Pages whose canonical `source` is one of these records. */
+  sources?: SourceRef[];
+  /** Stored property values that must match exactly. */
+  properties?: PropertyFilter };
+export const sourceKey = (ref: SourceRef) => `${ref.installationId}/${ref.type}/${ref.id}`;
+/** Whether a row's `source` names one of `refs`, and its properties hold every value in `wanted`. */
+export function matchesSourceAndProperties(row: Record<string, unknown>, sources: ReadonlySet<string> | null, wanted?: PropertyFilter) {
+  if (sources) {
+    const source = row.source as SourceRef | null | undefined;
+    if (!source || typeof source !== "object" || !sources.has(sourceKey(source))) return false;
+  }
+  if (wanted) {
+    const properties = (row.properties ?? {}) as Record<string, unknown>;
+    for (const [key, value] of Object.entries(wanted)) if (properties[key] !== value) return false;
+  }
+  return true;
+}
 /** An edge matches fromIds or toIds (callers here pass one of them per call). */
 export type EdgeQuery = { typeIds?: string[]; ids?: string[]; fromIds?: string[]; toIds?: string[]; archived?: ArchivedFilter };
 export interface GraphSource {
@@ -48,8 +67,9 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
     nodes: async query => {
       const needle = query.text?.toLowerCase();
       const types = setOf(query.typeIds), ids = setOf(query.ids), slugs = setOf(query.slugs);
+      const sources = query.sources ? new Set(query.sources.map(sourceKey)) : null;
       return nodes.filter(row => visible(row, query.archived, false) && (!types || types.has(row.typeId)) && (!ids || ids.has(row.id))
-        && (!slugs || slugs.has(String(row.slug))) && (!needle || textMatch("node", row, needle)));
+        && (!slugs || slugs.has(String(row.slug))) && (!needle || textMatch("node", row, needle)) && matchesSourceAndProperties(row, sources, query.properties));
     },
     edges: async query => {
       const types = setOf(query.typeIds), ids = setOf(query.ids), from = setOf(query.fromIds), to = setOf(query.toIds);

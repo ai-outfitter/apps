@@ -1,0 +1,763 @@
+[
+  {
+    "name": "ChangeBatch",
+    "kind": "query",
+    "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      recordId\n      recordRevision\n    }\n  }\n}",
+    "hash": "35f9cf2d730262c91e5e74529efb41e0f8f78f3bb1a73d7e0998aca1fd5ec9af",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "refs": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "ChangeBatchChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply changebatch changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ChangeBatchChanges($input: ChangeBatchChangesInput!) {\n  changeBatchChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "739f38ac2ec880d3a4851db50db2ab4e07fe8e4ebecba1c357ad8356c6718f90",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ChangeBatchChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "stage"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "description": "Add to this open batch; omit to open one.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "title": {
+                            "description": "Names the batch a new one opens with.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          "source": {
+                            "description": "Where the proposals came from, for a new batch: {kind: \"agent-task\" | \"meeting\" | \"import\" | \"work-package\", ref, label?}, e.g. a chat or meeting ID and its title.",
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "discovery-run",
+                                  "work-package",
+                                  "import",
+                                  "agent-task",
+                                  "meeting"
+                                ]
+                              },
+                              "ref": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "proposals": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operation": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "create"
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "update"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation",
+                                        "id",
+                                        "revision"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                "evidence": {
+                                  "default": [],
+                                  "maxItems": 32,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "provider": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 100
+                                      },
+                                      "recordId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "uri": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "contentHash": {
+                                        "type": "string",
+                                        "pattern": "^[a-f0-9]{64}$"
+                                      },
+                                      "quote": {
+                                        "type": "string",
+                                        "maxLength": 2000
+                                      },
+                                      "observedAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                      }
+                                    },
+                                    "required": [
+                                      "provider",
+                                      "recordId"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "confidence": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "maxLength": 1000
+                                }
+                              },
+                              "required": [
+                                "operation"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "proposals"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "remove"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "refs": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "refs"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "submit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "summary": {
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "batchId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "review"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "refs": {
+                            "minItems": 1,
+                            "maxItems": 2000,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                            }
+                          },
+                          "verdict": {
+                            "type": "string",
+                            "enum": [
+                              "approve",
+                              "reject"
+                            ]
+                          },
+                          "comment": {
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "verdict"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false,
+          "$defs": {
+            "__schema0": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "changeBatchChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ChangeBatches",
+    "kind": "query",
+    "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        recordId\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "649e3851ae3e5052485e01f4004ad536d2f0113fb4ef0186361e7603771e123f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "state": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "details": {
+          "type": "boolean",
+          "description": "GraphQL Boolean"
+        },
+        "refs": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "changeBatches",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "changeBatches": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "counts": {
+                    "description": "JSON"
+                  },
+                  "reviewBy": {
+                    "description": "DateTime",
+                    "nullable": true
+                  },
+                  "instructions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "itemKey": {
+                          "type": "string"
+                        },
+                        "actor": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "operations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "ref": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string"
+                        },
+                        "operation": {
+                          "description": "JSON"
+                        },
+                        "evidence": {
+                          "description": "JSON"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "reason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "decision": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "recordId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "recordRevision": {
+                          "type": "integer",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "hasNextPage": {
+                  "type": "boolean"
+                },
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "RemoveStagedChanges",
+    "kind": "mutation",
+    "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
+    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n  }\n}",
+    "hash": "f6c5912f64162eeb8f0d648c8ea1ac82726cfc5efd71a82f4abda78ec49b2e1a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RemoveStagedChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "StageChanges",
+    "kind": "mutation",
+    "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n  }\n}",
+    "hash": "78b8f60cbcdd798947149cc4898a96bd7c3f977342cb43095341c2105d60f989",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SubmitBatch",
+    "kind": "mutation",
+    "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitBatchInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  }
+]
