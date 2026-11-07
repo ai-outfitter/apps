@@ -1,0 +1,43 @@
+---
+import Layout from "../components/Layout.astro";
+import { brandQuestions, mapLevels, mapTargets } from "../lib/brand";
+import { pageState } from "../server/page-state";
+import { levelCounts } from "../server/store";
+
+const { state } = await pageState(Astro.request);
+const answered = state.answers.filter((row) => row.answer.trim()).length;
+const counts = levelCounts(state.nodes);
+const profileSaved = Boolean(state.profile && [state.profile.coreIdeas, state.profile.voice, state.profile.worldview].some((value) => value.trim()));
+const ready = state.drafts.filter((draft) => draft.status === "ready").length;
+const steps = [
+  { href: "./brand", title: "Brand document", role: "Brand strategist", done: answered === brandQuestions.length,
+    status: `${answered} of ${brandQuestions.length} questions answered`,
+    next: answered ? "Keep going: every answer can become months of posts." : "Start the interview. Ask your team to interview you one question at a time, or type your answers." },
+  { href: "./content", title: "Content document", role: "Content strategist", done: state.sources.length > 0 && profileSaved,
+    status: `${state.sources.length} ${state.sources.length === 1 ? "source" : "sources"}${profileSaved ? ", voice and ideas noted" : ""}`,
+    next: "Add your best posts from each platform. Not posting yet? Add the 5 to 10 people who shaped your thinking." },
+  { href: "./map", title: "Content map", role: "Content strategist", done: counts.pillar >= mapTargets.pillar[0] && counts.angle > 0,
+    status: mapLevels.map((level) => `${counts[level]} ${level}${counts[level] === 1 ? "" : "s"}`).join(" · "),
+    next: "Ask your team for a research-backed map: 3 to 4 pillars, 5 to 7 topics each, 5 to 10 ideas per topic, 4 to 5 angles per idea." },
+  { href: "./drafts", title: "Drafts", role: "Writer", done: ready > 0,
+    status: `${state.drafts.length} ${state.drafts.length === 1 ? "draft" : "drafts"}, ${ready} ready to post`,
+    next: "Pick an idea or angle on the map and ask for a draft. You review, rewrite and post." },
+];
+const summary = `Overview of the creative team process. ${steps.map((step) => `${step.title}: ${step.status}.`).join(" ")}`;
+---
+<Layout title="Your creative team" description="A brand strategist, a content strategist and a writer for your personal brand. Work through the four steps; the team proposes, you approve." page="overview">
+  <ol class="steps" data-agent-summary={summary}>
+    {steps.map((step, index) => (
+      <li class:list={["step paper", { "step--done": step.done }]}>
+        <span class="step-number" aria-hidden="true">{step.done ? "✓" : index + 1}</span>
+        <div class="step-body">
+          <h2><a href={step.href}>{step.title}</a></h2>
+          <p class="muted">{step.role} · {step.status}</p>
+          <p>{step.next}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+  <p class="muted creative-note">Your team has no live view of what is performing on social platforms. Research uses the posts you paste, what it knows about public content and your other Outfitter apps, and it says what each idea is based on.</p>
+</Layout>
+<script>import "../scripts/editor";</script>

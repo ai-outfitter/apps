@@ -1,0 +1,325 @@
+{
+  "answers": [
+    {
+      "id": "audience.person",
+      "answer": "Priya, a night-shift ICU nurse six years in, who loves the work but is running on caffeine and dread.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "audience.bad-day",
+      "answer": "Three admissions before midnight, no break, charting until 8:30, then lying awake at noon replaying everything.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "audience.complaint",
+      "answer": "\"I'm not tired, I'm empty. I don't know who I am outside of a shift.\"",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "audience.tried",
+      "answer": "Meditation apps, switching units, a wellness committee that met twice.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "story.lived",
+      "answer": "Eight years as an ER nurse, two of them burnt out enough that I nearly left medicine.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "story.turn",
+      "answer": "A patient's daughter asked how I was, and I couldn't answer. That night I wrote down what a good shift felt like.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "pillars.hours",
+      "answer": "Burnout, sleep, shift work, small habits, nursing culture, coaching, Stoicism.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "pillars.top",
+      "answer": "Recovering from burnout, sleep on nights, finding yourself outside the job.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "pillars.lens",
+      "answer": "Through the eyes of a nurse who stayed, not one who left.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "mission.sentence",
+      "answer": "I help healthcare workers get their energy and identity back without quitting the work they love.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "mission.contrarian",
+      "answer": "Burnout is not a resilience problem. It is a recovery problem.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "against.myth",
+      "answer": "That good nurses sacrifice themselves.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "updatedAt": 1793900000000
+    }
+  ],
+  "sources": [
+    {
+      "id": "s-own-x",
+      "kind": "own",
+      "name": "My posts on X",
+      "platform": "X",
+      "handle": "@example_nurse",
+      "url": "",
+      "examples": "\"Your shift ended at 7. Your nervous system didn't get the memo.\"\n\n\"Rest isn't what you do after the work is done. It's what lets you do the work.\"",
+      "notes": "Short, observational, second person. Best posts name a feeling nurses have not had words for.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "s-influence-1",
+      "kind": "influence",
+      "name": "A sleep researcher's lectures",
+      "platform": "YouTube",
+      "handle": "",
+      "url": "",
+      "examples": "Sleep pressure and circadian timing are separate systems.",
+      "notes": "Makes science feel practical. I borrow the habit of one mechanism per post.",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    }
+  ],
+  "profile": {
+    "id": "content",
+    "coreIdeas": "Recovery over resilience. You can love the work and still need to leave it at the door.",
+    "voice": "Warm, plain, a little dry. Speaks nurse to nurse, never down.",
+    "worldview": "The system will not fix this for you, but you are allowed to protect yourself inside it.",
+    "patterns": "A feeling named in the first line; one mechanism; one small action.",
+    "revision": 1,
+    "updatedBy": "demo-member",
+    "updatedAt": 1793900000000
+  },
+  "nodes": [
+    {
+      "id": "284c6c18-fc12-51d2-b191-e03ca83a0afd",
+      "parentId": null,
+      "level": "pillar",
+      "title": "Recovering from burnout",
+      "notes": "Recovery, not resilience.",
+      "research": "",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "47a0774d-3f63-5508-9a01-edfd1f0b2f67",
+      "parentId": null,
+      "level": "pillar",
+      "title": "Sleep on night shift",
+      "notes": "",
+      "research": "",
+      "position": 1,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "314fa9ce-b0cc-5001-b454-9339bedd978d",
+      "parentId": null,
+      "level": "pillar",
+      "title": "Who you are outside the job",
+      "notes": "",
+      "research": "",
+      "position": 2,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "ade0e7af-a56e-55ee-8d00-0dca6e98b395",
+      "parentId": "284c6c18-fc12-51d2-b191-e03ca83a0afd",
+      "level": "topic",
+      "title": "Why rest doesn't feel restful",
+      "notes": "",
+      "research": "",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "377aa5f2-fb1f-50b8-b9c1-789dd9caf4d0",
+      "parentId": "284c6c18-fc12-51d2-b191-e03ca83a0afd",
+      "level": "topic",
+      "title": "Leaving the shift at the door",
+      "notes": "",
+      "research": "",
+      "position": 1,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "86c3aded-f06d-589d-8ccd-aed266c2e301",
+      "parentId": "47a0774d-3f63-5508-9a01-edfd1f0b2f67",
+      "level": "topic",
+      "title": "Sleep pressure after a night",
+      "notes": "",
+      "research": "",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "37eda0a0-924f-5d33-90cb-1106b31e4c7a",
+      "parentId": "314fa9ce-b0cc-5001-b454-9339bedd978d",
+      "level": "topic",
+      "title": "Identity beyond the badge",
+      "notes": "",
+      "research": "",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "parentId": "ade0e7af-a56e-55ee-8d00-0dca6e98b395",
+      "level": "idea",
+      "title": "Your nervous system is still on shift",
+      "notes": "",
+      "research": "Pattern: 'your X didn't get the memo' posts were the member's best performers (pasted examples).",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "589fee65-4d19-5bbb-91bd-0a6996ddfedd",
+      "parentId": "ade0e7af-a56e-55ee-8d00-0dca6e98b395",
+      "level": "idea",
+      "title": "The 10-minute decompression in the car park",
+      "notes": "",
+      "research": "",
+      "position": 1,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "4abbd048-404f-58b1-b5f6-ed6158a41b74",
+      "parentId": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "level": "angle",
+      "title": "A story from my last ER shift",
+      "notes": "",
+      "research": "",
+      "position": 0,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "1c6f12ec-577f-549b-a2a4-20120e32e730",
+      "parentId": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "level": "angle",
+      "title": "The science in one paragraph",
+      "notes": "",
+      "research": "",
+      "position": 1,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "cb92c951-fdca-5b2b-b5cd-0c5e7f9af09b",
+      "parentId": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "level": "angle",
+      "title": "Three signs you're still on shift",
+      "notes": "",
+      "research": "",
+      "position": 2,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "98ccc68e-a0ea-544b-b68a-89361fb92641",
+      "parentId": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "level": "angle",
+      "title": "What I tell new grads",
+      "notes": "",
+      "research": "",
+      "position": 3,
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    }
+  ],
+  "drafts": [
+    {
+      "id": "d-1",
+      "nodeId": "4c048a68-8784-5a5d-8813-11e71bca7fbb",
+      "format": "post",
+      "title": "Your nervous system is still on shift",
+      "body": "Your shift ended at 7.\n\nYour nervous system didn't get the memo.\n\nThat's why you're wired at noon and empty at 6. It isn't weakness. It's a body that hasn't been told it's safe yet.\n\nTry this tomorrow: ten minutes in the car before you drive home. No phone. Just let the shift end.",
+      "status": "ready",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793900000000
+    },
+    {
+      "id": "d-2",
+      "nodeId": null,
+      "format": "thread",
+      "title": "What nobody told me about nights",
+      "body": "1/ Eight years of nights taught me sleep is two systems, not one.",
+      "status": "draft",
+      "revision": 1,
+      "updatedBy": "demo-member",
+      "createdAt": 1793900000000,
+      "updatedAt": 1793899999000
+    }
+  ]
+}

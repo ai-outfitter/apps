@@ -1,0 +1,36 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "../components/Layout.astro";
+import { brandQuestions, brandSections } from "../lib/brand";
+import { pageState } from "../server/page-state";
+
+const { state, canEdit, demo } = await pageState(Astro.request);
+const answers = new Map(state.answers.map((row) => [row.id, row]));
+const answered = brandQuestions.filter((question) => answers.get(question.id)?.answer.trim()).length;
+const next = brandQuestions.find((question) => !answers.get(question.id)?.answer.trim());
+const readOnly = demo || !canEdit;
+const summary = `Brand interview: ${answered} of ${brandQuestions.length} answered.${next ? ` Next unanswered: ${next.id} "${next.text}"` : ""}`;
+---
+<Layout title="Brand" description="Your intellectual signature. These answers shape your brand and become content topics you post about over 6 to 12 months, not in one post." page="brand">
+  <p class="muted" data-agent-summary={summary}>{answered} of {brandQuestions.length} answered.{next ? " Ask your team to interview you, or answer below in your own words." : " Every question has an answer. Revisit them as you change."}</p>
+  {brandSections.map((section) => (
+    <section class="paper brand-section" aria-labelledby={`section-${section.id}`}>
+      <h2 id={`section-${section.id}`}>{section.title}</h2>
+      <p class="muted">{section.summary}</p>
+      {section.questions.map((question) => {
+        const answer = answers.get(question.id);
+        return (
+          <form data-astro-reload class="brand-question" data-write="SaveBrandAnswer" data-saved="Answer saved.">
+            <label for={`q-${question.id}`}>{question.text}</label>
+            {question.hint ? <p class="muted hint" id={`h-${question.id}`}>{question.hint}</p> : null}
+            <textarea id={`q-${question.id}`} name="answer" rows="3" maxlength="8000" aria-describedby={question.hint ? `h-${question.id}` : undefined} readonly={readOnly}>{answer?.answer ?? ""}</textarea>
+            <input type="hidden" name="questionId" value={question.id} />
+            <input type="hidden" name="revision" data-kind="number" value={answer ? String(answer.revision) : ""} />
+            {readOnly ? null : <div class="form-actions"><Button type="submit" variant="secondary">Save</Button></div>}
+          </form>
+        );
+      })}
+    </section>
+  ))}
+</Layout>
+<script>import "../scripts/editor";</script>

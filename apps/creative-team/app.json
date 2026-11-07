@@ -1,0 +1,66 @@
+{
+  "id": "outfitter/creative-team",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "data.export",
+        "api.serve",
+        "graph.serve",
+        "workflow.host",
+        "threads.use",
+        "threads.provide"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "personal": true,
+    "operational": {
+      "slug": "creative-team",
+      "name": "Creative team",
+      "description": "A one-person creative team for your personal brand: interview, content map and drafts in your voice."
+    },
+    "demo": {
+      "slug": "creative-team",
+      "name": "Creative team",
+      "description": "Explore a sample brand document, content map and drafts. Nothing is saved and no model runs."
+    },
+    "sections": [
+      { "label": "Overview", "path": "" },
+      { "label": "Brand", "path": "brand" },
+      { "label": "Content", "path": "content" },
+      { "label": "Map", "path": "map" },
+      { "label": "Drafts", "path": "drafts" }
+    ],
+    "presentation": {
+      "outcome": "Build a brand people can't help but explore: a clear position, months of content ideas through your own lens, and drafts that are almost there.",
+      "connectors": [],
+      "steps": [
+        [
+          "Brand interview",
+          "Answer the intellectual signature questions, by hand or with the brand strategist asking one at a time. The answers become your brand document."
+        ],
+        [
+          "Content document",
+          "Paste your best posts from each platform, or the 5 to 10 people who shaped your thinking, and note the ideas, voice and worldview behind them."
+        ],
+        [
+          "Content map",
+          "The content strategist proposes 3 to 4 pillars, 5 to 7 topics each, 5 to 10 ideas per topic and 4 to 5 angles per idea, through your lens."
+        ],
+        [
+          "Drafts",
+          "The writer drafts posts, threads, articles and scripts from the map. You review, rewrite and post them yourself."
+        ]
+      ],
+      "access": "Your brand, content and drafts live in this installation's own database. The assistant reads them and proposes changes; nothing is saved until you approve it, and it never posts for you. It does not scrape social platforms: research uses what you paste, its own knowledge and your other Outfitter apps. It uses your organization's or your own inference provider. Demo data is synthetic and read-only."
+    },
+    "cover": "catalog/cover.svg"
+  }
+}

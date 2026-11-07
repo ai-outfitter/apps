@@ -1,0 +1,1141 @@
+[
+  {
+    "name": "AddMapBranch",
+    "kind": "mutation",
+    "story": "As a creator, I want to add pillars, topics, ideas and angles to my content map, so that I have months of ideas through my own lens.",
+    "query": "mutation AddMapBranch($input: AddMapBranchInput!) {\n  addMapBranch(input: $input) {\n    added\n    ids\n  }\n}",
+    "hash": "54bd22346c7cf389e93e562b02f0d77eb06f1c1025280193e995166bde2d0033",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AddMapBranchInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "BrandAnswers",
+    "kind": "query",
+    "story": "As a caller, I want to search brandAnswers with compact results, so that I can select records and continue through every page.",
+    "query": "query BrandAnswers($first: Int = 20, $after: String, $ids: [ID!], $search: String) {\n  brandAnswers(first: $first, after: $after, ids: $ids, search: $search) {\n    nodes {\n      id\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "5487f3dcb0fb8e9cd44ba11ac28ca62356b48c5c9b08d2aff6640c31bac2fff5",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "BrandChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to save brand interview answers using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation BrandChanges($input: BrandChangesInput!) {\n  brandChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "bcb3b2c7142f0a4a5fb9cc774ab8296bb028089f3c20d11e096209f59e67a3e3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL BrandChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveBrandAnswer"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "questionId": {
+                            "type": "string",
+                            "enum": [
+                              "audience.person",
+                              "audience.bad-day",
+                              "audience.complaint",
+                              "audience.tried",
+                              "story.lived",
+                              "story.turn",
+                              "story.built",
+                              "story.results",
+                              "influences.never-skip",
+                              "influences.idea",
+                              "influences.changed",
+                              "pillars.hours",
+                              "pillars.top",
+                              "pillars.lens",
+                              "pillars.advice",
+                              "pillars.explain",
+                              "mission.sentence",
+                              "mission.contrarian",
+                              "mission.wrong-advice",
+                              "against.hurting",
+                              "against.escape",
+                              "against.myth",
+                              "now.changed",
+                              "destination.five-years",
+                              "destination.bio",
+                              "destination.role",
+                              "words.rules",
+                              "words.names"
+                            ]
+                          },
+                          "answer": {
+                            "type": "string",
+                            "maxLength": 8000
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "questionId",
+                          "answer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "BrandQuestions",
+    "kind": "query",
+    "story": "As a creator or an agent interviewing them, I want the brand interview's questions in order, so that answers land on the right question.",
+    "query": "query BrandQuestions {\n  brandQuestions {\n    id\n    section\n    sectionTitle\n    text\n    hint\n  }\n}",
+    "hash": "d20cfedaef65a763180d75c62ba3c71a2aaeb4bc5bd5f789149ba0e710a95eee",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "ContentChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to save content document sources and the content profile using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ContentChanges($input: ContentChangesInput!) {\n  contentChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "5dfde2fa4b5652759ad5a10ab5b08f13f3545a11009afd91d4e630533c5eb386",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ContentChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveSource"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "own",
+                              "influence"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "platform": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "handle": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "url": {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          "examples": {
+                            "type": "string",
+                            "maxLength": 20000
+                          },
+                          "notes": {
+                            "type": "string",
+                            "maxLength": 8000
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteSource"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveContentProfile"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "coreIdeas": {
+                            "type": "string",
+                            "maxLength": 8000
+                          },
+                          "voice": {
+                            "type": "string",
+                            "maxLength": 8000
+                          },
+                          "worldview": {
+                            "type": "string",
+                            "maxLength": 8000
+                          },
+                          "patterns": {
+                            "type": "string",
+                            "maxLength": 8000
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "ContentProfiles",
+    "kind": "query",
+    "story": "As a caller, I want to search contentProfiles with compact results, so that I can select records and continue through every page.",
+    "query": "query ContentProfiles($first: Int = 20, $after: String, $ids: [ID!], $search: String) {\n  contentProfiles(first: $first, after: $after, ids: $ids, search: $search) {\n    nodes {\n      id\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "115a755a8450d0c40bb6dc877fc6aedb15f79390ca3327e5a109869d9137623d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteDraft",
+    "kind": "mutation",
+    "story": "As a creator, I want to remove a draft I won't post, so that my drafts list stays short.",
+    "query": "mutation DeleteDraft($input: DeleteDraftInput!) {\n  deleteDraft(input: $input) {\n    id\n    deleted\n  }\n}",
+    "hash": "baa85087c1c6544d687b80fd8b4e79b1eea362b584c43eeceefb6da3bea5299f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteDraftInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteMapNode",
+    "kind": "mutation",
+    "story": "As a creator, I want to remove a branch of my content map I no longer want to post about, so that the map stays mine.",
+    "query": "mutation DeleteMapNode($input: DeleteMapNodeInput!) {\n  deleteMapNode(input: $input) {\n    id\n    deleted\n  }\n}",
+    "hash": "f8a0b515e5a457be04307479d5547b6bb13b401b32a9941363d8c17d11112cb3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteMapNodeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteSource",
+    "kind": "mutation",
+    "story": "As a creator, I want to remove a source that no longer represents me, so that the content document stays focused.",
+    "query": "mutation DeleteSource($input: DeleteSourceInput!) {\n  deleteSource(input: $input) {\n    id\n    deleted\n  }\n}",
+    "hash": "1f13a9761d0ed1cfe5512cbdced49e18f8558a0b47478882703e5fddce8d5043",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteSourceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DraftChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to save or remove post drafts using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation DraftChanges($input: DraftChangesInput!) {\n  draftChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "acc90c3fa5bf984682e90003027e62040b6f889a18b0758b66d4e6fce9821af8",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DraftChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveDraft"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "nodeId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "format": {
+                            "type": "string",
+                            "enum": [
+                              "post",
+                              "thread",
+                              "article",
+                              "newsletter",
+                              "short-video",
+                              "long-video"
+                            ]
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "body": {
+                            "type": "string",
+                            "maxLength": 20000
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "ready",
+                              "posted",
+                              "archived"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "format",
+                          "title",
+                          "body"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteDraft"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "Drafts",
+    "kind": "query",
+    "story": "As a caller, I want to search drafts with compact results, so that I can select records and continue through every page.",
+    "query": "query Drafts($first: Int = 20, $after: String, $ids: [ID!], $search: String, $status: [String!], $nodeId: [ID!]) {\n  drafts(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    status: $status\n    nodeId: $nodeId\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "1d3505243b207be7df440db9af1bc160306cdca726e9f2b295dd8a6c707a6559",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "status": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "nodeId": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "MapChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to add, change or remove content map pillars, topics, ideas and angles using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation MapChanges($input: MapChangesInput!) {\n  mapChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "7d709ad06c2f2f31fbac2c07c3d163d74597c9d5a86db52018f6eb5e242c045c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MapChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "addMapBranch"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "parentId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "nodes": {
+                            "minItems": 1,
+                            "maxItems": 12,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 300
+                                },
+                                "notes": {
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "research": {
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "children": {
+                                  "maxItems": 10,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 300
+                                      },
+                                      "notes": {
+                                        "type": "string",
+                                        "maxLength": 4000
+                                      },
+                                      "research": {
+                                        "type": "string",
+                                        "maxLength": 4000
+                                      },
+                                      "children": {
+                                        "maxItems": 12,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 300
+                                            },
+                                            "notes": {
+                                              "type": "string",
+                                              "maxLength": 4000
+                                            },
+                                            "research": {
+                                              "type": "string",
+                                              "maxLength": 4000
+                                            },
+                                            "children": {
+                                              "maxItems": 10,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "title": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 300
+                                                  },
+                                                  "notes": {
+                                                    "type": "string",
+                                                    "maxLength": 4000
+                                                  },
+                                                  "research": {
+                                                    "type": "string",
+                                                    "maxLength": 4000
+                                                  }
+                                                },
+                                                "required": [
+                                                  "title"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "title"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "nodes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "saveMapNode"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "notes": {
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          "research": {
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteMapNode"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "MapNodes",
+    "kind": "query",
+    "story": "As a caller, I want to search mapNodes with compact results, so that I can select records and continue through every page.",
+    "query": "query MapNodes($first: Int = 20, $after: String, $ids: [ID!], $search: String, $level: [String!], $parentId: [ID!]) {\n  mapNodes(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    level: $level\n    parentId: $parentId\n  ) {\n    nodes {\n      id\n      title\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "8d9cfb297ed803cce33a29a9533fe6d3f6abac2ca862d6574b1310d94984261c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "level": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "parentId": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveBrandAnswer",
+    "kind": "mutation",
+    "story": "As a creator, I want to save my answer to a brand interview question, so that my brand document grows as I think.",
+    "query": "mutation SaveBrandAnswer($input: SaveBrandAnswerInput!) {\n  saveBrandAnswer(input: $input) {\n    id\n    answer\n    revision\n  }\n}",
+    "hash": "82233056e8c2428c59e23deb4274b9df5c6d5bbd22489e5b2395609854ba6114",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveBrandAnswerInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveContentProfile",
+    "kind": "mutation",
+    "story": "As a creator, I want to save the core ideas, voice and worldview my sources share, so that every draft carries them.",
+    "query": "mutation SaveContentProfile($input: SaveContentProfileInput!) {\n  saveContentProfile(input: $input) {\n    id\n    revision\n  }\n}",
+    "hash": "863ac1f3a4e38d153366313fa6a1d29d99d0cbf53bad57729e3febc3a72d6fef",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveContentProfileInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveDraft",
+    "kind": "mutation",
+    "story": "As a creator, I want to save and edit drafts written from my content map, so that I review and rewrite instead of starting from scratch.",
+    "query": "mutation SaveDraft($input: SaveDraftInput!) {\n  saveDraft(input: $input) {\n    id\n    status\n    revision\n  }\n}",
+    "hash": "fe46486c8612553fbddc921b5fd28abb60b59766273efed819deefaddda0ddbb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveDraftInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveMapNode",
+    "kind": "mutation",
+    "story": "As a creator, I want to rename or annotate a map node, so that the map says what I mean.",
+    "query": "mutation SaveMapNode($input: SaveMapNodeInput!) {\n  saveMapNode(input: $input) {\n    id\n    title\n    revision\n  }\n}",
+    "hash": "a2b7a114058de947fd95b256696ed7421ca07dbe4da706060540a377448466c1",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveMapNodeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SaveSource",
+    "kind": "mutation",
+    "story": "As a creator, I want to add my best posts or the people who shaped me to my content document, so that ideas and drafts start from what makes me unique.",
+    "query": "mutation SaveSource($input: SaveSourceInput!) {\n  saveSource(input: $input) {\n    id\n    kind\n    name\n    revision\n  }\n}",
+    "hash": "d78beb90f31662e4c55f43f29c1d1cf66ed3051dfc325c121b77a6510ef7b7e1",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveSourceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "Sources",
+    "kind": "query",
+    "story": "As a caller, I want to search sources with compact results, so that I can select records and continue through every page.",
+    "query": "query Sources($first: Int = 20, $after: String, $ids: [ID!], $search: String, $kind: [String!]) {\n  sources(first: $first, after: $after, ids: $ids, search: $search, kind: $kind) {\n    nodes {\n      id\n      name\n      kind\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "8e4eaee6558bd90a093e419f158d9961b3dfd17152c3afb82d187e5ac7fd49b0",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "kind": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  }
+]

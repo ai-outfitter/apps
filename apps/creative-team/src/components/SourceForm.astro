@@ -1,0 +1,31 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { sourceKindLabels, sourceKinds } from "../lib/brand";
+import type { BrandState } from "../server/store";
+
+interface Props { source?: BrandState["sources"][number]; readOnly: boolean }
+const { source, readOnly } = Astro.props;
+const key = source?.id ?? "new";
+---
+<form data-astro-reload class="source-form" data-write="SaveSource" data-saved={source ? "Source saved." : "Source added."}>
+  {source ? <input type="hidden" name="id" value={source.id} /> : null}
+  {source ? <input type="hidden" name="revision" data-kind="number" value={String(source.revision)} /> : null}
+  <div class="field-row">
+    <label>Kind
+      <select name="kind" disabled={readOnly}>
+        {sourceKinds.map((kind) => <option value={kind} selected={(source?.kind ?? "own") === kind}>{sourceKindLabels[kind]}</option>)}
+      </select>
+    </label>
+    <label>Name <input name="name" required maxlength="200" value={source?.name ?? ""} placeholder="My posts on X, or a person's name" readonly={readOnly} /></label>
+  </div>
+  <div class="field-row">
+    <label>Platform <input name="platform" maxlength="80" value={source?.platform ?? ""} placeholder="X, YouTube, Substack, books…" readonly={readOnly} /></label>
+    <label>Handle <input name="handle" maxlength="200" value={source?.handle ?? ""} placeholder="@handle" readonly={readOnly} /></label>
+    <label>Link <input name="url" type="url" maxlength="2000" value={source?.url ?? ""} placeholder="https://" readonly={readOnly} /></label>
+  </div>
+  <label for={`examples-${key}`}>Best posts or ideas</label>
+  <textarea id={`examples-${key}`} name="examples" rows="5" maxlength="20000" placeholder="Paste 10 to 20 of the best posts, or the ideas you keep from them." readonly={readOnly}>{source?.examples ?? ""}</textarea>
+  <label for={`notes-${key}`}>What makes them unique</label>
+  <textarea id={`notes-${key}`} name="notes" rows="3" maxlength="8000" placeholder="Core ideas, the parts of the voice with personality, the worldview people rally behind." readonly={readOnly}>{source?.notes ?? ""}</textarea>
+  {readOnly ? null : <div class="form-actions"><Button type="submit" variant={source ? "secondary" : "primary"}>{source ? "Save source" : "Add source"}</Button></div>}
+</form>
