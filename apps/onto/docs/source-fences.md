@@ -45,6 +45,11 @@ instant, definition digest, and complete membership sets.
 Limits are 32 membership sets, 2,000 records per set, 100 total revision
 preconditions (including marker type), and 512 KiB of encoded proof/snapshot.
 Exceeding a limit refuses issuance instead of returning complete partial evidence.
+The selection queries are bounded; the existing `graph.apply` writer still
+materializes the owner's graph for ontology validation. This primitive does not
+yet provide end-to-end bounded graph-write validation or large-owner scalability.
+That writer needs a separate bound or incremental validation strategy before
+promising this behavior for large installations.
 A proof admits new fence attempts for five minutes. In-flight attempts that were
 admitted before expiry may finish; a confirmed historical receipt remains
 reconcilable after expiry. A replayed capture retains its original instant and
