@@ -10,5 +10,5 @@ import { graphqlSchema } from "../../../../../server/graphql";
 // which runs the mutation documents the app publishes (src/server/documents.ts) for editors.
 const actions = { "graph.graphql": graphqlAction(graphqlSchema), "graph.mutate": mutateAction(graphqlSchema) };
 
-export const ALL: APIRoute = ({ request, params }) =>
-  respond(() => actionAPI(request, params.operation ?? "", actions, () => creativeServices()));
+export const ALL: APIRoute = ({ request, params, locals }) =>
+  respond(() => actionAPI(request, params.operation ?? "", actions, () => creativeServices(locals)));

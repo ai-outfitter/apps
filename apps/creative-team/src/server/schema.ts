@@ -5,7 +5,7 @@ import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-cor
 // This installation's own database (docs/app-databases.md): one brand per
 // installation. Install it personally for your own brand, or once per client in an
 // organization. User IDs name platform users and are not foreign keys. After
-// changing it, run `npm run db:generate:app -- creative-team` and commit the migration.
+// changing it, run `npx drizzle-kit generate` in this app and commit the migration.
 
 /** The brand document: one answer per interview question (src/lib/brand.ts). */
 export const brandAnswers = sqliteTable("brand_answers", {
@@ -97,4 +97,21 @@ export const drafts = sqliteTable(
     index("drafts_status_idx").on(t.status, t.updatedAt),
     check("drafts_status_check", sql`${t.status} IN ('draft', 'ready', 'posted', 'archived')`),
   ],
+);
+
+/** Change batches this app staged in the member's Wiki, newest last; the Wiki decides what commits. */
+export const wikiBatches = sqliteTable(
+  "wiki_batches",
+  {
+    id: text().primaryKey(),
+    wikiInstallationId: text().notNull(),
+    /** The Wiki's address, for a link to its review page. */
+    wikiPath: text().notNull(),
+    state: text().notNull(),
+    proposals: integer().notNull(),
+    createdBy: text(),
+    createdAt: integer().notNull(),
+    updatedAt: integer().notNull(),
+  },
+  (t) => [index("wiki_batches_created_idx").on(t.createdAt)],
 );

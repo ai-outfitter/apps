@@ -92,7 +92,7 @@
   {
     "name": "BrandChanges",
     "kind": "mutation",
-    "story": "As an authorized caller, I want to save brand interview answers using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "story": "As an authorized caller, I want to save brand interview answers, or stage the interview and what it names in the member's Wiki for review, using explicit actions, so that each change has a durable receipt and explicit next steps.",
     "query": "mutation BrandChanges($input: BrandChangesInput!) {\n  brandChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
     "hash": "bcb3b2c7142f0a4a5fb9cc774ab8296bb028089f3c20d11e096209f59e67a3e3",
     "variables": {
@@ -107,7 +107,7 @@
       ]
     },
     "mcp": {
-      "description": "Save brand interview answers in the member's own words. Never write an answer the member did not give."
+      "description": "Save brand interview answers in the member's own words (never an answer they did not give), or stage the interview in their Wiki with the people, audiences, problems, offerings and goals it names, as one change batch they review."
     },
     "inputSchema": {
       "type": "object",
@@ -183,6 +183,150 @@
                         "required": [
                           "questionId",
                           "answer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "stageBrandInterview"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "self": {
+                            "type": "object",
+                            "properties": {
+                              "existingId": {
+                                "description": "The member's own Person record in the Wiki, if there is one (creative_team_wiki_read lists people).",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "title": {
+                                "description": "The member's name, to create their Person record when the Wiki has none.",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 160
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "entities": {
+                            "default": [],
+                            "maxItems": 60,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                  "description": "Your short stable name for this record, e.g. naval-ravikant. Reuse it to change the same record later."
+                                },
+                                "existingId": {
+                                  "description": "An existing Wiki record of this kind to reuse instead of creating one (from creative_team_wiki_read).",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Person",
+                                    "CustomerSegment",
+                                    "Problem",
+                                    "Offering",
+                                    "Goal"
+                                  ]
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160,
+                                  "description": "Its name as the member said it."
+                                },
+                                "summary": {
+                                  "default": "",
+                                  "description": "One line on who or what it is, from the member's words.",
+                                  "type": "string",
+                                  "maxLength": 280
+                                },
+                                "questionIds": {
+                                  "minItems": 1,
+                                  "maxItems": 28,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "audience.person",
+                                      "audience.bad-day",
+                                      "audience.complaint",
+                                      "audience.tried",
+                                      "story.lived",
+                                      "story.turn",
+                                      "story.built",
+                                      "story.results",
+                                      "influences.never-skip",
+                                      "influences.idea",
+                                      "influences.changed",
+                                      "pillars.hours",
+                                      "pillars.top",
+                                      "pillars.lens",
+                                      "pillars.advice",
+                                      "pillars.explain",
+                                      "mission.sentence",
+                                      "mission.contrarian",
+                                      "mission.wrong-advice",
+                                      "against.hurting",
+                                      "against.escape",
+                                      "against.myth",
+                                      "now.changed",
+                                      "destination.five-years",
+                                      "destination.bio",
+                                      "destination.role",
+                                      "words.rules",
+                                      "words.names"
+                                    ]
+                                  },
+                                  "description": "The answers that name it."
+                                },
+                                "relation": {
+                                  "description": "influenced_by: a Person who shaped the member's thinking. serves_audience: a CustomerSegment the member makes content for.",
+                                  "type": "string",
+                                  "enum": [
+                                    "influenced_by",
+                                    "serves_audience"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "kind",
+                                "title",
+                                "questionIds"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "self"
                         ],
                         "additionalProperties": false
                       }
@@ -315,6 +459,74 @@
               "hint": {
                 "type": "string",
                 "nullable": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "BrandWikiBatches",
+    "kind": "query",
+    "story": "As a caller, I want to search brandWikiBatches with compact results, so that I can select records and continue through every page.",
+    "query": "query BrandWikiBatches($first: Int = 20, $after: String, $ids: [ID!], $search: String) {\n  brandWikiBatches(first: $first, after: $after, ids: $ids, search: $search) {\n    nodes {\n      id\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "2e2f0221cac594b285260fc60d0f31b723e8e855e115fc092c35aed2933e7924",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read the Wiki change batches the brand interview was staged in, newest last, with their review state."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "brandWikiBatches": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
               }
             }
           }
@@ -1668,5 +1880,24 @@
         }
       }
     }
+  },
+  {
+    "name": "StageBrandInterview",
+    "kind": "mutation",
+    "story": "As a creator, I want my brand interview saved in my Wiki with the people, audiences and goals it names, so that my knowledge graph knows my brand and I review every change first.",
+    "query": "mutation StageBrandInterview($input: StageBrandInterviewInput!) {\n  stageBrandInterview(input: $input) {\n    batchId\n    state\n    proposals\n    wikiPath\n  }\n}",
+    "hash": "12aa7212223d5973f54570415d8ff887faaa45a16ae08ca490714c6b846ca96f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageBrandInterviewInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   }
 ]

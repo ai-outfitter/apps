@@ -46,6 +46,14 @@ type Query {
     status: [String!]
     nodeId: [ID!]
   ): DraftConnection!
+  brandWikiBatches(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+  ): BrandWikiBatchRowConnection!
 }
 
 """
@@ -154,10 +162,74 @@ type Draft {
   updatedAt: DateTime!
 }
 
+type BrandWikiBatchRowConnection {
+  nodes: [BrandWikiBatchRow!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type BrandWikiBatchRow {
+  id: ID!
+  wikiInstallationId: String!
+  wikiPath: String!
+  state: String!
+  proposals: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 input SaveBrandAnswerInput {
   questionId: String!
   answer: String!
   revision: Float
+}
+
+"""The Wiki change batch a brand interview was staged in."""
+type BrandWikiBatch {
+  """Null when the Wiki already had everything."""
+  batchId: ID
+
+  """awaiting_review until the member (or the Wiki's policy) decides it."""
+  state: String
+
+  """Records and links proposed."""
+  proposals: Int!
+
+  """The Wiki's address; its review page is changes/<batchId> there."""
+  wikiPath: String!
+}
+
+input StageBrandInterviewInput {
+  self: StageBrandInterviewInputSelf!
+  entities: [StageBrandInterviewInputEntitiesItem!]
+}
+
+input StageBrandInterviewInputSelf {
+  existingId: ID
+  title: String
+}
+
+input StageBrandInterviewInputEntitiesItem {
+  key: String!
+  existingId: ID
+  kind: StageBrandInterviewInputEntitiesItemKind!
+  title: String!
+  summary: String
+  questionIds: [String!]!
+  relation: StageBrandInterviewInputEntitiesItemRelation
+}
+
+enum StageBrandInterviewInputEntitiesItemKind {
+  Person
+  CustomerSegment
+  Problem
+  Offering
+  Goal
+}
+
+enum StageBrandInterviewInputEntitiesItemRelation {
+  influenced_by
+  serves_audience
 }
 
 input SaveSourceInput {
@@ -280,6 +352,11 @@ type Mutation {
   saveBrandAnswer(input: SaveBrandAnswerInput!): BrandAnswer!
 
   """
+  Save the brand interview to the member's Wiki as one change batch for review: a BrandInterview document (JSON body, answers in the member's words) plus the people, audiences (CustomerSegment), problems, offerings and goals the answers name, reusing existing Wiki records by existingId, and the links between them. Submits the batch; nothing commits until it is reviewed on the Wiki's Changes page. Refused while the previous interview batch still awaits review. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  stageBrandInterview(input: StageBrandInterviewInput!): BrandWikiBatch!
+
+  """
   Add a content source (omit id): the creator's own posts on one platform (kind own) or a person who shaped their thinking (kind influence), with pasted examples and notes on their core ideas, voice and worldview. With id and revision, change one; omitted fields are kept. Editors only: the owner of a personal installation, or an organization's owners and admins.
   """
   saveSource(input: SaveSourceInput!): Source!
@@ -319,7 +396,9 @@ type Mutation {
   """
   deleteDraft(input: DeleteDraftInput!): Deleted!
 
-  """Save brand interview answers using explicit actions"""
+  """
+  Save brand interview answers, or stage the interview and what it names in the member's Wiki for review, using explicit actions
+  """
   brandChanges(input: BrandChangesInput!): ChangeResults
 
   """
@@ -374,6 +453,7 @@ input BrandChangesInputItemsItem {
 
 enum BrandChangesInputItemsItemAction {
   saveBrandAnswer
+  stageBrandInterview
 }
 
 input ContentChangesInput {

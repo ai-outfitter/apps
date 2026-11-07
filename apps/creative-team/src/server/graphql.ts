@@ -7,7 +7,8 @@ import type { z } from "zod";
 import { brandSections } from "../lib/brand";
 import type { CreativeContext } from "./context";
 import { batchGroups } from "./batch-groups";
-import { brandAnswers, contentProfile, drafts, mapNodes, sources } from "./schema";
+import { brandAnswers, contentProfile, drafts, mapNodes, sources, wikiBatches } from "./schema";
+import { stageInput, stageInterview } from "./wiki";
 import {
   addBranch, answerInput, branchInput, deleteDraft, deleteInput, deleteNode, deleteSource, draftInput, nodeInput, profileInput, saveAnswer, saveDraft, saveNode,
   saveProfile, saveSource, sourceInput,
@@ -41,6 +42,14 @@ const branchResult = new GraphQLObjectType({ name: "MapBranchAdded", fields: {
   ids: { type: nonNull(new GraphQLList(nonNull(GraphQLID))), description: "The top nodes of the branch, in order." },
 } });
 
+const wikiBatch = new GraphQLObjectType({ name: "BrandWikiBatch", description: "The Wiki change batch a brand interview was staged in.", fields: {
+  batchId: { type: GraphQLID, description: "Null when the Wiki already had everything." },
+  state: { type: GraphQLString, description: "awaiting_review until the member (or the Wiki's policy) decides it." },
+  proposals: { type: nonNull(GraphQLInt), description: "Records and links proposed." },
+  wikiPath: { type: nonNull(GraphQLString), description: "The Wiki's address; its review page is changes/<batchId> there." },
+} });
+const batchRows = tableType(wikiBatches, { field: "brandWikiBatches", type: "BrandWikiBatchRow", fields: ["wikiInstallationId", "wikiPath", "state", "proposals", "createdAt", "updatedAt"], dates: ["createdAt", "updatedAt"] });
+
 const editors = "Editors only: the owner of a personal installation, or an organization's owners and admins.";
 const field = <I extends z.ZodType>(name: string, description: string, input: I, output: GraphQLObjectType | GraphQLNonNull<GraphQLObjectType>, run: (context: CreativeContext, input: z.output<I>) => unknown) =>
   mutationField<I, CreativeContext>({ name, description: `${description} ${editors}`, input, output: output instanceof GraphQLNonNull ? output : nonNull(output), run });
@@ -50,6 +59,11 @@ const mutation = new GraphQLObjectType<unknown, CreativeContext>({
   fields: {
     saveBrandAnswer: field("SaveBrandAnswer", "Save the answer to one brand interview question (brandQuestions). Omit revision for a question with no answer yet; otherwise send the revision you read.",
       answerInput, row(answerRows), (context, input) => saveAnswer(context.db(), context.identity, input)),
+    stageBrandInterview: field("StageBrandInterview", "Save the brand interview to the member's Wiki as one change batch for review: a BrandInterview document (JSON body, answers in the member's words) plus the people, audiences (CustomerSegment), problems, offerings and goals the answers name, reusing existing Wiki records by existingId, and the links between them. Submits the batch; nothing commits until it is reviewed on the Wiki's Changes page. Refused while the previous interview batch still awaits review.",
+      stageInput, wikiBatch, async (context, input) => {
+        const saved = await stageInterview(context.db(), context.identity, context.host(), input);
+        return { batchId: saved.batch?.id ?? null, state: saved.batch?.state ?? null, proposals: saved.proposals, wikiPath: saved.wikiPath };
+      }),
     saveSource: field("SaveSource", "Add a content source (omit id): the creator's own posts on one platform (kind own) or a person who shaped their thinking (kind influence), with pasted examples and notes on their core ideas, voice and worldview. With id and revision, change one; omitted fields are kept.",
       sourceInput, row(sourceRows), (context, input) => saveSource(context.db(), context.identity, input)),
     deleteSource: field("DeleteSource", "Remove a content source at the revision you read.", deleteInput, deleted, (context, input) => deleteSource(context.db(), context.identity, input)),
@@ -77,7 +91,7 @@ const baseSchema = new GraphQLSchema({
         type: nonNull(new GraphQLList(nonNull(question))), description: "The onboarding interview that builds the brand document, in order.",
         resolve: () => brandSections.flatMap((section) => section.questions.map((item) => ({ ...item, section: section.id, sectionTitle: section.title, hint: item.hint ?? null }))),
       },
-      ...answerRows, ...sourceRows, ...profileRows, ...nodeRows, ...draftRows,
+      ...answerRows, ...sourceRows, ...profileRows, ...nodeRows, ...draftRows, ...batchRows,
     },
   }),
   mutation,

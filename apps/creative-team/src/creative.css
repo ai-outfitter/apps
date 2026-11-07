@@ -39,6 +39,8 @@
 .brand-section { display: grid; gap: 16px; }
 .ui-content .brand-section h2 { margin: 0; }
 .ui-content .brand-section > p { margin: -8px 0 0; }
+.wiki-panel, .wiki-save { display: grid; gap: 12px; }
+.ui-content .wiki-panel h2, .ui-content .wiki-panel p { margin: 0; }
 .brand-question label { font-weight: 600; }
 
 /* Content and drafts */

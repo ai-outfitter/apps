@@ -18,6 +18,10 @@ const pageDocuments = defineDocuments({
     story: "As a creator, I want to save my answer to a brand interview question, so that my brand document grows as I think.",
     document: graphql("mutation SaveBrandAnswer($input: SaveBrandAnswerInput!) { saveBrandAnswer(input: $input) { id answer revision } }"),
   },
+  StageBrandInterview: {
+    story: "As a creator, I want my brand interview saved in my Wiki with the people, audiences and goals it names, so that my knowledge graph knows my brand and I review every change first.",
+    document: graphql("mutation StageBrandInterview($input: StageBrandInterviewInput!) { stageBrandInterview(input: $input) { batchId state proposals wikiPath } }"),
+  },
   SaveSource: {
     story: "As a creator, I want to add my best posts or the people who shaped me to my content document, so that ideas and drafts start from what makes me unique.",
     document: graphql("mutation SaveSource($input: SaveSourceInput!) { saveSource(input: $input) { id kind name revision } }"),
@@ -61,7 +65,8 @@ export const documents = publishDocuments(withBatchDocuments(pageDocuments, grap
   ContentProfiles: { description: "Read the content document's synthesis: core ideas, voice, worldview and replicable patterns." },
   MapNodes: { description: "Read the content map: pillars, topics, ideas and angles, filterable by level or parent." },
   Drafts: { description: "Read post drafts written from the content map, with format and status." },
-  BrandChanges: { description: "Save brand interview answers in the member's own words. Never write an answer the member did not give." },
+  BrandWikiBatches: { description: "Read the Wiki change batches the brand interview was staged in, newest last, with their review state." },
+  BrandChanges: { description: "Save brand interview answers in the member's own words (never an answer they did not give), or stage the interview in their Wiki with the people, audiences, problems, offerings and goals it names, as one change batch they review." },
   ContentChanges: { description: "Add, change or delete content sources and save the voice, ideas and worldview synthesis." },
   MapChanges: { description: "Add content map branches (pillars, topics, ideas, angles), change a node, or delete a branch." },
   DraftChanges: { description: "Save, revise or delete post drafts. Drafts are never posted anywhere." },

@@ -15,6 +15,13 @@
       "when": 1793975225730,
       "tag": "0001_agent_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794050889179,
+      "tag": "0002_wiki_batches",
+      "breakpoints": true
     }
   ]
 }

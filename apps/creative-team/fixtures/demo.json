@@ -321,5 +321,12 @@
       "createdAt": 1793900000000,
       "updatedAt": 1793899999000
     }
-  ]
+  ],
+  "wikiBatch": {
+    "id": "d3m0b47c-0000-4000-8000-000000000001",
+    "state": "awaiting_review",
+    "proposals": 14,
+    "wikiPath": "/apps/wiki-map/",
+    "createdAt": 1793880000000
+  }
 }

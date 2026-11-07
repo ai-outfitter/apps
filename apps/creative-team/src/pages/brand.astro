@@ -4,15 +4,37 @@ import Layout from "../components/Layout.astro";
 import { brandQuestions, brandSections } from "../lib/brand";
 import { pageState } from "../server/page-state";
 
-const { state, canEdit, demo } = await pageState(Astro.request);
+const { state, canEdit, demo } = await pageState(Astro.request, Astro.locals);
 const answers = new Map(state.answers.map((row) => [row.id, row]));
 const answered = brandQuestions.filter((question) => answers.get(question.id)?.answer.trim()).length;
 const next = brandQuestions.find((question) => !answers.get(question.id)?.answer.trim());
 const readOnly = demo || !canEdit;
-const summary = `Brand interview: ${answered} of ${brandQuestions.length} answered.${next ? ` Next unanswered: ${next.id} "${next.text}"` : ""}`;
+const batch = state.wikiBatch;
+const batchStates: Record<string, string> = {
+  awaiting_review: "is waiting for your review in your Wiki",
+  committed: "is in your Wiki",
+  rejected: "was rejected in your Wiki",
+  discarded: "expired before it was submitted",
+  open: "is still being staged",
+};
+const wikiStatus = batch ? `Your last save (${batch.proposals} ${batch.proposals === 1 ? "change" : "changes"}) ${batchStates[batch.state] ?? batch.state}.` : "Not in your Wiki yet.";
+const summary = `Brand interview: ${answered} of ${brandQuestions.length} answered. Wiki: ${wikiStatus}${next ? ` Next unanswered: ${next.id} "${next.text}"` : ""}`;
 ---
 <Layout title="Brand" description="Your intellectual signature. These answers shape your brand and become content topics you post about over 6 to 12 months, not in one post." page="brand">
   <p class="muted" data-agent-summary={summary}>{answered} of {brandQuestions.length} answered.{next ? " Ask your team to interview you, or answer below in your own words." : " Every question has an answer. Revisit them as you change."}</p>
+  <section class="paper wiki-panel" aria-labelledby="wiki-heading">
+    <h2 id="wiki-heading">In your knowledge graph</h2>
+    <p class="muted">Saving puts the interview in your Wiki as one document, with the people, audiences, problems, offerings and goals your answers name. It arrives as a change batch: nothing is added until you review it there.</p>
+    <p role="status">{wikiStatus}{batch ? <> <a href={`${batch.wikiPath}changes/${batch.id}`}>Open the review</a></> : null}</p>
+    {readOnly ? null : (
+      <form data-astro-reload class="wiki-save" data-write="StageBrandInterview" data-saved="Sent to your Wiki for review.">
+        <label for="self-title">Your name, as your Wiki should show it</label>
+        <input id="self-title" name="self.title" maxlength="160" autocomplete="name" required />
+        <p class="muted hint">To also add the people and audiences your answers name, ask your team to save the interview to your Wiki.</p>
+        <div class="form-actions"><Button type="submit" variant="secondary" disabled={!answered}>Save interview to Wiki</Button></div>
+      </form>
+    )}
+  </section>
   {brandSections.map((section) => (
     <section class="paper brand-section" aria-labelledby={`section-${section.id}`}>
       <h2 id={`section-${section.id}`}>{section.title}</h2>

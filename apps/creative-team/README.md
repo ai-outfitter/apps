@@ -26,12 +26,33 @@ client in an organization). One page agent plays three roles:
 
 ## Data and writes
 
-Everything lives in the installation database (`src/server/schema.ts`), not the
-Wiki: the brand is the app's own working material, edited often and in bulk, and a
-Wiki change batch per answer would be noise. Every write is a mutation document
+Working material lives in the installation database (`src/server/schema.ts`): the
+interview answers as they are being written, sources, the content profile, the map
+and drafts, all edited often and in bulk. Every write is a mutation document
 (`src/server/documents.ts`) that pages run through `api/apps/creative-team/<Document>`
 and agents run with `graph_mutate`; `*Changes` batch documents wrap them. Reads are
 served over `graph.graphql`.
+
+## Knowledge graph
+
+The brand interview goes to the member's Wiki (`src/server/wiki.ts`), always as one
+**change batch** they review on the Wiki's Changes page; nothing commits before that.
+`StageBrandInterview` (the agent's `creative_team_brand_wiki`) stages:
+
+- a `BrandInterview` node whose JSON body follows `interviewDocument` (the type's
+  `jsonSchema`): every answered question in the member's words, with `mentions` that
+  reference Wiki nodes (`x-wiki-reference: node`);
+- the member's own `Person` (`self`) and each `Person`, `CustomerSegment`, `Problem`,
+  `Offering` or `Goal` the answers name, reusing existing records by `existingId`;
+- links: `brand_interview_of`, `brand_interview_mentions`, `influenced_by` and
+  `serves_audience`.
+
+The app adds its node and edge types to the Wiki add-only on first use, with fixed IDs.
+Record IDs are stable per member and key, so saving again proposes only what changed:
+an `update` of the interview at its current revision, and records or links the Wiki
+does not have yet. A new save is refused while the last batch still awaits review.
+`tests/wiki.integration.test.ts` runs this against a real Wiki Worker when
+`OUTFITTER_WIKI_PACKAGE` points at a built Wiki operational package.
 
 ## Agent
 

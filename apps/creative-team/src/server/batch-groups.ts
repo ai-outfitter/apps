@@ -4,8 +4,8 @@ import type { BatchGroups } from "@ai-outfitter/app-sdk/batch-documents";
 // mutations below, which check access and revisions themselves.
 export const batchGroups = {
   BrandChanges: {
-    description: "Save brand interview answers using explicit actions",
-    actions: { saveBrandAnswer: "saveBrandAnswer" },
+    description: "Save brand interview answers, or stage the interview and what it names in the member's Wiki for review, using explicit actions",
+    actions: { saveBrandAnswer: "saveBrandAnswer", stageBrandInterview: "stageBrandInterview" },
   },
   ContentChanges: {
     description: "Save content document sources and the content profile using explicit actions",

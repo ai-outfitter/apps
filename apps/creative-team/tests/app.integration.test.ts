@@ -127,9 +127,9 @@ test("the sidebar offers read tools to members and proposal tools to editors", a
       return ((await response.json()) as { actions: { name: string }[] }).actions.map((action) => action.name).sort((a, b) => a.localeCompare(b));
     };
     assert.deepEqual(await context(owner), [
-      "creative_team_brand_answer", "creative_team_brand_read", "creative_team_content_profile", "creative_team_content_read", "creative_team_content_source",
-      "creative_team_draft_save", "creative_team_drafts_read", "creative_team_map_branch", "creative_team_map_node", "creative_team_map_read",
+      "creative_team_brand_answer", "creative_team_brand_read", "creative_team_brand_wiki", "creative_team_content_profile", "creative_team_content_read", "creative_team_content_source",
+      "creative_team_draft_save", "creative_team_drafts_read", "creative_team_map_branch", "creative_team_map_node", "creative_team_map_read", "creative_team_wiki_read",
     ]);
-    assert.deepEqual(await context(member), ["creative_team_brand_read", "creative_team_content_read", "creative_team_drafts_read", "creative_team_map_read"]);
+    assert.deepEqual(await context(member), ["creative_team_brand_read", "creative_team_content_read", "creative_team_drafts_read", "creative_team_map_read", "creative_team_wiki_read"]);
   });
 });

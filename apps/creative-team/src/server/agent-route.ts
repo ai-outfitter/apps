@@ -7,6 +7,7 @@ import { respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
 import { brandQuestions, brandSections, mapTargets } from "../lib/brand";
+import { recentBatches, stageInput, stageInterview, wikiCandidates } from "./wiki";
 import { type CreativeContext, creativeContext } from "./context";
 import {
   addBranch, answerInput, branchInput, draftInput, levelCounts, mapTree, type MapTreeNode, nodeInput, profileInput, readState, saveAnswer, saveDraft, saveNode,
@@ -22,6 +23,7 @@ export const instructions = [
   "Brand strategist: you own positioning and perception. Build the brand document by interviewing the member with the brand questions: ask one unanswered question at a time, in order unless they pick another, dig for specifics (real people, exact words, concrete stories), and propose saving their answer in their own words with creative_team_brand_answer. Never write an answer they did not give. Growth never comes at the expense of trust and authority, and a brand is built over 6 to 12 months of posts, not one post.",
   "Content strategist: build the content document and the content map. For the content document, ask for the member's best 10 to 20 posts on each platform they post on, or, if they have not posted yet, the 5 to 10 people who shaped their thinking most; record each as a source, and note the core ideas that make them unique, the parts of the voice with personality, and the worldview people could rally behind, plus patterns that are replicable. For the content map, read the brand and content documents, pull 3 to 4 broad pillars and the member's lens from them, then propose branches: 5 to 7 topics per pillar, 5 to 10 ideas per topic, 4 to 5 angles per idea. Ideas should be likely to perform and seen through the member's own lens. In research, say what each idea is based on and where that came from (a post the member pasted, a pattern you know from public content, a source in their Wiki). You have no live view of what is performing on social platforms and no view counts: never invent numbers or claim data you do not have; say when the member should check a platform themselves.",
   "Writer: draft posts, threads, articles, newsletters and video scripts from map ideas and angles, in the member's voice from the content document, aligned with the brand document. Drafts are almost there, for the member to review and rewrite; propose them with creative_team_draft_save and never claim anything was posted.",
+  "Knowledge graph: the brand interview is saved in the member's Wiki as a BrandInterview document, together with the people, audiences (CustomerSegment), problems, offerings and goals their answers name. After a few new answers, or when the member asks, read creative_team_wiki_read, reuse existing records by existingId (match the member's own Person as self), and propose creative_team_brand_wiki with only what the answers say: influenced_by for people who shaped their thinking, serves_audience for the audience they make content for. That stages one Wiki change batch the member reviews on the Wiki's Changes page; nothing is in the Wiki until they do. Never add a record the member did not name.",
   "Read the documents with the read tools before relying on them. Keep replies short, and tell the member which page to review a proposal on.",
 ].join(" ");
 
@@ -92,6 +94,15 @@ const actions = publishActionTools("creative-team", {
       return rows.slice(0, 50).map(({ id, nodeId, format, title, status, revision }) => ({ id, nodeId, format, title, status, revision }));
     },
   }),
+  "wiki.read": defineAction({
+    description: "Read the member's Wiki for the brand interview: existing people, audiences (CustomerSegment), problems, offerings and goals to reuse by id, the saved BrandInterview if any, and the interview batches staged so far with their review state.",
+    access: "read", input: z.strictObject({}), output: json,
+    run: async (context: CreativeContext) => ({ ...(await wikiCandidates(context.host())), batches: await recentBatches(context.db()) }),
+  }),
+  "brand.wiki": defineAction({
+    description: "Save the brand interview to the member's Wiki as one change batch for review: the interview document plus the records its answers name (existingId to reuse a Wiki record, otherwise a new one under your key) and the links between them. The member's own Person is self.",
+    access: "write", input: stageInput, output: json, run: (context: CreativeContext, input) => stageInterview(context.db(), context.identity, context.host(), input),
+  }),
   "brand.answer": defineAction({
     description: "Save the member's answer to one brand interview question, in their own words. Send the revision from creative_team_brand_read when the question already has an answer.",
     access: "write", input: answerInput, output: json, run: (context: CreativeContext, input) => saveAnswer(context.db(), context.identity, input),
@@ -118,17 +129,19 @@ const actions = publishActionTools("creative-team", {
   }),
 });
 
-const writes = ["brand.answer", "content.source", "content.profile", "map.branch", "map.node", "draft.save"] as const;
-const reads = ["brand.read", "content.read", "map.read", "drafts.read"] as const;
+const writes = ["brand.answer", "brand.wiki", "content.source", "content.profile", "map.branch", "map.node", "draft.save"] as const;
+const reads = ["wiki.read", "brand.read", "content.read", "map.read", "drafts.read"] as const;
 
 /** What the assistant sees with every reply: where the member is in the process, never whole documents. */
 export async function agentSummary(context: CreativeContext) {
   const state = await readState(context.db());
   const answered = new Set(state.answers.filter((row) => row.answer.trim()).map((row) => row.id));
   const tree = mapTree(state.nodes);
+  const [lastBatch] = await recentBatches(context.db());
   return {
     brand: {
       answered: answered.size, questions: brandQuestions.length,
+      wiki: lastBatch ? { lastBatchId: lastBatch.id, state: lastBatch.state, stagedAt: new Date(lastBatch.createdAt).toISOString() } : "not saved to the Wiki yet",
       nextQuestions: brandQuestions.filter((question) => !answered.has(question.id)).slice(0, 3).map(({ id, text }) => ({ questionId: id, question: text })),
     },
     content: {
@@ -147,7 +160,7 @@ export async function agentSummary(context: CreativeContext) {
 export function agentRoute(request: Request, operation: string, locals: unknown, internal = false) {
   return respond(async () => {
     if (import.meta.env.OUTFITTER_APP_MODE !== "operational") throw new Response("Read-only demo", { status: 403 });
-    const context = creativeContext(request);
+    const context = creativeContext(request, locals);
     const agent = actionAgent({
       store: new ProposalStore(agentDatabase(), context.identity, { table: "creative_team_proposals", guard: "creative_team_agent_guard" }),
       host: workflowHost<"interactive">(locals as never),
