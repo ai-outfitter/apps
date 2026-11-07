@@ -93,10 +93,9 @@ test("the personal graph is restored whole, with Project pages referencing perso
     assert.equal(initialized.status, 200);
     const before = await snapshot(wiki);
     const report = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations["wiki-map"] });
-    // Migrations retain the archived SoftwareProduct definition for provenance;
-    // inspection plans against the active package defaults.
-    assert.ok(before.types.some((t) => t.id === "71000000-0000-4000-8000-000000000008" && t.archived));
-    assert.deepEqual(report.counts, { ...inspected.counts, types: inspected.counts.types + 1 });
+    // A fresh baseline has no retired legacy type; initialization follows current defaults.
+    assert.ok(!before.types.some((t) => t.id === "71000000-0000-4000-8000-000000000008"));
+    assert.deepEqual(report.counts, inspected.counts);
     assert.deepEqual(report.counts, {
       types: before.types.length + 1,
       nodes: before.nodes.length + 6 + releaseExample.nodes.filter((n) => !before.nodes.some((stored) => stored.id === n.id)).length,

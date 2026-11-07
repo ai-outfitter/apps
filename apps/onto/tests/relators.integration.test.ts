@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { drizzle } from "drizzle-orm/d1";
 import { readRelationships, relationshipQuery } from "../src/lib/ontology-relationships";

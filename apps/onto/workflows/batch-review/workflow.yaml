@@ -4,6 +4,8 @@ summary: The ontology steward reviews a submitted Wiki change batch and attaches
 actors: {}
 triggers:
   - on: manual
+  - on: schedule
+    cron: "0 */6 * * *"
 steps:
   # No actor fills this step: the Wiki does, through the workflow host, when a
   # batch is submitted or a member asks for a fresh review on its Changes page.

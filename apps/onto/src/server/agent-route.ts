@@ -1,3 +1,4 @@
+import { createDocumentActions } from "./documents/integration";
 import { actionAgent } from "@ai-outfitter/app-sdk/action-agent";
 import { defineAction, publishActionTools } from "@ai-outfitter/app-sdk/actions";
 import type { AgentRoute } from "@ai-outfitter/app-sdk/agent-page";
@@ -12,7 +13,8 @@ import {
   requestOriginActor,
   respond,
 } from "@ai-outfitter/app-sdk/server";
-import { ontologyContract, typeSegment } from "@ai-outfitter/app-sdk/wiki";
+import { ontologyContract } from "@ai-outfitter/onto/contracts";
+import { typeSegment } from "@ai-outfitter/onto/client";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
 import { ontologyViolation } from "../lib/ontology-errors";
@@ -89,11 +91,14 @@ export function agentRoute(
     if (import.meta.env.OUTFITTER_APP_MODE !== "operational")
       throw new Response("Read-only demo", { status: 403 });
     const identity = requestIdentity(request);
+    const documentActions = createDocumentActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals as never) });
+    const documentTools = publishActionTools("wiki-map", documentActions);
     const context = () => ({
       identity,
       actor: requestActor(request, identity),
       originActor: requestOriginActor(request, identity),
       db: () => installationDatabase(),
+      documentActions,
     });
     const agent = actionAgent({
       store: new ProposalStore(agentDatabase(), identity, {
@@ -104,12 +109,13 @@ export function agentRoute(
       type: "wiki-map.conversation",
       contextType: "wiki-map.page",
       focusId: "e9500000-0000-4000-8000-000000000002",
-      label: "wiki-map",
+      label: "Onto",
       context,
       instructions:
-        "You are the Wiki assistant. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and recordId/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
-      reads,
+        "You are Onto, the agent managing this owner’s ontological knowledge graph. You also help define, capture and generate attributable graph documents. Document generation is queued and runs through the authorized workflow host; inspect its job and revision receipts. A seal preserves evidence and is not approval. Never claim an issue-draft stub was published. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and recordId/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
+      reads: { ...reads, ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "read")) },
       actions: {
+        ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "write").map(([name, action]) => [name, { action, retry: "never" as const }])),
         "graph.apply": {
           retry: "same-request",
           action: apply,

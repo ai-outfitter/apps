@@ -1,6 +1,6 @@
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { expect, test, type Page } from "@playwright/test";
 import { core, type Graph } from "../src/lib/graph";
 

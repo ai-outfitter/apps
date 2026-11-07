@@ -58,6 +58,14 @@
     "packages/workflow-recurring-task": {
       "release-type": "node",
       "component": "workflow-recurring-task"
+    },
+    "packages/onto-contracts": {
+      "release-type": "node",
+      "component": "onto-contracts"
+    },
+    "packages/onto": {
+      "release-type": "node",
+      "component": "onto"
     }
   }
 }

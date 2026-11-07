@@ -35,9 +35,14 @@
         "identity.resolve",
         "workflow.batch-review.start",
         "home-cards.publish",
-        "actions.publish",
         "threads.use",
-        "threads.provide"
+        "threads.provide",
+        "workflow.ontology-audit.start",
+        "actions.invoke",
+        "workflow.document-generation.start",
+        "connector.github.commits.list",
+        "connector.github.repositories.commit",
+        "connector.github.pulls.create"
       ]
     }
   },

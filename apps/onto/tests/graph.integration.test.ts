@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import baseSeed from "../seeds/entities-v1.json";
 import graphSeed from "../seeds/knowledge-graphs-v1.json";
 import artifacts from "../seeds/artifacts-v1.json";

@@ -16,7 +16,7 @@ import {
   checkGraphChanges,
   graphChangeInput,
 } from "./graph-changes";
-import { graphBatches, graphBatchOperations, graphRevisions } from "./schema";
+import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -24,78 +24,9 @@ import { graphBatches, graphBatchOperations, graphRevisions } from "./schema";
 // history row. Policies decide what commits without a member: a confidence
 // threshold, a review window that seals the rest, or a first discovery run.
 
-export const batchOperationCap = 2000;
-export const batchExpiryMs = 7 * 24 * 3600 * 1000;
-/** Lowest confidence a policy may accept without a member. */
-export const policyThresholdFloor = 0.9;
-
-const ref = z.string().regex(/^\$[a-z][a-z0-9_-]{0,63}$/i);
+import { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
+export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
 const operation = graphChangeInput.shape.operations.element;
-const timezone = z.string().min(1).max(64).refine((value) => {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}, "Unknown time zone");
-const reviewWindow = z.union([
-  z.strictObject({ until: z.literal("end-of-day"), timezone }),
-  z.strictObject({ hours: z.number().int().min(1).max(168) }),
-]);
-export const batchPolicy = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("member") }),
-  z.strictObject({
-    kind: z.literal("confidence"),
-    threshold: z.number().min(policyThresholdFloor).max(1),
-    version: z.string().min(1).max(64),
-    /** When set, operations still waiting at the deadline commit by policy. */
-    reviewWindow: reviewWindow.optional(),
-  }),
-  /** The first discovery run of a Wiki commits everything on submit. */
-  z.strictObject({ kind: z.literal("first-run"), version: z.string().min(1).max(64) }),
-]);
-export type BatchPolicy = z.infer<typeof batchPolicy>;
-export const batchSource = z.strictObject({
-  kind: z.enum(["discovery-run", "work-package", "import", "agent-task", "meeting"]),
-  ref: z.string().min(1).max(256),
-  label: z.string().max(200).optional(),
-});
-
-export const batchOpenInput = z.strictObject({
-  title: z.string().min(1).max(200),
-  purpose: z.string().max(2000).default(""),
-  source: batchSource.optional(),
-  policy: batchPolicy.default({ kind: "member" }),
-});
-const proposal = z.strictObject({
-  operation,
-  evidence: evidenceList.default([]),
-  confidence: z.number().min(0).max(1).optional(),
-  reason: z.string().max(1000).optional(),
-});
-export const batchAddInput = z.strictObject({
-  batchId: z.uuid(),
-  proposals: z.array(proposal).min(1).max(100),
-});
-export const batchRemoveInput = z.strictObject({ batchId: z.uuid(), refs: z.array(ref).min(1).max(100) });
-export const batchIdInput = z.strictObject({ batchId: z.uuid() });
-export const batchListInput = z.strictObject({
-  state: z.enum(["open", "awaiting_review", "committed", "rejected", "discarded"]).optional(),
-  limit: z.number().int().min(1).max(100).default(50),
-});
-export const batchSubmitInput = z.strictObject({
-  batchId: z.uuid(),
-  summary: z.string().max(2000).optional(),
-});
-export const batchReviewInput = z.strictObject({
-  batchId: z.uuid(),
-  /** Omit refs to decide every operation still waiting. */
-  refs: z.array(ref).min(1).max(batchOperationCap).optional(),
-  verdict: z.enum(["approve", "reject"]),
-  comment: z.string().max(2000).optional(),
-});
-export const recordHistoryInput = z.strictObject({ id: z.uuid() });
 
 export type Database = ReturnType<typeof installationDatabase>;
 type BatchRow = typeof graphBatches.$inferSelect;
@@ -242,6 +173,8 @@ export async function removeFromBatch(db: Database, who: AppIdentity, actor: App
 }
 
 export const live = (rows: OperationRow[]) => rows.filter((row) => row.state !== "removed");
+/** Stable across policy decisions, which may change operation state after submission. */
+export const batchContentDigest = (rows: OperationRow[]) => sha256Hex(JSON.stringify(live(rows).map(({ ref, position, operation, evidence, confidence, reason }) => ({ ref, position, operation, evidence, confidence, reason }))));
 const asOperation = (row: OperationRow) => row.operation as unknown as Operation;
 
 /** The refs and created record IDs an operation needs from elsewhere in its batch. */
@@ -378,9 +311,16 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
   }
   const now = Date.now();
-  await db.update(graphBatchOperations).set({ state: "awaiting_review" })
-    .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending")));
-  await touch(db, batch.id, { state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now) });
+  const jobId = crypto.randomUUID();
+  const contentDigest = await batchContentDigest(rows);
+  // D1 batch executes these statements atomically: no submitted batch can lose its review work.
+  await db.batch([
+    db.update(graphBatchOperations).set({ state: "awaiting_review" })
+      .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
+    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId })
+      .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
+    db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+  ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run")

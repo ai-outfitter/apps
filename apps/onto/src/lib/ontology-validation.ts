@@ -99,11 +99,33 @@ function errorReferences(
   ];
 }
 
+function requireImmutableRecords(before: OntologyGraph, after: OntologyGraph, refs: Map<string, string>) {
+  // Check both snapshots: a batch may not remove the policy and edit a record,
+  // nor turn it on while simultaneously rewriting an existing record.
+  const immutable = (type: OntologyGraph["types"][number] | undefined) => v2(type?.ontology)?.immutable === true;
+  const nextTypes = new Map(after.types.map(type => [type.id, type]));
+  for (const type of before.types) {
+    if (immutable(type) && (!immutable(nextTypes.get(type.id)) || nextTypes.get(type.id)?.archived))
+      throw new Response("An immutable type cannot be removed, archived, or made mutable", { status: 409 });
+  }
+  const oldTypes = new Map(before.types.map(type => [type.id, type]));
+  for (const kind of ["nodes", "edges"] as const) {
+    const next = new Map(after[kind].map(record => [record.id, record]));
+    for (const record of before[kind]) {
+      const updated = next.get(record.id);
+      if ((immutable(oldTypes.get(record.typeId)) || immutable(nextTypes.get(record.typeId)) || (updated && immutable(nextTypes.get(updated.typeId)))) &&
+          (!updated || refs.has(record.id) || JSON.stringify(updated) !== JSON.stringify(record)))
+        throw new Response("Immutable records cannot be updated, archived, or deleted", { status: 409 });
+    }
+  }
+}
+
 export function requireOntologyValid(
   before: OntologyGraph,
   after: OntologyGraph,
   refs: Map<string, string> = new Map(),
 ) {
+  requireImmutableRecords(before, after, refs);
   const key = (v: OntologyViolation) => `${v.recordId}|${v.rule}|${v.path}`;
   const beforeContext = ontologyContext(before);
   const existing = new Set(auditContext(beforeContext).map(key));

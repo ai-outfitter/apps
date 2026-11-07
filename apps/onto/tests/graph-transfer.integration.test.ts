@@ -3,7 +3,7 @@ import test from "node:test";
 import { drizzle } from "drizzle-orm/d1";
 import { restoreGraph } from "../src/server/graph-transfer";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { core } from "../src/lib/graph";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 test("wiki transfer preserves IDs, is repeatable, rejects conflicts and denies members", async () => {

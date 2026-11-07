@@ -184,7 +184,21 @@ export const graphBatches = sqliteTable("graph_batches", {
   closedAt: integer(),
   /** The ontology steward's latest advisory review (server/batch-review.ts). */
   review: text({ mode: "json" }).$type<BatchReview>(),
+  reviewJobId: text(),
 });
+
+export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
+  id: text().primaryKey(),
+  batchId: text().notNull().references(() => graphBatches.id),
+  contentDigest: text().notNull(),
+  state: text().notNull(),
+  attempts: integer().notNull().default(0),
+  leaseId: text(),
+  leaseUntil: integer(),
+  nextAttemptAt: integer().notNull(),
+  createdAt: integer().notNull(),
+  error: text(),
+}, (t) => [index("onto_review_jobs_due").on(t.state, t.nextAttemptAt, t.leaseUntil)]);
 
 export const graphBatchOperations = sqliteTable(
   "graph_batch_operations",

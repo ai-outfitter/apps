@@ -205,3 +205,16 @@ configured yet. App versions and changelogs remain in their app repositories.
 Pin the SDK once as `sdkSha` in `.outfitter/apps.json`. Check/preview workflows
 and the platform repository build adapter use the same commit and root lockfile.
 The optional workflow `sdk-sha` input remains an explicit override for existing callers.
+
+## Onto extraction and shared graph contracts
+
+The public [Onto app](apps/onto/README.md) retains the legacy `wiki-map`
+installation identity during migration. [Provider interoperability](docs/graph-providers.md)
+describes the public SDK discovery/read contracts and Onto-owned contracts.
+[Documents and recovery](apps/onto/docs/documents-and-recovery.md) describes
+versioned definitions, captured revisions, optional policy, scheduled work and
+Git/Obsidian publication, including the remaining migration gates. The platform
+architecture and full delivery sequence are maintained in
+[webapp's Onto architecture](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/onto.md).
+Production cutover requires deployed platform baseline/release support and a
+verified existing-installation update; public source readiness alone is insufficient.

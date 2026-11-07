@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker as initializedAppWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import {
@@ -16,7 +17,7 @@ const origin = "https://wiki.outfitter.example";
 test("review an assertion, explicitly confirm it, and follow a derived spouse view", async ({
   page,
 }, info) => {
-  const app = await appWorker(
+  const app = await initializedAppWorker(
     "wiki-map",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );

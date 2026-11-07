@@ -8,17 +8,22 @@
 // (gating is a deferred governance control, docs/batch-review.md).
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { type WorkflowHost, workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { eq } from "drizzle-orm";
+import { and, eq, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
 import { core, type Graph } from "../lib/graph";
 import { readGraph } from "./graph";
-import { type Database, live, loadOperations } from "./graph-batches";
-import { graphBatches } from "./schema";
+import { type Database, live, loadOperations, batchContentDigest } from "./graph-batches";
+import { graphBatches, ontoReviewJobs } from "./schema";
 
 export const reviewWorkflow = "batch-review";
 export const reviewStep = "review";
-export const promptPath = "catalog/apps/wiki-map/agent/ontology-steward.md";
+export const promptPath = "apps/onto/agent/ontology-steward.md";
+/** An abandoned final lease is terminal and must not remain running forever. */
+export async function failExpiredReviewJobs(db: Database, now = Date.now()) {
+  return db.update(ontoReviewJobs).set({state:"failed",leaseId:null,leaseUntil:null,error:"Review lease expired after maximum attempts"})
+    .where(and(eq(ontoReviewJobs.state,"running"),lte(ontoReviewJobs.leaseUntil,now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
+}
 /** Operations the steward reads in detail; a larger batch is reviewed in part. */
 const operationLimit = 300;
 /** Existing records shown around the batch, and relationships shown per record. */
@@ -176,7 +181,7 @@ const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
 
 /** Review a submitted batch and save the findings on it. Never throws: a review
  * that cannot run is recorded as failed, and the batch is unaffected either way. */
-export async function reviewBatchOntology(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, batchId: string): Promise<BatchReview> {
+async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId?: string): Promise<BatchReview> {
   const startedAt = Date.now();
   const prompt = { path: promptPath, digest: await sha256Hex(stewardPrompt) };
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
@@ -189,7 +194,7 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
   let runId: string | null = null;
   let review: BatchReview;
   try {
-    const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: crypto.randomUUID(), inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
+    const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId ?? crypto.randomUUID(), inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
     const { output } = await host.call("inference.generate", {
       runId, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
@@ -212,15 +217,78 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
       value: { batchId: batch.id, state: review.state, complete: review.complete, prompt, counts, findings: review.findings, error: review.error },
     }).catch(() => undefined);
   }
-  await db.update(graphBatches).set({ review }).where(eq(graphBatches.id, batch.id));
+  await db.update(graphBatches).set({ review }).where(and(eq(graphBatches.id, batch.id), eq(graphBatches.reviewJobId, jobId), sql`exists (select 1 from onto_review_jobs where id = ${jobId} and state = 'running' and leaseId = ${leaseId} and leaseUntil > ${Date.now()})`));
   return review;
 }
 
-type RequestLocals = { cfContext?: { waitUntil?: (work: Promise<unknown>) => void } };
+const maxAttempts = 4;
+const leaseMs = 120_000;
 
-/** Submit-time review: runs after the response, kept alive by the request's
- * waitUntil, so submitting never waits for or fails because of it. */
+/** Claim and execute one durable job. A lease token fences late completions. */
+export async function processReviewJob(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, jobId: string, reservedRunId?: string): Promise<BatchReview | null> {
+  const now = Date.now(), leaseId = crypto.randomUUID();
+  const [job] = await db.update(ontoReviewJobs).set({ state: "running", leaseId, leaseUntil: now + leaseMs, attempts: sql`${ontoReviewJobs.attempts} + 1` })
+    .where(and(eq(ontoReviewJobs.id, jobId), sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
+      or(and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
+        and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now)))))
+    .returning();
+  if (!job) return null;
+  try {
+    const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, job.batchId));
+    const digest = await batchContentDigest(await loadOperations(db, job.batchId));
+    if (!batch || batch.state === "open" || batch.state === "discarded" || batch.reviewJobId !== job.id || digest !== job.contentDigest) {
+      await db.update(ontoReviewJobs).set({ state: "superseded", leaseId: null, leaseUntil: null })
+        .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
+      return null;
+    }
+    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, reservedRunId);
+    const failed = review.state === "failed";
+    const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
+      nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
+      .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`)).returning();
+    return settled.length ? review : null;
+  } catch (error) {
+    await db.update(ontoReviewJobs).set({ state: job.attempts >= maxAttempts ? "failed" : "pending", leaseId: null, leaseUntil: null,
+      nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: String(error).slice(0, 500) })
+      .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
+    throw error;
+  }
+}
+
+/** Explicit member re-review supersedes earlier attempts. */
+export async function reviewBatchOntology(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, batchId: string): Promise<BatchReview> {
+  const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
+  if (!batch) throw new Response("Batch not found", { status: 404 });
+  if (batch.state === "open" || batch.state === "discarded") throw new Response("Only a submitted batch is reviewed", { status: 409 });
+  const id = crypto.randomUUID(), now = Date.now();
+  const contentDigest = await batchContentDigest(await loadOperations(db, batchId));
+  await db.batch([
+    db.update(graphBatches).set({ reviewJobId: id }).where(eq(graphBatches.id, batchId)),
+    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+  ]);
+  const review = await processReviewJob(db, who, host, id);
+  if (!review) throw new Response("Review could not be claimed", { status: 409 });
+  return review;
+}
+
+/** Process a bounded number of due jobs using a member-authorized interactive host. */
+export async function processDueReviewJobs(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, limit = 10) {
+  const now = Date.now();
+  // A worker may die during its final lease; make that terminal on recovery.
+  await failExpiredReviewJobs(db, now);
+  const jobs = await db.select().from(ontoReviewJobs).where(and(sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
+    or(and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
+      and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now))))).limit(Math.min(limit, 10));
+  for (const job of jobs) await processReviewJob(db, who, host, job.id).catch(() => null);
+  return jobs.length;
+}
+
+type RequestLocals = { cfContext?: { waitUntil?: (work: Promise<unknown>) => void } };
+/** Best effort immediate wake-up; the job itself is already durable. */
 export function reviewInBackground(locals: unknown, db: Database, who: AppIdentity, batchId: string) {
-  const work = (async () => reviewBatchOntology(db, who, workflowHost<"interactive">(locals as never), batchId))().catch(() => null);
+  const work = (async () => {
+    const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
+    if (batch?.reviewJobId) await processReviewJob(db, who, workflowHost<"interactive">(locals as never), batch.reviewJobId);
+  })().catch(() => null);
   (locals as RequestLocals).cfContext?.waitUntil?.(work);
 }

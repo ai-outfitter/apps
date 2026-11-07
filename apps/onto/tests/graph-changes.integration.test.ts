@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "@ai-outfitter/app-test/worker";
+import { appWorker } from "./fixtures/initialized-worker";
 import { drizzle } from "drizzle-orm/d1";
 import { core } from "../src/lib/graph";
 import { auditOntology, auditProposal } from "../src/lib/ontology-validation";
@@ -550,7 +550,7 @@ test("external projects and organization relationships persist without Planning 
     const receipt = await json(await f.apply("external-project", [
       create("$organization", "graph-node", { typeId: core.organization, title: "Example client" }),
       create("$project", "graph-node", { typeId: core.project, title: "Recommendations" }),
-      create("$ownership", "graph-edge", { typeId: core.belongs, fromId: "$project", toId: "$organization" }),
+      create("$ownership", "graph-edge", { typeId: "71000000-0000-4000-8000-000000000032", fromId: "$project", toId: "$organization" }),
     ]));
     const project = await f.get("graph-node", receipt.$project.id);
     assert.deepEqual(project.references, []);

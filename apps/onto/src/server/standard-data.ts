@@ -89,7 +89,8 @@ function knowledgeGraphUpgrades(data: typeof standardData, rows: Record<string, 
     if (knowledgeGraphColumns.every(same)) return [];
     return [{
       sql: `UPDATE graph_nodes SET title=?, summary=?, body=?, properties=?, revision=revision+1, updatedBy=?, updatedAt=?
-        WHERE id=? AND revision=? AND archived=0 AND updatedBy=?`,
+        WHERE id=? AND revision=? AND archived=0 AND updatedBy=?
+          AND NOT EXISTS (SELECT 1 FROM graph_types WHERE id=graph_nodes.typeId AND json_extract(properties,'$.ontology.immutable')=1)`,
       params: [...knowledgeGraphColumns.map((column) => stored(next[column] ?? (column === "properties" ? {} : ""))), audit.updatedBy, audit.updatedAt, node.id, row.revision, row.updatedBy],
     }];
   });

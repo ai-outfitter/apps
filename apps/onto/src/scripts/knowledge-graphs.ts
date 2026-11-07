@@ -277,7 +277,7 @@ export function knowledgeGraphViews(graph: Graph, anchor: GraphNode, selectedId?
     return section;
   }
   if (!lenses.length && !selectedId) {
-    append(section, el("p", {}, "No knowledge graph has been defined for this entity yet. Ask Wiki to build one, or add rel params to this page's address."));
+    append(section, el("p", {}, "No knowledge graph has been defined for this entity yet. Ask Onto to build one, or add rel params to this page's address."));
     return section;
   }
   const picker = el("nav", { class: "knowledge-graph-picker", "aria-label": "Knowledge graphs" },
