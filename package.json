@@ -14,6 +14,7 @@
   },
   "workspaces": [
     "packages/*",
+    "box",
     "apps/*",
     "apps/*/workflows/*"
   ],

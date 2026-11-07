@@ -1,7 +1,7 @@
 # A sealed Outfitter app box. Build from the root of this repository, with a
 # checkout of the platform (ai-outfitter/webapp) as the `webapp` build context:
 #   docker build --build-context webapp=../webapp --build-arg BOX_APP=software-foundry \
-#     -f packages/box/Dockerfile -t outfitter/software-foundry-box:dev .
+#     -f box/Dockerfile -t outfitter/software-foundry-box:dev .
 # BOX_APP names apps/<app>; that app's box driver (apps/<app>/box/driver.mjs)
 # runs the requests, and its operational package is built from this checkout.
 # Run with no network except the model endpoint (see README):
@@ -41,7 +41,7 @@ COPY --from=app /package/ /tmp/package/
 RUN cp "/tmp/package/${BOX_APP}.operational.json" "src/generated/apps/${BOX_APP}.operational.json"
 RUN cd workspace/runtime && npm ci --omit=dev --no-audit --no-fund
 # The box harness and the app's driver, inside the checkout so they resolve its modules.
-COPY packages/box /app/.box
+COPY box /app/.box
 COPY apps/${BOX_APP}/box /app/.box/app
 
 FROM docker.io/library/node:24-bookworm-slim

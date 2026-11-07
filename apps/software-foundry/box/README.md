@@ -24,7 +24,7 @@ RustFS, always with a SHA-256 and the commit they were produced from.
 
 ## The box itself
 
-The runnable box lives in `packages/box` (shared harness, image, box-kube,
+The runnable box lives in `box` (shared harness, image, box-kube,
 Agent Eval agent). The Foundry's side is here:
 
 - `driver.mjs`: what the box does once the platform is up (configure the
@@ -36,6 +36,6 @@ Agent Eval agent). The Foundry's side is here:
 
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=software-foundry \
-  -f packages/box/Dockerfile -t outfitter/software-foundry-box:dev .
+  -f box/Dockerfile -t outfitter/software-foundry-box:dev .
 BOX_CLI=podman BOX_MODEL_ENV=model.env node --import tsx apps/software-foundry/box/evals/run.ts subtract-helper
 ```

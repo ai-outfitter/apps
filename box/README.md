@@ -64,7 +64,7 @@ this repository with a webapp checkout as the `webapp` build context:
 
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=software-foundry \
-  -f packages/box/Dockerfile -t outfitter/software-foundry-box:dev .
+  -f box/Dockerfile -t outfitter/software-foundry-box:dev .
 ```
 
 The harness is copied to `/app/.box` and the app's `box/` folder to
@@ -184,7 +184,7 @@ shares the box's network, with an apps checkout mounted at `/apps`:
 docker run --rm --network container:<box> -w /app \
   -e BOT_TOKEN="$(docker exec <box> cat /box/secrets/forgejo-bot-token)" \
   -e REVIEWER_PASSWORD="$(docker exec <box> cat /box/secrets/forgejo-reviewer-password)" \
-  -v "$PWD:/apps:ro" -v "$PWD/packages/box/checks:/live:ro" \
+  -v "$PWD:/apps:ro" -v "$PWD/box/checks:/live:ro" \
   --entrypoint node outfitter/software-foundry-box:dev --import tsx /live/forgejo-live.mts
 ```
 

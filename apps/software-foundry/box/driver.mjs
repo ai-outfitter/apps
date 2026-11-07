@@ -1,4 +1,4 @@
-// The Software Foundry's driver for the box (packages/box). The supervisor
+// The Software Foundry's driver for the box (box). The supervisor
 // starts the services and the platform with Software Foundry installed, then
 // calls run(): configure Foundry for the box repository, file each work
 // request as a Forgejo issue and start Foundry on it, write each run-result

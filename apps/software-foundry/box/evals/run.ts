@@ -1,5 +1,5 @@
 // Runs the Software Foundry box evals with Agent Eval: each fixture under
-// evals/ goes through the sealed box (packages/box/eval/agent.ts) and is
+// evals/ goes through the sealed box (box/eval/agent.ts) and is
 // graded by its EVAL.ts.
 //
 //   node --import tsx apps/software-foundry/box/evals/run.ts [eval ...]
@@ -7,7 +7,7 @@
 // Settings: BOX_CLI (docker or podman, default docker), BOX_IMAGE (default
 // outfitter/software-foundry-box:dev), BOX_PORT (the inspection port, default
 // 8787) and BOX_MODEL_ENV (an env file with the model settings, see
-// packages/box/README.md, "Models").
+// box/README.md, "Models").
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from "@vercel/agent-eval";
