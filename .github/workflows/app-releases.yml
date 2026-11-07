@@ -2,39 +2,24 @@ name: Official app releases
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: JSON array of existing releases to notify again
+        required: true
+        type: string
 permissions:
-  contents: read
-concurrency:
-  group: official-app-releases
-  cancel-in-progress: false
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 jobs:
   release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    outputs:
-      created: ${{ steps.release.outputs.releases_created }}
-      paths: ${{ steps.release.outputs.paths_released }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          config-file: .release-please-apps.json
-          manifest-file: .release-please-apps-manifest.json
-  app:
-    needs: release
-    if: needs.release.outputs.created == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJSON(needs.release.outputs.paths) }}
-    uses: ./.github/workflows/official-app-release.yml
+    uses: ./.github/workflows/release.yml
     with:
-      app: ${{ matrix.app }}
-    permissions:
-      contents: write
+      config-file: .release-please-apps.json
+      manifest-file: .release-please-apps-manifest.json
+      destination: ${{ vars.OUTFITTER_URL || 'https://ai-outfitter.com' }}
+      releases: ${{ inputs.releases || '' }}
     secrets:
       release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

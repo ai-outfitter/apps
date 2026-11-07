@@ -8,6 +8,22 @@ on:
       manifest-file:
         type: string
         default: .release-please-manifest.json
+      config-path:
+        type: string
+        default: .outfitter/apps.json
+      destination:
+        type: string
+        default: https://ai-outfitter.com
+      environment:
+        type: string
+        default: outfitter
+      runner:
+        type: string
+        default: ubuntu-latest
+      releases:
+        description: Existing release objects to notify again on manual dispatch
+        type: string
+        default: ''
     secrets:
       release-token:
         required: false
@@ -15,20 +31,56 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 concurrency:
   group: outfitter-app-releases-${{ github.repository }}
   cancel-in-progress: false
 jobs:
   release:
-    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      releases: ${{ steps.events.outputs.releases || '[]' }}
     steps:
       - name: Require release token
+        if: github.event_name == 'push'
         env:
           RELEASE_TOKEN: ${{ secrets.release-token || github.token }}
         run: test -n "$RELEASE_TOKEN"
       - uses: googleapis/release-please-action@v4
+        id: release
+        if: github.event_name == 'push'
         with:
           token: ${{ secrets.release-token || github.token }}
           config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
+        with:
+          persist-credentials: false
+      - name: Select newly published app releases
+        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
+        id: events
+        uses: ai-outfitter/apps@7df1b869122bbb6deaf8db7f449a4143ec07a146
+        with:
+          command: release-events
+          config-path: ${{ inputs.config-path }}
+        env:
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
+          RECOVERY_RELEASES: ${{ inputs.releases }}
+  notify:
+    needs: release
+    if: needs.release.outputs.releases != '[]'
+    uses: ai-outfitter/apps/.github/workflows/notify.yml@1c94394f54d501dd68d7074c7e3957342166a3e3
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      releases: ${{ needs.release.outputs.releases }}
+      destination: ${{ inputs.destination }}
+      environment: ${{ inputs.environment }}
+      runner: ${{ inputs.runner }}

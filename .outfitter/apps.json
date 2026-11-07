@@ -9,6 +9,12 @@
     "build"
   ],
   "releaseManifest": ".release-please-apps-manifest.json",
+  "releaseTargets": {
+    "apps/hr": [{"target": "platform/hr"}],
+    "apps/html-starter": [{"target": "platform/html-starter"}],
+    "apps/workshop": [{"target": "platform/workshop"}],
+    "apps/software-foundry": [{"target": "platform/software-foundry"}]
+  },
   "preview": {
     "commands": []
   }

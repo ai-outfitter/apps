@@ -1,0 +1,50 @@
+name: Notify Outfitter of app releases
+on:
+  workflow_call:
+    inputs:
+      releases:
+        description: JSON array of app, tag, commit and optional targets
+        required: true
+        type: string
+      destination:
+        type: string
+        default: https://ai-outfitter.com
+      environment:
+        type: string
+        default: outfitter
+      runner:
+        type: string
+        default: ubuntu-latest
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: JSON array of existing releases to register or retry
+        required: true
+        type: string
+      destination:
+        type: string
+        default: https://ai-outfitter.com
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  notify:
+    if: inputs.releases != '[]'
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    environment: ${{ inputs.environment || 'outfitter' }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(inputs.releases) }}
+    concurrency:
+      group: outfitter-release-${{ github.repository }}-${{ inputs.destination }}-${{ matrix.release.app }}
+      cancel-in-progress: false
+    steps:
+      - uses: ai-outfitter/apps@2075ad50ec3721517f6a3d558a3978aff650d782
+        with:
+          command: release-notify
+        env:
+          RELEASE: ${{ toJSON(matrix.release) }}
+          OUTFITTER_URL: ${{ inputs.destination }}
+          DEPLOY_BRANCH: ${{ github.event.repository.default_branch }}

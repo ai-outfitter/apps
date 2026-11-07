@@ -5,7 +5,7 @@ tooling and public SDK used by personal and organization app repositories.
 
 Official app source lives under `apps/<app>/`, with each app's domain tests,
 fixtures, migrations and release metadata. Personal apps stay in their owners'
-repositories and consume the same shared workflows. HR is the first app being migrated. The public SDK lives under `packages/`; the hosted platform remains in its separate repository.
+repositories and consume the same shared workflows. HR, HTML Starter, Workshop and Software Foundry live here. The public SDK lives under `packages/`; the hosted platform remains in its separate repository.
 
 Planned layout:
 
@@ -38,7 +38,7 @@ A caller's `.outfitter/apps.json` describes its layout:
 }
 ```
 
-Apps that run Playwright may set `outfitter.browserTests: true` in their package manifest; the shared check tooling installs Chromium on CI before running that app’s scripts. Set `preview.commands` to a subset of validation commands when the separate app-check job already supplies those gates. The official-app release job produces a demo package and source/digest provenance for each independent release.
+Apps that run Playwright may set `outfitter.browserTests: true` in their package manifest; the shared check tooling installs Chromium on CI before running that app’s scripts. Set `preview.commands` to a subset of validation commands when the separate app-check job already supplies those gates. Production component releases register immutable source versions with Outfitter; CI build output is never the production deployment input.
 
 App discovery also reads npm `workspaces` (array or `packages` form). A package is
 an app when it has `app.json` or `outfitter.kind: app`. Package names and paths are
@@ -68,65 +68,96 @@ The release workflow accepts an optional explicit `release-token` override for
 a GitHub App/PAT. Otherwise it resolves the calling repository's generated
 `github.token` inside the runner job, where that token exists. The caller grants
 the required contents/issues/pull-request write permissions. No secret inheritance. Release-please config, versions and changelogs stay in
-the caller. Components release independently; no automatic merge, npm publication
-or deployment. Shared root behavior changes need app-local release notes for each
+the caller. Components release independently; no automatic merge or npm
+publication. The release job does not activate installations. Shared root behavior changes need app-local release notes for each
 affected component because release-please tracks component paths.
 
-Keep release and deploy as separate caller jobs after the check job. The caller
-chooses triggers, permissions and deployment environments. Successful default-branch
-app checks should call deployment directly; no deployment enablement flag is needed.
+## Production releases and scheduled updates
 
-## SaaS and self-hosted auto deployment
+Release-please updates each app's package/app manifests and creates its component
+tag and GitHub release. The shared `release.yml` uses its per-component outputs
+to invoke `notify.yml`, which sends an audience-bound GitHub OIDC request to
+`POST /api/app-repositories/releases`. Outfitter does not poll repositories.
+A notification records the release and optional update requests; it does not
+build, upload a production package, or activate an installation inline.
 
-`deploy.yml` accepts `apps`, `destination` (an HTTPS origin), `environment` and
-`runner`. Use `https://ai-outfitter.com` for SaaS; set a caller repository variable
-for a self-hosted origin. Supply a runner label that can reach private hosts;
-GitHub-hosted runners need a publicly reachable HTTPS destination. The caller
-explicitly grants `contents: read` and `id-token: write`. The deployment job uses
-that caller's environment and OIDC repository identity.
+Each caller retains its release metadata and a thin release workflow. Grant
+`contents: write`, `issues: write`, `pull-requests: write`, and `id-token: write`
+to the caller. Pass `release-token` explicitly if release-please needs a token
+override. Do not inherit all secrets. `release.yml` accepts caller-owned
+`config-file`, `manifest-file`, `config-path`, `destination`, `environment` and
+`runner`; default destination is `https://ai-outfitter.com`.
 
-A minimal caller adds deployment after its app-check job:
+Configure update requests in `.outfitter/apps.json`, keyed by app path (or slug):
 
-```yaml
-deploy:
-  needs: apps
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.has_apps == 'true'
-  permissions:
-    contents: read
-    id-token: write
-  uses: ai-outfitter/apps/.github/workflows/deploy.yml@REVIEWED_COMMIT_SHA
-  with:
-    apps: ${{ needs.apps.outputs.apps }}
+```json
+{
+  "releaseTargets": {
+    "yoga-practice": [{"target": "personal/yoga-practice"}],
+    "apps/workshop": [{"target": "platform/workshop"}],
+    "apps/example": [{"target": "org/example", "repositoryId": "OWNER_SOURCE_BINDING_ID"}]
+  }
+}
 ```
 
-SaaS is the default, with no platform deployment secret, enablement flag or extra
-wrapper. Before the first automatic update, connect the calling repository and
-install the apps you want in the destination's Apps settings. Apps without any
-subscribed installations report nothing to update without failing other deployments. That records the destination
-owner and installer authority. For self-hosting, pass `destination`; networking
-and the instance's runtime remain that instance's responsibility.
+Scopes select existing authorized bindings; they do not grant authority.
+`personal` addresses a registered personal source, `org` an organization source,
+and `platform` a registered platform publisher. Supply the source binding's
+`repositoryId` when more than one owner matches. Configure each repository in
+Outfitter and install the apps it should update. An omitted or empty target list
+registers the release without requesting installation updates or a build.
 
-The existing platform contract landed in
-[webapp #625](https://github.com/ai-outfitter/webapp/pull/625): request a GitHub
-OIDC token with audience equal to the destination origin, then POST
-`{"apps":["app-slug"]}` to `/api/app-repositories/deploy`. The platform validates
-repository ID and source SHA against its enrolled repository/default head and
-queues build/install work. An advanced default head can reject an older run;
-retry on the latest commit. The client fails partial failures, including HTTP202
-responses with `failed > 0`. Queue acceptance does not establish activation.
-Deployment slug comes from `app.json.slug`, the operational catalog slug, or the
-app directory basename. It must match the platform enrollment.
+Outfitter's scheduled tick reconciles recorded requests. It builds only for an
+installation or demo that needs the version, or on first install. Builds execute
+the public tooling directly in an isolated workspace, with pinned source and
+tooling revisions and the committed lockfile. Successful packages are cached;
+updates preserve owner authority, dependencies, migrations, readiness checks and
+activation revisions. Failed builds leave the installed version running.
+Queue acceptance is not completed build or activation: inspect Outfitter's
+release/update receipts and installation history.
 
-The destination must configure `BETTER_AUTH_URL` to its own origin, GitHub
-integration, signing/verification and an operational build/runtime provider.
-Older installations may need Update once to record their repository claim.
-Installer authority and platform enrollment remain required. This client does not
-provision hosting or authentication. Ocean's persistent operational runtime is
-still tracked by [webapp #589](https://github.com/ai-outfitter/webapp/pull/589);
-configurable destinations do not prove self-hosted runtime readiness.
+The notification body is:
 
-The existing personal [deployment PR #2](https://github.com/ncrmro/outfitter-apps/pull/2)
-overlaps this workflow. Use the shared caller instead of enabling both.
+```json
+{
+  "app": "yoga-practice",
+  "tag": "yoga-practice-v0.1.1",
+  "commit": "FULL_RELEASE_COMMIT_SHA",
+  "targets": [{"target": "personal/yoga-practice"}]
+}
+```
+
+A successful response identifies `releaseId`, `sourceCommit`, and durable
+`requests` containing `id`, `target` and `status`. Outfitter verifies the GitHub
+repository identity, published component release, source commit, manifest version
+and target authority. Repeating a notification returns the existing records;
+it cannot replace an existing release's commit.
+
+If release-please succeeded but notification failed, rerun the failed notification
+job. For recovery after a whole workflow rerun, dispatch the calling repository's
+release workflow on its default branch with `releases` set to a JSON array of the
+existing release objects above. Its thin wrapper passes that input to shared
+`release.yml`; this preserves the calling repository's OIDC identity. Dispatching
+the central workflow directly can only register the central repo's releases.
+Release-please may produce no new outputs on a whole rerun;
+manual notification never creates a new version or rebuilds in CI. The server
+rechecks the existing release and the calling repository's authority.
+
+PR previews remain in each app repository's Actions/Cloudflare pipeline. They do
+not notify Outfitter. `deploy.yml` and its older push client remain compatibility
+entrypoints for existing callers only; migrate callers to release notifications.
+Migrated production apps do not require a webapp descriptor update, platform
+build, R2 upload job or webapp deployment per release.
+
+Self-hosted instances use the same identity and release protocol with a different
+HTTPS `destination` and a reachable runner. Networking and runtime activation for
+self-hosting are deferred; SaaS is the initial rollout target. Never add a
+production deployment enablement flag.
+
+See the platform's [app release architecture](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/app-releases.md)
+for authority, reconciliation, hosted builds and transition status. Deploy the
+platform support before switching callers; retain the previous deployment path
+until the new scheduled lifecycle has been verified for both repositories.
 
 ## Temporary private SDK adapter
 
@@ -165,7 +196,7 @@ synchronize, reopened and closed events, passing `pull-request` and the explicit
 `CLOUDFLARE_API_TOKEN` secret. Keep that secret in the caller's `preview-publish`
 environment and configure `OUTFITTER_PREVIEW_ACCOUNT_ID`. The current provider is
 Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
-installation destinations remain the separate main-branch deploy workflow.
+installation updates follow the separate release-notification and scheduled-tick lifecycle.
 Fork code is not imported automatically.
 
 While the SDK is private, the optional `toolchain` preview adapter requires

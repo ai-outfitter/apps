@@ -2,7 +2,7 @@ name: Outfitter app tooling
 description: Run versioned tooling independently of the caller checkout
 inputs:
   command:
-    description: plan, check, run, deploy, toolchain or preview commands
+    description: plan, check, run, release-events, release-notify, deploy, toolchain or preview commands
     required: true
   app:
     description: App path relative to the source checkout
@@ -20,6 +20,15 @@ inputs:
     description: Absolute path to disposable private SDK checkout (optional adapter)
     default: ''
 outputs:
+  releases:
+    description: Newly published app releases as JSON
+    value: ${{ steps.execute.outputs.releases }}
+  has_releases:
+    description: Whether app releases were published
+    value: ${{ steps.execute.outputs.has_releases }}
+  receipt:
+    description: Durable release registration and scheduled update receipt as JSON
+    value: ${{ steps.execute.outputs.receipt }}
   sdk_sha:
     description: Public SDK commit from caller configuration
     value: ${{ steps.execute.outputs.sdk_sha }}
@@ -68,6 +77,8 @@ runs:
           plan) node "$TOOLING_PATH/scripts/apps.mjs" plan ;;
           check|run) node "$TOOLING_PATH/scripts/apps.mjs" "$COMMAND" "$APP" ;;
           deploy) node "$TOOLING_PATH/scripts/deploy.mjs" "$APP" ;;
+          release-events) node "$TOOLING_PATH/scripts/releases.mjs" events ;;
+          release-notify) node "$TOOLING_PATH/scripts/releases.mjs" notify ;;
           toolchain) node "$TOOLING_PATH/scripts/toolchain.mjs" "$APP" "$TOOLCHAIN_PATH" ;;
           preview-plan) node "$TOOLING_PATH/scripts/preview.mjs" plan ;;
           preview-build) node "$TOOLING_PATH/scripts/preview.mjs" build "$APP" ;;
