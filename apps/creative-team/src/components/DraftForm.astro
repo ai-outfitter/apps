@@ -1,0 +1,31 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { draftFormatLabels, draftFormats, draftStatusLabels, draftStatuses } from "../lib/brand";
+import type { BrandState } from "../server/store";
+
+interface Props { draft?: BrandState["drafts"][number]; nodes: { id: string; label: string }[]; nodeId?: string | null; readOnly: boolean }
+const { draft, nodes, nodeId = draft?.nodeId ?? null, readOnly } = Astro.props;
+const key = draft?.id ?? "new";
+---
+<form data-astro-reload class="draft-form" data-write="SaveDraft" data-saved={draft ? "Draft saved." : "Draft added."}>
+  {draft ? <input type="hidden" name="id" value={draft.id} /> : null}
+  {draft ? <input type="hidden" name="revision" data-kind="number" value={String(draft.revision)} /> : null}
+  <label>Title <input name="title" required maxlength="300" value={draft?.title ?? ""} readonly={readOnly} /></label>
+  <div class="field-row">
+    <label>Format
+      <select name="format" disabled={readOnly}>{draftFormats.map((format) => <option value={format} selected={(draft?.format ?? "post") === format}>{draftFormatLabels[format]}</option>)}</select>
+    </label>
+    <label>Status
+      <select name="status" disabled={readOnly}>{draftStatuses.map((status) => <option value={status} selected={(draft?.status ?? "draft") === status}>{draftStatusLabels[status]}</option>)}</select>
+    </label>
+    <label>From the map
+      <select name="nodeId" data-kind="nullable" disabled={readOnly}>
+        <option value="" selected={!nodeId}>Not linked</option>
+        {nodes.map((node) => <option value={node.id} selected={node.id === nodeId}>{node.label}</option>)}
+      </select>
+    </label>
+  </div>
+  <label for={`body-${key}`}>Draft</label>
+  <textarea id={`body-${key}`} name="body" rows={draft ? 10 : 6} maxlength="20000" readonly={readOnly}>{draft?.body ?? ""}</textarea>
+  {readOnly ? null : <div class="form-actions"><Button type="submit" variant={draft ? "secondary" : "primary"}>{draft ? "Save draft" : "Add draft"}</Button></div>}
+</form>

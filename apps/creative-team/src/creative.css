@@ -1,0 +1,81 @@
+/* Only what this app adds to the shared frame; colors come from shared tokens. */
+
+.creative textarea,
+.creative input:not([type="hidden"]),
+.creative select {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--canvas);
+  color: var(--text);
+}
+.creative textarea { resize: vertical; line-height: 1.5; }
+.creative form { display: grid; gap: 8px; }
+.creative .hint { margin: -4px 0 0; font-size: 0.9rem; }
+.creative .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.creative .field-row { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.creative [aria-busy="true"] { opacity: 0.6; pointer-events: none; }
+.creative .danger { color: var(--error); }
+.creative .section-heading { font-size: 1.3rem; margin: 24px 0 8px; }
+.creative .plain-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.creative-note { margin-top: 24px; }
+
+/* Overview */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ui-content .steps .step { display: flex; gap: 16px; margin: 0; padding: 20px; }
+.step-number {
+  flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--border); font-weight: 600;
+}
+.step--done .step-number { background: var(--success); color: var(--surface); border-color: transparent; }
+.ui-content .step h2 { margin: 0; font-size: 1.1rem; }
+.ui-content .step p { margin: 4px 0 0; }
+.step-body { min-width: 0; }
+
+/* Brand */
+.brand-section { display: grid; gap: 16px; }
+.ui-content .brand-section h2 { margin: 0; }
+.ui-content .brand-section > p { margin: -8px 0 0; }
+.wiki-panel, .wiki-save { display: grid; gap: 12px; }
+.ui-content .wiki-panel h2, .ui-content .wiki-panel p { margin: 0; }
+.brand-question label { font-weight: 600; }
+
+/* Content and drafts */
+.ui-content details.paper { margin: 12px 0; padding: 16px 20px; }
+.ui-content details.paper > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.ui-content details.paper[open] > summary { margin-bottom: 12px; }
+.ui-content details.paper > .ui-button { margin-top: 8px; }
+.draft-status { font-size: 0.8rem; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
+.draft-status--ready { border-color: var(--success); }
+.draft-status--posted { background: var(--soft); }
+
+/* Map */
+.map-counts { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0 0 16px; padding: 0; }
+.map, .map-children { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.map-children { padding-left: 20px; border-left: 2px solid var(--border); margin-top: 8px; }
+.map-node--pillar > details { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px 16px; }
+.map-node summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.map-level { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); min-width: 3.5em; }
+.map-node--pillar > details > summary .map-title { font-weight: 700; font-size: 1.1rem; }
+.map-node--topic > details > summary .map-title { font-weight: 600; }
+.map-count { font-size: 0.85rem; }
+.map-body { padding: 4px 0 0 4px; }
+.ui-content .map-body p { margin: 4px 0; overflow-wrap: anywhere; }
+.map-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; margin: 6px 0; font-size: 0.95rem; }
+.map-edit { flex: 1 1 100%; }
+.map-edit > summary { color: var(--muted); }
+.map-edit form { margin: 8px 0; }
+.ui-content .map-add { display: flex; gap: 8px; align-items: center; flex: 1 1 260px; }
+.ui-content .map-add input { flex: 1; min-width: 0; }
+.ui-content .map-add .ui-button { padding: 8px 12px; }
+.ui-content .map-add--pillar { display: grid; grid-template-columns: 1fr auto; margin-top: 16px; padding: 16px; }
+.ui-content .map-add--pillar label { grid-column: 1 / -1; }
+.map-draft { align-self: center; }
+
+@media (max-width: 600px) {
+  .map-children { padding-left: 10px; }
+  .ui-content .map-add--pillar { grid-template-columns: 1fr; }
+}
