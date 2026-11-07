@@ -19,4 +19,7 @@ export const archiveImportExclusions = [
   "document_publications",
   "document_runs",
   "onto_review_jobs",
+  "onto_source_definitions",
+  "onto_source_proofs",
+  "onto_source_fences",
 ] as const;

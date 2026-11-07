@@ -1,3 +1,4 @@
+import { createSourceFenceActions } from "../../../../../server/source-fences/actions";
 import { documentWorkflow } from "../../../../../server/documents/worker";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { createExportActions } from "../../../../../server/exports/github";
@@ -106,6 +107,7 @@ export const ALL: APIRoute = ({ request, params, locals }) => {
   const documentActions = createDocumentActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals) });
   return actionAPI(request, params.operation ?? "", {
     ...wikiActions,
+    ...createSourceFenceActions({db:agentDatabase,graph:installationDatabase}),
     ...documentActions,
     ...createExportActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals) }),
     "onto.documents-schedule": defineAction({

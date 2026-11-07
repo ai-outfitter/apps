@@ -1,5 +1,9 @@
+import {
+  ontoSourceFenceContract,
+  ontoSourceFenceCapability,
+  ontoDocumentsContract,
+} from "@ai-outfitter/onto/contracts";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
-import { ontoDocumentsContract } from "@ai-outfitter/onto/contracts";
 import { eq } from "drizzle-orm";
 import type { Database } from "./graph-batches";
 import { graphTypes } from "./schema";
@@ -16,6 +20,7 @@ export async function describeOntoGraph(db: Database) {
       { id: "outfitter.graph", version: 1 },
       { id: "outfitter.onto", version: 1 },
       ontoDocumentsContract,
+      ontoSourceFenceContract,
     ],
     capabilities: [
       "graphql.read",
@@ -23,6 +28,7 @@ export async function describeOntoGraph(db: Database) {
       "assertions",
       "batches",
       "documents",
+      ontoSourceFenceCapability,
     ],
     types: types.map((type) => ({
       name: type.name,

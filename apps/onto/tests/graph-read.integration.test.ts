@@ -59,6 +59,9 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     const advertised = await declaration.json() as {contracts:{id:string;version:number}[];capabilities:string[]};
     assert.ok(advertised.contracts.some(c=>c.id === "outfitter.onto.documents" && c.version === 1));
     assert.ok(advertised.capabilities.includes("documents"));
+    assert.ok(advertised.contracts.some(c=>c.id === "outfitter.onto.source-fence" && c.version === 1));
+    assert.ok(advertised.capabilities.includes("source.fence.type-membership.v1"));
+    assert.ok(advertised.capabilities.every(capability => typeof capability === "string"));
     const before = await counts();
     const catalog = await app.call("/api/internal/actions/v1/list", member);
     assert.equal(catalog.status, 200);
