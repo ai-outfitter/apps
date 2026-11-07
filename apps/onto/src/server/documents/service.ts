@@ -601,19 +601,58 @@ export async function evaluatePolicy(
   return result;
 }
 /** Read only metadata for the exact current, configured policy binding. */
-export async function policySubject(db: AgentDatabase, scope: Scope, binding: PolicyBinding) {
-  if (!scope.identity || binding.producer.installationId !== scope.identity.installationId || canonical(binding.owner) !== canonical(scope.identity.owner)) fail("Producer or owner mismatch");
+export async function policySubject(
+  db: AgentDatabase,
+  scope: Scope,
+  binding: PolicyBinding,
+) {
+  if (
+    !scope.identity ||
+    binding.producer.installationId !== scope.identity.installationId ||
+    canonical(binding.owner) !== canonical(scope.identity.owner)
+  )
+    fail("Producer or owner mismatch");
   const h = await head(db, scope, binding.documentId);
   if (Number(h.revision) !== binding.revision) fail("Stale revision");
-  const revision = await getRevision(db, scope, binding.documentId, binding.revision);
-  if (!revision.complete || revision.digest !== binding.digest) fail("Revision unavailable");
-  const row = await one(db, "SELECT definition FROM document_definitions WHERE owner=? AND id=? AND version=?", scope.owner, revision.definitionId, revision.definitionVersion) ?? fail("Definition unavailable");
+  const revision = await getRevision(
+    db,
+    scope,
+    binding.documentId,
+    binding.revision,
+  );
+  if (!revision.complete || revision.digest !== binding.digest)
+    fail("Revision unavailable");
+  const row =
+    (await one(
+      db,
+      "SELECT definition FROM document_definitions WHERE owner=? AND id=? AND version=?",
+      scope.owner,
+      revision.definitionId,
+      revision.definitionVersion,
+    )) ?? fail("Definition unavailable");
   const policy = parse<Definition>(row.definition).policy;
-  if (!policy || policy.provider !== binding.provider || policy.config !== binding.config) fail("Policy binding differs");
-  const subject = { version: 1 as const, binding, definition: { id: revision.definitionId, version: revision.definitionVersion } };
+  if (
+    !policy ||
+    policy.provider !== binding.provider ||
+    policy.config !== binding.config
+  )
+    fail("Policy binding differs");
+  const subject = {
+    version: 1 as const,
+    binding,
+    definition: {
+      id: revision.definitionId,
+      version: revision.definitionVersion,
+    },
+  };
   const subjectDigest = await documentPolicySubjectDigest(subject);
   const current = await head(db, scope, binding.documentId);
-  if (Number(current.revision) !== binding.revision || current.definition_id !== revision.definitionId || Number(current.definition_version) !== revision.definitionVersion) fail("Stale revision");
+  if (
+    Number(current.revision) !== binding.revision ||
+    current.definition_id !== revision.definitionId ||
+    Number(current.definition_version) !== revision.definitionVersion
+  )
+    fail("Stale revision");
   return { subject, digest: subjectDigest };
 }
 /** Delivery is host-owned and at-least-once; host must deduplicate by event id. */

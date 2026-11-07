@@ -355,23 +355,54 @@ test("policy subject binds trusted producer, owner, action and configuration to 
     const capture = await readLive(db, scope, "doc", host);
     await enqueue(db, scope, "doc", "subject-job");
     await lease(db, scope, "subject-job", "worker", 1, 10);
-    const revision = await complete(db, scope, "subject-job", "worker", 2, {}, capture);
+    const revision = await complete(
+      db,
+      scope,
+      "subject-job",
+      "worker",
+      2,
+      {},
+      capture,
+    );
     const { policySubject } = await import("../src/server/documents/service");
-    const binding = {version:1 as const,producer:{installationId:"onto"},owner:{kind:"organization" as const,id:"org"},documentId:"doc",revision:1,digest:revision.digest,action:"seal",provider:"policy",config:"rules"};
+    const binding = {
+      version: 1 as const,
+      producer: { installationId: "onto" },
+      owner: { kind: "organization" as const, id: "org" },
+      documentId: "doc",
+      revision: 1,
+      digest: revision.digest,
+      action: "seal",
+      provider: "policy",
+      config: "rules",
+    };
     // The fixture's configured provider and config are authoritative.
-    const definition = await db.query({sql:"SELECT definition FROM document_definitions WHERE owner=? AND id=?",params:[scope.owner,"review"]});
+    const definition = await db.query({
+      sql: "SELECT definition FROM document_definitions WHERE owner=? AND id=?",
+      params: [scope.owner, "review"],
+    });
     const configured = JSON.parse(String(definition[0].definition)).policy;
-    binding.provider = configured.provider; binding.config = configured.config;
-    const first = await policySubject(db,scope,binding);
-    const changed = await policySubject(db,scope,{...binding,action:"publish"});
-    assert.notEqual(first.digest,changed.digest);
+    binding.provider = configured.provider;
+    binding.config = configured.config;
+    const first = await policySubject(db, scope, binding);
+    const changed = await policySubject(db, scope, {
+      ...binding,
+      action: "publish",
+    });
+    assert.notEqual(first.digest, changed.digest);
     for (const altered of [
-      {...binding,producer:{installationId:"other"}},
-      {...binding,owner:{kind:"organization" as const,id:"other"}},
-      {...binding,config:"other"}, {...binding,digest:"0".repeat(64)}, {...binding,revision:2},
-    ]) await assert.rejects(policySubject(db,scope,altered));
-    await enqueue(db,scope,"doc","next"); await lease(db,scope,"next","worker",3,10);
-    await complete(db,scope,"next","worker",4,{},capture);
-    await assert.rejects(policySubject(db,scope,binding));
-  } finally { client.close(); }
+      { ...binding, producer: { installationId: "other" } },
+      { ...binding, owner: { kind: "organization" as const, id: "other" } },
+      { ...binding, config: "other" },
+      { ...binding, digest: "0".repeat(64) },
+      { ...binding, revision: 2 },
+    ])
+      await assert.rejects(policySubject(db, scope, altered));
+    await enqueue(db, scope, "doc", "next");
+    await lease(db, scope, "next", "worker", 3, 10);
+    await complete(db, scope, "next", "worker", 4, {}, capture);
+    await assert.rejects(policySubject(db, scope, binding));
+  } finally {
+    client.close();
+  }
 });

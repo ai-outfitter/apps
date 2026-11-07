@@ -220,13 +220,11 @@ export function createDocumentActions(context: {
       run: async ({ identity }, i) => {
         await enqueue(context.db(), scopeOf(identity), i.id, i.jobId);
         try {
-          const run = await context
-            .host()
-            .call("task.start", {
-              task: "document-generation",
-              id: crypto.randomUUID(),
-              inputs: { jobId: i.jobId },
-            });
+          const run = await context.host().call("task.start", {
+            task: "document-generation",
+            id: crypto.randomUUID(),
+            inputs: { jobId: i.jobId },
+          });
           return { queued: true, jobId: i.jobId, runId: run.id };
         } catch {
           return {
@@ -266,13 +264,11 @@ export function createDocumentActions(context: {
       run: async ({ identity }, i) => {
         await requeueJob(context.db(), scopeOf(identity), i.id);
         try {
-          const run = await context
-            .host()
-            .call("task.start", {
-              task: "document-generation",
-              id: crypto.randomUUID(),
-              inputs: { jobId: i.id },
-            });
+          const run = await context.host().call("task.start", {
+            task: "document-generation",
+            id: crypto.randomUUID(),
+            inputs: { jobId: i.id },
+          });
           return { queued: true, jobId: i.id, runId: run.id };
         } catch {
           return {
@@ -305,9 +301,13 @@ export function createDocumentActions(context: {
         ),
     }),
     "document.policy-subject": defineAction({
-      description: "Read current policy subject metadata for the exact configured document revision; grants no approval.",
-      access: "read", input: documentPolicyBinding, output: documentPolicySubjectResult,
-      run: ({ identity }, binding) => policySubject(context.db(), scopeOf(identity), binding),
+      description:
+        "Read current policy subject metadata for the exact configured document revision; grants no approval.",
+      access: "read",
+      input: documentPolicyBinding,
+      output: documentPolicySubjectResult,
+      run: ({ identity }, binding) =>
+        policySubject(context.db(), scopeOf(identity), binding),
     }),
     "document.policy": defineAction({
       description:
