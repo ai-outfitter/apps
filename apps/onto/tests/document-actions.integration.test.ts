@@ -43,6 +43,7 @@ async function fixture() {
             installationId: "graph",
             actions: [
               { name: "graph.describe", access: "read", permitted: true },
+              { name: "graph.graphql", access: "read", permitted: true },
             ],
           },
         ];

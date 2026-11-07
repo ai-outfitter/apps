@@ -10,7 +10,11 @@ Onto's ontology model, or a particular package name.
 Bind an installation explicitly when more than one provider matches. Unknown
 contracts/versions, missing bindings and ambiguous matches fail closed. The host
 checks ownership, installation access and phase authority on every source call.
-Do not retain an authorized host or provider data across requests.
+Do not retain an authorized host or provider data across requests. Explicit
+bindings are filtered locally even if a host returns a broader listing. Before
+releasing a completed graph read, the SDK rechecks the current installation/action
+permission through the host and discards the response if authority was revoked.
+Malformed GraphQL data is unavailable, never complete empty evidence.
 
 `@ai-outfitter/app-sdk/graph-protocol` owns the existing GraphQL wire shapes and
 response budgets without importing the ontology implementation. The legacy
