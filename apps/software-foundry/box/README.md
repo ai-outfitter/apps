@@ -21,3 +21,21 @@ validates the fixtures in `fixtures/` and fails when a committed schema is stale
 
 Evidence and artifacts are addressed as `s3://<bucket>/<key>` in the box's
 RustFS, always with a SHA-256 and the commit they were produced from.
+
+## The box itself
+
+The runnable box lives in `packages/box` (shared harness, image, box-kube,
+Agent Eval agent). The Foundry's side is here:
+
+- `driver.mjs`: what the box does once the platform is up (configure the
+  Foundry for the box repository, file requests, write results, release).
+- `intake.mjs`, `results.mjs`, `release.mjs`: request intake, run-result
+  documents and the release with its evidence bundle; tests in
+  `tests/box-*.unit.test.ts`.
+- `evals/`: Agent Eval fixtures and `run.ts`.
+
+```sh
+docker build --build-context webapp=../webapp --build-arg BOX_APP=software-foundry \
+  -f packages/box/Dockerfile -t outfitter/software-foundry-box:dev .
+BOX_CLI=podman BOX_MODEL_ENV=model.env node --import tsx apps/software-foundry/box/evals/run.ts subtract-helper
+```
