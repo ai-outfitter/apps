@@ -73,6 +73,18 @@ function run(command, args, extra = {}) {
   return result.stdout.trim();
 }
 
+/** Creates a RustFS bucket, retrying while RustFS is still starting (it answers 503 then). */
+async function createBucket(settings, attempts = 60) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], settings);
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 async function ready(name, url, attempts = 60) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -306,9 +318,8 @@ async function main() {
   start("rustfs", "rustfs", [join(STATE, "rustfs")], {
     RUSTFS_ADDRESS: `127.0.0.1:${PORTS.rustfs}`, RUSTFS_ACCESS_KEY: s3.ATTACHMENTS_S3_ACCESS_KEY_ID, RUSTFS_SECRET_KEY: s3.ATTACHMENTS_S3_SECRET_ACCESS_KEY,
   });
-  run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], s3);
-  // Workflow artifacts (node sessions, evidence) and Forgejo's LFS objects in their own buckets on the same RustFS.
-  for (const bucket of ["artifacts", "lfs"]) run("node", [join(CHECKOUT, "scripts/attachments-bucket.mjs")], { ...s3, ATTACHMENTS_S3_BUCKET: bucket });
+  // The box bucket, then workflow artifacts (node sessions, evidence) and Forgejo's LFS objects in their own buckets.
+  for (const bucket of [s3.ATTACHMENTS_S3_BUCKET, "artifacts", "lfs"]) await createBucket({ ...s3, ATTACHMENTS_S3_BUCKET: bucket });
   // Forgejo: the git server, issues, PRs, reviews and releases.
   const forgejo = forgejoConfig();
   start("forgejo", "forgejo", ["--config", forgejo.config, "web"], { GITEA_WORK_DIR: forgejo.dir, FORGEJO_WORK_DIR: forgejo.dir });

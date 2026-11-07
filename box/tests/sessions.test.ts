@@ -4,6 +4,8 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { parseTranscript } from "@vercel/agent-eval";
+import { boxAgentName } from "../eval/agent.ts";
 import { mergedTranscript, readSession, recordSessions, SESSIONS_BRANCH, sessionFiles } from "../sessions.mjs";
 
 const message = (role: string, text: string, timestamp: number) =>
@@ -18,6 +20,14 @@ test("the merged transcript puts every agent's messages in time order, tagged by
   assert.deepEqual(lines.map((line) => [line.agent, line.message.content[0].text]),
     [["triage", "Plan"], ["implement", "Build it"], ["implement", "Built"], ["review", "Review it"], ["review", "Approved"]]);
   assert.ok(lines.every((line) => line.type === "message_end"));
+});
+
+test("Agent Eval parses the merged transcript as pi's, by the box agent's name", () => {
+  const raw = mergedTranscript([{ agent: "implement", entries: [message("user", "Build it", 1_000), message("assistant", "Built", 3_000)] }]);
+  const transcript = parseTranscript(raw, boxAgentName({ name: "foundry-box" }));
+  assert.equal(transcript.parseSuccess, true);
+  assert.deepEqual(transcript.events.map((event) => [event.role, event.timestamp]),
+    [["user", "1970-01-01T00:00:01.000Z"], ["assistant", "1970-01-01T00:00:03.000Z"]]);
 });
 
 test("session files are found by runtime run id in any workspace folder", () => {

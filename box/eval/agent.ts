@@ -120,9 +120,14 @@ export function metricsTable(runs: RunMetrics[]) {
   return [header, ...rows].map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join("  ")).join("\n");
 }
 
+/** The agent's name as experiments use it. Agent Eval picks its transcript
+ * parser by the agent's name, so the name carries pi's ("pi-coding-agent"):
+ * the transcript is the box's agent sessions in pi's format. */
+export const boxAgentName = (box: { name: string }) => `${box.name}-pi-coding-agent`;
+
 export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []): Agent {
   return {
-    name: box.name,
+    name: boxAgentName(box),
     displayName: box.displayName,
     getApiKeyEnvVar: () => "OPENAI_API_KEY",
     getDefaultModel: () => "gpt-6-luna" as never,
