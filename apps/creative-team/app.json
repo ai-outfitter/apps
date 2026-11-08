@@ -79,7 +79,7 @@
       ],
       "access": "Your brand, content and drafts live in this installation's own database. The assistant reads them and proposes changes; nothing is saved until you approve it, and it never posts for you. It does not scrape social platforms: research uses what you paste, its own knowledge and your other Outfitter apps. It uses your organization's or your own inference provider. Demo data is synthetic and read-only."
     },
-    "cover": "catalog/cover.svg"
+    "cover": "catalog/cover.webp"
   },
   "dependencies": [
     "wiki-map"
