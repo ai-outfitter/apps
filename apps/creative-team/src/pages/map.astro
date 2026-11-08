@@ -1,0 +1,29 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "../components/Layout.astro";
+import MapNode from "../components/MapNode.astro";
+import { mapLevels, mapTargets } from "../lib/brand";
+import { pageState } from "../server/page-state";
+import { levelCounts, mapTree } from "../server/store";
+
+const { state, canEdit, demo } = await pageState(Astro.request);
+const readOnly = demo || !canEdit;
+const tree = mapTree(state.nodes);
+const counts = levelCounts(state.nodes);
+const summary = `Content map: ${mapLevels.map((level) => `${counts[level]} ${level}s`).join(", ")}. Pillars: ${tree.map((pillar) => pillar.title).join("; ") || "none yet"}.`;
+---
+<Layout title="Map" description="A research-backed content map: broad pillars that branch into topics, ideas likely to perform, and angles on each idea, all through your own lens." page="map">
+  <ul class="map-counts" data-agent-summary={summary}>
+    {mapLevels.map((level) => <li><strong>{counts[level]}</strong> {level}{counts[level] === 1 ? "" : "s"} <span class="muted">· aim for {mapTargets[level][0]}–{mapTargets[level][1]}{level === "pillar" ? "" : " each"}</span></li>)}
+  </ul>
+  {tree.length ? null : <p class="muted">No map yet. Fill in your brand and content documents first, then ask your team to build a research-backed content map, or add a pillar yourself.</p>}
+  {tree.length ? <ol class="map">{tree.map((node) => <MapNode {node} {readOnly} />)}</ol> : null}
+  {readOnly ? null : (
+    <form data-astro-reload class="map-add map-add--pillar paper" data-write="AddMapBranch" data-saved="Added a pillar.">
+      <label for="add-pillar">New pillar</label>
+      <input id="add-pillar" name="nodes.0.title" required maxlength="300" placeholder="A broad theme you could post about for years" />
+      <Button type="submit">Add pillar</Button>
+    </form>
+  )}
+</Layout>
+<script>import "../scripts/editor";</script>

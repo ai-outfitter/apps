@@ -1,0 +1,53 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "../components/Layout.astro";
+import SourceForm from "../components/SourceForm.astro";
+import { sourceKindLabels } from "../lib/brand";
+import { pageState } from "../server/page-state";
+
+const { state, canEdit, demo } = await pageState(Astro.request);
+const readOnly = demo || !canEdit;
+const profile = state.profile;
+const fields = [
+  ["coreIdeas", "Core ideas", "The ideas that make you unique, the ones you keep coming back to."],
+  ["voice", "Voice", "The parts of your voice with personality: phrases, rhythm, humor, what you never say."],
+  ["worldview", "Worldview", "The philosophy people could rally behind."],
+  ["patterns", "Patterns to replicate", "What your best posts, or your influences' best work, have in common."],
+] as const;
+const summary = `Content document: ${state.sources.length} sources (${state.sources.map((source) => `${source.name} [${source.kind}]`).join(", ") || "none"}); synthesis ${profile ? "saved" : "not saved yet"}.`;
+---
+<Layout title="Content" description="Your knowledge base of what is unique about you: your best posts, or the people who shaped your thinking if you haven't posted yet." page="content">
+  <section class="paper" aria-labelledby="profile-heading" data-agent-summary={summary}>
+    <h2 id="profile-heading">Voice, ideas and worldview</h2>
+    <p class="muted">The synthesis across every source below. Drafts are written from this.</p>
+    <form data-astro-reload data-write="SaveContentProfile" data-saved="Content document saved.">
+      <input type="hidden" name="revision" data-kind="number" value={profile ? String(profile.revision) : ""} />
+      {fields.map(([name, label, hint]) => (
+        <>
+          <label for={`profile-${name}`}>{label}</label>
+          <p class="muted hint">{hint}</p>
+          <textarea id={`profile-${name}`} name={name} rows="3" maxlength="8000" readonly={readOnly}>{profile?.[name] ?? ""}</textarea>
+        </>
+      ))}
+      {readOnly ? null : <div class="form-actions"><Button type="submit" variant="secondary">Save</Button></div>}
+    </form>
+  </section>
+  <div class="sources" aria-labelledby="sources-heading" role="region">
+    <h2 id="sources-heading" class="section-heading">Sources</h2>
+    {state.sources.length ? null : <p class="muted">No sources yet. Add your best posts from each platform you post on, or, if you are just starting, the 5 to 10 people who shaped your thinking most.</p>}
+    {state.sources.map((source) => (
+      <details class="paper source">
+        <summary><strong>{source.name}</strong> <span class="muted">{sourceKindLabels[source.kind as keyof typeof sourceKindLabels]}{source.platform ? ` · ${source.platform}` : ""}{source.handle ? ` · ${source.handle}` : ""}</span></summary>
+        <SourceForm {source} {readOnly} />
+        {readOnly ? null : <Button variant="secondary" class="danger" data-write="DeleteSource" data-input={JSON.stringify({ id: source.id, revision: source.revision })} data-confirm={`Remove ${source.name}?`} data-saved="Source removed.">Remove</Button>}
+      </details>
+    ))}
+    {readOnly ? null : (
+      <details class="paper source" open={!state.sources.length}>
+        <summary><strong>Add a source</strong></summary>
+        <SourceForm {readOnly} />
+      </details>
+    )}
+  </div>
+</Layout>
+<script>import "../scripts/editor";</script>

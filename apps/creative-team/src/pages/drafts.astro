@@ -1,0 +1,44 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "../components/Layout.astro";
+import DraftForm from "../components/DraftForm.astro";
+import { draftFormatLabels, draftStatusLabels } from "../lib/brand";
+import { pageState } from "../server/page-state";
+
+const { state, canEdit, demo } = await pageState(Astro.request);
+const readOnly = demo || !canEdit;
+const byId = new Map(state.nodes.map((node) => [node.id, node]));
+const path = (id: string) => {
+  const titles: string[] = [];
+  for (let node = byId.get(id); node; node = node.parentId ? byId.get(node.parentId) : undefined) titles.unshift(node.title);
+  return titles.join(" › ");
+};
+const linkable = state.nodes.filter((node) => node.level === "idea" || node.level === "angle").map((node) => ({ id: node.id, label: path(node.id) }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+const requested = Astro.url.searchParams.get("node");
+const nodeId = requested && byId.has(requested) ? requested : null;
+const summary = `Drafts: ${state.drafts.length}. ${state.drafts.slice(0, 10).map((draft) => `"${draft.title}" (${draft.status})`).join(", ")}${nodeId ? `. Writing a new draft from: ${path(nodeId)}` : ""}`;
+---
+<Layout title="Drafts" description="Posts, threads, articles and scripts written from your map. They are almost there: review, rewrite in your own words and post them yourself." page="drafts">
+  <div data-agent-summary={summary}></div>
+  {readOnly ? null : (
+    <details class="paper draft" id="new-draft" open={Boolean(nodeId) || !state.drafts.length}>
+      <summary><strong>New draft</strong>{nodeId ? <span class="muted"> · from {path(nodeId)}</span> : null}</summary>
+      <p class="muted">Or ask your team to draft it in your voice.</p>
+      <DraftForm nodes={linkable} {nodeId} {readOnly} />
+    </details>
+  )}
+  {state.drafts.length ? null : <p class="muted">No drafts yet. Open an idea or angle on the map and choose Write a draft, or ask your team.</p>}
+  {state.drafts.map((draft) => (
+    <details class="paper draft">
+      <summary>
+        <strong>{draft.title}</strong>
+        <span class={`draft-status draft-status--${draft.status}`}>{draftStatusLabels[draft.status as keyof typeof draftStatusLabels]}</span>
+        <span class="muted">{draftFormatLabels[draft.format as keyof typeof draftFormatLabels]}{draft.nodeId && byId.has(draft.nodeId) ? ` · ${path(draft.nodeId)}` : ""}</span>
+      </summary>
+      <DraftForm {draft} nodes={linkable} {readOnly} />
+      {readOnly ? null : <Button variant="secondary" class="danger" data-write="DeleteDraft" data-input={JSON.stringify({ id: draft.id, revision: draft.revision })} data-confirm={`Remove "${draft.title}"?`} data-saved="Draft removed.">Remove</Button>}
+    </details>
+  ))}
+</Layout>
+<script>import "../scripts/editor";</script>

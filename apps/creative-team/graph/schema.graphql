@@ -1,0 +1,504 @@
+type Query {
+  """The onboarding interview that builds the brand document, in order."""
+  brandQuestions: [BrandQuestion!]!
+  brandAnswers(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+  ): BrandAnswerConnection!
+  sources(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    kind: [String!]
+  ): SourceConnection!
+  contentProfiles(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+  ): ContentProfileConnection!
+  mapNodes(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    level: [String!]
+    parentId: [ID!]
+  ): MapNodeConnection!
+  drafts(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    status: [String!]
+    nodeId: [ID!]
+  ): DraftConnection!
+  brandWikiBatches(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+  ): BrandWikiBatchRowConnection!
+}
+
+"""
+One onboarding interview question; its answer is the BrandAnswer with the same id.
+"""
+type BrandQuestion {
+  id: ID!
+  section: String!
+  sectionTitle: String!
+  text: String!
+  hint: String
+}
+
+type BrandAnswerConnection {
+  nodes: [BrandAnswer!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type BrandAnswer {
+  id: ID!
+  answer: String!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type SourceConnection {
+  nodes: [Source!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Source {
+  id: ID!
+  kind: String!
+  name: String!
+  platform: String!
+  handle: String!
+  url: String!
+  examples: String!
+  notes: String!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+type ContentProfileConnection {
+  nodes: [ContentProfile!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ContentProfile {
+  id: ID!
+  coreIdeas: String!
+  voice: String!
+  worldview: String!
+  patterns: String!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+type MapNodeConnection {
+  nodes: [MapNode!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type MapNode {
+  id: ID!
+  parentId: ID
+  level: String!
+  title: String!
+  notes: String!
+  research: String!
+  position: Float!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+type DraftConnection {
+  nodes: [Draft!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Draft {
+  id: ID!
+  nodeId: ID
+  format: String!
+  title: String!
+  body: String!
+  status: String!
+  revision: Float!
+  updatedAt: DateTime!
+}
+
+type BrandWikiBatchRowConnection {
+  nodes: [BrandWikiBatchRow!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type BrandWikiBatchRow {
+  id: ID!
+  wikiInstallationId: String!
+  wikiPath: String!
+  state: String!
+  proposals: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input SaveBrandAnswerInput {
+  questionId: String!
+  answer: String!
+  revision: Float
+}
+
+"""The Wiki change batch a brand interview was staged in."""
+type BrandWikiBatch {
+  """Null when the Wiki already had everything."""
+  batchId: ID
+
+  """awaiting_review until the member (or the Wiki's policy) decides it."""
+  state: String
+
+  """Records and links proposed."""
+  proposals: Int!
+
+  """The Wiki's address; its review page is changes/<batchId> there."""
+  wikiPath: String!
+}
+
+input StageBrandInterviewInput {
+  self: StageBrandInterviewInputSelf!
+  entities: [StageBrandInterviewInputEntitiesItem!]
+}
+
+input StageBrandInterviewInputSelf {
+  existingId: ID
+  title: String
+}
+
+input StageBrandInterviewInputEntitiesItem {
+  key: String!
+  existingId: ID
+  kind: StageBrandInterviewInputEntitiesItemKind!
+  title: String!
+  summary: String
+  questionIds: [String!]!
+  relation: StageBrandInterviewInputEntitiesItemRelation
+}
+
+enum StageBrandInterviewInputEntitiesItemKind {
+  Person
+  CustomerSegment
+  Problem
+  Offering
+  Goal
+}
+
+enum StageBrandInterviewInputEntitiesItemRelation {
+  influenced_by
+  serves_audience
+}
+
+input SaveSourceInput {
+  id: String
+  revision: Float
+  kind: SaveSourceInputKind!
+  name: String!
+  platform: String
+  handle: String
+  url: String
+  examples: String
+  notes: String
+}
+
+enum SaveSourceInputKind {
+  own
+  influence
+}
+
+type Deleted {
+  id: ID!
+
+  """Records removed."""
+  deleted: Int!
+}
+
+input DeleteSourceInput {
+  id: String!
+  revision: Float!
+}
+
+input SaveContentProfileInput {
+  coreIdeas: String
+  voice: String
+  worldview: String
+  patterns: String
+  revision: Float
+}
+
+type MapBranchAdded {
+  """Map nodes added, at every level."""
+  added: Int!
+
+  """The top nodes of the branch, in order."""
+  ids: [ID!]!
+}
+
+input AddMapBranchInput {
+  parentId: String
+  nodes: [AddMapBranchInputNodesItem!]!
+}
+
+input AddMapBranchInputNodesItem {
+  title: String!
+  notes: String
+  research: String
+  children: [AddMapBranchInputNodesItemChildrenItem!]
+}
+
+input AddMapBranchInputNodesItemChildrenItem {
+  title: String!
+  notes: String
+  research: String
+  children: [AddMapBranchInputNodesItemChildrenItemChildrenItem!]
+}
+
+input AddMapBranchInputNodesItemChildrenItemChildrenItem {
+  title: String!
+  notes: String
+  research: String
+  children: [AddMapBranchInputNodesItemChildrenItemChildrenItemChildrenItem!]
+}
+
+input AddMapBranchInputNodesItemChildrenItemChildrenItemChildrenItem {
+  title: String!
+  notes: String
+  research: String
+}
+
+input SaveMapNodeInput {
+  id: String!
+  revision: Float!
+  title: String
+  notes: String
+  research: String
+  position: Int
+}
+
+input DeleteMapNodeInput {
+  id: String!
+  revision: Float!
+}
+
+input SaveDraftInput {
+  id: String
+  revision: Float
+  nodeId: String
+  format: String!
+  title: String!
+  body: String!
+  status: SaveDraftInputStatus
+}
+
+enum SaveDraftInputStatus {
+  draft
+  ready
+  posted
+  archived
+}
+
+input DeleteDraftInput {
+  id: String!
+  revision: Float!
+}
+
+type Mutation {
+  """
+  Save the answer to one brand interview question (brandQuestions). Omit revision for a question with no answer yet; otherwise send the revision you read. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  saveBrandAnswer(input: SaveBrandAnswerInput!): BrandAnswer!
+
+  """
+  Save the brand interview to the member's Wiki as one change batch for review: a BrandInterview document (JSON body, answers in the member's words) plus the people, audiences (CustomerSegment), problems, offerings and goals the answers name, reusing existing Wiki records by existingId, and the links between them. Submits the batch; nothing commits until it is reviewed on the Wiki's Changes page. Refused while the previous interview batch still awaits review. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  stageBrandInterview(input: StageBrandInterviewInput!): BrandWikiBatch!
+
+  """
+  Add a content source (omit id): the creator's own posts on one platform (kind own) or a person who shaped their thinking (kind influence), with pasted examples and notes on their core ideas, voice and worldview. With id and revision, change one; omitted fields are kept. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  saveSource(input: SaveSourceInput!): Source!
+
+  """
+  Remove a content source at the revision you read. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  deleteSource(input: DeleteSourceInput!): Deleted!
+
+  """
+  Save the content document's synthesis across every source: core ideas, voice, worldview and replicable patterns. Omitted fields are kept; send the revision you read, or none when it is not saved yet. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  saveContentProfile(input: SaveContentProfileInput!): ContentProfile!
+
+  """
+  Add to the content map. Without parentId, nodes are pillars; under a pillar they are topics, under a topic ideas, under an idea angles. Each node may carry children down to angles. A full map has 3-4 pillars, 5-7 topics each, 5-10 ideas per topic and 4-5 angles per idea. Put what an idea is based on (a reference post or a pattern seen performing, and where it came from) in research; never invent performance numbers. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  addMapBranch(input: AddMapBranchInput!): MapBranchAdded!
+
+  """
+  Change one map node's title, notes, research or position at the revision you read. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  saveMapNode(input: SaveMapNodeInput!): MapNode!
+
+  """
+  Remove a map node and everything below it at the revision you read; drafts written from them are kept, unlinked. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  deleteMapNode(input: DeleteMapNodeInput!): Deleted!
+
+  """
+  Save a post draft (omit id to add one), optionally written from a map idea or angle (nodeId). Drafts are for the member to rewrite and post; nothing is posted. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  saveDraft(input: SaveDraftInput!): Draft!
+
+  """
+  Remove a draft at the revision you read. Editors only: the owner of a personal installation, or an organization's owners and admins.
+  """
+  deleteDraft(input: DeleteDraftInput!): Deleted!
+
+  """
+  Save brand interview answers, or stage the interview and what it names in the member's Wiki for review, using explicit actions
+  """
+  brandChanges(input: BrandChangesInput!): ChangeResults
+
+  """
+  Save content document sources and the content profile using explicit actions
+  """
+  contentChanges(input: ContentChangesInput!): ChangeResults
+
+  """
+  Add, change or remove content map pillars, topics, ideas and angles using explicit actions
+  """
+  mapChanges(input: MapChangesInput!): ChangeResults
+
+  """Save or remove post drafts using explicit actions"""
+  draftChanges(input: DraftChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input BrandChangesInput {
+  items: [BrandChangesInputItemsItem!]!
+}
+
+input BrandChangesInputItemsItem {
+  key: ID!
+  action: BrandChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum BrandChangesInputItemsItemAction {
+  saveBrandAnswer
+  stageBrandInterview
+}
+
+input ContentChangesInput {
+  items: [ContentChangesInputItemsItem!]!
+}
+
+input ContentChangesInputItemsItem {
+  key: ID!
+  action: ContentChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ContentChangesInputItemsItemAction {
+  saveSource
+  deleteSource
+  saveContentProfile
+}
+
+input MapChangesInput {
+  items: [MapChangesInputItemsItem!]!
+}
+
+input MapChangesInputItemsItem {
+  key: ID!
+  action: MapChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum MapChangesInputItemsItemAction {
+  addMapBranch
+  saveMapNode
+  deleteMapNode
+}
+
+input DraftChangesInput {
+  items: [DraftChangesInputItemsItem!]!
+}
+
+input DraftChangesInputItemsItem {
+  key: ID!
+  action: DraftChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum DraftChangesInputItemsItemAction {
+  saveDraft
+  deleteDraft
+}
