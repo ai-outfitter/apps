@@ -149,6 +149,14 @@ export function metricsTable(runs: RunMetrics[]) {
 export const boxAgentName = (box: { name: string }) => `${box.name}-pi-coding-agent`;
 
 export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []): Agent {
+  // Agent Eval starts every fixture at once, but each box publishes its platform on
+  // the same inspection port, so a second box would exit at once. Boxes run one at a time.
+  let queue: Promise<unknown> = Promise.resolve();
+  const oneAtATime = <T>(work: () => Promise<T>) => {
+    const next = queue.then(work, work);
+    queue = next.catch(() => undefined);
+    return next;
+  };
   return {
     name: boxAgentName(box),
     displayName: box.displayName,
@@ -156,7 +164,12 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
     getDefaultModel: () => "gpt-6-luna" as never,
     // The box brings its own harness (pi inside workspaces); nothing is installed in a sandbox.
     definition: { o11yAgentName: "pi-coding-agent" } as unknown as Agent["definition"],
-    async run(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
+    run(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
+      return oneAtATime(() => runOne(fixturePath, options));
+    },
+  };
+
+  async function runOne(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
       const started = Date.now();
       const work = mkdtempSync(join(tmpdir(), `${box.name}-eval-`));
       try {
@@ -217,8 +230,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
           console.error(`Could not remove ${work}: ${(error as Error).message}`);
         }
       }
-    },
-  };
+  }
 }
 
 /** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
