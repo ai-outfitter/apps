@@ -6,10 +6,12 @@
   "description": "Sealed app boxes: an official app on the real platform with Forgejo and RustFS, JSON in and out, driven by Agent Eval.",
   "exports": {
     "./eval": "./eval/agent.ts",
+    "./geometry": "./eval/geometry.ts",
     "./box-kube": "./box-kube.mjs"
   },
   "scripts": {
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "score": "node --import tsx eval/score.ts"
   },
   "devDependencies": {
     "@vercel/agent-eval": "2.6.0",

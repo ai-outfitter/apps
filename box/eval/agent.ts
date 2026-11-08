@@ -9,11 +9,14 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from "@vercel/agent-eval";
 import type { Agent, AgentRunOptions, AgentRunResult } from "@vercel/agent-eval";
 
 const require = createRequire(import.meta.url);
-const hidden = new Set(["PROMPT.md", "EVAL.ts", "EVAL.tsx", "request.json", "node_modules", ".git"]);
+// A fixture's reference/ folder (a reference part to score against) is for grading only.
+const hidden = new Set(["PROMPT.md", "EVAL.ts", "EVAL.tsx", "request.json", "reference", "node_modules", ".git"]);
+const geometryModule = fileURLToPath(new URL("./geometry.ts", import.meta.url));
 
 export type BoxOptions = {
   /** Agent name, as experiments name it. */
@@ -92,22 +95,30 @@ function finalTree(work: string, branch: string) {
   return final;
 }
 
-/** Grades the final tree with the fixture's EVAL.ts, using the vitest installed with this package. */
-function grade(fixture: string, tree: string) {
+/** Grades the final tree with the fixture's EVAL.ts, using the vitest installed with this package.
+ * EVAL.ts can import the geometry scorer as "@ai-outfitter/box/geometry", reads the fixture's
+ * reference/ beside it, and the scores it records (recordScore) come back as `geometry`. */
+export function grade(fixture: string, tree: string) {
   const evalFile = ["EVAL.ts", "EVAL.tsx"].find((name) => existsSync(join(fixture, name)));
   if (!evalFile) return { success: false, output: "The fixture has no EVAL.ts" };
   cpSync(join(fixture, evalFile), join(tree, evalFile));
+  if (existsSync(join(fixture, "reference"))) cpSync(join(fixture, "reference"), join(tree, "reference"), { recursive: true });
   // vitest's default include does not match EVAL.ts; this run includes only it.
   const config = join(tree, "..", "vitest.eval.config.mjs");
-  writeFileSync(config, `export default { test: { include: [${JSON.stringify(evalFile)}] } };\n`);
+  writeFileSync(config, `export default { resolve: { alias: { "@ai-outfitter/box/geometry": ${JSON.stringify(geometryModule)} } }, test: { include: [${JSON.stringify(evalFile)}] } };\n`);
+  const scores = join(tree, "..", "geometry-scores.json");
   const vitest = resolve(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
-  const result = spawnSync(process.execPath, [vitest, "run", "--root", tree, "--config", config, "--reporter", "verbose"], { cwd: tree, encoding: "utf8" });
-  return { success: result.status === 0, output: `${result.stdout}${result.stderr}` };
+  const result = spawnSync(process.execPath, [vitest, "run", "--root", tree, "--config", config, "--reporter", "verbose"],
+    { cwd: tree, encoding: "utf8", env: { ...process.env, BOX_EVAL_SCORES: scores } });
+  const geometry = existsSync(scores) ? JSON.parse(readFileSync(scores, "utf8")) : undefined;
+  return { success: result.status === 0, output: `${result.stdout}${result.stderr}`, geometry };
 }
 
 /** One box run's time and model use, for comparing models (results/<name>-metrics.json). */
 export type RunMetrics = { eval: string; success: boolean; status?: string; model?: { provider: string; id: string };
-  durationSeconds: number; metrics?: any };
+  durationSeconds: number; metrics?: any;
+  /** Geometry scores the eval recorded, by part (geometry.ts summary). */
+  geometry?: Record<string, { iou: number | null; chamferMm: number | null; watertight: boolean }> };
 
 /** Each run's metrics, one line per run, so two models' runs can be read side by side. */
 export function metricsTable(runs: RunMetrics[]) {
@@ -116,6 +127,18 @@ export function metricsTable(runs: RunMetrics[]) {
     value(run.metrics?.wallSeconds ?? run.durationSeconds), value(run.metrics?.modelSeconds), value(run.metrics?.modelCalls),
     value(run.metrics?.inputTokens), value(run.metrics?.outputTokens), value(run.metrics?.outputTokensPerSecond)]);
   const header = ["eval", "model", "result", "wall s", "model s", "calls", "tokens in", "tokens out", "out tok/s"];
+  // Evals that score geometry add the parts' IoU and Chamfer distance (the mean when there are several).
+  if (runs.some((run) => run.geometry)) {
+    header.push("IoU", "chamfer mm", "watertight");
+    runs.forEach((run, index) => {
+      const parts = Object.values(run.geometry ?? {});
+      const average = (key: "iou" | "chamferMm") => {
+        const values = parts.map((part) => part[key]);
+        return values.length && values.every((v) => v !== null) ? String(Math.round((values as number[]).reduce((a, b) => a + b, 0) / values.length * 1000) / 1000) : "–";
+      };
+      rows[index].push(average("iou"), average("chamferMm"), parts.length ? (parts.every((part) => part.watertight) ? "yes" : "no") : "–");
+    });
+  }
   const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column].length)));
   return [header, ...rows].map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join("  ")).join("\n");
 }
@@ -126,6 +149,14 @@ export function metricsTable(runs: RunMetrics[]) {
 export const boxAgentName = (box: { name: string }) => `${box.name}-pi-coding-agent`;
 
 export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []): Agent {
+  // Agent Eval starts every fixture at once, but each box publishes its platform on
+  // the same inspection port, so a second box would exit at once. Boxes run one at a time.
+  let queue: Promise<unknown> = Promise.resolve();
+  const oneAtATime = <T>(work: () => Promise<T>) => {
+    const next = queue.then(work, work);
+    queue = next.catch(() => undefined);
+    return next;
+  };
   return {
     name: boxAgentName(box),
     displayName: box.displayName,
@@ -133,7 +164,12 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
     getDefaultModel: () => "gpt-6-luna" as never,
     // The box brings its own harness (pi inside workspaces); nothing is installed in a sandbox.
     definition: { o11yAgentName: "pi-coding-agent" } as unknown as Agent["definition"],
-    async run(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
+    run(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
+      return oneAtATime(() => runOne(fixturePath, options));
+    },
+  };
+
+  async function runOne(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
       const started = Date.now();
       const work = mkdtempSync(join(tmpdir(), `${box.name}-eval-`));
       try {
@@ -168,8 +204,9 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
             ...(transcript ? { transcript } : {}) };
         }
         const tree = finalTree(work, "main");
-        const testResult = grade(fixturePath, tree);
+        const { geometry, ...testResult } = grade(fixturePath, tree);
         measured(app.succeeded(result) && testResult.success);
+        if (geometry) runs[runs.length - 1].geometry = geometry;
         const after = files(tree);
         const generatedFiles = Object.fromEntries(after.filter((file) => !original.includes(file) ||
           !readFileSync(join(tree, file)).equals(readFileSync(join(fixturePath, file)))).map((file) => [file, readFileSync(join(tree, file))]));
@@ -193,8 +230,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
           console.error(`Could not remove ${work}: ${(error as Error).message}`);
         }
       }
-    },
-  };
+  }
 }
 
 /** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
