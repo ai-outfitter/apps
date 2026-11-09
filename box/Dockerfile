@@ -47,14 +47,12 @@ COPY box /app/.box/box
 COPY apps/${BOX_APP} /app/.box/apps/${BOX_APP}
 
 FROM docker.io/library/node:24-bookworm-slim
-ARG BOX_APP=software-foundry
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git git-lfs python3 procps tini \
-  && rm -rf /var/lib/apt/lists/*
 # Chrome for the workspaces' browser MCP (chrome-devtools-mcp, installed with the
 # runtime), as the webapp's workspace/runtime/Dockerfile installs it: agents
 # capture the demo screenshots the Foundry's review requires for visual changes.
+# Before ARG BOX_APP, so every box app shares these layers.
 ARG CHROME_VERSION=154.0.8037.92
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git git-lfs python3 procps tini \
     curl unzip fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
     libatspi2.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 \
     libnspr4 libnss3 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 \
@@ -64,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV WORKSPACE_BROWSER_NO_SANDBOX=1 \
     CHROME_EXECUTABLE_PATH=/opt/chrome/chrome-linux64/chrome \
     PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/opt/chrome/chrome-linux64/chrome
+ARG BOX_APP=software-foundry
 COPY --from=forgejo /app/gitea/gitea /usr/local/bin/forgejo
 COPY --from=rustfs /usr/bin/rustfs /usr/local/bin/rustfs
 # The platform runs from its checkout through the local-organizations loader,

@@ -103,11 +103,11 @@ export default {
 }
 
 test("screenshots publish from either issue-to-merge workflow, and from no other", async () => {
-  for (const workflowId of ["issue-to-merge-workspace", "issue-to-review"]) {
+  for (const [workflowId, status] of [["issue-to-merge-workspace", 200], ["issue-to-review", 404]] as const) {
     const { worker, phase } = await installed(workflowId);
     try {
       const published = await phase("publish", { node: { ...node, nodeId: "implement" }, number: 7, headSha: head, filename: "desktop.png", base64: png });
-      assert.equal(published.status, workflowId === "issue-to-review" ? 404 : 200, `${workflowId}: ${await published.clone().text()}`);
+      assert.equal(published.status, status, `${workflowId}: ${await published.clone().text()}`);
     } finally {
       await worker.dispose();
     }

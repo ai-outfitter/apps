@@ -16,18 +16,17 @@ const npm = (...args) => execFileSync("npm", args, { cwd: root, env, stdio: "inh
 
 for (const app of apps) {
   const directory = join(root, "apps", app);
+  const pkg = json(join(directory, "package.json"));
   test(`${app}: manifest and package`, () => {
     const manifest = json(join(directory, "app.json"));
     assert.match(manifest.id, /^outfitter\/[a-z0-9-]+$/);
     assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
     assert.ok(manifest.modes?.demo, "declares a demo mode");
-    const pkg = json(join(directory, "package.json"));
     assert.equal(pkg.outfitter?.kind, "app");
     assert.equal(pkg.version, manifest.version, "package and manifest versions match");
     for (const script of ["build", "check", "test"]) assert.ok(pkg.scripts?.[script], `has a ${script} script`);
   });
   test(`${app}: demo build and unit tests`, () => {
-    const pkg = json(join(directory, "package.json"));
     npm("run", "--workspace", `apps/${app}`, "build");
     assert.ok(existsSync(join(directory, ".outfitter/packages/demo.json")), "wrote the demo package");
     if (pkg.scripts["test:unit"]) npm("run", "--workspace", `apps/${app}`, "test:unit");

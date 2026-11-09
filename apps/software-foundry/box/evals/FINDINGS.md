@@ -95,6 +95,19 @@ Runs on Luna with these fixes:
   Foundry's implement guidance or an SDK preview command, or relax the CSP
   only in dev.
 
+### Follow-ups from review
+
+- The gateway runs with `NODE_ENV=test` only to accept a loopback HTTP
+  `WORKFLOW_NODE_URL`; that flag also relaxes its other loopback URL checks.
+  A dedicated gateway opt-in in webapp (`internalUrl`) would keep the box on
+  production URL validation.
+- `workspace/runtime/server.mjs` always sets `TMPDIR = <WORKSPACE_ROOT>/tmp`.
+  Accepting a caller's `TMPDIR` would let the box drop its short links.
+- The box copies webapp's Chrome install line for line; a shared install
+  script in webapp would keep the version and libraries in one place.
+- `landing-recovery.ts` still recovers only `issue-to-merge-actions-ci` runs,
+  so a box run that fails final review gets no landing recovery.
+
 ### Harness notes
 
 - Agent Eval only discovers a fixture that has `PROMPT.md`, even when

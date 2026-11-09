@@ -106,6 +106,12 @@ async function ready(name, url, attempts = 60) {
 function forgejoConfig() {
   const dir = join(STATE, "forgejo");
   mkdirSync(join(dir, "custom", "conf"), { recursive: true });
+  const rustfs = (bucket) => `STORAGE_TYPE = minio
+MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
+MINIO_ACCESS_KEY_ID = box
+MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
+MINIO_BUCKET = ${bucket}
+MINIO_USE_SSL = false`;
   const ini = `APP_NAME = Outfitter box
 RUN_MODE = prod
 WORK_PATH = ${dir}
@@ -118,19 +124,9 @@ OFFLINE_MODE = true
 LFS_START_SERVER = true
 LFS_JWT_SECRET = ${secret("forgejo-lfs-jwt", 32, "base64url")}
 [storage]
-STORAGE_TYPE = minio
-MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
-MINIO_ACCESS_KEY_ID = box
-MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
-MINIO_BUCKET = forgejo
-MINIO_USE_SSL = false
+${rustfs("forgejo")}
 [lfs]
-STORAGE_TYPE = minio
-MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
-MINIO_ACCESS_KEY_ID = box
-MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
-MINIO_BUCKET = lfs
-MINIO_USE_SSL = false
+${rustfs("lfs")}
 [database]
 DB_TYPE = sqlite3
 PATH = ${dir}/forgejo.db

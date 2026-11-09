@@ -9,12 +9,13 @@
 // Not a general Kubernetes: no watches, no label selectors, no auth. It listens
 // on loopback only and is reachable only from inside the box.
 import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sha256 } from "./lib.mjs";
 
 /** Pure object store with Kubernetes create/get/merge-patch/put/delete semantics. */
 export class Store {
@@ -156,7 +157,7 @@ export class Controller {
     const token = secret?.stringData?.token;
     if (!token) return this.#report(key, "Starting", undefined, generation);
     const port = await this.freePort();
-    const root = this.#link(namespace, name);
+    const root = this.#link(key, namespace, name);
     const podName = `${name}-g${generation}`;
     const child = this.spawnRuntime(this.runtimeScript, {
       PORT: String(port),
@@ -178,17 +179,17 @@ export class Controller {
    * `/workspace` is short. Chrome keeps its profile and sockets under the
    * runtime's TMPDIR (`<root>/tmp`), and a Unix socket path over 108 bytes
    * makes it exit before the browser MCP can attach. */
-  #link(namespace, name) {
+  #link(key, namespace, name) {
     const directory = join(this.dataDirectory, namespace, name);
     mkdirSync(directory, { recursive: true });
-    const link = this.#linkPath(`workspaces/${namespace}/${name}`);
+    const link = this.#linkPath(key);
     mkdirSync(dirname(link), { recursive: true });
     rmSync(link, { force: true });
     symlinkSync(directory, link);
     return link;
   }
   #linkPath(key) {
-    return join(this.dataDirectory, ".w", createHash("sha256").update(key).digest("hex").slice(0, 12));
+    return join(this.dataDirectory, ".w", sha256(key).slice(0, 12));
   }
   #report(key, reason, podName, generation) {
     const workspace = this.store.get(key);
