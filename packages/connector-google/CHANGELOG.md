@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/ai-outfitter/apps/compare/connector-google-v0.1.1...connector-google-v0.1.2) (2026-11-09)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/connector-core bumped from 0.1.1 to 0.1.2
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/connector-google-v0.1.0...connector-google-v0.1.1) (2026-11-06)
 
 
