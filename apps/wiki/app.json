@@ -1,6 +1,6 @@
 {
   "id": "outfitter/wiki-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
@@ -40,7 +40,7 @@
     "operational": {
       "slug": "wiki-map",
       "name": "Wiki",
-      "description": "Documents and pages connected to your organization\u2019s knowledge."
+      "description": "Documents and pages connected to your organization’s knowledge."
     },
     "demo": {
       "slug": "wiki-map",
