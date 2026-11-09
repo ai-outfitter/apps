@@ -69,6 +69,22 @@ test("installed Wiki creates a draft, preserves a publication, and refuses stale
  }finally{await app.dispose();}
 });
 
+test("demo assets omit document form writes while operational assets retain editing",async()=>{
+ for(const mode of ["demo","operational"] as const){
+  const app=await appWorker("wiki-map",new URL(`../.outfitter/packages/${mode}.json`,import.meta.url));
+  try{
+   const scripts=Object.entries(app.assets).filter(([path])=>path.endsWith(".js")).map(([,asset])=>Buffer.from(asset.content,"base64").toString("utf8")).join("\n");
+   assert.ok(scripts.length>0,`${mode} has browser assets`);
+   // These belong to the form handler that constructs and POSTs document
+   // mutations, not the shared navigation or read-only scripted assistant.
+   for(const marker of ["form[data-wiki-form]","The document response was incomplete. Refresh before retrying."]){
+    if(mode==="demo")assert.ok(!scripts.includes(marker),`demo must not ship operational form payload: ${marker}`);
+    else assert.ok(scripts.includes(marker),`operational editing retains its handler: ${marker}`);
+   }
+  }finally{await app.dispose();}
+ }
+});
+
 test("demo Wiki serves documents and refuses writes without an installation database",async()=>{
  const app=await appWorker("wiki-map",new URL("../.outfitter/packages/demo.json",import.meta.url));
  try{
