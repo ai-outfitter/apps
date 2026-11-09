@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (not published)
+
+The SDK package `@ai-outfitter/onto` already owned the `onto-v0.1.1` tag, so this release was never built; 0.1.2 is the first Onto app release.
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/onto-v0.1.0...onto-v0.1.1) (2026-11-09)
 
 
