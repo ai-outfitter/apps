@@ -2,7 +2,7 @@
 // SDK carries: this checkout's packages/* and apps/hr (the Astro reference
 // app), then writes its lockfile. They are generated, not committed (.gitignore).
 //
-//   node apps/software-foundry/box/evals/scripts/new-astro-app.mjs
+//   node apps/software-foundry/agent-evals/scripts/new-astro-app.mjs
 import { execFileSync } from "node:child_process";
 import { cpSync, rmSync } from "node:fs";
 import { join } from "node:path";

@@ -3,5 +3,6 @@
 **/.astro
 **/.wrangler
 **/test-results
-apps/*/box/evals/results
+apps/*/agent-evals/results
+apps/*/agent-evals/.env.*
 .git

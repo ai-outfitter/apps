@@ -11,7 +11,7 @@ import { scoreGeometry } from "../../../box/eval/geometry.ts";
 import { makeProject } from "../src/lib/project";
 import { type CadPlan, CadPlanSchema, planBounds } from "../src/model/cad-plan";
 
-const evals = new URL("../box/evals/evals/", import.meta.url).pathname;
+const evals = new URL("../agent-evals/evals/", import.meta.url).pathname;
 const box = (origin: number[], size: number[], mode: "add" | "cut" = "add") => ({ kind: "box" as const, mode, origin, size });
 const cylinder = (base: number[], radius: number, height: number, axis: "x" | "y" | "z", mode: "add" | "cut" = "cut") =>
   ({ kind: "cylinder" as const, mode, base, radius, height, axis });

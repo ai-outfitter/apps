@@ -27,7 +27,7 @@ the driver against a stand-in platform and a local git remote.
   `box/release.mjs` step), as the Software Foundry box splits them.
 - `export.ts`: builds a project's model with `src/model/geometry.ts` and
   writes STEP and STL.
-- `evals/`: Agent Eval fixtures and `run.ts`. Each fixture is a part described
+- `../agent-evals/`: the Agent Eval project (`evals/` fixtures, one experiment per model in `experiments/`, `run.ts`). Each fixture is a part described
   with its dimensions, in the style of Text2CAD's expert prompts and CADPrompt's
   parts, limited to what Workshop's CAD plans make (boxes and cylinders, added
   or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`.
@@ -61,6 +61,6 @@ call to that run. The box signs in as the local member.
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=workshop \
   -f box/Dockerfile -t outfitter/workshop-box:dev .
-BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts cable-clip
-BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts case-board case-psu case-cooler case-base case-top case-shell
+BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark cable-clip
+BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark case-board case-psu case-cooler case-base case-top case-shell
 ```

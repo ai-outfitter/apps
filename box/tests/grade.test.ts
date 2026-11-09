@@ -6,7 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { grade } from "../eval/agent.ts";
 
-const fixture = fileURLToPath(new URL("../../apps/workshop/box/evals/evals/mounting-plate", import.meta.url));
+const fixture = fileURLToPath(new URL("../../apps/workshop/agent-evals/evals/mounting-plate", import.meta.url));
 
 test("grading gives EVAL.ts the geometry scorer and the reference, and returns its scores", () => {
   const tree = join(mkdtempSync(join(tmpdir(), "grade-")), "final");
