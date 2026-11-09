@@ -5,6 +5,10 @@ on:
       app:
         type: string
         required: true
+      ref:
+        description: The release tag to build; the pushed commit when empty.
+        type: string
+        default: ''
     secrets:
       release-token:
         required: false
@@ -19,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:

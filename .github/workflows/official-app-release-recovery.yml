@@ -1,0 +1,30 @@
+name: Recover an official app release
+# Builds and attaches one app's packages at its release tag, when the run for
+# that tag was cancelled or built a later commit (publish refuses a package
+# whose source commit is not the tag's).
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: The app directory, e.g. apps/hr
+        type: string
+        required: true
+      tag:
+        description: Its release tag, e.g. hr-v0.1.2
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: official-app-releases
+  cancel-in-progress: false
+jobs:
+  app:
+    uses: ./.github/workflows/official-app-release.yml
+    with:
+      app: ${{ inputs.app }}
+      ref: ${{ inputs.tag }}
+    permissions:
+      contents: write
+    secrets:
+      release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
