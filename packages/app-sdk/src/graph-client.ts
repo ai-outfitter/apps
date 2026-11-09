@@ -269,6 +269,16 @@ async function discoverWiki(host: Host) {
       status: 409,
     });
   const wiki = candidates[0];
+  if (template === "onto") {
+    const legacy = await discoverEntityTypes(host, { template: "wiki-map" });
+    const sources = [...new Set(legacy.filter(item => item.type === "graph-node" && item.installationId !== wiki.installationId).map(item => item.installationId))];
+    if (sources.length) {
+      const status = await host.call("actions.call", { installationId: wiki.installationId, action: "graph.cutover-status", input: {}, readOnly: true });
+      const receipt = z.object({ sourceInstallationIds: z.array(z.string()) }).parse(status);
+      if (sources.some(source => !receipt.sourceInstallationIds.includes(source)))
+        throw new Response("The legacy Wiki graph must be migrated before using Onto", { status: 409 });
+    }
+  }
   return {
     installationId: wiki.installationId,
     hostname: wiki.hostname ?? null,
