@@ -6,7 +6,7 @@ import { chartFixture, chartId } from "./fixtures/org-chart";
 
 test("read the board, executive team and direct reports, then open a position", async ({ page }, testInfo) => {
   const { graph, organization } = chartFixture();
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   const origin = "https://wiki.example";
   try {
     await page.route(`${origin}/**`, async route => {

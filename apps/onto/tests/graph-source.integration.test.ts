@@ -16,7 +16,7 @@ const path = "/api/internal/actions/v1/call";
 const leaves = 130;
 
 test("graph.graphql and knowledge-graph selections over D1 match the whole-graph read", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const call = async (action: string, input: object) => {
@@ -45,8 +45,8 @@ test("graph.graphql and knowledge-graph selections over D1 match the whole-graph
     await app.database.prepare("UPDATE graph_edges SET archived=1 WHERE fromId=? AND toId=?").bind(ids[0], ids[3]).run();
 
     const db = drizzle(app.database);
-    const graph = await readGraph(db, { ...owner, installationId: "wiki-map-installation", canEdit: true } as never);
-    const snapshot = { installationId: "wiki-map-installation", ...graph };
+    const graph = await readGraph(db, { ...owner, installationId: "onto-installation", canEdit: true } as never);
+    const snapshot = { installationId: "onto-installation", ...graph };
     const queries = [
       `{ wideSeats(first: 500) { nodes { id title wideLink { id } wideLinkIncoming { id } edges { id typeId fromId toId } } aggregate { count } } }`,
       `query($ids: [ID!]) { wideSeats(ids: $ids, archived: INCLUDE, first: 500) { nodes { id archived edges(types: ["wide_link"], direction: INCOMING, archived: ONLY) { id from { id } } } } }`,

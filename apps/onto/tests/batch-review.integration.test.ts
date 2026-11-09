@@ -30,7 +30,7 @@ async function json(response: Response): Promise<Json> {
 /** A Wiki whose owner is Artera, with a workflow host that records the review run. */
 async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No further findings.", findings: [] })) {
   const calls: { operation: string; input: Json }[] = [];
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       const body = input as Json;
       calls.push({ operation, input: body });

@@ -20,7 +20,7 @@ import { defaultTypes } from "../src/lib/default-types";
 
 test("fresh installations expose the shared type pages to readers and agents", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const member = { userId: "reader", organizationId: "org", role: "member" };

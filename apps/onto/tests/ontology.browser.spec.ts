@@ -18,7 +18,7 @@ test("review an assertion, explicitly confirm it, and follow a derived spouse vi
   page,
 }, info) => {
   const app = await initializedAppWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   try {
@@ -171,7 +171,7 @@ test("review an assertion, explicitly confirm it, and follow a derived spouse vi
 });
 
 test("record pages show declared measurement fields and multiline formulas", async ({page}, info) => {
-  const app=await appWorker("wiki-map",appArtifact(new URL("..",import.meta.url),"operational"));
+  const app=await appWorker("onto",appArtifact(new URL("..",import.meta.url),"operational"));
   try {
     const initialized=await app.call("/api/internal/app-initialize",owner,{method:"POST",body:{}});
     expect(initialized.status,await initialized.text()).toBe(200);

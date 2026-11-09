@@ -1,5 +1,5 @@
 {
-  "id": "outfitter/wiki-map",
+  "id": "outfitter/onto",
   "version": "0.1.0",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
@@ -44,15 +44,15 @@
     }
   },
   "catalog": {
-    "access": "admin-only",
+    "access": "public",
     "personal": true,
     "operational": {
-      "slug": "wiki-map",
+      "slug": "onto",
       "name": "Onto",
       "description": "Shared context for people and agents: typed projects, participants, technologies and documented relationships."
     },
     "demo": {
-      "slug": "wiki-map",
+      "slug": "onto",
       "name": "Onto",
       "description": "Demo: explore typed projects, participants, technologies and their documented relationships."
     },
@@ -75,7 +75,7 @@
       ],
       "access": "Owners and admins edit Wiki notes, types and relationships; members read shared context. Source adapters own published records and their permissions. Demo data is synthetic and read-only."
     },
-    "cover": "catalog/cover.svg"
+    "cover": "catalog/cover.png"
   },
   "initialize": true
 }

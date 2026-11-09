@@ -27,7 +27,7 @@ import { assertionInspectInput, assertionInspection, inspectAssertion } from "./
 
 // The Wiki assistant's tools: named here and never mounted on the actions route, so they
 // are not MCP tools. Agents elsewhere read with graph_query and stage with documents.
-const { "graph.apply": apply, ...reads } = publishActionTools("wiki-map", {
+const { "graph.apply": apply, ...reads } = publishActionTools("onto", {
   "graph.apply": wikiActions["graph.apply"],
   "batch.inspect": defineAction({
     description: "Inspect a Wiki change batch by its ID using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record's address (Person, Organization:sunny or works_on(Person:ada → Project:sunny)) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
@@ -102,8 +102,8 @@ export function agentRoute(
         guard: "wiki_map_agent_guard",
       }),
       host: workflowHost<"interactive">(locals as never),
-      type: "wiki-map.conversation",
-      contextType: "wiki-map.page",
+      type: "onto.conversation",
+      contextType: "onto.page",
       focusId: "e9500000-0000-4000-8000-000000000002",
       label: "Onto",
       context,

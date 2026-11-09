@@ -9,7 +9,7 @@ const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const secondId = "74000000-0000-4000-8000-000000000099";
 async function setup(page: Page, invalid: boolean, mount = "") {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const snapshot = await app.call("/api/apps/wiki-map/graph/snapshot", owner);
@@ -146,7 +146,7 @@ test("graph routes keep view navigation and a usable mobile layout", async ({ pa
   }
 });
 
-for (const mount of ["/o/unsupervised/wiki-map", "/apps/wiki-installation"]) {
+for (const mount of ["/o/unsupervised/onto", "/apps/wiki-installation"]) {
   test(`graph links stay within the ${mount} installation`, async ({ page }) => {
     const { app, anchor, lens } = await setup(page, false, mount);
     const entity = `${origin}${mount}/offerings/${anchor.id}`;

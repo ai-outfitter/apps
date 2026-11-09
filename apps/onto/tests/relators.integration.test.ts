@@ -34,7 +34,7 @@ async function json(response: Response): Promise<Record<string, any>> {
 }
 async function fixture() {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   // Assertions through the member's routes; relationships as the Wiki assistant reads them.

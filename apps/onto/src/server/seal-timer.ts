@@ -23,7 +23,7 @@ export async function sealOnSchedule(db: Database, who: AppIdentity, input: Phas
   const { invocation, scheduledFor } = invocationInput.parse(input);
   if (invocation.name !== sealInvocation) return { outcome: "declined", reason: `This app does not run ${invocation.name}` };
   // Policy approval is recorded as policy, never as this principal's decision.
-  const sealer: AppIdentity = { ...who, entityWriter: "wiki-map/review-window" };
+  const sealer: AppIdentity = { ...who, entityWriter: "onto/review-window" };
   const { sealed, expired } = await sealDueBatches(db, sealer, Math.max(scheduledFor, Date.now()));
   return { outcome: "completed", summary: `sealed ${sealed}, expired ${expired}` };
 }

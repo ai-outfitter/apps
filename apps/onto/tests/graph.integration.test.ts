@@ -30,7 +30,7 @@ const artifact = () =>
   appArtifact(new URL("..", import.meta.url), "operational");
 
 test("humans and agents share a persisted, typed Meze graph and canonical project", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const create = async (
     type: string,
     attributes: object,
@@ -300,7 +300,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
 });
 
 test("project-specific types and property forms share an extensible contract without new tables", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   try {
     const type = await json(
       await app.call(path + "create", owner, {
@@ -409,7 +409,7 @@ test("schema migrations do not replay old seed data", async () => {
   const { migrateAppDatabase } =
     await import("@ai-outfitter/app-sdk/migrations");
   const pack = JSON.parse(await readFile(artifact(), "utf8"));
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   try {
     const initialized = await app.call("/api/internal/app-initialize", owner, {
       method: "POST",
@@ -470,7 +470,7 @@ test("schema migrations do not replay old seed data", async () => {
 });
 
 test("agents find exact types, nodes and incident edges without listing the wiki", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const list = async (type: string, filter?: object, paging = {}) =>
     json(
       await app.call(path + "list", member, {

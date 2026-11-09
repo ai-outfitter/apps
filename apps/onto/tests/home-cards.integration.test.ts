@@ -96,8 +96,8 @@ function paths(body: HomeCardNode[]) {
 }
 
 test("recent documents: newest active Documents first, bounded by size, plain text and own links", async () => {
-  const app = await appWorker("wiki-map", artifact());
-  const personal = await appWorker("wiki-map", artifact(), "personal-wiki");
+  const app = await appWorker("onto", artifact());
+  const personal = await appWorker("onto", artifact(), "personal-wiki");
   const person = {
     userId: "person",
     organizationId: "",
@@ -213,7 +213,7 @@ test("recent documents: newest active Documents first, bounded by size, plain te
 });
 
 test("organization-goals projects outgoing pursues to active Goals, bounded on a large graph", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const get = (who: Member, id: string) =>
     app.call(entities + "get", who, {
       method: "POST",

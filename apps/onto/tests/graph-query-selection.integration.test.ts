@@ -31,7 +31,7 @@ const selection = {
 };
 
 test("graph.query finds pages by source and properties and keeps an inline selection to its node types", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });

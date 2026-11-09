@@ -8,7 +8,7 @@ import { core } from "../src/lib/graph";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 test("wiki transfer preserves IDs, is repeatable, rejects conflicts and denies members", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     new URL(
       "../.outfitter/packages/operational.json",
       import.meta.url,
@@ -95,7 +95,7 @@ test("wiki transfer preserves IDs, is repeatable, rejects conflicts and denies m
 
 
 test("archive state of types, nodes and relationships survives transfer", async () => {
-  const app = await appWorker("wiki-map", new URL("../.outfitter/packages/operational.json", import.meta.url));
+  const app = await appWorker("onto", new URL("../.outfitter/packages/operational.json", import.meta.url));
   const nodeType = "81000000-0000-4000-8000-000000000011", edgeType = "81000000-0000-4000-8000-000000000012";
   const from = "81000000-0000-4000-8000-000000000013", to = "81000000-0000-4000-8000-000000000014", edge = "81000000-0000-4000-8000-000000000015";
   const transfer = { format: "outfitter-wiki-transfer-v1", types: [
@@ -121,7 +121,7 @@ test("archive state of types, nodes and relationships survives transfer", async 
 
 test("transfer preview rejects ontology-invalid relationships", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     new URL(
       "../.outfitter/packages/operational.json",
       import.meta.url,
@@ -196,7 +196,7 @@ test("transfer preview rejects ontology-invalid relationships", async () => {
 
 
 test("a concurrent edit after import validation rejects the entire import", async () => {
-  const app = await appWorker("wiki-map", new URL("../.outfitter/packages/operational.json", import.meta.url));
+  const app = await appWorker("onto", new URL("../.outfitter/packages/operational.json", import.meta.url));
   const client = app.database;
   const original = client.batch.bind(client);
   const intercepted = {

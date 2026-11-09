@@ -10,7 +10,7 @@ const member = { ...owner, userId: "reader", role: "member" };
 const path = "/api/internal/actions/v1/call";
 
 test("graph.query batches compact reads through the action dispatcher without writing", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });

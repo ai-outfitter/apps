@@ -31,7 +31,7 @@ async function fixture() {
     }
     return { ok: false, status: 403, message: `Unexpected ${operation}` };
   };
-  const worker = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), installationId, {
+  const worker = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), installationId, {
     workflowHost: () => ({ call: async (operation, input) => answer(operation, input as Record<string, unknown>) }),
   });
   const post = (path: string, body: unknown, headers: Record<string, string>, phase: WorkflowHostScope) =>

@@ -301,6 +301,7 @@ export function readerFixture(): Graph {
         category: "edge",
         body: "The control's accountable person.",
         properties: [],
+        ontology: { version: 1, endpoints: { from: [readerId(1)], to: [core.person] } },
         archived: false,
         seedVersion: 1,
         ...stamp,

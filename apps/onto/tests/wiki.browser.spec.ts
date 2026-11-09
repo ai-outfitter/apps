@@ -9,7 +9,7 @@ const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const origin = "https://wiki.outfitter.example";
 const scope = {
   organizationId: "org",
-  installationId: "wiki-map-installation",
+  installationId: "onto-installation",
   userId: "owner",
   packageHash: "hash",
   phase: "interactive" as const,
@@ -50,9 +50,9 @@ function planningFixture() {
 async function operational(page: Page, planningAvailable = true) {
   const planning = planningFixture();
   const app = await initializedAppWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
-    "wiki-map-installation",
+    "onto-installation",
     {
       workflowHost: () => {
         if (!planningAvailable) return { async call(): Promise<WorkflowHostResult> { return { ok: true, value: [] }; } };
@@ -262,7 +262,7 @@ test("preview includes standard context pages without operational API calls", as
   page,
 }) => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "demo"),
   );
   try {
@@ -398,7 +398,7 @@ test(`document an external project with Planning ${planningAvailable ? "installe
 });
 }
 test("graph explorer filters records and opens a direct neighborhood", async ({ page }) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "demo"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "demo"));
   try {
     await routeReadOnly(page, origin, app);
     await page.goto(`${origin}/graph`);
@@ -446,7 +446,7 @@ test("graph explorer filters records and opens a direct neighborhood", async ({ 
 });
 
 test("Wiki links preserve the shell across graph, entity, and history navigation", async ({ page }, testInfo) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "demo"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "demo"));
   const documentLoads: string[] = [];
   page.on("request", (request) => {
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documentLoads.push(request.url());

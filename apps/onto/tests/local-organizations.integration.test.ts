@@ -100,7 +100,7 @@ test("inspection plans every tenant and reports snapshots it will not load", asy
 });
 
 test("a snapshot preserves authored state and adds shared organization context without changing source files", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
   try {
     const report = await seedLocalInstallation({ database: wiki.database, dataDirectory: data, seed, organization: organizations[0] });
     assert.equal(report.counts.nodes, 3);
@@ -119,7 +119,7 @@ test("a snapshot preserves authored state and adds shared organization context w
 });
 
 test("without a snapshot the organization's projection is added to the package defaults", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-b-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-b-wiki-map");
   try {
     assert.equal((await wiki.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const before = (await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot", owner))).nodes.length;
@@ -160,7 +160,7 @@ test("unsupported or inconsistent files are rejected and source files are never 
 
 
 test("app-owned Wiki seeds accept optional slugs without changing saved addresses or source files", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
   const supplement = join(data, "app-owned-seed.mjs");
   const records = [
     { id: uuid(101), typeId: core.technology, title: "Alpha Local" },
@@ -188,7 +188,7 @@ test("explicit local organization binding preserves archived nodes and conflicti
   for (const archived of [true, false]) {
     const directory = mkdtempSync(join(tmpdir(), "wiki-explicit-binding-"));
     const wiki = await appWorker(
-      "wiki-map",
+      "onto",
       appArtifact(new URL("..", import.meta.url), "operational"),
       `binding-${archived}`,
     );
@@ -302,7 +302,7 @@ test("Wiki restores only verified same-organization Planning source references a
     },
   };
   const wiki = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
     "local-planning-links-wiki",
   );
@@ -400,7 +400,7 @@ test("Wiki restores only verified same-organization Planning source references a
 
 test("an explicitly mapped local organization can bind its unique older snapshot slug",async()=>{
   const directory=mkdtempSync(join(tmpdir(),"wiki-slug-binding-"));
-  const wiki=await appWorker("wiki-map",appArtifact(new URL("..",import.meta.url),"operational"),"slug-binding");
+  const wiki=await appWorker("onto",appArtifact(new URL("..",import.meta.url),"operational"),"slug-binding");
   try {
     mkdirSync(join(directory,"wiki-snapshots"));
     const saved={...snapshot,graph:{...snapshot.graph,nodes:snapshot.graph.nodes.map(row=>row.id===uuid(1)?{...row,id:uuid(99)}:row),edges:snapshot.graph.edges.map(row=>row.fromId===uuid(1)?{...row,fromId:uuid(99)}:row)}};

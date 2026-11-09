@@ -6,7 +6,7 @@ import seed from "../seeds/knowledge-graphs-v1.json";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 test("knowledge graph definitions are ordinary editable Wiki nodes with validated traversal", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     new URL(
       "../.outfitter/packages/operational.json",
       import.meta.url,

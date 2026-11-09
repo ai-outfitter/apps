@@ -60,7 +60,7 @@ a stale revision is a 409. The answer is the new picture.
   `fixtures/exploration.ts`.
 - `src/server/explorations.ts`: storage, staged proposals, live pull requests.
 - `src/pages/explore/[slug].astro`, `src/scripts/exploration.ts`: the page.
-  It describes itself with `agentPage("wiki-map").describe` and re-reads on
+  It describes itself with `agentPage("onto").describe` and re-reads on
   `onReplied`.
 
 Not built: GitHub issues, and an eval of the ask through the MCP.

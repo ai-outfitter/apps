@@ -35,8 +35,8 @@ async function pull(local: Awaited<ReturnType<typeof appWorker>>, pages: AppArch
 }
 
 test("a Wiki archive pulls into another installation and later pulls carry prod edits", async () => {
-  const prod = await appWorker("wiki-map", pack, prodId);
-  const local = await appWorker("wiki-map", pack, localId);
+  const prod = await appWorker("onto", pack, prodId);
+  const local = await appWorker("onto", pack, localId);
   try {
     for (const app of [prod, local])
       assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);

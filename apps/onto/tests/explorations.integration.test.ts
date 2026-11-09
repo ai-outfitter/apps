@@ -11,7 +11,7 @@ const path = "/api/internal/actions/v1/call";
 type Json = any;
 
 test("an exploration opens offerings, projects and competitors from an organization, and a patch changes what every reader sees", async (t) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   t.after(() => app.dispose());
   assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
   const action = async (name: string, input: object) => {
@@ -95,11 +95,11 @@ test("pull requests open live from GitHub through a project's repositories, and 
     { number: 11, title: "Initial firmware", url: "https://github.com/acme/sunny/pull/11", state: "MERGED", createdAt: "2026-10-01", updatedAt: "2026-10-07", closedAt: "2026-10-07", mergedAt: "2026-10-07" },
   ];
   const requests: Json[] = [];
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       requests.push({ operation, input });
       if (operation === "snapshot") return { ok: true, value: {
-        installation: { id: "wiki-map-installation", activeHash: "fixture", hostname: null, workflows: [] }, bindings: [], subscriptions: [],
+        installation: { id: "onto-installation", activeHash: "fixture", hostname: null, workflows: [] }, bindings: [], subscriptions: [],
         connections: [{ id: "github:user", provider: "github", revision: "user", owner: "user", operations: ["pulls.list"], repositories: [] }],
       } };
       if (operation === "repository.request") return { ok: true, value: { data: { repository: { pullRequests: { nodes: pulls, pageInfo: { endCursor: null, hasNextPage: false } } } } } };
@@ -143,7 +143,7 @@ test("pull requests open live from GitHub through a project's repositories, and 
 });
 
 test("a competitor an agent stages shows as proposed beside the offering it competes with, until a member decides", async (t) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   t.after(() => app.dispose());
   assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
   const action = async (name: string, input: object) => {

@@ -14,7 +14,7 @@ const node = (ref: string, n: number, typeId: string, title: string, extra: obje
 type Json = Record<string, unknown>;
 
 test("see the ontology steward's findings beside a submitted batch's proposals", async ({ page }, info) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       const body = input as Json;
       if (operation === "workflow.start") return { ok: true, value: { id: body.id, workflow: body.workflow, created: true } };
@@ -26,7 +26,7 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
       return { ok: false, status: 400, message: `Unexpected ${operation}` };
     } }),
   });
-  const workflowHost = { organizationId: "org", installationId: "wiki-map-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 600_000 };
+  const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 600_000 };
   const action = async (name: string, input: object, identity: object = owner) => {
     const response = await app.call("/api/internal/actions/v1/call", identity as typeof owner, { method: "POST", body: { action: name, input }, workflowHost });
     expect(response.status, await response.clone().text()).toBe(200);

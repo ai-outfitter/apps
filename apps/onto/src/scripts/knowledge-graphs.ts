@@ -245,7 +245,7 @@ function queryView(graph: Graph, anchor: GraphNode, query: GraphQuery, adjusting
 function describeGraphs(graph: Graph, anchor: GraphNode, lenses: KnowledgeGraphLens[], selected?: KnowledgeGraphLens, query?: GraphQuery | null) {
   const adjust = selected && adjustQuery(graph, selected);
   const saved = adjust && graphQueryParams(adjust).toString();
-  agentPage("wiki-map").describe({
+  agentPage("onto").describe({
     title: selected ? `${selected.node.title} for ${anchor.title}` : query ? `Draft knowledge graph for ${anchor.title}` : `Knowledge graphs for ${anchor.title}`,
     summary: query
       ? `A draft graph built from the address's rel, stop, depth and max params${query.graphId ? ", adjusting a saved graph the member can update" : ""}. Navigate with other params to reshape it; the member can save it.`

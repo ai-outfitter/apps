@@ -11,7 +11,7 @@ const snapshot = "/api/apps/wiki-map/graph/snapshot";
 
 test("JSON initialization is editor-only and repeated uploads leave the graph unchanged", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   try {
@@ -46,7 +46,7 @@ test("JSON initialization is editor-only and repeated uploads leave the graph un
 
 test("setup preserves edited and archived records and adds physically missing records again", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   try {

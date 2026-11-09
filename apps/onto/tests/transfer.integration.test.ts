@@ -15,7 +15,7 @@ import {
 
 test("transfer round trip uses the real Wiki entity provider and preserves independent edits", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const identity = {

@@ -156,7 +156,7 @@ test("Wiki publishes read-only artifact.preview through real action dispatch", a
   const { appWorker } = await import("@ai-outfitter/app-test/worker");
   const { appArtifact } = await import("@ai-outfitter/app-test/prepare");
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const who = { userId: "owner", organizationId: "org", role: "owner" };
