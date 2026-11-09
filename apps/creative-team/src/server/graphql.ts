@@ -43,10 +43,10 @@ const branchResult = new GraphQLObjectType({ name: "MapBranchAdded", fields: {
 } });
 
 const wikiBatch = new GraphQLObjectType({ name: "BrandWikiBatch", description: "The Wiki change batch a brand interview was staged in.", fields: {
-  batch: { type: GraphQLString, description: "The batch's slug in the Wiki; null when the Wiki already had everything." },
+  batchId: { type: GraphQLID, description: "Null when the Wiki already had everything." },
   state: { type: GraphQLString, description: "awaiting_review until the member (or the Wiki's policy) decides it." },
   proposals: { type: nonNull(GraphQLInt), description: "Records and links proposed." },
-  wikiPath: { type: nonNull(GraphQLString), description: "The Wiki's address; its Changes page lists the batch for review." },
+  wikiPath: { type: nonNull(GraphQLString), description: "The Wiki's address; its review page is changes/<batchId> there." },
 } });
 const batchRows = tableType(wikiBatches, { field: "brandWikiBatches", type: "BrandWikiBatchRow", fields: ["wikiInstallationId", "wikiPath", "state", "proposals", "createdAt", "updatedAt"], dates: ["createdAt", "updatedAt"] });
 
@@ -62,7 +62,7 @@ const mutation = new GraphQLObjectType<unknown, CreativeContext>({
     stageBrandInterview: field("StageBrandInterview", "Save the brand interview to the member's Wiki as one change batch for review: a BrandInterview document (JSON body, answers in the member's words) plus the people, audiences (CustomerSegment), problems, offerings and goals the answers name, reusing existing Wiki records by existingId, and the links between them. Submits the batch; nothing commits until it is reviewed on the Wiki's Changes page. Refused while the previous interview batch still awaits review.",
       stageInput, wikiBatch, async (context, input) => {
         const saved = await stageInterview(context.db(), context.identity, context.host(), input);
-        return { batch: saved.batch?.id ?? null, state: saved.batch?.state ?? null, proposals: saved.proposals, wikiPath: saved.wikiPath };
+        return { batchId: saved.batch?.id ?? null, state: saved.batch?.state ?? null, proposals: saved.proposals, wikiPath: saved.wikiPath };
       }),
     saveSource: field("SaveSource", "Add a content source (omit id): the creator's own posts on one platform (kind own) or a person who shaped their thinking (kind influence), with pasted examples and notes on their core ideas, voice and worldview. With id and revision, change one; omitted fields are kept.",
       sourceInput, row(sourceRows), (context, input) => saveSource(context.db(), context.identity, input)),

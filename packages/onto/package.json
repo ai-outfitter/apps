@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     "./contracts": "./src/contracts.ts",
-    "./client": "./src/client.ts",
-    "./source-fences": "./src/source-fences.ts"
+    "./client": "./src/client.ts"
   },
   "dependencies": {
     "@ai-outfitter/onto-contracts": "0.1.0",

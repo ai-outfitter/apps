@@ -35,7 +35,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     } } });
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET privateData=? WHERE id=?").bind('{"secret":"never-export-this"}', ids.$root.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalId=? WHERE id=?").bind('never-export-this', ids.$root.id).run();
     const snapshot = () => app.database.prepare("SELECT id,revision,updatedAt FROM graph_nodes ORDER BY id").all();
     const before = await snapshot();
     // The selection knowledge-graph.render reads before it flattens (as Foundry calls it), answered alone.

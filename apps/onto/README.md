@@ -8,7 +8,7 @@ The local platform runtime, component release metadata, and automatic production
 
 # Wiki: projects and shared context
 
-> Onto owns ontology and graph persistence. See [documents and recovery](docs/documents-and-recovery.md) for contracts, authorization, scheduling, export and rollout limits.
+> Onto is a typed graph database for people and agents. See [the plan](docs/graph-database-plan.md) for its scope.
 
 People and agents use the same typed records to find, document and connect work.
 The home page lists Organizations. Overview (`/overview`) groups Projects, People,
@@ -32,7 +32,7 @@ constraints before activation. Writes validate the resulting graph; types withou
 their legacy behavior. Writes also check permission, record existence, property
 validity and current revision.
 
-Fresh installations use a seed-free schema baseline followed by repeatable JSON initialization. Existing installations retain their applied migration lineage and data. Resetting an installation requires explicit authorization; changing migration filenames is not an upgrade.
+The schema is one migration, `migrations/0000_onto.sql`, followed by repeatable JSON initialization.
 
 ## Standard context for every installation
 

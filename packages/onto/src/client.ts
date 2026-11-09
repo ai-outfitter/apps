@@ -14,32 +14,16 @@ import { discoverEntityTypes } from "@ai-outfitter/app-sdk/entity-discovery";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import {
   ontoContract,
-  ontoDocumentsContract,
   wikiGraphReadInput,
   wikiGraphReadResult,
   wikiGraph,
   type WikiGraph,
-  documentOperations,
-  type DocumentOperation,
-  type DocumentOperationInput,
-  type DocumentOperationOutput,
 } from "./contracts";
 export { wikiGraphRecords };
 
 /** Discover Onto explicitly by its advertised contract, with an optional installation binding. */
 export function resolveOnto(host: Host, binding?: { installationId: string }) {
   return resolveGraphProvider(host, { contract: ontoContract }, binding);
-}
-/** Discover document providers by the independent lifecycle contract. */
-export function resolveOntoDocuments(
-  host: Host,
-  binding?: { installationId: string },
-) {
-  return resolveGraphProvider(
-    host,
-    { contract: ontoDocumentsContract },
-    binding,
-  );
 }
 /** Bind every query to the provider selected by its Onto contract; ordinary host authorization still applies. */
 export function ontoClient(host: Host, provider: GraphProvider) {
@@ -57,9 +41,6 @@ export function ontoClient(host: Host, provider: GraphProvider) {
     provider,
     read: (input: Parameters<typeof readGraphProvider>[2]) =>
       readGraphProvider(host, provider, input),
-    get documents() {
-      return ontoDocumentsClient(host, provider);
-    },
   };
 }
 
@@ -411,58 +392,5 @@ export function selectWikiGraph(
     missingTypes: definition.missingTypes,
     nodes: graph.nodes.filter((record) => nodeIds.has(record.ref.id)),
     edges: graph.edges.filter((record) => edgeIds.has(record.ref.id)),
-  };
-}
-
-export type OntoDocumentsClient = {
-  [Name in DocumentOperation]: (
-    input: DocumentOperationInput<Name>,
-  ) => Promise<DocumentOperationOutput<Name>>;
-};
-/** Product client bound to one trusted, explicitly selected Onto provider.
- * Every call re-enters scoped actions dispatch; bindings and captures are never
- * accepted from document callers, and failures never trigger automatic writes. */
-export function ontoDocumentsClient(
-  host: Pick<Host, "call">,
-  provider: GraphProvider,
-): OntoDocumentsClient {
-  if (
-    !provider.contracts.some(
-      (contract) =>
-        contract.id === ontoDocumentsContract.id &&
-        contract.version === ontoDocumentsContract.version,
-    )
-  )
-    throw new Response(
-      "Provider does not implement the Onto documents contract",
-      { status: 409 },
-    );
-  // Snapshot the address so caller mutation cannot silently retarget a client.
-  const installationId = z.string().min(1).parse(provider.installationId);
-  async function call<Name extends DocumentOperation>(
-    name: Name,
-    raw: DocumentOperationInput<Name>,
-  ): Promise<DocumentOperationOutput<Name>> {
-    const operation = documentOperations[name];
-    const input = operation.input.parse(raw);
-    const result = await host.call("actions.call", {
-      installationId,
-      action: operation.action,
-      input,
-      readOnly: operation.readOnly,
-      maxResponseBytes: 8 * 1024 * 1024,
-    });
-    return operation.output.parse(result) as DocumentOperationOutput<Name>;
-  }
-  return {
-    define: (input) => call("define", input),
-    create: (input) => call("create", input),
-    live: (input) => call("live", input),
-    generate: (input) => call("generate", input),
-    revision: (input) => call("revision", input),
-    job: (input) => call("job", input),
-    retry: (input) => call("retry", input),
-    seal: (input) => call("seal", input),
-    policy: (input) => call("policy", input),
   };
 }

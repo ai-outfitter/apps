@@ -20,7 +20,7 @@ const pageDocuments = defineDocuments({
   },
   StageBrandInterview: {
     story: "As a creator, I want my brand interview saved in my Wiki with the people, audiences and goals it names, so that my knowledge graph knows my brand and I review every change first.",
-    document: graphql("mutation StageBrandInterview($input: StageBrandInterviewInput!) { stageBrandInterview(input: $input) { batch state proposals wikiPath } }"),
+    document: graphql("mutation StageBrandInterview($input: StageBrandInterviewInput!) { stageBrandInterview(input: $input) { batchId state proposals wikiPath } }"),
   },
   SaveSource: {
     story: "As a creator, I want to add my best posts or the people who shaped me to my content document, so that ideas and drafts start from what makes me unique.",

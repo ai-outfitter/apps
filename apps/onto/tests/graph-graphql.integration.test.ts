@@ -26,7 +26,7 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     ]);
     assert.equal(applied.status, 200, await applied.clone().text());
     const ids = await applied.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET privateData=? WHERE id=?").bind('{"secret":"never-return"}', ids.$a.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalId=? WHERE id=?").bind('never-return', ids.$a.id).run();
     // Endpoints declared after the fact: the next request has typed relationship fields.
     const typed = await apply("graphql-endpoints", [{ operation: "update", ref: "$holds", type: "graph-type", id: ids.$holds.id, revision: 1, attributes: {
       ontology: { version: 1, endpoints: { from: [ids.$seat.id], to: [ids.$seat.id] } } } }]);
