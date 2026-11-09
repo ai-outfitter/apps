@@ -127,6 +127,8 @@ const publishedArtifact = z.object({
 export type PublishedArtifact = z.infer<typeof publishedArtifact>;
 
 /** An installation schedule as the host reports it. */
+export const scheduleConnectionBinding = z.strictObject({ connectionId: id, resource: z.string().min(1).max(1024) });
+export const scheduleConnectionBindings = z.array(scheduleConnectionBinding).max(20).default([]);
 const installationSchedule = z.object({
   id,
   workflowId: id,
@@ -136,6 +138,7 @@ const installationSchedule = z.object({
   /** The connection and resource the schedule's occurrences may use, or null. */
   connectionId: id.nullable(),
   resource: z.string().nullable(),
+  connectionBindings: scheduleConnectionBindings,
   createdBy: id,
   enabled: z.boolean(),
   nextRunAt: z.number(),
@@ -325,6 +328,7 @@ const coreOperations = {
     inputs: jsonObject.default({}),
     connectionId: id.optional(),
     resource: z.string().min(1).max(1024).optional(),
+    connectionBindings: scheduleConnectionBindings,
     enabled: z.boolean().default(true),
   }).refine((input) => !input.connectionId === !input.resource, "Name a connection with its resource"), installationSchedule),
   /** This installation's schedules. */
@@ -529,7 +533,7 @@ export const eventResult = z.discriminatedUnion("outcome", [
 export const scheduleInput = z.object({
   runId,
   scheduledFor: z.number().int(),
-  schedule: z.object({ id, workflowId: id, inputs: jsonObject, connectionId: id.nullable(), resource: z.string().nullable() }),
+  schedule: z.object({ id, workflowId: id, inputs: jsonObject, connectionId: id.nullable(), resource: z.string().nullable(), connectionBindings: scheduleConnectionBindings }),
 });
 /** `schedule` result: the reserved run started, an earlier waiting run of the
  * schedule's workflow resumed, or nothing to do (recorded on the schedule). */
