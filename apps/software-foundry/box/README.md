@@ -32,7 +32,10 @@ Agent Eval agent). The Foundry's side is here:
 - `intake.mjs`, `results.mjs`, `release.mjs`: request intake, run-result
   documents and the release with its evidence bundle; tests in
   `tests/box-*.unit.test.ts`.
-- `evals/`: Agent Eval fixtures and `run.ts`.
+- `evals/`: Agent Eval fixtures and `run.ts`. Run
+  `node apps/software-foundry/box/evals/scripts/new-astro-app.mjs` before the
+  `new-astro-app` eval; it vendors `packages/` and `apps/hr` into the fixture.
+  Results so far: `evals/FINDINGS.md`.
 
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=software-foundry \

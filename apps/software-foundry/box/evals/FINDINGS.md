@@ -17,12 +17,18 @@ in one pass: manifest, package, staged fixtures with `summarize`, `/` and
 `/repos/[name]` with a 404, the hr middleware (health, 405, CSP, cache), a
 unit test and the lockfile. Both validations, both reviews and the land step
 agreed that astro check, the unit tests, the demo build and root `npm test`
-passed. The PR head, rebuilt from the implement session, passes all six
-`EVAL.ts` checks. My own reference implementation also passes all six.
+passed. The box deletes its work directory, so the exact PR head could not be
+graded. A tree rebuilt by replaying the implement session's writes, edits and
+file-changing shell commands passes all six `EVAL.ts` checks. My own
+reference implementation also passes all six. The first grade of the replayed
+tree was 4/6: the request did not name `summarize`'s count field, the app
+called it `mergedPullRequestCount`, and the grader was then changed to accept
+any numeric field.
 
 Both reviews asked for changes for one reason: the PR's Demo section said
-"Screenshots pending". The box has no Chrome or CDP endpoint, so no agent
-could capture or publish screenshots. Repair then could not read the review's
+"Screenshots pending". The agents found no Chrome or CDP endpoint, and the
+image has no Chromium (`which chromium google-chrome` finds nothing), so no
+agent could capture or publish screenshots. Repair then could not read the review's
 findings either, because `gh api .../pulls/<n>/reviews` and `gh pr checks` are
 unsupported by the workspace's Forgejo `gh` shim. Repair and land made no
 change, and the run ended `changes_requested`. subtract-helper never hit this:
@@ -30,11 +36,14 @@ it changes no UI, so no demo is required.
 
 ### What blocks a UI app from landing in the box
 
-1. **No browser in the box image.** The review policy requires demo
-   screenshots for UI changes, so every app or UI request ends
-   `changes_requested`. Fix: add Chromium to the box image, as the workspace
-   image provides it in production, or have the box configure a policy
-   without the demo gate and say so in the result.
+1. **No browser in the box image.** The `issue-to-merge-workspace` workflow's
+   implement and review instructions require desktop and mobile screenshots
+   for visual changes. That rule is in the prompt text, not a setting the
+   driver can turn off, so every app or UI request ends `changes_requested`.
+   The runtime's `/opt/workspace/browser-mcp.mjs` already supports
+   `CHROME_EXECUTABLE_PATH` or `AGENT_BROWSER_CDP_URL`. Fix: install Chromium
+   in the box image and set `CHROME_EXECUTABLE_PATH` for workspaces (needs an
+   image rebuild).
 2. **The Forgejo `gh` shim lacks review and check reads.** Repair cannot see
    *why* a review asked for changes, so the repair loop is blind on any
    repository that is not GitHub.
@@ -60,3 +69,36 @@ it changes no UI, so no demo is required.
   from "the gate refused it".
 - Nested `node --test` inherits `NODE_TEST_CONTEXT` and silently skips the
   inner test files; the fixture's root test strips it.
+
+### Running it
+
+```sh
+node apps/software-foundry/box/evals/scripts/new-astro-app.mjs   # fills the fixture first
+BOX_CLI=podman BOX_MODEL_ENV=model.env BOX_TIMEOUT=3600 \
+  node --import tsx apps/software-foundry/box/evals/run.ts new-astro-app
+```
+
+## Apps to build next
+
+These are ranked by how well they fit a single Foundry run. Each one starts
+demo-only, as Release Radar did, then goes operational with a package that
+already exists in `packages/`.
+
+1. **Release Radar, operational.** Swap the staged fixtures for
+   `captureGithubActivity` from `connector-github` (bounded, half-open
+   periods) behind `connector.github.pulls.read`. This is the smallest next
+   step, and its demo already exists.
+2. **Meeting Prep.** Reads upcoming events read-only with
+   `connector-google-calendar` and shows a prep page for each meeting. The
+   demo is a staged calendar. It fits one run.
+3. **Routines board.** A front end for `workflow-recurring-task`: the
+   weekday scheduled tasks, their last runs and whether the owner used the
+   output. The demo fits one run. Going operational needs workflow host
+   wiring, as HR's role packet has.
+4. **Profile review.** Shows the work profile that
+   `workflow-email-profile-onboarding` infers from a bounded Gmail sample and
+   lets the member correct it. The demo is easy. The operational version
+   touches Gmail data, so review it by hand.
+5. **Eval scoreboard.** Reads the box's `results/*-metrics-*.json`, one row
+   per run and model, compared over time. It uses only the repository's own
+   data and makes the Foundry's progress visible. It fits one run.
