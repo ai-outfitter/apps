@@ -113,6 +113,11 @@ The production Node build cannot dispatch apps, so the webapp's
 `scripts/local-dev/box-platform.ts` runs the local-organizations loader (the one
 `dev-local` uses) with one `box` organization that has the box app installed. Sign in at
 `http://outfitter.localhost:8787` as `local@example.test` / `local-orgs-only`.
+From another device, such as one on the tailnet, use the machine's bare
+hostname, `http://<hostname>:8787`. Agent Eval publishes the port on every
+interface and passes that name as `OUTFITTER_LOCAL_HOSTNAME`; a box started by
+hand needs `-p 8787:8787 -e OUTFITTER_LOCAL_HOSTNAME=$(hostname -s)`. The
+published port must stay 8787, the port the platform's own origin names.
 
 The organization's repository connection is a real Forgejo connection
 (provider `forgejo`), preset at startup as an admin would connect it in
