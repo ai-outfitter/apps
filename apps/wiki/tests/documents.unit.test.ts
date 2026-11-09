@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {createHash} from "node:crypto";
+import migrationHashes from "./legacy-migrations.json";
+import { DatabaseSync } from "node:sqlite";
+import { readdirSync,readFileSync } from "node:fs";
+import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
+import { archiveDocument,documentDigest,getDocument,listPages,publishDocument,revisions,saveDocument,savePage } from "../src/documents/store";
+
+const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:"member"},role:"owner",canEdit:true};
+function fixture() {
+ const sqlite=new DatabaseSync(":memory:"); sqlite.exec("PRAGMA foreign_keys=ON");
+ const folder=new URL("../migrations/",import.meta.url);
+ for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && !n.startsWith('0012')).sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
+ sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
+ INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',1,'member','{}','[]','{"title":"First","body":"First body"}',1);`);
+ sqlite.exec(readFileSync(new URL('0012_documents.sql',folder),'utf8'));
+ const db:AgentDatabase={query:async s=>sqlite.prepare(s.sql).all(...(s.params ?? []) as never[]) as Record<string,unknown>[],batch:async steps=>{
+  sqlite.exec('BEGIN');try{for(const s of steps)sqlite.prepare(s.sql).run(...(s.params ?? []) as never[]);sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}
+ }};
+ return {sqlite,db};
+}
+test('forward migration preserves document IDs, history, content, and the source graph',async()=>{
+ const {sqlite,db}=fixture();try{
+  const head=await getDocument(db,'legacy');assert.equal(head.body,'Original body');assert.equal(head.revision,2);assert.equal(head.publishedRevision,null);
+  assert.deepEqual((await revisions(db,'legacy')).map(r=>r.body),['Original body','First body']);
+  assert.equal((await listPages(db))[0].slug,'old-page');
+  assert.equal(sqlite.prepare('SELECT body FROM graph_nodes WHERE id=?').get('legacy')?.body,'Original body');
+  assert.throws(()=>sqlite.exec("UPDATE wiki_document_revisions SET body='lost'"),/immutable/);
+ }finally{sqlite.close();}
+});
+test('edits retain publication and stale writers cannot create orphan revisions',async()=>{
+ const {sqlite,db}=fixture();try{
+  await publishDocument(db,who,{id:'legacy',revision:2});
+  const next=await saveDocument(db,who,{id:'legacy',revision:2,title:'New',body:'Draft'});
+  assert.equal(next.revision,3);assert.equal(next.publishedRevision,2);
+  await assert.rejects(saveDocument(db,who,{id:'legacy',revision:2,title:'Lost update'}),e=>e instanceof Response&&e.status===409);
+  assert.equal((await revisions(db,'legacy')).length,3);
+  assert.equal((await getDocument(db,'legacy',2)).body,'Original body');
+  await assert.rejects(saveDocument(db,{...who,canEdit:false,role:'member'},{title:'Unauthorized'}),e=>e instanceof Response&&e.status===403);
+ }finally{sqlite.close();}
+});
+test('approval must match this revision and digest; configuration is revision guarded',async()=>{
+ const {sqlite,db}=fixture();try{
+  const page=(await listPages(db))[0];
+  await savePage(db,who,{id:page.id,revision:page.revision,slug:page.slug,documentId:'legacy',autoPublish:true,policyRef:{installationId:'governance',type:'control',id:'review'}});
+  await assert.rejects(publishDocument(db,who,{id:'legacy',revision:2}),e=>e instanceof Response&&e.status===409);
+  await assert.rejects(publishDocument(db,who,{id:'legacy',revision:2},async()=>({allowed:true,revision:1,digest:'old'})),e=>e instanceof Response&&e.status===409);
+  const digest=await documentDigest(await getDocument(db,'legacy'));
+  assert.equal((await publishDocument(db,who,{id:'legacy',revision:2},async()=>({allowed:true,revision:2,digest}))).publishedRevision,2);
+  await assert.rejects(savePage(db,who,{id:page.id,revision:page.revision,slug:page.slug,documentId:'legacy'}),e=>e instanceof Response&&e.status===409);
+  await assert.rejects(savePage(db,who,{id:page.id,revision:2,slug:page.slug,documentId:'legacy',parentId:page.id}),e=>e instanceof Response&&e.status===400);
+  await archiveDocument(db,who,{id:'legacy',revision:2});assert.equal((await revisions(db,'legacy')).length,2);
+ }finally{sqlite.close();}
+});
+
+
+test('installed legacy migration files are unchanged',()=>{
+ for(const [name,expected] of Object.entries(migrationHashes)) assert.equal(createHash('sha256').update(readFileSync(new URL(`../migrations/${name}`,import.meta.url))).digest('hex'),expected,name);
+});

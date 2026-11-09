@@ -1,0 +1,19 @@
+---
+import Layout from "../components/DocumentLayout.astro";
+import {context,mount,run} from "../documents/context";
+import {demoDocument,demoPage} from "../documents/demo";
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
+const data=demo?{documents:[demoDocument],pages:[demoPage]}:await run("WikiDocuments",{after:Astro.url.searchParams.get("after") ?? ""},context(Astro.request,Astro.locals));
+const documents=data.documents as typeof demoDocument[],pages=data.pages as typeof demoPage[];
+const root=mount(Astro.request);
+---
+<Layout title="Your Wiki">
+ <a slot="intro-actions" class="button" href={`${root}new`}>Create document</a>
+ <ul class="wiki-list">{documents.map(doc=>{
+  const page=pages.find(page=>page.documentId===doc.id);
+  return <li><a href={`${root}p/${encodeURIComponent(page?.slug ?? doc.id)}`}>{doc.title}</a><p>{doc.summary}</p><span class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":doc.publishedRevision?"Draft update":"Draft"}</span></li>;
+ })}</ul>
+ {!documents.length&&<p>No documents yet. Start with a note or link a page to an Onto entity.</p>}
+ {documents.length===50&&<a href={`?after=${encodeURIComponent(documents.at(-1)!.id)}`}>More documents</a>}
+ <section aria-label="Linked pages"><h2>Linked pages</h2><ul>{pages.filter(page=>!page.documentId).map(page=><li><a href={`${root}p/${encodeURIComponent(page.slug)}`}>{page.slug}</a></li>)}</ul></section>
+</Layout>

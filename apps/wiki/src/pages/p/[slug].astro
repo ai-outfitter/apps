@@ -1,0 +1,34 @@
+---
+import Layout from "../../components/DocumentLayout.astro";
+import {context,mount,run} from "../../documents/context";
+import {demoDocument,demoPage} from "../../documents/demo";
+import {micromark} from "micromark";
+import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
+import {entityRef} from "@ai-outfitter/app-sdk/entities";
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo",root=mount(Astro.request);
+const ctx=demo?undefined:context(Astro.request,Astro.locals);
+const listing=demo?{page:demoPage}:await run("WikiPage",{slug:Astro.params.slug},ctx!);
+const page=listing.page as typeof demoPage;
+if(!page) return new Response("Page not found",{status:404});
+const requested=Astro.url.searchParams.get("revision");
+if(requested && !/^[1-9][0-9]*$/.test(requested)) return new Response("Invalid revision",{status:400});
+const data=page.documentId?(demo?{document:demoDocument,documentRevisions:[demoDocument]}:await run("WikiDocument",{id:page.documentId,...(requested?{revision:Number(requested)}:{})},ctx!)):undefined;
+const doc=data?.document as typeof demoDocument|undefined;
+const history=(data?.documentRevisions ?? []) as {revision:number;title:string;body:string}[];
+let entity:{title:string;attributes:Record<string,unknown>}|undefined;
+let entityError=false;
+if(page.entityRef && !demo){try{entity=await workflowHost<"interactive">(Astro.locals).call("entities.get",entityRef.parse(JSON.parse(page.entityRef)));}catch{entityError=true;}}
+const title=doc?.title ?? entity?.title ?? page.slug;
+---
+<Layout {title} description={doc?.summary ?? "A page connected to Onto."}>
+ <div slot="intro-actions" class="wiki-actions">
+ {doc&&ctx?.identity.canEdit&&<a href={`${root}edit/${doc.id}`}>Edit draft</a>}
+ {doc&&ctx?.identity.canEdit&&!requested&&doc.publishedRevision!==doc.revision&&<form data-wiki-form data-wiki-root={root} data-astro-reload method="post" action={`${root}api/apps/wiki-map/documents`}><input type="hidden" name="operation" value="PublishDocument"/><input type="hidden" name="id" value={doc.id}/><input type="hidden" name="revision" value={doc.revision}/><button>Publish revision {doc.revision}</button></form>}
+ </div>
+ {doc&&<p class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":"Draft"}{doc.publishedRevision&&doc.publishedRevision!==doc.revision&&<> · <a href={`?revision=${doc.publishedRevision}`}>View published revision</a></>}</p>}
+ {doc&&<article class="wiki-doc" set:html={micromark(doc.body)}/>}
+ {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={micromark(doc.generatedBody)}/></section>}
+ {entity&&<section><h2>Current information from Onto</h2><p>{entity.title}</p><dl>{Object.entries(entity.attributes).filter(([key,value])=>!["privateData","body"].includes(key)&&typeof value!=="object").map(([key,value])=><><dt>{key}</dt><dd>{String(value)}</dd></>)}</dl></section>}
+ {entityError&&<p>Linked information is currently unavailable. This page does not grant access to its source.</p>}
+ {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a></li>)}</ul></details>}
+</Layout>

@@ -1,0 +1,468 @@
+[
+  {
+    "name": "ArchiveDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to archive a document, so that I can remove it from browsing without losing history.",
+    "query": "mutation ArchiveDocument($input: ArchiveDocumentInput!) {\n  archiveDocument(input: $input) {\n    id\n    revision\n    archived\n  }\n}",
+    "hash": "4030c430b601168b1dd27131aeb27f3d663695807efaff0be7a92f1688685c14",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ArchiveDocumentInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Archive a document while preserving history."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "archiveDocument": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "archived": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PublishDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to publish an eligible revision, so that readers see reviewed content.",
+    "query": "mutation PublishDocument($input: PublishDocumentInput!) {\n  publishDocument(input: $input) {\n    id\n    revision\n    publishedRevision\n  }\n}",
+    "hash": "4ea167f42f59bf130d994b30f480ef12c3bc2b41d5c318aed6b7dc274f15cfc7",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishDocumentInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Publish a revision after applicable policy checks."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishDocument": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "publishedRevision": {
+              "type": "integer",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SaveDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want to save a draft, so that I can revise content without replacing the published page.",
+    "query": "mutation SaveDocument($input: SaveDocumentInput!) {\n  saveDocument(input: $input) {\n    id\n    title\n    revision\n    publishedRevision\n  }\n}",
+    "hash": "6eb683547e5e82accf50938171986d72a879ccec9d0f7282246f7a54f91c5da3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveDocumentInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save a draft with an optimistic revision check."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveDocument": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "publishedRevision": {
+              "type": "integer",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SavePage",
+    "kind": "mutation",
+    "story": "As an editor, I want to configure a page, so that I can link documents and Onto entities.",
+    "query": "mutation SavePage($input: SavePageInput!) {\n  savePage(input: $input) {\n    id\n    slug\n    documentId\n    entityRef\n    parentId\n    revision\n    autoPublish\n    policyRef\n  }\n}",
+    "hash": "75eb715fa8423fb73964926a9f7d4df3ea1561f83a28f38571569f284850b9bf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SavePageInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Configure a page and its scoped Onto reference."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "savePage": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "slug": {
+              "type": "string",
+              "nullable": true
+            },
+            "documentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "entityRef": {
+              "type": "string",
+              "nullable": true
+            },
+            "parentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "autoPublish": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "policyRef": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "WikiDocument",
+    "kind": "query",
+    "story": "As a member, I want to read a document and its revisions, so that I can understand its history.",
+    "query": "query WikiDocument($id: ID!, $revision: Int) {\n  document(id: $id, revision: $revision) {\n    id\n    documentId\n    title\n    summary\n    body\n    generatedBody\n    provenance\n    revision\n    publishedRevision\n    archived\n  }\n  documentRevisions(id: $id) {\n    revision\n    title\n    editorId\n    createdAt\n  }\n}",
+    "hash": "12975d9ef94de103ba3c87286e63b4abd2dc5da3bf06179793eb8c75fd90becf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Read a Wiki document and its preserved revisions."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "document": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "documentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "summary": {
+              "type": "string",
+              "nullable": true
+            },
+            "body": {
+              "type": "string",
+              "nullable": true
+            },
+            "generatedBody": {
+              "type": "string",
+              "nullable": true
+            },
+            "provenance": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "publishedRevision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "archived": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        },
+        "documentRevisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "revision": {
+                "type": "integer",
+                "nullable": true
+              },
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "editorId": {
+                "type": "string",
+                "nullable": true
+              },
+              "createdAt": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "WikiDocuments",
+    "kind": "query",
+    "story": "As a member, I want to browse documents, so that I can find current knowledge.",
+    "query": "query WikiDocuments($after: ID, $first: Int = 50) {\n  documents(after: $after, first: $first) {\n    id\n    title\n    summary\n    revision\n    publishedRevision\n  }\n  pages {\n    id\n    slug\n    documentId\n    entityRef\n    parentId\n    revision\n    autoPublish\n    policyRef\n  }\n}",
+    "hash": "cedfc5a02d2734a07ddbbc12630dd66127485451dd448f68d0d71cc5319cb975",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Browse Wiki documents and page links."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "nullable": true
+              },
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "summary": {
+                "type": "string",
+                "nullable": true
+              },
+              "revision": {
+                "type": "integer",
+                "nullable": true
+              },
+              "publishedRevision": {
+                "type": "integer",
+                "nullable": true
+              }
+            }
+          },
+          "nullable": true
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "nullable": true
+              },
+              "slug": {
+                "type": "string",
+                "nullable": true
+              },
+              "documentId": {
+                "type": "string",
+                "nullable": true
+              },
+              "entityRef": {
+                "type": "string",
+                "nullable": true
+              },
+              "parentId": {
+                "type": "string",
+                "nullable": true
+              },
+              "revision": {
+                "type": "integer",
+                "nullable": true
+              },
+              "autoPublish": {
+                "type": "boolean",
+                "nullable": true
+              },
+              "policyRef": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "WikiPage",
+    "kind": "query",
+    "story": "As a member, I want to open a page by its permanent address, so that links keep working regardless of list size.",
+    "query": "query WikiPage($slug: String!) {\n  page(slug: $slug) {\n    id\n    slug\n    documentId\n    entityRef\n    parentId\n    revision\n    autoPublish\n    policyRef\n  }\n}",
+    "hash": "ee835c659609e43b4b14f7371a7d871f629ead1846eb064a36f179cdaa118ba0",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Open a Wiki page by its permanent address."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "slug": {
+              "type": "string",
+              "nullable": true
+            },
+            "documentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "entityRef": {
+              "type": "string",
+              "nullable": true
+            },
+            "parentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "autoPublish": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "policyRef": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  }
+]

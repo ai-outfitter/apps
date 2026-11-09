@@ -1,0 +1,15 @@
+---
+import Layout from "../components/DocumentLayout.astro";
+import {mount} from "../documents/context";
+const root=mount(Astro.request),demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
+---
+<Layout title="New document">
+ <form data-wiki-form data-wiki-root={root} data-astro-reload class="wiki-form" method="post" action={`${root}api/apps/wiki-map/documents`}>
+ <input type="hidden" name="operation" value="SaveDocument"/>
+ <label>Title<input name="title" required maxlength="300" disabled={demo}/></label>
+ <label>Summary<input name="summary" maxlength="4000" disabled={demo}/></label>
+ <label>Page address<input name="slug" pattern="[a-z0-9][a-z0-9-]*" placeholder="project-notes" disabled={demo}/></label>
+ <label>Document<textarea name="body" disabled={demo}></textarea></label>
+ <button type="submit" disabled={demo}>Save draft</button>
+ </form>
+</Layout>

@@ -1,0 +1,12 @@
+---
+import {mount} from "../documents/context";
+import {agentDatabase} from "@ai-outfitter/app-sdk/cloudflare/database";
+const segments=(Astro.params.legacy ?? "").split("/");
+const root=mount(Astro.request);
+if(segments[0]==="api")return new Response("Legacy graph operations moved to Onto",{status:410});
+if(import.meta.env.OUTFITTER_APP_MODE==="operational"&&segments[1]){
+ const pages=await agentDatabase().query({sql:"SELECT slug FROM wiki_pages WHERE documentId=? LIMIT 1",params:[segments[1]]});
+ if(pages[0])return Astro.redirect(`${root}p/${encodeURIComponent(String(pages[0].slug))}`,302);
+}
+return Astro.redirect(`${root.replace(/wiki-map\/$/,"onto/")}${segments.map(encodeURIComponent).join("/")}${Astro.url.search}`,302);
+---

@@ -1,0 +1,20 @@
+---
+import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import { mount } from "../documents/context";
+const {title,description="Documents and pages connected to your knowledge.",active="home"}=Astro.props;
+const root=mount(Astro.request);
+---
+<ManagedAppLayout name="Wiki" {title} {description} {active} settingsHref={`${root}settings`} sidebarLinks={[
+ {label:"Pages and documents",href:root,active:active==="home"},
+ {label:"Create document",href:`${root}new`},
+]}>
+ <slot name="intro-actions" slot="intro-actions" />
+ <slot />
+</ManagedAppLayout>
+<script>import "../documents/forms";</script>
+<style is:global>
+ .wiki-doc {max-width:78ch;line-height:1.7}.wiki-doc pre{overflow:auto}.wiki-doc img{max-width:100%}
+ .wiki-form{display:grid;gap:1rem;max-width:78ch}.wiki-form label{display:grid;gap:.4rem}
+ .wiki-form textarea{min-height:25rem;font:inherit}.wiki-form input,.wiki-form textarea{padding:.65rem;border:1px solid var(--border,#8886);border-radius:.4rem;background:transparent;color:inherit}
+ .wiki-list{list-style:none;padding:0}.wiki-list li{padding:1rem 0;border-bottom:1px solid #8884}.wiki-meta{opacity:.7;font-size:.9rem}.wiki-actions{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+</style>
