@@ -1,6 +1,6 @@
 {
   "id": "outfitter/hr",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "managing-outfitter-instance",
   "modes": {

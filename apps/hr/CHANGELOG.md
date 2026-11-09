@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/ai-outfitter/apps/compare/hr-v0.1.1...hr-v0.1.2) (2026-11-09)
+
+
+### Features
+
+* **app-sdk:** outfitterApp integration; apps drop their middleware and work under astro dev ([#58](https://github.com/ai-outfitter/apps/issues/58)) ([7bb923a](https://github.com/ai-outfitter/apps/commit/7bb923a96d13193cf82dda2c9792fc676aad32f6))
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/hr-v0.1.0...hr-v0.1.1) (2026-11-06)
 
 
