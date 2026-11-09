@@ -7,7 +7,7 @@ import {
   sha256Hex,
 } from "@ai-outfitter/app-sdk/server";
 import { ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { refreshKnowledgeGraphQueries } from "./knowledge-graph-refresh";
 import { z } from "zod";
@@ -365,6 +365,9 @@ function validateEdges(
 
 /** How a commit is recorded in graph_revisions. graph.apply records a direct edit. */
 export type ChangeHistory = {
+  /** Internal domain guard and finalization, atomic with the graph commit. */
+  precondition?: SQL;
+  finalize?: (receipt: Receipt, gate: SQL) => SQL[];
   batchId?: string;
   proposedBy?: string;
   approval?: Record<string, unknown>;
@@ -450,6 +453,8 @@ export async function applyGraphChanges(
   const attempt = crypto.randomUUID();
   const gate = sql`EXISTS(SELECT 1 FROM graph_changes WHERE userId=${who.userId} AND requestKey=${input.requestKey} AND attempt=${attempt})`;
   const statements = [
+    ...(history.precondition ? [sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+      VALUES(${who.userId},${`guard:${attempt}`},'domain-guard',CASE WHEN ${history.precondition} THEN ${attempt} ELSE NULL END,'{}')`] : []),
     sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
       SELECT ${who.userId},${input.requestKey},${hash},${attempt},${JSON.stringify(receipt)}
       WHERE ${graphUnchanged(graph)}
@@ -467,6 +472,8 @@ export async function applyGraphChanges(
       FROM json_each(${JSON.stringify(changes["graph-edge"])}) WHERE ${gate}
       ON CONFLICT(id) DO UPDATE SET validFrom=excluded.validFrom,validTo=excluded.validTo,typeId=excluded.typeId,fromId=excluded.fromId,toId=excluded.toId,title=excluded.title,body=excluded.body,properties=excluded.properties,archived=excluded.archived,revision=excluded.revision,updatedBy=excluded.updatedBy,updatedAt=excluded.updatedAt`,
     historyStatement(graph, changes, receipt, who, history, gate),
+    ...(history.finalize?.(receipt, gate) ?? []),
+    ...(history.precondition ? [sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${`guard:${attempt}`}`] : []),
   ];
   try {
     // D1 executes the ledger and all mutations in a single transaction. A failed
@@ -478,6 +485,7 @@ export async function applyGraphChanges(
       }),
     );
   } catch (error) {
+    if (String(error).includes("graph_changes.attempt")) fail("Batch changed; reload before reviewing", 409);
     if (isUniqueViolation(error))
       fail("Graph identity conflict; reconcile before retrying", 409);
     throw error;

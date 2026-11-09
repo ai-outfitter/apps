@@ -1,5 +1,19 @@
 # Planning
 
+## Issue tools over MCP
+
+Read `Issues` with `projectId` and optional `category`, `status` or `ids` filters.
+Follow its pagination cursor and read identifiers/revisions before changing an
+issue. `position` orders issues within a project's category.
+
+Use `IssueChanges` with stable UUID item keys and the actions `createIssue`,
+`updateIssue`, `deleteIssue` or `reorderIssues`. Mutations reuse the project
+page's validation and authorization. Reordering requires every issue of the
+selected category at its current revision. Retry the same key and identical
+input after a lost response; read current records before starting a new request.
+These operations save Planning work only and do not approve graph proposals,
+submit delivery work or publish external issues.
+
 Shared organization projects with goals, user stories, a draft press release and demo material. Members manage stones, pebbles and sand as one issue model, with independent sub-issues, assignment, due dates, completion and accessible ordering.
 
 The package owns its routes, schemas, validation and installation-database migrations. It depends on generic Outfitter `api.serve`, `organization.members.read`, `threads.use` and `threads.provide` capabilities; app-side validation rejects assignments outside the current organization snapshot. Revisions prevent stale overwrites, and SQLite constraints reject cycles, cross-project parents and deletion of parents with children.

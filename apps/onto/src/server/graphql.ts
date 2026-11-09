@@ -23,7 +23,7 @@ import { z } from "zod";
 import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
 import { readGraph, withRecordAddresses } from "./graph";
 import { recordAddress } from "../lib/addresses";
-import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch } from "./graph-batches";
+import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -163,6 +163,15 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
+    reviseBatch: mutationField({
+      name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
+      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.",
+      run: async (context: MutationContext, input) => {
+        const revised = await reviseBatch(context.db(), context.identity, context.actor, context.originActor, input);
+        if (revised.batch.state === "awaiting_review") context.afterSubmit?.(input.batchId);
+        return view(revised);
+      },
+    }),
     mutateExploration: mutationField({
       name: "MutateExploration", output: nonNull(Exploration),
       description: "Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.",

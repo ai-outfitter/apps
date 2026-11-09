@@ -5,6 +5,7 @@ export const batchGroups = {
     "resultFields": ["id", "title", "state", "counts", "reviewBy", "anchors", "validation"],
     "description": "Apply changebatch changes using explicit actions",
     "actions": {
+      "amend": "reviseBatch",
       "stage": "stageChanges",
       "configure": "configureBatch",
       "remove": "removeStagedChanges",

@@ -312,3 +312,54 @@ test("MutateProject masks preserve omitted fields, archive retains content, and 
   assert.equal(rows.find(row=>row.id===project.id)?.updatedBy,"alice");
  }finally{f.close();}
 });
+
+test("published IssueChanges persists changes, reconciles retries and rejects another installation", async () => {
+  const f = await fixture();
+  try {
+    const caller = f.caller("alice", false);
+    const project = await createProject(f.db, caller.identity, { name: "Issue contract" });
+    type Issue = { id: string; revision: number; position: number; title: string; status: string };
+    type Receipt = { items: { status: string; result: Issue; error?: { code: string } }[] };
+    const change = async (items: unknown[], context = caller) => field<Receipt>(await run(context, "IssueChanges", { input: { items } }), "issueChanges");
+    const read = async (variables: Record<string, unknown> = {}, context = caller) => field<{ nodes: Issue[]; pageInfo: { endCursor: string; hasNextPage: boolean } }>(await run(context, "Issues", variables), "issues");
+    const input = { projectId: project.id, category: "stone", title: "First", description: "Preserved detail" };
+    const creates = ["First", "Second"].map(title => ({ key: crypto.randomUUID(), action: "createIssue", input: { ...input, title } }));
+    const created = await change(creates);
+    assert.deepEqual(created.items.map(item => item.status), ["complete", "complete"]);
+    const [a, b] = created.items.map(item => item.result);
+    assert.deepEqual(await change(creates), created);
+    assert.equal((await read()).nodes.length, 2, "replaying creation cannot duplicate issues");
+    assert.equal((await change([{ ...creates[0], input: { ...input, title: "Different" } }])).items[0].error?.code, "IDEMPOTENCY_CONFLICT");
+    const first = await read({ first: 1, projectId: [project.id], category: ["stone"], status: ["todo"] });
+    assert.equal(first.nodes.length, 1);
+    assert.equal(first.pageInfo.hasNextPage, true);
+    assert.equal((await read({ first: 1, after: first.pageInfo.endCursor })).nodes.length, 1);
+    assert.deepEqual((await read({ category: ["sand"] })).nodes, []);
+    assert.deepEqual((await read({ status: ["done"] })).nodes, []);
+    assert.deepEqual((await read({ projectId: [crypto.randomUUID()] })).nodes, []);
+    assert.deepEqual((await read({ ids: [a.id] })).nodes.map(row => row.id), [a.id]);
+    invalid(await run(caller, "Issues", { first: 501 }));
+    const reorder = { key: crypto.randomUUID(), action: "reorderIssues", input: { projectId: project.id, category: "stone", items: [{ id: b.id, revision: 1 }, { id: a.id, revision: 1 }] } };
+    const reordered = await change([reorder]);
+    assert.equal(reordered.items[0].status, "complete");
+    assert.deepEqual(await change([reorder]), reordered);
+    assert.deepEqual((await read()).nodes.sort((x, y) => x.position - y.position).map(row => [row.id, row.revision]), [[b.id, 2], [a.id, 2]]);
+    const foreign = f.caller("alice", false);
+    foreign.identity = { ...foreign.identity, installationId: "foreign" };
+    assert.deepEqual((await read({ ids: [a.id] }, foreign)).nodes, []);
+    for (const item of [
+      { action: "createIssue", input },
+      { action: "updateIssue", input: { ...input, id: a.id, revision: 2 } },
+      { action: "deleteIssue", input: { id: a.id, revision: 2 } },
+      { action: "reorderIssues", input: reorder.input },
+    ]) assert.equal((await change([{ key: crypto.randomUUID(), ...item }], foreign)).items[0].status, "uncertain");
+    const updated = await change([{ key: crypto.randomUUID(), action: "updateIssue", input: { ...input, id: a.id, revision: 2, title: "Updated", status: "done" } }]);
+    assert.equal(updated.items[0].status, "complete");
+    assert.deepEqual((await read({ status: ["done"] })).nodes.map(row => [row.title, row.revision]), [["Updated", 3]]);
+    const remove = { key: crypto.randomUUID(), action: "deleteIssue", input: { id: a.id, revision: 3 } };
+    const deleted = await change([remove]);
+    assert.equal(deleted.items[0].status, "complete");
+    assert.deepEqual(await change([remove]), deleted);
+    assert.deepEqual((await read()).nodes.map(row => row.id), [b.id]);
+  } finally { f.close(); }
+});

@@ -11,6 +11,10 @@ import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-doc
 import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
+  ReviseBatch: {
+    story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
+    document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy } }`,
+  },
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
@@ -46,6 +50,7 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+  ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
     "collection": true
