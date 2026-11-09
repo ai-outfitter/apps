@@ -50,15 +50,13 @@ export async function inspectFoundryWorkspace(host: Operator, repository: string
 }
 
 /** The subscription is enabled on a connection this installation can use, and
- * every role binding is approved for the active package. */
+ * every role binding is enabled. */
 function validConfiguration(snapshot: Snapshot, subscription: Snapshot["subscriptions"][number]) {
-  const activeHash = snapshot.installation.activeHash;
   return subscription.enabled && snapshot.connections.some((connection) => connection.id === subscription.connectionId) &&
     actors.every((actor) => snapshot.bindings.some((binding) =>
       binding.actor === actor &&
       binding.id === subscription.inputs[`triage.inputs.${actor}Binding`] &&
-      binding.enabled &&
-      binding.packageHash === activeHash));
+      binding.enabled));
 }
 
 /** The issue's newest run with its outputs, node attempts and connector intake. */
