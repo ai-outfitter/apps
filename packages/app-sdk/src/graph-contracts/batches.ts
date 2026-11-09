@@ -55,6 +55,7 @@ const proposal = z.strictObject({
 });
 export const batchAddInput = z.strictObject({
   batchId: z.uuid(),
+  replace: z.boolean().optional().describe("Replace proposals with matching refs in this open batch, including evidence, confidence and reason. Other proposals stay unchanged."),
   proposals: z.array(proposal).min(1).max(100),
 });
 export const batchRemoveInput = z.strictObject({ batchId: z.uuid(), refs: z.array(ref).min(1).max(100) });

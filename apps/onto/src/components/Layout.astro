@@ -23,6 +23,7 @@ const mount = segments.slice(0, segments.length - routeDepth).join("/");
   persistKey={`wiki-sidebar:${mount}`}
   {title}
   {description}
+  introVisuallyHidden={Astro.url.pathname.includes("/changes/")}
   active={page === "settings" ? "settings" : "home"}
   settingsHref={`${rootHref}settings`}
   sidebarLinks={[

@@ -13,7 +13,7 @@ import { readGraph } from "./graph";
 import { addressIndex, resolveAddress } from "../lib/addresses";
 import {
   applyGraphChanges,
-  checkGraphChanges,
+  inspectGraphChanges,
   graphChangeInput,
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
@@ -154,8 +154,8 @@ function requireOpen(batch: BatchRow, actor: AppActor) {
 }
 
 /** Rows for proposals not yet in the batch. Retrying the same proposal is a no-op;
- * reusing a ref for another one is a conflict. */
-function newRows(batchId: string, existing: OperationRow[], proposals: z.infer<typeof batchAddInput>["proposals"]) {
+ * reusing a ref for another one is a conflict unless `replace` overwrites it in place. */
+function newRows(batchId: string, existing: OperationRow[], proposals: z.infer<typeof batchAddInput>["proposals"], replace = false) {
   const byRef = new Map(existing.map((row) => [row.ref, row]));
   const added: OperationRow[] = [];
   let position = existing.length ? existing[existing.length - 1].position + 1 : 0;
@@ -163,10 +163,11 @@ function newRows(batchId: string, existing: OperationRow[], proposals: z.infer<t
     const saved = byRef.get(item.operation.ref);
     const operation = item.operation as unknown as Record<string, unknown>;
     const live = saved && saved.state !== "removed";
-    if (live && JSON.stringify(saved.operation) === JSON.stringify(operation)) continue;
-    if (live) fail(`Reference ${item.operation.ref} is already used in this batch`, 409);
+    if (live && !replace && JSON.stringify(saved.operation) === JSON.stringify(operation)) continue;
+    if (live && !replace) fail(`Reference ${item.operation.ref} is already used in this batch`, 409);
+    if (added.some(row => row.ref === item.operation.ref)) fail(`Duplicate proposal ref ${item.operation.ref}`);
     added.push({
-      batchId, ref: item.operation.ref, position: position++, operation,
+      batchId, ref: item.operation.ref, position: live ? saved.position : position++, operation,
       evidence: item.evidence, confidence: item.confidence ?? null, reason: item.reason ?? null, state: "pending",
       decidedBy: null, decision: null, recordId: null, recordRevision: null,
     });
@@ -180,8 +181,11 @@ export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor
   const batch = await loadBatch(db, input.batchId);
   requireOpen(batch, actor);
   const existing = await loadOperations(db, batch.id);
-  const added = newRows(batch.id, existing, input.proposals);
-  if (existing.filter((row) => row.state !== "removed").length + added.length > batchOperationCap)
+  const added = newRows(batch.id, existing, input.proposals, input.replace);
+  const liveRefs = new Set(live(existing).map((row) => row.ref));
+  const replaced = added.filter((row) => liveRefs.has(row.ref)).length;
+  const operations = liveRefs.size + added.length - replaced;
+  if (operations > batchOperationCap)
     fail(`A batch holds at most ${batchOperationCap} operations`, 413);
   // One round trip; a row per statement stays under D1's bound-parameter limit.
   const inserts = added.map((row) => db.insert(graphBatchOperations).values(row).onConflictDoUpdate({
@@ -190,7 +194,7 @@ export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor
   }));
   if (inserts.length) await db.batch(inserts as [typeof inserts[number], ...typeof inserts]);
   await touch(db, batch.id, {});
-  return { batchId: batch.id, added: added.length, operations: existing.length + added.length };
+  return { batchId: batch.id, added: added.length - replaced, operations };
 }
 
 export async function removeFromBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchRemoveInput>) {
@@ -201,6 +205,23 @@ export async function removeFromBatch(db: Database, who: AppIdentity, actor: App
     .where(and(eq(graphBatchOperations.batchId, batch.id), inArray(graphBatchOperations.ref, input.refs)));
   await touch(db, batch.id, {});
   return getBatch(db, who, { batchId: batch.id });
+}
+
+export const batchConfigureInput = z.strictObject({ batchId: z.uuid(), anchors: batchOpenInput.shape.anchors.unwrap() });
+export async function configureBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchConfigureInput>) {
+  requireEntityWriter(who);
+  const batch = await loadBatch(db, input.batchId);
+  if (batch.state === "open") requireOpen(batch, actor);
+  else if (batch.state !== "awaiting_review" || batch.policy.kind !== "member") fail("Anchors can only change in an open batch or a batch awaiting member review", 409);
+  const anchors = await anchorIds(db, who, input.anchors);
+  if (batch.state === "awaiting_review") {
+    const rows = live(await loadOperations(db, batch.id));
+    if (rows.some(row => row.state !== "awaiting_review")) fail("Anchors are fixed once review decisions are made", 409);
+    const loose = anchors.length ? unanchored(await readGraph(db, who), rows, anchors) : [];
+    if (loose.length) fail(`These proposals do not connect to the selected anchors: ${loose.slice(0, 20).join(", ")}`, 409);
+  }
+  await db.update(graphBatches).set({ anchors: anchors.length ? anchors : null, updatedAt: Date.now() }).where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, batch.state), sql`not exists (select 1 from graph_batch_operations where batchId = ${batch.id} and state in ('committed', 'rejected'))`));
+  return getBatch(db, who, input);
 }
 
 export const live = (rows: OperationRow[]) => rows.filter((row) => row.state !== "removed");
@@ -377,7 +398,7 @@ async function commitByPolicy(db: Database, who: AppIdentity, batch: BatchRow, r
   }
 }
 
-async function validateBatch(db: Database, who: AppIdentity, input: z.infer<typeof batchIdInput>) {
+export async function validateBatch(db: Database, who: AppIdentity, input: z.infer<typeof batchIdInput>) {
   const batch = await loadBatch(db, input.batchId);
   const rows = live(await loadOperations(db, batch.id));
   const committed = new Map(rows.filter((row) => row.state === "committed" && row.recordId).map((row) => [row.ref, row.recordId!]));
@@ -386,8 +407,9 @@ async function validateBatch(db: Database, who: AppIdentity, input: z.infer<type
   try {
     // The whole batch at once, so refs from earlier add calls resolve. Validation
     // writes nothing, so the 100-operation limit of a single apply does not apply.
-    await checkGraphChanges(db, who, { requestKey: `validate:${batch.id}`, operations });
-    return { valid: true as const, error: null, operations: operations.length };
+    await inspectGraphChanges(db, who, { requestKey: `validate:${batch.id}`, operations });
+    const loose = batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
+    return { valid: loose.length === 0, error: loose.length ? `Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}` : null, operations: operations.length };
   } catch (error) {
     if (!(error instanceof Response) || error.status >= 500) throw error;
     return { valid: false as const, error: (await error.text()).slice(0, 2000), operations: operations.length };

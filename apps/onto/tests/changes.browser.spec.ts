@@ -60,10 +60,58 @@ test("read a proposed document from Changes before approving its saved entity", 
     });
     const batchUrl = `${origin}/changes/${batch.id}`;
     await test.step("read the proposal while it has no saved entity", async () => {
+      // HTTP development hostnames do not expose crypto.randomUUID.
+      await page.addInitScript(() => Object.defineProperty(crypto, "randomUUID", { value: undefined }));
       await page.goto(`${origin}/changes`);
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("link", { name: "Hardware milestone research", exact: true }).click();
       await expect(page).toHaveURL(batchUrl);
+      await page.setViewportSize({ width: 1920, height: 1000 });
+      const widths = await page.locator("#changes").evaluate(element => {
+        const content = element.closest(".ui-content")!;
+        const style = getComputedStyle(content);
+        return { batch: element.getBoundingClientRect().width, available: content.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) };
+      });
+      expect(widths.batch).toBeGreaterThan(960);
+      expect(Math.abs(widths.batch - widths.available)).toBeLessThan(2);
+      await expect(page.getByRole("button", { name: "Graph (1)", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await page.getByRole("button", { name: "Expand graph", exact: true }).click();
+      const viewport = page.locator(".knowledge-graph-viewport");
+      await expect(page.locator(".knowledge-graph-expanded")).toBeVisible();
+      await expect(viewport.locator("svg a")).toHaveCount(1);
+      for (let i = 0; i < 12; i++) await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+      const before = await viewport.evaluate(element => ({ left: element.scrollLeft, top: element.scrollTop, width: element.scrollWidth, client: element.clientWidth }));
+      expect(before.width).toBeGreaterThan(before.client);
+      const box = (await viewport.boundingBox())!;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      const pointBefore = await viewport.locator("svg").evaluate((element, point) => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, x: (point.x - rect.left) / rect.width, y: (point.y - rect.top) / rect.height };
+      }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+      await page.mouse.wheel(0, -100);
+      await expect.poll(() => viewport.locator("svg").evaluate(element => element.getBoundingClientRect().width)).toBeGreaterThan(pointBefore.width);
+      const pointAfter = await viewport.locator("svg").evaluate((element, point) => {
+        const rect = element.getBoundingClientRect();
+        return { x: (point.x - rect.left) / rect.width, y: (point.y - rect.top) / rect.height };
+      }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+      expect(Math.abs(pointAfter.x - pointBefore.x)).toBeLessThan(0.002);
+      expect(Math.abs(pointAfter.y - pointBefore.y)).toBeLessThan(0.002);
+      await page.mouse.wheel(0, 100);
+      await expect.poll(() => viewport.locator("svg").evaluate(element => element.getBoundingClientRect().width)).toBeLessThan(pointBefore.width + 1);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 - 100, box.y + box.height / 2 - 50, { steps: 5 });
+      await page.mouse.up();
+      expect(await viewport.evaluate(element => element.scrollLeft)).toBeGreaterThan(before.left);
+      expect(await viewport.evaluate(element => element.scrollTop)).toBeGreaterThan(before.top);
+      await expect(page).toHaveURL(batchUrl);
+      await page.getByRole("button", { name: "Fit graph", exact: true }).click();
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".knowledge-graph-expanded")).toHaveCount(0);
+      await page.getByRole("button", { name: "Review & anchors", exact: true }).click();
+      await page.getByText("Anchor nodes (0)", { exact: true }).click();
+      await page.getByRole("button", { name: "Save anchors", exact: true }).click();
+      await expect(page.locator(".change-validation")).toContainText("Passing");
+      await page.getByRole("button", { name: "Graph (1)", exact: true }).click();
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("button", { name: "Ask Onto", exact: true }).click();
       const panel = page.getByRole("complementary", { name: "Onto chat", exact: true });

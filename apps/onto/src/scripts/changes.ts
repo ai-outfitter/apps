@@ -1,5 +1,8 @@
 import { createKnowledgeGraphViewer, disposeKnowledgeGraphViewers } from "@ai-outfitter/ui/knowledge-graph";
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
+import { onPageLoad } from "@ai-outfitter/ui/page";
+import { livePoll } from "@ai-outfitter/ui/live";
+import { addressIndex, nodeAddress, recordAddress } from "../lib/addresses";
 import { micromark } from "micromark";
 import type { Graph, GraphEdge, GraphNode } from "../lib/graph";
 import { appUrl, call, demoMode, el, entityUrl, loadGraph } from "./data";
@@ -20,6 +23,7 @@ type Batch = {
   policy: { kind: string; threshold?: number }; source: { kind: string; ref: string; label?: string } | null;
   summary: { counts: Record<string, number>; evidence: number; operations: number; text: string | null } | null;
   counts?: Record<string, number>;
+  anchors?: string[] | null;
   review: Review | null;
 };
 type Finding = { ref: string | null; rule: string; severity: "error" | "warning" | "note"; message: string; fix: string | null };
@@ -27,7 +31,7 @@ type Review = {
   state: "complete" | "failed"; runId: string | null; prompt: { path: string; digest: string };
   startedAt: number; finishedAt: number; complete: boolean; summary: string; findings: Finding[]; error: string | null;
 };
-type BatchDetail = { batch: Batch; counts: Record<string, number>; operations: BatchOperation[]; canReview: boolean };
+type BatchDetail = { batch: Batch; counts: Record<string, number>; operations: BatchOperation[]; canReview: boolean; validation?: { valid: boolean; error: string | null; operations: number } };
 
 const stateLabels: Record<string, string> = {
   open: "Collecting", awaiting_review: "Waiting for review", committed: "Saved", rejected: "Rejected", discarded: "Discarded",
@@ -194,10 +198,12 @@ function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string
   const how = approvalText(op);
   return el("li", { id: proposalAnchor(op), class: `change-operation change-${op.state}` },
     el("div", { class: "change-heading" },
-      el("span", { class: "change-kind" }, `${op.operation.operation === "update" ? "Update · " : ""}${kind}`),
-      op.recordId && op.state === "committed" ? el("a", { href: entityUrl(op.recordId, typeof op.operation.attributes.typeId === "string" ? op.operation.attributes.typeId : undefined) }, title(op, names, types)) : el("a", { href: `#${proposalAnchor(op)}` }, title(op, names, types)),
-      op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
-      el("span", { class: "change-state" }, how),
+      el("div", { class: "change-heading-main" },
+        el("span", { class: "change-kind" }, `${op.operation.operation === "update" ? "Update · " : ""}${kind}`),
+        op.recordId && op.state === "committed" ? el("a", { href: entityUrl(op.recordId, typeof op.operation.attributes.typeId === "string" ? op.operation.attributes.typeId : undefined) }, title(op, names, types)) : el("a", { href: `#${proposalAnchor(op)}` }, title(op, names, types)),
+        op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
+      ),
+      actions,
     ),
     op.reason ? el("p", {}, op.reason) : null,
     findingList(detail.batch.review?.findings.filter((item) => item.ref === op.ref) ?? []),
@@ -205,7 +211,7 @@ function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string
     op.evidence.length
       ? el("details", {}, el("summary", {}, `Evidence (${op.evidence.length})`), el("ul", { class: "change-evidence" }, ...op.evidence.map(citation)))
       : el("p", { class: "change-meta" }, "No evidence cited."),
-    actions,
+    el("span", { class: "change-state" }, how),
   );
 }
 
@@ -234,15 +240,51 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
     }));
 }
 
-async function renderBatch(root: HTMLElement, batchId: string) {
+function anchorSection(graph: Graph, detail: BatchDetail, draw: (next: BatchDetail) => void) {
+  const selected = new Set(detail.batch.anchors ?? []);
+  const nodes = graph.nodes.filter(node => !node.archived && node.slug).sort((a, b) => a.title.localeCompare(b.title));
+  const editable = detail.canReview && (detail.batch.state === "open" || detail.batch.state === "awaiting_review" && detail.batch.policy.kind === "member" && !detail.counts.committed && !detail.counts.rejected);
+  const choices = el("div", { class: "change-anchor-options" }, ...nodes.map(node => {
+    const address = nodeAddress(graph.types.find(type => type.id === node.typeId)?.name ?? node.typeId, node.slug!);
+    const check = el("input", { type: "checkbox", value: address, checked: selected.has(node.id), disabled: !editable });
+    return el("label", {}, check, node.title, el("span", { class: "change-meta" }, address));
+  }));
+  const form = el("form", { class: "change-anchors" },
+    el("p", {}, "New nodes must connect to an anchor through saved or proposed relationships. No anchors means no connectivity requirement."),
+    choices, editable ? el("button", { type: "submit" }, "Save anchors") : el("p", { class: "change-meta" }, "Anchors are fixed after review decisions."));
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const button = form.querySelector("button")!;
+    button.disabled = true;
+    try {
+      draw(await call<BatchDetail>("batches/configure", { batchId: detail.batch.id, anchors: [...choices.querySelectorAll<HTMLInputElement>("input:checked")].map(input => input.value) }));
+    } catch (error) { button.disabled = false; form.appendChild(el("p", { role: "alert" }, String(error))); }
+  };
+  return el("details", { class: "node-section" }, el("summary", {}, `Anchor nodes (${selected.size})`), form);
+}
+
+async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSignal) {
   const [graph, detail] = await Promise.all([loadGraph(), call<BatchDetail>(`batches/get?id=${encodeURIComponent(batchId)}`)]);
+  let currentSignature = "";
+  let activeView = location.hash.startsWith("#proposal-") ? "proposals" : "graph";
+  const index = addressIndex(graph), address = recordAddress(graph);
   const draw = (current: BatchDetail) => {
+    if (signal.aborted) return;
+    currentSignature = JSON.stringify(current);
     disposeKnowledgeGraphViewers(root);
-    const { batch, operations } = current;
+    const { batch } = current;
+    const operations = current.operations.map(op => {
+      const operation = structuredClone(op.operation), a = operation.attributes;
+      if (operation.id) operation.id = index[operation.type].get(operation.id) ?? operation.id;
+      for (const field of ["typeId", "fromId", "toId"] as const) {
+        if (typeof a[field] === "string") a[field] = index[field === "typeId" ? "graph-type" : "graph-node"].get(a[field]) ?? a[field];
+      }
+      return { ...op, operation };
+    });
     agentPage("onto").describe({
       title: batch.title,
       summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
-      state: { batchId: batch.id, state: batch.state, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
+      state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
     });
     const types = new Map(graph.types.map((type) => [type.id, type.title]));
     const names = nameIndex(graph, operations);
@@ -251,27 +293,54 @@ async function renderBatch(root: HTMLElement, batchId: string) {
     const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
     const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
     const viewer = view.nodes.length
-      ? createKnowledgeGraphViewer(graph, view, view.nodes[0], { nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
+      ? createKnowledgeGraphViewer(graph, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
       : null;
     const groups = (["awaiting_review", "committed", "rejected", "pending"] as const)
       .map((state) => [state, operations.filter((op) => op.state === state)] as const)
       .filter(([, ops]) => ops.length);
+    const panels = {
+      graph: el("div", { id: "batch-graph", class: "change-graph" }, viewer ?? el("p", {}, "No graph nodes in this batch.")),
+      proposals: el("div", { id: "batch-proposals" }, ...groups.map(([state, ops]) => el("div", { class: "change-proposal-group" },
+        el("h2", {}, `${opLabels[state] ?? state} (${ops.length})`),
+        el("ul", { class: "change-operations" }, ...ops.map(op => operationRow(current, op, names, types, draw)))))),
+      review: el("div", { id: "batch-review" }, anchorSection(graph, current, draw), reviewSection(current, draw)),
+    };
+    const buttons = new Map<string, HTMLButtonElement>();
+    const choose = (key: string) => {
+      activeView = key;
+      for (const [name, panel] of Object.entries(panels)) panel.hidden = name !== key;
+      for (const [name, button] of buttons) button.setAttribute("aria-pressed", String(name === key));
+    };
+    const tabs = el("nav", { class: "change-views", "aria-label": "Change batch views" }, ...[
+      ["graph", `Graph (${view.nodes.length})`], ["proposals", `Proposals (${operations.length})`], ["review", "Review & anchors"],
+    ].map(([key, label]) => {
+      const button = el("button", { type: "button", "aria-controls": `batch-${key}`, onclick: () => choose(key) }, label);
+      buttons.set(key, button); return button;
+    }));
+    viewer?.addEventListener("click", event => {
+      const link = (event.target as Element).closest("a");
+      if (link?.getAttribute("href")?.startsWith("#proposal-")) choose("proposals");
+    });
+    choose(activeView);
     fill(root,
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
       el("h2", {}, batch.title),
-      el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
-      batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null,
-      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state} · ${batch.source?.label ?? batch.source?.kind ?? "Agent"} · ${time(batch.createdAt)}`),
+      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state} · ${time(batch.createdAt)}`),
+      el("details", { class: "change-description" }, el("summary", {}, "Batch summary"),
+        el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
+        batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
       bulk,
-      reviewSection(current, draw),
-      viewer ? el("section", { class: "node-section" }, el("h2", {}, "What was found"), viewer) : null,
-      ...groups.map(([state, ops]) => el("section", { class: "node-section" },
-        el("h2", {}, `${opLabels[state] ?? state} (${ops.length})`),
-        el("ul", { class: "change-operations" }, ...ops.map((op) => operationRow(current, op, names, types, draw))))),
+      current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
+      tabs, ...Object.values(panels),
     );
   };
   draw(detail);
+  livePoll(signal, async () => {
+    if (root.querySelector("form:focus-within")) return;
+    const next = await call<BatchDetail>(`batches/get?id=${encodeURIComponent(batchId)}`);
+    if (JSON.stringify(next) !== currentSignature) draw(next);
+  }, { every: 5000 });
 }
 
 async function renderList(root: HTMLElement) {
@@ -325,18 +394,17 @@ export function historySection(id: string) {
   return section;
 }
 
-async function render() {
+async function render(signal: AbortSignal) {
   const root = document.getElementById("changes");
   if (!root || root.dataset.initialized) return;
   root.dataset.initialized = "true";
   try {
     if (demoMode) root.replaceChildren(el("p", {}, "Change batches are available in operational Wikis."));
-    else if (root.dataset.view === "batch" && root.dataset.batchId) await renderBatch(root, root.dataset.batchId);
+    else if (root.dataset.view === "batch" && root.dataset.batchId) await renderBatch(root, root.dataset.batchId, signal);
     else await renderList(root);
   } catch (error) {
     root.replaceChildren(el("p", { role: "alert" }, `Unable to load changes: ${String(error)}`));
   }
   root.setAttribute("aria-busy", "false");
 }
-document.addEventListener("astro:page-load", render);
-render();
+onPageLoad(render);

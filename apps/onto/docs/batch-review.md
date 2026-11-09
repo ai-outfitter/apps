@@ -69,3 +69,25 @@ The proposed control:
   coverage and findings) instead of only the latest one.
 
 Until then `requireMemberReview` stays as it is: decisions come from a member or the member's own connection, never from the steward, an app or a resident.
+
+## Repairing a draft
+
+`ChangeBatchChanges` returns `validation: { valid, error, operations }` and anchor
+node addresses after staging, removing or configuring proposals. A failing draft
+is durable and invisible to normal graph reads; its receipt asks the caller to
+`REPAIR_CHANGES`. Fix it and validate again before explicit submission. Passing
+validation does not approve or commit a proposal.
+
+Use `stage` with `replace: true` to replace proposals at their existing refs,
+including evidence, confidence and reason. Other refs stay unchanged. `configure`
+replaces the anchor addresses (`[]` clears them). Every newly created node must
+reach an anchor through saved or proposed relationships, in either direction.
+An undecided batch awaiting member review may change its anchors only if its
+existing proposals already satisfy the new anchors. Submitted operations stay
+frozen and review decisions remain a member's step.
+
+The Changes workspace opens on its graph. Proposal details and review/anchor
+settings have separate views, and clicking a proposed node opens its proposal.
+Dragging pans the graph in both directions, including on touchscreens.
+Wheel or trackpad scrolling zooms in and out around the pointer; toolbar zoom
+controls keep the center fixed. Expand graph fills the window; Escape returns to the workspace.

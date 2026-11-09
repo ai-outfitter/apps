@@ -11,3 +11,11 @@ and preserve same-name type identities, migrate each frozen Wiki graph into Onto
 and verify exact destination rows and original history. Source graphs remain
 read-only archives. Forward schema migration records immutable lineage and the
 original source rows; ordinary portable imports cannot create migration authority.
+
+
+Changes opens on a full-width graph, with separate proposal and review/anchor views.
+Graph canvases support dragging in both directions, wheel/trackpad zoom around the pointer, readable
+initial zoom and an expanded view. Open batches support explicit proposal replacement
+by ref and anchor edits; undecided member-review batches also allow valid anchor
+changes. Mutation results report dry-run validation and ask callers to repair failing
+drafts before submission. Submitted operations and member approval remain unchanged.

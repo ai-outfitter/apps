@@ -36,6 +36,14 @@ type ChangeBatch {
   state: String!
   source: JSON
   createdAt: DateTime!
+
+  """Anchor node addresses; every created node must connect to one."""
+  anchors: [String!]!
+
+  """
+  Current dry-run result: valid, error and operations. valid=false means repair the draft before submitting; nothing has been applied.
+  """
+  validation: JSON!
   policy: JSON!
   summary: JSON
   reviewBy: DateTime
@@ -214,6 +222,7 @@ input StageChangesInput {
   source: StageChangesInputSource
   anchors: [String!]
   proposals: [StageChangesInputProposalsItem!]!
+  replace: Boolean
 }
 
 input StageChangesInputSource {
@@ -239,6 +248,11 @@ input StageChangesInputProposalsItemEvidenceItem {
   observedAt: String
 }
 
+input ConfigureBatchInput {
+  batchId: ID!
+  anchors: [String!]!
+}
+
 input RemoveStagedChangesInput {
   batchId: ID!
   refs: [String!]!
@@ -261,9 +275,14 @@ type Mutation {
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 
   """
-  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.
   """
   stageChanges(input: StageChangesInput!): ChangeBatch!
+
+  """
+  Replace anchor nodes of an open batch or an undecided batch awaiting member review. Submitted proposals must already connect to the selected anchors. Empty anchors removes the connectivity requirement. Returns current validation without applying any records.
+  """
+  configureBatch(input: ConfigureBatchInput!): ChangeBatch!
 
   """Remove proposals from an open batch by ref."""
   removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
@@ -301,6 +320,7 @@ input ChangeBatchChangesInputItemsItem {
 
 enum ChangeBatchChangesInputItemsItemAction {
   stage
+  configure
   remove
   submit
   review

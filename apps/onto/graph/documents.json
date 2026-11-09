@@ -3,8 +3,8 @@
     "name": "ChangeBatch",
     "kind": "query",
     "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
-    "hash": "cb60fc898b312e136d3601d8b9edf5b9367899906ec91feff01e5a95d49455b8",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "79d6777cfc2cd673b3eca131eb850f197114d731047339319ef2f57b5573ce86",
     "variables": {
       "type": "object",
       "properties": {
@@ -286,10 +286,58 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "replace": {
+                            "description": "Replace proposals with matching refs in this open batch, including evidence, confidence and reason. Other proposals stay unchanged.",
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "proposals"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "configure"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "anchors": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "anchors"
                         ],
                         "additionalProperties": false
                       }
@@ -1000,8 +1048,8 @@
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
-    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n  }\n}",
-    "hash": "f6c5912f64162eeb8f0d648c8ea1ac82726cfc5efd71a82f4abda78ec49b2e1a",
+    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n    anchors\n    validation\n  }\n}",
+    "hash": "467c4615faaa9a6e73b8198a118ed6244b7b7d0a215e3272e896dab8047cce96",
     "variables": {
       "type": "object",
       "properties": {
@@ -1019,8 +1067,8 @@
     "name": "StageChanges",
     "kind": "mutation",
     "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
-    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n  }\n}",
-    "hash": "78b8f60cbcdd798947149cc4898a96bd7c3f977342cb43095341c2105d60f989",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n  }\n}",
+    "hash": "a49ec65b0b65794a30bce244d0f8df755b705d76fe0343b5a31c153ce5a34244",
     "variables": {
       "type": "object",
       "properties": {

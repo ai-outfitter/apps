@@ -33,13 +33,13 @@ export const wikiChangeDocuments = {
   StageChanges: {
     story: "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
     document: `mutation StageChanges($input: StageChangesInput!) {
-      stageChanges(input: $input) { id title state counts }
+      stageChanges(input: $input) { id title state counts anchors validation }
     }`,
   },
   RemoveStagedChanges: {
     story: "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
     document: `mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {
-      removeStagedChanges(input: $input) { id state counts }
+      removeStagedChanges(input: $input) { id state counts anchors validation }
     }`,
   },
   SubmitBatch: {
@@ -52,7 +52,7 @@ export const wikiChangeDocuments = {
     story: "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
     document: `query ChangeBatch($id: ID!, $refs: [String!]) {
       changeBatch(id: $id) {
-        id title purpose source state policy summary reviewBy createdAt updatedAt expiresAt counts
+        id title purpose source state policy anchors validation summary reviewBy createdAt updatedAt expiresAt counts
         operations(refs: $refs) { ref state operation evidence confidence reason decision record recordRevision }
       }
     }`,

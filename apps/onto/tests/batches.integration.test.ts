@@ -366,3 +366,39 @@ test("a member's own agent connection reviews a batch with the member's identity
   const { operations } = await json(await f.action("batch.get", { batchId: id }));
   assert.deepEqual({ ...operations[0].decision, at: 0 }, { kind: "member", by: "owner", via: "oauth-client:claude-desktop", viaLabel: "Claude", verdict: "approve", comment: "Looks right", at: 0 });
 });
+
+test("agents repair one draft by ref and get anchor and ontology validation in mutation results", async t => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "anchor-person", operations: [person("$anchor", 950, "Anchor")] }));
+  const send = async (action: string, input: object, identity: object = agent) => {
+    const result = await json(await f.action("graph.mutate", { query: print(documents.ChangeBatchChanges.document), operationName: "ChangeBatchChanges", variables: { input: { items: [{ key: crypto.randomUUID(), action, input }] } } }, identity));
+    assert.equal(result.errors, undefined);
+    if (result.data.changeBatchChanges.items[0].result?.validation?.valid === false) assert.equal(result.data.changeBatchChanges.instructions[0].code, "REPAIR_CHANGES");
+    return result.data.changeBatchChanges.items[0];
+  };
+  const first = await send("stage", { title: "Repair me", anchors: [uuid(950)], proposals: [{ operation: person("$child", 951, "Child") }] });
+  const batchId = first.result.id;
+  assert.equal(first.result.validation.valid, false);
+  assert.match(first.result.validation.error, /anchor/);
+  assert.equal(first.result.anchors[0], "Person:anchor");
+  const invalid = await send("stage", { batchId, replace: true, proposals: [{ operation: create("$child", "graph-node", { id: uuid(951), typeId: "MissingType", title: "Child" }) }] });
+  assert.equal(invalid.result.validation.valid, false);
+  const fixed = await send("stage", { batchId, replace: true, proposals: [{ operation: person("$child", 951, "Corrected"), evidence: cite("correction"), reason: "Corrected source" }, { operation: create("$link", "graph-edge", { id: uuid(952), typeId: ids.friend, fromId: uuid(950), toId: "$child" }) }] });
+  assert.equal(fixed.result.validation.valid, true);
+  assert.equal(fixed.result.counts.pending, 2);
+  assert.equal(await f.exists(uuid(951)), false);
+  const detail = (await run(f, "ChangeBatch", { id: batchId })).data.changeBatch;
+  assert.equal(detail.operations.find((op: {ref:string}) => op.ref === "$child").reason, "Corrected source");
+  const cleared = await send("configure", { batchId, anchors: [] });
+  assert.deepEqual(cleared.result.anchors, []);
+  assert.equal(cleared.result.validation.valid, true);
+  const viewer = { ...owner, role: "viewer" };
+  const readOnly = await json(await f.app.call(`/api/apps/onto/batches/get?id=${batchId}`, viewer));
+  assert.equal(readOnly.validation.valid, true);
+  assert.equal(readOnly.canReview, false);
+  assert.equal((await f.app.call("/api/apps/onto/batches/configure", viewer, { method: "POST", body: { batchId, anchors: [] } })).status, 403);
+  await send("submit", { batchId });
+  const frozen = await send("stage", { batchId, replace: true, proposals: [{ operation: person("$child", 951, "Too late") }] });
+  assert.equal(frozen.result, null);
+  assert.equal(await f.exists(uuid(951)), false);
+});

@@ -21,8 +21,9 @@ import {
 } from "graphql";
 import { z } from "zod";
 import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
-import { withRecordAddresses } from "./graph";
-import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
+import { readGraph, withRecordAddresses } from "./graph";
+import { recordAddress } from "../lib/addresses";
+import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -48,18 +49,30 @@ const StagedChange = new GraphQLObjectType({
     recordRevision: { type: GraphQLInt },
   },
 });
+// validation and instructions both need the dry run; run it once per resolved batch.
+const validations = new WeakMap<object, ReturnType<typeof validateBatch>>();
+const batchValidation = (batch: { id: string }, context: ChangeContext) => {
+  if (!validations.has(batch)) validations.set(batch, validateBatch(context.db(), context.identity, { batchId: batch.id }));
+  return validations.get(batch)!;
+};
 const ChangeBatch = new GraphQLObjectType({
   name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.",
   fields: {
     id: { type: nonNull(GraphQLID) }, title: text, purpose: text,
     state: { ...text, description: "open, awaiting_review, committed, rejected or discarded." },
     source: { type: JSONScalar }, createdAt: { type: nonNull(DateTimeScalar) },
+    anchors: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Anchor node addresses; every created node must connect to one.", resolve: async (batch, _args, context: ChangeContext) => {
+      const graph = await readGraph(context.db(), context.identity);
+      const address = recordAddress(graph);
+      return (batch.anchors ?? []).flatMap((id: string) => address("graph-node", id) ?? []);
+    } },
+    validation: { type: nonNull(JSONScalar), description: "Current dry-run result: valid, error and operations. valid=false means repair the draft before submitting; nothing has been applied.", resolve: (batch, _args, context: ChangeContext) => batchValidation(batch, context) },
     policy: json, summary: { type: JSONScalar },
     reviewBy: { type: DateTimeScalar },
     review: { type: JSONScalar, description: "The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
-    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: batch => resultInstructions(batch.id, batch) },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context) }) },
     operations: {
       type: nonNull(new GraphQLList(nonNull(StagedChange))),
       args: { refs: { type: new GraphQLList(nonNull(GraphQLString)), description: "Read only these proposal refs; omit for all. Use to inspect individual proposals when the whole batch exceeds the response limit." } },
@@ -104,13 +117,14 @@ const ExplorationSummary = new GraphQLObjectType({ name: "ExplorationSummary", f
 type Batch = Awaited<ReturnType<typeof getBatch>>;
 const view = ({ batch, counts, operations }: Batch) => ({ ...batch, counts, operations });
 
-const stageInput = z.strictObject({
+export const stageInput = z.strictObject({
   batchId: z.uuid().optional().describe("Add to this open batch; omit to open one."),
   title: z.string().min(1).max(200).optional().describe("Names the batch a new one opens with."),
   purpose: z.string().max(2000).optional(),
   source: batchSource.optional().describe("Where the proposals came from, for a new batch: {kind: \"agent-task\" | \"meeting\" | \"import\" | \"work-package\", ref, label?}, e.g. a chat or meeting ID and its title."),
   anchors: batchOpenInput.shape.anchors,
   proposals: batchAddInput.shape.proposals,
+  replace: batchAddInput.shape.replace,
 }).refine(input => input.batchId || input.title, { message: "Pass batchId, or a title to open a batch", path: ["title"] });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
@@ -159,14 +173,19 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
-      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.",
+      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.",
       input: stageInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();
         const batchId = input.batchId ?? (await openBatch(db, context.identity, context.actor, { title: input.title ?? "", purpose: input.purpose ?? "", ...(input.source ? { source: input.source } : {}), ...(input.anchors ? { anchors: input.anchors } : {}), policy: { kind: "member" } })).batch.id;
-        await addToBatch(db, context.identity, context.actor, { batchId, proposals: input.proposals });
+        if (input.batchId && input.anchors) await configureBatch(db, context.identity, context.actor, { batchId, anchors: input.anchors });
+        await addToBatch(db, context.identity, context.actor, { batchId, proposals: input.proposals, replace: input.replace });
         return view(await getBatch(db, context.identity, { batchId }));
       },
+    }),
+    configureBatch: mutationField({
+      name: "ConfigureBatch", output: nonNull(ChangeBatch), description: "Replace anchor nodes of an open batch or an undecided batch awaiting member review. Submitted proposals must already connect to the selected anchors. Empty anchors removes the connectivity requirement. Returns current validation without applying any records.", input: batchConfigureInput,
+      run: async (context: MutationContext, input) => view(await configureBatch(context.db(), context.identity, context.actor, input)),
     }),
     removeStagedChanges: mutationField({
       name: "RemoveStagedChanges", output: nonNull(ChangeBatch), description: "Remove proposals from an open batch by ref.",

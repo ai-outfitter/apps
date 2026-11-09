@@ -59,7 +59,7 @@ async function renderExplorer() {
     const output = el("div", { class: "wiki-map" });
     const field = (name: string, control: Node) => el("label", {}, name, control);
     const controls = el("div", { class: "graph-explorer-filters" }, field("Search", search), field("Entity type", entityType), field("Relationship type", relationshipType), field("Starting entity", anchor), field("Knowledge graph", lens));
-    root.replaceChildren(await explorations(graph), el("h2", {}, "Browse"), el("p", {}, "Choose a starting entity to explore its direct connections, then select an available knowledge graph to follow its saved traversal."), controls, output);
+    root.replaceChildren(el("details", {}, el("summary", {}, "Saved explorations"), await explorations(graph)), controls, output);
     const updateLenses = () => {
       const selected = nodes.find((node) => node.id === anchor.value);
       lens.replaceChildren(el("option", { value: "" }, "Direct connections"), ...(selected ? knowledgeGraphsFor(graph, selected).map((item) => el("option", { value: item.node.id }, item.node.title)) : []));
@@ -88,7 +88,7 @@ async function renderExplorer() {
       output.appendChild(el("p", { role: "status" }, `${visible.length} entities · ${links.length} relationships${view.truncated ? " · Knowledge graph limited to 200 entities" : ""}`));
       if (!visible.length) { output.appendChild(el("p", {}, "No entities match these filters.")); return; }
       if (visible.length > 200) { output.appendChild(el("p", {}, "Filter to 200 entities or fewer to display the graph.")); return; }
-      output.appendChild(createKnowledgeGraphViewer(graph, { nodes: visible, edges: links }, selected && ids.has(selected.id) ? selected : visible[0], { nodeHref: entityUrl, onError: (error) => output.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) }));
+      output.appendChild(createKnowledgeGraphViewer(graph, { nodes: visible, edges: links }, selected && ids.has(selected.id) ? selected : visible[0], { initialScale: 0.85, nodeHref: entityUrl, onError: (error) => output.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) }));
       output.appendChild(el("details", {}, el("summary", {}, "Entity and relationship list"), el("ul", {}, ...visible.map((node) => el("li", {}, el("a", { href: entityUrl(node.id) }, node.title)))), el("ul", {}, ...links.map((edge) => el("li", {}, `${nodes.find((n) => n.id === edge.fromId)?.title} → ${graph.types.find((t) => t.id === edge.typeId)?.title ?? "related"} → ${nodes.find((n) => n.id === edge.toId)?.title}`)))));
     };
     anchor.onchange = () => { updateLenses(); draw(); };

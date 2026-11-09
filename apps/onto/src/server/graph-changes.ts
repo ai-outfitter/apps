@@ -492,6 +492,11 @@ export async function applyGraphChanges(
 export async function checkGraphChanges(db: Database, who: AppIdentity, input: Input): Promise<Receipt> {
   requireEntityWriter(who);
   if (input.operations.some((change) => change.type === "graph-type")) requireEditor(who);
+  return inspectGraphChanges(db, who, input);
+}
+
+/** Read-only validation for members inspecting proposed changes. Grants no write authority. */
+export async function inspectGraphChanges(db: Database, who: AppIdentity, input: Input): Promise<Receipt> {
   const graph = await readGraph(db, who);
   for (const condition of input.preconditions ?? []) {
     const current = records(graph)[condition.type].find(row => row.id === condition.id);

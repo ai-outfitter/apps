@@ -68,9 +68,11 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
     });
     await test.step("the batch page shows each finding beside its proposal, and decides nothing", async () => {
       await page.goto(`${origin}/changes/${batch.id}`);
+      await page.getByRole("button", { name: "Review & anchors", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Ontology review", exact: true })).toBeVisible();
       await expect(page.getByText("2 findings: VEG-05 is NASA's experiment, not Artera's project.")).toBeVisible();
       await expect(page.locator(".change-review")).toContainText(/run [0-9a-f-]{36}/);
+      await page.getByRole("button", { name: /^Proposals/ }).click();
       const project = page.locator(".change-operation").filter({ hasText: "A space crop experiment." });
       await expect(project.locator(".change-finding-error")).toContainText("project.foreign");
       await expect(project).toContainText("Waiting");

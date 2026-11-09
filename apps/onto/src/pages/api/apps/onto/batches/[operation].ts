@@ -5,7 +5,7 @@ import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { reviewBatchOntology } from "../../../../../server/batch-review";
 import {
   batchIdInput, batchListInput, batchReviewInput, getBatch, listBatches, recordHistory, recordHistoryInput,
-  reviewBatch, sealDueBatches,
+  reviewBatch, sealDueBatches, configureBatch, batchConfigureInput, validateBatch,
 } from "../../../../../server/graph-batches";
 
 // The Changes pages: list and read batches, member review, a fresh steward
@@ -22,7 +22,8 @@ export const GET: APIRoute = ({ request, params }) => {
     }
     if (params.operation === "get") {
       await sealDueBatches(db, who);
-      return getBatch(db, who, batchIdInput.parse({ batchId: query.id }));
+      const input = batchIdInput.parse({ batchId: query.id });
+      return { ...await getBatch(db, who, input), validation: await validateBatch(db, who, input) };
     }
     if (params.operation === "history") return recordHistory(db, who, recordHistoryInput.parse({ id: query.id }));
     throw new Response("Not found", { status: 404 });
@@ -33,6 +34,10 @@ export const POST: APIRoute = ({ request, params, locals }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Read-only demo", { status: 403 });
   return respond(async () => {
     const who = requestIdentity(request), db = installationDatabase();
+    if (params.operation === "configure") {
+      const input = await readJSON(request, batchConfigureInput, 12000);
+      return { ...await configureBatch(db, who, requestActor(request, who), input), validation: await validateBatch(db, who, input) };
+    }
     if (params.operation === "review")
       return reviewBatch(db, who, requestActor(request, who), requestOriginActor(request, who), await readJSON(request, batchReviewInput, 64000));
     if (params.operation === "steward-review") {
