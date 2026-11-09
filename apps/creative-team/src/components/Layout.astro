@@ -1,0 +1,57 @@
+---
+// The demo build resolves this to the shared scripted sidebar (astro.config.mjs).
+import AppAgentSidebar from "@ai-outfitter/ui/react/AppAgentSidebar";
+import AgentSidebarToggle from "@ai-outfitter/ui/astro/AgentSidebarToggle.astro";
+import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import { rootHref as rootHrefFor } from "../lib/root-href";
+import "@ai-outfitter/ui/chat.css";
+import "../creative.css";
+
+export type CreativePage = "overview" | "brand" | "content" | "map" | "drafts" | "settings";
+interface Props { title: string; description: string; page: CreativePage }
+const { title, description, page } = Astro.props;
+const demo = import.meta.env.OUTFITTER_APP_MODE !== "operational";
+const root = rootHrefFor(Astro.url.pathname, page === "overview" ? 0 : 1);
+const link = (label: string, slug: string, key: CreativePage) => ({ label, href: slug ? `${root}${slug}` : root, active: page === key });
+const panel = "creative-team-agent";
+---
+<ManagedAppLayout
+  name="Creative team"
+  {title}
+  {description}
+  active={page === "settings" ? "settings" : "home"}
+  settingsHref={`${root}settings`}
+  sidebarLinks={[
+    link("Overview", "", "overview"),
+    link("Brand", "brand", "brand"),
+    link("Content", "content", "content"),
+    link("Map", "map", "map"),
+    link("Drafts", "drafts", "drafts"),
+  ]}
+>
+  <AgentSidebarToggle slot="header-actions" controls={panel} label="Ask your team" persist />
+  <slot name="intro-actions" slot="intro-actions" />
+  <div class="creative" data-demo={String(demo)} data-root={root}>
+    <slot />
+  </div>
+  <AppAgentSidebar
+    slot="overlays"
+    client:idle
+    transition:persist
+    id={panel}
+    pageId="creative-team"
+    endpoint="/api/apps/creative-team/agent"
+    {demo}
+    agentName="Creative team"
+    intro="Your brand strategist, content strategist and writer. Ask to be interviewed, to build your content map, or to draft a post."
+    emptyIntro="Ask your creative team about your brand, content map or drafts."
+    limits={demo ? "Scripted, read-only demo. No inference or writes." : "Uses your brand document, content document, map and drafts. Every change is a proposal you approve. It has no live social media data and never posts for you."}
+    demoReply="This is a scripted, read-only example. In the real app your creative team interviews you one question at a time, proposes content map branches through your lens and drafts posts for you to rewrite. No inference ran and nothing changed."
+  />
+</ManagedAppLayout>
+<script>
+  import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
+  import { setOrganizationLink } from "../../navigation.js";
+  agentPage("creative-team").set({ focus: { kind: "creative-team", id: "c7ea0000-0000-4000-8000-000000000001", label: "Creative team" } });
+  setOrganizationLink("creative-team");
+</script>

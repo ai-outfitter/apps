@@ -1,0 +1,53 @@
+{
+  "name": "@ai-outfitter/app-creative-team",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "build:demo": "outfitter-app-build --mode demo",
+    "build:operational": "outfitter-app-build --mode operational",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/server": "*",
+    "@ai-outfitter/ui": "*",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/react": "^7.0.0",
+    "astro": "^7.3.5",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "graphql": "^16.11.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@ai-outfitter/app-test": "*",
+    "@astrojs/check": "^0.9.10",
+    "@libsql/client": "^0.18.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@ai-outfitter/app-build": "*",
+    "miniflare": "5.20260926.0-alpha"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

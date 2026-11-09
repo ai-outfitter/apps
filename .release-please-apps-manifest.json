@@ -2,5 +2,6 @@
   "apps/hr": "0.1.1",
   "apps/html-starter": "0.1.1",
   "apps/workshop": "0.1.1",
-  "apps/software-foundry": "0.3.1"
+  "apps/software-foundry": "0.3.1",
+  "apps/creative-team": "0.1.1"
 }

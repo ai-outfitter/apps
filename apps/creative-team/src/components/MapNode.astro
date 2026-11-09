@@ -1,0 +1,52 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { childLevel, type MapLevel } from "../lib/brand";
+import type { MapTreeNode } from "../server/store";
+
+interface Props { node: MapTreeNode; readOnly: boolean }
+const { node, readOnly } = Astro.props;
+const below = childLevel[node.level as MapLevel];
+const open = node.level === "pillar";
+const article = below === "idea" || below === "angle" ? "an" : "a";
+---
+<li class={`map-node map-node--${node.level}`}>
+  <details open={open}>
+    <summary>
+      <span class="map-level">{node.level}</span>
+      <span class="map-title">{node.title}</span>
+      {node.children.length ? <span class="muted map-count">{node.children.length} {below}{node.children.length === 1 ? "" : "s"}</span> : null}
+    </summary>
+    <div class="map-body">
+      {node.notes ? <p class="map-notes">{node.notes}</p> : null}
+      {node.research ? <p class="muted map-research"><strong>Based on:</strong> {node.research}</p> : null}
+      {readOnly ? null : (
+        <div class="map-actions">
+          <details class="map-edit">
+            <summary>Edit</summary>
+            <form data-astro-reload data-write="SaveMapNode" data-saved="Map saved.">
+              <input type="hidden" name="id" value={node.id} />
+              <input type="hidden" name="revision" data-kind="number" value={String(node.revision)} />
+              <label>Title <input name="title" required maxlength="300" value={node.title} /></label>
+              <label>Notes <textarea name="notes" rows="2" maxlength="4000">{node.notes}</textarea></label>
+              <label>Based on <textarea name="research" rows="2" maxlength="4000" placeholder="A reference post or a pattern seen performing, and where it came from.">{node.research}</textarea></label>
+              <div class="form-actions">
+                <Button type="submit" variant="secondary">Save</Button>
+              </div>
+            </form>
+            <Button variant="secondary" class="danger" data-write="DeleteMapNode" data-input={JSON.stringify({ id: node.id, revision: node.revision })} data-confirm={`Remove "${node.title}"${node.children.length ? " and everything below it" : ""}?`} data-saved="Removed from the map.">Remove</Button>
+          </details>
+          {below ? (
+            <form data-astro-reload class="map-add" data-write="AddMapBranch" data-saved={`Added ${article} ${below}.`}>
+              <input type="hidden" name="parentId" value={node.id} />
+              <label class="visually-hidden" for={`add-${node.id}`}>New {below}</label>
+              <input id={`add-${node.id}`} name="nodes.0.title" required maxlength="300" placeholder={`Add ${article} ${below}`} />
+              <Button type="submit" variant="secondary">Add</Button>
+            </form>
+          ) : null}
+          {node.level === "idea" || node.level === "angle" ? <a class="map-draft" href={`./drafts?node=${encodeURIComponent(node.id)}#new-draft`}>Write a draft</a> : null}
+        </div>
+      )}
+      {node.children.length ? <ol class="map-children">{node.children.map((child) => <Astro.self node={child} {readOnly} />)}</ol> : null}
+    </div>
+  </details>
+</li>

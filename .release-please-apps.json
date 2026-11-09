@@ -50,6 +50,17 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/creative-team": {
+      "release-type": "node",
+      "component": "creative-team",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
