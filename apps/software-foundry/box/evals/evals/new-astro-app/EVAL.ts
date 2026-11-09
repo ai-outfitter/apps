@@ -29,6 +29,9 @@ test("the manifest and package describe a demo-only Astro app", () => {
   expect(pkg.scripts.build).toMatch(/outfitter-app-build/);
   expect(pkg.scripts["test:unit"]).toBeTruthy();
   expect(readdirSync(join(app, "tests")).some((file) => readFileSync(join(app, "tests", file), "utf8").includes("summarize"))).toBe(true);
+  // The request contract comes from the SDK's integration, not a copy of it.
+  expect(readFileSync(join(app, "astro.config.mjs"), "utf8")).toMatch(/outfitterApp\(/);
+  expect(existsSync(join(app, "src/middleware.ts"))).toBe(false);
 });
 
 test("packages/ and apps/hr are unchanged", () => {
