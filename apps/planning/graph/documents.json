@@ -1077,7 +1077,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Create, replace, delete or reorder project issues. Use stable UUID item keys for safe retries; read Issues with includeIdentifiers:true first for IDs, current revisions and every issue in a category before reordering. Updates replace fields, so preserve values from the read. Any member of the installation may write."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1430,14 +1432,82 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "issueChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
     "name": "Issues",
     "kind": "query",
-    "story": "As a caller, I want to search issues with compact results, so that I can select records and continue through every page.",
-    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $search: String, $projectId: [ID!], $status: [String!], $category: [String!]) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    projectId: $projectId\n    status: $status\n    category: $category\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "8cec267a277cb5e5af6522fc8e2fccb548b99d9e1ad2fbcf0905936399062550",
+    "story": "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
+    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    projectId: $projectId\n    status: $status\n    category: $category\n  ) {\n    nodes {\n      id\n      projectId\n      parentId\n      title\n      description\n      category\n      status\n      assigneeId\n      dueDate\n      position\n      revision\n      createdAt\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "f9969fdd40a7af3540809902cf8a259e500828605727c0e84d653c49750e16d3",
     "variables": {
       "type": "object",
       "properties": {
@@ -1452,10 +1522,6 @@
         "ids": {
           "type": "array",
           "description": "GraphQL [ID!]"
-        },
-        "search": {
-          "type": "string",
-          "description": "GraphQL String"
         },
         "projectId": {
           "type": "array",
@@ -1472,7 +1538,86 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "issues",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "issues": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "parentId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "assigneeId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "position": {
+                    "type": "number"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "createdAt": {
+                    "description": "DateTime"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "LinkProjectChanges",

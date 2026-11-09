@@ -179,7 +179,7 @@ test("direct graph.apply writes record history without a batch", async (t) => {
 
 // The documents agents run: graph_mutate sends them to graph.mutate, graph_query to graph.graphql.
 const run = (f: Awaited<ReturnType<typeof fixture>>, name: keyof typeof documents, variables: object, identity: object = agent) =>
-  f.action(name === "ChangeBatch" ? "graph.graphql" : "graph.mutate", { query: documents[name].document, operationName: name, variables }, identity).then(json);
+  f.action(name === "ChangeBatch" ? "graph.graphql" : "graph.mutate", { query: typeof documents[name].document === "string" ? documents[name].document : print(documents[name].document), operationName: name, variables }, identity).then(json);
 
 test("an agent stages, takes back and submits changes with documents; a member commits them", async (t) => {
   const f = await fixture();
@@ -401,4 +401,110 @@ test("agents repair one draft by ref and get anchor and ontology validation in m
   const frozen = await send("stage", { batchId, replace: true, proposals: [{ operation: person("$child", 951, "Too late") }] });
   assert.equal(frozen.result, null);
   assert.equal(await f.exists(uuid(951)), false);
+});
+
+test("member amendments replace and add proposals without committing; invalid or decided changes are refused", async (t) => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  const connection = { ...owner, actor: { kind: "oauth-client", id: "member-mcp" } };
+  const staged = await run(f, "StageChanges", { input: { title: "Prototype", proposals: [
+    { operation: person("$ada", 201, "Ada") }, { operation: person("$bea", 202, "Bea") },
+    { operation: friends("$friends", 203, 201, 202) },
+  ] } });
+  const batchId = staged.data.stageChanges.id;
+  await run(f, "SubmitBatch", { input: { batchId } });
+  const before = await json(await f.action("batch.get", { batchId }));
+  const beforeStored = await f.app.database.prepare("SELECT reviewJobId FROM graph_batches WHERE id=?").bind(batchId).first();
+  const amendment = { batchId, proposals: [
+    { operation: person("$ada", 201, "Ada revised"), evidence: cite("revised-source") },
+    { operation: person("$cy", 204, "Cy") },
+  ] };
+  const revised = await run(f, "ReviseBatch", { input: amendment }, connection);
+  assert.equal(revised.errors, undefined);
+  assert.deepEqual([revised.data.reviseBatch.state, revised.data.reviseBatch.counts], ["awaiting_review", { awaiting_review: 4 }]);
+  const after = await json(await f.action("batch.get", { batchId }));
+  assert.deepEqual(after.batch.policy, before.batch.policy); assert.equal(after.batch.reviewBy, before.batch.reviewBy);
+  const afterStored = await f.app.database.prepare("SELECT commits,reviewJobId FROM graph_batches WHERE id=?").bind(batchId).first();
+  assert.equal(afterStored?.commits, 0); assert.notEqual(afterStored?.reviewJobId, beforeStored?.reviewJobId);
+  assert.equal(after.batch.summary.operations, 4);
+  assert.equal(after.operations[0].operation.attributes.title, "Ada revised");
+  assert.equal(after.operations[0].position, before.operations[0].position);
+  assert.equal(await f.exists(uuid(201)), false); assert.equal(await f.exists(uuid(204)), false);
+  const invalid = await run(f, "ReviseBatch", { input: { batchId, remove: ["$bea"] } }, connection);
+  assert.equal(invalid.errors[0].extensions.status, 409);
+  assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 4);
+  for (const identity of [agent, { ...connection, role: "member" }, { ...owner, entityWriter: { installationId: "delegator" } }]) {
+    const denied = await f.action("graph.mutate", { query: documents.ReviseBatch.document, operationName: "ReviseBatch", variables: { input: amendment } }, identity);
+    if (denied.status === 200) assert.equal((await denied.json() as any).errors[0].extensions.status, 403);
+    else assert.equal(denied.status, 403);
+  }
+  await json(await f.review({ batchId, refs: ["$ada"], verdict: "approve" }));
+  const decided = await run(f, "ReviseBatch", { input: amendment }, connection);
+  assert.equal(decided.errors[0].extensions.status, 409);
+  const amended = await run(f, "ChangeBatchChanges", { input: { items: [{ key: uuid(205), action: "amend", input: { batchId, remove: ["$friends"] } }] } }, connection);
+  assert.equal(amended.errors, undefined);
+  assert.equal(amended.data.changeBatchChanges.items[0].result.state, "awaiting_review");
+  assert.equal(await f.exists(uuid(204)), false);
+});
+
+test("amendment snapshot refuses a decision arriving during validation", async (t) => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  const staged = await run(f, "StageChanges", { input: { title: "Concurrent review", proposals: [{ operation: person("$ada", 211, "Ada") }] } });
+  const batchId = staged.data.stageChanges.id; await run(f, "SubmitBatch", { input: { batchId } });
+  const client = f.app.database, original = client.batch.bind(client);
+  let injected = false;
+  const proxy = new Proxy(client, { get(target, key) {
+    if (key === "batch") return async (statements: any[]) => {
+      if (!injected) { injected = true; await client.prepare("UPDATE graph_batch_operations SET state='rejected' WHERE batchId=? AND ref='$ada'").bind(batchId).run(); }
+      return original(statements);
+    };
+    const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
+  } });
+  const { reviseBatch, batchReviseInput } = await import("../src/server/graph-batches");
+  const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
+  await assert.rejects(reviseBatch(drizzle(proxy), who, { kind: "member", id: "owner" }, { kind: "member", id: "owner" }, batchReviseInput.parse({ batchId, proposals: [{ operation: person("$ada", 211, "Stale edit") }] })), (error: any) => error instanceof Response && error.status === 409);
+  const after = await json(await f.action("batch.get", { batchId }));
+  assert.equal(after.operations[0].state, "rejected"); assert.equal(after.operations[0].operation.attributes.title, "Ada");
+  assert.equal(await f.exists(uuid(211)), false);
+});
+
+test("a review cannot approve stale proposals after an amendment commits", async (t) => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  const staged = await run(f, "StageChanges", { input: { title: "Stale approval", proposals: [{ operation: person("$ada", 221, "Ada") }] } });
+  const batchId = staged.data.stageChanges.id; await run(f, "SubmitBatch", { input: { batchId } });
+  const client = f.app.database, original = client.batch.bind(client);
+  let injected = false;
+  const proxy = new Proxy(client, { get(target, key) {
+    if (key === "batch") return async (statements: any[]) => {
+      if (!injected) {
+        injected = true;
+        await client.prepare("UPDATE graph_batch_operations SET operation=json_set(operation,'$.attributes.title','Changed after review began') WHERE batchId=?").bind(batchId).run();
+        await client.prepare("UPDATE graph_batches SET reviewJobId='new-amendment-job' WHERE id=?").bind(batchId).run();
+      }
+      return original(statements);
+    };
+    const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
+  } });
+  const { reviewBatch } = await import("../src/server/graph-batches");
+  const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
+  await assert.rejects(reviewBatch(drizzle(proxy), who, { kind: "member", id: "owner" }, { kind: "member", id: "owner" }, { batchId, verdict: "approve" }), (error: any) => error instanceof Response && error.status === 409);
+  assert.equal(await f.exists(uuid(221)), false);
+  const after = await json(await f.action("batch.get", { batchId }));
+  assert.equal((await client.prepare("SELECT commits FROM graph_batches WHERE id=?").bind(batchId).first())?.commits, 0); assert.equal(after.operations[0].state, "awaiting_review");
+  assert.equal(after.operations[0].operation.attributes.title, "Changed after review began");
+});
+
+test("amendment anchor checks use the projected graph after a saved edge is archived", async (t) => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "anchor-base", operations: [person("$anchor", 231, "Anchor"), person("$bridge", 232, "Bridge"), friends("$path", 233, 231, 232)] }));
+  const staged = await run(f, "StageChanges", { input: { title: "Anchored child", anchors: ["Person:anchor"], proposals: [
+    { operation: person("$child", 234, "Child") }, { operation: friends("$child-path", 235, 232, 234) },
+  ] } });
+  const batchId = staged.data.stageChanges.id;
+  const submitted = await run(f, "SubmitBatch", { input: { batchId } });
+  assert.equal(submitted.errors, undefined);
+  const amended = await run(f, "ReviseBatch", { input: { batchId, proposals: [{ operation: { operation: "update", ref: "$archive-path", type: "graph-edge", id: "test_friends_with(Person:anchor → Person:bridge)", revision: 1, attributes: { archived: true } } }] } }, owner);
+  assert.equal(amended.errors[0].extensions.status, 409);
+  assert.match(amended.errors[0].message, /anchor/i);
+  assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 2);
+  assert.equal(await f.exists(uuid(234)), false);
 });
