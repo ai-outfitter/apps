@@ -4,6 +4,7 @@
 import { compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type PropertyFilter, sourceKey, type SourceRef, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { and, type AnyColumn, eq, inArray, or, type SQL, sql } from "drizzle-orm";
+import { appRecordKey, platformHost } from "@ai-outfitter/app-sdk/graph-contracts";
 import { readType } from "../lib/type-metadata";
 import { type Database, edgeView, nodeView } from "./graph";
 import { graphEdges, graphNodes, graphTypes } from "./schema";
@@ -21,11 +22,11 @@ const archivedIs = (column: AnyColumn, archived = "exclude") => (archived === "i
 const among = (column: AnyColumn, values: string[] | undefined) => (values && values.length <= typeLimit ? inArray(column, values) : undefined);
 const keep = (values: string[] | undefined) => (values && values.length > typeLimit ? new Set(values) : null);
 const where = (...filters: (SQL | undefined)[]) => and(...filters.filter((item): item is SQL => !!item));
-// Canonical sources and stored properties are JSON columns: json_extract keeps the read to
-// the matching rows (a few per Wiki) before the same check the memory source applies.
+// A source is the node's external key; stored properties are JSON, so json_extract keeps the
+// read to the matching rows before the same check the memory source applies.
 const sourceIs = (sources: SourceRef[] | undefined) => sources === undefined ? undefined : sources.length <= 20
-  ? or(...sources.map(ref => sql`json_extract(${graphNodes.source}, '$.installationId') = ${ref.installationId} AND json_extract(${graphNodes.source}, '$.type') = ${ref.type} AND json_extract(${graphNodes.source}, '$.id') = ${ref.id}`))
-  : sql`${graphNodes.source} IS NOT NULL`;
+  ? inArray(graphNodes.externalKey, sources.map(appRecordKey))
+  : sql`${graphNodes.externalKey} LIKE ${`${platformHost}/apps/%`}`;
 const propertiesAre = (properties: PropertyFilter | undefined) => properties === undefined ? undefined
   : and(...Object.entries(properties).slice(0, 8).map(([key, value]) => sql`json_extract(${graphNodes.properties}, ${`$.${key.replaceAll(/[^A-Za-z0-9_]/g, "_")}`}) = ${value}`));
 

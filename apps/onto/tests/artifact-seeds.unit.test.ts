@@ -8,7 +8,7 @@ import definitions from "../seeds/artifacts-v1.json";
 import example from "../seeds/release-example-v1.json";
 import { readType, storeType } from "../src/lib/type-metadata";
 import { definitions as ontologyDefinitions, people, marriage } from "./fixtures/relators";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { typeInput } from "../src/lib/graph";
 import { standardData } from "../src/lib/standard-data";
 import { setupStandardData } from "../src/server/standard-data";
@@ -55,17 +55,9 @@ test("seed initialization validates installed contracts and rolls back a stale s
     assert.equal(db.prepare("SELECT count(*) AS n FROM graph_changes").get()?.n, 0);
   } finally { db.close(); }
 });
-const migration = (name: string) =>
-  readFileSync(new URL(`../migrations/${name}.sql`, import.meta.url), "utf8");
 function install(db: DatabaseSync) {
   // Structure only: these tests prove JSON can populate the entire empty graph.
-  db.exec(
-    migration("0000_graph").split(
-      "-- Generated defaults from seeds/types-v1.json;",
-    )[0],
-  );
-  db.exec(migration("0002_graph_changes"));
-  db.exec(migration("0005_relators_and_assertions"));
+  db.exec(readFileSync(new URL("../migrations/0000_onto.sql", import.meta.url), "utf8"));
 }
 function adapter(db: DatabaseSync): AgentDatabase {
   return {
@@ -417,31 +409,6 @@ test("legacy seed documentation updates once while authored and archived types r
       assert.deepEqual(snapshot(db), after);
     } finally { db.close(); }
   }
-});
-
-test("untouched migration-seeded types upgrade to the seed contract; edited types stay", async () => {
-  const db = new DatabaseSync(":memory:");
-  try {
-    db.exec(migration("0000_graph"));
-    db.exec(migration("0002_graph_changes"));
-    db.exec(migration("0005_relators_and_assertions"));
-    const id = "71000000-0000-4000-8000-000000000011";
-    const read = () => db.prepare("SELECT * FROM graph_types WHERE id=?").get(id) as Record<string, unknown>;
-    const contract = () => readType({ ...read(), properties: JSON.parse(String(read().properties)) } as never) as { ontology?: { measures?: unknown[] } };
-    assert.equal(contract().ontology, undefined);
-    await setupStandardData(adapter(db), owner);
-    const seeded = standardData.types.find((type) => type.id === id);
-    assert.deepEqual(contract().ontology, seeded?.ontology);
-    assert.ok(contract().ontology?.measures?.length);
-    assert.equal(read().revision, 2);
-    const upgraded = snapshot(db);
-    await setupStandardData(adapter(db), owner);
-    assert.deepEqual(snapshot(db), upgraded);
-    db.prepare("UPDATE graph_types SET properties='[]', body='Authored', revision=revision+1, updatedBy='owner' WHERE id=?").run(id);
-    const edited = read();
-    await setupStandardData(adapter(db), owner);
-    assert.deepEqual(read(), edited);
-  } finally { db.close(); }
 });
 
 test("new seed records validate with their simultaneous seed contract upgrade", async () => {

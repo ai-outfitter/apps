@@ -31,7 +31,7 @@ const selection = {
 };
 
 test("graph.query finds pages by source and properties and keeps an inline selection to its node types", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
@@ -76,9 +76,9 @@ test("graph.query finds pages by source and properties and keeps an inline selec
     } } });
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
-    const source = (projectId: string) => JSON.stringify({ installationId: planning, type: "project", id: projectId });
+    const source = (projectId: string) => `ai-outfitter.com/apps/${planning}/project:${projectId}`;
     for (const [ref, projectId] of [["$anchor", "p1"], ["$otherAnchor", "p2"]] as const)
-      await app.database.prepare("UPDATE graph_nodes SET source=? WHERE id=?").bind(source(projectId), ids[ref].id).run();
+      await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind(source(projectId), ids[ref].id).run();
 
     const read = await app.call(path, owner, { method: "POST", body: { action: "graph.query", access: "read", input: { maxBytes: 256 * 1024, queries: [
       { name: "anchors", entity: "node", sources: [{ installationId: planning, type: "project", id: "p1" }], expand: selection, fields: ["title", "summary", "slug"], limit: 10 },
@@ -103,7 +103,7 @@ test("graph.query finds pages by source and properties and keeps an inline selec
     assert.deepEqual(result.queries.missing.matches, []);
     assert.equal(result.nodes.find((row) => row.id === ids.$anchor.id)?.slug, "anchor-project");
 
-    const indexes = await app.database.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('graph_edges_from_typed_idx','graph_edges_to_typed_idx','graph_nodes_active_type_idx')").all();
+    const indexes = await app.database.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('graph_edges_out','graph_edges_in','graph_nodes_type_slug')").all();
     assert.equal(indexes.results.length, 3, "the typed hop indexes are installed");
   } finally {
     await app.dispose();

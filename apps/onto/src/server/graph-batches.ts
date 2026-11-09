@@ -2,16 +2,15 @@ import {
   type AppActor,
   type AppIdentity,
   isResidentPrincipal,
-  isUniqueViolation,
   requireEditor,
   requireEntityWriter,
   sha256Hex,
 } from "@ai-outfitter/app-sdk/server";
-import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { readGraph } from "./graph";
-import { freeSlug, slugify } from "../lib/graph";
+import { addressIndex, resolveAddress } from "../lib/addresses";
 import {
   applyGraphChanges,
   checkGraphChanges,
@@ -25,8 +24,8 @@ import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } fr
 // history row. Policies decide what commits without a member: a confidence
 // threshold, a review window that seals the rest, or a first discovery run.
 
-import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
-export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/onto/contracts";
+import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
+export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
 const operation = graphChangeInput.shape.operations.element;
 
 export type Database = ReturnType<typeof installationDatabase>;
@@ -55,13 +54,6 @@ export function requireMemberReview(who: AppIdentity, actor: AppActor, origin: A
 export const memberDecision = (who: AppIdentity, actor: AppActor, rest: Record<string, unknown>) => ({
   kind: "member", by: who.userId, via: actorRef(actor), ...(actor.label ? { viaLabel: actor.label } : {}), ...rest,
 });
-
-/** The id of the batch an agent names by slug. */
-export async function batchIdOf(db: Database, slug: string) {
-  const [batch] = await db.select({ id: graphBatches.id }).from(graphBatches).where(eq(graphBatches.slug, slug));
-  if (!batch) fail(`No change batch ${slug}`, 404);
-  return batch.id;
-}
 
 async function loadBatch(db: Database, id: string) {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, id));
@@ -99,24 +91,45 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
+  const anchors = input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
-  const base = slugify(input.title).slice(0, 60).replace(/-+$/, "");
-  const taken = await db.select({ slug: graphBatches.slug }).from(graphBatches)
-    .where(or(eq(graphBatches.slug, base), like(graphBatches.slug, `${base}-%`)));
-  const row = (slug: string) => ({
-    id, slug, title: input.title, purpose: input.purpose, source: input.source ?? null, policy: input.policy,
+  await db.insert(graphBatches).values({
+    id, title: input.title, purpose: input.purpose, source: input.source ?? null, policy: input.policy, anchors,
     state: "open", openedBy: who.userId, openedVia: actorRef(actor),
     createdAt: now, updatedAt: now, expiresAt: now + batchExpiryMs,
   });
-  try {
-    await db.insert(graphBatches).values(row(freeSlug(base, new Set(taken.map((row) => row.slug)))));
-  } catch (error) {
-    // A batch with the same title opened concurrently took the slug.
-    if (!isUniqueViolation(error)) throw error;
-    await db.insert(graphBatches).values(row(`${base}-${id.slice(0, 8)}`));
-  }
   return getBatch(db, who, { batchId: id });
+}
+
+/** The saved nodes a batch's anchors name. */
+async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
+  const graph = await readGraph(db, who);
+  const index = addressIndex(graph);
+  return anchors.map((anchor) => {
+    const id = resolveAddress(index, "graph-node", anchor);
+    if (!graph.nodes.some((node) => node.id === id && !node.archived)) fail(`Unknown anchor ${anchor}`);
+    return id;
+  });
+}
+
+/** Every node the batch creates must reach an anchor along saved or staged edges, in
+ * either direction and through any number of nodes. Returns the titles that do not. */
+function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
+  const index = addressIndex(graph);
+  const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; attributes?: Record<string, unknown> };
+  const idOf = (row: OperationRow) => String(op(row).attributes?.id ?? row.ref);
+  const refs = new Map(rows.map((row) => [row.ref, idOf(row)]));
+  const node = (value: unknown) => refs.get(String(value)) ?? index["graph-node"].get(String(value)) ?? String(value);
+  const links = new Map<string, string[]>();
+  const link = (a: string, b: string) => { links.set(a, [...(links.get(a) ?? []), b]); links.set(b, [...(links.get(b) ?? []), a]); };
+  for (const edge of graph.edges) if (!edge.archived) link(edge.fromId, edge.toId);
+  for (const row of rows) if (op(row).type === "graph-edge" && !op(row).attributes?.archived)
+    link(node(op(row).attributes?.fromId), node(op(row).attributes?.toId));
+  const reached = new Set(anchors), queue = [...anchors];
+  while (queue.length) for (const next of links.get(queue.pop()!) ?? []) if (!reached.has(next)) { reached.add(next); queue.push(next); }
+  return rows.filter((row) => op(row).type === "graph-node" && op(row).operation === "create" && !reached.has(idOf(row)))
+    .map((row) => String(op(row).attributes?.title ?? row.ref));
 }
 
 /** First-run acceptance applies only before any policy batch of that source has committed;
@@ -327,6 +340,8 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   if (rows.length) {
     const validation = await validateBatch(db, who, { batchId: batch.id });
     if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
+    const loose = batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
+    if (loose.length) fail(`Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}`, 409);
   }
   const now = Date.now();
   const jobId = crypto.randomUUID();
@@ -455,11 +470,11 @@ export async function sealDueBatches(db: Database, who: AppIdentity, now = Date.
 
 function batchView(batch: BatchRow) {
   return {
-    id: batch.id, slug: batch.slug, title: batch.title, purpose: batch.purpose, source: batch.source, policy: batch.policy,
+    id: batch.id, title: batch.title, purpose: batch.purpose, source: batch.source, policy: batch.policy,
     state: batch.state, summary: batch.summary ? JSON.parse(batch.summary) : null,
     openedBy: batch.openedBy, openedVia: batch.openedVia, reviewBy: batch.reviewBy,
     createdAt: batch.createdAt, updatedAt: batch.updatedAt, expiresAt: batch.expiresAt, closedAt: batch.closedAt,
-    review: batch.review ?? null,
+    review: batch.review ?? null, anchors: batch.anchors ?? null,
   };
 }
 

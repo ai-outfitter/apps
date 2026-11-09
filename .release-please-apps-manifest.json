@@ -1,7 +1,8 @@
 {
-  "apps/hr": "0.1.1",
+  "apps/hr": "0.1.2",
   "apps/html-starter": "0.1.1",
-  "apps/workshop": "0.1.1",
-  "apps/software-foundry": "0.3.1",
-  "apps/creative-team": "0.1.1"
+  "apps/workshop": "0.1.2",
+  "apps/software-foundry": "0.3.2",
+  "apps/creative-team": "0.1.2",
+  "apps/onto": "0.1.2"
 }

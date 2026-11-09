@@ -6,7 +6,7 @@ import {
   requireEntityWriter,
   sha256Hex,
 } from "@ai-outfitter/app-sdk/server";
-import { ontologyContract } from "@ai-outfitter/onto/contracts";
+import { ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
 import { and, eq, sql } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { refreshKnowledgeGraphQueries } from "./knowledge-graph-refresh";
@@ -25,13 +25,13 @@ import { v2 } from "../lib/ontology-model";
 import { requireOntologyValid } from "../lib/ontology-validation";
 import { storeType } from "../lib/type-metadata";
 import { checkProperties, graphUnchanged, readGraph } from "./graph";
-import { handleIndex, resolveHandle } from "../lib/record-handles";
+import { addressIndex, resolveAddress } from "../lib/addresses";
 import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { validateKnowledgeGraph, withCompiledQuery } from "../lib/knowledge-graph-document";
 import { graphChanges } from "./schema";
 
-import { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/onto/contracts";
-export { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/onto/contracts";
+import { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/app-sdk/graph-contracts";
+export { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/app-sdk/graph-contracts";
 type Input = z.infer<typeof graphChangeInput>;
 type Receipt = z.infer<typeof graphChangeReceipt>;
 type Change = Input["operations"][number];
@@ -54,7 +54,7 @@ function fail(message: string, status = 400): never {
 type SavedRow =
   Graph["types"][number] | Graph["nodes"][number] | Graph["edges"][number];
 type Refs = Map<string, { id: string; type: Change["type"] }>;
-type Handles = ReturnType<typeof handleIndex>;
+type Handles = ReturnType<typeof addressIndex>;
 function resolveAssertionSubjects(
   graph: Graph,
   changes: Record<
@@ -94,7 +94,7 @@ function resolveSubject(
   if (typeof subject?.id !== "string") return;
   if (!subject.id.startsWith("$")) {
     if (subject.type !== "graph-node" && subject.type !== "graph-edge") return;
-    const id = resolveHandle(handles, subject.type, subject.id);
+    const id = resolveAddress(handles, subject.type, subject.id);
     if (id === subject.id) return;
     subject.id = id;
     node.body = JSON.stringify(body);
@@ -130,7 +130,7 @@ function resolveAttributes(change: Change, refs: Refs, handles: Handles) {
     const value = attributes[field];
     if (typeof value !== "string") continue;
     if (!value.startsWith("$")) {
-      attributes[field] = resolveHandle(handles, expected, value);
+      attributes[field] = resolveAddress(handles, expected, value);
       continue;
     }
     const ref = refs.get(value);
@@ -150,7 +150,7 @@ function allocateReferences(operations: Input["operations"], handles: Handles) {
       .uuid()
       .safeParse(
         change.operation === "update"
-          ? resolveHandle(handles, change.type, change.id)
+          ? resolveAddress(handles, change.type, change.id)
           : (change.attributes.id ?? crypto.randomUUID()),
       );
     if (!parsedId.success) fail("Invalid record ID");
@@ -216,28 +216,38 @@ function prepareRow(
 function prepareNode(
   row: Record<string, unknown>,
   saved: SavedRow | undefined,
-  slugs: Set<string>,
+  slugsByType: Map<string, Set<string>>,
 ) {
   if (saved && "source" in saved && saved.source)
     fail("Use the scoped entity API for canonical app records");
   if (saved && "typeId" in saved && saved.typeId !== row.typeId)
     fail("Keep the entity's type");
+  // Slugs are unique per type.
+  const slugs = slugsByType.get(String(row.typeId)) ?? new Set<string>();
+  slugsByType.set(String(row.typeId), slugs);
   row.slug ??= freeSlug(slugify(String(row.title)), slugs);
   slugs.add(String(row.slug));
 }
 
 function prepareChanges(input: Input, graph: Graph, who: AppIdentity) {
   const current = records(graph);
-  const handles = handleIndex(graph);
+  const handles = addressIndex(graph);
   const refs = allocateReferences(input.operations, handles);
-  const slugs = new Set([
-    ...graph.nodes.map((node) => node.slug!),
-    ...input.operations.flatMap((change) =>
-      change.type === "graph-node" && typeof change.attributes.slug === "string"
-        ? [change.attributes.slug]
-        : [],
-    ),
-  ]);
+  const slugs = new Map<string, Set<string>>();
+  for (const node of graph.nodes) {
+    const taken = slugs.get(node.typeId) ?? new Set<string>();
+    taken.add(node.slug!);
+    slugs.set(node.typeId, taken);
+  }
+  // Slugs the operations name explicitly are taken before any is generated.
+  for (const change of input.operations) {
+    if (change.type !== "graph-node" || typeof change.attributes.slug !== "string") continue;
+    const raw = String(change.attributes.typeId ?? "");
+    const typeId = refs.get(raw)?.id ?? handles["graph-type"].get(raw) ?? raw;
+    const taken = slugs.get(typeId) ?? new Set<string>();
+    taken.add(change.attributes.slug);
+    slugs.set(typeId, taken);
+  }
   const receipt: Receipt = {};
   const changes: Record<Change["type"], Record<string, unknown>[]> = {
     "graph-type": [],
@@ -452,10 +462,10 @@ export async function applyGraphChanges(
       SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.slug'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.body'),json_extract(value,'$.website'),json_extract(value,'$.properties'),json_extract(value,'$.archived'),json_extract(value,'$.revision'),json_extract(value,'$.createdBy'),json_extract(value,'$.updatedBy'),json_extract(value,'$.createdAt'),json_extract(value,'$.updatedAt'),json_extract(value,'$.validity')
       FROM json_each(${JSON.stringify(changes["graph-node"])}) WHERE ${gate}
       ON CONFLICT(id) DO UPDATE SET validity=excluded.validity,slug=excluded.slug,title=excluded.title,summary=excluded.summary,body=excluded.body,website=excluded.website,properties=excluded.properties,archived=excluded.archived,revision=excluded.revision,updatedBy=excluded.updatedBy,updatedAt=excluded.updatedAt`,
-    sql`INSERT INTO graph_edges(id,typeId,fromId,toId,title,body,properties,archived,revision,createdBy,updatedBy,createdAt,updatedAt,validity)
-      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.fromId'),json_extract(value,'$.toId'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.properties'),json_extract(value,'$.archived'),json_extract(value,'$.revision'),json_extract(value,'$.createdBy'),json_extract(value,'$.updatedBy'),json_extract(value,'$.createdAt'),json_extract(value,'$.updatedAt'),json_extract(value,'$.validity')
+    sql`INSERT INTO graph_edges(id,typeId,fromId,toId,title,body,properties,archived,revision,createdBy,updatedBy,createdAt,updatedAt,validFrom,validTo)
+      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.fromId'),json_extract(value,'$.toId'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.properties'),json_extract(value,'$.archived'),json_extract(value,'$.revision'),json_extract(value,'$.createdBy'),json_extract(value,'$.updatedBy'),json_extract(value,'$.createdAt'),json_extract(value,'$.updatedAt'),json_extract(value,'$.validity.from'),json_extract(value,'$.validity.to')
       FROM json_each(${JSON.stringify(changes["graph-edge"])}) WHERE ${gate}
-      ON CONFLICT(id) DO UPDATE SET validity=excluded.validity,typeId=excluded.typeId,fromId=excluded.fromId,toId=excluded.toId,title=excluded.title,body=excluded.body,properties=excluded.properties,archived=excluded.archived,revision=excluded.revision,updatedBy=excluded.updatedBy,updatedAt=excluded.updatedAt`,
+      ON CONFLICT(id) DO UPDATE SET validFrom=excluded.validFrom,validTo=excluded.validTo,typeId=excluded.typeId,fromId=excluded.fromId,toId=excluded.toId,title=excluded.title,body=excluded.body,properties=excluded.properties,archived=excluded.archived,revision=excluded.revision,updatedBy=excluded.updatedBy,updatedAt=excluded.updatedAt`,
     historyStatement(graph, changes, receipt, who, history, gate),
   ];
   try {

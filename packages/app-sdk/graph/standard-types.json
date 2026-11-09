@@ -283,6 +283,16 @@
   ],
   "ontology": {
    "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006"
+    ]
+   },
    "validity": "interval"
   }
  },
@@ -305,7 +315,23 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000056"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000007"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000025",
@@ -326,7 +352,21 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000007"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000026",
@@ -347,7 +387,23 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000009"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000027",
@@ -368,7 +424,19 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000009",
+     "71000000-0000-4000-8000-000000000015"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000028",
@@ -389,7 +457,20 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000009",
+     "71000000-0000-4000-8000-000000000015"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000029",
@@ -410,7 +491,16 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": [
+     "71000000-0000-4000-8000-000000000010"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000030",
@@ -431,7 +521,21 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000010",
+     "71000000-0000-4000-8000-000000000017",
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000011",
+     "71000000-0000-4000-8000-000000000015"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000031",
@@ -452,7 +556,16 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000012"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000032",
@@ -460,7 +573,14 @@
   "name": "part_of",
   "title": "part of",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": "any"
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000014",
@@ -489,7 +609,21 @@
     "description": "Branch, tag or commit used for browsing source.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000015",
+     "76000000-0000-4000-8000-000000000002"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000014"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000034",
@@ -497,7 +631,20 @@
   "name": "collects_telemetry_from",
   "title": "collects telemetry from",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000015",
@@ -526,7 +673,19 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000007"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000016",
@@ -563,7 +722,21 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000016"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000003"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000037",
@@ -584,7 +757,19 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000016"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000038",
@@ -605,7 +790,20 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000016"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000017"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000039",
@@ -626,7 +824,16 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": [
+     "71000000-0000-4000-8000-000000000017"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000040",
@@ -647,7 +854,20 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000015"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000018",
@@ -738,7 +958,23 @@
   "name": "scoped_to",
   "title": "scoped to",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000019",
+     "71000000-0000-4000-8000-000000000061"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000002",
+     "71000000-0000-4000-8000-000000000003",
+     "71000000-0000-4000-8000-000000000015",
+     "76000000-0000-4000-8000-000000000002"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000050",
@@ -770,7 +1006,18 @@
   "name": "has_authority_grant",
   "title": "has authority grant",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000018"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000052"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000054",
@@ -778,7 +1025,18 @@
   "name": "defined_by",
   "title": "defined by",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000052"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000051"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000055",
@@ -786,7 +1044,18 @@
   "name": "permits",
   "title": "permits",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000051"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000050"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000056",
@@ -839,7 +1108,18 @@
   "name": "packages_product",
   "title": "packages product",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000056"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000058",
@@ -847,7 +1127,18 @@
   "name": "offered_by",
   "title": "offered by",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000056"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000059",
@@ -868,7 +1159,19 @@
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000056"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000060",
@@ -895,7 +1198,18 @@
     "description": "Billing interval or unit for this role rate.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000056"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000018"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000061",
@@ -941,7 +1255,19 @@
   "name": "made_by",
   "title": "made by",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000061"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000064",
@@ -949,7 +1275,18 @@
   "name": "under_assignment",
   "title": "under assignment",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000061"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000019"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000065",
@@ -1028,7 +1365,20 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001",
+     "71000000-0000-4000-8000-000000000006"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000101"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000106",
@@ -1049,7 +1399,19 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000102"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000107",
@@ -1070,7 +1432,19 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000001"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000103"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000108",
@@ -1091,7 +1465,18 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000103"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000102"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000109",
@@ -1112,7 +1497,18 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000005"
+    ]
+   }
+  }
  },
  {
   "id": "71000000-0000-4000-8000-000000000110",
@@ -1133,7 +1529,54 @@
     "description": "Supporting source references and limits on the claim.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000104"
+    ],
+    "to": "any"
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000120",
+  "category": "node",
+  "name": "OutfitterUser",
+  "title": "Outfitter users",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000121",
+  "category": "node",
+  "name": "OutfitterOrganization",
+  "title": "Outfitter organizations",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000122",
+  "category": "edge",
+  "name": "account_of",
+  "title": "account of",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000120",
+     "71000000-0000-4000-8000-000000000121"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006",
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
  },
  {
   "id": "86cd3b21-71e2-5dfa-9bd0-000000000001",
@@ -1695,7 +2138,16 @@
   "name": "lens_for",
   "title": "lens for",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000066"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
@@ -1728,7 +2180,18 @@
     "description": "One sentence: what the target's organization does differently, or what the alternative lacks.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000015",
+     "71000000-0000-4000-8000-000000000007",
+     "71000000-0000-4000-8000-000000000056"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "059e57b9-3d99-4b62-8489-c45ae0f8831f",
@@ -1736,7 +2199,16 @@
   "name": "has_use_case",
   "title": "has use case",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "075f93f6-6860-4977-a1b8-b99c4e16c350",
@@ -1744,7 +2216,20 @@
   "name": "has_requirement",
   "title": "has requirement",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003",
+     "76000000-0000-4000-8000-000000000001",
+     "199e5077-b65f-4c56-a672-06dd6ebe999d"
+    ],
+    "to": [
+     "7fe211b7-0176-4cac-9799-886a3ee7936f"
+    ]
+   }
+  }
  },
  {
   "id": "08755272-8498-4671-8f63-ec97acc97f76",
@@ -1752,7 +2237,18 @@
   "name": "uses_view",
   "title": "uses view",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "16ae7b75-1acb-4db9-9872-860ef61045c9"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000066"
+    ]
+   }
+  }
  },
  {
   "id": "16ae7b75-1acb-4db9-9872-860ef61045c9",
@@ -1792,7 +2288,16 @@
   "name": "artifact_for",
   "title": "artifact for",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "16ae7b75-1acb-4db9-9872-860ef61045c9"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "7fe211b7-0176-4cac-9799-886a3ee7936f",
@@ -1808,7 +2313,16 @@
   "name": "has_acceptance_criterion",
   "title": "has acceptance criterion",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": [
+     "4a56e759-9bde-4f0a-857d-82526463b092"
+    ]
+   }
+  }
  },
  {
   "id": "b232f62e-7780-4123-bf50-81f83e4ff2a8",
@@ -1816,7 +2330,18 @@
   "name": "has_issue",
   "title": "has issue",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003"
+    ],
+    "to": [
+     "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+    ]
+   }
+  }
  },
  {
   "id": "d7744927-5ed5-46d2-89be-5815d6fe923c",
@@ -1824,7 +2349,18 @@
   "name": "targets_requirement",
   "title": "targets requirement",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+    ],
+    "to": [
+     "7fe211b7-0176-4cac-9799-886a3ee7936f"
+    ]
+   }
+  }
  },
  {
   "id": "d8b2e79c-6454-4fde-8b9e-117f3bf2856e",
@@ -1832,7 +2368,16 @@
   "name": "has_story",
   "title": "has story",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": [
+     "199e5077-b65f-4c56-a672-06dd6ebe999d"
+    ]
+   }
+  }
  },
  {
   "id": "eccaf23c-de01-4fb8-b6ad-7df7f4924a4b",
@@ -1840,7 +2385,18 @@
   "name": "has_artifact_definition",
   "title": "has artifact definition",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000003"
+    ],
+    "to": [
+     "16ae7b75-1acb-4db9-9872-860ef61045c9"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000001",
@@ -1904,7 +2460,18 @@
   "name": "revision_of",
   "title": "revision of",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000002"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000009",
@@ -1912,7 +2479,18 @@
   "name": "specifies",
   "title": "specifies",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000001"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000010",
@@ -1920,7 +2498,18 @@
   "name": "includes_issue",
   "title": "includes issue",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000002"
+    ],
+    "to": [
+     "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000011",
@@ -1928,7 +2517,18 @@
   "name": "governed_by",
   "title": "governed by",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000002"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000012",
@@ -1936,7 +2536,18 @@
   "name": "demonstrates",
   "title": "demonstrates",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000003"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000002"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000013",
@@ -1944,7 +2555,18 @@
   "name": "evaluates",
   "title": "evaluates",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000004"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000002"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000014",
@@ -1952,7 +2574,19 @@
   "name": "checks_criterion",
   "title": "checks criterion",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000004",
+     "76000000-0000-4000-8000-000000000007"
+    ],
+    "to": [
+     "4a56e759-9bde-4f0a-857d-82526463b092"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000015",
@@ -1960,7 +2594,21 @@
   "name": "supported_by",
   "title": "supported by",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000005",
+     "76000000-0000-4000-8000-000000000004",
+     "71000000-0000-4000-8000-000000000061",
+     "7a000000-0000-4000-8000-000000000001",
+     "76000000-0000-4000-8000-000000000006",
+     "76000000-0000-4000-8000-000000000007"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000016",
@@ -1968,7 +2616,18 @@
   "name": "assesses",
   "title": "assesses",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000002"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000017",
@@ -1976,7 +2635,16 @@
   "name": "applies_definition",
   "title": "applies definition",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": [
+     "16ae7b75-1acb-4db9-9872-860ef61045c9"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000018",
@@ -1984,7 +2652,18 @@
   "name": "release_of",
   "title": "release of",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000006"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000002"
+    ]
+   }
+  }
  },
  {
   "id": "76000000-0000-4000-8000-000000000019",
@@ -1992,7 +2671,18 @@
   "name": "verifies_release",
   "title": "verifies release",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "76000000-0000-4000-8000-000000000007"
+    ],
+    "to": [
+     "76000000-0000-4000-8000-000000000006"
+    ]
+   }
+  }
  },
  {
   "id": "7b000000-0000-4000-8000-000000000003",
@@ -2000,7 +2690,14 @@
   "name": "evidence_for",
   "title": "evidence for",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": "any",
+    "to": "any"
+   }
+  }
  },
  {
   "id": "7b000000-0000-4000-8000-000000000004",
@@ -2021,7 +2718,16 @@
     "description": "Subject, story, flow, demonstration, source receipt, criterion, evaluation, definition or project.",
     "required": true
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000012"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "7b000000-0000-4000-8000-000000000005",
@@ -2096,7 +2802,16 @@
   "name": "in_scope",
   "title": "in scope",
   "archived": false,
-  "properties": []
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "7a000000-0000-4000-8000-000000000001"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "7a000000-0000-4000-8000-000000000005",
@@ -2111,7 +2826,16 @@
     "description": "Why it is out of scope, or which release takes it instead.",
     "required": false
    }
-  ]
+  ],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "7a000000-0000-4000-8000-000000000001"
+    ],
+    "to": "any"
+   }
+  }
  },
  {
   "id": "7a000000-0000-4000-8000-000000000006",

@@ -8,7 +8,7 @@ import {appWorker} from "@ai-outfitter/app-test/worker";
 import {adoptStandardDefinitions} from "../scripts/seed-kg-examples";
 
 test("local examples adopt only unchanged imported standard definitions and retain provenance",async()=>{
- const app=await appWorker("wiki-map",appArtifact(new URL("..",import.meta.url),"operational"));
+ const app=await appWorker("onto",appArtifact(new URL("..",import.meta.url),"operational"));
  const directory=await mkdtemp(join(tmpdir(),"kg-example-provenance-"));
  try{
   const initialized=await app.call("/api/internal/app-initialize",{userId:"synthetic-owner",organizationId:"synthetic-org",role:"owner"},{method:"POST",body:{}});

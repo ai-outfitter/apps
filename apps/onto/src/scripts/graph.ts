@@ -895,7 +895,7 @@ function bodySchema(g: Graph, node: GraphNode) {
 /** The graphs view describes itself in more detail. */
 function describeEntity(g: Graph, node: GraphNode, view: string) {
   if (view === "graphs") return;
-  agentPage("wiki-map").describe({ title: node.title, summary: `The ${view} view of this entity.`,
+  agentPage("onto").describe({ title: node.title, summary: `The ${view} view of this entity.`,
     state: { entity: { id: node.id, title: node.title, type: registryName(g, node.typeId) }, view } });
 }
 // Tabs sit on the title row, right of the name, so the view starts higher.

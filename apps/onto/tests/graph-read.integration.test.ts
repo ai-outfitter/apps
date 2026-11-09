@@ -2,21 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { wikiGraphReadResult } from "@ai-outfitter/onto/contracts";
+import { wikiGraphReadResult } from "@ai-outfitter/app-sdk/graph-contracts";
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const member = { ...owner, userId: "reader", role: "member" };
 const path = "/api/internal/actions/v1/call";
 test("snapshot reads preserve raw graph data and archival retains revision checks", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
     const response = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: {
       requestKey: "graph-reader-fixture", operations: [
         create("$type", "graph-type", { category: "node", name: "ReaderEntity", title: "Reader entity", body: "Synthetic graph reader type." }),
-        create("$relation", "graph-type", { category: "edge", name: "reader_link", title: "Reader link", body: "A synthetic directed link." }),
+        create("$relation", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "reader_link", title: "Reader link", body: "A synthetic directed link." }),
         create("$root", "graph-node", { typeId: "$type", title: "Root", body: "Stored **Markdown** stays unchanged." }),
         create("$child", "graph-node", { typeId: "$type", title: "Child" }),
         create("$other", "graph-node", { typeId: "$type", title: "Unrelated" }),
@@ -35,7 +35,7 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     } } });
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET privateData=? WHERE id=?").bind('{"secret":"never-return"}', ids.$root.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$root.id).run();
     const entitySearch = async (type: string, query: string, filter = {}) => {
       const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, filter: { ...filter, query }, limit: 100 } });
       assert.equal(response.status, 200, await response.clone().text());
@@ -45,8 +45,8 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.ok((await entitySearch("graph-type", "synthetic directed")).some(row => row.ref.id === ids.$relation.id));
     assert.ok((await entitySearch("graph-edge", ids.$root.id)).some(row => row.ref.id === ids.$edge.id));
     const edgeRow = (await entitySearch("graph-edge", ids.$root.id)).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
-    assert.equal(edgeRow?.title, "reader_link:root:child", "an untitled edge is named by its handle, not its UUID");
-    assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "private data is neither searched nor returned");
+    assert.equal(edgeRow?.title, "reader_link(ReaderEntity:root → ReaderEntity:child)", "an untitled edge is named by its address, not its UUID");
+    assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "external ids are neither searched nor returned");
     assert.deepEqual(await entitySearch("graph-node", "' OR 1=1 --"), []);
     assert.deepEqual(await entitySearch("graph-node", "%_"), []);
     assert.deepEqual(await entitySearch("graph-node", "markdown", { typeId: ids.$relation.id }), []);
@@ -59,10 +59,6 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     const declaration = await app.call(path, member, {method:"POST",body:{action:"graph.describe",input:{}}});
     assert.equal(declaration.status,200);
     const advertised = await declaration.json() as {contracts:{id:string;version:number}[];capabilities:string[]};
-    assert.ok(advertised.contracts.some(c=>c.id === "outfitter.onto.documents" && c.version === 1));
-    assert.ok(advertised.capabilities.includes("documents"));
-    assert.ok(advertised.contracts.some(c=>c.id === "outfitter.onto.source-fence" && c.version === 1));
-    assert.ok(advertised.capabilities.includes("source.fence.type-membership.v1"));
     assert.ok(advertised.capabilities.every(capability => typeof capability === "string"));
     const before = await counts();
     const catalog = await app.call("/api/internal/actions/v1/list", member);

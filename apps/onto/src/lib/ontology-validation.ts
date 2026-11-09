@@ -32,8 +32,8 @@ export function auditContext(ctx: OntologyContext): OntologyViolation[] {
 function typeDependencies(declaration: Parameters<typeof v2>[0]): string[] {
   const contract = v2(declaration);
   return [
-    ...(declaration?.endpoints?.from ?? []),
-    ...(declaration?.endpoints?.to ?? []),
+    ...(Array.isArray(declaration?.endpoints?.from) ? declaration.endpoints.from : []),
+    ...(Array.isArray(declaration?.endpoints?.to) ? declaration.endpoints.to : []),
     ...(contract?.participation?.slots.flatMap((s) => [
       s.edgeTypeId,
       ...s.participantTypes,

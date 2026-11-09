@@ -7,7 +7,7 @@ import {withCompiledQuery} from "../src/lib/knowledge-graph-document";
 import {standardData} from "../src/lib/standard-data";
 import {setupStandardData} from "../src/server/standard-data";
 import {refreshKnowledgeGraphQueries} from "../src/server/knowledge-graph-refresh";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import {defaultTypes} from "../src/lib/default-types";
 import releaseExample from "../seeds/release-example-v1.json";
 
@@ -91,10 +91,10 @@ type Installation={template:string;packagePath:string;owner:{kind:string;organiz
 export async function seedKGExamples(configPath:string,scope:string){
  if(process.env.NODE_ENV==="production")throw new Error("KG examples are local development only");
  const config=JSON.parse(await readFile(configPath,"utf8")) as {runtimeDirectory:string;dataDirectory:string;installations:Record<string,Installation>};
- const matches=Object.entries(config.installations).filter(([,row])=>row.template==="wiki-map"&&row.owner.kind==="organization"&&row.owner.organization?.slug===scope);
+ const matches=Object.entries(config.installations).filter(([,row])=>row.template==="onto"&&row.owner.kind==="organization"&&row.owner.organization?.slug===scope);
  if(matches.length!==1||!config.runtimeDirectory)throw new Error("Choose one persistent local organization Wiki");
  const [installationId,installation]=matches[0];
- const worker=await appWorker("wiki-map",installation.packagePath,installationId,{persistencePath:join(config.runtimeDirectory,"apps",installationId)});
+ const worker=await appWorker("onto",installation.packagePath,installationId,{persistencePath:join(config.runtimeDirectory,"apps",installationId)});
  try{
   const identity={userId:"local-seed",installationId,owner:{kind:"user" as const,id:"local-seed"},role:"owner",canEdit:true};
   const db=worker.database;

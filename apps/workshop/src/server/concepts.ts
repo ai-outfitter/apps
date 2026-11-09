@@ -1,6 +1,6 @@
 import { artifactRef } from "@ai-outfitter/app-sdk/evidence";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { defaultWiki, typeSegment } from "@ai-outfitter/onto/client";
+import { defaultWiki, typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";

@@ -1,5 +1,5 @@
 export { graphChangeReceipts } from "@ai-outfitter/app-sdk/batch-receipts";
-import type { ValidityInterval } from "@ai-outfitter/onto/contracts";
+import type { ValidityInterval } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import {
   index,
@@ -38,7 +38,7 @@ export const graphNodes = sqliteTable(
     typeId: text()
       .notNull()
       .references(() => graphTypes.id),
-    slug: text().notNull().unique(),
+    slug: text().notNull(),
     title: text().notNull(),
     summary: text().notNull().default(""),
     body: text().notNull().default(""),
@@ -48,14 +48,7 @@ export const graphNodes = sqliteTable(
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
       .default({}),
-    source: text({ mode: "json" }).$type<EntityRef>(),
-    externalProvider: text(),
-    externalId: text(),
-    // Connector-owned values on the typed node; never part of shared output.
-    privateData: text({ mode: "json" })
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
+    externalKey: text(),
     archived: integer({ mode: "boolean" }).notNull().default(false),
     revision: integer().notNull().default(1),
     createdBy: text(),
@@ -64,12 +57,8 @@ export const graphNodes = sqliteTable(
     updatedAt: integer().notNull(),
   },
   (t) => [
-    uniqueIndex("graph_nodes_source_idx").on(t.source),
-    uniqueIndex("graph_nodes_external_identity_idx").on(
-      t.externalProvider,
-      t.externalId,
-    ),
-    index("graph_nodes_type_idx").on(t.typeId),
+    uniqueIndex("graph_nodes_type_slug").on(t.typeId, t.slug),
+    uniqueIndex("graph_nodes_external_key").on(t.externalKey),
   ],
 );
 
@@ -88,7 +77,6 @@ export const graphEdges = sqliteTable(
       .references(() => graphNodes.id),
     title: text().notNull().default(""),
     body: text().notNull().default(""),
-    validity: text({ mode: "json" }).$type<ValidityInterval>(),
     properties: text({ mode: "json" })
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
@@ -99,13 +87,16 @@ export const graphEdges = sqliteTable(
     updatedBy: text(),
     createdAt: integer().notNull(),
     updatedAt: integer().notNull(),
+    /** When the edge held: from inclusive, until exclusive; null is unbounded. */
+    validFrom: text(),
+    validTo: text(),
   },
   (t) => [
-    index("graph_edges_from_idx").on(t.fromId),
-    index("graph_edges_to_idx").on(t.toId),
-    uniqueIndex("graph_edge_active_identity_idx")
-      .on(t.typeId, t.fromId, t.toId)
-      .where(sql`${t.archived}=0 AND ${t.validity} IS NULL`),
+    index("graph_edges_out").on(t.fromId, t.typeId, t.toId),
+    index("graph_edges_in").on(t.toId, t.typeId, t.fromId),
+    uniqueIndex("graph_edges_identity")
+      .on(t.typeId, t.fromId, t.toId, sql`coalesce(${t.validFrom}, '')`)
+      .where(sql`${t.archived} = 0`),
   ],
 );
 
@@ -168,8 +159,6 @@ export const { proposals: actionProposals, guard: actionGuard } =
 /** Staged Wiki changes (docs/plans/wiki-change-batches.md); invisible to graph reads. */
 export const graphBatches = sqliteTable("graph_batches", {
   id: text().primaryKey(),
-  /** How agents name the batch; unique, from its title when it opens. */
-  slug: text().notNull().unique(),
   title: text().notNull(),
   purpose: text().notNull().default(""),
   source: text({ mode: "json" }).$type<Record<string, unknown> | null>(),
@@ -187,6 +176,8 @@ export const graphBatches = sqliteTable("graph_batches", {
   /** The ontology steward's latest advisory review (server/batch-review.ts). */
   review: text({ mode: "json" }).$type<BatchReview>(),
   reviewJobId: text(),
+  /** Node ids every created node must connect to before the batch can be submitted. */
+  anchors: text({ mode: "json" }).$type<string[]>(),
 });
 
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
@@ -239,3 +230,18 @@ export const graphRevisions = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.kind, t.recordId, t.revision] })],
 );
+
+/** Saved views of the graph people and agents share (docs/graph-explorer.md).
+ * A view holds steps, never facts: every read rebuilds its picture from current records. */
+export const graphExplorations = sqliteTable("graph_explorations", {
+  slug: text().primaryKey(),
+  title: text().notNull(),
+  /** { start, steps, hidden, focus, direction } (server/explorations.ts). */
+  state: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  revision: integer().notNull(),
+  /** Who made the latest change, one line, and the node keys it touched. */
+  lastChange: text({ mode: "json" }).$type<Record<string, unknown> | null>(),
+  createdBy: text().notNull(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull(),
+});

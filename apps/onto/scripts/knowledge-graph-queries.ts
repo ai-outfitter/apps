@@ -5,7 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { knowledgeGraphTypeId } from "@ai-outfitter/app-sdk/graph-selection";
-import { nodeBodyLimit } from "@ai-outfitter/onto/contracts";
+import { nodeBodyLimit } from "@ai-outfitter/app-sdk/graph-contracts";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import { defaultTypes } from "../src/lib/default-types";
 import { compiledQuery } from "../src/lib/knowledge-graph-document";

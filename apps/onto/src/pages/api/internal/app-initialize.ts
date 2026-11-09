@@ -24,7 +24,7 @@ async function sealTimer(locals: App.Locals) {
     return (await ensureSealTimer(workflowHost<"interactive">(locals))) ? "saved" : "kept";
   } catch (error) {
     if (!(error instanceof Response)) throw error;
-    console.warn("wiki-map seal timer unavailable", error.status);
+    console.warn("onto seal timer unavailable", error.status);
     return "unavailable";
   }
 }

@@ -8,43 +8,56 @@ import { batchGroups } from "./batch-groups";
 // delegated writers cannot. scripts/graph-schema.ts writes
 // them to graph/documents.json.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
-import { wikiChangeDocuments } from "@ai-outfitter/onto/contracts";
-const legacyDocuments = defineDocuments({
+import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
+const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
-  DocumentRevision: {story:"As an agent, I want to read a generated document revision, so that I can inspect its captured evidence.", document:`query DocumentRevision($input: JSON!) { documentRevision(input:$input) }`},
-  DocumentLive: {story:"As an agent, I want to read current document sources, so that I can assess live evidence and completeness.", document:`query DocumentLive($input: JSON!) { documentLive(input:$input) }`},
-  DocumentPolicy: {story:"As an agent, I want to evaluate a revision policy, so that I can determine whether an action is allowed.", document:`query DocumentPolicy($input: JSON!) { documentPolicy(input:$input) }`},
-  DocumentJob: {story:"As an editor, I want to inspect generation status, so that I can see errors and supersession.", document:`query DocumentJob($input: JSON!) { documentJob(input:$input) }`},
-  DefineDocument: {story:"As an owner, I want to define trusted document sources, so that generated revisions use authorized bindings.", document:`mutation DefineDocument($input: JSON!) { defineDocument(input:$input) }`},
-  CreateDocument: {story:"As an editor, I want to create a document from a definition, so that I can generate revisions.", document:`mutation CreateDocument($input: JSON!) { createDocument(input:$input) }`},
-  GenerateDocument: {story:"As an editor, I want to queue document generation, so that a scheduled worker captures evidence.", document:`mutation GenerateDocument($input: JSON!) { generateDocument(input:$input) }`},
-  SealDocument: {story:"As an editor, I want to seal a current revision, so that its captured evidence is recorded without implying approval.", document:`mutation SealDocument($input: JSON!) { sealDocument(input:$input) }`},
-  RetryDocument: {story:"As an owner, I want to retry a failed generation, so that a transient source failure can be recovered.", document:`mutation RetryDocument($input: JSON!) { retryDocument(input:$input) }`},
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    document:`query ChangeBatches($slugs: [String!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
-      changeBatches(slugs:$slugs,search:$search,state:$state,first:$first,after:$after) {
-        nodes { slug title state counts reviewBy instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+    document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
+      changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
+        nodes { id title state counts reviewBy instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
+      }
+    }`,
+  },
+  Explorations: {
+    story:"As a member or agent, I want to list the saved explorations of this Wiki, so that I can open one instead of rebuilding a view.",
+    document:`query Explorations { explorations { slug title revision start } }`,
+  },
+  Exploration: {
+    story:"As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
+    document:`query Exploration($slug: String!) {
+      exploration(slug:$slug) {
+        slug title revision state lastChange
+        picture { nodes { key type title step url proposedIn } edges { from to label } steps { key count truncated error } truncated }
+      }
+    }`,
+  },
+  MutateExploration: {
+    story:"As an agent or member, I want to open, close and hide parts of an exploration with one merge patch, so that the page and every agent see the same view change at once.",
+    document:`mutation MutateExploration($input: MutateExplorationInput!) {
+      mutateExploration(input:$input) {
+        slug title revision lastChange
+        picture { nodes { key type title step url proposedIn } edges { from to label } steps { key count truncated error } truncated }
       }
     }`,
   },
 });
 
-export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
-  "DocumentRevision": {description:"Read a generated revision and captured evidence."},
-  "DocumentLive": {description:"Read live document sources and completeness."},
-  "DocumentPolicy": {description:"Evaluate exact-revision policy for an action."},
-  "DocumentJob": {description:"Inspect generation status and failure."},
-  "DefineDocument": {description:"Define trusted document sources as an owner or admin."},
-  "CreateDocument": {description:"Create a document from a definition."},
-  "GenerateDocument": {description:"Queue document generation."},
-  "SealDocument": {description:"Seal a revision without granting approval."},
-  "RetryDocument": {description:"Retry a failed current generation as an owner or admin."},
+export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
     "collection": true
+  },
+  "Explorations": {
+    "description": "List saved graph explorations: views of this Wiki that members and agents share."
+  },
+  "Exploration": {
+    "description": "Read an exploration's picture (nodes by key, relationships, what each step reached) and its revision."
+  },
+  "MutateExploration": {
+    "description": "Open paths (offerings, products, projects, competitors, issues, repositories, open pullRequests or any edge type), hide nodes or start an exploration with a merge patch; the explore page updates live. Writes no records."
   },
   "ChangeBatchChanges": {
     "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."

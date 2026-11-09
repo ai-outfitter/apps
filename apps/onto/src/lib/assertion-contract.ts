@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertionBody, ontologyContract } from "@ai-outfitter/onto/contracts";
+import { assertionBody, ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
 const subjectRecord = z.object({ id: z.uuid(), typeId: z.uuid(), title: z.string() }).catchall(z.json());
 export const subjectSnapshot = z.strictObject({
   record: subjectRecord,

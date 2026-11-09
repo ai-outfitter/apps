@@ -96,8 +96,8 @@ function paths(body: HomeCardNode[]) {
 }
 
 test("recent documents: newest active Documents first, bounded by size, plain text and own links", async () => {
-  const app = await appWorker("wiki-map", artifact());
-  const personal = await appWorker("wiki-map", artifact(), "personal-wiki");
+  const app = await appWorker("onto", artifact());
+  const personal = await appWorker("onto", artifact(), "personal-wiki");
   const person = {
     userId: "person",
     organizationId: "",
@@ -213,7 +213,7 @@ test("recent documents: newest active Documents first, bounded by size, plain te
 });
 
 test("organization-goals projects outgoing pursues to active Goals, bounded on a large graph", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const get = (who: Member, id: string) =>
     app.call(entities + "get", who, {
       method: "POST",
@@ -259,8 +259,6 @@ test("organization-goals projects outgoing pursues to active Goals, bounded on a
       // Root pursues goals 0..24 (24 has an archived relationship) and archived goal 29.
       ...Array.from({ length: 25 }, (_, n) => pursue(root, goal(n), n === 24)),
       pursue(root, goal(29)),
-      pursue(root, notGoal),
-      pursue(goal(25), root),
       pursue(project, goal(26)),
       pursue(root, goal(27), false, core.measured),
       pursue(other, goal(28)),

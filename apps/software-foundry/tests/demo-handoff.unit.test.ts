@@ -68,6 +68,16 @@ test("Demo examples and data-src placeholders cannot count as displayed images",
 });
 
 
+test("Demo images may be plain HTTP only from the app's own origin", () => {
+  const { url } = receipt("desktop.png");
+  const path = new URL(url).pathname;
+  const box = "http://software-foundry.box.outfitter.localhost:8787";
+  assert.equal(demoImageKeys(`![Desktop](${box}${path})`, runId, new Set([box])).size, 1);
+  // A production PR whose receipts are HTTPS never counts a loopback image as displayed.
+  for (const origin of [box, "http://localhost:8787", "http://example.com"])
+    assert.equal(demoImageKeys(`![Desktop](${origin}${path})\n<img src="${origin}${path}" />`, runId, new Set([new URL(url).origin])).size, 0, origin);
+});
+
 test("viewport labels accept named captures but identical pixels need review", async () => {
   const desktop = receipt("split-desktop.png"), mobile = receipt("split-mobile.png");
   const candidate = { number: 1, headSha: head, branch: "branch", url: "url" };

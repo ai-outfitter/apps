@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { actionPath } from "@ai-outfitter/app-sdk/actions";
 import type { WorkflowHostScope } from "@ai-outfitter/app-sdk/workflow-host";
-import { wikiChangeDocuments } from "@ai-outfitter/onto/contracts";
+import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { wikiFixtureCall } from "@ai-outfitter/app-test/wiki-fixture";
 import { appWorker } from "@ai-outfitter/app-test/worker";
@@ -26,7 +26,7 @@ async function graph(worker: Worker, action: "graph.mutate" | "graph.graphql", q
   return response.headers.get("Content-Type")?.includes("json") ? JSON.parse(text) : { errors: [{ message: text, extensions: { status: response.status } }] };
 }
 
-const stage = "mutation StageBrandInterview($input: StageBrandInterviewInput!) { stageBrandInterview(input: $input) { batch state proposals wikiPath } }";
+const stage = "mutation StageBrandInterview($input: StageBrandInterviewInput!) { stageBrandInterview(input: $input) { batchId state proposals wikiPath } }";
 const save = "mutation SaveBrandAnswer($input: SaveBrandAnswerInput!) { saveBrandAnswer(input: $input) { id revision } }";
 
 test("the interview and the people, audience and problem it names reach the Wiki only through a reviewed batch", { skip: !process.env.OUTFITTER_WIKI_PACKAGE && "Set OUTFITTER_WIKI_PACKAGE to a built Wiki operational package" }, async () => {
@@ -73,8 +73,8 @@ test("the interview and the people, audience and problem it names reach the Wiki
     assert.match(twice.errors?.[0]?.message ?? "", /still waiting for review/);
 
     // The member approves it in the Wiki.
-    const review = "mutation ReviewBatch($input: ReviewBatchInput!) { reviewBatch(input: $input) { slug state } }";
-    const approved = await graph(wiki, "graph.mutate", review, { input: { batch: saved.batch, verdict: "approve" } });
+    const review = "mutation ReviewBatch($input: ReviewBatchInput!) { reviewBatch(input: $input) { id state } }";
+    const approved = await graph(wiki, "graph.mutate", review, { input: { batchId: saved.batchId, verdict: "approve" } });
     assert.equal(approved.data?.reviewBatch.state, "committed", JSON.stringify(approved.errors));
 
     const [interview] = await nodes(wikiTypeIds.interview);
@@ -95,16 +95,16 @@ test("the interview and the people, audience and problem it names reach the Wiki
     const batches = await graph(app, "graph.graphql", "{ brandWikiBatches { nodes { id state proposals } } }", {});
     assert.equal(batches.data?.brandWikiBatches.nodes[0].proposals, 11);
     const again = await graph(app, "graph.mutate", stage, { input: { ...input, self: { existingId: ada.id }, entities: input.entities.map((row) => ({ ...row })) } }, true);
-    assert.deepEqual(again.data?.stageBrandInterview, { batch: null, state: null, proposals: 0, wikiPath: saved.wikiPath });
+    assert.deepEqual(again.data?.stageBrandInterview, { batchId: null, state: null, proposals: 0, wikiPath: saved.wikiPath });
 
     // A new answer updates the interview document at its revision, in a new batch.
     assert.ok((await graph(app, "graph.mutate", save, { input: { questionId: "mission.sentence", answer: "Help new nurses stay in nursing." } })).data?.saveBrandAnswer);
     const update = await graph(app, "graph.mutate", stage, { input: { self: { existingId: ada.id } } }, true);
-    const batch = await graph(wiki, "graph.graphql", wikiChangeDocuments.ChangeBatch.document, { slug: update.data?.stageBrandInterview.batch });
+    const batch = await graph(wiki, "graph.graphql", wikiChangeDocuments.ChangeBatch.document, { id: update.data?.stageBrandInterview.batchId });
     assert.equal(update.data?.stageBrandInterview.proposals, 1, JSON.stringify(update.errors));
     assert.deepEqual(batch.data?.changeBatch.operations.map((row: { ref: string }) => row.ref), ["$interview"]);
     // Approved, the document keeps the records earlier answers named.
-    await graph(wiki, "graph.mutate", review, { input: { batch: update.data?.stageBrandInterview.batch, verdict: "approve" } });
+    await graph(wiki, "graph.mutate", review, { input: { batchId: update.data?.stageBrandInterview.batchId, verdict: "approve" } });
     const updated = interviewDocument.parse(JSON.parse((await nodes(wikiTypeIds.interview))[0].body));
     const answers = updated.sections.flatMap((section) => section.answers);
     assert.deepEqual(answers.find((row) => row.questionId === "influences.never-skip")?.mentions, [naval.id]);

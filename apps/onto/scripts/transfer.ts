@@ -9,7 +9,7 @@ import {
   validateProperties,
 } from "../src/lib/graph";
 
-// The transfer file contains public graph fields, never connector identity/privateData.
+// The transfer file contains public graph fields, never connector identity.
 export const transferFile = z
   .strictObject({
     format: z.literal("outfitter-graph-entities-v1"),

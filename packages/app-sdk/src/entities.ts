@@ -132,7 +132,7 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
   };
 }
 
-/** Mount behind dataAppMiddleware. The platform alone calls this reserved route. */
+/** Mount behind the outfitterApp() middleware. The platform alone calls this reserved route. */
 export function entityAPI(request: Request, operation: string, providers: EntityProvider[]) {
   return operationAPI(request, operation, entityOperations(providers), () => requestIdentity(request));
 }

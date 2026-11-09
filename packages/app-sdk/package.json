@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-sdk",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "type": "module",
   "exports": {
     "./server": "./src/server.ts",
     "./migrations": "./src/migrations.ts",
     "./cloudflare/database": "./src/cloudflare/database.ts",
+    "./astro": "./src/astro.ts",
     "./cloudflare/middleware": "./src/cloudflare/middleware.ts",
     "./cloudflare/storage": "./src/cloudflare/storage.ts",
     "./storage": "./src/storage.ts",
@@ -51,18 +52,21 @@
     "./graph-provider": "./src/graph-provider.ts",
     "./document-policy": "./src/document-policy.ts",
     "./graph-records": "./src/graph-records.ts",
-    "./entity-discovery": "./src/entity-discovery.ts"
+    "./entity-discovery": "./src/entity-discovery.ts",
+    "./merge-patch": "./src/merge-patch.ts",
+    "./github-pulls": "./src/github-pulls.ts",
+    "./graph-contracts": "./src/graph-contracts/index.ts",
+    "./graph-client": "./src/graph-client.ts"
   },
   "dependencies": {
-    "@ai-outfitter/connector-core": "0.1.1",
+    "@ai-outfitter/connector-core": "0.1.2",
     "@ai-outfitter/workflow-core": "0.1.2",
     "@gql.tada/internal": "^1.2.2",
     "drizzle-orm": "^0.45.3",
     "drizzle-zod": "0.8.3",
     "gql.tada": "^1.11.4",
     "graphql": "^16.11.0",
-    "zod": "^4.6.5",
-    "@ai-outfitter/onto-contracts": "0.1.0"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "astro": "^7.3.5"

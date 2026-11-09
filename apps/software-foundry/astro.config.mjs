@@ -1,10 +1,19 @@
 import { scriptedAgentResolution } from "@ai-outfitter/ui/scripted-agent";
 import react from "@astrojs/react";
 import { defineConfig } from "astro/config";
+import { outfitterApp } from "@ai-outfitter/app-sdk/astro";
+import app from "./app.json" with { type: "json" };
 import cloudflare from "@astrojs/cloudflare";
 export default defineConfig({
   output: "server",
-  integrations: [react()],
+  integrations: [
+    react(),
+    outfitterApp({
+      app: "software-foundry",
+      contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      storage: process.env.OUTFITTER_APP_MODE === "demo" ? undefined : app.storage,
+    }),
+  ],
   security: {
     csp: {
       directives: [

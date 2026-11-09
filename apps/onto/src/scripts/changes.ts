@@ -239,7 +239,7 @@ async function renderBatch(root: HTMLElement, batchId: string) {
   const draw = (current: BatchDetail) => {
     disposeKnowledgeGraphViewers(root);
     const { batch, operations } = current;
-    agentPage("wiki-map").describe({
+    agentPage("onto").describe({
       title: batch.title,
       summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
       state: { batchId: batch.id, state: batch.state, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
@@ -276,7 +276,7 @@ async function renderBatch(root: HTMLElement, batchId: string) {
 
 async function renderList(root: HTMLElement) {
   const { batches } = await call<{ batches: Batch[] }>("batches/list");
-  agentPage("wiki-map").describe({ title: "Wiki changes", summary: "Batches waiting for review and recent changes.", state: { batchIds: batches.slice(0, 50).map(batch => batch.id) } });
+  agentPage("onto").describe({ title: "Wiki changes", summary: "Batches waiting for review and recent changes.", state: { batchIds: batches.slice(0, 50).map(batch => batch.id) } });
   const card = (batch: Batch) => el("li", { class: `change-batch change-${batch.state}` },
     el("a", { href: batchUrl(batch.id) }, batch.title),
     el("span", { class: "change-state" }, stateLabels[batch.state] ?? batch.state),

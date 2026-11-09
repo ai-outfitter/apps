@@ -82,7 +82,7 @@ test("every Wiki seeds the product chain view; Workshop owns the hardware vocabu
   assert.deepEqual(type("for_customer")?.ontology, { version: 2, endpoints: { from: [id("Release"), id("Offering")], to: [id("CustomerSegment")] } });
   assert.match(String(type("supplied_by")?.body), /PhysicalComponent/);
   assert.equal(type("evidence_for")?.id, "7b000000-0000-4000-8000-000000000003");
-  assert.equal(type("evidence_for")?.ontology, undefined, "evidence_for keeps its ends open: Planning links demonstrations to stories with it");
+  assert.deepEqual(type("evidence_for")?.ontology?.endpoints, { from: "any", to: "any" }, "evidence_for keeps its ends open: Planning links demonstrations to stories with it");
   for (const name of ["component_of", "includes_component", "DesignArtifact", "TelemetryStream"])
     assert.equal(type(name), undefined, `${name} is Workshop's`);
   const view = standardData.nodes.find((node) => node.slug === "product-chain");

@@ -1,14 +1,14 @@
 # Onto
 
-Onto is the public home of the Wiki Map app. The existing `outfitter/wiki-map` app identity and routes are retained for installation and data compatibility. The current webapp installation is still served by its bundled copy until the release-notification and scheduled-update migration is complete.
+Onto is its own app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It installs next to the webapp's Wiki Map (`wiki-map`) rather than replacing it: an organization moves its old Wiki into Onto as a separate step (`scripts/import-old-wiki.ts`).
 
 From the repository root, run `npm ci`, `npm run check -w @ai-outfitter/app-onto`, `npm run test:unit -w @ai-outfitter/app-onto`, and `npm run test:integration -w @ai-outfitter/app-onto`. Build both app modes with `npm run build -w @ai-outfitter/app-onto`; outputs are written to `apps/onto/.outfitter/packages/`. Browser tests use `npm run test:e2e -w @ai-outfitter/app-onto` and require Playwright and Chromium.
 
-The local platform runtime, component release metadata, and automatic production updates have not yet been switched to this package. Do not delete the bundled app until the public release path and existing-installation migration have been verified.
+Onto is released like the other official apps (`.release-please-apps.json`); the webapp pins each release in `catalog/external-apps/onto.json`.
 
 # Wiki: projects and shared context
 
-> Onto owns ontology and graph persistence. See [documents and recovery](docs/documents-and-recovery.md) for contracts, authorization, scheduling, export and rollout limits.
+> Onto is a typed graph database for people and agents. See [the plan](docs/graph-database-plan.md) for its scope.
 
 People and agents use the same typed records to find, document and connect work.
 The home page lists Organizations. Overview (`/overview`) groups Projects, People,
@@ -32,7 +32,7 @@ constraints before activation. Writes validate the resulting graph; types withou
 their legacy behavior. Writes also check permission, record existence, property
 validity and current revision.
 
-Fresh installations use a seed-free schema baseline followed by repeatable JSON initialization. Existing installations retain their applied migration lineage and data. Resetting an installation requires explicit authorization; changing migration filenames is not an upgrade.
+The schema is one migration, `migrations/0000_onto.sql`, followed by repeatable JSON initialization.
 
 ## Standard context for every installation
 

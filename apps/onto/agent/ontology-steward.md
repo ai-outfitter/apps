@@ -4,7 +4,7 @@
 # (workflows/batch-review, src/server/batch-review.ts) runs it in batch mode on every
 # submitted change batch; the scheduled audit uses the same prompt with bounded graph context.
 name: onto
-app: outfitter/wiki-map
+app: outfitter/onto
 modes: [audit, batch]
 writes: proposals-only
 ---

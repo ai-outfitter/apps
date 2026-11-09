@@ -1,4 +1,4 @@
-import { ontologyContract, type OntologyContract, type OntologyV2, type ValidityInterval } from "@ai-outfitter/onto/contracts";
+import { ontologyContract, type OntologyContract, type OntologyV2, type ValidityInterval } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { GraphEdge, GraphNode, TypeDefinition } from "./graph";
 
 export type OntologyType = Pick<

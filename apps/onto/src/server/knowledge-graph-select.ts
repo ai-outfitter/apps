@@ -16,6 +16,7 @@ import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import { knowledgeGraphDefinition, knowledgeGraphOperation, selectionReadBudget as readBudget, storedQuery } from "../lib/knowledge-graph-document";
 import type { Database } from "./graph";
 import { databaseSource } from "./graph-source";
+import { isUuid } from "../lib/addresses";
 
 /** An active KnowledgeGraph record's selection (null for a saved query) and stored query, or the 404/409 a caller should see. */
 export function savedKnowledgeGraph(record: EntityRecord | null) {
@@ -81,7 +82,23 @@ async function hydrate(source: GraphSource, nodeIds: string[], edgeIds: string[]
 
 /** Read a selection through GraphQL: the compiled (or given) document runs over the Wiki's
  * tables, then the selection walk bounds what it returned. No whole-graph read. */
+/** Root addresses (Organization:sunny) or IDs as node IDs; an unknown root is a 404. */
+async function rootIdsOf(source: ReturnType<typeof databaseSource>, rootIds: readonly string[]) {
+  if (rootIds.every(isUuid)) return rootIds.map((id) => id.toLowerCase());
+  const types = new Map((await source.types()).map((type) => [type.name, type.id]));
+  const addresses = rootIds.map((root) => isUuid(root) ? null : /^([^:]+):(.+)$/.exec(root));
+  const rows = await source.nodes({ slugs: addresses.flatMap((match) => match ? [match[2]] : []), archived: "include" });
+  return rootIds.map((root, i) => {
+    const match = addresses[i];
+    if (!match) return root.toLowerCase();
+    const row = rows.find((node) => node.slug === match[2] && node.typeId === types.get(match[1]));
+    if (!row) throw new Response(`Unknown root ${root}; name a node as Type:slug`, { status: 404 });
+    return row.id;
+  });
+}
+
 export async function selectKnowledgeGraphRecords(db: Database, who: AppIdentity, input: KnowledgeGraphSelectInput) {
+  input = { ...input, rootIds: await rootIdsOf(databaseSource(db), input.rootIds) };
   const source = databaseSource(db);
   const types = await source.types();
   let record: EntityRecord | null = null;
@@ -123,7 +140,8 @@ export async function selectKnowledgeGraphRecords(db: Database, who: AppIdentity
 /** Select, then flatten the selection through the caller's templates. Templates
  * read only the selected records, so the document never widens the view. */
 export async function renderKnowledgeGraphRecords(db: Database, who: AppIdentity, raw: KnowledgeGraphRenderInput) {
-  const { templates, parameters, ...select } = knowledgeGraphRenderInput.parse(raw);
+  const { templates, parameters, ...parsed } = knowledgeGraphRenderInput.parse(raw);
+  const select = { ...parsed, rootIds: await rootIdsOf(databaseSource(db), parsed.rootIds) };
   const selection = await selectKnowledgeGraphRecords(db, who, select);
   const document = renderGraphTemplates({
     installationId: who.installationId, types: selection.types, nodes: selection.nodes, edges: selection.edges,

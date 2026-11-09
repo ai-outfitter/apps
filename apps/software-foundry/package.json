@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-software-foundry",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build",
     "build:demo": "outfitter-app-build --mode demo",
     "build:operational": "outfitter-app-build --mode operational",
@@ -43,8 +44,7 @@
     "graphql": "^16.11.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5",
-    "@ai-outfitter/onto": "0.1.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

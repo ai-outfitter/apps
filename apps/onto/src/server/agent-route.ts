@@ -1,4 +1,3 @@
-import { createDocumentActions } from "./documents/integration";
 import { actionAgent } from "@ai-outfitter/app-sdk/action-agent";
 import { defineAction, publishActionTools } from "@ai-outfitter/app-sdk/actions";
 import type { AgentRoute } from "@ai-outfitter/app-sdk/agent-page";
@@ -13,8 +12,8 @@ import {
   requestOriginActor,
   respond,
 } from "@ai-outfitter/app-sdk/server";
-import { ontologyContract } from "@ai-outfitter/onto/contracts";
-import { typeSegment } from "@ai-outfitter/onto/client";
+import { ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
+import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
 import { ontologyViolation } from "../lib/ontology-errors";
@@ -22,21 +21,19 @@ import { readRelationships, relationshipQuery, relationshipResults } from "../li
 import { auditOntology, auditProposal } from "../lib/ontology-validation";
 import { wikiActions } from "../pages/api/internal/actions/v1/[operation]";
 import { readGraph } from "./graph";
-import { graphBatches } from "./schema";
-import { eq } from "drizzle-orm";
 import { graphChangeInput } from "./graph-changes";
 import { documents } from "./documents";
 import { assertionInspectInput, assertionInspection, inspectAssertion } from "./ontology-assertions";
 
 // The Wiki assistant's tools: named here and never mounted on the actions route, so they
 // are not MCP tools. Agents elsewhere read with graph_query and stage with documents.
-const { "graph.apply": apply, ...reads } = publishActionTools("wiki-map", {
+const { "graph.apply": apply, ...reads } = publishActionTools("onto", {
   "graph.apply": wikiActions["graph.apply"],
   "batch.inspect": defineAction({
-    description: "Inspect a Wiki change batch by slug using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record (node slug, type name or edge type:from:to) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
-    access: "read", input: z.strictObject({ batch: z.string().min(1).max(80), refs: z.array(z.string().min(1).max(200)).max(100).optional() }), output: z.json(),
-    run: (context, { batch, refs }) => wikiActions["graph.graphql"].invoke(context, {
-      query: documents.ChangeBatch.document, operationName: "ChangeBatch", variables: { slug: batch, ...(refs ? { refs } : {}) }, maxBytes: 65536,
+    description: "Inspect a Wiki change batch by its ID using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record's address (Person, Organization:sunny or works_on(Person:ada → Project:sunny)) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
+    access: "read", input: z.strictObject({ id: z.uuid(), refs: z.array(z.string().min(1).max(200)).max(100).optional() }), output: z.json(),
+    run: (context, { id, refs }) => wikiActions["graph.graphql"].invoke(context, {
+      query: documents.ChangeBatch.document, operationName: "ChangeBatch", variables: { id, ...(refs ? { refs } : {}) }, maxBytes: 65536,
     }),
   }),
   "graph.relationships": defineAction({
@@ -93,14 +90,11 @@ export function agentRoute(
     if (import.meta.env.OUTFITTER_APP_MODE !== "operational")
       throw new Response("Read-only demo", { status: 403 });
     const identity = requestIdentity(request);
-    const documentActions = createDocumentActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals as never) });
-    const documentTools = publishActionTools("wiki-map", documentActions);
     const context = () => ({
       identity,
       actor: requestActor(request, identity),
       originActor: requestOriginActor(request, identity),
       db: () => installationDatabase(),
-      documentActions,
     });
     const agent = actionAgent({
       store: new ProposalStore(agentDatabase(), identity, {
@@ -108,16 +102,15 @@ export function agentRoute(
         guard: "wiki_map_agent_guard",
       }),
       host: workflowHost<"interactive">(locals as never),
-      type: "wiki-map.conversation",
-      contextType: "wiki-map.page",
+      type: "onto.conversation",
+      contextType: "onto.page",
       focusId: "e9500000-0000-4000-8000-000000000002",
       label: "Onto",
       context,
       instructions:
-        "You are Onto, the agent managing this owner’s ontological knowledge graph. You also help define, capture and generate attributable graph documents. Document generation is queued and runs through the authorized workflow host; inspect its job and revision receipts. A seal preserves evidence and is not approval. Never claim an issue-draft stub was published. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and record/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
-      reads: { ...reads, ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "read")) },
+        "You are Onto, the agent managing this owner’s ontological knowledge graph. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and record/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
+      reads,
       actions: {
-        ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "write").map(([name, action]) => [name, { action, retry: "never" as const }])),
         "graph.apply": {
           retry: "same-request",
           action: apply,
@@ -132,8 +125,7 @@ export function agentRoute(
       page: async (view) => {
         const batchId = /^changes\/([0-9a-f-]{36})$/i.exec(view?.location.split(/[?#]/, 1)[0] ?? "")?.[1];
         if (batchId && z.uuid().safeParse(batchId).success) {
-          const [row] = await installationDatabase().select({ slug: graphBatches.slug }).from(graphBatches).where(eq(graphBatches.id, batchId));
-          const batch = row ? await reads["batch.inspect"].invoke(context(), { batch: row.slug }, true) : null;
+          const batch = await reads["batch.inspect"].invoke(context(), { id: batchId }, true);
           return { batch };
         }
         const graph = await readGraph(installationDatabase(), identity);

@@ -10,10 +10,10 @@ const agent = { ...owner, entityWriter: "outfitter/eval" };
 const documentId = "7b0e0000-0000-4000-8000-000000000091";
 
 test("read a proposed document from Changes before approving its saved entity", async ({ page }, info) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async () => { throw new Error("Unexpected host call"); } }),
   });
-  const workflowHost = { organizationId: "org", installationId: "wiki-map-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
+  const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
   const action = async (name: string, input: object) => {
     const response = await app.call("/api/internal/actions/v1/call", agent, {
       method: "POST", body: { action: name, input },

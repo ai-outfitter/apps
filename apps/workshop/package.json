@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-workshop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
@@ -32,8 +33,7 @@
     "replicad-opencascadejs": "1.1.0",
     "replicad-threejs-helper": "1.0.0",
     "three": "0.185.0",
-    "zod": "^4.6.5",
-    "@ai-outfitter/onto": "0.1.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

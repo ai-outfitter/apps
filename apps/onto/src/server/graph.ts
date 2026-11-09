@@ -1,5 +1,6 @@
 import { readType, storeType } from "../lib/type-metadata";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
+import { appRecordKey, appRecordRef } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   type AppIdentity,
   isUniqueViolation,
@@ -7,7 +8,7 @@ import {
   requireEntityWriter,
 } from "@ai-outfitter/app-sdk/server";
 import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { recordHandle, type RecordKind } from "../lib/record-handles";
+import { recordAddress, type RecordKind } from "../lib/addresses";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { z } from "zod";
 import {
@@ -50,12 +51,12 @@ const audit = (who: AppIdentity) => ({
 });
 const jsonOrNull = (value: unknown) => value == null ? null : JSON.stringify(value);
 export function nodeView(row: typeof graphNodes.$inferSelect): GraphNode {
-  const { privateData: _private, externalProvider, externalId, validity, ...node } = row;
-  return { ...node, ...(validity ? { validity } : {}) };
+  const { externalKey, validity, ...node } = row;
+  return { ...node, source: appRecordRef(externalKey), ...(validity ? { validity } : {}) };
 }
 export const edgeView = (row: typeof graphEdges.$inferSelect): GraphEdge => {
-  const { validity, ...edge } = row;
-  return { ...edge, ...(validity ? { validity } : {}) };
+  const { validFrom, validTo, ...edge } = row;
+  return { ...edge, ...(validFrom || validTo ? { validity: { from: validFrom, to: validTo } } : {}) };
 };
 export async function readGraph(
   db: Database,
@@ -280,17 +281,19 @@ export async function saveNode(
     current?.slug ??
     freeSlug(
       slugify(input.title),
-      new Set(graph.nodes.map((n) => n.slug).filter((slug) => slug !== undefined)),
+      new Set(graph.nodes.filter((n) => n.typeId === type.id).map((n) => n.slug).filter((slug) => slug !== undefined)),
     );
+  // An update never clears a key: accounts keep theirs, and a source cannot change.
   const row = {
     ...input,
     slug,
-    source,
+    ...(source ? { externalKey: appRecordKey(source) } : {}),
     ...audit(who),
     revision: (revision ?? 0) + 1,
   };
   const node = {
     ...row,
+    source,
     id: current?.id ?? input.id ?? crypto.randomUUID(),
   };
   requireOntologyValid(
@@ -319,7 +322,7 @@ export async function saveNode(
   const inserted = await db
     .insert(graphNodes)
     .select(
-      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${jsonOrNull(source)},null,null,'{}',${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
+      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${source ? appRecordKey(source) : null},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
     )
     .returning()
     .catch(conflict);
@@ -362,7 +365,7 @@ export async function saveEdge(
   if (current) {
     const result = await db
       .update(graphEdges)
-      .set(row)
+      .set({ ...row, validFrom: row.validity?.from ?? null, validTo: row.validity?.to ?? null })
       .where(
         and(
           eq(graphEdges.id, current.id),
@@ -377,25 +380,24 @@ export async function saveEdge(
   const inserted = await db
     .insert(graphEdges)
     .select(
-      sql`select ${edge.id},${type.id},${from.id},${to.id},${row.title},${row.body},${row.validity ? JSON.stringify(row.validity) : null},${JSON.stringify(row.properties)},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
+      sql`select ${edge.id},${type.id},${from.id},${to.id},${row.title},${row.body},${JSON.stringify(row.properties)},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt},${row.validity?.from ?? null},${row.validity?.to ?? null} where ${condition}`,
     )
     .returning()
     .catch(conflict);
   return inserted[0] ? edgeView(inserted[0]) : fail("Graph changed; reload before saving", 409);
 }
 
-/** Each committed operation's record as a handle (type name, node slug or edge
- * type:from:to) instead of its UUID, for answers agents read back. */
-export async function withRecordHandles<T extends { operation: unknown; recordId: string | null }>(db: Database, operations: T[]) {
+/** Each committed operation's record as its address (Person, Organization:sunny or
+ * works_on(Person:ada → Project:sunny)) instead of its UUID, for answers agents read back. */
+export async function withRecordAddresses<T extends { operation: unknown; recordId: string | null }>(db: Database, operations: T[]) {
   const kindOf = (row: T) => (row.operation as { type?: RecordKind }).type;
   const ids = (kind: RecordKind) => [...new Set(operations.flatMap((row) => (row.recordId && kindOf(row) === kind ? [row.recordId] : [])))];
   const chunks = <V>(values: V[]) => Array.from({ length: Math.ceil(values.length / 90) }, (_, i) => values.slice(i * 90, i * 90 + 90));
-  const edges = (await Promise.all(chunks(ids("graph-edge")).map((part) => db.select().from(graphEdges).where(inArray(graphEdges.id, part))))).flat();
+  const edges = (await Promise.all(chunks(ids("graph-edge")).map((part) => db.select().from(graphEdges).where(inArray(graphEdges.id, part))))).flat().map(edgeView);
   const nodeIds = [...new Set([...ids("graph-node"), ...edges.flatMap((edge) => [edge.fromId, edge.toId])])];
-  const nodes = (await Promise.all(chunks(nodeIds).map((part) => db.select({ id: graphNodes.id, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, part))))).flat();
-  const types = operations.some((row) => row.recordId && kindOf(row) !== "graph-node")
-    ? await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes) : [];
-  const handle = recordHandle({
+  const nodes = (await Promise.all(chunks(nodeIds).map((part) => db.select({ id: graphNodes.id, typeId: graphNodes.typeId, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, part))))).flat();
+  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes);
+  const handle = recordAddress({
     types: types as unknown as Graph["types"], nodes: nodes as unknown as Graph["nodes"], edges: edges as unknown as Graph["edges"],
   });
   return operations.map(({ recordId, ...row }) => {

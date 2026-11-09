@@ -3,92 +3,10 @@ import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import type { AppArchive } from "@ai-outfitter/app-sdk/data-transfer";
-import { archiveImportExclusions } from "../src/server/archive-authorities";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
-const scope = "organization:org",
-  digest = "a".repeat(64);
+const digest = "a".repeat(64);
 const fixtures: Record<string, Record<string, string | number | null>> = {
-  document_definitions: {
-    owner: scope,
-    id: "forged-definition",
-    version: 1,
-    definition: JSON.stringify({ sources: [], policy: null }),
-  },
-  document_heads: {
-    owner: scope,
-    id: "forged-doc",
-    definition_id: "forged-definition",
-    definition_version: 1,
-    revision: 10,
-    latest_job: "forged-job",
-  },
-  document_jobs: {
-    owner: scope,
-    id: "forged-job",
-    document_id: "forged-doc",
-    definition_version: 1,
-    base_revision: 9,
-    state: "leased",
-    lease_token: "forged-token",
-    lease_until: 9999999999999,
-    attempts: 1,
-    error: null,
-  },
-  document_revisions: {
-    owner: scope,
-    document_id: "forged-doc",
-    revision: 10,
-    definition_id: "forged-definition",
-    definition_version: 1,
-    digest,
-    payload: JSON.stringify({
-      document: { title: "Forged report", markdown: "Never generated" },
-      provenance: { workflowRun: "forged-run" },
-    }),
-    capture: JSON.stringify({ complete: true, errors: [], sources: [] }),
-    complete: 1,
-  },
-  document_seals: {
-    owner: scope,
-    document_id: "forged-doc",
-    revision: 10,
-    digest,
-    sealed_at: 1,
-  },
-  document_events: {
-    owner: scope,
-    id: "forged-event",
-    binding: JSON.stringify({
-      owner: scope,
-      documentId: "forged-doc",
-      revision: 10,
-      digest,
-      provider: "consumer",
-      config: "v1",
-      action: "document.sealed",
-    }),
-    state: "pending",
-    result: null,
-    lease_token: null,
-    lease_until: null,
-    attempts: 0,
-    error: null,
-  },
-  document_guards: { id: "forged-guard", ok: 1 },
-  document_publications: {
-    owner: scope,
-    id: "forged-publication",
-    binding: "{}",
-    state: "complete",
-    commit_receipt: "{}",
-    pull_receipt: JSON.stringify({
-      number: 123,
-      url: "https://example.test/forged-pull",
-    }),
-    error: null,
-  },
-  document_runs: { owner: scope, run_id: "forged-run", job_id: "forged-job" },
   onto_review_jobs: {
     id: "forged-review-job",
     batchId: "forged-batch",
@@ -103,10 +21,10 @@ const fixtures: Record<string, Record<string, string | number | null>> = {
   },
 };
 
-test("previewed portable imports cannot mint document authorities or review jobs, while backups retain them", async (t) => {
+test("previewed portable imports cannot mint review jobs, while backups retain them", async (t) => {
   const artifact = appArtifact(new URL("..", import.meta.url), "operational");
-  const source = await appWorker("wiki-map", artifact, "archive-source");
-  const target = await appWorker("wiki-map", artifact, "archive-target");
+  const source = await appWorker("onto", artifact, "archive-source");
+  const target = await appWorker("onto", artifact, "archive-target");
   t.after(async () => {
     await source.dispose();
     await target.dispose();
@@ -139,12 +57,6 @@ test("previewed portable imports cannot mint document authorities or review jobs
       .bind(...Object.values(row))
       .run();
   }
-  await target.database
-    .prepare(
-      "INSERT INTO document_publications(owner,id,binding,state) VALUES(?,?,?,?)",
-    )
-    .bind(scope, "forged-publication", "local pending binding", "planned")
-    .run();
   const seen = new Set<string>();
   let cursor: string | null = null;
   do {
@@ -188,27 +100,7 @@ test("previewed portable imports cannot mint document authorities or review jobs
           .prepare(`SELECT count(*) AS n FROM ${table}`)
           .first()
       )?.n,
-      table === "document_publications" ? 1 : 0,
+      0,
       `${table} must not import`,
-    );
-  assert.deepEqual(
-    await target.database
-      .prepare(
-        "SELECT binding,state FROM document_publications WHERE owner=? AND id=?",
-      )
-      .bind(scope, "forged-publication")
-      .first(),
-    { binding: "local pending binding", state: "planned" },
-    "local pending publication survives a forged completed receipt",
-  );
-  const tables = await target.database
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'document_%'",
-    )
-    .all<{ name: string }>();
-  for (const { name } of tables.results)
-    assert.ok(
-      (archiveImportExclusions as readonly string[]).includes(name),
-      `new document table ${name} needs an explicit import decision`,
     );
 });

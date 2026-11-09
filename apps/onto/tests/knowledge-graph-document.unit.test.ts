@@ -62,7 +62,7 @@ test("a saved selection with the node budget graph_search allows (up to 500) com
 });
 
 test("compiled KnowledgeGraphs remain bounded before storage", async () => {
-  const { nodeInput } = await import("@ai-outfitter/onto/contracts");
+  const { nodeInput } = await import("@ai-outfitter/app-sdk/graph-contracts");
   const { withCompiledQuery } = await import("../src/lib/knowledge-graph-document");
   const node = { typeId: "71000000-0000-4000-8000-000000000001", title: "Bounded", body: "x".repeat(65_536) };
   assert.equal(nodeInput.safeParse(node).success, true);

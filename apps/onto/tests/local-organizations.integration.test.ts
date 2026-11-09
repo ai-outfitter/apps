@@ -17,6 +17,7 @@ import {
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (id: string, category: "node" | "edge", name: string) => ({
   id, category, name, title: name, body: `${name} records.`, properties: [], archived: false,
+  ...(category === "edge" ? { ontology: { version: 2 as const, endpoints: { from: "any" as const, to: "any" as const } } } : {}),
 });
 const types = [
   type(core.organization, "node", "Organization"),
@@ -99,13 +100,13 @@ test("inspection plans every tenant and reports snapshots it will not load", asy
 });
 
 test("a snapshot preserves authored state and adds shared organization context without changing source files", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
   try {
     const report = await seedLocalInstallation({ database: wiki.database, dataDirectory: data, seed, organization: organizations[0] });
     assert.equal(report.counts.nodes, 3);
     assert.equal(report.counts.edges, 1);
     assert.ok(report.counts.types >= 6);
-    const graph = await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot", owner));
+    const graph = await stored(await wiki.call("/api/apps/onto/graph/snapshot", owner));
     assert.deepEqual(new Set(graph.nodes.map((n) => n.id)), new Set([uuid(1), uuid(7), "004ef4f0-236f-47ba-830f-82b5780941de"]));
     assert.equal(graph.nodes.find((n) => n.id === uuid(7))?.archived, true);
     assert.equal(graph.nodes.find((n) => n.id === uuid(1))?.revision, 3);
@@ -118,13 +119,13 @@ test("a snapshot preserves authored state and adds shared organization context w
 });
 
 test("without a snapshot the organization's projection is added to the package defaults", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-b-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-b-wiki-map");
   try {
     assert.equal((await wiki.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
-    const before = (await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot", owner))).nodes.length;
+    const before = (await stored(await wiki.call("/api/apps/onto/graph/snapshot", owner))).nodes.length;
     const report = await seedLocalInstallation({ database: wiki.database, dataDirectory: data, seed, organization: organizations[1] });
     assert.equal(report.counts.nodes, before + 3);
-    const ids = (await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot", owner))).nodes.map((n) => n.id);
+    const ids = (await stored(await wiki.call("/api/apps/onto/graph/snapshot", owner))).nodes.map((n) => n.id);
     assert.ok(!ids.includes(uuid(5)) && !ids.includes(uuid(6)));
   } finally {
     await wiki.dispose();
@@ -159,7 +160,7 @@ test("unsupported or inconsistent files are rejected and source files are never 
 
 
 test("app-owned Wiki seeds accept optional slugs without changing saved addresses or source files", async () => {
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "local-a-wiki-map");
   const supplement = join(data, "app-owned-seed.mjs");
   const records = [
     { id: uuid(101), typeId: core.technology, title: "Alpha Local" },
@@ -171,7 +172,7 @@ test("app-owned Wiki seeds accept optional slugs without changing saved addresse
   try {
     const load = () => seedLocalInstallation({ database: wiki.database, dataDirectory: data, seed, organization: organizations[0], wikiSeeds: [supplement] });
     await load();
-    const snapshot = async () => (await (await wiki.call("/api/apps/wiki-map/graph/snapshot", owner)).json()) as { nodes: { id: string; slug: string }[] };
+    const snapshot = async () => (await (await wiki.call("/api/apps/onto/graph/snapshot", owner)).json()) as { nodes: { id: string; slug: string }[] };
     const first = (await snapshot()).nodes.filter(node => records.some(record => record.id === node.id));
     assert.deepEqual(first.map(node => node.slug).sort((a, b) => a.localeCompare(b)), ["alpha-local-2", "alpha-local-3", "stable-address"]);
     await load();
@@ -187,7 +188,7 @@ test("explicit local organization binding preserves archived nodes and conflicti
   for (const archived of [true, false]) {
     const directory = mkdtempSync(join(tmpdir(), "wiki-explicit-binding-"));
     const wiki = await appWorker(
-      "wiki-map",
+      "onto",
       appArtifact(new URL("..", import.meta.url), "operational"),
       `binding-${archived}`,
     );
@@ -234,7 +235,7 @@ test("explicit local organization binding preserves archived nodes and conflicti
         organization: organizations[0],
       });
       const graph = await stored(
-        await wiki.call("/api/apps/wiki-map/graph/snapshot", owner),
+        await wiki.call("/api/apps/onto/graph/snapshot", owner),
       );
       const organization = graph.nodes.find((n) => n.id === uuid(1));
       assert.equal(organization?.archived, archived);
@@ -301,7 +302,7 @@ test("Wiki restores only verified same-organization Planning source references a
     },
   };
   const wiki = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
     "local-planning-links-wiki",
   );
@@ -330,7 +331,7 @@ test("Wiki restores only verified same-organization Planning source references a
       source?: { installationId: string; type: string; id: string } | null;
     };
     let stored = (await (
-      await wiki.call("/api/apps/wiki-map/graph/snapshot", owner)
+      await wiki.call("/api/apps/onto/graph/snapshot", owner)
     ).json()) as { nodes: ProjectView[] };
     assert.equal(
       stored.nodes.find((n) => n.id === uuid(40))?.source?.installationId,
@@ -371,7 +372,7 @@ test("Wiki restores only verified same-organization Planning source references a
       /preserved 2 unmatched or foreign Project references/,
     );
     stored = (await (
-      await wiki.call("/api/apps/wiki-map/graph/snapshot", owner)
+      await wiki.call("/api/apps/onto/graph/snapshot", owner)
     ).json()) as typeof stored;
     const matched = stored.nodes.find((n) => n.id === uuid(40));
     assert.deepEqual(matched?.source, {
@@ -399,13 +400,13 @@ test("Wiki restores only verified same-organization Planning source references a
 
 test("an explicitly mapped local organization can bind its unique older snapshot slug",async()=>{
   const directory=mkdtempSync(join(tmpdir(),"wiki-slug-binding-"));
-  const wiki=await appWorker("wiki-map",appArtifact(new URL("..",import.meta.url),"operational"),"slug-binding");
+  const wiki=await appWorker("onto",appArtifact(new URL("..",import.meta.url),"operational"),"slug-binding");
   try {
     mkdirSync(join(directory,"wiki-snapshots"));
     const saved={...snapshot,graph:{...snapshot.graph,nodes:snapshot.graph.nodes.map(row=>row.id===uuid(1)?{...row,id:uuid(99)}:row),edges:snapshot.graph.edges.map(row=>row.fromId===uuid(1)?{...row,fromId:uuid(99)}:row)}};
     const path=join(directory,"wiki-snapshots","alpha-local.json");const contents=JSON.stringify(saved);writeFileSync(path,contents);
     await seedLocalInstallation({database:wiki.database,dataDirectory:directory,seed,organization:organizations[0]});
-    const graph=await stored(await wiki.call("/api/apps/wiki-map/graph/snapshot",owner));
+    const graph=await stored(await wiki.call("/api/apps/onto/graph/snapshot",owner));
     assert.equal(graph.nodes.find(row=>row.id===uuid(99))?.properties?.organization_id,"local-a");
     assert.equal(readFileSync(path,"utf8"),contents);
   }finally{await wiki.dispose();rmSync(directory,{recursive:true,force:true});}

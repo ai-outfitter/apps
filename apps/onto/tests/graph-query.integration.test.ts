@@ -10,14 +10,14 @@ const member = { ...owner, userId: "reader", role: "member" };
 const path = "/api/internal/actions/v1/call";
 
 test("graph.query batches compact reads through the action dispatcher without writing", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
     const applied = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: {
       requestKey: "graph-query-fixture", operations: [
         create("$seat", "graph-type", { category: "node", name: "QuerySeat", title: "Query seat", body: "Synthetic seat type." }),
-        create("$holds", "graph-type", { category: "edge", name: "query_holds", title: "Holds", body: "A synthetic link." }),
+        create("$holds", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "query_holds", title: "Holds", body: "A synthetic link." }),
         create("$a", "graph-node", { typeId: "$seat", title: "Seat A", body: "Long body ".repeat(50) }),
         create("$b", "graph-node", { typeId: "$seat", title: "Seat B" }),
         create("$edge", "graph-edge", { typeId: "$holds", fromId: "$a", toId: "$b" }),
@@ -28,7 +28,7 @@ test("graph.query batches compact reads through the action dispatcher without wr
     } } });
     assert.equal(applied.status, 200, await applied.clone().text());
     const ids = await applied.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET privateData=? WHERE id=?").bind('{"secret":"never-return"}', ids.$a.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$a.id).run();
     const catalog = await (await app.call("/api/internal/actions/v1/list", member)).json() as { name: string; access: string; permitted: boolean }[];
     const descriptor = catalog.find(action => action.name === "graph.query");
     assert.deepEqual(descriptor && { access: descriptor.access, permitted: descriptor.permitted }, { access: "read", permitted: true });

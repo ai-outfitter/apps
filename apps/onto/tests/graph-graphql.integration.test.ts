@@ -10,7 +10,7 @@ const path = "/api/internal/actions/v1/call";
 const totals = "SELECT (SELECT sum(revision) FROM graph_nodes) n, (SELECT sum(revision) FROM graph_edges) e, (SELECT sum(revision) FROM graph_types) t";
 
 test("graph.graphql answers generated-schema queries through the action dispatcher without writing", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
@@ -18,7 +18,7 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     const applied = await apply("graphql-fixture", [
       create("$seat", "graph-type", { category: "node", name: "QuerySeat", title: "Query seat", body: "Synthetic seat type.",
         properties: [{ name: "rank", type: "number", description: "Order." }] }),
-      create("$holds", "graph-type", { category: "edge", name: "query_holds", title: "Holds", body: "A synthetic link.",
+      create("$holds", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "query_holds", title: "Holds", body: "A synthetic link.",
         properties: [{ name: "status", type: "string", description: "Link status." }] }),
       create("$a", "graph-node", { typeId: "$seat", title: "Seat A", properties: { rank: 1 } }),
       create("$b", "graph-node", { typeId: "$seat", title: "Seat B", properties: { rank: 2 } }),
@@ -26,7 +26,7 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     ]);
     assert.equal(applied.status, 200, await applied.clone().text());
     const ids = await applied.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET privateData=? WHERE id=?").bind('{"secret":"never-return"}', ids.$a.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$a.id).run();
     // Endpoints declared after the fact: the next request has typed relationship fields.
     const typed = await apply("graphql-endpoints", [{ operation: "update", ref: "$holds", type: "graph-type", id: ids.$holds.id, revision: 1, attributes: {
       ontology: { version: 1, endpoints: { from: [ids.$seat.id], to: [ids.$seat.id] } } } }]);

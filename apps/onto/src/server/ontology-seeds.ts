@@ -1,6 +1,6 @@
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import type { AgentStatement } from "@ai-outfitter/app-sdk/agent-store";
-import type { WikiGraph } from "@ai-outfitter/onto/contracts";
+import type { WikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { Graph } from "../lib/graph";
 import type { OntologyGraph } from "../lib/ontology-model";
 import { readType } from "../lib/type-metadata";
@@ -28,10 +28,10 @@ export function seedSnapshot(stored: Row[][]): OntologyGraph {
       archived: Boolean(row.archived),
       validity: decode(row.validity) ?? null,
     })) as OntologyGraph["nodes"],
-    edges: stored[2].map((row) => ({
+    edges: stored[2].map(({ validFrom, validTo, ...row }) => ({
       ...row,
       archived: Boolean(row.archived),
-      validity: decode(row.validity) ?? null,
+      validity: validFrom || validTo ? { from: validFrom ?? null, to: validTo ?? null } : null,
     })) as OntologyGraph["edges"],
   };
 }

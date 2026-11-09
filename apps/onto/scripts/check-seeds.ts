@@ -1,4 +1,4 @@
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import example from "../seeds/release-example-v1.json";
 import { defaultTypes } from "../src/lib/default-types";
 import { defaultEntities, defaultEdges } from "../src/lib/default-entities";

@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { wikiGraphReadResult } from "@ai-outfitter/onto-contracts";
+import type { wikiGraphReadResult } from "./graph-contracts/index";
 import { entityRef, type EntityRecord } from "./entities";
 
 /** Convert a graph snapshot to canonical entity records without fetching or formatting. */

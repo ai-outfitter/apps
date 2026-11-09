@@ -1,5 +1,5 @@
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import type { wikiGraphReadInput, WikiGraphSnapshot } from "@ai-outfitter/onto/contracts";
+import type { wikiGraphReadInput, WikiGraphSnapshot } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { z } from "zod";
 import { readGraph, type Database } from "./graph";
 

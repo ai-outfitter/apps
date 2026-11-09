@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { typeInput } from "@ai-outfitter/onto/contracts";
+import { typeInput } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   auditOntology,
   requireOntologyValid,

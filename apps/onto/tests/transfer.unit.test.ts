@@ -129,7 +129,7 @@ test("upload previews then creates distinct people and canonical projects; expor
   assert.equal(project.references[0].installationId, "planning");
   const edge = f.rows.find((row) => row.ref.type === "graph-edge")!;
   assert.equal(edge.attributes.toId, project.ref.id);
-  project.attributes.privateData = { email: "private@example.test" };
+  project.attributes.connectorNotes = { email: "private@example.test" };
   project.attributes.provenance = { createdBy: "private-user" };
   const output = await exportFile(f.call, f.journal);
   assert.equal(output.projects[0].id, f.file.projects[0].id);

@@ -12,7 +12,7 @@ import { appWorker } from "./fixtures/initialized-worker";
 test("review schedule requires editor identity and uses its reserved run", async (t) => {
   const calls: { operation: string; input: Record<string, unknown> }[] = [];
   const worker = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
     "wiki",
     {

@@ -1,5 +1,5 @@
 import { requireOntologyValid } from "./ontology-validation";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { documentSchema } from "@ai-outfitter/app-sdk/agent-schema";
 import entities from "../../seeds/entities-v1.json";
 import knowledgeGraphs from "../../seeds/knowledge-graphs-v1.json";

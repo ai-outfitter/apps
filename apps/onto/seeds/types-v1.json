@@ -297,7 +297,17 @@
     "archived": false,
     "ontology": {
       "version": 2,
-      "validity": "interval"
+      "validity": "interval",
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
     }
   },
   {
@@ -320,7 +330,23 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000025",
@@ -342,7 +368,21 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000026",
@@ -364,7 +404,23 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000009"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000027",
@@ -386,7 +442,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000009",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000028",
@@ -408,7 +476,20 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000009",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000029",
@@ -430,7 +511,16 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": [
+          "71000000-0000-4000-8000-000000000010"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000030",
@@ -452,7 +542,21 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000010",
+          "71000000-0000-4000-8000-000000000017",
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000011",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": "any"
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000031",
@@ -474,7 +578,16 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000012"
+        ],
+        "to": "any"
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000032",
@@ -483,7 +596,14 @@
     "title": "part of",
     "body": "## Organizational context\n\nThe source project is part of the target organization. Use this to group an organization’s projects without confusing the organization with an individual project.\n\n## For agents\n\nFollow this edge from a project to its organization for shared context. This relationship does not grant access or assert legal ownership.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": "any"
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000014",
@@ -514,7 +634,21 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015",
+          "76000000-0000-4000-8000-000000000002"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000014"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000034",
@@ -523,7 +657,20 @@
     "title": "collects telemetry from",
     "body": "The source project collects telemetry produced by the target platform or project.\n\n## For agents\n\nUse this relationship to find the data source and the project responsible for collecting it. Consult their documentation for schemas, transport and deployment status.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000015",
@@ -554,7 +701,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000016",
@@ -594,7 +753,21 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000016"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000003"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000037",
@@ -616,7 +789,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000016"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000038",
@@ -638,7 +823,20 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000016"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000017"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000039",
@@ -660,7 +858,16 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": [
+          "71000000-0000-4000-8000-000000000017"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000040",
@@ -682,7 +889,20 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000018",
@@ -778,7 +998,23 @@
     "title": "scoped to",
     "body": "The source RoleAssignment or DecisionRecord applies within the target organization, business unit or project.\n\n## For agents\n\nRead the scope before using role or decision context. A title held in one organization does not carry over to another organization.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000019",
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000002",
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "76000000-0000-4000-8000-000000000002"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000050",
@@ -814,7 +1050,18 @@
     "title": "has authority grant",
     "body": "The source Role holds the target AuthorityGrant.\n\n## For agents\n\nCombine the role’s grant with a holder’s explicit RoleAssignment scope. Never infer cross-organization authority from a shared role name.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000018"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000052"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000054",
@@ -823,7 +1070,18 @@
     "title": "defined by",
     "body": "The source AuthorityGrant is defined by the target AuthorityDefinition.\n\n## For agents\n\nRead the authority definition’s permitted DecisionTypes; the grant alone does not approve any concrete action.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000052"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000051"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000055",
@@ -832,7 +1090,18 @@
     "title": "permits",
     "body": "The source AuthorityDefinition permits the target DecisionType.\n\n## For agents\n\nThis relationship documents a permitted kind of decision. It is not an actual decision, release approval or deployed permission check.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000051"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000050"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000056",
@@ -887,7 +1156,18 @@
     "title": "packages product",
     "body": "The source Offering packages the target Product.\n\n## For agents\n\nThe offering holds commercial terms; the product holds technical identity. Do not duplicate the product for each customer or price.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000058",
@@ -896,7 +1176,18 @@
     "title": "offered by",
     "body": "The source Offering is offered by the target organization.\n\n## For agents\n\nOffering a product does not imply manufacturing or designing it; follow those relationships separately.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000059",
@@ -918,7 +1209,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000056"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000060",
@@ -946,7 +1249,18 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000018"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000061",
@@ -995,7 +1309,19 @@
     "title": "made by",
     "body": "The source DecisionRecord was made by the target Person or Agent.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000064",
@@ -1004,7 +1330,18 @@
     "title": "under assignment",
     "body": "The source DecisionRecord was made in the capacity of the target RoleAssignment. Preserve this historical link if the assignment later ends.",
     "properties": [],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000019"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000065",
@@ -1089,7 +1426,20 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000006"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000101"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000106",
@@ -1111,7 +1461,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000102"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000107",
@@ -1133,7 +1495,19 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000103"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000108",
@@ -1155,7 +1529,18 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000103"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000102"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000109",
@@ -1177,7 +1562,18 @@
         "required": false
       }
     ],
-    "archived": false
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005"
+        ]
+      }
+    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000110",
@@ -1199,6 +1595,56 @@
         "required": false
       }
     ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000104"
+        ],
+        "to": "any"
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000120",
+    "category": "node",
+    "name": "OutfitterUser",
+    "title": "Outfitter users",
+    "body": "## Outfitter users\n\nAn Outfitter account: a member or an agent principal on an Outfitter host. Its key is `<host>/users:<id>`, set only by the platform, and it never changes. Link it to the Person or Agent it belongs to with `account_of`.\n\n## For agents\n\nAn account is how Outfitter knows someone, not who they are. Describe the person on their Person page; an account grants nothing by itself.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000121",
+    "category": "node",
+    "name": "OutfitterOrganization",
+    "title": "Outfitter organizations",
+    "body": "## Outfitter organizations\n\nAn Outfitter organization account on an Outfitter host. Its key is `<host>/organizations:<id>`, set only by the platform. Link it to the Organization it belongs to with `account_of`.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000122",
+    "category": "edge",
+    "name": "account_of",
+    "title": "account of",
+    "body": "The source account belongs to the target Person, Agent or Organization. One account belongs to one holder at a time; relationships grant no access.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000120",
+          "71000000-0000-4000-8000-000000000121"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006",
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    },
     "archived": false
   }
 ]

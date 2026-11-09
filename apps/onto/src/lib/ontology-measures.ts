@@ -1,4 +1,4 @@
-import type { OntologyMeasure, OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { endpointAllows, type OntologyMeasure, type OntologyV2 } from "@ai-outfitter/app-sdk/graph-contracts";
 import { type OntologyContext, type OntologyType, type OntologyViolation, v2, violation } from "./ontology-model";
 
 type Count = Extract<OntologyMeasure["expression"], { op: "count" }>;
@@ -16,7 +16,7 @@ export function countTarget(type: OntologyType, expression: Count, ctx: Ontology
     : [];
   const edge = ctx.graph.types.find((t) => t.category === "edge" && t.name === expression.of);
   const endpoints = edge && ctx.contracts.get(edge.id)?.endpoints;
-  const edges = edge && (!endpoints || endpoints[direction === "incoming" ? "to" : "from"].includes(type.id)) ? [edge] : [];
+  const edges = edge && (!endpoints || endpointAllows(endpoints[direction === "incoming" ? "to" : "from"], type.id)) ? [edge] : [];
   const targets = [...relators.map(([id]) => ctx.types.get(id)), ...edges];
   if (targets.length > 1) return "ambiguous";
   if (targets.length) return targets[0];

@@ -18,7 +18,7 @@
 //   edges(types, direction, at, archived) validFrom validUntil (every node type: validity is a
 //   row's, so a document written for the standard schema reads any Wiki); one typed scalar
 //   per entry of the type's `properties` list, named as stored.
-// - Edge type E with ontology.endpoints: on each `from` type `fieldName(E)` (targets) and
+// - Edge type E whose ontology.endpoints name types on both ends: on each `from` type `fieldName(E)` (targets) and
 //   `fieldName(E)Edges` (edge objects); on each `to` type `fieldName(E)Incoming` and
 //   `fieldName(E)IncomingEdges`. Args (at, archived). Edge types without endpoints get no
 //   typed fields; read them through `edges(types:)`, which returns edge objects with from/to.
@@ -37,7 +37,7 @@
 //   (__schema, __type, sdl) and, one by one, on queries that use a renamed name.
 //   Archived types are not in the schema.
 // - A relator slot over an edge type replaces that edge's target field on the relator.
-// Privacy and state follow graph.query: privateData, externalProvider and externalId never
+// Privacy and state follow graph.query: a node's externalKey never
 // leave; archived records are excluded by default, and relationships also hide retired ones.
 import { type DocumentNode, execute, getOperationAST, type GraphQLSchema, type GraphQLError, Kind, parse, type SelectionNode, validate, visit } from "graphql";
 import { z } from "zod";

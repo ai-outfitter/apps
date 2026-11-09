@@ -6,7 +6,7 @@
 // as a passing result.
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,8 @@ export type BoxOptions = {
   image: string;
   /** Host port for the box's platform, for watching a run. */
   inspectPort: number;
+  /** The host port Forgejo is published on (BOX_FORGEJO_PORT, 3300: its links name 127.0.0.1:3300). */
+  forgejoPort: number;
   /** Env file with the model settings (README, "Models"). */
   modelEnv?: string;
   /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
@@ -66,7 +68,11 @@ export function fixtureRequest(app: BoxApp, fixture: string, prompt: string) {
 /** Runs the box to completion, streaming its log, within the eval's timeout. */
 function runBox(box: BoxOptions, work: string, timeout: number, signal?: AbortSignal) {
   const name = `${box.name}-eval-${work.split("-").pop()}`;
-  const args = ["run", "--rm", "--name", name, "-p", `127.0.0.1:${box.inspectPort}:8787`, "-e", "BOX_EXIT_WHEN_DONE=1",
+  // The platform is published on every interface and told this machine's bare hostname, so another
+  // device opens it at http://<hostname>:<port> (the webapp's OUTFITTER_LOCAL_HOSTNAME). Forgejo is
+  // published on loopback, at the port its ROOT_URL names, so the box's PRs and their screenshots can be viewed while it runs.
+  const args = ["run", "--rm", "--name", name, "-p", `${box.inspectPort}:8787`, "-p", `127.0.0.1:${box.forgejoPort}:3300`,
+    "-e", `OUTFITTER_LOCAL_HOSTNAME=${hostname().split(".")[0]}`, "-e", "BOX_EXIT_WHEN_DONE=1",
     ...(box.modelEnv ? ["--env-file", box.modelEnv] : []),
     "-v", `${join(work, "repo")}:/in/repo:ro`, "-v", `${join(work, "requests")}:/in/requests:ro`, "-v", `${join(work, "out")}:/out`, box.image];
   return new Promise<{ code: number | null; log: string }>((done) => {
@@ -235,14 +241,14 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
 
 /** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
  * (or the ones named on the command line) through the box, graded by its EVAL.ts.
- * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port),
+ * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port), BOX_FORGEJO_PORT (Forgejo, 3300),
  * BOX_TIMEOUT (seconds per run) and BOX_MODEL_ENV (an env file with the model settings, box/README.md, "Models"). */
 export async function runBoxEvals(project: string, box: { name: string; displayName: string; image: string }, app: BoxApp) {
   const env = process.env;
   const port = Number(env.BOX_PORT || 8787);
   const runs: RunMetrics[] = [];
   const sessionsDir = join(project, "results", `${box.name}-sessions`);
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV, sessionsDir }, app, runs));
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv: env.BOX_MODEL_ENV, sessionsDir }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
   // One model: the box routes every call to the model its env file names.
   // BOX_TIMEOUT (seconds) overrides the experiment's timeout: a slower local model needs longer.

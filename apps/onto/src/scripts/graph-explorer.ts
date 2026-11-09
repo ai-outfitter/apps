@@ -1,6 +1,41 @@
 import { createKnowledgeGraphViewer, disposeKnowledgeGraphViewers } from "@ai-outfitter/ui/knowledge-graph";
+import type { Graph } from "../lib/graph";
+import { slugify } from "../lib/graph";
 import { exploreKnowledgeGraph, knowledgeGraphsFor } from "../lib/knowledge-graphs";
-import { el, entityUrl, loadGraph } from "./data";
+import { appUrl, call, demoMode, el, entityUrl, loadGraph, typeName } from "./data";
+
+type ExplorationSummary = { slug: string; title: string };
+
+/** Saved explorations, and a form that starts one from any record (organizations first). */
+async function explorations(graph: Graph) {
+  if (demoMode) {
+    const { demoExplorations } = await import("../../fixtures/exploration");
+    return el("div", { class: "explorations" }, el("h2", {}, "Explorations"),
+      el("ul", { class: "exploration-list" }, ...demoExplorations.map((item) => el("li", {}, el("a", { href: appUrl(`explore/${encodeURIComponent(item.slug)}`) }, item.title)))));
+  }
+  const saved = await call<ExplorationSummary[]>("explorations/list").catch(() => [] as ExplorationSummary[]);
+  const records = graph.nodes.filter((node) => !node.archived && node.slug).sort((a, b) =>
+    Number(typeName(graph, b.typeId) === "Organization") - Number(typeName(graph, a.typeId) === "Organization") || a.title.localeCompare(b.title));
+  const start = el("select", { name: "start" }, ...records.map((node) => el("option", { value: node.id }, `${node.title} · ${typeName(graph, node.typeId)}`)));
+  const problem = el("p", { role: "alert", hidden: true });
+  const form = el("form", { class: "exploration-start" }, el("label", {}, "Start from", start), el("button", { type: "submit" }, "Explore"), problem);
+  form.onsubmit = async (event) => {
+    event.preventDefault();
+    const node = records.find((item) => item.id === start.value);
+    if (!node?.slug) return;
+    const slug = `${slugify(node.title) || "exploration"}-${Date.now().toString(36)}`.slice(0, 64);
+    try {
+      await call("explorations/mutate", { slug, expectedRevision: 0, patch: { title: node.title, start: { type: typeName(graph, node.typeId), slug: node.slug } } });
+      location.assign(appUrl(`explore/${slug}`));
+    } catch (error) { problem.hidden = false; problem.textContent = String(error instanceof Error ? error.message : error); }
+  };
+  return el("div", { class: "explorations" },
+    el("h2", {}, "Explorations"),
+    el("p", {}, "A view you and agents change together: open offerings, projects or competitors from a record, and Ask Onto's changes appear when it replies."),
+    ...(saved.length ? [el("ul", { class: "exploration-list" }, ...saved.map((item) => el("li", {}, el("a", { href: appUrl(`explore/${item.slug}`) }, item.title))))] : []),
+    ...(records.length ? [form] : []),
+  );
+}
 
 async function renderExplorer() {
   const root = document.getElementById("graph-explorer");
@@ -24,7 +59,7 @@ async function renderExplorer() {
     const output = el("div", { class: "wiki-map" });
     const field = (name: string, control: Node) => el("label", {}, name, control);
     const controls = el("div", { class: "graph-explorer-filters" }, field("Search", search), field("Entity type", entityType), field("Relationship type", relationshipType), field("Starting entity", anchor), field("Knowledge graph", lens));
-    root.replaceChildren(el("p", {}, "Choose a starting entity to explore its direct connections, then select an available knowledge graph to follow its saved traversal."), controls, output);
+    root.replaceChildren(await explorations(graph), el("h2", {}, "Browse"), el("p", {}, "Choose a starting entity to explore its direct connections, then select an available knowledge graph to follow its saved traversal."), controls, output);
     const updateLenses = () => {
       const selected = nodes.find((node) => node.id === anchor.value);
       lens.replaceChildren(el("option", { value: "" }, "Direct connections"), ...(selected ? knowledgeGraphsFor(graph, selected).map((item) => el("option", { value: item.node.id }, item.node.title)) : []));

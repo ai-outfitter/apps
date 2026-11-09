@@ -146,10 +146,10 @@ export function definitions() {
         },
       },
     }),
-    edgeType("$holderType", ids.holder, "test_holder"),
-    edgeType("$roleType", ids.role, "test_role"),
-    edgeType("$scopeType", ids.scope, "test_scope"),
-    edgeType("$approverType", ids.approver, "test_approver"),
+    edgeType("$holderType", ids.holder, "test_holder", { version: 2, endpoints: { from: [ids.assignment], to: [core.person] } }),
+    edgeType("$roleType", ids.role, "test_role", { version: 2, endpoints: { from: [ids.assignment], to: [core.role] } }),
+    edgeType("$scopeType", ids.scope, "test_scope", { version: 2, endpoints: { from: [ids.assignment], to: [core.organization] } }),
+    edgeType("$approverType", ids.approver, "test_approver", { version: 2, endpoints: { from: [ids.assignment], to: [core.person] } }),
   ];
 }
 export const people = () => [

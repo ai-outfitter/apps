@@ -8,8 +8,8 @@ import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
 import { graphGraphqlResult, graphMutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { readWikiGraph, stableGraphId, wikiAdapter } from "@ai-outfitter/onto/client";
-import { wikiChangeDocuments, wikiGraph } from "@ai-outfitter/onto/contracts";
+import { readWikiGraph, stableGraphId, wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
+import { wikiChangeDocuments, wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { desc, eq } from "drizzle-orm";
 import { brandQuestionIds, brandSections } from "../lib/brand";
@@ -47,15 +47,16 @@ export const wikiTypeIds = {
   influencedBy: "c7ea0000-0000-4000-8000-000000000104",
   servesAudience: "c7ea0000-0000-4000-8000-000000000105",
 } as const;
-const edgeType = (id: string, name: string, title: string, body: string) => ({ id, category: "edge" as const, name, title, body, properties: [] });
+const edgeType = (id: string, name: string, title: string, body: string, from: string[], to: string[] | "any") =>
+  ({ id, category: "edge" as const, name, title, body, properties: [], ontology: { version: 2 as const, endpoints: { from, to } } });
 export const brandWikiTypes = wikiGraph.parse({
   types: [
     { id: wikiTypeIds.interview, category: "node", name: "BrandInterview", title: "Brand interview", properties: [], jsonSchema: schemaJSON(interviewDocument),
       body: "A member's personal brand interview from the Creative team app: their answers to the intellectual-signature questions, in their own words, with the people, audiences, problems, offerings and goals each answer names." },
-    edgeType(wikiTypeIds.interviewOf, "brand_interview_of", "Brand interview of", "The Person whose brand the interview describes."),
-    edgeType(wikiTypeIds.mentions, "brand_interview_mentions", "Mentioned in brand interview", "A record the member named in a brand interview answer. Says the member mentioned it, nothing more."),
-    edgeType(wikiTypeIds.influencedBy, "influenced_by", "Influenced by", "A person whose work shaped this person's thinking, as they said themselves."),
-    edgeType(wikiTypeIds.servesAudience, "serves_audience", "Serves audience", "An audience this person makes content and offers for, as they described it."),
+    edgeType(wikiTypeIds.interviewOf, "brand_interview_of", "Brand interview of", "The Person whose brand the interview describes.", [wikiTypeIds.interview], ["71000000-0000-4000-8000-000000000005"]),
+    edgeType(wikiTypeIds.mentions, "brand_interview_mentions", "Mentioned in brand interview", "A record the member named in a brand interview answer. Says the member mentioned it, nothing more.", [wikiTypeIds.interview], ["71000000-0000-4000-8000-000000000005", "71000000-0000-4000-8000-000000000016", "71000000-0000-4000-8000-000000000017", "71000000-0000-4000-8000-000000000056", "71000000-0000-4000-8000-000000000010"]),
+    edgeType(wikiTypeIds.influencedBy, "influenced_by", "Influenced by", "A person whose work shaped this person's thinking, as they said themselves.", ["71000000-0000-4000-8000-000000000005"], ["71000000-0000-4000-8000-000000000005"]),
+    edgeType(wikiTypeIds.servesAudience, "serves_audience", "Serves audience", "An audience this person makes content and offers for, as they described it.", ["71000000-0000-4000-8000-000000000005"], ["71000000-0000-4000-8000-000000000016"]),
   ],
   nodes: [], edges: [],
 });
@@ -117,7 +118,7 @@ async function wikiMutate<T>(host: Host, installationId: string, name: "StageCha
 
 const parseJSON = (value: unknown) => { try { return JSON.parse(String(value)); } catch { return null; } };
 
-type Batch = { slug: string; state: string; counts: Record<string, number> };
+type Batch = { id: string; state: string; counts: Record<string, number> };
 
 /** The interview document from the answers saved in the app, with each answer's mentions. */
 function interviewBody(answers: Map<string, string>, subject: string, mentions: Map<string, string[]>): InterviewDocument {
@@ -224,25 +225,25 @@ export async function stageInterview(db: Database, identity: AppIdentity, host: 
   for (let i = 0; i < proposals.length; i += 100) {
     const page = proposals.slice(i, i + 100);
     const staged = await wikiMutate<{ stageChanges: Batch }>(host, wikiId, "StageChanges", batch
-      ? { batch: batch.slug, proposals: page }
+      ? { batchId: batch.id, proposals: page }
       : { title, purpose: "Save the member's brand interview and the people, audiences, problems, offerings and goals it names.", proposals: page });
     batch = staged.stageChanges;
   }
-  const submitted = (await wikiMutate<{ submitBatch: Batch }>(host, wikiId, "SubmitBatch", { batch: batch!.slug, summary: `${proposals.length} changes from the brand interview` })).submitBatch;
+  const submitted = (await wikiMutate<{ submitBatch: Batch }>(host, wikiId, "SubmitBatch", { batchId: batch!.id, summary: `${proposals.length} changes from the brand interview` })).submitBatch;
   const path = wikiPath(graph.wiki);
-  await db.insert(wikiBatches).values({ id: submitted.slug, wikiInstallationId: wikiId, wikiPath: path, state: submitted.state, proposals: proposals.length, createdBy: identity.userId, createdAt: now, updatedAt: now })
+  await db.insert(wikiBatches).values({ id: submitted.id, wikiInstallationId: wikiId, wikiPath: path, state: submitted.state, proposals: proposals.length, createdBy: identity.userId, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({ target: wikiBatches.id, set: { state: submitted.state, proposals: proposals.length, updatedAt: now } });
-  return { batch: { id: submitted.slug, state: submitted.state, counts: submitted.counts }, wikiPath: path, proposals: proposals.length };
+  return { batch: { id: submitted.id, state: submitted.state, counts: submitted.counts }, wikiPath: path, proposals: proposals.length };
 }
 
 /** A batch's current state, read from the Wiki and kept on its row. Null when the Wiki no longer has it. */
-export async function batchState(host: Host, wikiInstallationId: string, batch: string, db?: Database) {
+export async function batchState(host: Host, wikiInstallationId: string, batchId: string, db?: Database) {
   const result = graphGraphqlResult.parse(await host.call("actions.call", {
     installationId: wikiInstallationId, action: "graph.graphql", readOnly: true,
-    input: { query: wikiChangeDocuments.ChangeBatch.document, operationName: "ChangeBatch", variables: { slug: batch } } as never,
+    input: { query: wikiChangeDocuments.ChangeBatch.document, operationName: "ChangeBatch", variables: { id: batchId } } as never,
   }));
   const state = (result.data as { changeBatch: { state: string } | null } | null)?.changeBatch?.state ?? null;
-  if (db && state) await db.update(wikiBatches).set({ state, updatedAt: Date.now() }).where(eq(wikiBatches.id, batch));
+  if (db && state) await db.update(wikiBatches).set({ state, updatedAt: Date.now() }).where(eq(wikiBatches.id, batchId));
   return state;
 }
 

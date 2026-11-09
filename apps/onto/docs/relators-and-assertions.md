@@ -146,7 +146,7 @@ Saving an assertion never creates or promotes a domain relationship automaticall
 No `confirmed` status or writable confirmation receipt is accepted in its body.
 
 `assertion.inspect` (the Wiki assistant's tool, and the entity page's
-`POST /api/apps/wiki-map/assertions/inspect`) returns the assertion, its current reviewed subject snapshot,
+`POST /api/apps/onto/assertions/inspect`) returns the assertion, its current reviewed subject snapshot,
 a `subjectHash`, whether the subject revision still matches, and current or
 requested historical confirmation receipts. History is bounded to 100 receipts
 and reports truncation. Evidence and subject snapshots from prior confirmations
@@ -156,7 +156,7 @@ The existing entity page displays source evidence, uncertainty and the reviewed
 subject. A direct authenticated member with existing editor authority may press
 **Confirm assertion** and affirm the dialog. The server records the member and
 time only for the inspected assertion revision and subject hash. The page's
-`POST /api/apps/wiki-map/assertions/confirm` requires `{id, revision, subjectHash, affirm:true}`;
+`POST /api/apps/onto/assertions/confirm` requires `{id, revision, subjectHash, affirm:true}`;
 OAuth clients, apps, resident principals and delegated entity writers cannot
 manufacture member confirmation.
 

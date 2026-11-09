@@ -47,7 +47,7 @@ const sample = () => [
     body: "Synthetic batch type.",
   }),
   create("$relation", "graph-type", {
-    category: "edge",
+    category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } },
     name: "BatchRelation",
     title: "Batch relation",
     body: "Synthetic batch relationship.",
@@ -59,7 +59,7 @@ async function json(response: Response): Promise<any> {
   return response.json();
 }
 async function fixture() {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   return {
     app,
     apply: (requestKey: string, operations: object[], identity: typeof owner & { entityWriter?: string } = owner) =>
@@ -398,6 +398,7 @@ test("the 4-type, 30-node, 38-edge workload fits one bounded action call", async
     const types = Array.from({ length: 4 }, (_, i) =>
       create(`$t${i}`, "graph-type", {
         category: i < 2 ? "node" : "edge",
+        ...(i < 2 ? {} : { ontology: { version: 2, endpoints: { from: "any", to: "any" } } }),
         name: `WorkloadType${i}`,
         title: `Workload type ${i}`,
         body: "Synthetic workload type.",

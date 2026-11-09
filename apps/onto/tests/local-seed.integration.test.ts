@@ -14,7 +14,7 @@ import { readGraph } from "../src/server/graph";
 
 test("local seeds import more than one relationship batch without duplicating on restart", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const directory = await mkdtemp(join(tmpdir(), "wiki-seed-"));
@@ -61,7 +61,7 @@ test("local seeds import more than one relationship batch without duplicating on
         format: "outfitter-graph-entities-v1",
         nodes,
         edges,
-        types: [customType, {id: relationshipId,category: "edge",name: "BulkFixtureRelationship",title: "Bulk fixture relationship",body: "Uncontracted synthetic relationship for pagination coverage.",properties: []}],
+        types: [customType, {id: relationshipId,category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } },name: "BulkFixtureRelationship",title: "Bulk fixture relationship",body: "Uncontracted synthetic relationship for pagination coverage.",properties: []}],
       }),
     );
     const host = {
@@ -93,7 +93,7 @@ test("local seeds import more than one relationship batch without duplicating on
 
 test("downloaded projects bind to local Planning and reuse their receipt on restart", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const directory = await mkdtemp(join(tmpdir(), "wiki-project-seed-"));

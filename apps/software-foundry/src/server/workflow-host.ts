@@ -16,8 +16,7 @@ import { inspectFoundryWorkspace } from "./workspace/inspection";
 import { publishFoundryEvidence } from "./workspace/publication";
 import {
   configureFoundryWorkspaces,
-  foundryWorkspaceWorkflow,
-  historicalFoundryWorkspaceWorkflow,
+  issueToMergeWorkflows,
   launchFoundryMergeChecks,
   launchFoundryWorkspaceIssue,
   startExistingFoundryIssue,
@@ -40,7 +39,7 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
   const delivery = eventInput.parse(raw);
   const { subscription, trigger, runId } = delivery;
   const { type, resource, payload } = delivery.event;
-  if (![foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow].includes(subscription.workflowId)) {
+  if (!issueToMergeWorkflows.includes(subscription.workflowId)) {
     // Foundry's other event workflows start with the event at their trigger input.
     await host.call("workflow.start", { workflow: subscription.workflowId, id: runId, inputs: { ...subscription.inputs, [trigger.input]: payload } });
     return { outcome: "started" };

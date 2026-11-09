@@ -1,9 +1,3 @@
-import {
-  ontoSourceFenceContract,
-  ontoSourceFenceCapability,
-  ontoSourceNeighborhoodCapability,
-  ontoDocumentsContract,
-} from "@ai-outfitter/onto/contracts";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
 import { eq } from "drizzle-orm";
 import type { Database } from "./graph-batches";
@@ -20,17 +14,12 @@ export async function describeOntoGraph(db: Database) {
     contracts: [
       { id: "outfitter.graph", version: 1 },
       { id: "outfitter.onto", version: 1 },
-      ontoDocumentsContract,
-      ontoSourceFenceContract,
     ],
     capabilities: [
       "graphql.read",
       "ontology",
       "assertions",
       "batches",
-      "documents",
-      ontoSourceFenceCapability,
-      ontoSourceNeighborhoodCapability,
     ],
     types: types.map((type) => ({
       name: type.name,

@@ -927,6 +927,24 @@ type About implements Edge {
   evidence: String
 }
 
+"""account of"""
+type AccountOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
 """revision of"""
 type RevisionOf implements Edge {
   id: ID!
@@ -1601,6 +1619,10 @@ type ArtifactDefinition implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  usesView(at: DateTime, archived: Archived = EXCLUDE): [KnowledgeGraph!]!
+  usesViewEdges(at: DateTime, archived: Archived = EXCLUDE): [UsesView!]!
+  hasArtifactDefinitionIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  hasArtifactDefinitionIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasArtifactDefinition!]!
 }
 
 """User stories"""
@@ -1626,6 +1648,8 @@ type UserStory implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
+  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
   valueStoryIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
   valueStoryIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
 }
@@ -1653,6 +1677,12 @@ type Issue implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  includesIssueIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  includesIssueIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IncludesIssue!]!
+  hasIssueIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  hasIssueIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasIssue!]!
+  targetsRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
+  targetsRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [TargetsRequirement!]!
 }
 
 """Acceptance criteria"""
@@ -1678,6 +1708,8 @@ type AcceptanceCriterion implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  checksCriterionIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  checksCriterionIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
 }
 
 """Organizations"""
@@ -1706,6 +1738,38 @@ type Organization implements Node {
   organization_id: String
   participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
+  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  manufacturedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  manufacturedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
+  suppliedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  suppliedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
+  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
+  customerOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  customerOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
+  inSegment(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
+  inSegmentEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
+  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
+  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
+  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
+  offeredByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
+  offeredByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [OfferedBy!]!
+  paysFor(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
+  paysForEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
+  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
+  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
+  owns(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
+  ownsEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
+  hasObligation(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
+  hasObligationEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
   commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
   commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
 
@@ -1740,6 +1804,8 @@ type BusinessUnit implements Node {
   belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
   belongsToUnitIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   belongsToUnitIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
+  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
 }
 
 """Projects"""
@@ -1765,12 +1831,34 @@ type Project implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
+  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
   belongsToUnit(at: DateTime, archived: Archived = EXCLUDE): [BusinessUnit!]!
   belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
   participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
+  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
+  collectsTelemetryFrom(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  collectsTelemetryFromEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
+  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
+  produces(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  producesEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
+  customerOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  customerOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
+  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
   valueStory(at: DateTime, archived: Archived = EXCLUDE): [UserStory!]!
   valueStoryEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
+  hasIssue(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
+  hasIssueEdges(at: DateTime, archived: Archived = EXCLUDE): [HasIssue!]!
+  hasArtifactDefinition(at: DateTime, archived: Archived = EXCLUDE): [ArtifactDefinition!]!
+  hasArtifactDefinitionEdges(at: DateTime, archived: Archived = EXCLUDE): [HasArtifactDefinition!]!
 }
 
 """People"""
@@ -1798,8 +1886,38 @@ type Person implements Node {
   validUntil: DateTime
   participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  reportsTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  reportsToEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
+  reportsToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  reportsToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
+  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
+  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
+  inSegment(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
+  inSegmentEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
+  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
+  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
   assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
   assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
+  paysFor(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
+  paysForEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
+  madeByIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
+  madeByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
+  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
+  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
+  owns(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
+  ownsEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
+  hasObligation(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
+  hasObligationEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
+  interactsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
+  interactsWithEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
+  interactsWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
+  interactsWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
   friendIncoming(at: DateTime, archived: Archived = EXCLUDE): [Friendship!]!
   friendIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
   friendsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
@@ -1841,8 +1959,22 @@ type Agent implements Node {
   validUntil: DateTime
   participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
+  reportsTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  reportsToEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
+  reportsToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  reportsToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
+  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
+  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
   assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
   assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
+  madeByIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
+  madeByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
+  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
+  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
 
   """as: holder"""
   roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
@@ -1871,6 +2003,26 @@ type Technology implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  usesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  developedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  developedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
+  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
+  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
+  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
+  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
+  producesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  producesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
+  integratesWith(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  integratesWithEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
+  integratesWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  integratesWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
 }
 
 """Physical Component"""
@@ -1901,6 +2053,12 @@ type PhysicalComponent implements Node {
   manufacturer: String
   mpn: String
   datasheet: String
+  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  manufacturedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  manufacturedByEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
+  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
 }
 
 """Goal"""
@@ -2034,6 +2192,8 @@ type Repository implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  sourceInIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  sourceInIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
 }
 
 """Products"""
@@ -2059,6 +2219,36 @@ type Product implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  usesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  developedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  developedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
+  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
+  manufacturedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  manufacturedByEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
+  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
+  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
+  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
+  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
+  producesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
+  producesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
+  integratesWith(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  integratesWithEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
+  integratesWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  integratesWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
+  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
+  packagesProductIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
+  packagesProductIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PackagesProduct!]!
+  revisionOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  revisionOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [RevisionOf!]!
+  specifiesIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductSpecification!]!
+  specifiesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Specifies!]!
   announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
   announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
   commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
@@ -2095,6 +2285,12 @@ type CustomerSegment implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
+  inSegmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  inSegmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
+  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
+  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
   forCustomerIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
   forCustomerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
 }
@@ -2122,6 +2318,8 @@ type Problem implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  experiencesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  experiencesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
 }
 
 """Roles"""
@@ -2149,6 +2347,10 @@ type Role implements Node {
   validUntil: DateTime
   assignsRoleIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
   assignsRoleIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
+  hasAuthorityGrant(at: DateTime, archived: Archived = EXCLUDE): [AuthorityGrant!]!
+  hasAuthorityGrantEdges(at: DateTime, archived: Archived = EXCLUDE): [HasAuthorityGrant!]!
+  pricedByRoleIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
+  pricedByRoleIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PricedByRole!]!
   commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
   commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
 
@@ -2186,6 +2388,10 @@ type RoleAssignment implements Node {
   role(archived: Archived = EXCLUDE): Role
   assignedToEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
   assignsRoleEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
+  scopedTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
+  underAssignmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
+  underAssignmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [UnderAssignment!]!
 }
 
 """Decision types"""
@@ -2211,6 +2417,8 @@ type DecisionType implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  permitsIncoming(at: DateTime, archived: Archived = EXCLUDE): [AuthorityDefinition!]!
+  permitsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Permits!]!
   decisionTypeIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
   decisionTypeIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
 }
@@ -2238,6 +2446,10 @@ type AuthorityDefinition implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  definedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [AuthorityGrant!]!
+  definedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DefinedBy!]!
+  permits(at: DateTime, archived: Archived = EXCLUDE): [DecisionType!]!
+  permitsEdges(at: DateTime, archived: Archived = EXCLUDE): [Permits!]!
 }
 
 """Authority grants"""
@@ -2263,6 +2475,10 @@ type AuthorityGrant implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasAuthorityGrantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Role!]!
+  hasAuthorityGrantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasAuthorityGrant!]!
+  definedBy(at: DateTime, archived: Archived = EXCLUDE): [AuthorityDefinition!]!
+  definedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DefinedBy!]!
 }
 
 """Offerings"""
@@ -2294,6 +2510,16 @@ type Offering implements Node {
   pricing_notes: String
   pricing_model: String
   markup_percent: Float
+  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
+  packagesProduct(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
+  packagesProductEdges(at: DateTime, archived: Archived = EXCLUDE): [PackagesProduct!]!
+  offeredBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
+  offeredByEdges(at: DateTime, archived: Archived = EXCLUDE): [OfferedBy!]!
+  paysForIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  paysForIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
+  pricedByRole(at: DateTime, archived: Archived = EXCLUDE): [Role!]!
+  pricedByRoleEdges(at: DateTime, archived: Archived = EXCLUDE): [PricedByRole!]!
   announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
   announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
   forCustomer(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
@@ -2324,8 +2550,14 @@ type DecisionRecord implements Node {
   validFrom: DateTime
   validUntil: DateTime
   status: String
+  scopedTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
   decisionType(at: DateTime, archived: Archived = EXCLUDE): [DecisionType!]!
   decisionTypeEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
+  madeBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  madeByEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
+  underAssignment(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
+  underAssignmentEdges(at: DateTime, archived: Archived = EXCLUDE): [UnderAssignment!]!
   establishes(at: DateTime, archived: Archived = EXCLUDE): [Goal!]!
   establishesEdges(at: DateTime, archived: Archived = EXCLUDE): [Establishes!]!
 }
@@ -2355,6 +2587,8 @@ type KnowledgeGraph implements Node {
   validUntil: DateTime
   root_type: String
   pattern: String
+  usesViewIncoming(at: DateTime, archived: Archived = EXCLUDE): [ArtifactDefinition!]!
+  usesViewIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [UsesView!]!
 }
 
 """Activities"""
@@ -2380,6 +2614,8 @@ type Activity implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  participatesInIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  participatesInIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
 }
 
 """Assets"""
@@ -2405,6 +2641,10 @@ type Asset implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  ownsIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  ownsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
+  securedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
+  securedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SecuredBy!]!
 }
 
 """Financial obligations"""
@@ -2430,6 +2670,10 @@ type FinancialObligation implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasObligationIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  hasObligationIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
+  securedBy(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
+  securedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SecuredBy!]!
 }
 
 """Questions"""
@@ -2458,6 +2702,60 @@ type Question implements Node {
   status: String
 }
 
+"""Outfitter users"""
+type OutfitterUser implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+}
+
+"""Outfitter organizations"""
+type OutfitterOrganization implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+}
+
 """Product specifications"""
 type ProductSpecification implements Node {
   id: ID!
@@ -2481,6 +2779,12 @@ type ProductSpecification implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
+  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
+  specifies(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
+  specifiesEdges(at: DateTime, archived: Archived = EXCLUDE): [Specifies!]!
+  governedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  governedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [GovernedBy!]!
 }
 
 """Product revisions"""
@@ -2506,6 +2810,24 @@ type ProductRevision implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
+  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
+  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
+  revisionOf(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
+  revisionOfEdges(at: DateTime, archived: Archived = EXCLUDE): [RevisionOf!]!
+  includesIssue(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
+  includesIssueEdges(at: DateTime, archived: Archived = EXCLUDE): [IncludesIssue!]!
+  governedBy(at: DateTime, archived: Archived = EXCLUDE): [ProductSpecification!]!
+  governedByEdges(at: DateTime, archived: Archived = EXCLUDE): [GovernedBy!]!
+  demonstratesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Demonstration!]!
+  demonstratesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Demonstrates!]!
+  evaluatesIncoming(at: DateTime, archived: Archived = EXCLUDE): [EvaluationRecord!]!
+  evaluatesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Evaluates!]!
+  assessesIncoming(at: DateTime, archived: Archived = EXCLUDE): [ReadinessAssessment!]!
+  assessesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Assesses!]!
+  releaseOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [ReleaseRecord!]!
+  releaseOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReleaseOf!]!
   deliveredAsIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
   deliveredAsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DeliveredAs!]!
 }
@@ -2533,6 +2855,8 @@ type Demonstration implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  demonstrates(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  demonstratesEdges(at: DateTime, archived: Archived = EXCLUDE): [Demonstrates!]!
 }
 
 """Evaluation records"""
@@ -2558,6 +2882,10 @@ type EvaluationRecord implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  evaluates(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  evaluatesEdges(at: DateTime, archived: Archived = EXCLUDE): [Evaluates!]!
+  checksCriterion(at: DateTime, archived: Archived = EXCLUDE): [AcceptanceCriterion!]!
+  checksCriterionEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
 }
 
 """Readiness assessments"""
@@ -2583,6 +2911,8 @@ type ReadinessAssessment implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  assesses(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  assessesEdges(at: DateTime, archived: Archived = EXCLUDE): [Assesses!]!
 }
 
 """Release records"""
@@ -2608,6 +2938,10 @@ type ReleaseRecord implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  releaseOf(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
+  releaseOfEdges(at: DateTime, archived: Archived = EXCLUDE): [ReleaseOf!]!
+  verifiesReleaseIncoming(at: DateTime, archived: Archived = EXCLUDE): [PostReleaseVerification!]!
+  verifiesReleaseIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [VerifiesRelease!]!
 }
 
 """Post-release verifications"""
@@ -2633,6 +2967,10 @@ type PostReleaseVerification implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  checksCriterion(at: DateTime, archived: Archived = EXCLUDE): [AcceptanceCriterion!]!
+  checksCriterionEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
+  verifiesRelease(at: DateTime, archived: Archived = EXCLUDE): [ReleaseRecord!]!
+  verifiesReleaseEdges(at: DateTime, archived: Archived = EXCLUDE): [VerifiesRelease!]!
 }
 
 """Releases"""
@@ -2689,6 +3027,10 @@ type Requirement implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
+  hasRequirementIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  hasRequirementIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
+  targetsRequirementIncoming(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
+  targetsRequirementIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [TargetsRequirement!]!
 }
 
 """Friendship"""
@@ -3074,6 +3416,18 @@ type QuestionConnection {
   aggregate: Aggregate!
 }
 
+type OutfitterUserConnection {
+  nodes: [OutfitterUser!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OutfitterOrganizationConnection {
+  nodes: [OutfitterOrganization!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
 type ProductSpecificationConnection {
   nodes: [ProductSpecification!]!
   pageInfo: PageInfo!
@@ -3162,9 +3516,10 @@ type Query {
   """This schema in SDL: a compact alternative to full introspection."""
   sdl: String!
   node(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Node
@@ -3192,9 +3547,10 @@ type Query {
     after: String
   ): SearchConnection!
   artifactDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ArtifactDefinition
@@ -3210,9 +3566,10 @@ type Query {
     at: DateTime
   ): ArtifactDefinitionConnection!
   userStory(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): UserStory
@@ -3228,9 +3585,10 @@ type Query {
     at: DateTime
   ): UserStoryConnection!
   issue(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Issue
@@ -3246,9 +3604,10 @@ type Query {
     at: DateTime
   ): IssueConnection!
   acceptanceCriterion(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AcceptanceCriterion
@@ -3264,9 +3623,10 @@ type Query {
     at: DateTime
   ): AcceptanceCriterionConnection!
   organization(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Organization
@@ -3282,9 +3642,10 @@ type Query {
     at: DateTime
   ): OrganizationConnection!
   businessUnit(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): BusinessUnit
@@ -3300,9 +3661,10 @@ type Query {
     at: DateTime
   ): BusinessUnitConnection!
   project(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Project
@@ -3318,9 +3680,10 @@ type Query {
     at: DateTime
   ): ProjectConnection!
   person(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Person
@@ -3336,9 +3699,10 @@ type Query {
     at: DateTime
   ): PersonConnection!
   agent(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Agent
@@ -3354,9 +3718,10 @@ type Query {
     at: DateTime
   ): AgentConnection!
   technology(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Technology
@@ -3372,9 +3737,10 @@ type Query {
     at: DateTime
   ): TechnologyConnection!
   physicalComponent(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): PhysicalComponent
@@ -3390,9 +3756,10 @@ type Query {
     at: DateTime
   ): PhysicalComponentConnection!
   goal(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Goal
@@ -3408,9 +3775,10 @@ type Query {
     at: DateTime
   ): GoalConnection!
   metricDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): MetricDefinition
@@ -3426,9 +3794,10 @@ type Query {
     at: DateTime
   ): MetricDefinitionConnection!
   document(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Document
@@ -3444,9 +3813,10 @@ type Query {
     at: DateTime
   ): DocumentConnection!
   entity(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Entity
@@ -3462,9 +3832,10 @@ type Query {
     at: DateTime
   ): EntityConnection!
   repository(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Repository
@@ -3480,9 +3851,10 @@ type Query {
     at: DateTime
   ): RepositoryConnection!
   product(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Product
@@ -3498,9 +3870,10 @@ type Query {
     at: DateTime
   ): ProductConnection!
   customerSegment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): CustomerSegment
@@ -3516,9 +3889,10 @@ type Query {
     at: DateTime
   ): CustomerSegmentConnection!
   problem(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Problem
@@ -3534,9 +3908,10 @@ type Query {
     at: DateTime
   ): ProblemConnection!
   role(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Role
@@ -3552,9 +3927,10 @@ type Query {
     at: DateTime
   ): RoleConnection!
   roleAssignment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): RoleAssignment
@@ -3570,9 +3946,10 @@ type Query {
     at: DateTime
   ): RoleAssignmentConnection!
   decisionType(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): DecisionType
@@ -3588,9 +3965,10 @@ type Query {
     at: DateTime
   ): DecisionTypeConnection!
   authorityDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AuthorityDefinition
@@ -3606,9 +3984,10 @@ type Query {
     at: DateTime
   ): AuthorityDefinitionConnection!
   authorityGrant(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AuthorityGrant
@@ -3624,9 +4003,10 @@ type Query {
     at: DateTime
   ): AuthorityGrantConnection!
   offering(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Offering
@@ -3642,9 +4022,10 @@ type Query {
     at: DateTime
   ): OfferingConnection!
   decisionRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): DecisionRecord
@@ -3660,9 +4041,10 @@ type Query {
     at: DateTime
   ): DecisionRecordConnection!
   knowledgeGraph(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): KnowledgeGraph
@@ -3678,9 +4060,10 @@ type Query {
     at: DateTime
   ): KnowledgeGraphConnection!
   activity(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Activity
@@ -3696,9 +4079,10 @@ type Query {
     at: DateTime
   ): ActivityConnection!
   asset(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Asset
@@ -3714,9 +4098,10 @@ type Query {
     at: DateTime
   ): AssetConnection!
   financialObligation(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): FinancialObligation
@@ -3732,9 +4117,10 @@ type Query {
     at: DateTime
   ): FinancialObligationConnection!
   question(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Question
@@ -3749,10 +4135,49 @@ type Query {
     text: String
     at: DateTime
   ): QuestionConnection!
-  productSpecification(
+  outfitterUser(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): OutfitterUser
+  outfitterUsers(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OutfitterUserConnection!
+  outfitterOrganization(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): OutfitterOrganization
+  outfitterOrganizations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OutfitterOrganizationConnection!
+  productSpecification(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ProductSpecification
@@ -3768,9 +4193,10 @@ type Query {
     at: DateTime
   ): ProductSpecificationConnection!
   productRevision(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ProductRevision
@@ -3786,9 +4212,10 @@ type Query {
     at: DateTime
   ): ProductRevisionConnection!
   demonstration(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Demonstration
@@ -3804,9 +4231,10 @@ type Query {
     at: DateTime
   ): DemonstrationConnection!
   evaluationRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): EvaluationRecord
@@ -3822,9 +4250,10 @@ type Query {
     at: DateTime
   ): EvaluationRecordConnection!
   readinessAssessment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ReadinessAssessment
@@ -3840,9 +4269,10 @@ type Query {
     at: DateTime
   ): ReadinessAssessmentConnection!
   releaseRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ReleaseRecord
@@ -3858,9 +4288,10 @@ type Query {
     at: DateTime
   ): ReleaseRecordConnection!
   postReleaseVerification(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): PostReleaseVerification
@@ -3876,9 +4307,10 @@ type Query {
     at: DateTime
   ): PostReleaseVerificationConnection!
   release(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Release
@@ -3894,9 +4326,10 @@ type Query {
     at: DateTime
   ): ReleaseConnection!
   requirement(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Requirement
@@ -3912,9 +4345,10 @@ type Query {
     at: DateTime
   ): RequirementConnection!
   friendship(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Friendship
@@ -3930,9 +4364,10 @@ type Query {
     at: DateTime
   ): FriendshipConnection!
   controlDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ControlDefinition
@@ -3948,9 +4383,10 @@ type Query {
     at: DateTime
   ): ControlDefinitionConnection!
   controlCommitment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ControlCommitment
@@ -3966,9 +4402,10 @@ type Query {
     at: DateTime
   ): ControlCommitmentConnection!
   responseObligation(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ResponseObligation
@@ -3984,9 +4421,10 @@ type Query {
     at: DateTime
   ): ResponseObligationConnection!
   sourceIssueEpisode(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): SourceIssueEpisode
