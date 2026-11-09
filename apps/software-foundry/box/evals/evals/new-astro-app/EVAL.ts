@@ -44,7 +44,9 @@ describe("the built demo package", () => {
     expect(existsSync(join(app, ".outfitter/packages/demo.json"))).toBe(true);
     const fixtures = await import(join(app, "src/fixtures.ts"));
     repositories = fixtures.repositories;
-    summary = fixtures.summarize(repositories).map((row: any) => ({ name: row.name, count: row.count ?? row.merged ?? row.mergedCount ?? row.pullRequests }));
+    // The request names the row's name but not its count field: take its one number.
+    summary = fixtures.summarize(repositories).map((row: Record<string, unknown>) => ({ name: String(row.name),
+      count: Object.values(row).find((value): value is number => typeof value === "number")! }));
     const { appWorker } = await import(join(root, "packages/app-test/src/worker.ts"));
     worker = await appWorker("release-radar", join(app, ".outfitter/packages/demo.json"));
   }, 900_000);
