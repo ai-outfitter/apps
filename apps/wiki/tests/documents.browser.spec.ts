@@ -4,7 +4,7 @@ import {fulfillFrom,fulfillPlatformIdentity,isPlatformIdentityRequest} from "@ai
 import {identityHeaderValues,pageURLHeader} from "@ai-outfitter/app-sdk/server";
 import {mkdir} from "node:fs/promises";
 
-for(const mount of ["/apps/wiki-map/","/o/example/wiki-map/"])test(`read, edit and publish a document at ${mount}`,async({page})=>{
+for(const mount of ["/apps/wiki-map/","/o/wiki-map/wiki-map/"])test(`read, edit and publish a document at ${mount}`,async({page})=>{
  const app=await appWorker("wiki-map",new URL("../.outfitter/packages/operational.json",import.meta.url));
  const owner={userId:"editor",organizationId:"example-org",role:"owner"};
  try{

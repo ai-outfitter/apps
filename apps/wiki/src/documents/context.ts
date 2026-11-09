@@ -15,9 +15,9 @@ export function context(request:Request,locals:unknown):Context {
  }};
 }
 export function mount(request:Request) {
- const path=requestPageURL(request).pathname, marker="/wiki-map";
- const index=path.indexOf(marker);
- return index<0 ? "/" : `${path.slice(0,index+marker.length)}/`;
+ const path=requestPageURL(request).pathname;
+ const prefix=/^\/o\/[^/]+\/[^/]+/.exec(path)?.[0] ?? /^\/apps\/[^/]+/.exec(path)?.[0];
+ return prefix ? `${prefix}/` : "/";
 }
 export async function run(name:keyof typeof documents,variables:Record<string,unknown>,ctx:Context) {
  const document=documents[name];
