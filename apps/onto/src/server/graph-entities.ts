@@ -39,6 +39,7 @@ import {
 } from "./graph";
 import { organizationGoalsEntity } from "./organization-goals";
 import { graphEdges, graphNodes, graphTypes } from "./schema";
+import { edgeHandle } from "../lib/record-handles";
 
 const textFilter = z.string().min(1).max(200);
 const identifiers = z.array(textFilter).min(1).max(100);
@@ -93,6 +94,19 @@ const equals = (column: AnyColumn, value: string | boolean | undefined) =>
   value === undefined ? undefined : eq(column, value);
 
 const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(inArray(graphEdges.fromId, ids), inArray(graphEdges.toId, ids));
+
+type Named = { handle?: string };
+/** Edges with their handle (type name:from slug:to slug) for naming. */
+async function named(db: Database, edges: GraphEdge[]) {
+  if (!edges.length) return edges;
+  const nodeIds = [...new Set(edges.flatMap((edge) => [edge.fromId, edge.toId]))];
+  const slugs = new Map<string, string>();
+  for (let i = 0; i < nodeIds.length; i += 90)
+    for (const row of await db.select({ id: graphNodes.id, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, nodeIds.slice(i, i + 90)))) slugs.set(row.id, row.slug);
+  const typeIds = [...new Set(edges.map((edge) => edge.typeId))];
+  const types = new Map((await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, typeIds))).map((row) => [row.id, row.name]));
+  return edges.map((edge): GraphEdge & Named => ({ ...edge, handle: edgeHandle(types.get(edge.typeId) ?? edge.typeId, slugs.get(edge.fromId) ?? edge.fromId, slugs.get(edge.toId) ?? edge.toId) }));
+}
 
 /** Published audit fields come from the same row as the record. */
 function provenance(row: { createdBy: string | null; updatedBy: string | null; createdAt: number; updatedAt: number; seedVersion?: number | null }) {
@@ -205,10 +219,11 @@ export function graphEntities(
     schema: edgeInput,
     outputAttributes: provenance,
     filterSchema: edgeFilter,
-    name: (row) => row.title || row.id,
+    // An untitled edge is named by its handle (type:from:to), never its UUID.
+    name: (row) => row.title || (row as Named).handle || row.id,
     list: async (_who, offset, limit, filter, order) => {
       const f = filter ?? {};
-      return (
+      return named(db, (
         await db
           .select()
           .from(graphEdges)
@@ -236,9 +251,9 @@ export function graphEntities(
           .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "title" ? graphEdges.title : graphEdges.id) : asc(graphEdges.id), asc(graphEdges.id))
           .offset(offset)
           .limit(limit)
-      ).map(edgeView);
+      ).map(edgeView));
     },
-    get: (_who, id) => getEdge(db, id),
+    get: async (_who, id) => { const edge = await getEdge(db, id); return edge ? (await named(db, [edge]))[0] : edge; },
     create: (who, input, references) => {
       noReferences(references);
       return saveEdge(db, who, input);

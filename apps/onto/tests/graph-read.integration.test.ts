@@ -44,6 +44,8 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.deepEqual((await entitySearch("graph-node", "  MARKDOWN  ")).map(row => row.ref.id), [ids.$root.id]);
     assert.ok((await entitySearch("graph-type", "synthetic directed")).some(row => row.ref.id === ids.$relation.id));
     assert.ok((await entitySearch("graph-edge", ids.$root.id)).some(row => row.ref.id === ids.$edge.id));
+    const edgeRow = (await entitySearch("graph-edge", ids.$root.id)).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
+    assert.equal(edgeRow?.title, "reader_link:root:child", "an untitled edge is named by its handle, not its UUID");
     assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "private data is neither searched nor returned");
     assert.deepEqual(await entitySearch("graph-node", "' OR 1=1 --"), []);
     assert.deepEqual(await entitySearch("graph-node", "%_"), []);

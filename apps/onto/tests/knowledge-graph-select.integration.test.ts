@@ -56,15 +56,19 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.ok(!rendered.markdown.includes("Unrelated"));
     assert.equal(rendered.complete, true);
     // The query the read ran comes back with its hash and variables schema: show it, pass it back, or edit it.
-    assert.match(graph.query ?? "", /^query FactsLens\(\$rootIds: \[ID!\]!\) \{/);
+    assert.match(graph.query ?? "", /^query FactsLens\(\$roots: \[String!\]!\) \{/);
     assert.match(graph.hash ?? "", /^[0-9a-f]{64}$/);
-    assert.deepEqual((graph.variables as { required: string[] }).required, ["rootIds"]);
-    const again = knowledgeGraphSelectResult.parse(await (await select({ query: graph.query, rootIds: [ids.$root.id] })).json());
+    assert.deepEqual((graph.variables as { required: string[] }).required, ["roots"]);
+    const againResponse = await select({ query: graph.query, rootIds: [ids.$root.id] });
+    assert.equal(againResponse.status, 200, await againResponse.clone().text());
+    const again = knowledgeGraphSelectResult.parse(await againResponse.json());
     assert.deepEqual(again.nodes.map(node => node.ref.id).sort(), graph.nodes.map(node => node.ref.id).sort());
     assert.deepEqual(again.edges.map(edge => edge.ref.id), [ids.$edge.id]);
     assert.equal(again.hash, graph.hash);
     assert.equal(again.nodes.find(node => node.ref.id === ids.$root.id)?.attributes.body, "Authored **Markdown** stays unchanged.", "records come back as stored");
-    const rootsOnly = knowledgeGraphSelectResult.parse(await (await select({ query: "query($rootIds: [ID!]!) { selectionFacts(ids: $rootIds) { nodes { id typeId title } } }", rootIds: [ids.$root.id] })).json());
+    const rootsResponse = await select({ query: "query($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title } } }", rootIds: [ids.$root.id] });
+    assert.equal(rootsResponse.status, 200, await rootsResponse.clone().text());
+    const rootsOnly = knowledgeGraphSelectResult.parse(await rootsResponse.json());
     assert.deepEqual(rootsOnly.nodes.map(node => node.ref.id), [ids.$root.id]);
     assert.equal((await select({ query: "{ nope }", rootIds: [ids.$root.id] })).status, 400);
     const inline = await select({ definition: graph.definition, rootIds: [ids.$root.id] });
@@ -99,7 +103,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.equal(knowledgeGraphRenderResult.parse(await tooSmall.json()).document.complete, false);
     assert.deepEqual((await snapshot()).results, before.results);
     // A saved query without a selection runs as written.
-    const savedQuery = "query Facts($rootIds: [ID!]!) { selectionFacts(ids: $rootIds) { nodes { id typeId title edges(types: [\"selection_link\"], direction: OUTGOING) { id typeId fromId toId to { id typeId title } } } } }";
+    const savedQuery = "query Facts($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title edges(types: [\"selection_link\"], direction: OUTGOING) { id typeId fromId toId to { id typeId title } } } } }";
     const savedCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "saved-query", operations: [
       create("$query", "graph-node", { typeId: core.knowledgeGraph, title: "Facts query", body: JSON.stringify({ name: "Facts query", purpose: "A hand-written query.", query: savedQuery }) }),
     ] } } });
@@ -119,7 +123,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.notEqual(wrongHash.status, 200, "a hash that is not the query's sha256 is not saved");
     // A written selection stores what it compiles to: a hand-supplied query naming a type that is gone is replaced.
     const staleBody = { name: "Stale", purpose: "A selection whose stored query names a type that is gone.", rootTypes: ["SelectionFact"],
-      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Stale($rootIds: [ID!]!) { goneFacts(ids: $rootIds) { nodes { id } } }" };
+      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Stale($roots: [String!]!) { goneFacts(slugs: $roots) { nodes { id } } }" };
     const staleCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "stale-query", operations: [
       create("$stale", "graph-node", { typeId: core.knowledgeGraph, title: "Stale lens", body: JSON.stringify(staleBody) }),
     ] } } });
@@ -129,7 +133,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.deepEqual(stale.nodes.map(node => node.ref.id).sort(), [ids.$root.id, ids.$child.id].sort());
     // A supplied query that validates but omits a hop of the selection is replaced by the compile too.
     const narrowBody = { name: "Narrow", purpose: "A selection whose stored query predates its link type.", rootTypes: ["SelectionFact"],
-      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Narrow($rootIds: [ID!]!) { selectionFacts(ids: $rootIds) { nodes { id typeId title } } }" };
+      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Narrow($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title } } }" };
     const narrowCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "narrow-query", operations: [
       create("$narrow", "graph-node", { typeId: core.knowledgeGraph, title: "Narrow lens", body: JSON.stringify(narrowBody) }),
     ] } } });

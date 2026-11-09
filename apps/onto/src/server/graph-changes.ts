@@ -25,6 +25,7 @@ import { v2 } from "../lib/ontology-model";
 import { requireOntologyValid } from "../lib/ontology-validation";
 import { storeType } from "../lib/type-metadata";
 import { checkProperties, graphUnchanged, readGraph } from "./graph";
+import { handleIndex, resolveHandle } from "../lib/record-handles";
 import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { validateKnowledgeGraph, withCompiledQuery } from "../lib/knowledge-graph-document";
 import { graphChanges } from "./schema";
@@ -53,6 +54,7 @@ function fail(message: string, status = 400): never {
 type SavedRow =
   Graph["types"][number] | Graph["nodes"][number] | Graph["edges"][number];
 type Refs = Map<string, { id: string; type: Change["type"] }>;
+type Handles = ReturnType<typeof handleIndex>;
 function resolveAssertionSubjects(
   graph: Graph,
   changes: Record<
@@ -60,6 +62,7 @@ function resolveAssertionSubjects(
     Record<string, unknown>[]
   >,
   refs: Refs,
+  handles: Handles,
 ) {
   const types = new Map(
     [...graph.types, ...changes["graph-type"]].map((type) => [
@@ -73,12 +76,13 @@ function resolveAssertionSubjects(
     );
     if (!contract.success || v2(contract.data)?.stereotype !== "assertion")
       continue;
-    resolveSubject(node, refs);
+    resolveSubject(node, refs, handles);
   }
 }
 function resolveSubject(
   node: Record<string, unknown>,
   refs: Refs,
+  handles: Handles,
 ) {
   let body: { subject?: { id?: unknown; type?: unknown } };
   try {
@@ -87,7 +91,15 @@ function resolveSubject(
     return;
   }
   const subject = body?.subject;
-  if (typeof subject?.id !== "string" || !subject.id.startsWith("$")) return;
+  if (typeof subject?.id !== "string") return;
+  if (!subject.id.startsWith("$")) {
+    if (subject.type !== "graph-node" && subject.type !== "graph-edge") return;
+    const id = resolveHandle(handles, subject.type, subject.id);
+    if (id === subject.id) return;
+    subject.id = id;
+    node.body = JSON.stringify(body);
+    return;
+  }
   const ref = refs.get(subject.id);
   if (!ref || ref.type !== subject.type)
     throw new Response("Unknown or incompatible assertion subject reference", {
@@ -110,13 +122,17 @@ const referenceFields: Record<
     toId: "graph-node",
   },
 };
-function resolveAttributes(change: Change, refs: Refs) {
+function resolveAttributes(change: Change, refs: Refs, handles: Handles) {
   const attributes = { ...change.attributes };
   for (const [field, expected] of Object.entries(
     referenceFields[change.type],
   )) {
     const value = attributes[field];
-    if (typeof value !== "string" || !value.startsWith("$")) continue;
+    if (typeof value !== "string") continue;
+    if (!value.startsWith("$")) {
+      attributes[field] = resolveHandle(handles, expected, value);
+      continue;
+    }
     const ref = refs.get(value);
     if (!ref || ref.type !== expected)
       fail(`Unknown or incompatible temporary reference: ${value}`);
@@ -125,7 +141,7 @@ function resolveAttributes(change: Change, refs: Refs) {
   return attributes;
 }
 
-function allocateReferences(operations: Input["operations"]) {
+function allocateReferences(operations: Input["operations"], handles: Handles) {
   const refs: Refs = new Map();
   const targets = new Set<string>();
   for (const change of operations) {
@@ -134,7 +150,7 @@ function allocateReferences(operations: Input["operations"]) {
       .uuid()
       .safeParse(
         change.operation === "update"
-          ? change.id
+          ? resolveHandle(handles, change.type, change.id)
           : (change.attributes.id ?? crypto.randomUUID()),
       );
     if (!parsedId.success) fail("Invalid record ID");
@@ -160,6 +176,7 @@ function prepareRow(
   id: string,
   saved: SavedRow | undefined,
   refs: Refs,
+  handles: Handles,
   who: AppIdentity,
 ) {
   if (
@@ -181,7 +198,7 @@ function prepareRow(
     : {};
   const parsed = schema.safeParse({
     ...previous,
-    ...resolveAttributes(change, refs),
+    ...resolveAttributes(change, refs, handles),
     id,
   });
   if (!parsed.success)
@@ -211,7 +228,8 @@ function prepareNode(
 
 function prepareChanges(input: Input, graph: Graph, who: AppIdentity) {
   const current = records(graph);
-  const refs = allocateReferences(input.operations);
+  const handles = handleIndex(graph);
+  const refs = allocateReferences(input.operations, handles);
   const slugs = new Set([
     ...graph.nodes.map((node) => node.slug!),
     ...input.operations.flatMap((change) =>
@@ -229,12 +247,12 @@ function prepareChanges(input: Input, graph: Graph, who: AppIdentity) {
   for (const change of input.operations) {
     const id = refs.get(change.ref)!.id;
     const saved = current[change.type].find((row) => row.id === id);
-    const row = prepareRow(change, id, saved, refs, who);
+    const row = prepareRow(change, id, saved, refs, handles, who);
     if (change.type === "graph-node") prepareNode(row, saved, slugs);
     receipt[change.ref] = { id, revision: Number(row.revision) };
     changes[change.type].push(row);
   }
-  resolveAssertionSubjects(graph, changes, refs);
+  resolveAssertionSubjects(graph, changes, refs, handles);
   return { changes, receipt };
 }
 

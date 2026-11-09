@@ -23,9 +23,9 @@ const legacyDocuments = defineDocuments({
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
-      changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision recordId recordRevision} }
+    document:`query ChangeBatches($slugs: [String!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
+      changeBatches(slugs:$slugs,search:$search,state:$state,first:$first,after:$after) {
+        nodes { slug title state counts reviewBy instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,

@@ -117,7 +117,7 @@ async function wikiMutate<T>(host: Host, installationId: string, name: "StageCha
 
 const parseJSON = (value: unknown) => { try { return JSON.parse(String(value)); } catch { return null; } };
 
-type Batch = { id: string; state: string; counts: Record<string, number> };
+type Batch = { slug: string; state: string; counts: Record<string, number> };
 
 /** The interview document from the answers saved in the app, with each answer's mentions. */
 function interviewBody(answers: Map<string, string>, subject: string, mentions: Map<string, string[]>): InterviewDocument {
@@ -224,25 +224,25 @@ export async function stageInterview(db: Database, identity: AppIdentity, host: 
   for (let i = 0; i < proposals.length; i += 100) {
     const page = proposals.slice(i, i + 100);
     const staged = await wikiMutate<{ stageChanges: Batch }>(host, wikiId, "StageChanges", batch
-      ? { batchId: batch.id, proposals: page }
+      ? { batch: batch.slug, proposals: page }
       : { title, purpose: "Save the member's brand interview and the people, audiences, problems, offerings and goals it names.", proposals: page });
     batch = staged.stageChanges;
   }
-  const submitted = (await wikiMutate<{ submitBatch: Batch }>(host, wikiId, "SubmitBatch", { batchId: batch!.id, summary: `${proposals.length} changes from the brand interview` })).submitBatch;
+  const submitted = (await wikiMutate<{ submitBatch: Batch }>(host, wikiId, "SubmitBatch", { batch: batch!.slug, summary: `${proposals.length} changes from the brand interview` })).submitBatch;
   const path = wikiPath(graph.wiki);
-  await db.insert(wikiBatches).values({ id: submitted.id, wikiInstallationId: wikiId, wikiPath: path, state: submitted.state, proposals: proposals.length, createdBy: identity.userId, createdAt: now, updatedAt: now })
+  await db.insert(wikiBatches).values({ id: submitted.slug, wikiInstallationId: wikiId, wikiPath: path, state: submitted.state, proposals: proposals.length, createdBy: identity.userId, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({ target: wikiBatches.id, set: { state: submitted.state, proposals: proposals.length, updatedAt: now } });
-  return { batch: { id: submitted.id, state: submitted.state, counts: submitted.counts }, wikiPath: path, proposals: proposals.length };
+  return { batch: { id: submitted.slug, state: submitted.state, counts: submitted.counts }, wikiPath: path, proposals: proposals.length };
 }
 
 /** A batch's current state, read from the Wiki and kept on its row. Null when the Wiki no longer has it. */
-export async function batchState(host: Host, wikiInstallationId: string, batchId: string, db?: Database) {
+export async function batchState(host: Host, wikiInstallationId: string, batch: string, db?: Database) {
   const result = graphGraphqlResult.parse(await host.call("actions.call", {
     installationId: wikiInstallationId, action: "graph.graphql", readOnly: true,
-    input: { query: wikiChangeDocuments.ChangeBatch.document, operationName: "ChangeBatch", variables: { id: batchId } } as never,
+    input: { query: wikiChangeDocuments.ChangeBatch.document, operationName: "ChangeBatch", variables: { slug: batch } } as never,
   }));
   const state = (result.data as { changeBatch: { state: string } | null } | null)?.changeBatch?.state ?? null;
-  if (db && state) await db.update(wikiBatches).set({ state, updatedAt: Date.now() }).where(eq(wikiBatches.id, batchId));
+  if (db && state) await db.update(wikiBatches).set({ state, updatedAt: Date.now() }).where(eq(wikiBatches.id, batch));
   return state;
 }
 

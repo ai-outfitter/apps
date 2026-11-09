@@ -174,7 +174,7 @@ export const knowledgeGraphSelectFields = {
   /** Lower the node budget below the definition's. */
   maxNodes: z.number().int().min(1).max(500).optional(),
   /** A GraphQL document to read with instead of the saved or compiled one (a result's `query`, possibly
-   * edited; its variable is `$rootIds`). Alone, the selection is what it returns; with a definition,
+   * edited; its variable is `$roots`, the roots' slugs). Alone, the selection is what it returns; with a definition,
    * that definition still bounds it. */
   query: z.string().trim().min(1).max(32768).optional(),
 };
@@ -200,7 +200,7 @@ export const knowledgeGraphSelectResult = z.strictObject({
   incomplete: z.boolean(),
   missingTypes: z.array(z.string()).default([]),
   /** The GraphQL document this selection was read with (a KnowledgeGraph body's `query`), its sha256
-   * `hash`, and the JSON Schema of its `variables` (`{ rootIds }`). Pass it back as `query`. */
+   * `hash`, and the JSON Schema of its `variables` (`{ roots }`: root slugs). Pass it back as `query`. */
   query: z.string().optional(),
   hash: z.string().optional(),
   variables: z.record(z.string(), z.json()).optional(),

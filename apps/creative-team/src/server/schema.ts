@@ -103,6 +103,7 @@ export const drafts = sqliteTable(
 export const wikiBatches = sqliteTable(
   "wiki_batches",
   {
+    /** The Wiki change batch's slug. */
     id: text().primaryKey(),
     wikiInstallationId: text().notNull(),
     /** The Wiki's address, for a link to its review page. */

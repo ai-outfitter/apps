@@ -6,7 +6,8 @@ import {
   requireEditor,
   requireEntityWriter,
 } from "@ai-outfitter/app-sdk/server";
-import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { recordHandle, type RecordKind } from "../lib/record-handles";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { z } from "zod";
 import {
@@ -381,4 +382,24 @@ export async function saveEdge(
     .returning()
     .catch(conflict);
   return inserted[0] ? edgeView(inserted[0]) : fail("Graph changed; reload before saving", 409);
+}
+
+/** Each committed operation's record as a handle (type name, node slug or edge
+ * type:from:to) instead of its UUID, for answers agents read back. */
+export async function withRecordHandles<T extends { operation: unknown; recordId: string | null }>(db: Database, operations: T[]) {
+  const kindOf = (row: T) => (row.operation as { type?: RecordKind }).type;
+  const ids = (kind: RecordKind) => [...new Set(operations.flatMap((row) => (row.recordId && kindOf(row) === kind ? [row.recordId] : [])))];
+  const chunks = <V>(values: V[]) => Array.from({ length: Math.ceil(values.length / 90) }, (_, i) => values.slice(i * 90, i * 90 + 90));
+  const edges = (await Promise.all(chunks(ids("graph-edge")).map((part) => db.select().from(graphEdges).where(inArray(graphEdges.id, part))))).flat();
+  const nodeIds = [...new Set([...ids("graph-node"), ...edges.flatMap((edge) => [edge.fromId, edge.toId])])];
+  const nodes = (await Promise.all(chunks(nodeIds).map((part) => db.select({ id: graphNodes.id, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, part))))).flat();
+  const types = operations.some((row) => row.recordId && kindOf(row) !== "graph-node")
+    ? await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes) : [];
+  const handle = recordHandle({
+    types: types as unknown as Graph["types"], nodes: nodes as unknown as Graph["nodes"], edges: edges as unknown as Graph["edges"],
+  });
+  return operations.map(({ recordId, ...row }) => {
+    const kind = kindOf(row as T);
+    return { ...row, record: recordId && kind ? handle(kind, recordId) : null };
+  });
 }

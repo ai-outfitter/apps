@@ -22,6 +22,8 @@ import { readRelationships, relationshipQuery, relationshipResults } from "../li
 import { auditOntology, auditProposal } from "../lib/ontology-validation";
 import { wikiActions } from "../pages/api/internal/actions/v1/[operation]";
 import { readGraph } from "./graph";
+import { graphBatches } from "./schema";
+import { eq } from "drizzle-orm";
 import { graphChangeInput } from "./graph-changes";
 import { documents } from "./documents";
 import { assertionInspectInput, assertionInspection, inspectAssertion } from "./ontology-assertions";
@@ -31,10 +33,10 @@ import { assertionInspectInput, assertionInspection, inspectAssertion } from "./
 const { "graph.apply": apply, ...reads } = publishActionTools("wiki-map", {
   "graph.apply": wikiActions["graph.apply"],
   "batch.inspect": defineAction({
-    description: "Inspect a Wiki Changes page by batch ID using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including committed record IDs and revisions. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
-    access: "read", input: z.strictObject({ id: z.uuid(), refs: z.array(z.string().min(1).max(200)).max(100).optional() }), output: z.json(),
-    run: (context, { id, refs }) => wikiActions["graph.graphql"].invoke(context, {
-      query: documents.ChangeBatch.document, operationName: "ChangeBatch", variables: { id, ...(refs ? { refs } : {}) }, maxBytes: 65536,
+    description: "Inspect a Wiki change batch by slug using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record (node slug, type name or edge type:from:to) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
+    access: "read", input: z.strictObject({ batch: z.string().min(1).max(80), refs: z.array(z.string().min(1).max(200)).max(100).optional() }), output: z.json(),
+    run: (context, { batch, refs }) => wikiActions["graph.graphql"].invoke(context, {
+      query: documents.ChangeBatch.document, operationName: "ChangeBatch", variables: { slug: batch, ...(refs ? { refs } : {}) }, maxBytes: 65536,
     }),
   }),
   "graph.relationships": defineAction({
@@ -112,7 +114,7 @@ export function agentRoute(
       label: "Onto",
       context,
       instructions:
-        "You are Onto, the agent managing this owner’s ontological knowledge graph. You also help define, capture and generate attributable graph documents. Document generation is queued and runs through the authorized workflow host; inspect its job and revision receipts. A seal preserves evidence and is not approval. Never claim an issue-draft stub was published. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and recordId/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
+        "You are Onto, the agent managing this owner’s ontological knowledge graph. You also help define, capture and generate attributable graph documents. Document generation is queued and runs through the authorized workflow host; inspect its job and revision receipts. A seal preserves evidence and is not approval. Never claim an issue-draft stub was published. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and record/recordRevision for a committed record correction. Never guess missing records or revisions. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
       reads: { ...reads, ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "read")) },
       actions: {
         ...Object.fromEntries(Object.entries(documentTools).filter(([,action]) => action.access === "write").map(([name, action]) => [name, { action, retry: "never" as const }])),
@@ -130,7 +132,8 @@ export function agentRoute(
       page: async (view) => {
         const batchId = /^changes\/([0-9a-f-]{36})$/i.exec(view?.location.split(/[?#]/, 1)[0] ?? "")?.[1];
         if (batchId && z.uuid().safeParse(batchId).success) {
-          const batch = await reads["batch.inspect"].invoke(context(), { id: batchId }, true);
+          const [row] = await installationDatabase().select({ slug: graphBatches.slug }).from(graphBatches).where(eq(graphBatches.id, batchId));
+          const batch = row ? await reads["batch.inspect"].invoke(context(), { batch: row.slug }, true) : null;
           return { batch };
         }
         const graph = await readGraph(installationDatabase(), identity);
