@@ -186,8 +186,10 @@ input SaveBrandAnswerInput {
 
 """The Wiki change batch a brand interview was staged in."""
 type BrandWikiBatch {
-  """Null when the Wiki already had everything."""
-  batchId: ID
+  """
+  The batch's slug in the Wiki; null when the Wiki already had everything.
+  """
+  batch: String
 
   """awaiting_review until the member (or the Wiki's policy) decides it."""
   state: String
@@ -195,7 +197,7 @@ type BrandWikiBatch {
   """Records and links proposed."""
   proposals: Int!
 
-  """The Wiki's address; its review page is changes/<batchId> there."""
+  """The Wiki's address; its Changes page lists the batch for review."""
   wikiPath: String!
 }
 

@@ -168,6 +168,8 @@ export const { proposals: actionProposals, guard: actionGuard } =
 /** Staged Wiki changes (docs/plans/wiki-change-batches.md); invisible to graph reads. */
 export const graphBatches = sqliteTable("graph_batches", {
   id: text().primaryKey(),
+  /** How agents name the batch; unique, from its title when it opens. */
+  slug: text().notNull().unique(),
   title: text().notNull(),
   purpose: text().notNull().default(""),
   source: text({ mode: "json" }).$type<Record<string, unknown> | null>(),

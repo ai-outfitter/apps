@@ -1885,8 +1885,8 @@
     "name": "StageBrandInterview",
     "kind": "mutation",
     "story": "As a creator, I want my brand interview saved in my Wiki with the people, audiences and goals it names, so that my knowledge graph knows my brand and I review every change first.",
-    "query": "mutation StageBrandInterview($input: StageBrandInterviewInput!) {\n  stageBrandInterview(input: $input) {\n    batchId\n    state\n    proposals\n    wikiPath\n  }\n}",
-    "hash": "12aa7212223d5973f54570415d8ff887faaa45a16ae08ca490714c6b846ca96f",
+    "query": "mutation StageBrandInterview($input: StageBrandInterviewInput!) {\n  stageBrandInterview(input: $input) {\n    batch\n    state\n    proposals\n    wikiPath\n  }\n}",
+    "hash": "b25fa28fb31f07536ea3f9dfa0682d4416252ef0aa221d15743989b2e9b7cc3f",
     "variables": {
       "type": "object",
       "properties": {

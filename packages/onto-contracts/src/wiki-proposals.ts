@@ -33,27 +33,27 @@ export const wikiChangeDocuments = {
   StageChanges: {
     story: "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
     document: `mutation StageChanges($input: StageChangesInput!) {
-      stageChanges(input: $input) { id title state counts }
+      stageChanges(input: $input) { slug title state counts }
     }`,
   },
   RemoveStagedChanges: {
     story: "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
     document: `mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {
-      removeStagedChanges(input: $input) { id state counts }
+      removeStagedChanges(input: $input) { slug state counts }
     }`,
   },
   SubmitBatch: {
     story: "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
     document: `mutation SubmitBatch($input: SubmitBatchInput!) {
-      submitBatch(input: $input) { id state reviewBy counts operations { ref state } }
+      submitBatch(input: $input) { slug state reviewBy counts operations { ref state } }
     }`,
   },
   ChangeBatch: {
     story: "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    document: `query ChangeBatch($id: ID!, $refs: [String!]) {
-      changeBatch(id: $id) {
-        id title purpose source state policy summary reviewBy createdAt updatedAt expiresAt counts
-        operations(refs: $refs) { ref state operation evidence confidence reason decision recordId recordRevision }
+    document: `query ChangeBatch($slug: String!, $refs: [String!]) {
+      changeBatch(slug: $slug) {
+        slug title purpose source state policy summary reviewBy createdAt updatedAt expiresAt counts
+        operations(refs: $refs) { ref state operation evidence confidence reason decision record recordRevision }
       }
     }`,
   },

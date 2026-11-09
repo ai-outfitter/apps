@@ -14,12 +14,12 @@ type Query {
   """
   Search saved change batches; operations and evidence are selected explicitly.
   """
-  changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
+  changeBatches(first: Int = 100, after: String, ids: [ID!], slugs: [String!], search: String, state: [String!]): ChangeBatchConnection!
 
   """
   One change batch, with every operation and its state; null when there is none.
   """
-  changeBatch(id: ID!): ChangeBatch
+  changeBatch(slug: String!): ChangeBatch
 }
 
 """Any JSON value."""
@@ -36,6 +36,9 @@ Proposed Wiki changes, invisible to every read until a member commits them on th
 """
 type ChangeBatch {
   id: ID!
+
+  """Names the batch in every change and read."""
+  slug: String!
   title: String!
   purpose: String!
 
@@ -93,8 +96,8 @@ type StagedChange {
   """Who or which policy decided it, and when."""
   decision: JSON
 
-  """The committed record."""
-  recordId: ID
+  """The committed record: a type name, node slug or edge type:from:to."""
+  record: String
   recordRevision: Int
 }
 
@@ -108,10 +111,10 @@ type Aggregate {
 }
 
 input ReviewBatchInput {
-  batchId: ID!
   refs: [String!]
   verdict: ReviewBatchInputVerdict!
   comment: String
+  batch: String!
 }
 
 enum ReviewBatchInputVerdict {
@@ -120,7 +123,7 @@ enum ReviewBatchInputVerdict {
 }
 
 input StageChangesInput {
-  batchId: ID
+  batch: String
   title: String
   purpose: String
   source: StageChangesInputSource
@@ -151,13 +154,13 @@ input StageChangesInputProposalsItemEvidenceItem {
 }
 
 input RemoveStagedChangesInput {
-  batchId: ID!
   refs: [String!]!
+  batch: String!
 }
 
 input SubmitBatchInput {
-  batchId: ID!
   summary: String
+  batch: String!
 }
 
 type Mutation {
@@ -182,7 +185,7 @@ type Mutation {
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 
   """
-  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"<Person type id>","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. An update names id and revision; an edge's fromId and toId may be refs staged earlier in the batch. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by handle: typeId takes a type name, fromId and toId take node slugs or refs staged earlier in the batch, and an update names its record (node slug, type name or edge type:from:to) as id with its revision. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
   """
   stageChanges(input: StageChangesInput!): ChangeBatch!
 

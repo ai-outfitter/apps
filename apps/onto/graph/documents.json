@@ -3,14 +3,14 @@
     "name": "ChangeBatch",
     "kind": "query",
     "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      recordId\n      recordRevision\n    }\n  }\n}",
-    "hash": "35f9cf2d730262c91e5e74529efb41e0f8f78f3bb1a73d7e0998aca1fd5ec9af",
+    "query": "query ChangeBatch($slug: String!, $refs: [String!]) {\n  changeBatch(slug: $slug) {\n    slug\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "497d42db151a3cab83f7d8c7754a0605774d372a5704f65bfefb65893f404a32",
     "variables": {
       "type": "object",
       "properties": {
-        "id": {
+        "slug": {
           "type": "string",
-          "description": "GraphQL ID!"
+          "description": "GraphQL String!"
         },
         "refs": {
           "type": "array",
@@ -18,7 +18,7 @@
         }
       },
       "required": [
-        "id"
+        "slug"
       ]
     },
     "hidden": true
@@ -71,11 +71,11 @@
                       "input": {
                         "type": "object",
                         "properties": {
-                          "batchId": {
-                            "description": "Add to this open batch; omit to open one.",
+                          "batch": {
+                            "description": "Add to this open batch, by slug; omit to open one.",
                             "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            "minLength": 1,
+                            "maxLength": 80
                           },
                           "title": {
                             "description": "Names the batch a new one opens with.",
@@ -193,8 +193,8 @@
                                         },
                                         "id": {
                                           "type": "string",
-                                          "format": "uuid",
-                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          "minLength": 1,
+                                          "maxLength": 300
                                         },
                                         "revision": {
                                           "type": "integer",
@@ -306,11 +306,6 @@
                       "input": {
                         "type": "object",
                         "properties": {
-                          "batchId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
                           "refs": {
                             "minItems": 1,
                             "maxItems": 100,
@@ -319,11 +314,17 @@
                               "type": "string",
                               "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
                             }
+                          },
+                          "batch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80,
+                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "batchId",
-                          "refs"
+                          "refs",
+                          "batch"
                         ],
                         "additionalProperties": false
                       }
@@ -350,18 +351,19 @@
                       "input": {
                         "type": "object",
                         "properties": {
-                          "batchId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
                           "summary": {
                             "type": "string",
                             "maxLength": 2000
+                          },
+                          "batch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80,
+                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "batchId"
+                          "batch"
                         ],
                         "additionalProperties": false
                       }
@@ -388,11 +390,6 @@
                       "input": {
                         "type": "object",
                         "properties": {
-                          "batchId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
                           "refs": {
                             "minItems": 1,
                             "maxItems": 2000,
@@ -412,11 +409,17 @@
                           "comment": {
                             "type": "string",
                             "maxLength": 2000
+                          },
+                          "batch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80,
+                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "batchId",
-                          "verdict"
+                          "verdict",
+                          "batch"
                         ],
                         "additionalProperties": false
                       }
@@ -549,14 +552,14 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        recordId\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "649e3851ae3e5052485e01f4004ad536d2f0113fb4ef0186361e7603771e123f",
+    "query": "query ChangeBatches($slugs: [String!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    slugs: $slugs\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      slug\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "33b2e1ed9afd3bab6ed7360a3f320df8aa38ee38b6b2b2441417619402f6a1bb",
     "variables": {
       "type": "object",
       "properties": {
-        "ids": {
+        "slugs": {
           "type": "array",
-          "description": "GraphQL [ID!]"
+          "description": "GraphQL [String!]"
         },
         "search": {
           "type": "string",
@@ -604,7 +607,7 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "id": {
+                  "slug": {
                     "type": "string"
                   },
                   "title": {
@@ -672,7 +675,7 @@
                           "description": "JSON",
                           "nullable": true
                         },
-                        "recordId": {
+                        "record": {
                           "type": "string",
                           "nullable": true
                         },
@@ -910,8 +913,8 @@
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
-    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n  }\n}",
-    "hash": "f6c5912f64162eeb8f0d648c8ea1ac82726cfc5efd71a82f4abda78ec49b2e1a",
+    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    slug\n    state\n    counts\n  }\n}",
+    "hash": "b943e7b71eb8532d0918d38b8dc6f2fb4b199e2054dd64dfcceb289af1ea5176",
     "variables": {
       "type": "object",
       "properties": {
@@ -987,8 +990,8 @@
     "name": "StageChanges",
     "kind": "mutation",
     "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
-    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n  }\n}",
-    "hash": "78b8f60cbcdd798947149cc4898a96bd7c3f977342cb43095341c2105d60f989",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    slug\n    title\n    state\n    counts\n  }\n}",
+    "hash": "153bbe44ab3e69c0cef844f3a0fbb70d37a6d2cb30b1ca1cd9ec7d87348c5e61",
     "variables": {
       "type": "object",
       "properties": {
@@ -1006,8 +1009,8 @@
     "name": "SubmitBatch",
     "kind": "mutation",
     "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
-    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
-    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    slug\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "f19877e19d8aaf085be054f621cbfef0c7840a9d515b9ce5c92bcb39ca5bf06a",
     "variables": {
       "type": "object",
       "properties": {
