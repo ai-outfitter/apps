@@ -8,15 +8,15 @@ import type { AppMiddlewareOptions } from "./cloudflare/middleware";
  * `/api/*`, `Cache-Control: private, no-store`, `nosniff`, and
  * `contentSecurityPolicy` on built responses without one of their own.
  */
-export function outfitterApp(options: AppMiddlewareOptions): AstroIntegration {
+export function outfitterApp(options: Omit<AppMiddlewareOptions, "dev">): AstroIntegration {
   return {
     name: "@ai-outfitter/app-sdk",
     hooks: {
-      "astro:config:setup": ({ addMiddleware, createCodegenDir }) => {
+      "astro:config:setup": ({ addMiddleware, command, createCodegenDir }) => {
         const entrypoint = new URL("middleware.mjs", createCodegenDir());
         writeFileSync(
           entrypoint,
-          `import { appMiddleware } from "@ai-outfitter/app-sdk/cloudflare/middleware";\nexport const onRequest = appMiddleware(${JSON.stringify(options)});\n`,
+          `import { appMiddleware } from "@ai-outfitter/app-sdk/cloudflare/middleware";\nexport const onRequest = appMiddleware(${JSON.stringify({ ...options, dev: command === "dev" })});\n`,
         );
         addMiddleware({ entrypoint, order: "pre" });
       },
