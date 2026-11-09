@@ -79,7 +79,7 @@ test('reader provenance does not expose the original private graph snapshot',asy
 
 test('a changed legacy graph cannot activate the document Wiki without its migration receipt',async()=>{
  const {sqlite,db}=fixture();let migrated=false;
- const host=workflowHost<"interactive">({props:{workflowHost:{async call(operation,input){
+ const host=workflowHost<"interactive">({props:{workflowHost:{async call(operation:string,input:unknown){
   if(operation==='entities.types')return {ok:true,value:(input as {template:string}).template==='onto'?['graph-type','graph-node','graph-edge'].map(type=>({installationId:'onto',type,title:type,description:'',schema:{},writable:true})):[]};
   return {ok:true,value:{sourceInstallationIds:migrated?[who.installationId]:[]}};
  }}}});
