@@ -34,3 +34,24 @@ test("demo Wiki serves documents and refuses writes without an installation data
   assert.equal((await app.call(api,owner,{method:"POST",body:{operation:"SaveDocument",variables:{input:{title:"No"}}}})).status,403);
  }finally{await app.dispose();}
 });
+
+test("an entity page reads Onto without copying its entity and loses source access safely",async()=>{
+ let readable=true;
+ const app=await appWorker("wiki-map",new URL("../.outfitter/packages/operational.json",import.meta.url),"wiki-map-installation",{workflowHost:()=>({async call(operation,input){
+  if(operation==="entities.types")return {ok:true,value:(input as {template:string}).template==="onto"?["graph-type","graph-node","graph-edge"].map(type=>({installationId:"onto",type,writable:true,title:type,description:"",schema:{}})):[]};
+  if(operation==="entities.get"&&readable)return {ok:true,value:{ref:{installationId:"onto",type:"graph-node",id:"person"},revision:1,title:"Ada",attributes:{slug:"ada",summary:"Project collaborator",body:"Shared **context**"},references:[]}};
+  return {ok:false,status:403,message:"Source unavailable"};
+ }})});
+ const scope={organizationId:owner.organizationId,installationId:app.installationId,userId:owner.userId,packageHash:"fixture",phase:"interactive" as const,expiresAt:Date.now()+60000};
+ try{
+  const before=await app.database.prepare("SELECT count(*) AS count FROM wiki_documents").first<{count:number}>();
+  const created=await app.call(api,owner,{method:"POST",body:{operation:"SavePage",variables:{input:{slug:"ada",entityRef:{installationId:"onto",type:"graph-node",id:"person"}}}}});
+  assert.equal(created.status,200,await created.clone().text());
+  const page=await app.call("/p/ada",owner,{workflowHost:scope});
+  assert.match(await page.text(),/Shared <strong>context<\/strong>/);
+  assert.equal((await app.database.prepare("SELECT count(*) AS count FROM wiki_documents").first<{count:number}>())?.count,before?.count);
+  readable=false;
+  const lost=await app.call("/p/ada",owner,{workflowHost:scope});
+  assert.match(await lost.text(),/Linked information is currently unavailable/);
+ }finally{await app.dispose();}
+});

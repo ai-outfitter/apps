@@ -1,15 +1,19 @@
 ---
 import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import AppActionSidebar from "@ai-outfitter/ui/astro/AppActionSidebar.astro";
 import { mount } from "../documents/context";
 const {title,description="Documents and pages connected to your knowledge.",active="home"}=Astro.props;
 const root=mount(Astro.request);
 ---
 <ManagedAppLayout name="Wiki" {title} {description} {active} settingsHref={`${root}settings`} sidebarLinks={[
  {label:"Pages and documents",href:root,active:active==="home"},
+ {label:"People and projects",href:`${root}related`},
  {label:"Create document",href:`${root}new`},
 ]}>
  <slot name="intro-actions" slot="intro-actions" />
+ <button slot="header-actions" type="button" data-agent-sidebar-toggle aria-controls="wiki-map-agent" aria-expanded="false">Ask Wiki</button>
  <slot />
+ <AppActionSidebar slot="overlays" app="wiki-map" label="Wiki" focusId="e9500000-0000-4000-8000-000000000002" conversationNavigation={false}/>
 </ManagedAppLayout>
 <script>import "../documents/forms";</script>
 <style is:global>

@@ -28,7 +28,7 @@ const title=doc?.title ?? entity?.title ?? page.slug;
  {doc&&<p class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":"Draft"}{doc.publishedRevision&&doc.publishedRevision!==doc.revision&&<> · <a href={`?revision=${doc.publishedRevision}`}>View published revision</a></>}</p>}
  {doc&&<article class="wiki-doc" set:html={micromark(doc.body)}/>}
  {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={micromark(doc.generatedBody)}/></section>}
- {entity&&<section><h2>Current information from Onto</h2><p>{entity.title}</p><dl>{Object.entries(entity.attributes).filter(([key,value])=>!["privateData","body"].includes(key)&&typeof value!=="object").map(([key,value])=><><dt>{key}</dt><dd>{String(value)}</dd></>)}</dl></section>}
+ {entity&&<section class="wiki-doc"><h2>Current information from Onto</h2><p>{entity.title}</p><p>{String(entity.attributes.summary ?? "")}</p><div set:html={micromark(String(entity.attributes.body ?? ""))}/></section>}
  {entityError&&<p>Linked information is currently unavailable. This page does not grant access to its source.</p>}
  {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a></li>)}</ul></details>}
 </Layout>

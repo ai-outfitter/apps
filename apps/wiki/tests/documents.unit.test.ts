@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {createHash} from "node:crypto";
 import migrationHashes from "./legacy-migrations.json";
+import {graphql} from "graphql";
+import {graphqlSchema} from "../src/documents/graphql";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync,readFileSync } from "node:fs";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
@@ -57,4 +59,18 @@ test('approval must match this revision and digest; configuration is revision gu
 
 test('installed legacy migration files are unchanged',()=>{
  for(const [name,expected] of Object.entries(migrationHashes)) assert.equal(createHash('sha256').update(readFileSync(new URL(`../migrations/${name}`,import.meta.url))).digest('hex'),expected,name);
+});
+
+test('reader provenance does not expose the original private graph snapshot',async()=>{
+ const {sqlite,db}=fixture();try{
+  const raw=JSON.stringify({kind:'legacy-graph',snapshot:{privateData:{secret:'private-source-value'}},prior:{body:'private-original'},batchId:'batch'});
+  // Simulate a preserved source snapshot before the immutable history seal.
+  sqlite.exec('DROP TRIGGER wiki_revisions_no_update');
+  sqlite.prepare('UPDATE wiki_document_revisions SET provenance=? WHERE documentId=? AND revision=2').run(raw,'legacy');
+  const result=await graphql({schema:graphqlSchema,source:'{document(id:"legacy"){id provenance}}',contextValue:{database:db,identity:who}});
+  assert.equal(result.errors,undefined);
+  assert.deepEqual(JSON.parse(String((result.data?.document as {provenance:string}).provenance)),{kind:'legacy-graph',batchId:'batch'});
+  assert.ok(!JSON.stringify(result).includes('private-source-value'));
+  assert.ok(String(sqlite.prepare('SELECT provenance FROM wiki_document_revisions WHERE documentId=? AND revision=2').get('legacy')?.provenance).includes('private-source-value'));
+ }finally{sqlite.close();}
 });

@@ -8,6 +8,7 @@ onPageLoad(signal=>{
    const operation=String(fields.operation);delete fields.operation;
    if(fields.revision)fields.revision=Number(fields.revision) as never;
    if(fields.slug==="")delete fields.slug;
+   if(operation==="SavePage"&&typeof fields.entityRef==="string")fields.entityRef=JSON.parse(fields.entityRef);
    const button=form.querySelector<HTMLButtonElement>("button[type=submit],button:not([type])");
    if(button)button.disabled=true;
    let notice=form.querySelector<HTMLElement>("[role=alert]");

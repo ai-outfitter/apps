@@ -28,7 +28,9 @@
         "actions.publish",
         "graph.serve",
         "data.export",
-        "entities.read"
+        "entities.read",
+        "threads.use",
+        "threads.provide"
       ]
     }
   },

@@ -2,17 +2,23 @@ import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, Gra
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
-import { archiveDocument, getDocument, getPage, listDocuments, listPages, pageInput, publishDocument, revisions, saveDocument, saveInput, savePage, transitionInput, type PolicyCheck } from "./store";
+import { archiveDocument, getDocument, getPage, listDocuments, listPages, pageInput, publishDocument, revisions, saveDocument, saveInput, savePage, transitionInput, type PolicyCheck, type Document as StoredDocument, type DocumentRevision as StoredRevision, type Page as StoredPage } from "./store";
 
 export type Context = ActionContext & { database: AgentDatabase; policyCheck?: PolicyCheck };
 const revisionFields = {
- documentId:{type:GraphQLID}, revision:{type:GraphQLInt}, title:{type:GraphQLString},summary:{type:GraphQLString},body:{type:GraphQLString},generatedBody:{type:GraphQLString},provenance:{type:GraphQLString},editorId:{type:GraphQLString},createdAt:{type:GraphQLString},
+ documentId:{type:GraphQLID}, revision:{type:GraphQLInt}, title:{type:GraphQLString},summary:{type:GraphQLString},body:{type:GraphQLString},generatedBody:{type:GraphQLString},
+ provenance:{type:GraphQLString,resolve:(row:{provenance:string|null})=>{
+  if(!row.provenance)return null;
+  const raw=JSON.parse(row.provenance);
+  // Original snapshots remain in the backup/history store, not the reader API.
+  return JSON.stringify({kind:raw.kind,...(raw.batchId?{batchId:raw.batchId}:{})});
+ }},editorId:{type:GraphQLString},createdAt:{type:GraphQLString},
 };
-const Revision = new GraphQLObjectType({ name:"DocumentRevision", fields:revisionFields });
-const Document = new GraphQLObjectType({name:"WikiDocument",fields:{
+const Revision = new GraphQLObjectType<StoredRevision>({ name:"DocumentRevision", fields:revisionFields });
+const Document = new GraphQLObjectType<StoredDocument>({name:"WikiDocument",fields:{
  ...revisionFields,id:{type:GraphQLID},publishedRevision:{type:GraphQLInt},archived:{type:GraphQLBoolean,resolve:value=>!!value.archived},
 }});
-const Page = new GraphQLObjectType({name:"WikiPage",fields:{id:{type:GraphQLID},slug:{type:GraphQLString},documentId:{type:GraphQLID},entityRef:{type:GraphQLString},parentId:{type:GraphQLID},revision:{type:GraphQLInt},autoPublish:{type:GraphQLBoolean,resolve:value=>!!value.autoPublish},policyRef:{type:GraphQLString}}});
+const Page = new GraphQLObjectType<StoredPage>({name:"WikiPage",fields:{id:{type:GraphQLID},slug:{type:GraphQLString},documentId:{type:GraphQLID},entityRef:{type:GraphQLString},parentId:{type:GraphQLID},revision:{type:GraphQLInt},autoPublish:{type:GraphQLBoolean,resolve:value=>!!value.autoPublish},policyRef:{type:GraphQLString}}});
 export const graphqlSchema = new GraphQLSchema({
  query:new GraphQLObjectType<unknown,Context>({name:"Query",fields:{
   documents:{type:new GraphQLList(Document),args:{after:{type:GraphQLID},first:{type:GraphQLInt}},resolve:(_,args,ctx)=>listDocuments(ctx.database,args.after ?? "",args.first ?? 50)},
