@@ -28,6 +28,7 @@ test("the manifest and package describe a demo-only Astro app", () => {
   expect(pkg.dependencies).toHaveProperty("@ai-outfitter/app-sdk");
   expect(pkg.scripts.build).toMatch(/outfitter-app-build/);
   expect(pkg.scripts["test:unit"]).toBeTruthy();
+  expect(pkg.scripts.dev).toMatch(/astro dev/);
   expect(readdirSync(join(app, "tests")).some((file) => readFileSync(join(app, "tests", file), "utf8").includes("summarize"))).toBe(true);
   // The request contract comes from the SDK's integration, not a copy of it.
   expect(readFileSync(join(app, "astro.config.mjs"), "utf8")).toMatch(/outfitterApp\(/);

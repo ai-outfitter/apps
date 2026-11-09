@@ -7,6 +7,7 @@
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build --mode demo",
     "check": "astro check",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",

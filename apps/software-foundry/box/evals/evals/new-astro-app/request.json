@@ -11,7 +11,7 @@
     },
     {
       "id": "package",
-      "text": "apps/release-radar/package.json is @ai-outfitter/app-release-radar version 0.1.0 with outfitter.kind app, depends on astro, @astrojs/cloudflare and the SDK packages like apps/hr, and has build (outfitter-app-build --mode demo), check (astro check), test and test:unit (node:test) scripts."
+      "text": "apps/release-radar/package.json is @ai-outfitter/app-release-radar version 0.1.0 with outfitter.kind app, depends on astro, @astrojs/cloudflare and the SDK packages like apps/hr, and has dev (astro dev), build (outfitter-app-build --mode demo), check (astro check), test and test:unit (node:test) scripts."
     },
     {
       "id": "staged-data",
