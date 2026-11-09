@@ -1,6 +1,6 @@
 import {onPageLoad} from "@ai-outfitter/ui/page";
 
-onPageLoad(signal=>{
+if(import.meta.env.OUTFITTER_APP_MODE === "operational") onPageLoad(signal=>{
  for(const form of document.querySelectorAll<HTMLFormElement>("form[data-wiki-form]")) {
   form.addEventListener("submit",async event=>{
    event.preventDefault();event.stopImmediatePropagation();
