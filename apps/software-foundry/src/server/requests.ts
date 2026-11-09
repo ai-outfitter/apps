@@ -4,7 +4,7 @@ import { z } from "zod";
 import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { taskInvocation, type WorkflowHost, type PhaseInput } from "@ai-outfitter/app-sdk/workflow-host";
-import { defaultWiki } from "@ai-outfitter/app-sdk/wiki";
+import { defaultWiki } from "@ai-outfitter/onto/client";
 import { requestFeatureInput, recordWorkRequest, verifiedAuthority, workRequestSchema } from "./feature-requests";
 import { approvedTarget, type IntakeContext } from "./intake";
 export const requestInput = requestFeatureInput.extend({kind:z.enum(["feature","bug"])});

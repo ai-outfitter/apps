@@ -6,10 +6,11 @@
 import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
+import { matchesSourceAndProperties, sourceKey } from "./graph-graphql-source";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
-import { wikiGraphRecords } from "./wiki";
-import type { WikiGraphSnapshot } from "./wiki-graph";
+import { wikiGraphRecords } from "./graph-records";
+import type { WikiGraphSnapshot } from "@ai-outfitter/onto-contracts";
 
 export const graphQueryAction = "graph.query";
 const typeRef = z.string().trim().min(1).max(120);
@@ -24,12 +25,26 @@ export const savedSelection = graphSelectionDefinition.omit({ id: true, version:
 });
 export type SavedSelection = z.infer<typeof savedSelection>;
 
+/** The filters only a node query may carry, with the message for each one misused. */
+function nodeOnlyFilters(query: { entity: string; slugs?: unknown; sources?: unknown; properties?: Record<string, unknown> }) {
+  const node = query.entity === "node";
+  return [
+    ...(query.slugs && !node ? [["slugs", "Only node queries filter by slug"]] : []),
+    ...(query.sources && !node ? [["sources", "Only node queries filter by source"]] : []),
+    ...(query.properties && (!node || Object.keys(query.properties).length > 8) ? [["properties", "Only node queries filter by properties, up to 8"]] : []),
+  ] as [string, string][];
+}
+
 export const graphQuery = z.strictObject({
   name: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,39}$/).describe("Names this query's entry in the result."),
   entity: z.enum([...kinds, "all"]).default("node").describe("Records to match. \"all\" is only valid with aggregate."),
   types: z.array(typeRef).min(1).max(32).optional().describe("Node or edge type names or IDs; for entity \"type\", the type definitions themselves."),
   ids: z.array(z.string().min(1).max(200)).min(1).max(200).optional().describe("Exact record IDs."),
   slugs: z.array(z.string().min(1).max(80)).min(1).max(200).optional().describe("Node queries only: exact slugs (a node's address, unique in its Wiki)."),
+  sources: z.array(z.strictObject({ installationId: z.string().min(1).max(128), type: z.string().min(1).max(128), id: z.string().min(1).max(128) })).min(1).max(100).optional()
+    .describe("Node queries only: the pages whose canonical `source` is one of these app records (installation, type and id), such as a Planning project's Project page."),
+  properties: z.record(z.string().min(1).max(64), z.union([z.string().max(512), z.number(), z.boolean()])).optional()
+    .describe("Node queries only: stored property values that must match exactly, such as { planning_installation_id, project_id } on a use case."),
   touching: z.strictObject({
     nodeIds: z.array(z.string().min(1).max(200)).min(1).max(200),
     direction: z.enum(["outgoing", "incoming", "both"]).default("both"),
@@ -57,7 +72,7 @@ export const graphQuery = z.strictObject({
 }).superRefine((query, context) => {
   if (query.entity === "all" && !query.aggregate) context.addIssue({ code: "custom", path: ["entity"], message: "entity \"all\" requires aggregate" });
   if (query.touching && query.entity !== "edge") context.addIssue({ code: "custom", path: ["touching"], message: "Only edge queries filter by touching nodes" });
-  if (query.slugs && query.entity !== "node") context.addIssue({ code: "custom", path: ["slugs"], message: "Only node queries filter by slug" });
+  for (const [field, message] of nodeOnlyFilters(query)) context.addIssue({ code: "custom", path: [field], message });
   if (query.expand && query.entity !== "node") context.addIssue({ code: "custom", path: ["expand"], message: "Only node queries expand" });
   if (query.aggregate && (query.expand || query.cursor)) context.addIssue({ code: "custom", path: ["aggregate"], message: "Aggregates take no expand or cursor" });
 });
@@ -202,6 +217,7 @@ function matcher(index: Index, query: GraphQuery, missingTypes: Set<string>) {
   for (const name of typeFilter?.missing ?? []) missingTypes.add(name);
   const ids = query.ids ? new Set(query.ids) : null;
   const slugs = query.slugs ? new Set(query.slugs) : null;
+  const sources = query.sources ? new Set(query.sources.map(sourceKey)) : null;
   const touching = query.touching ? new Set(query.touching.nodeIds) : null;
   const direction = query.touching?.direction;
   const touches = (record: Row) => !touching
@@ -211,7 +227,8 @@ function matcher(index: Index, query: GraphQuery, missingTypes: Set<string>) {
   return (kind: Kind) => index.rows[kind].filter(record =>
     archivedOk(!!record.archived) && (!ids || ids.has(record.id)) && (!slugs || slugs.has(String(record.slug))) && touches(record)
     && (!typeFilter || typeFilter.ids.has(kind === "type" ? record.id : String(record.typeId)))
-    && (!needle || textMatch(kind, record, needle)));
+    && (!needle || textMatch(kind, record, needle))
+    && (kind !== "node" || matchesSourceAndProperties(record, sources, query.properties)));
 }
 
 function countGroups(index: Index, scopes: Kind[], matching: (kind: Kind) => Row[]) {

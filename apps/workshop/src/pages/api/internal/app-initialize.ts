@@ -5,7 +5,7 @@ import {
   respond,
 } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { defaultWiki } from "@ai-outfitter/app-sdk/wiki";
+import { defaultWiki } from "@ai-outfitter/onto/client";
 import { setupHardware } from "../../../server/hardware-ontology";
 export const POST: APIRoute = ({ request, locals }) =>
   respond(async () => {

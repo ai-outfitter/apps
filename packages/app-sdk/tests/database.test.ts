@@ -68,21 +68,6 @@ test("a non-engineering provider filters and orders before pagination", async ()
   db.close();
 });
 
-test("Wiki and collection helpers share discovery within one dispatch", async () => {
-  const { defaultWiki } = await import("../src/wiki");
-  let calls = 0;
-  const host = { async call(operation: string) {
-    assert.equal(operation, "entities.types"); calls++;
-    return ["graph-type", "graph-node", "graph-edge"].map((type, index) => ({
-      installationId: "wiki", type, collection: ["types", "nodes", "edges"][index],
-      template: "wiki-map", writable: false,
-    }));
-  } } as unknown as WorkflowHost<"interactive">;
-  await defaultWiki(host);
-  await appDataContext(host).apps.installation("wiki");
-  assert.equal(calls, 1, "collection reads reuse the already discovered Wiki schemas");
-});
-
 test("explicit installation discovery is scoped, coalesced, retryable and request-local", async () => {
   let attempts = 0;
   let fail = true;

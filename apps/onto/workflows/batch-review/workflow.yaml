@@ -1,0 +1,59 @@
+version: beta
+id: batch-review
+summary: The ontology steward reviews a submitted Wiki change batch and attaches advisory findings. It approves, rejects and holds nothing.
+actors: {}
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 */6 * * *"
+steps:
+  # No actor fills this step: the Wiki does, through the workflow host, when a
+  # batch is submitted or a member asks for a fresh review on its Changes page.
+  # It runs deterministic checks, then the ontology steward prompt
+  # (agent/ontology-steward.md, "Review one batch") over the batch's operations
+  # and the records they touch, and saves the findings on the batch with this
+  # run's ID. This run is the review's audit trail; a re-review is a new run.
+  - id: review
+    inference: {maxOutputTokens: 4000, timeoutMs: 60000}
+    inputs:
+      batchId:
+        schema: {type: string, format: uuid, description: The reviewed change batch}
+    outputs:
+      findings:
+        connector: database
+        record: batch-review.recorded
+        schema:
+          type: object
+          properties:
+            batchId: {type: string, format: uuid}
+            state: {enum: [complete, failed]}
+            complete: {type: boolean, description: False when the batch or its neighborhood was read only in part}
+            prompt:
+              type: object
+              properties:
+                path: {type: string}
+                digest: {type: string, description: SHA-256 of the exact prompt text}
+              required: [path, digest]
+            counts:
+              type: object
+              properties:
+                error: {type: integer, minimum: 0}
+                warning: {type: integer, minimum: 0}
+                note: {type: integer, minimum: 0}
+              required: [error, warning, note]
+            findings:
+              type: array
+              maxItems: 200
+              items:
+                type: object
+                properties:
+                  ref: {type: [string, "null"]}
+                  rule: {type: string}
+                  severity: {enum: [error, warning, note]}
+                  message: {type: string}
+                  fix: {type: [string, "null"]}
+                required: [ref, rule, severity, message, fix]
+            error: {type: [string, "null"]}
+          required: [batchId, state, complete, prompt, counts, findings, error]
+outputs:
+  findings: review.outputs.findings

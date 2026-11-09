@@ -1,0 +1,56 @@
+{
+  "name": "@ai-outfitter/app-onto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "build": "outfitter-app-build",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "seeds:check": "node --import tsx scripts/check-seeds.ts",
+    "transfer": "node --import tsx scripts/wiki-transfer.ts",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json",
+    "migrations:check": "node --import tsx scripts/migration-baseline.ts"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/onto": "0.1.0",
+    "@ai-outfitter/server": "*",
+    "@ai-outfitter/ui": "*",
+    "@ai-outfitter/workflow-batch-review": "0.1.0",
+    "@ai-outfitter/workflow-document-generation": "0.1.0",
+    "@ai-outfitter/workflow-ontology-audit": "0.1.0",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/react": "^7.0.0",
+    "astro": "^7.3.5",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "mdast-util-from-markdown": "2.1.0",
+    "micromark": "4.0.3",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5",
+    "@ai-outfitter/connector-github": "0.1.0"
+  },
+  "devDependencies": {
+    "@ai-outfitter/app-build": "*",
+    "@ai-outfitter/app-test": "*",
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

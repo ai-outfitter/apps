@@ -32,7 +32,8 @@
     "replicad-opencascadejs": "1.1.0",
     "replicad-threejs-helper": "1.0.0",
     "three": "0.185.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@ai-outfitter/onto": "0.1.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

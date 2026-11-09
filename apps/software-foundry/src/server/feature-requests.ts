@@ -7,7 +7,8 @@ import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { appActor, isResidentPrincipal, requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { nodeInput, readWikiGraph, stableGraphId, wikiAdapter, wikiGraph } from "@ai-outfitter/app-sdk/wiki";
+import { nodeInput, wikiGraph } from "@ai-outfitter/onto/contracts";
+import { readWikiGraph, stableGraphId, wikiAdapter } from "@ai-outfitter/onto/client";
 import { nodeWitness, startWorkInput } from "./graph-work";
 import { approvedTarget, type IntakeContext } from "./intake";
 

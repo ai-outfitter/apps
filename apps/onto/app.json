@@ -1,0 +1,84 @@
+{
+  "id": "outfitter/wiki-map",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "storage": {
+    "buckets": {
+      "main": {
+        "spaces": {
+          "assets": {
+            "visibility": "organization",
+            "ttl": "10y",
+            "maxTtl": "10y"
+          }
+        }
+      }
+    }
+  },
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "storage.buckets",
+        "workflow.host",
+        "invocations.schedule",
+        "entities.publish",
+        "actions.publish",
+        "graph.transfer",
+        "graph.serve",
+        "data.export",
+        "entities.read",
+        "entities.write",
+        "identity.resolve",
+        "workflow.batch-review.start",
+        "home-cards.publish",
+        "threads.use",
+        "threads.provide",
+        "workflow.ontology-audit.start",
+        "actions.invoke",
+        "workflow.document-generation.start",
+        "connector.github.commits.list",
+        "connector.github.repositories.commit",
+        "connector.github.pulls.create"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "admin-only",
+    "personal": true,
+    "operational": {
+      "slug": "wiki-map",
+      "name": "Onto",
+      "description": "Shared context for people and agents: typed projects, participants, technologies and documented relationships."
+    },
+    "demo": {
+      "slug": "wiki-map",
+      "name": "Onto",
+      "description": "Demo: explore typed projects, participants, technologies and their documented relationships."
+    },
+    "presentation": {
+      "outcome": "People and agents discover the same entities, relationships and shared business meaning.",
+      "connectors": [],
+      "steps": [
+        [
+          "Define meaning",
+          "Document node and relationship types with documented properties and relationships."
+        ],
+        [
+          "Connect entities",
+          "Create typed entities and directed relationships with evidence and revisions."
+        ],
+        [
+          "Explore context",
+          "Browse shared context and type documentation, or discover the same records through Outfitter MCP."
+        ]
+      ],
+      "access": "Owners and admins edit Wiki notes, types and relationships; members read shared context. Source adapters own published records and their permissions. Demo data is synthetic and read-only."
+    },
+    "cover": "catalog/cover.svg"
+  },
+  "initialize": true
+}

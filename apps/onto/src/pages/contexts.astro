@@ -1,0 +1,7 @@
+---
+import Layout from "../components/Layout.astro";
+---
+<Layout title="Knowledge graphs" description="Reusable context for roles, decisions and delivery." page="page" routeDepth={1}>
+  <div id="graph" class="wiki-map" aria-busy="true" data-view="context-catalog"></div>
+</Layout>
+<script>import "../scripts/graph.ts";</script>

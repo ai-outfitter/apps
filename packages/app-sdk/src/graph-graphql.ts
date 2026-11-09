@@ -48,33 +48,14 @@ import { buildGraphSchema, type GraphSchemaOptions } from "./graph-graphql-schem
 import { type GraphSource, memorySource } from "./graph-graphql-source";
 
 export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-names";
-export { type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, memorySource, type NodeQuery } from "./graph-graphql-source";
+export { type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, memorySource, type NodeQuery, type PropertyFilter, sourceKey, type SourceRef } from "./graph-graphql-source";
 export { type GraphContext, graphContext } from "./graph-graphql-resolve";
 export { buildGraphSchema, type GraphSchemaOptions, type KeyArgs } from "./graph-graphql-schema";
 export { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar } from "./graph-graphql-scalars";
 export { definitionFromResult, queryHash, resultRecords, selectFromResult, type SelectionDocument, selectionDocument, selectionQueryDepth, selectionVariables } from "./graph-graphql-selection";
 
-export const graphGraphqlAction = "graph.graphql";
-export const graphGraphqlInput = z.strictObject({
-  query: z.string().min(1).max(32768),
-  variables: z.record(z.string(), z.json()).optional()
-    .refine(variables => !variables || new TextEncoder().encode(JSON.stringify(variables)).length <= 32768, "variables may be at most 32 KiB"),
-  operationName: z.string().min(1).max(200).optional(),
-  maxBytes: z.number().int().min(8192).max(262144).default(65536),
-});
-export type GraphGraphqlInput = z.input<typeof graphGraphqlInput>;
-const graphqlError = z.strictObject({
-  message: z.string(),
-  path: z.array(z.union([z.string(), z.number()])).optional(),
-  extensions: z.record(z.string(), z.json()).optional(),
-});
-export const graphGraphqlResult = z.strictObject({
-  data: z.json().nullable(),
-  errors: z.array(graphqlError).optional(),
-  /** truncated/truncatedPaths when lists were cut to fit maxBytes; naming warnings. */
-  extensions: z.record(z.string(), z.json()).optional(),
-});
-export type GraphGraphqlResult = z.infer<typeof graphGraphqlResult>;
+export { graphGraphqlAction, graphGraphqlInput, graphGraphqlResult, type GraphGraphqlInput, type GraphGraphqlResult, type GraphGraphqlError } from "./graph-protocol";
+import { graphGraphqlInput, type GraphGraphqlResult, type GraphGraphqlError } from "./graph-protocol";
 
 const maxErrors = 20;
 /** Platform dispatch reads at most 512 KiB; a schema-only request may use up to this much. */
@@ -86,7 +67,6 @@ const schemaFields = new Set(["__schema", "__type", "__typename", "sdl"]);
 const rootSelections = (document: DocumentNode, operationName?: string) => document.definitions.flatMap(definition =>
   definition.kind === Kind.OPERATION_DEFINITION && (!operationName || definition.name?.value === operationName) ? definition.selectionSet.selections : []);
 const readsSchema = (selection: SelectionNode) => selection.kind === Kind.FIELD && schemaFields.has(selection.name.value) && selection.name.value !== "__typename";
-export type GraphGraphqlError = z.infer<typeof graphqlError>;
 const shape = (error: GraphQLError): GraphGraphqlError => ({
   message: error.message,
   ...(error.path ? { path: [...error.path] } : {}),

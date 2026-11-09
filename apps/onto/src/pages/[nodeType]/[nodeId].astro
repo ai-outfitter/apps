@@ -1,0 +1,7 @@
+---
+import EntityPage from "../../components/EntityPage.astro";
+import { canonicalProductRoute } from "../../lib/product-route";
+const canonical = canonicalProductRoute(Astro.url, Astro.params.nodeType);
+if (canonical) return Astro.redirect(canonical, 308);
+---
+<EntityPage />
