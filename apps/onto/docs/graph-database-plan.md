@@ -127,7 +127,7 @@ page, carries that record's key itself. Keys never leave Onto in results.
    endpoint types, add the account types, and put batches back on UUIDs.
    Batches gain optional anchors.
 3. **Addresses** replace today's handles everywhere agents read and write.
-4. **Import.** One script copies an old Wiki's database into a fresh Onto,
+4. **Import.** `scripts/import-old-wiki.ts` copies an old Wiki's database into a fresh Onto,
    keeping ids and slugs and listing any edge the new rules refuse. Before
    Onto replaces the catalog Wiki, Governance, Planning and Forerunner give
    their edge types endpoints too. Once each organization's Onto is checked,
