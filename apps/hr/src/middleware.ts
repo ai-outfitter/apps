@@ -10,10 +10,12 @@ export const onRequest = defineMiddleware(async ({ request }, next) => {
       ? Response.json({ app: "hr", status: "ok" })
       : await next();
   response.headers.set("Cache-Control", "private, no-store");
-  response.headers.set(
-    "Content-Security-Policy",
-    "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
-  );
+  // `astro dev` injects inline styles and scripts; builds emit them as files.
+  if (!import.meta.env.DEV)
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    );
   response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 });
