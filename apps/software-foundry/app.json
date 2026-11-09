@@ -106,6 +106,6 @@
     "policy": "scripts/preview.mjs"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

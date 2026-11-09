@@ -82,6 +82,6 @@
     "cover": "catalog/cover.svg"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

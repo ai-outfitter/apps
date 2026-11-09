@@ -27,8 +27,8 @@ test("Wiki discovery coalesces within a dispatch but rechecks a new host's permi
   const stub: WorkflowHostStub = {
     async call(operation, input) {
       assert.equal(operation, "entities.types");
-      assert.deepEqual(input, { template: "wiki-map" });
-      calls++;
+      assert.ok(["onto", "wiki-map"].includes((input as {template:string}).template));
+      if ((input as {template:string}).template === "onto") calls++;
       return { ok: true, value: providers("wiki", writable) };
     },
   };
@@ -256,5 +256,42 @@ test("Wiki and collection helpers share discovery within one dispatch", async ()
   } } as unknown as WorkflowHost<"interactive">;
   await defaultWiki(host);
   await appDataContext(host).apps.installation("wiki");
-  assert.equal(calls, 1, "collection reads reuse the already discovered Wiki schemas");
+  assert.equal(calls, 2, "collection reads reuse both provider discoveries");
+});
+
+
+test("Onto discovery falls back only when absent, and rejects incomplete or ambiguous providers", async () => {
+  const queries: unknown[] = [];
+  let rows = [] as ReturnType<typeof providers>;
+  const make = () => workflowHost<"interactive">({ props: { workflowHost: {
+    async call(_operation: string, input: unknown) {
+      queries.push(input);
+      return { ok: true, value: (input as {template: string}).template === "onto" ? rows : providers("legacy") };
+    },
+  } } });
+  assert.equal((await defaultWiki(make())).installationId, "legacy");
+  assert.deepEqual(queries, [{template: "onto"}, {template: "wiki-map"}]);
+  queries.length = 0;
+  rows = providers("onto").slice(0, 1);
+  await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
+  assert.deepEqual(queries, [{template: "onto"}]);
+  rows = [...providers("first"), ...providers("second")];
+  await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
+  rows = providers("onto");
+  queries.length = 0;
+  await assert.rejects(defaultWiki(make())); // A distinct legacy source has no trusted receipt.
+  assert.deepEqual(queries.slice(0, 2), [{template: "onto"}, {template: "wiki-map"}]);
+});
+
+
+test("an empty Onto cannot shadow an unmigrated legacy graph", async () => {
+ let migrated=false;
+ const host=()=>workflowHost<"interactive">({props:{workflowHost:{async call(operation,input){
+  if(operation === "entities.types") return {ok:true,value:providers((input as {template:string}).template === "onto" ? "destination" : "source")};
+  assert.equal(operation,"actions.call");
+  return {ok:true,value:{sourceInstallationIds:migrated?["source"]:[]}};
+ }}}});
+ await assert.rejects(defaultWiki(host()),error=>error instanceof Response&&error.status===409);
+ migrated=true;
+ assert.equal((await defaultWiki(host())).installationId,"destination");
 });
