@@ -26,6 +26,8 @@ import type { ThreadAdapters, ThreadPrincipal } from "./types";
 import { appInstallations } from "@ai-outfitter/server/schema";
 
 type Descriptor = ThreadTypeDescriptor & { installationId: string };
+/** Thread types the platform provides itself; an app never provides one. */
+export const isPlatformType = (type: string) => type.startsWith("platform.");
 const readOnly = () => new Response("Read-only thread type", { status: 405 });
 
 /** The generic thread service. Built per request; every operation re-applies the principal's visibility. */
@@ -69,6 +71,10 @@ export function createThreadService(adapters: ThreadAdapters) {
   /** The descriptor `installationId` publishes for `type`, if it is a current same-owner provider. */
   /** Undefined for no such current provider or type; null when a current provider did not answer. */
   async function descriptor(principal: ThreadPrincipal, installationId: string | null, type: string) {
+    if (isPlatformType(type)) {
+      const found = installationId === null ? adapters.platform?.types.find((candidate) => candidate.type === type) : undefined;
+      return found ? { ...found, installationId: null } : undefined;
+    }
     if (!installationId || !(await installations(principal)).has(installationId)) return undefined;
     const described = await discover(principal, installationId);
     if (!described) return null;
@@ -229,6 +235,13 @@ export function createThreadService(adapters: ThreadAdapters) {
     return { ...page, entries: page.entries.map((entry) => ({ ...entry, thread: ref })) };
   }
 
+  /** One provider callback: the platform's own in-process, an app's through dispatch. */
+  function providerCall(principal: ThreadPrincipal, installationId: string | null, operation: string, input: unknown) {
+    if (installationId !== null) return adapters.providers.call(principal, installationId, operation, input);
+    if (!adapters.platform) throw new Response("Thread provider unavailable", { status: 409 });
+    return adapters.platform.call(principal, operation, input);
+  }
+
   /** A conversation type the acting installation provides with `operation`. */
   async function conversationType(principal: ThreadPrincipal, installationId: string | null, type: string, operation: "create" | "append" | "send") {
     const found = await descriptor(principal, installationId, type);
@@ -243,7 +256,11 @@ export function createThreadService(adapters: ThreadAdapters) {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: inheritance, creation identity and seeds are one atomic write.
   async function create(principal: ThreadPrincipal, raw: unknown) {
     const input = createThreadInput.parse(raw);
-    const provider = await conversationType(principal, principal.installationId, input.type, "create");
+    // A platform thread belongs to no installation and only to the member who opens it.
+    const platformThread = isPlatformType(input.type);
+    if (platformThread && (!principal.memberContext || input.parent)) throw forbidden("Platform threads are a member's own");
+    const installationId = platformThread ? null : principal.installationId;
+    const provider = await conversationType(principal, installationId, input.type, "create");
     const parent = input.parent ? await requireRow(principal, input.parent.id) : undefined;
     if (parent && input.parent?.entryId) {
       const [entry] = await db.select({ id: messages.id }).from(messages).where(and(eq(messages.id, input.parent.entryId), eq(messages.chatId, parent.id)));
@@ -251,7 +268,7 @@ export function createThreadService(adapters: ThreadAdapters) {
     }
     // A child takes its parent's owner and visibility; personal threads are always private.
     const organizationId = parent ? parent.organizationId : principal.organizationId;
-    const visibility = parent ? parent.visibility : organizationId ? input.visibility : "private";
+    const visibility = parent ? parent.visibility : organizationId && !platformThread ? input.visibility : "private";
     if (visibility === "private" && !principal.memberContext) throw forbidden("Private threads need a member's own request");
     const id = input.id ?? crypto.randomUUID();
     // The creation identity: everything the request fixed, including provenance and seed history.
@@ -259,11 +276,11 @@ export function createThreadService(adapters: ThreadAdapters) {
     // upgrade is the same request and keeps the version stored at creation.
     const creationHash = await sha256({
       type: input.type, title: input.title, organizationId, visibility, context: input.context ?? null, parent: input.parent ?? null,
-      entries: input.entries ?? [], installationId: principal.installationId, userId: principal.userId,
+      entries: input.entries ?? [], installationId, userId: principal.userId,
     });
     const at = now();
     const row: typeof chats.$inferInsert = {
-      id, userId: principal.userId, organizationId, installationId: principal.installationId, visibility,
+      id, userId: principal.userId, organizationId, installationId, visibility,
       type: input.type, typeVersion: provider.version, title: input.title.slice(0, 200), contextType: input.context?.type ?? null, contextId: input.context?.id ?? null,
       contextLabel: input.context?.label ?? null, parentId: parent?.id ?? null, parentEntryId: input.parent?.entryId ?? null,
       creationHash, notifyDeleted: Boolean(provider.notify?.includes("deleted")), createdAt: at, incarnation: crypto.randomUUID(),
@@ -275,7 +292,7 @@ export function createThreadService(adapters: ThreadAdapters) {
       id: entry.id, chatId: id, role: entry.role, content: entry.text, parts: JSON.stringify([{ type: "text", text: entry.text }]),
       // An imported entry's role is presentation; its actor is the verified caller who inserted it.
       submissionId: entry.role === "user" ? entry.id : null, actor, origin,
-      actorUserId: principal.userId, installationId: principal.installationId,
+      actorUserId: principal.userId, installationId,
       metadata: entry.metadata === undefined ? null : JSON.stringify(entry.metadata), recordedAt: entry.recordedAt ?? null, createdAt: at + index,
     } satisfies typeof messages.$inferInsert));
     try {
@@ -320,6 +337,26 @@ export function createThreadService(adapters: ThreadAdapters) {
     const input = appendEntryInput.parse(raw);
     const row = await requireRow(principal, input.threadId);
     await requireAppender(principal, row);
+    return insertEntry(principal, row, input);
+  }
+
+  /**
+   * Platform code records something that happened for a member into their own platform thread:
+   * creates it on first use exactly as the member's own first open would (the same request, so
+   * their later open is a replay), then appends the entry once per source key. Only platform code
+   * calls this; no browser, app or MCP route reaches it.
+   */
+  async function record(owner: { userId: string; organizationId: string | null }, thread: z.input<typeof createThreadInput> & { id: string },
+    entry: Omit<z.input<typeof appendEntryInput>, "threadId">): Promise<ThreadEntry> {
+    if (!isPlatformType(thread.type)) throw forbidden("Only platform threads are recorded into");
+    const actor = { kind: "platform" as const, id: "activity" };
+    const principal: ThreadPrincipal = { ...owner, memberContext: true, canAdminister: false, installationId: null, actor, origin: actor };
+    await create(principal, thread);
+    const row = await requireRow(principal, thread.id);
+    return insertEntry(principal, row, appendEntryInput.parse({ ...entry, threadId: thread.id }));
+  }
+
+  async function insertEntry(principal: ThreadPrincipal, row: ThreadRow, input: z.output<typeof appendEntryInput>): Promise<ThreadEntry> {
     const payloadHash = await sha256({ role: input.role, parts: input.parts, metadata: input.metadata ?? null, recordedAt: input.recordedAt ?? null });
     const at = Math.max(now(), row.updatedAt + 1);
     const entry: typeof messages.$inferInsert = {
@@ -442,7 +479,7 @@ export function createThreadService(adapters: ThreadAdapters) {
     return threadIds.length;
   }
 
-  const reply = replies(adapters, { requireRow, conversationType, files });
+  const reply = replies(adapters, { requireRow, conversationType, providerCall, files });
 
   async function upload(principal: ThreadPrincipal, threadId: string, request: Request) {
     const row = await requireRow(principal, threadId);
@@ -459,8 +496,10 @@ export function createThreadService(adapters: ThreadAdapters) {
   }
 
   return {
-    types, list, get, entries, snapshot, create, update, append, remove, purgeUser, purgeUserStatements, purgeFiles,
-    send: reply.send, submission: reply.submission, cancel: reply.cancel,
+    types, list, get, entries, snapshot, create, update, append, record, remove, purgeUser, purgeUserStatements, purgeFiles,
+    send: reply.send, submission: reply.submission, cancel: reply.cancel, inspect: reply.inspect,
+    /** Whether this caller may inspect replies (the debug view's entry point). */
+    inspector: async (principal: ThreadPrincipal) => Boolean(await adapters.inspector?.(principal)),
     upload, readAttachment, sweep: files.sweep,
   };
 }

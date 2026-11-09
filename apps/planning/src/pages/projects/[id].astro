@@ -1,0 +1,29 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { appHref } from "../../app-href";
+import Layout from "../../components/PlanningLayout.astro";
+import ProjectWorkspace from "../../components/ProjectWorkspace.astro";
+import WorkContext from "../../components/WorkContext.astro";
+
+const projectId = Astro.params.id!;
+
+import { demoProjectPage, projectPage } from "../../server/project-page";
+
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const model = demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals, projectId);
+const href = (path: string) => appHref(Astro.url.pathname, path);
+Astro.response.status = model.status;
+---
+<Layout wiki={model.wiki ?? null} title={model.projects[0]?.name ?? "Project"} description="Review the outcome, documents and work for this project.">
+  <nav slot="intro-actions" class="planning-toolbar" aria-label="Project actions">
+    <Button href={href(`/projects/${projectId}/digest`)} variant="secondary">Daily digest</Button>
+    <Button href={href(`/projects/${projectId}/releases`)} variant="secondary">Press release</Button>
+    <Button href={href(`/projects/${projectId}/evidence`)} variant="secondary">Evidence</Button>
+    <Button variant="secondary" id="link-changes" data-project-id={projectId} disabled={demo}>Link merged PRs</Button>
+    <Button variant="secondary" id="edit-project" disabled={demo}>Edit</Button>
+    <Button variant="secondary" id="delete-project" disabled={demo}>Delete</Button>
+  </nav>
+  <ProjectWorkspace {projectId} {model} />
+  <WorkContext {projectId} />
+  <p><a href={appHref(Astro.url.pathname, `/projects/${projectId}/work`)}>Prepare and inspect work</a></p>
+</Layout>

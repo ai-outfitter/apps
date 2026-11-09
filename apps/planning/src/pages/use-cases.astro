@@ -1,0 +1,32 @@
+---
+import Layout from "../components/PlanningLayout.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const fields = [
+  ["actor", "Actor"], ["goal", "Goal"], ["trigger", "Trigger and preconditions"],
+  ["steps", "Main flow"], ["alternatives", "Alternatives and failures"], ["successCriteria", "Success criteria"],
+];
+---
+<Layout title="Use cases" description="Describe what people need to accomplish and how you will know it works.">
+  <div id="planning" data-use-cases>
+    {demo && <p class="planning-notice">Read-only demo · This use case is synthetic.</p>}
+    <p id="use-case-notice" role="status">Loading use cases…</p>
+    <div class="planning-toolbar">
+      <Button id="new-use-case" disabled>New use case</Button>
+    </div>
+    <p id="use-case-empty" hidden>No use cases yet.</p>
+    <form id="use-case-editor" hidden>
+      <h2 id="use-case-editor-title">New use case</h2>
+      <label>Project <select id="use-case-project" required><option value="">Choose a project</option></select></label>
+      <label>Title <input name="title" required maxlength="160" /></label>
+      <label>Summary <textarea name="summary" rows="2" maxlength="280"></textarea></label>
+      {fields.map(([name,label]) => <label>{label}<textarea name={name} rows="3" maxlength="2500"></textarea></label>)}
+      <div class="planning-toolbar">
+        <Button type="submit">Save to Wiki</Button>
+        <Button id="cancel-use-case" variant="secondary">Cancel</Button>
+      </div>
+    </form>
+    <div id="use-case-list" class="planning-card-grid"></div>
+  </div>
+</Layout>
+<script>import "../scripts/use-cases";</script>

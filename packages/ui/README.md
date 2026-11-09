@@ -1,8 +1,7 @@
 # @ai-outfitter/ui
 
-Private `0.1.0` npm workspace package for the Outfitter webapp and its app
-templates. Consumers compile source directly; no registry publication or
-runtime asset service is required.
+Shared UI for the Outfitter platform and its apps. Consumers compile source
+directly; no registry publication or runtime asset service is required.
 
 ```astro
 ---
@@ -29,8 +28,7 @@ styles own app-specific content; the package owns common appearance and shell
 behavior. Every app compiles its own copy of these assets.
 
 `scripts/workflow-card` renders the shared workflow card from a view model
-(`renderWorkflowCard`), with `workflow.css`; the webapp's
-`src/lib/workflow-drafts.ts` projects definitions into that model.
+(`renderWorkflowCard`), with `workflow.css`.
 
 React entrypoints are `react/ChatComposer`, `react/ChatPanel` and `react/Icon`.
 React is an optional peer: Astro-only consumers do not hydrate it. Mount a single
@@ -50,18 +48,14 @@ in installed apps (standalone display), which have no browser reload: every
 pull runs the registered handlers, or reloads a page that has none, with no
 cooldown.
 
-The package contains no account API calls or tenant authorization. The webapp's
-account adapter and template document adapter supply their own data and links.
+The package contains no account API calls or tenant authorization. Hosts supply
+their own data and links.
 The shared shell has one sidebar per page and delegates drawer behavior from the
 document; it does not install a competing router.
 
-Run `npm ci` at the repository root to link the workspace. Use
-`npm run test:e2e:ui` for isolated component browser checks, plus the root and
-template checks/builds for integration. See [UI architecture](../../docs/ui-components.md)
-for ownership and acceptance boundaries, and [DESIGN.md](../../DESIGN.md)
-for visual guidelines and [theme guide](../../docs/ui-components.md#changing-the-theme-across-all-apps)
-for changes across all consumers. `private: true` intentionally prevents
-publication; a future release needs its own packaging and release decision.
+Run `npm ci` at the repository root to link the workspace, then
+`npm test --workspace @ai-outfitter/ui`. Apps' checks, builds and browser suites
+cover integration.
 
 `Button.astro` renders a native button, or an anchor when `href` is supplied.
 Use `variant="secondary"` for quieter actions; primary is the default. Slot
@@ -77,7 +71,7 @@ import Button from "@ai-outfitter/ui/astro/Button.astro";
 <Button type="submit" disabled={saving}>Save</Button>
 ```
 
-`./astro/ManagedAppLayout.astro` is the full-document shell for installed apps: document metadata, shared frame/navigation, organization link, intro and notice region. App packages import this public entrypoint; `catalog/apps/AppLayout.astro` only forwards older consumers during migration.
+`./astro/ManagedAppLayout.astro` is the full-document shell for installed apps: document metadata, shared frame/navigation, organization link, intro and notice region. App packages import this public entrypoint.
 
 ### Developer run diagnostics
 

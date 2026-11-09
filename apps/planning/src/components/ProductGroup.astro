@@ -1,0 +1,24 @@
+---
+import { appHref } from "../app-href";
+import type { ProductHome } from "../server/product-graphs";
+interface Props { product: ProductHome["products"][number]; }
+const { product } = Astro.props;
+const href = (target: string) => appHref(Astro.url.pathname, target);
+---
+<section class="planning-product-section">
+  <div class="planning-product-heading">
+    <h2><a href={href(product.href)}>{product.title}</a></h2>
+    {product.offerings.length > 0 && <div class="planning-product-offerings" aria-label={`Offerings for ${product.title}`}>
+      {product.offerings.map(offering => <a class="planning-pill" href={href(offering.href)}>{offering.title}</a>)}
+    </div>}
+  </div>
+  {product.summary && <p>{product.summary}</p>}
+  <div class="planning-product-projects">
+    <h3>Projects</h3>
+    {product.projects.length ? <table class="planning-product-project-table" aria-label={`Projects for ${product.title}`}>
+      <thead><tr><th scope="col">Project</th></tr></thead>
+      <tbody>{product.projects.map(project => <tr><td><a href={href(project.href)}>{project.title}</a></td></tr>)}</tbody>
+    </table> : <p>No projects linked yet.</p>}
+    {product.incomplete && <p>Some linked context is not shown. Open the product in Wiki for the complete record.</p>}
+  </div>
+</section>

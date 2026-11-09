@@ -1,0 +1,37 @@
+{
+  "projectId": "00000000-0000-4000-8000-000000000001",
+  "projectTitle": "Launch a useful planning workflow",
+  "release": {
+    "id": "98000000-0000-4000-8000-000000000080",
+    "title": "Shared planning — draft press release",
+    "revision": 1,
+    "body": {
+      "stage": "draft",
+      "headline": "A shared place to choose the next useful step",
+      "subheadline": "Teams can review the outcome, scope and evidence before committing to work.",
+      "customer": "Small teams coordinating a shared project.",
+      "problem": "The announcement, work and evidence are scattered across separate conversations.",
+      "solution": "A project connects the proposed announcement to a small, reviewable evidence bundle.",
+      "inScope": [
+        {
+          "statement": "Review a project's press release and evidence in Planning."
+        }
+      ],
+      "outOfScope": [
+        {
+          "statement": "Automatically approving or publishing a release.",
+          "reason": "The team reviews and decides separately."
+        }
+      ],
+      "openQuestions": [
+        "Which acceptance scenario should the team verify first?"
+      ]
+    }
+  },
+  "document": {
+    "id": "98000000-0000-4000-8000-000000000081",
+    "title": "Shared planning — evidence bundle",
+    "revision": 1,
+    "body": "## Evidence inventory\n\nThis synthetic example demonstrates a small press release and evidence review page. In an operational organization, this document and the structured release are read from that organization's Wiki.\n\n## Evidence gaps\n\nNo real customer test, external action or release approval is recorded.\n\n## Next review\n\nChoose an acceptance scenario and attach its observed result."
+  }
+}

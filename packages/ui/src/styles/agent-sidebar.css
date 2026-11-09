@@ -22,11 +22,32 @@
   color: var(--accent);
 }
 .agent-sidebar {
+  position: relative;
   display: flex;
   flex-shrink: 0;
-  width: min(26rem, 40vw);
+  /* --agent-sidebar-width: the member's drag (AgentSidebar), kept in the outfitter-ui cookie. */
+  width: min(var(--agent-sidebar-width, 26rem), 70vw);
   min-height: 0;
   background: var(--canvas);
+}
+/* The drag handle on the panel's inner edge. */
+.agent-sidebar-resize {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -3px;
+  width: 7px;
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.agent-sidebar-resize:hover,
+.agent-sidebar-resize:focus-visible,
+.agent-sidebar-resize[data-dragging] {
+  background: linear-gradient(to right, transparent 3px, var(--focus, var(--accent)) 3px, var(--focus, var(--accent)) 4px, transparent 4px);
+  outline: none;
 }
 .agent-sidebar[hidden] {
   display: none;
@@ -176,6 +197,9 @@
   .agent-sidebar > .ui-chat-panel,
   .agent-sidebar-pending {
     border-inline-start: 0;
+  }
+  .agent-sidebar-resize {
+    display: none;
   }
   .agent-sidebar-header {
     height: 52px;

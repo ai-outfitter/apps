@@ -1,0 +1,15 @@
+query Products($organizations: [String!], $at: String) {
+  viewer {
+    orgs(slugs: $organizations) {
+      slug name
+      weeklyProductRoadmap(at: $at) {
+        name slug organizationSlug periodStart periodEnd report markdown
+      }
+      products(at: $at) {
+        id title summary revision rank
+        revisions { id title revision }
+        projects { id title summary revision goals { id title revision } }
+      }
+    }
+  }
+}

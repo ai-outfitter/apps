@@ -1,0 +1,22 @@
+version: beta
+id: planning-router
+summary: Propose bounded child work for a Planning intake; authorization stays in Planning and Governance.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  - id: route
+    inference: {maxOutputTokens: 2000}
+    outputs:
+      result:
+        connector: database
+        record: routes.proposed
+        schema:
+          type: object
+          properties:
+            proposed:
+              type: boolean
+          required: [proposed]
+          additionalProperties: false
+outputs:
+  result: route.outputs.result

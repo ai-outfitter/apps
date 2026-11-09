@@ -12,18 +12,24 @@ const bytes = (value: string) => new TextEncoder().encode(value).length;
 
 // Values are authored data, never schema help or generated prose. Keep array
 // order and multiline strings; sort object keys independently of query order.
-function valueLines(value: unknown, indent = ""): string[] {
+function valueLines(value: unknown, indent = "", omitEmpty = false): string[] {
+  if (omitEmpty && (value == null || value === "" || Array.isArray(value) && !value.length)) return [];
   if (Array.isArray(value) && !value.length) return [`${indent}[]`];
   if (Array.isArray(value)) return value.flatMap(item => {
-    const lines = item === null ? [`${indent}  null`] : valueLines(item, `${indent}  `);
+    if (omitEmpty && item && typeof item === "object" && !Array.isArray(item) && typeof item.title === "string") {
+      const { title, summary, ...rest } = item;
+      const description = typeof summary === "string" && summary ? `: ${summary}` : "";
+      return [`${indent}- ${String(title).replaceAll("\n", `\n${indent}  `)}${description.replaceAll("\n", `\n${indent}  `)}`, ...valueLines(rest, `${indent}  `, true)];
+    }
+    const lines = item === null ? [`${indent}  null`] : valueLines(item, `${indent}  `, omitEmpty);
     return lines.length ? [`${indent}- ${lines[0].trimStart()}`, ...lines.slice(1)] : [];
   });
-  if (value !== null && typeof value === "object" && !Object.keys(value).length) return [`${indent}{}`];
+  if (value !== null && typeof value === "object" && !Object.keys(value).length) return omitEmpty ? [] : [`${indent}{}`];
   if (value !== null && typeof value === "object") return Object.keys(value).sort(compare).flatMap(key => {
     const item = (value as Record<string, unknown>)[key];
-    if (item === undefined) return [];
+    if (item === undefined || omitEmpty && (item == null || item === "" || Array.isArray(item) && !item.length)) return [];
     if (item === null) return [`${indent}- ${heading(field(key))}: null`];
-    if (typeof item === "object") return [`${indent}- ${heading(field(key))}:`, ...valueLines(item, `${indent}  `)];
+    if (typeof item === "object") return [`${indent}- ${heading(field(key))}:`, ...valueLines(item, `${indent}  `, omitEmpty)];
     const [first, ...rest] = String(item).split("\n");
     return [`${indent}- ${heading(field(key))}: ${first}`, ...rest.map(line => `${indent}  ${line}`)];
   });
@@ -159,4 +165,14 @@ export function renderKnowledgeGraphMarkdown(graph: {
   output.sources.push(...graph.types.filter(type => usedTypes.has(type.ref.id)).map(type => ({ ref: type.ref, revision: type.revision })));
   output.sources.sort((a,b) => compare(graphReference(a.ref),graphReference(b.ref)));
   return output;
+}
+
+/** Flatten selected, already authorized records/edges; no retrieval or inferred content. */
+export function renderMarkdownBlock(record: Record<string, unknown>, titleField: string, slugField?: string): string {
+  const { [titleField]: title, ...fields } = record;
+  const slug = slugField ? fields[slugField] : undefined;
+  if (slugField) delete fields[slugField];
+  const clean = (value: unknown): unknown => Array.isArray(value) ? value.map(clean) : value && typeof value === "object"
+    ? Object.fromEntries(Object.entries(value).filter(([key]) => key !== "id" && key !== "revision").map(([key, item]) => [key, clean(item)])) : value;
+  return [`## ${heading(String(title ?? ""))}${slug ? ` - ${heading(String(slug))}` : ""}`, "", ...valueLines(clean(fields), "", true)].join("\n").trimEnd();
 }

@@ -1,0 +1,15 @@
+---
+import RunLayout from "../../../layouts/RunLayout.astro";
+---
+<RunLayout view="inputs">
+  <div class="entities-chips run-filter" role="group" aria-label="Show inputs">
+    <button type="button" class="entities-chip" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" class="entities-chip" data-filter="used" aria-pressed="false">With changes</button>
+    <button type="button" class="entities-chip" data-filter="unused" aria-pressed="false">No changes</button>
+  </div>
+  <div class="run-mail">
+    <ol id="run-mail-list" class="run-mail-list" aria-label="Inputs this run read"></ol>
+    <article id="run-mail-detail" class="run-mail-detail paper" aria-live="polite"></article>
+  </div>
+</RunLayout>
+<script>import "../../../scripts/run-inputs";</script>

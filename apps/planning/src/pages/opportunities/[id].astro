@@ -1,0 +1,8 @@
+---
+import Discovery from "../../components/Discovery.astro";
+import { loadDiscoveryPage } from "../../server/discovery-page";
+const recordId = Astro.params.id!;
+const result = await loadDiscoveryPage(Astro, "opportunities", import.meta.env.OUTFITTER_APP_MODE === "demo", recordId);
+Astro.response.status = result.status;
+---
+<Discovery kind="opportunities" {recordId} {result} />

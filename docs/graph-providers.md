@@ -37,7 +37,7 @@ supply credentials. Existing local EntityRef values remain valid local addresses
 | Graph wire contracts (ontology, validity, graph records, assertions, graph/batch change schemas) and the graph client | Platform SDK: `@ai-outfitter/app-sdk/graph-contracts`, `@ai-outfitter/app-sdk/graph-client` |
 
 Onto is an installed app, not a library. Apps reach it through the platform: the
-SDK's graph client (`defaultWiki`, `wikiAdapter`, `readWikiGraph`,
+SDK's graph client (`defaultWiki`, `wikiAdapter`, `readWikiGraph`, `queryWikiGraph`,
 `selectWikiGraph`, `stableGraphId`, `typeSegment`, `resolveOnto`, `ontoClient`)
 calls the scoped entity and action host, and Onto's GraphQL documents are served
 through `graph.serve`. No app depends on an Onto package. Stable graph ID salts,

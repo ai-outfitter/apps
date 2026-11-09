@@ -1,0 +1,42 @@
+---
+import type { DigestView, IssueRef } from "../server/digests";
+interface Props { digest: DigestView; }
+const { digest } = Astro.props;
+const { changes } = digest;
+const [headline, ...rest] = (digest.summary ?? "").split("\n\n");
+const when = (ms: number) => new Date(ms).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const label = { stone: "Stone", pebble: "Pebble", sand: "Sand" } as const;
+const sections: { key: string; title: string; items: IssueRef[]; count: number }[] = [
+  { key: "shipped", title: "Shipped", items: changes.shipped, count: changes.counts.shipped },
+  { key: "started", title: "Started", items: changes.started, count: changes.counts.started },
+  { key: "added", title: "Added", items: changes.added, count: changes.counts.added },
+  { key: "reopened", title: "Reopened", items: changes.reopened, count: changes.counts.reopened },
+];
+---
+<article class="planning-digest" data-digest-id={digest.id}>
+  <header>
+    <h3>{when(digest.createdAt)}</h3>
+    <small class="muted">{digest.since ? `Since ${when(digest.since)}` : "First digest · last 24 hours"} · {digest.trigger === "schedule" ? "Morning run" : "Generated on request"}</small>
+  </header>
+  {digest.summary ? <div class="planning-digest-summary"><p><strong>{headline}</strong></p>{rest.map(paragraph => <p>{paragraph}</p>)}</div>
+    : <p class="muted">No AI summary{digest.summaryError ? ` (${digest.summaryError.replace(/\.$/, "")})` : ""}. The change lists below are complete.</p>}
+  <dl class="planning-digest-counts">
+    <div><dt>Shipped</dt><dd>{changes.counts.shipped}</dd></div>
+    <div><dt>Started</dt><dd>{changes.counts.started}</dd></div>
+    <div><dt>Added</dt><dd>{changes.counts.added}</dd></div>
+    <div><dt>Open now</dt><dd>{changes.totals.open}</dd></div>
+  </dl>
+  {sections.filter(section => section.count > 0).map(section => <div class="planning-digest-section" data-digest-section={section.key}>
+    <h4>{section.title} ({section.count})</h4>
+    <ul>{section.items.map(issue => <li><span class="planning-pill">{label[issue.category]}</span> {issue.title}</li>)}</ul>
+    {section.count > section.items.length && <p class="muted">And {section.count - section.items.length} more.</p>}
+  </div>)}
+  {changes.counts.removed > 0 && <div class="planning-digest-section" data-digest-section="removed"><h4>Removed ({changes.counts.removed})</h4><ul>{changes.removed.map(issue => <li>{issue.title}</li>)}</ul></div>}
+  {changes.documents.length > 0 && <p data-digest-section="documents"><strong>Documents updated:</strong> {changes.documents.join(", ")}</p>}
+  {(changes.delivery.submitted > 0 || changes.delivery.accepted > 0) && <p data-digest-section="delivery"><strong>Delivery:</strong> {changes.delivery.submitted} submitted, {changes.delivery.accepted} accepted</p>}
+  <div class="planning-digest-section" data-digest-section="priorities">
+    <h4>Prioritized now</h4>
+    {changes.priorities.length ? <ol>{changes.priorities.map(issue => <li><span class="planning-pill">{label[issue.category]}</span> {issue.title}{issue.status === "in-progress" && <small class="muted"> · in progress</small>}</li>)}</ol>
+      : <p class="muted">No open issues.</p>}
+  </div>
+</article>

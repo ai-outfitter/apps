@@ -1,0 +1,75 @@
+{
+  "id": "outfitter/planning",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "data.export",
+        "api.serve",
+        "graph.serve",
+        "organization.members.read",
+        "entities.publish",
+        "workflow.host",
+        "entities.read",
+        "actions.invoke",
+        "entities.write",
+        "home-cards.publish",
+        "actions.publish",
+        "threads.use",
+        "threads.provide",
+        "workflow.planning-router.start",
+        "workflow.planning-delivery-prepare.start",
+        "workflow.project-digest.start",
+        "workflow.project-changes.start",
+        "connector.github.commits.list",
+        "connector.github.pulls.list",
+        "entities.write.delegated",
+        "platform.documents",
+        "workflow.product-roadmap-summary.start"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "operational": {
+      "slug": "planning",
+      "name": "Planning",
+      "description": "Shared projects, issues and Wiki-backed use cases. Wiki is installed automatically."
+    },
+    "demo": {
+      "slug": "planning",
+      "name": "Planning",
+      "description": "Explore synthetic projects and issue trees without saving changes."
+    },
+    "presentation": {
+      "outcome": "Turn shared goals into projects and issues your team can finish.",
+      "connectors": [],
+      "steps": [
+        [
+          "Describe the outcome",
+          "Write goals, user stories, a draft press release and demo acceptance material."
+        ],
+        [
+          "Break down the work",
+          "Create stones, pebbles and sand with independent parent/sub-issue relationships."
+        ],
+        [
+          "Work together",
+          "Assign issues, track completion and keep shared documents current."
+        ]
+      ],
+      "access": "Organization members share projects and issues. Forerunner priorities and personal source evidence remain private. Demo data is synthetic and read-only."
+    },
+    "cover": "catalog/cover.png"
+  },
+  "dependencies": [
+    "wiki-map",
+    "governance"
+  ],
+  "initialize": true
+}

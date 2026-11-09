@@ -1,0 +1,58 @@
+{
+  "name": "@ai-outfitter/app-planning",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "outfitter-app-build",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/server": "*",
+    "@ai-outfitter/ui": "*",
+    "@ai-outfitter/workflow-planning-delivery-prepare": "0.1.0",
+    "@ai-outfitter/workflow-planning-router": "0.1.0",
+    "@ai-outfitter/workflow-product-roadmap-summary": "0.1.0",
+    "@ai-outfitter/workflow-project-changes": "0.1.0",
+    "@ai-outfitter/workflow-project-digest": "0.1.0",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/react": "^7.0.0",
+    "astro": "^7.3.5",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "graphql": "^16.11.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "timeago.js": "4.0.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@ai-outfitter/app-build": "*",
+    "@ai-outfitter/app-test": "*",
+    "@astrojs/check": "^0.9.10",
+    "@libsql/client": "^0.18.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.3",
+    "ai": "^7.0.122",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

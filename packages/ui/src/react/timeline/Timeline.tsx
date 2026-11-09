@@ -1,5 +1,6 @@
 import { partSchema, type ThreadEntry, type ThreadPart, type ThreadRef, type ThreadSchemaDescriptor } from "@ai-outfitter/app-sdk/threads";
 import type { ReactNode } from "react";
+import Markdown from "../Markdown";
 import "./timeline.css";
 
 /** The part shape a host may pass; unknown types use the structured fallback. */
@@ -108,12 +109,16 @@ function Unsupported({ part, schemas }: { part: TimelinePart; schemas?: Timeline
   );
 }
 
+/** `markdown` renders text parts as Markdown (assistant replies); other text stays as typed. */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one case per typed thread part, each with its own escaped view.
-export function TimelinePartView({ part, onOpenThread, renderers, schemas }: { part: TimelinePart } & Pick<TimelineProps, "onOpenThread" | "renderers" | "schemas">): ReactNode {
+export function TimelinePartView({ part, onOpenThread, renderers, schemas, markdown = false }: { part: TimelinePart; markdown?: boolean } & Pick<TimelineProps, "onOpenThread" | "renderers" | "schemas">): ReactNode {
   const p = part as ThreadPart;
   switch (p.type) {
     case "text":
-      return typeof p.text === "string" ? <p className="timeline-part timeline-text">{p.text}</p> : <Unsupported part={part} />;
+      if (typeof p.text !== "string") return <Unsupported part={part} />;
+      return markdown
+        ? <div className="timeline-part timeline-markdown"><Markdown>{p.text}</Markdown></div>
+        : <p className="timeline-part timeline-text">{p.text}</p>;
     case "file":
       return <img className="timeline-part timeline-file" src={p.url} alt={p.filename || "Attachment"} />;
     case "tool-call":
@@ -229,7 +234,7 @@ export default function Timeline({ entries, onOpenThread, renderers, timestamps 
             <div className="timeline-body">
               {entry.parts.map((part, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: entry parts are immutable and ordered.
-                <TimelinePartView key={index} part={part} onOpenThread={onOpenThread} renderers={renderers} schemas={schemas} />
+                <TimelinePartView key={index} part={part} onOpenThread={onOpenThread} renderers={renderers} schemas={schemas} markdown={entry.role === "assistant"} />
               ))}
             </div>
             {entryActions ? <div className="timeline-actions">{entryActions(entry)}</div> : null}

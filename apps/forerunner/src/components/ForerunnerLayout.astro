@@ -1,0 +1,46 @@
+---
+import AgentSidebarToggle from "@ai-outfitter/ui/astro/AgentSidebarToggle.astro";
+import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import { agentScopes } from "../fixtures";
+import ForerunnerAgent from "./ForerunnerAgent";
+import AppAgentSidebar from "@ai-outfitter/ui/react/AppAgentSidebar";
+import { rootHref as rootHrefFor } from "../root-href";
+import "@ai-outfitter/ui/chat.css";
+import "../forerunner.css";
+
+export type ForerunnerPage = "today" | "life" | "home" | "people" | "money" | "body" | "progress" | "graph" | "sources" | "workflows" | "history" | "settings" | "board" | "run";
+
+interface Props { title: string; description: string; agent?: boolean; page: ForerunnerPage; routeDepth?: number; introHidden?: boolean }
+const { title, description, agent = false, introHidden = false, page, routeDepth = page === "today" ? 0 : page === "run" ? 2 : 1 } = Astro.props;
+const panel = "forerunner-agent";
+const operational = import.meta.env.OUTFITTER_APP_MODE === "operational";
+const rootHref = rootHrefFor(Astro.url.pathname, routeDepth);
+const link = (label: string, slug: string, key: ForerunnerPage) => ({ label, href: slug ? `${rootHref}${slug}` : rootHref, active: page === key });
+const sidebarLinks = [
+  link("Today", "", "today"),
+  link("Life", "life", "life"),
+  link("Home", "home", "home"),
+  link("People", "people", "people"),
+  link("Money", "money", "money"),
+  link("Body", "body", "body"),
+  link("Progress", "progress", "progress"),
+  link("Knowledge graph", "graph", "graph"),
+  link("Sources", "sources", "sources"),
+  link("Workflows", "workflows", "workflows"),
+  link("History", "history", "history"),
+];
+---
+<AppLayout name="Forerunner" title={title} description={description} active={page === "settings" ? "settings" : "home"} homeLabel="Today" settingsHref={`${rootHref}settings`} sidebarLinks={sidebarLinks} introVisuallyHidden={introHidden}>
+  {(agent || operational) ? <AgentSidebarToggle slot="header-actions" controls={panel} label="Ask Forerunner" /> : null}
+  <slot name="intro-actions" slot="intro-actions" />
+  <div class="forerunner-content">
+    <slot />
+  </div>
+  {operational ? <AppAgentSidebar slot="overlays" client:idle id={panel} pageId="forerunner" endpoint="/api/apps/forerunner/agent" agentName="Forerunner" intro="Ask about your saved board and priorities." emptyIntro="Ask about your saved board." limits="Uses your saved board. It cannot change records or read connected sources." demoReply="This is a scripted example." /> : agent ? <ForerunnerAgent slot="overlays" client:load panel={panel} scopes={agentScopes} /> : null}
+</AppLayout>
+<script>
+  import { setOrganizationLink } from "../../navigation.js";
+  import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
+  agentPage("forerunner").set({ focus: { kind: "forerunner", id: "eb000000-0000-4000-8000-000000000001", label: "Forerunner" } });
+  setOrganizationLink("forerunner");
+</script>
