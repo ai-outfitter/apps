@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import type { ThreadActor } from "@ai-outfitter/app-sdk/threads";
+import type { ModelDescription, Thread, ThreadActor, ThreadTypeDescriptor } from "@ai-outfitter/app-sdk/threads";
 import type { LanguageModel } from "ai";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
@@ -36,7 +36,15 @@ export type ThreadObjects = {
 };
 
 /** The provider configuration one reply uses; `pinned` is the platform's own handle, passed back to accounting unchanged. */
-export type ResolvedInference = { model: LanguageModel; effort: boolean; pinned?: unknown };
+export type ResolvedInference = {
+  model: LanguageModel;
+  effort: boolean;
+  pinned?: unknown;
+  /** The provider accepts OpenAI's `prompt_cache_key`, so a thread's turns share one prompt cache. */
+  promptCache?: boolean;
+  /** How the platform names this model and its provider, for administrators' inspection. */
+  describe?: ModelDescription;
+};
 export type ThreadInference = {
   resolve(principal: ThreadPrincipal, thread: { id: string; organizationId: string | null }): Promise<ResolvedInference>;
 };
@@ -59,12 +67,24 @@ export type ThreadProviders = {
   call(principal: ThreadPrincipal, installationId: string, operation: string, input: unknown): Promise<unknown>;
 };
 
+/**
+ * The platform's own conversation types, answered in-process instead of by an installed app.
+ * Their names start with `platform.`; their threads have no installation and are always private.
+ */
+export type PlatformProvider = {
+  types: ThreadTypeDescriptor[];
+  /** One provider callback (`prepare`, `tool`, `finish`), as an app's provider would answer it. */
+  call(principal: ThreadPrincipal, operation: string, input: unknown): Promise<unknown>;
+};
+
 export type ThreadAdapters = {
   db: ThreadDatabase;
   objects: ThreadObjects;
   inference: ThreadInference;
   accounting: ThreadAccounting;
   providers: ThreadProviders;
+  /** The platform's own conversation types (none by default). */
+  platform?: PlatformProvider;
   /** Keeps work alive after the response (waitUntil on Workers). */
   retain?(work: Promise<unknown>): void;
   now?(): number;
@@ -74,6 +94,18 @@ export type ThreadAdapters = {
    * whole deletion, these included, commits or changes nothing.
    */
   deletion?(thread: { id: string; incarnation: string }, when: SQL): unknown[];
+  /** Whether this caller may inspect replies' prompts and tools (platform administrators). None by default. */
+  inspector?(principal: ThreadPrincipal): Promise<boolean>;
   /** Trusted base instructions placed before the provider's (none by default). */
   baseInstructions?: string;
+  /** The platform's own agent tools, for a provider that asks for them (`platformTools` from prepare). */
+  platformTools?(principal: ThreadPrincipal, thread: Thread): Promise<PlatformTools | undefined>;
+};
+
+/** Tools the platform runs itself, with the instructions that explain them. Results are never stored in the transcript. */
+export type PlatformTools = {
+  instructions: string;
+  tools: { name: string; description: string; inputSchema: Record<string, unknown>; run(input: unknown): Promise<unknown> }[];
+  /** The reply may take at least this many steps, so discovery and reads fit in one reply. */
+  minSteps?: number;
 };

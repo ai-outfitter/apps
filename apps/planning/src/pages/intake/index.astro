@@ -1,0 +1,18 @@
+---
+import Layout from "../../components/PlanningLayout.astro";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+---
+<Layout title="Intake" description="Turn customer needs and competitive findings into researched, governed work.">
+  <p id="intake-status" role="status"></p>
+  <form id="intake-create">
+    <label>Kind<select name="kind"><option value="customer-problem">Customer problem</option><option value="use-case">Use case</option><option value="user-story">User story</option><option value="competitor">Competitor</option><option value="competitor-product">Competitor product</option></select></label>
+    <label>Title<input name="title" required maxlength="200" /></label>
+    <label>Description<textarea name="description" required maxlength="16000" rows="5"></textarea></label>
+    <label>Source URLs<textarea name="sourceUrls" rows="2" placeholder="One source URL per line"></textarea></label>
+    <label>Project<select name="projectId"><option value="">No project yet</option></select></label>
+    <button type="submit" disabled={demo}>Submit intake</button>
+  </form>
+  <div id="intake-items" data-demo={String(demo)}></div>
+</Layout>
+<script>import "../../scripts/intake";</script>
+<style>form{max-width:48rem;margin-bottom:2rem}label{display:grid;gap:.4rem;margin-bottom:1rem}input,textarea,select{width:100%;box-sizing:border-box}textarea{resize:vertical}#intake-items{overflow-wrap:anywhere}</style>

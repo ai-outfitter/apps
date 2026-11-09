@@ -21,7 +21,7 @@ then scroll. An empty composer compacts again after focus leaves it.
 
 Resolve `onSend` with `false` or reject to retain the draft. Rejections appear in
 an alert. Success clears submitted files and clears text only if it has not been
-edited during submission. Regular webapp chat accepts immediately and delegates
+edited during submission. The platform chat accepts immediately and delegates
 stream failures to its existing Retry control; workspace chat waits for the
 backend to accept the message. Supply `sending` and `onStop` for interruptible work.
 The app owns transport, authorization, upload progress, and server validation.

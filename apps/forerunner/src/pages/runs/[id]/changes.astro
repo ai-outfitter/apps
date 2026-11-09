@@ -1,0 +1,10 @@
+---
+import RunLayout from "../../../layouts/RunLayout.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+---
+<RunLayout view="changes">
+  <div class="run-changes-heading"><a id="discovery-wiki" hidden>Open Wiki</a></div>
+  <Button id="save-earlier" hidden>Save this run</Button>
+  <div id="discovery-entries" class="result-list"></div>
+</RunLayout>
+<script>import "../../../scripts/run-changes";</script>

@@ -1,0 +1,3 @@
+Forerunner rejects a Gmail discovery run before inference with HTTP 413 "Step data too large". The host accepts at most 65,536 JavaScript string characters in JSON.stringify(data). Forty 3,000-character excerpts plus context can exceed this.
+
+Implement analysisBatches in src/analysis-batches.ts. Use a 56 * 1024 serialized-character budget per complete input. Preserve each source record, excerpt and ref exactly once in source order. Repeat the operating-user evidence and all existing Wiki candidates and limits in each batch. Keep ordinary small runs in one call. Account for JSON escaping and context size. Reject a record or fixed context that cannot fit on its own; never silently drop or truncate content. Do not mutate the input.

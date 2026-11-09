@@ -1,0 +1,30 @@
+version: beta
+id: planning-delivery-prepare
+summary: Prepare Workshop and Foundry handoffs for a saved Planning project revision; execution and acceptance stay governed.
+actors: {}
+task:
+  input: prepare.inputs.request
+  output: prepare.outputs.result
+  schema:
+    type: object
+    properties:
+      preparationId: {type: string, format: uuid}
+    required: [preparationId]
+    additionalProperties: false
+triggers:
+  - on: manual
+steps:
+  - id: prepare
+    # Requirements with a declared kind route without a model; others use the Planning router.
+    inference: {maxOutputTokens: 2000, timeoutMs: 90000}
+    inputs:
+      request:
+        schema: {type: object}
+        default: {}
+    outputs:
+      result:
+        connector: database
+        record: delivery.prepared
+        schema: {type: object}
+outputs:
+  result: prepare.outputs.result

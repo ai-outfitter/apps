@@ -9,6 +9,7 @@ export const iconPaths = {
   inference:
     "M6 6h12v12H6Z M9 9h6v6H9Z M9 2v4 M15 2v4 M9 18v4 M15 18v4 M2 9h4 M2 15h4 M18 9h4 M18 15h4",
   send: "M12 20V4 M5 11l7-7 7 7",
+  refresh: "M20 7v5h-5 M4 17v-5h5 M6.1 7a7 7 0 0 1 11.6-2L20 8 M4 16l2.3 3A7 7 0 0 0 17.9 17",
   stop: "M6 6h12v12H6Z",
   down: "M12 4v16 M5 13l7 7 7-7",
   download: "M12 3v12 M7 10l5 5 5-5 M4 16v4h16v-4",

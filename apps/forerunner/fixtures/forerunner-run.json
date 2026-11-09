@@ -1,0 +1,507 @@
+{
+  "run": {
+    "id": "sample",
+    "status": "complete",
+    "startedAt": "2026-11-03T13:00:00.000Z",
+    "updatedAt": "2026-11-03T13:00:46.000Z",
+    "trigger": "schedule",
+    "systemPrompt": "# Operating user\nAlex Rivera <you@example.test>\n\n# Task\nPropose evidence-grounded Wiki entities and relationships from the supplied private sources. Cite the evidence refs you used. Prefer direct personal contacts, then concrete assets and obligations.",
+    "input": {
+      "evidence": [
+        {
+          "ref": "e0",
+          "title": "Thanksgiving at our place? · 2026-11-03 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Maria Romero <maria@example.test>\nHi!\n\nWant to host this year? We can do the turkey if you take the sides. Kids are flying in Wednesday night, so Thursday at 2 works best.\n\nLet me know by Friday so I can order the bird.\n\nMaria"
+        },
+        {
+          "ref": "e1",
+          "title": "Yoga teacher training: module 3 recording · 2026-11-03 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Sunrise Yoga Studio <hello@sunrise.example>\nHello trainees,\n\nThe recording for module 3 (sequencing for beginners) is up in the student portal. Please submit your 10-minute practice teaching video by Friday at 6 PM. A phone recording is fine.\n\nNamaste,\nSunrise Yoga Studio"
+        },
+        {
+          "ref": "e2",
+          "title": "Re: salon dinner on the 14th · 2026-11-02 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Priya Shah <priya@example.test>\nLove the idea. I can bring Sam and two folks from the climbing gym. Trattoria Nove or your place? I'm happy to cook the pasta course if we do it at yours.\n\nP."
+        },
+        {
+          "ref": "e3",
+          "title": "Your statement is ready · 2026-11-02 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Bank <no-reply@bank.example>\nYour October statement for the account ending 4421 is ready to view."
+        },
+        {
+          "ref": "e4",
+          "title": "Standup set feedback · 2026-11-02 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Leo Park <leo@example.test>\nWatched your 5-minute set. The airport bit lands every time; cut the second tag on it, it steps on the laugh. The closer needs a callback.\n\nOpen mic at Cap City on Thursday? I can get us both on the list."
+        },
+        {
+          "ref": "e5",
+          "title": "Weekly digest: 12 new posts · 2026-11-01 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Daily Digest <noreply@digest.example>\nTop stories for you this week."
+        },
+        {
+          "ref": "e6",
+          "title": "Quote for kitchen backsplash · 2026-11-01 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Ortiz Tile & Stone <jose@ortiztile.example>\nThanks for having us out. The quote for the backsplash is $2,340 installed (subway tile, white grout), a two-day job. Earliest start is Nov 18. Reply to confirm and we'll hold the date.\n\nJose Ortiz"
+        },
+        {
+          "ref": "e7",
+          "title": "Order shipped: running shoes · 2026-10-31 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Outdoor Store <orders@store.example>\nYour order #88213 has shipped."
+        },
+        {
+          "ref": "e8",
+          "title": "Coffee next week? · 2026-10-31 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Sam Okafor <sam@example.test>\nBack from Lagos Sunday. Coffee Tuesday morning? I want to hear about the yoga training, thinking of doing it myself next spring."
+        },
+        {
+          "ref": "e9",
+          "title": "Security alert · 2026-10-31 · gmail · you@example.test",
+          "excerpt": "Participants as supplied: Account Security <no-reply@accounts.example>\nA new sign-in on Mac."
+        },
+        {
+          "ref": "operating-user",
+          "title": "Authenticated platform identity",
+          "excerpt": "Name: Alex Rivera"
+        }
+      ],
+      "existing": [
+        {
+          "id": "x",
+          "name": "Maria Romero",
+          "type": "Person"
+        },
+        {
+          "id": "y",
+          "name": "Alex Rivera",
+          "type": "Person"
+        }
+      ],
+      "limits": "First 40 records, excerpts at most 3000 characters, first 80 relevant existing nodes. Do not infer from omitted content."
+    },
+    "output": {
+      "entities": [
+        {
+          "key": "me",
+          "name": "Alex Rivera",
+          "type": "Person",
+          "summary": "The operating user; asked to host Thanksgiving.",
+          "existingId": "00000000-0000-4000-8000-000000000001",
+          "certainty": "mentioned",
+          "confidence": 0.99,
+          "evidence": [
+            "e0"
+          ]
+        },
+        {
+          "key": "maria",
+          "name": "Maria Romero",
+          "type": "Person",
+          "summary": "Family; offered to cook the turkey if Thanksgiving is at your place, Thursday at 2.",
+          "existingId": "00000000-0000-4000-8000-000000000002",
+          "certainty": "mentioned",
+          "confidence": 0.97,
+          "evidence": [
+            "e0"
+          ]
+        },
+        {
+          "key": "studio",
+          "name": "Sunrise Yoga Studio",
+          "type": "Organization",
+          "summary": "Runs your yoga teacher training; module 3 practice video due Friday 6 PM.",
+          "existingId": null,
+          "certainty": "mentioned",
+          "confidence": 0.96,
+          "evidence": [
+            "e1"
+          ]
+        },
+        {
+          "key": "priya",
+          "name": "Priya Shah",
+          "type": "Person",
+          "summary": "Coming to the salon dinner on the 14th with Sam and two climbing-gym friends; offered to cook pasta.",
+          "existingId": null,
+          "certainty": "mentioned",
+          "confidence": 0.96,
+          "evidence": [
+            "e2",
+            "e8"
+          ]
+        },
+        {
+          "key": "sam",
+          "name": "Sam Okafor",
+          "type": "Person",
+          "summary": "Friend back from Lagos; wants coffee Tuesday and is thinking about yoga training.",
+          "existingId": null,
+          "certainty": "mentioned",
+          "confidence": 0.93,
+          "evidence": [
+            "e8",
+            "e2"
+          ]
+        },
+        {
+          "key": "leo",
+          "name": "Leo Park",
+          "type": "Person",
+          "summary": "Gave notes on the 5-minute standup set; offered a Cap City open mic slot Thursday.",
+          "existingId": null,
+          "certainty": "mentioned",
+          "confidence": 0.91,
+          "evidence": [
+            "e4"
+          ]
+        },
+        {
+          "key": "ortiz",
+          "name": "Ortiz Tile & Stone",
+          "type": "Organization",
+          "summary": "Quoted $2,340 for the kitchen backsplash, earliest start Nov 18.",
+          "existingId": null,
+          "certainty": "mentioned",
+          "confidence": 0.88,
+          "evidence": [
+            "e6"
+          ]
+        },
+        {
+          "key": "bank",
+          "name": "no-reply@bank.example",
+          "type": "Person",
+          "summary": "Mailbox only.",
+          "existingId": null,
+          "certainty": "inferred",
+          "confidence": 0.4,
+          "evidence": [
+            "e3"
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "me",
+          "to": "studio",
+          "type": "member_of",
+          "reason": "Enrolled in its teacher training and submitting module work.",
+          "confidence": 0.9,
+          "evidence": [
+            "e1"
+          ]
+        },
+        {
+          "from": "me",
+          "to": "priya",
+          "type": "knows",
+          "reason": "Planning a dinner together.",
+          "confidence": 0.97,
+          "evidence": [
+            "e2"
+          ]
+        },
+        {
+          "from": "priya",
+          "to": "sam",
+          "type": "knows",
+          "reason": "Priya is bringing Sam to dinner.",
+          "confidence": 0.8,
+          "evidence": [
+            "e2"
+          ]
+        },
+        {
+          "from": "me",
+          "to": "leo",
+          "type": "knows",
+          "reason": "Leo reviewed the standup set personally.",
+          "confidence": 0.86,
+          "evidence": [
+            "e4"
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      "Omitted email-only Person proposals and their relationships. A mailbox needs a supported named identity; account metadata alone does not establish one."
+    ],
+    "stages": [
+      {
+        "status": "preparing",
+        "at": "2026-11-03T13:00:00.000Z"
+      },
+      {
+        "status": "reading",
+        "at": "2026-11-03T13:00:00.900Z"
+      },
+      {
+        "status": "analyzing",
+        "at": "2026-11-03T13:00:04.200Z"
+      },
+      {
+        "status": "analyzing",
+        "at": "2026-11-03T13:00:04.300Z"
+      },
+      {
+        "status": "validating",
+        "at": "2026-11-03T13:00:38.000Z"
+      },
+      {
+        "status": "complete",
+        "at": "2026-11-03T13:00:39.500Z"
+      },
+      {
+        "status": "saving",
+        "at": "2026-11-03T13:00:39.600Z"
+      },
+      {
+        "status": "complete",
+        "at": "2026-11-03T13:00:46.000Z"
+      }
+    ]
+  },
+  "preview": {
+    "version": 3,
+    "systemPrompt": "# Operating user\nAlex Rivera <you@example.test>\n\n# Task\nPropose evidence-grounded Wiki entities and relationships from the supplied private sources. Cite the evidence refs you used. Prefer direct personal contacts, then concrete assets and obligations.",
+    "warnings": [
+      "Omitted email-only Person proposals and their relationships. A mailbox needs a supported named identity; account metadata alone does not establish one."
+    ],
+    "id": "sample-preview",
+    "createdAt": "2026-11-03T13:00:40.000Z",
+    "destination": "personal",
+    "wikiInstallationId": "wiki",
+    "sources": [
+      {
+        "label": "gmail · you@example.test",
+        "count": 10,
+        "method": "direct-connector",
+        "window": "2026-11-02 to now; at most 40 messages"
+      }
+    ],
+    "entries": [
+      {
+        "id": "10000000-0000-4000-8000-000000000000",
+        "typeId": "t",
+        "title": "Alex Rivera",
+        "kind": "Person",
+        "existing": true,
+        "excerpt": "Forerunner proposal: mentioned.\n\nThe operating user; asked to host Thanksgiving."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "typeId": "t",
+        "title": "Maria Romero",
+        "kind": "Person",
+        "existing": true,
+        "excerpt": "Forerunner proposal: mentioned.\n\nFamily; offered to cook the turkey if Thanksgiving is at your place, Thursday at 2."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000002",
+        "typeId": "t",
+        "title": "Sunrise Yoga Studio",
+        "kind": "Organization",
+        "existing": false,
+        "excerpt": "Forerunner proposal: mentioned.\n\nRuns your yoga teacher training; module 3 practice video due Friday 6 PM."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000003",
+        "typeId": "t",
+        "title": "Priya Shah",
+        "kind": "Person",
+        "existing": false,
+        "excerpt": "Forerunner proposal: mentioned.\n\nComing to the salon dinner on the 14th with Sam and two climbing-gym friends; offered to cook pasta."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000004",
+        "typeId": "t",
+        "title": "Sam Okafor",
+        "kind": "Person",
+        "existing": false,
+        "excerpt": "Forerunner proposal: mentioned.\n\nFriend back from Lagos; wants coffee Tuesday and is thinking about yoga training."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000005",
+        "typeId": "t",
+        "title": "Leo Park",
+        "kind": "Person",
+        "existing": false,
+        "excerpt": "Forerunner proposal: mentioned.\n\nGave notes on the 5-minute standup set; offered a Cap City open mic slot Thursday."
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000006",
+        "typeId": "t",
+        "title": "Ortiz Tile & Stone",
+        "kind": "Organization",
+        "existing": false,
+        "excerpt": "Forerunner proposal: mentioned.\n\nQuoted $2,340 for the kitchen backsplash, earliest start Nov 18."
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000000",
+        "typeId": "t",
+        "title": "Alex Rivera → member_of → Sunrise Yoga Studio",
+        "kind": "Proposed relationship",
+        "existing": false,
+        "excerpt": "Proposed relationship; not a confirmed fact.\nEnrolled in its teacher training and submitting module work."
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "typeId": "t",
+        "title": "Alex Rivera → knows → Priya Shah",
+        "kind": "Proposed relationship",
+        "existing": false,
+        "excerpt": "Proposed relationship; not a confirmed fact.\nPlanning a dinner together."
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000002",
+        "typeId": "t",
+        "title": "Priya Shah → knows → Sam Okafor",
+        "kind": "Proposed relationship",
+        "existing": false,
+        "excerpt": "Proposed relationship; not a confirmed fact.\nPriya is bringing Sam to dinner."
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000003",
+        "typeId": "t",
+        "title": "Alex Rivera → knows → Leo Park",
+        "kind": "Proposed relationship",
+        "existing": false,
+        "excerpt": "Proposed relationship; not a confirmed fact.\nLeo reviewed the standup set personally."
+      }
+    ],
+    "operations": [],
+    "inputs": [
+      {
+        "ref": "e0",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Thanksgiving at our place?",
+        "date": "2026-11-03T13:00:00.000Z",
+        "participants": [
+          "Maria Romero <maria@example.test>"
+        ],
+        "excerpt": "Participants as supplied: Maria Romero <maria@example.test>\nHi!\n\nWant to host this year? We can do the turkey if you take the sides. Kids are flying in Wednesday night, so Thursday at 2 works best.\n\nLet me know by Friday so I can order the bird.\n\nMaria"
+      },
+      {
+        "ref": "e1",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Yoga teacher training: module 3 recording",
+        "date": "2026-11-03T04:00:00.000Z",
+        "participants": [
+          "Sunrise Yoga Studio <hello@sunrise.example>"
+        ],
+        "excerpt": "Participants as supplied: Sunrise Yoga Studio <hello@sunrise.example>\nHello trainees,\n\nThe recording for module 3 (sequencing for beginners) is up in the student portal. Please submit your 10-minute practice teaching video by Friday at 6 PM. A phone recording is fine.\n\nNamaste,\nSunrise Yoga Studio"
+      },
+      {
+        "ref": "e2",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Re: salon dinner on the 14th",
+        "date": "2026-11-02T19:00:00.000Z",
+        "participants": [
+          "Priya Shah <priya@example.test>"
+        ],
+        "excerpt": "Participants as supplied: Priya Shah <priya@example.test>\nLove the idea. I can bring Sam and two folks from the climbing gym. Trattoria Nove or your place? I'm happy to cook the pasta course if we do it at yours.\n\nP."
+      },
+      {
+        "ref": "e3",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Your statement is ready",
+        "date": "2026-11-02T10:00:00.000Z",
+        "participants": [
+          "Bank <no-reply@bank.example>"
+        ],
+        "excerpt": "Participants as supplied: Bank <no-reply@bank.example>\nYour October statement for the account ending 4421 is ready to view."
+      },
+      {
+        "ref": "e4",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Standup set feedback",
+        "date": "2026-11-02T01:00:00.000Z",
+        "participants": [
+          "Leo Park <leo@example.test>"
+        ],
+        "excerpt": "Participants as supplied: Leo Park <leo@example.test>\nWatched your 5-minute set. The airport bit lands every time; cut the second tag on it, it steps on the laugh. The closer needs a callback.\n\nOpen mic at Cap City on Thursday? I can get us both on the list."
+      },
+      {
+        "ref": "e5",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Weekly digest: 12 new posts",
+        "date": "2026-11-01T16:00:00.000Z",
+        "participants": [
+          "Daily Digest <noreply@digest.example>"
+        ],
+        "excerpt": "Participants as supplied: Daily Digest <noreply@digest.example>\nTop stories for you this week."
+      },
+      {
+        "ref": "e6",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Quote for kitchen backsplash",
+        "date": "2026-11-01T07:00:00.000Z",
+        "participants": [
+          "Ortiz Tile & Stone <jose@ortiztile.example>"
+        ],
+        "excerpt": "Participants as supplied: Ortiz Tile & Stone <jose@ortiztile.example>\nThanks for having us out. The quote for the backsplash is $2,340 installed (subway tile, white grout), a two-day job. Earliest start is Nov 18. Reply to confirm and we'll hold the date.\n\nJose Ortiz"
+      },
+      {
+        "ref": "e7",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Order shipped: running shoes",
+        "date": "2026-10-31T22:00:00.000Z",
+        "participants": [
+          "Outdoor Store <orders@store.example>"
+        ],
+        "excerpt": "Participants as supplied: Outdoor Store <orders@store.example>\nYour order #88213 has shipped."
+      },
+      {
+        "ref": "e8",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Coffee next week?",
+        "date": "2026-10-31T13:00:00.000Z",
+        "participants": [
+          "Sam Okafor <sam@example.test>"
+        ],
+        "excerpt": "Participants as supplied: Sam Okafor <sam@example.test>\nBack from Lagos Sunday. Coffee Tuesday morning? I want to hear about the yoga training, thinking of doing it myself next spring."
+      },
+      {
+        "ref": "e9",
+        "provider": "gmail",
+        "account": "you@example.test",
+        "subject": "Security alert",
+        "date": "2026-10-31T04:00:00.000Z",
+        "participants": [
+          "Account Security <no-reply@accounts.example>"
+        ],
+        "excerpt": "Participants as supplied: Account Security <no-reply@accounts.example>\nA new sign-in on Mac."
+      }
+    ],
+    "batch": {
+      "installationId": "wiki",
+      "batchId": "sample-batch",
+      "policy": "confidence"
+    },
+    "receipt": {
+      "batchId": "sample-batch",
+      "state": "submitted",
+      "reviewBy": 1793771940000,
+      "counts": {
+        "committed": 4,
+        "awaiting_review": 5
+      },
+      "waiting": [
+        "10000000-0000-4000-8000-000000000004",
+        "10000000-0000-4000-8000-000000000005",
+        "10000000-0000-4000-8000-000000000006",
+        "20000000-0000-4000-8000-000000000002",
+        "20000000-0000-4000-8000-000000000003"
+      ]
+    },
+    "savedAt": "2026-11-03T13:00:46.000Z"
+  }
+}

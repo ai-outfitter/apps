@@ -1,0 +1,12 @@
+---
+import Layout from "../components/PlanningLayout.astro";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+---
+<Layout title="Settings" description="Shared project ownership and member access.">
+  <section>
+    <h2>Project ownership</h2>
+    <p>{demo ? "This is a synthetic read-only demo. No project edits or provider reads occur." : "Projects and issues belong to this organization. Members can edit shared work and assign issues to current organization members."}</p>
+    <h2>Manual planning</h2>
+    <p>Manage goals, project documents and issues by hand. Connected sources, GitHub publication and resident-agent prioritization are planned for a later release.</p>
+  </section>
+</Layout>

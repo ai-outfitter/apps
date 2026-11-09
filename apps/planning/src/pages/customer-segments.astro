@@ -1,0 +1,7 @@
+---
+import Discovery from "../components/Discovery.astro";
+import { loadDiscoveryPage } from "../server/discovery-page";
+const result = await loadDiscoveryPage(Astro, "customer-segments", import.meta.env.OUTFITTER_APP_MODE === "demo");
+Astro.response.status = result.status;
+---
+<Discovery kind="customer-segments" {result} />

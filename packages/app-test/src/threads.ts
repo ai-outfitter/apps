@@ -28,6 +28,10 @@ export async function threadTestHost(options: {
   installations: string[];
   users?: string[];
   organizations?: string[];
+  /** The platform's own tools, offered when prepare asks for `platformTools` (as the platform adds its MCP tools). */
+  platformTools?: ThreadAdapters["platformTools"];
+  /** Platform administrators, who may open the sidebar's debug view. */
+  admins?: string[];
 }) {
   const client = createClient({ url: ":memory:" });
   await client.execute("PRAGMA foreign_keys = ON");
@@ -52,13 +56,15 @@ export async function threadTestHost(options: {
       async delete(keys) { for (const key of keys) objects.delete(key); },
       async presignGet(key) { return `https://objects.test/${key}`; },
     },
-    inference: { resolve: async () => ({ model: options.model(), effort: false }) },
+    inference: { resolve: async () => ({ model: options.model(), effort: false, describe: { provider: "Fixture provider", model: "fixture-model" } }) },
     accounting: { start: async () => ({ observe() {}, settle: async () => {} }) },
     providers: {
       installations: async () => options.installations,
       call: (principal, installationId, operation, input) => options.provider({ installationId, operation, input, principal }),
     },
     retain: (work) => { retained.push(work); },
+    ...(options.platformTools ? { platformTools: options.platformTools } : {}),
+    inspector: async (principal) => principal.memberContext && (options.admins ?? []).includes(principal.userId),
   };
   const service = createThreadService(adapters);
   const principalOf = (who: ThreadTestPrincipal): ThreadPrincipal => ({

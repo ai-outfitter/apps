@@ -1,0 +1,41 @@
+---
+import ForerunnerLayout from "../components/ForerunnerLayout.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { rootHref } from "../root-href";
+interface Props { view: "inputs" | "changes" | "transcript" }
+const { view } = Astro.props;
+const root = rootHref(Astro.url.pathname, 3);
+// Relative, like every Forerunner link: a personal install is served under
+// /apps/<slug>/, but its pages see only their own path ("/runs/<id>/inputs").
+const base = `${root}runs/${encodeURIComponent(Astro.params.id ?? "")}`;
+---
+<ForerunnerLayout title="Discovery run" description="What this run read, what the agent made of each item, and what it changed in your knowledge graph." page="run" routeDepth={3} introHidden>
+  <div id="discovery" class="run-page" data-page="run" data-run-id={Astro.params.id} data-run-view={view}>
+    <div class="run-topbar">
+      <a href={`${root}history`}>← Back to history</a>
+      <div class="run-topbar-actions">
+        <a id="run-review" class="ui-button" hidden>Review changes</a>
+        <Button id="export-evaluation" variant="secondary">Export run</Button>
+      </div>
+    </div>
+    <p id="activity-run-status" class="run-status" role="status">Loading run…</p>
+    <p id="activity-run-error" role="alert" hidden></p>
+
+    <nav class="run-tabs" aria-label="Run views">
+      {([ ["inputs", "Inputs"], ["changes", "Changes"], ["transcript", "Transcript"]] as const).map(([key, label]) =>
+        <a id={`run-tab-${key}`} href={`${base}/${key}`} aria-current={view === key ? "page" : undefined}>{label}</a>
+      )}
+    </nav>
+    <div class="run-panel"><slot /></div>
+
+    <details class="paper" id="run-feedback" hidden>
+      <summary>Was this run useful?</summary>
+      <form id="evaluation-form" class="evaluation-form">
+        <label>Rating<select name="rating"><option value="useful">Useful</option><option value="mixed">Partly useful</option><option value="not-useful">Not useful</option></select></label>
+        <label>Anything we should improve?<textarea name="note" rows="2" maxlength="4000" placeholder="Optional feedback"></textarea></label>
+        <div class="manual-actions"><Button type="submit">Share feedback</Button></div>
+        <p id="evaluation-status" role="status"></p>
+      </form>
+    </details>
+  </div>
+</ForerunnerLayout>

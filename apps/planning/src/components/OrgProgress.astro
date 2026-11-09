@@ -1,0 +1,45 @@
+---
+import type { OrganizationProgress } from "../server/organization-progress";
+interface Props { view: OrganizationProgress; }
+const { view } = Astro.props;
+const day = (value: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value));
+---
+<div class="organization-progress">
+  <section aria-label="Organization goals" class="progress-kpis">
+    {view.kpis.length ? view.kpis.map(kpi => <article class="progress-kpi">
+      <div class="progress-kpi-label"><h2>{kpi.title}</h2>{kpi.staged && <span class="progress-staged">Staged</span>}</div>
+      <p class="progress-value">{kpi.target}</p>
+      <p class="muted">Target · {kpi.windowDays}-day window</p>
+      <p class="muted">Actual: {kpi.actual}</p>
+    </article>) : <p class="muted">No KPI targets recorded yet.</p>}
+  </section>
+  <section aria-label="Recently shipped features" class="progress-delivery">
+    <h2>Recently shipped</h2>
+    {view.updates.length ? <ol class="progress-timeline">{view.updates.map(update => <li>
+      <div class="progress-update-meta"><time datetime={update.shippedAt}>{day(update.shippedAt)}</time>{update.staged && <span class="progress-staged">Staged</span>}</div>
+      <h3>{update.title}</h3>
+      <p>{update.summary}</p>
+      <p class="muted">{update.benefit}</p>
+      {update.sourceUrl && <a href={update.sourceUrl} target="_blank" rel="noopener noreferrer">Source ↗</a>}
+    </li>)}</ol> : <p class="muted">No shipped features recorded yet.</p>}
+  </section>
+</div>
+<style>
+.organization-progress { display: grid; gap: 2rem; min-width: 0; }
+.progress-kpis, .progress-delivery { border: 0; border-radius: 0; background: none; padding: 0; margin: 0; }
+.progress-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+.progress-kpi { padding-block: .5rem; }
+.progress-kpi-label, .progress-update-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.progress-kpi h2 { margin: 0; font-size: 1rem; }
+.progress-value { margin: .6rem 0; font-size: 1.5rem; font-weight: 600; }
+.progress-kpi > .muted { margin: 0; }
+.progress-staged { border: 1px solid var(--border, #666); border-radius: 999px; padding: .1rem .5rem; font-size: .75rem; color: var(--muted, #888); }
+.progress-delivery > h2 { font-size: 1.15rem; margin: 0 0 1.25rem; }
+.progress-timeline { list-style: none; margin: 0 0 0 .35rem; padding: 0 0 0 1.5rem; border-left: 1px solid var(--border, #666); }
+.progress-timeline li { position: relative; padding: 0 0 1.75rem; overflow-wrap: anywhere; }
+.progress-timeline li::before { content: ""; position: absolute; top: .45rem; left: -1.8rem; width: .5rem; height: .5rem; border: 1px solid var(--border, #666); border-radius: 50%; background: var(--surface, #282828); }
+.progress-timeline li:last-child { padding-bottom: 0; }
+.progress-timeline h3 { margin: .5rem 0; font-size: 1rem; }
+.progress-timeline p { margin: .4rem 0; }
+.progress-update-meta { font-size: .85rem; color: var(--muted, #888); }
+</style>

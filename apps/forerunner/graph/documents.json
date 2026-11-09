@@ -1,0 +1,765 @@
+[
+  {
+    "name": "Board",
+    "kind": "query",
+    "story": "As an agent, I want the member's unfinished board items with their revisions, so that I can add to, complete or reorder their board without overwriting a change they made.",
+    "query": "query Board {\n  items(first: 500, status: [\"todo\", \"in-progress\"]) {\n    nodes {\n      id\n      category\n      title\n      dueDate\n      status\n      position\n      parentId\n      revision\n    }\n  }\n}",
+    "hash": "ba301b9866220c48e3c4cc9bca8f1fc41890420bc985715ba1a30366869f71fe",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "CreateItem",
+    "kind": "mutation",
+    "story": "As a member, I want to add a stone, pebble or grain of sand from the board or an agent, so that every priority and next action lands on my private board in one way.",
+    "query": "mutation CreateItem($input: CreateItemInput!) {\n  createItem(input: $input) {\n    id\n    category\n    title\n    description\n    dueDate\n    status\n    position\n    parentId\n    revision\n    updatedAt\n  }\n}",
+    "hash": "c883357b3d8538d060e41079fe43083adda0d3264b7f471b615856fabd7da0a5",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CreateItemInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DeleteItem",
+    "kind": "mutation",
+    "story": "As a member, I want to delete one of my items at the revision I last saw, so that finished or mistaken work leaves my board.",
+    "query": "mutation DeleteItem($input: DeleteItemInput!) {\n  deleteItem(input: $input) {\n    deleted\n  }\n}",
+    "hash": "327cc05b34a82040d12fda466ac19f73716bf5c82c905ca3ac7a20628be81f9a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DeleteItemInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "DiscoveryRecords",
+    "kind": "query",
+    "story": "As a caller, I want to search discoveryRecords with compact results, so that I can select records and continue through every page.",
+    "query": "query DiscoveryRecords($first: Int = 20, $after: String, $ids: [ID!], $search: String, $kind: [String!]) {\n  discoveryRecords(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    kind: $kind\n  ) {\n    nodes {\n      id\n      kind\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "cc0556a8367e79daf4a8fd18b8f48d1dae24d78e2e3f19b33235b20ea62d460f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "kind": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "ItemChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply item changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ItemChanges($input: ItemChangesInput!) {\n  itemChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "961493de012c6f9c8d2bf678f7d9a486698f41b721d56753f62ec30d88f7e3ae",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ItemChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "createItem"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "stone",
+                              "pebble",
+                              "sand"
+                            ]
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "description": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          "dueDate": {
+                            "default": null,
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "default": "todo",
+                            "type": "string",
+                            "enum": [
+                              "todo",
+                              "in-progress",
+                              "done"
+                            ]
+                          },
+                          "parentId": {
+                            "default": null,
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "category",
+                          "title"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "updateItem"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "stone",
+                              "pebble",
+                              "sand"
+                            ]
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "description": {
+                            "default": "",
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          "dueDate": {
+                            "default": null,
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "default": "todo",
+                            "type": "string",
+                            "enum": [
+                              "todo",
+                              "in-progress",
+                              "done"
+                            ]
+                          },
+                          "parentId": {
+                            "default": null,
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "category",
+                          "title",
+                          "revision",
+                          "id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "deleteItem"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "revision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "revision",
+                          "id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "reorderItems"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "items": {
+                            "minItems": 2,
+                            "maxItems": 500,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "revision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "revision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "items"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "Items",
+    "kind": "query",
+    "story": "As a caller, I want to search items with compact results, so that I can select records and continue through every page.",
+    "query": "query Items($first: Int = 20, $after: String, $ids: [ID!], $search: String, $category: [String!], $status: [String!]) {\n  items(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    category: $category\n    status: $status\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "572c81eacda6b9bb8830d70d403d49137d4922de0e02a767dca4ef52122ef83d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "category": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "status": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "ReorderItems",
+    "kind": "mutation",
+    "story": "As a member, I want to rank a whole category of my board in one move, so that the order I work in is saved all at once or not at all.",
+    "query": "mutation ReorderItems($input: ReorderItemsInput!) {\n  reorderItems(input: $input) {\n    id\n    category\n    position\n    revision\n  }\n}",
+    "hash": "efeb54501c143a5a68b0e225fbd60ce63d0771ba4997f22cd83be24472a2b549",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReorderItemsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SetDailyRun",
+    "kind": "mutation",
+    "story": "As an editor, I want to turn the daily discovery run on or off and choose the account it reads, so that Forerunner reads my mail or calendar each morning only when I want it to.",
+    "query": "mutation SetDailyRun($input: SetDailyRunInput!) {\n  setDailyRun(input: $input) {\n    enabled\n    connectionId\n    timezone\n    nextRunAt\n    lastRunAt\n    lastOutcome\n  }\n}",
+    "hash": "512e90d903b345182e0078eccae03f9105a9b6ca6648e95d51bf2da9d12d0550",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetDailyRunInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SuggestionChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to act on the daily run's suggestions: update one to applied (turn a workflow on or rewrite its routine) or dismissed (set it aside). Read Suggestions for the ids, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation SuggestionChanges($input: SuggestionChangesInput!) {\n  suggestionChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "4001b82c3832d68ce2cbb6a410fc9490b1188fef10cf6b456a01d04c8ff1aa52",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SuggestionChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Act on suggestions from Suggestions with action update and a status: applied turns a workflow on or rewrites the routine it changes, dismissed sets it aside. An app suggestion is built from Apps, so it can only be dismissed here."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "update"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "applied",
+                              "dismissed"
+                            ]
+                          },
+                          "timezone": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "suggestionChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Suggestions",
+    "kind": "query",
+    "story": "As an agent, I want the open suggestions from the member's daily run, so that I can tell them what to turn on, change or build next and apply or dismiss one when they ask.",
+    "query": "query Suggestions {\n  suggestions {\n    id\n    kind\n    title\n    why\n    routineId\n    routineName\n    task {\n      title\n      description\n      cadence\n      steps\n    }\n    appName\n    appGoal\n    createdAt\n  }\n}",
+    "hash": "a9258870cacd946553397f371f7066796ef4d0111480473fd7925bbf3f53a54a",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Read the open suggestions from the member's daily Forerunner run: a workflow to turn on, a change to one of their routines (routineId is the routine in platform Schedules), or an app to build."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "routineId": {
+                "type": "string",
+                "nullable": true
+              },
+              "routineName": {
+                "type": "string",
+                "nullable": true
+              },
+              "task": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "cadence": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "nullable": true
+              },
+              "appName": {
+                "type": "string",
+                "nullable": true
+              },
+              "appGoal": {
+                "type": "string",
+                "nullable": true
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "UpdateItem",
+    "kind": "mutation",
+    "story": "As a member, I want to edit, complete or reopen one of my items at the revision I last saw, so that my board stays current without losing a change I have not seen.",
+    "query": "mutation UpdateItem($input: UpdateItemInput!) {\n  updateItem(input: $input) {\n    id\n    category\n    title\n    description\n    dueDate\n    status\n    position\n    parentId\n    revision\n    updatedAt\n  }\n}",
+    "hash": "f217ba846dde34e3cc2298be6f3dc3f57d70b38bc7a26a9df1d56104f86d4671",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateItemInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "UpdateSuggestion",
+    "kind": "mutation",
+    "story": "As a member or agent, I want to act on a suggestion in one step, turning on a suggested workflow, applying a suggested change to one of my routines, or setting it aside, so that what the daily run noticed starts working for me or stops being suggested.",
+    "query": "mutation UpdateSuggestion($input: UpdateSuggestionInput!) {\n  updateSuggestion(input: $input) {\n    id\n    status\n  }\n}",
+    "hash": "d5e66f5e94a829332cddca8a86ce7cb3a19e6697f59083ebd626caba1a1fd370",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateSuggestionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  }
+]

@@ -1,0 +1,14 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "../../components/PlanningLayout.astro";
+import ProjectWorkspace from "../../components/ProjectWorkspace.astro";
+import { demoProjectPage, projectPage } from "../../server/project-page";
+
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const model = demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals);
+Astro.response.status = model.status;
+---
+<Layout wiki={model.wiki ?? null} title="Projects" description="Shape the smallest useful scope from shared organizational context.">
+  <div slot="intro-actions" class="planning-toolbar"><Button id="new-project" disabled={demo}>New project</Button><Button variant="secondary" id="reload">Reload</Button></div>
+  <ProjectWorkspace {model} />
+</Layout>

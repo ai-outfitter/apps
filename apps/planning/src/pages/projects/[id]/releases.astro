@@ -1,0 +1,52 @@
+---
+import { appHref } from "../../../app-href";
+import Layout from "../../../components/PlanningLayout.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import ReleaseContent from "../../../components/ReleaseContent";
+import { requestIdentity, requestPageURL } from "@ai-outfitter/app-sdk/server";
+import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { demoProjectReleases, readProjectReleases, releaseBody, releaseMarkdown, type ProjectReleaseReview } from "../../../server/project-releases";
+import { wikiPageHref } from "../../../server/wiki-links";
+import { demoProjectPage, projectPage } from "../../../server/project-page";
+const projectId = Astro.params.id ?? "";
+let model: ProjectReleaseReview | undefined;
+let error = "";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+try {
+  if (demo) model = demoProjectReleases(projectId);
+  else {
+    const identity = requestIdentity(Astro.request);
+    model = await readProjectReleases(workflowHost<"interactive">(Astro.locals), identity.installationId, projectId);
+  }
+} catch (failure) {
+  if (failure instanceof Response && [401, 403].includes(failure.status)) throw failure;
+  Astro.response.status = failure instanceof Response && [404, 409, 413].includes(failure.status) ? failure.status : 503;
+  error = Astro.response.status === 404 ? "Project not found." : "Press release and evidence are unavailable. Check the project's Wiki links and retry loading the page.";
+}
+const releases = model?.releases ?? [];
+if (Astro.url.searchParams.has("bundle")) return Astro.redirect(`${appHref(Astro.url.pathname, `/projects/${projectId}/evidence`)}?bundle=${encodeURIComponent(Astro.url.searchParams.get("bundle") ?? "")}`, 302);
+const releaseId = Astro.url.searchParams.get("release");
+const release = releaseId ? releases.find(node => node.id === releaseId) : releases[0];
+const selected = release;
+if (!error && releaseId && !release) {
+  Astro.response.status = 404;
+  error = "This record is not linked to the selected project.";
+}
+const source = selected && model?.wiki ? wikiPageHref(model.wiki, requestPageURL(Astro.request), `releases/${selected.id}`) : "";
+const legacy = !error && !selected ? (demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals, projectId)).projects[0]?.pressRelease : "";
+const stage = release ? releaseBody(release.body).stage : undefined;
+---
+<Layout title="Press release" description={model?.project.title ?? "Review this project's announcement."} wiki={model?.wiki ?? null}>
+  <div slot="intro-actions"><Button href={appHref(Astro.url.pathname, `/projects/${projectId}`)} variant="secondary">← Back to project</Button></div>
+  {demo && <p class="planning-notice">Read-only demo · These press release records are synthetic.</p>}
+  {error ? <p role="alert">{error}</p> : <>
+    {releases.length > 1 && <nav class="planning-toolbar planning-release-records" aria-label="Press release records">
+      {releases.map(node => <Button href={`?release=${node.id}`} variant="secondary" aria-current={release?.id === node.id ? "page" : undefined}>{node.title}</Button>)}
+    </nav>}
+    {selected ? <article class="planning-release-reader">
+      <h2>{selected.title}</h2>
+      <p class="muted">{typeof stage === "string" ? `${stage} · ` : ""}Revision {selected.revision}{source && <> · <a href={source}>Wiki source</a></>}</p>
+      <ReleaseContent content={releaseMarkdown(selected.body)} />
+    </article> : legacy ? <article class="planning-release-reader"><h2>Draft press release</h2><ReleaseContent content={legacy} /></article> : <p>No press release is linked to this project yet.</p>}
+  </>}
+</Layout>
