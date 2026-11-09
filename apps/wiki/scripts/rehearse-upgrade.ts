@@ -1,7 +1,7 @@
 /** Rehearse on an offline SQLite snapshot. Never opens the source for writing. */
 import {DatabaseSync} from "node:sqlite";
 import {createHash} from "node:crypto";
-import {copyFileSync,constants,readFileSync,writeFileSync,chmodSync} from "node:fs";
+import {copyFileSync,constants,readFileSync,readdirSync,writeFileSync,chmodSync} from "node:fs";
 import {resolve} from "node:path";
 import {pathToFileURL} from "node:url";
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ export function rehearse(source:string,candidate:string,receipt:string){
   const original=tables(db);assert.ok(!original.includes("wiki_documents"),"Snapshot has already been converted");
   const before=Object.fromEntries(original.map(name=>[name,digest(db,name)]));
   db.exec("BEGIN IMMEDIATE");
-  try{db.exec(readFileSync(new URL("../migrations/0012_documents.sql",import.meta.url),"utf8"));db.exec("COMMIT");}catch(error){db.exec("ROLLBACK");throw error;}
+  try{for(const migration of readdirSync(new URL("../migrations/",import.meta.url)).filter(name=>/^\d{4}_.*\.sql$/.test(name)&&name>="0012").sort()) db.exec(readFileSync(new URL(`../migrations/${migration}`,import.meta.url),"utf8"));db.exec("COMMIT");}catch(error){db.exec("ROLLBACK");throw error;}
   for(const name of original)assert.equal(digest(db,name),before[name],`Archive changed: ${name}`);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(),[]);
   assert.deepEqual(db.prepare("PRAGMA integrity_check").all().map(row=>row.integrity_check),["ok"]);

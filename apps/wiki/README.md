@@ -30,7 +30,7 @@ source with Node 24:
 node --import tsx scripts/rehearse-upgrade.ts /private/source.sqlite /private/candidate.sqlite /private/receipt.local.json
 ```
 
-This creates a new candidate, applies migration 0012, checks every existing table
+This creates a new candidate, applies pending document migrations, checks every existing table
 is unchanged, and checks SQLite integrity and foreign keys. It never updates the
 source snapshot. The candidate is for inspection, not installation: the platform
 must register and apply pending migrations through its normal upgrade lifecycle.
@@ -40,6 +40,8 @@ provenance digests in webapp. Verify document IDs, content, revisions, citations
 file URLs, old links, access restrictions and Onto references at both personal
 and organization mounts. Leave the bundled implementation available until the
 released external package passes mounted acceptance.
+
+Migration 0013 tracks the last imported legacy revision. Initialization rechecks the frozen source and resumes an interrupted import before serving the new app; an authored or published Wiki revision is never replaced by a later legacy head.
 
 A code-only rollback is insufficient. Stop writes, capture all new document
 revisions and publication receipts, and retain the converted database and object
