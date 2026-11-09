@@ -1,3 +1,5 @@
+import {readFile} from "node:fs/promises";
+import {actionInvokeCapability} from "@ai-outfitter/app-sdk/actions";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
@@ -99,4 +101,43 @@ test("an entity page reads Onto without copying its entity and loses source acce
   const lost=await app.call("/p/ada",owner,{workflowHost:scope});
   assert.match(await lost.text(),/Linked information is currently unavailable/);
  }finally{await app.dispose();}
+});
+
+test('the released Wiki refuses an unreceipted graph and resumes only after verified cutover', async () => {
+  const pack = JSON.parse(await readFile(new URL('../.outfitter/packages/operational.json', import.meta.url), 'utf8'));
+  assert.ok(pack.manifest.capabilities.includes(actionInvokeCapability), 'the built initializer must declare authority to invoke the Onto cutover-status action');
+  let migrated = false;
+  const calls: string[] = [];
+  const app = await appWorker('wiki-map', new URL('../.outfitter/packages/operational.json', import.meta.url), 'legacy-wiki', {
+    workflowHost: () => ({ async call(operation, input) {
+      calls.push(operation);
+      if (operation === 'entities.types') return { ok: true, value: ['graph-type', 'graph-node', 'graph-edge'].map(type => ({ installationId: 'owner-onto', type, title: type, description: '', schema: {}, writable: true })) };
+      if (operation === 'actions.call') {
+        const call = input as {installationId:string;action:string;readOnly:boolean};
+        assert.equal(call.installationId, 'owner-onto');
+        assert.equal(call.readOnly, true);
+        assert.equal(call.action, 'graph.cutover-status');
+        return { ok: true, value: { sourceInstallationIds: migrated ? ['legacy-wiki'] : [] } };
+      }
+      if (operation === 'invocations') return { ok: true, value: [] };
+      throw new Error(`Unexpected host operation ${operation}`);
+    } }),
+  });
+  const editor = { userId: 'owner', organizationId: 'synthetic-org', role: 'owner' };
+  const workflowHost = { organizationId: 'synthetic-org', installationId: app.installationId, userId: editor.userId, packageHash: 'fixture', phase: 'interactive' as const, expiresAt: Date.now() + 60_000 };
+  try {
+    await app.database.prepare("INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy-document',(SELECT id FROM graph_types WHERE name='Document'),'legacy-page','Legacy document','Preserved legacy body',1,1,1)").run();
+    const initialize = () => app.call('/api/internal/app-initialize', editor, { method: 'POST', body: {}, workflowHost });
+    const refused = await initialize();
+    assert.equal(refused.status, 409, await refused.clone().text());
+    assert.equal((await app.database.prepare('SELECT count(*) AS n FROM wiki_documents').first())?.n, 0);
+    assert.equal(calls.includes('invocations'), false);
+    migrated = true;
+    const accepted = await initialize();
+    assert.equal(accepted.status, 200, await accepted.clone().text());
+    const document = await app.database.prepare("SELECT body FROM wiki_document_revisions WHERE documentId='legacy-document'").first();
+    assert.ok(document);
+    assert.equal(document.body, 'Preserved legacy body');
+    assert.equal((await app.database.prepare("SELECT body FROM graph_nodes WHERE id='legacy-document'").first())?.body, document.body);
+  } finally { await app.dispose(); }
 });
