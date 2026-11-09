@@ -28,10 +28,10 @@ export function seedSnapshot(stored: Row[][]): OntologyGraph {
       archived: Boolean(row.archived),
       validity: decode(row.validity) ?? null,
     })) as OntologyGraph["nodes"],
-    edges: stored[2].map((row) => ({
+    edges: stored[2].map(({ validFrom, validTo, ...row }) => ({
       ...row,
       archived: Boolean(row.archived),
-      validity: decode(row.validity) ?? null,
+      validity: validFrom || validTo ? { from: validFrom ?? null, to: validTo ?? null } : null,
     })) as OntologyGraph["edges"],
   };
 }

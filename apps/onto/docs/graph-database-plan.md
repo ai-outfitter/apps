@@ -125,7 +125,9 @@ Only the platform and imports set keys. This replaces `externalProvider`,
    Batches gain optional anchors.
 3. **Addresses** replace today's handles everywhere agents read and write.
 4. **Import.** One script copies an old Wiki's database into a fresh Onto,
-   keeping ids and slugs and listing any edge the new rules refuse. Once each
-   organization's Onto is checked, the old Wikis and the script are deleted.
+   keeping ids and slugs and listing any edge the new rules refuse. Before
+   Onto replaces the catalog Wiki, Governance, Planning and Forerunner give
+   their edge types endpoints too. Once each organization's Onto is checked,
+   the old Wikis and the script are deleted.
 
 Onto stays on 0.x versions.

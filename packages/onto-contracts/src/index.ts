@@ -10,10 +10,12 @@ export const propertyDefinition = z.strictObject({
   required: z.boolean().default(false),
 });
 const slotName = z.string().regex(/^[a-z][a-z0-9_]{0,47}$/);
-const endpointTypes = z.strictObject({
-  from: z.array(z.uuid()).min(1).max(200),
-  to: z.array(z.uuid()).min(1).max(200),
-});
+/** The node types each end of an edge type allows, or "any" for a generic edge. */
+const endpointSide = z.union([z.array(z.uuid()).min(1).max(200), z.literal("any")]);
+const endpointTypes = z.strictObject({ from: endpointSide, to: endpointSide });
+export type EndpointTypes = z.infer<typeof endpointTypes>;
+/** Whether an edge type's end allows a node type. */
+export const endpointAllows = (side: EndpointTypes["from"], typeId: string) => side === "any" || side.includes(typeId);
 const participationSlot = z.strictObject({
   name: slotName,
   edgeTypeId: z.uuid(),

@@ -49,7 +49,7 @@ const fixture = () =>
         name: "owner",
         title: "owner",
         body: "Test type",
-        category: "edge",
+        category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } },
       },
     ],
     nodes: [

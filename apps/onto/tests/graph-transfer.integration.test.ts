@@ -100,7 +100,7 @@ test("archive state of types, nodes and relationships survives transfer", async 
   const from = "81000000-0000-4000-8000-000000000013", to = "81000000-0000-4000-8000-000000000014", edge = "81000000-0000-4000-8000-000000000015";
   const transfer = { format: "outfitter-wiki-transfer-v1", types: [
     { id: nodeType, category: "node", name: "ArchivedTransferNode", title: "Archived", body: "History", archived: true },
-    { id: edgeType, category: "edge", name: "ArchivedTransferEdge", title: "Archived", body: "History", archived: true },
+    { id: edgeType, category: "edge", name: "ArchivedTransferEdge", title: "Archived", body: "History", archived: true, ontology: { version: 2, endpoints: { from: "any", to: "any" } } },
   ], nodes: [
     { id: from, typeId: nodeType, slug: "archived-transfer-from", title: "Archived from", archived: true },
     { id: to, typeId: nodeType, slug: "archived-transfer-to", title: "Archived to", archived: true },

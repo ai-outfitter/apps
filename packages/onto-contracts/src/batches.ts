@@ -44,6 +44,8 @@ export const batchOpenInput = z.strictObject({
   purpose: z.string().max(2000).default(""),
   source: batchSource.optional(),
   policy: batchPolicy.default({ kind: "member" }),
+  anchors: z.array(z.string().min(1).max(300)).max(20).optional()
+    .describe("Nodes (slug or ID) every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise."),
 });
 const proposal = z.strictObject({
   operation,

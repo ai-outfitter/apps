@@ -54,8 +54,8 @@ export function nodeView(row: typeof graphNodes.$inferSelect): GraphNode {
   return { ...node, ...(validity ? { validity } : {}) };
 }
 export const edgeView = (row: typeof graphEdges.$inferSelect): GraphEdge => {
-  const { validity, ...edge } = row;
-  return { ...edge, ...(validity ? { validity } : {}) };
+  const { validFrom, validTo, ...edge } = row;
+  return { ...edge, ...(validFrom || validTo ? { validity: { from: validFrom, to: validTo } } : {}) };
 };
 export async function readGraph(
   db: Database,
@@ -280,7 +280,7 @@ export async function saveNode(
     current?.slug ??
     freeSlug(
       slugify(input.title),
-      new Set(graph.nodes.map((n) => n.slug).filter((slug) => slug !== undefined)),
+      new Set(graph.nodes.filter((n) => n.typeId === type.id).map((n) => n.slug).filter((slug) => slug !== undefined)),
     );
   const row = {
     ...input,
@@ -362,7 +362,7 @@ export async function saveEdge(
   if (current) {
     const result = await db
       .update(graphEdges)
-      .set(row)
+      .set({ ...row, validFrom: row.validity?.from ?? null, validTo: row.validity?.to ?? null })
       .where(
         and(
           eq(graphEdges.id, current.id),
@@ -377,7 +377,7 @@ export async function saveEdge(
   const inserted = await db
     .insert(graphEdges)
     .select(
-      sql`select ${edge.id},${type.id},${from.id},${to.id},${row.title},${row.body},${row.validity ? JSON.stringify(row.validity) : null},${JSON.stringify(row.properties)},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
+      sql`select ${edge.id},${type.id},${from.id},${to.id},${row.title},${row.body},${JSON.stringify(row.properties)},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt},${row.validity?.from ?? null},${row.validity?.to ?? null} where ${condition}`,
     )
     .returning()
     .catch(conflict);

@@ -130,6 +130,12 @@ async function validatedUpgrades(before: ReturnType<typeof seedSnapshot>, added:
   }
 }
 
+/** An edge record's validity as the table's validFrom and validTo columns. */
+function edgeColumns({ validity, ...record }: Row) {
+  const interval = validity as { from?: string | null; to?: string | null } | null | undefined;
+  return interval ? { ...record, validFrom: interval.from ?? null, validTo: interval.to ?? null } : record;
+}
+
 /** Repeatable JSON setup adds missing records and refreshes known, untouched
  * seed type contracts. Authored records and archives stay untouched. */
 export async function setupStandardData(
@@ -167,11 +173,11 @@ export async function setupStandardData(
   // Authored nodes keep their addresses. Do not replace them with sample data
   // or attach sample relationships to an unrelated record sharing a slug.
   const existingNodes = new Set(stored[1].map((row) => row.id));
-  const existingSlugs = new Set(stored[1].map((row) => row.slug));
+  const existingSlugs = new Set(stored[1].map((row) => `${row.typeId}:${row.slug}`));
   const skippedNodes = new Set(
     data.nodes
       .filter(
-        (node) => !existingNodes.has(node.id) && existingSlugs.has(node.slug),
+        (node) => !existingNodes.has(node.id) && existingSlugs.has(`${node.typeId}:${node.slug}`),
       )
       .map((node) => node.id),
   );
@@ -212,7 +218,7 @@ export async function setupStandardData(
   const safeUpgrades = await validatedUpgrades(before, added, upgrades, data);
   const statements = groups.flatMap(({ table }, index) =>
     added[index].map((record) => insert(table, {
-      ...(table === "graph_types" ? storeType(typeInput.parse(record)) : record),
+      ...(table === "graph_types" ? storeType(typeInput.parse(record)) : table === "graph_edges" ? edgeColumns(record) : record),
       ...audit,
     })),
   );

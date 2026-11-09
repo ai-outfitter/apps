@@ -21,18 +21,16 @@ function beforeExecution(statement: D1PreparedStatement, before: () => Promise<v
   } });
 }
 
-test("uncontracted entity saves tolerate unrelated writes but always guard definitions", async () => {
+test("node, edge and definition saves guard the graph they read", async () => {
   const app = await appWorker("wiki-map", new URL("../.outfitter/packages/operational.json", import.meta.url));
   const client = app.database;
   const who: AppIdentity = { userId: "owner", installationId: app.installationId, owner: { kind: "user", id: "owner" }, role: "owner", canEdit: true };
   const base = drizzle(client);
-  // Keep this fixture genuinely uncontracted; JSON standard data deliberately
-  // contains ontology contracts and would activate whole-graph concurrency checks.
   const entityTypeId=crypto.randomUUID(), edgeTypeId=crypto.randomUUID();
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
   try {
     await saveType(base, who, typeInput.parse({id:entityTypeId,name:"RaceFixtureEntity",category:"node",title:"Race fixture",body:"Uncontracted synthetic type for concurrency checks."}));
-    await saveType(base, who, typeInput.parse({id:edgeTypeId,name:"RaceFixtureRelationship",category:"edge",title:"Race fixture relationship",body:"Uncontracted synthetic type for concurrency checks."}));
+    await saveType(base, who, typeInput.parse({id:edgeTypeId,name:"RaceFixtureRelationship",category:"edge",ontology:{version:2,endpoints:{from:"any",to:"any"}},title:"Race fixture relationship",body:"Uncontracted synthetic type for concurrency checks."}));
     for (const [index, id] of ids.entries()) await saveNode(base, who, { verifiedReferences: true }, nodeInput.parse({ id, typeId: entityTypeId, title: `Race ${index}` }), []);
     function raced(table: string, changeDefinition: boolean | "endpoint" = false) {
       let fired = false;
@@ -52,20 +50,21 @@ test("uncontracted entity saves tolerate unrelated writes but always guard defin
       }, batch: client.batch.bind(client) } as unknown as D1Database);
     }
     const current = await getNode(base, ids[0]);
-    const saved = await saveNode(raced("graph_nodes"), who, { verifiedReferences: true }, nodeInput.parse({ id: current.id, typeId: current.typeId, title: "Saved despite unrelated edit" }), [], current, current.revision);
-    assert.equal(saved.revision, current.revision + 1);
-    const edge = await saveEdge(raced("graph_edges"), who, edgeInput.parse({ typeId: edgeTypeId, fromId: ids[0], toId: ids[1] }));
+    // Every edge type declares its ends ("any" reaches every node), so saves guard the graph they read.
+    await assert.rejects(saveNode(raced("graph_nodes"), who, { verifiedReferences: true }, nodeInput.parse({ id: current.id, typeId: current.typeId, title: "Refused after a concurrent edit" }), [], current, current.revision), (error: unknown) => error instanceof Response && error.status === 409);
+    await assert.rejects(saveEdge(raced("graph_edges"), who, edgeInput.parse({ typeId: edgeTypeId, fromId: ids[0], toId: ids[1] })), (error: unknown) => error instanceof Response && error.status === 409);
+    const edge = await saveEdge(base, who, edgeInput.parse({ typeId: edgeTypeId, fromId: ids[0], toId: ids[1] }));
     assert.equal(edge.fromId, ids[0]);
-    await saveType(raced("graph_types"), who, typeInput.parse({ name: "ConcurrentLegacyType", category: "node", title: "Concurrent legacy", body: "Synthetic" }));
+    await assert.rejects(saveType(raced("graph_types"), who, typeInput.parse({ name: "ConcurrentType", category: "node", title: "Concurrent", body: "Synthetic" })), (error: unknown) => error instanceof Response && error.status === 409);
     await assert.rejects(saveNode(raced("graph_nodes", true), who, { verifiedReferences: true }, nodeInput.parse({ typeId: entityTypeId, title: "Must roll back" }), []), (error: unknown) => error instanceof Response && error.status === 409);
     await assert.rejects(saveType(raced("graph_types", true), who, typeInput.parse({ name: "MustNotExist", category: "node", title: "Stale type", body: "Synthetic" })), (error: unknown) => error instanceof Response && error.status === 409);
     assert.equal(await client.prepare("SELECT id FROM graph_types WHERE name='MustNotExist'").first(), null);
-    const currentType = await saveType(base, who, typeInput.parse({ name: "ContractActivationRace", category: "edge", title: "Activation race", body: "Synthetic" }));
+    const currentType = await saveType(base, who, typeInput.parse({ name: "ContractActivationRace", category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, title: "Activation race", body: "Synthetic" }));
     await saveEdge(base, who, edgeInput.parse({ typeId: currentType.id, fromId: ids[0], toId: ids[1] }));
     const attributes = typeInput.parse(Object.fromEntries(Object.entries(currentType).filter(([key]) => key in typeInput.shape)));
     await assert.rejects(saveType(raced("graph_types", "endpoint"), who, {
       ...attributes, ontology: { version: 1, endpoints: { from: [entityTypeId], to: [entityTypeId] } },
     }, currentType, currentType.revision), (error: unknown) => error instanceof Response && error.status === 409);
-    assert.equal("ontology" in (await getType(base, currentType.id)), false);
+    assert.deepEqual((await getType(base, currentType.id)).ontology, { version: 2, endpoints: { from: "any", to: "any" } });
   } finally { await app.dispose(); }
 });

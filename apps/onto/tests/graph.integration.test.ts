@@ -270,18 +270,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       }),
     );
     assert.equal(kept.references[0].id, "canonical-meze");
-    // Archiving a node leaves its relationships archivable.
-    await json(
-      await app.call(path + "update", owner, {
-        method: "POST",
-        body: {
-          type: "graph-node",
-          id: apple.ref.id,
-          revision: 1,
-          attributes: { archived: true },
-        },
-      }),
-    );
+    // An active edge cannot end at an archived node: archive the edge first.
     const archivedEdge = await json(
       await app.call(path + "update", owner, {
         method: "POST",
@@ -294,6 +283,17 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       }),
     );
     assert.equal(archivedEdge.attributes.archived, true);
+    await json(
+      await app.call(path + "update", owner, {
+        method: "POST",
+        body: {
+          type: "graph-node",
+          id: apple.ref.id,
+          revision: 1,
+          attributes: { archived: true },
+        },
+      }),
+    );
   } finally {
     await app.dispose();
   }
