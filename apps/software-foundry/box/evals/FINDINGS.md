@@ -195,3 +195,56 @@ Fixes these runs led to, beyond the box screenshot gates above:
 - apps #60: apps take `@ai-outfitter/onto` and `connector-github` from the workspace, so the SDK release's `npm ci` no longer hits E404.
 - apps #63–#65: a recovery workflow rebuilds an app release at its tag. hr-v0.1.2 and workshop-v0.1.2 were recovered with it after back-to-back release merges left them without packages.
 - webapp #857: phases dispatch at the platform's scheme and port.
+
+## new-astro-app lands on both models (2026-11-09, later)
+
+Both models built, reviewed and released Release Radar inside the box, and
+`EVAL.ts` passed the landed default branch 6/6. Images were built from main:
+apps `7beb3b5` (with #66, the `dev` scripts) and webapp `f44d628` (with #854,
+#857 and #858). Luna's passing run (7) used the fixture with #67's startup
+check; Spark's run started just before it.
+
+| run | model | result | grade | wall s | calls | tokens in | tokens out | out tok/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Luna 5 | gpt-6-luna | changes_requested | – | 528 | 134 | 2.16M | 14.1k | 30.9 |
+| Luna 6 | gpt-6-luna | landed | 3/6 | 1603 | 181 | 4.81M | 20.7k | 13.6 |
+| **Luna 7** | gpt-6-luna | **landed** | **6/6** | 610 | 163 | 5.01M | 22.7k | 43.7 |
+| **Spark 3** | GLM-5.3-Flash-EXL3 | **landed** | **6/6** | 7856 | 263 | 7.74M | 130k | 16.8 |
+
+| step | Luna 7 s / calls | Spark 3 s / calls |
+| --- | --- | --- |
+| triage | 14 / 7 | 831 / 28 |
+| implement | 219 / 67 | 1833 / 82 |
+| validate | 17 / 0 | 16 / 0 |
+| review | 108 / 37 | 1481 / 31 |
+| repair | 64 / 19 | 1017 / 38 |
+| validate-final | 15 / 0 | 16 / 0 |
+| review-final | 66 / 17 | 1056 / 39 |
+| land | 48 / 16 | 1539 / 45 |
+
+What each run taught:
+
+- **Luna 5**: implement skipped screenshots "because the app has no dev script".
+  The land node then captured them, but only implement, repair and the reviews
+  may publish, so it got a 404. Fix: #66 gives every official Astro app
+  `npm run dev` and asks the new app for one.
+- **Luna 6**: landed, with screenshots on working links (webapp #857). But the
+  app set `compatibility_date` 2026-11-01, newer than the Workers runtime the
+  SDK's test host pins (2026-10-03). The fixture's root `npm test` only built
+  apps, so validation and review missed it, and the grader couldn't start the
+  worker. Fix: #67 boots each built package in the app-test host and checks
+  `/__health`.
+- **Luna 7**: passed. Both reviews ran, repair ran, and every check passed.
+- **Spark 3**: passed in 2 h 11 min, about 13x Luna's wall time. Each step
+  spent 15–30 minutes on the model at about 17 output tokens/s, and Spark
+  wrote roughly 6x Luna's output tokens. Its runs need `BOX_TIMEOUT` of at
+  least 10800 and a runner that outlives a 2-hour shell limit.
+- Review behaved as a real gate in every run. It caught a stale lockfile
+  (Luna 4 and 5) and missing screenshots, and it approved only with evidence.
+
+Still open:
+- An eval box removes its Forgejo and platform when grading finishes, so
+  these PRs can only be viewed while a run is active.
+- The links an agent writes into a PR name the box's internal port (8787).
+  A box published on another host port (the Spark runs used 8797) answers 404
+  to them from the host.
