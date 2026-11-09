@@ -47,7 +47,8 @@
     "./untrusted-text": "./src/untrusted-text.ts",
     "./guest-chat": "./src/guest-chat.ts",
     "./graph-templates": "./src/graph-templates.ts",
-    "./data-transfer": "./src/data-transfer.ts"
+    "./data-transfer": "./src/data-transfer.ts",
+    "./app-graph-metadata": "./src/app-graph-metadata.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.1",

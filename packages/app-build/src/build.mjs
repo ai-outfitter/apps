@@ -11,6 +11,7 @@ import {isManagedAssetPath,managedAssetContentType,isWorkerModuleName} from './p
 import {storageMigration} from '@ai-outfitter/app-sdk/migrations';
 import {readWorkflowPackage} from '@ai-outfitter/workflow-core/source';
 import {z} from 'zod';
+import {packagedGraphMetadata} from '@ai-outfitter/app-sdk/app-graph-metadata';
 const dependencies=z.array(z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)).max(16).refine(a=>new Set(a).size===a.length).parse;
 function appWorkflows(directory) {
  const pkg=JSON.parse(readFileSync(join(directory,'package.json'),'utf8'));
@@ -62,6 +63,9 @@ export async function buildApp(directory, {mode,output}={}) {
  for(const mode of modes) {
  const artifactPath=output?resolve(directory,output):join(directory,'.outfitter/packages',`${mode}.json`);
   const { modes, ...base } = template;
+  const graphFolder=join(directory,'graph');
+  const graph=mode==='operational'&&existsSync(join(graphFolder,'schema.graphql')) ? packagedGraphMetadata({schema:await readFile(join(graphFolder,'schema.graphql'),'utf8'),documents:JSON.parse(await readFile(join(graphFolder,'documents.json'),'utf8'))}) : undefined;
+  if(graph && !modes[mode].capabilities.includes('graph.serve')) throw Error('Graph metadata requires graph.serve');
   const manifest = {
     id: base.id,
     version: base.version,
@@ -71,6 +75,7 @@ export async function buildApp(directory, {mode,output}={}) {
     workflows: appWorkflows(directory),
     ...(mode === "operational" ? { dependencies: dependencies(base.dependencies ?? []), initialize: base.initialize ?? false } : {}),
     dataLocation: base.dataLocation,
+    ...(graph ? {graph} : {}),
     // Demo packages serve fixtures and keep no records or files.
     ...(base.dataLocation === "installation-database" && mode === "operational"
       ? {
