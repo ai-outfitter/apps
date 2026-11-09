@@ -11,17 +11,18 @@ const member = { ...owner, userId: "member", role: "member" };
 const path = "/api/internal/actions/v1/call";
 // biome-ignore lint/suspicious/noExplicitAny: test JSON
 type Json = any;
+type Who = typeof owner;
 
 test("a share shows another organization a KnowledgeGraph from its roots, minus hidden nodes, over current records", async (t) => {
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   t.after(() => app.dispose());
   assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
-  const action = async (who: object, name: string, input: object) => {
+  const action = async (who: Who, name: string, input: object) => {
     const response = await app.call(path, who, { method: "POST", body: { action: name, input } });
     assert.equal(response.status, 200, await response.clone().text());
     return response.json() as Promise<Json>;
   };
-  const run = (name: keyof typeof documents, variables: object, who: object = owner) => {
+  const run = (name: keyof typeof documents, variables: object, who: Who = owner) => {
     const document = documents[name].document as unknown;
     const query = typeof document === "string" ? document : print(document as Parameters<typeof print>[0]);
     return action(who, name.startsWith("Mutate") ? "graph.mutate" : "graph.graphql", { query, operationName: name, variables });
