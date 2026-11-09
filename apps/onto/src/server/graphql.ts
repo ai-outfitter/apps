@@ -22,6 +22,7 @@ import {
 import { z } from "zod";
 import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
 import { readGraph, withRecordAddresses } from "./graph";
+import { listShares, mutateShareInput, mutateShare, readShare, shareSlug } from "./graph-shares";
 import { recordAddress } from "../lib/addresses";
 import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
 
@@ -112,6 +113,23 @@ const Exploration = new GraphQLObjectType({
     dryRun: { type: GraphQLBoolean },
   },
 });
+const ShareNode = new GraphQLObjectType({ name: "ShareNode", fields: { address: text, title: text, summary: { type: GraphQLString } } });
+const ShareEdge = new GraphQLObjectType({ name: "ShareEdge", fields: { address: text } });
+const ShareView = new GraphQLObjectType({
+  name: "ShareView", description: "What the organization reads now: current records the KnowledgeGraph reaches from the roots, without hidden nodes.",
+  fields: { nodes: { type: nonNull(new GraphQLList(nonNull(ShareNode))) }, edges: { type: nonNull(new GraphQLList(nonNull(ShareEdge))) }, incomplete: { type: nonNull(GraphQLBoolean), description: "The KnowledgeGraph's maxNodes or read budget cut the walk." } },
+});
+const Share = new GraphQLObjectType({
+  name: "Share", description: "What this graph shows another organization: a saved KnowledgeGraph walked from roots, minus hidden nodes. It holds a selection, never a copy.",
+  fields: {
+    slug: text, title: text, revision: { type: nonNull(GraphQLInt) }, archived: { type: nonNull(GraphQLBoolean) },
+    organization: { ...text, description: "The Organization node it is for, such as Organization:sunny." },
+    graph: { ...text, description: "The KnowledgeGraph that picks relationships, types and depth." },
+    roots: { ...json, description: "{\"Type:slug\": true} the walk starts from." },
+    hidden: { ...json, description: "{\"Type:slug\": true} left out, with anything reached only through them." },
+    view: { type: ShareView, description: "Null while archived." },
+  },
+});
 const ExplorationSummary = new GraphQLObjectType({ name: "ExplorationSummary", fields: { slug: text, title: text, revision: { type: nonNull(GraphQLInt) }, start: json } });
 
 type Batch = Awaited<ReturnType<typeof getBatch>>;
@@ -152,6 +170,15 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
     args: { slug: { type: nonNull(GraphQLString) } },
     resolve: (_root, args, context) => readExploration(context.db(), explorationArgs.parse(args).slug, pictureProviders(context.db(), context.host)),
   },
+  shares: {
+    type: nonNull(new GraphQLList(nonNull(Share))), description: "What this graph shows other organizations, by title. Select view to see what each one reads.",
+    resolve: async (_root, _args, context) => listShares(context.db()),
+  },
+  share: {
+    type: Share, description: "One share and what its organization reads now; null when there is none.",
+    args: { slug: { type: nonNull(GraphQLString) } },
+    resolve: (_root, args, context) => readShare(context.db(), context.identity, shareSlug.parse(args.slug)),
+  },
   changeBatch: {
     type: ChangeBatch, description: "One change batch, with every operation and its state; null when there is none.",
     args: { id: { type: nonNull(GraphQLID) } },
@@ -177,6 +204,15 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.",
       input: mutateExplorationInput,
       run: (context: MutationContext, input) => mutateExploration(context.db(), context.identity, context.actor, input, pictureProviders(context.db(), context.host)),
+    }),
+    mutateShare: mutationField({
+      name: "MutateShare", output: nonNull(Share),
+      description: "Editors only. Create or change what this graph shows another organization with a merge patch over {title, organization, graph, roots, hidden} and the revision you read (0 creates). organization is an Organization node address, graph a KnowledgeGraph address whose relationships, stop types and maxDepth decide what is reached, roots and hidden are {\"Type:slug\": true}. archived:true stops it. Answers with what the organization would read.",
+      input: mutateShareInput,
+      run: async (context: MutationContext, input) => {
+        const share = await mutateShare(context.db(), context.identity, input);
+        return readShare(context.db(), context.identity, share.slug);
+      },
     }),
     reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),

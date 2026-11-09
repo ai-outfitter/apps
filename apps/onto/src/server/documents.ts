@@ -47,6 +47,22 @@ const changeDocuments = defineDocuments({
       }
     }`,
   },
+  Shares: {
+    story:"As an editor or agent, I want to list what this graph shows other organizations, so that I can review or change a share.",
+    document:`query Shares { shares { slug title revision archived organization graph roots hidden } }`,
+  },
+  Share: {
+    story:"As a member or agent, I want to see exactly what another organization reads through a share, so that nothing is exposed by surprise.",
+    document:`query Share($slug: String!) {
+      share(slug:$slug) { slug title revision archived organization graph roots hidden view { nodes { address title summary } edges { address } incomplete } }
+    }`,
+  },
+  MutateShare: {
+    story:"As an editor, I want to show another organization part of this graph with one merge patch, so that they read current records without a copy.",
+    document:`mutation MutateShare($input: MutateShareInput!) {
+      mutateShare(input:$input) { slug title revision archived organization graph roots hidden view { nodes { address title summary } edges { address } incomplete } }
+    }`,
+  },
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
@@ -63,6 +79,15 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
   },
   "MutateExploration": {
     "description": "Open paths (offerings, products, projects, competitors, issues, repositories, open pullRequests or any edge type), hide nodes or start an exploration with a merge patch; the explore page updates live. Writes no records."
+  },
+  "Shares": {
+    "description": "List what this graph shows other organizations: each share's KnowledgeGraph, roots and hidden nodes."
+  },
+  "Share": {
+    "description": "Preview exactly what another organization reads through a share, as node and edge addresses."
+  },
+  "MutateShare": {
+    "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
   },
   "ChangeBatchChanges": {
     "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."

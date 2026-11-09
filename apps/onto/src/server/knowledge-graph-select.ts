@@ -83,7 +83,7 @@ async function hydrate(source: GraphSource, nodeIds: string[], edgeIds: string[]
 /** Read a selection through GraphQL: the compiled (or given) document runs over the Wiki's
  * tables, then the selection walk bounds what it returned. No whole-graph read. */
 /** Root addresses (Organization:sunny) or IDs as node IDs; an unknown root is a 404. */
-async function rootIdsOf(source: ReturnType<typeof databaseSource>, rootIds: readonly string[]) {
+export async function rootIdsOf(source: ReturnType<typeof databaseSource>, rootIds: readonly string[]) {
   if (rootIds.every(isUuid)) return rootIds.map((id) => id.toLowerCase());
   const types = new Map((await source.types()).map((type) => [type.name, type.id]));
   const addresses = rootIds.map((root) => isUuid(root) ? null : /^([^:]+):(.+)$/.exec(root));
