@@ -17,7 +17,8 @@ export type AppMiddlewareOptions = {
 
 // A Worker missing a declared bucket is not healthy, so every platform
 // health check (install, upgrade) refuses it without a storage flag.
-async function health(app: string, storage?: StorageManifest) {
+async function health(app: string, storage?: StorageManifest, readOnly?: boolean) {
+  if (readOnly) return Response.json({ app, status: "ok" });
   const buckets = storage && storageHealth(storage);
   return Response.json({
     app,
@@ -34,8 +35,8 @@ async function health(app: string, storage?: StorageManifest) {
  * API request must carry the identity the platform forwards after
  * authenticating the member.
  */
-export function appMiddleware({ app, contentSecurityPolicy, readOnly, ...options }: AppMiddlewareOptions) {
-  const storage = options.storage && storageManifest.parse(options.storage);
+export function appMiddleware({ app, contentSecurityPolicy, readOnly, storage: declared }: AppMiddlewareOptions) {
+  const storage = declared && storageManifest.parse(declared);
   return defineMiddleware(async ({ request, locals }, next) => {
     const { pathname } = new URL(request.url);
     const api = !readOnly && pathname.startsWith("/api/");
@@ -48,12 +49,7 @@ export function appMiddleware({ app, contentSecurityPolicy, readOnly, ...options
     Object.assign(locals, storage && { storage: cloudflareStorage(storage, request) });
     try {
       if (api) requestIdentity(request);
-      response =
-        pathname !== "/__health"
-          ? await next()
-          : readOnly
-            ? Response.json({ app, status: "ok" })
-            : await health(app, storage);
+      response = pathname === "/__health" ? await health(app, storage, readOnly) : await next();
     } catch (error) {
       if (!(error instanceof Response)) throw error;
       response = error;

@@ -6,7 +6,8 @@ import { defineConfig } from "astro/config";
 
 const mode = process.env.OUTFITTER_APP_MODE ?? "operational";
 // The demo is read-only fixtures: pages only, never a write.
-const formAction = `form-action ${mode === "operational" ? "'self'" : "'none'"}`;
+const readOnly = mode !== "operational";
+const formAction = `form-action ${readOnly ? "'none'" : "'self'"}`;
 
 export default defineConfig({
   output: "server",
@@ -16,7 +17,7 @@ export default defineConfig({
     react(),
     outfitterApp({
       app: "creative-team",
-      readOnly: mode === "demo",
+      readOnly,
       // Pages carry Astro's hashed CSP (below); this one covers the rest.
       contentSecurityPolicy: `default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; ${formAction}`,
     }),
