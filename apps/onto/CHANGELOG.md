@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/ai-outfitter/apps/compare/onto-v0.1.3...onto-v0.1.4) (2026-11-09)
+
+
+### Features
+
+* move Wiki documents and pages into Outfitter Apps ([7135465](https://github.com/ai-outfitter/apps/commit/71354656e1837c7383fbd8333830f6f2c14d7e98))
+
 ## [0.1.3](https://github.com/ai-outfitter/apps/compare/onto-v0.1.2...onto-v0.1.3) (2026-11-09)
 
 
