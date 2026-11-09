@@ -103,7 +103,7 @@ test("graph.query finds pages by source and properties and keeps an inline selec
     assert.deepEqual(result.queries.missing.matches, []);
     assert.equal(result.nodes.find((row) => row.id === ids.$anchor.id)?.slug, "anchor-project");
 
-    const indexes = await app.database.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('graph_edges_from_typed_idx','graph_edges_to_typed_idx','graph_nodes_active_type_idx')").all();
+    const indexes = await app.database.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('graph_edges_out','graph_edges_in','graph_nodes_type_slug')").all();
     assert.equal(indexes.results.length, 3, "the typed hop indexes are installed");
   } finally {
     await app.dispose();

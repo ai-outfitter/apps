@@ -16,7 +16,7 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     const response = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: {
       requestKey: "graph-reader-fixture", operations: [
         create("$type", "graph-type", { category: "node", name: "ReaderEntity", title: "Reader entity", body: "Synthetic graph reader type." }),
-        create("$relation", "graph-type", { category: "edge", name: "reader_link", title: "Reader link", body: "A synthetic directed link." }),
+        create("$relation", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "reader_link", title: "Reader link", body: "A synthetic directed link." }),
         create("$root", "graph-node", { typeId: "$type", title: "Root", body: "Stored **Markdown** stays unchanged." }),
         create("$child", "graph-node", { typeId: "$type", title: "Child" }),
         create("$other", "graph-node", { typeId: "$type", title: "Unrelated" }),

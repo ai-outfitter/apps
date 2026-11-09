@@ -55,7 +55,7 @@ CREATE TABLE `graph_batches` (
 	`updatedAt` integer NOT NULL,
 	`expiresAt` integer NOT NULL,
 	`closedAt` integer
-, `review` text, reviewJobId text) STRICT;
+, `review` text, reviewJobId text, anchors text) STRICT;
 --> statement-breakpoint
 CREATE TABLE graph_change_receipts (
   actor TEXT NOT NULL,
@@ -90,7 +90,9 @@ CREATE TABLE `graph_edges` (
 	`createdBy` text,
 	`updatedBy` text,
 	`createdAt` integer NOT NULL,
-	`updatedAt` integer NOT NULL, validity text,
+	`updatedAt` integer NOT NULL,
+	`validFrom` text,
+	`validTo` text,
 	FOREIGN KEY (`typeId`) REFERENCES `graph_types`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`fromId`) REFERENCES `graph_nodes`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`toId`) REFERENCES `graph_nodes`(`id`) ON UPDATE no action ON DELETE no action
@@ -190,28 +192,44 @@ CREATE UNIQUE INDEX `graph_assets_key_unique` ON `graph_assets` (`key`);
 --> statement-breakpoint
 CREATE INDEX `graph_batches_state` ON `graph_batches` (`state`,`updatedAt`);
 --> statement-breakpoint
-CREATE UNIQUE INDEX graph_edge_active_identity_idx ON graph_edges(typeId,fromId,toId)
-WHERE archived=0 AND validity IS NULL;
+-- One active edge per type, ends and start of validity.
+CREATE UNIQUE INDEX graph_edges_identity ON graph_edges(typeId, fromId, toId, coalesce(validFrom, '')) WHERE archived = 0;
 --> statement-breakpoint
-CREATE INDEX `graph_edges_from_idx` ON `graph_edges` (`fromId`);
+CREATE INDEX graph_edges_out ON graph_edges(fromId, typeId, toId);
 --> statement-breakpoint
-CREATE INDEX graph_edges_from_typed_idx ON graph_edges(fromId, typeId, toId) WHERE archived = 0;
+CREATE INDEX graph_edges_in ON graph_edges(toId, typeId, fromId);
 --> statement-breakpoint
-CREATE INDEX `graph_edges_to_idx` ON `graph_edges` (`toId`);
+-- An edge's ends must have the node types its edge type allows: a list of type ids
+-- per side in the type's contract, or "any".
+CREATE TRIGGER graph_edges_endpoints_insert BEFORE INSERT ON graph_edges
+WHEN NOT EXISTS (
+  SELECT 1 FROM graph_types e, graph_nodes f, graph_nodes t
+  WHERE e.id = NEW.typeId AND f.id = NEW.fromId AND t.id = NEW.toId
+    AND (json_extract(e.properties, '$.ontology.endpoints.from') = 'any'
+      OR EXISTS (SELECT 1 FROM json_each(e.properties, '$.ontology.endpoints.from') WHERE value = f.typeId))
+    AND (json_extract(e.properties, '$.ontology.endpoints.to') = 'any'
+      OR EXISTS (SELECT 1 FROM json_each(e.properties, '$.ontology.endpoints.to') WHERE value = t.typeId))
+)
+BEGIN SELECT RAISE(ABORT, 'graph_edges: endpoint types not allowed by the edge type'); END;
 --> statement-breakpoint
-CREATE INDEX graph_edges_to_typed_idx ON graph_edges(toId, typeId, fromId) WHERE archived = 0;
---> statement-breakpoint
-CREATE INDEX graph_nodes_active_type_idx ON graph_nodes(typeId) WHERE archived = 0;
+CREATE TRIGGER graph_edges_endpoints_update BEFORE UPDATE OF typeId, fromId, toId ON graph_edges
+WHEN NOT EXISTS (
+  SELECT 1 FROM graph_types e, graph_nodes f, graph_nodes t
+  WHERE e.id = NEW.typeId AND f.id = NEW.fromId AND t.id = NEW.toId
+    AND (json_extract(e.properties, '$.ontology.endpoints.from') = 'any'
+      OR EXISTS (SELECT 1 FROM json_each(e.properties, '$.ontology.endpoints.from') WHERE value = f.typeId))
+    AND (json_extract(e.properties, '$.ontology.endpoints.to') = 'any'
+      OR EXISTS (SELECT 1 FROM json_each(e.properties, '$.ontology.endpoints.to') WHERE value = t.typeId))
+)
+BEGIN SELECT RAISE(ABORT, 'graph_edges: endpoint types not allowed by the edge type'); END;
 --> statement-breakpoint
 CREATE UNIQUE INDEX `graph_nodes_external_identity_idx` ON `graph_nodes` (`externalProvider`,`externalId`);
 --> statement-breakpoint
-CREATE UNIQUE INDEX `graph_nodes_slug_unique` ON `graph_nodes` (`slug`);
+CREATE UNIQUE INDEX graph_nodes_type_slug ON graph_nodes(typeId, slug);
 --> statement-breakpoint
 CREATE UNIQUE INDEX `graph_nodes_source_idx` ON `graph_nodes` (`source`);
 --> statement-breakpoint
 CREATE INDEX graph_nodes_source_record_idx ON graph_nodes(json_extract(source, '$.id')) WHERE source IS NOT NULL;
---> statement-breakpoint
-CREATE INDEX `graph_nodes_type_idx` ON `graph_nodes` (`typeId`);
 --> statement-breakpoint
 CREATE INDEX `graph_revisions_batch` ON `graph_revisions` (`batchId`);
 --> statement-breakpoint

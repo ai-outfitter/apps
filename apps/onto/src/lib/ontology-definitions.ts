@@ -1,4 +1,4 @@
-import type { OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { endpointAllows, type OntologyV2 } from "@ai-outfitter/onto/contracts";
 import {
   type OntologyContext,
   type OntologyType,
@@ -12,8 +12,12 @@ function endpointDefinitions(
   type: OntologyType,
   ctx: OntologyContext,
 ): OntologyViolation[] {
-  const endpoints = ctx.contracts.get(type.id)?.endpoints;
-  if (!endpoints) return [];
+  const contract = ctx.contracts.get(type.id);
+  const endpoints = contract?.endpoints;
+  if (!endpoints)
+    return type.category === "edge" && !type.archived && !v2(contract)?.projection
+      ? [violation(type.id, "contract.endpoints_required", "ontology.endpoints", "Declare the node types each end allows, or \"any\" for a generic edge.")]
+      : [];
   const errors: OntologyViolation[] = [];
   if (type.category !== "edge")
     errors.push(
@@ -25,7 +29,7 @@ function endpointDefinitions(
       ),
     );
   for (const [side, ids] of Object.entries(endpoints)) {
-    for (const id of ids) {
+    for (const id of ids === "any" ? [] : ids) {
       if (ctx.types.get(id)?.category !== "node")
         errors.push(
           violation(
@@ -85,8 +89,8 @@ function auditSlotDefinition(
   const endpoints = ctx.contracts.get(slot.edgeTypeId)?.endpoints;
   if (
     endpoints &&
-    (!endpoints.from.includes(type.id) ||
-      slot.participantTypes.some((id) => !endpoints.to.includes(id)))
+    (!endpointAllows(endpoints.from, type.id) ||
+      slot.participantTypes.some((id) => !endpointAllows(endpoints.to, id)))
   )
     errors.push(
       violation(
@@ -232,8 +236,8 @@ function classifications(
     );
   if (
     contract.symmetric &&
-    JSON.stringify([...new Set(contract.endpoints?.from ?? [])].sort()) !==
-      JSON.stringify([...new Set(contract.endpoints?.to ?? [])].sort())
+    JSON.stringify(contract.endpoints?.from === "any" ? "any" : [...new Set(contract.endpoints?.from ?? [])].sort()) !==
+      JSON.stringify(contract.endpoints?.to === "any" ? "any" : [...new Set(contract.endpoints?.to ?? [])].sort())
   )
     errors.push(
       violation(
@@ -257,7 +261,7 @@ function classifications(
 
 export function auditDefinitions(ctx: OntologyContext): OntologyViolation[] {
   return ctx.graph.types.flatMap((type) => {
-    if (type.ontology === undefined) return [];
+    if (type.ontology === undefined) return endpointDefinitions(type, ctx);
     if (!ctx.contracts.has(type.id))
       return [
         violation(

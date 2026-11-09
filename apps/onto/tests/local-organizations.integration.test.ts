@@ -17,6 +17,7 @@ import {
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (id: string, category: "node" | "edge", name: string) => ({
   id, category, name, title: name, body: `${name} records.`, properties: [], archived: false,
+  ...(category === "edge" ? { ontology: { version: 2 as const, endpoints: { from: "any" as const, to: "any" as const } } } : {}),
 });
 const types = [
   type(core.organization, "node", "Organization"),

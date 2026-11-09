@@ -10,6 +10,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { readGraph } from "./graph";
+import { handleIndex, resolveHandle } from "../lib/record-handles";
 import {
   applyGraphChanges,
   checkGraphChanges,
@@ -90,14 +91,45 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
+  const anchors = input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
   await db.insert(graphBatches).values({
-    id, title: input.title, purpose: input.purpose, source: input.source ?? null, policy: input.policy,
+    id, title: input.title, purpose: input.purpose, source: input.source ?? null, policy: input.policy, anchors,
     state: "open", openedBy: who.userId, openedVia: actorRef(actor),
     createdAt: now, updatedAt: now, expiresAt: now + batchExpiryMs,
   });
   return getBatch(db, who, { batchId: id });
+}
+
+/** The saved nodes a batch's anchors name. */
+async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
+  const graph = await readGraph(db, who);
+  const index = handleIndex(graph);
+  return anchors.map((anchor) => {
+    const id = resolveHandle(index, "graph-node", anchor);
+    if (!graph.nodes.some((node) => node.id === id && !node.archived)) fail(`Unknown anchor ${anchor}`);
+    return id;
+  });
+}
+
+/** Every node the batch creates must reach an anchor along saved or staged edges, in
+ * either direction and through any number of nodes. Returns the titles that do not. */
+function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
+  const index = handleIndex(graph);
+  const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; attributes?: Record<string, unknown> };
+  const idOf = (row: OperationRow) => String(op(row).attributes?.id ?? row.ref);
+  const refs = new Map(rows.map((row) => [row.ref, idOf(row)]));
+  const node = (value: unknown) => refs.get(String(value)) ?? index["graph-node"].get(String(value)) ?? String(value);
+  const links = new Map<string, string[]>();
+  const link = (a: string, b: string) => { links.set(a, [...(links.get(a) ?? []), b]); links.set(b, [...(links.get(b) ?? []), a]); };
+  for (const edge of graph.edges) if (!edge.archived) link(edge.fromId, edge.toId);
+  for (const row of rows) if (op(row).type === "graph-edge" && !op(row).attributes?.archived)
+    link(node(op(row).attributes?.fromId), node(op(row).attributes?.toId));
+  const reached = new Set(anchors), queue = [...anchors];
+  while (queue.length) for (const next of links.get(queue.pop()!) ?? []) if (!reached.has(next)) { reached.add(next); queue.push(next); }
+  return rows.filter((row) => op(row).type === "graph-node" && op(row).operation === "create" && !reached.has(idOf(row)))
+    .map((row) => String(op(row).attributes?.title ?? row.ref));
 }
 
 /** First-run acceptance applies only before any policy batch of that source has committed;
@@ -308,6 +340,8 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   if (rows.length) {
     const validation = await validateBatch(db, who, { batchId: batch.id });
     if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
+    const loose = batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
+    if (loose.length) fail(`Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}`, 409);
   }
   const now = Date.now();
   const jobId = crypto.randomUUID();
@@ -440,7 +474,7 @@ function batchView(batch: BatchRow) {
     state: batch.state, summary: batch.summary ? JSON.parse(batch.summary) : null,
     openedBy: batch.openedBy, openedVia: batch.openedVia, reviewBy: batch.reviewBy,
     createdAt: batch.createdAt, updatedAt: batch.updatedAt, expiresAt: batch.expiresAt, closedAt: batch.closedAt,
-    review: batch.review ?? null,
+    review: batch.review ?? null, anchors: batch.anchors ?? null,
   };
 }
 

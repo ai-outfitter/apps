@@ -38,7 +38,7 @@ export const graphNodes = sqliteTable(
     typeId: text()
       .notNull()
       .references(() => graphTypes.id),
-    slug: text().notNull().unique(),
+    slug: text().notNull(),
     title: text().notNull(),
     summary: text().notNull().default(""),
     body: text().notNull().default(""),
@@ -59,12 +59,12 @@ export const graphNodes = sqliteTable(
     updatedAt: integer().notNull(),
   },
   (t) => [
+    uniqueIndex("graph_nodes_type_slug").on(t.typeId, t.slug),
     uniqueIndex("graph_nodes_source_idx").on(t.source),
     uniqueIndex("graph_nodes_external_identity_idx").on(
       t.externalProvider,
       t.externalId,
     ),
-    index("graph_nodes_type_idx").on(t.typeId),
   ],
 );
 
@@ -83,7 +83,6 @@ export const graphEdges = sqliteTable(
       .references(() => graphNodes.id),
     title: text().notNull().default(""),
     body: text().notNull().default(""),
-    validity: text({ mode: "json" }).$type<ValidityInterval>(),
     properties: text({ mode: "json" })
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
@@ -94,13 +93,16 @@ export const graphEdges = sqliteTable(
     updatedBy: text(),
     createdAt: integer().notNull(),
     updatedAt: integer().notNull(),
+    /** When the edge held: from inclusive, until exclusive; null is unbounded. */
+    validFrom: text(),
+    validTo: text(),
   },
   (t) => [
-    index("graph_edges_from_idx").on(t.fromId),
-    index("graph_edges_to_idx").on(t.toId),
-    uniqueIndex("graph_edge_active_identity_idx")
-      .on(t.typeId, t.fromId, t.toId)
-      .where(sql`${t.archived}=0 AND ${t.validity} IS NULL`),
+    index("graph_edges_out").on(t.fromId, t.typeId, t.toId),
+    index("graph_edges_in").on(t.toId, t.typeId, t.fromId),
+    uniqueIndex("graph_edges_identity")
+      .on(t.typeId, t.fromId, t.toId, sql`coalesce(${t.validFrom}, '')`)
+      .where(sql`${t.archived} = 0`),
   ],
 );
 
@@ -180,6 +182,8 @@ export const graphBatches = sqliteTable("graph_batches", {
   /** The ontology steward's latest advisory review (server/batch-review.ts). */
   review: text({ mode: "json" }).$type<BatchReview>(),
   reviewJobId: text(),
+  /** Node ids every created node must connect to before the batch can be submitted. */
+  anchors: text({ mode: "json" }).$type<string[]>(),
 });
 
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {

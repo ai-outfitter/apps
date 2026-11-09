@@ -39,7 +39,11 @@ const ontologyOf = (type: TypeRow) => (type.ontology ?? undefined) as Partial<On
 export const isInterval = (type: TypeRow) => ontologyOf(type)?.validity === "interval";
 const graphqlName = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const declaredProperties = (type: TypeRow) => (Array.isArray(type.properties) ? type.properties : []).filter((p): p is Property => typeof p?.name === "string");
-export const endpointsOf = (type: TypeRow) => ontologyOf(type)?.endpoints;
+/** Endpoint type lists, when both ends name types; a generic ("any") end gets no typed fields. */
+export const endpointsOf = (type: TypeRow) => {
+  const endpoints = ontologyOf(type)?.endpoints;
+  return endpoints && Array.isArray(endpoints.from) && Array.isArray(endpoints.to) ? { from: endpoints.from, to: endpoints.to } : undefined;
+};
 export const slotsOf = (type: TypeRow): Slot[] => ontologyOf(type)?.stereotype === "relator" ? ontologyOf(type)?.participation?.slots ?? [] : [];
 
 /** Shared names the generator itself defines. */

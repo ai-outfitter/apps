@@ -68,7 +68,7 @@ test("transfer round trip uses the real Wiki entity provider and preserves indep
         body: "original",
       })),
       edges: [
-        { id: randomUUID(), typeId: core.uses, fromId: first, toId: second },
+        { id: randomUUID(), typeId: "71000000-0000-4000-8000-000000000032", fromId: first, toId: second },
       ],
     });
     assert.deepEqual(

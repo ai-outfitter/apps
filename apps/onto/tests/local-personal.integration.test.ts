@@ -18,12 +18,14 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0
 const hobby = uuid(90);
 const type = (id: string, category: "node" | "edge", name: string) => ({
   id, category, name, title: name, body: `${name} records.`, properties: [], archived: false,
+  ...(category === "edge" ? { ontology: { version: 2 as const, endpoints: { from: "any" as const, to: "any" as const } } } : {}),
 });
 const packageType = (id: string) => defaultTypes.find((t) => t.id === id) ?? assert.fail(`no package type ${id}`);
 const node = (id: string, typeId: string, title: string, extra = {}) => ({
   id, typeId, title, slug: title.toLowerCase().replaceAll(" ", "-"), summary: "", body: "",
   website: null, properties: {}, archived: false, ...extra,
 });
+const partOf = "71000000-0000-4000-8000-000000000032";
 const edge = (id: number, from: string, to: string, extra = {}) => ({
   id: uuid(id), typeId: core.uses, fromId: from, toId: to, title: "", body: "", properties: {}, archived: false, ...extra,
 });
@@ -45,6 +47,7 @@ const seed = {
     packageType(core.technology),
     packageType(core.project),
     packageType(core.knowledgeGraph),
+    packageType(partOf),
     type(hobby, "node", "Hobby"),
   ],
   nodes: [
@@ -62,9 +65,9 @@ const seed = {
   ],
   edges: [
     edge(20, uuid(1), uuid(2), { properties: { since: "2020" } }),
-    edge(21, uuid(3), uuid(10)),
-    edge(22, uuid(10), uuid(11), { archived: true }),
-    edge(23, edited.id, uuid(1)),
+    edge(21, uuid(3), uuid(10), { typeId: partOf }),
+    edge(22, uuid(10), uuid(11), { typeId: partOf, archived: true }),
+    edge(23, edited.id, uuid(1), { typeId: partOf }),
   ],
 };
 const installations = { "wiki-map": "local-personal-wiki-map", planning: "local-personal-planning" };

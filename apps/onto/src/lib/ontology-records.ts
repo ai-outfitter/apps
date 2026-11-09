@@ -1,4 +1,4 @@
-import { assertionBody, validityInterval, type OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { assertionBody, endpointAllows, validityInterval, type OntologyV2 } from "@ai-outfitter/onto/contracts";
 import {
   type OntologyContext,
   type OntologyNode,
@@ -217,7 +217,7 @@ function auditEndpoints(
   if (!endpoints) return [];
   return (["from", "to"] as const).flatMap((side) => {
     const node = ctx.nodes.get(side === "from" ? edge.fromId : edge.toId);
-    return node && !node.archived && endpoints[side].includes(node.typeId)
+    return node && !node.archived && endpointAllows(endpoints[side], node.typeId)
       ? []
       : [
           violation(

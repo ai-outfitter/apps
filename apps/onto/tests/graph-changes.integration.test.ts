@@ -47,7 +47,7 @@ const sample = () => [
     body: "Synthetic batch type.",
   }),
   create("$relation", "graph-type", {
-    category: "edge",
+    category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } },
     name: "BatchRelation",
     title: "Batch relation",
     body: "Synthetic batch relationship.",
@@ -398,6 +398,7 @@ test("the 4-type, 30-node, 38-edge workload fits one bounded action call", async
     const types = Array.from({ length: 4 }, (_, i) =>
       create(`$t${i}`, "graph-type", {
         category: i < 2 ? "node" : "edge",
+        ...(i < 2 ? {} : { ontology: { version: 2, endpoints: { from: "any", to: "any" } } }),
         name: `WorkloadType${i}`,
         title: `Workload type ${i}`,
         body: "Synthetic workload type.",

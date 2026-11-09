@@ -20,7 +20,7 @@ import {
 } from "graphql";
 import { z } from "zod";
 import { withRecordHandles } from "./graph";
-import { addToBatch, batchAddInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
+import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -76,6 +76,7 @@ const stageInput = z.strictObject({
   title: z.string().min(1).max(200).optional().describe("Names the batch a new one opens with."),
   purpose: z.string().max(2000).optional(),
   source: batchSource.optional().describe("Where the proposals came from, for a new batch: {kind: \"agent-task\" | \"meeting\" | \"import\" | \"work-package\", ref, label?}, e.g. a chat or meeting ID and its title."),
+  anchors: batchOpenInput.shape.anchors,
   proposals: batchAddInput.shape.proposals,
 }).refine(input => input.batchId || input.title, { message: "Pass batchId, or a title to open a batch", path: ["title"] });
 
@@ -114,7 +115,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       input: stageInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();
-        const batchId = input.batchId ?? (await openBatch(db, context.identity, context.actor, { title: input.title ?? "", purpose: input.purpose ?? "", ...(input.source ? { source: input.source } : {}), policy: { kind: "member" } })).batch.id;
+        const batchId = input.batchId ?? (await openBatch(db, context.identity, context.actor, { title: input.title ?? "", purpose: input.purpose ?? "", ...(input.source ? { source: input.source } : {}), ...(input.anchors ? { anchors: input.anchors } : {}), policy: { kind: "member" } })).batch.id;
         await addToBatch(db, context.identity, context.actor, { batchId, proposals: input.proposals });
         return view(await getBatch(db, context.identity, { batchId }));
       },

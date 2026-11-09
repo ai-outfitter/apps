@@ -112,6 +112,7 @@ input StageChangesInput {
   title: String
   purpose: String
   source: StageChangesInputSource
+  anchors: [String!]
   proposals: [StageChangesInputProposalsItem!]!
 }
 

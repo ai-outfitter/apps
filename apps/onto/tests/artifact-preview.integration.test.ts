@@ -253,7 +253,7 @@ test("Wiki publishes read-only artifact.preview through real action dispatch", a
             )
             .bind(
               id(n),
-              typeId("Issue"),
+              typeId("AcceptanceCriterion"),
               `execution-history-${n}`,
               `Execution history ${n}`,
               JSON.stringify({

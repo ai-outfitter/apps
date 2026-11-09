@@ -27,7 +27,7 @@ test("graph.graphql and knowledge-graph selections over D1 match the whole-graph
     const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
     const types = await call("graph.apply", { requestKey: "source-types", operations: [
       create("$seat", "graph-type", { category: "node", name: "WideSeat", title: "Wide seat", body: "Synthetic." }),
-      create("$link", "graph-type", { category: "edge", name: "wide_link", title: "Wide link", body: "Synthetic." }),
+      create("$link", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "wide_link", title: "Wide link", body: "Synthetic." }),
     ] }) as Record<string, { id: string }>;
     await call("graph.apply", { requestKey: "source-endpoints", operations: [{ operation: "update", ref: "$link", type: "graph-type", id: types.$link.id, revision: 1,
       attributes: { ontology: { version: 1, endpoints: { from: [types.$seat.id], to: [types.$seat.id] } } } }] });

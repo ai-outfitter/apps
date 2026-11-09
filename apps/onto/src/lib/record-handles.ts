@@ -14,7 +14,7 @@ export const edgeHandle = (type: string, from: string, to: string) => `${type}:$
 
 type Index = Record<RecordKind, Map<string, string | null>>;
 
-/** Handle → id for every record; `null` marks a handle two active edges share. */
+/** Handle → id for every record; `null` marks a handle two records share. */
 export function handleIndex(graph: Pick<Graph, "types" | "nodes" | "edges">): Index {
   const types = new Map(graph.types.map((type) => [type.id, type.name]));
   const slugs = new Map(graph.nodes.map((node) => [node.id, node.slug ?? node.id]));
@@ -24,9 +24,12 @@ export function handleIndex(graph: Pick<Graph, "types" | "nodes" | "edges">): In
     const handle = edgeHandle(types.get(edge.typeId) ?? edge.typeId, slugs.get(edge.fromId) ?? edge.fromId, slugs.get(edge.toId) ?? edge.toId);
     edges.set(handle, edges.has(handle) ? null : edge.id);
   }
+  // Slugs are unique per type, so a slug two types share names neither.
+  const nodes = new Map<string, string | null>();
+  for (const node of graph.nodes) if (node.slug) nodes.set(node.slug, nodes.has(node.slug) ? null : node.id);
   return {
     "graph-type": new Map(graph.types.map((type) => [type.name, type.id])),
-    "graph-node": new Map(graph.nodes.flatMap((node) => (node.slug ? [[node.slug, node.id] as const] : []))),
+    "graph-node": nodes,
     "graph-edge": edges,
   };
 }

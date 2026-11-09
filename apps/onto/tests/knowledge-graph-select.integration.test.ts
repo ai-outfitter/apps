@@ -19,7 +19,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     const response = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: {
       requestKey: "selection-render-fixture", operations: [
         create("$type", "graph-type", { category: "node", name: "SelectionFact", title: "Selection fact", body: "Synthetic facts." }),
-        create("$relation", "graph-type", { category: "edge", name: "selection_link", title: "Selection link", body: "Synthetic link." }),
+        create("$relation", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "selection_link", title: "Selection link", body: "Synthetic link." }),
         create("$root", "graph-node", { typeId: "$type", title: "Root", body: "Authored **Markdown** stays unchanged." }),
         create("$child", "graph-node", { typeId: "$type", title: "Child" }),
         create("$other", "graph-node", { typeId: "$type", title: "Unrelated" }),
@@ -154,7 +154,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     const compiledBefore = await storedBody();
     assert.ok(!compiledBefore.query.includes("selectionFuture"), "compiled without the missing link type");
     const linkCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "future-link", operations: [
-      create("$futureType", "graph-type", { category: "edge", name: "selection_future", title: "Selection future", body: "Synthetic link added later." }),
+      create("$futureType", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "selection_future", title: "Selection future", body: "Synthetic link added later." }),
       create("$futureEdge", "graph-edge", { typeId: "$futureType", fromId: ids.$root.id, toId: ids.$other.id }),
     ] } } });
     assert.equal(linkCall.status, 200, await linkCall.clone().text());

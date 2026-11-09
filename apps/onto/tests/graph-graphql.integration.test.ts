@@ -18,7 +18,7 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     const applied = await apply("graphql-fixture", [
       create("$seat", "graph-type", { category: "node", name: "QuerySeat", title: "Query seat", body: "Synthetic seat type.",
         properties: [{ name: "rank", type: "number", description: "Order." }] }),
-      create("$holds", "graph-type", { category: "edge", name: "query_holds", title: "Holds", body: "A synthetic link.",
+      create("$holds", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "query_holds", title: "Holds", body: "A synthetic link.",
         properties: [{ name: "status", type: "string", description: "Link status." }] }),
       create("$a", "graph-node", { typeId: "$seat", title: "Seat A", properties: { rank: 1 } }),
       create("$b", "graph-node", { typeId: "$seat", title: "Seat B", properties: { rank: 2 } }),

@@ -61,7 +61,7 @@ test("local seeds import more than one relationship batch without duplicating on
         format: "outfitter-graph-entities-v1",
         nodes,
         edges,
-        types: [customType, {id: relationshipId,category: "edge",name: "BulkFixtureRelationship",title: "Bulk fixture relationship",body: "Uncontracted synthetic relationship for pagination coverage.",properties: []}],
+        types: [customType, {id: relationshipId,category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } },name: "BulkFixtureRelationship",title: "Bulk fixture relationship",body: "Uncontracted synthetic relationship for pagination coverage.",properties: []}],
       }),
     );
     const host = {

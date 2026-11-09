@@ -17,7 +17,7 @@ test("graph.query batches compact reads through the action dispatcher without wr
     const applied = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: {
       requestKey: "graph-query-fixture", operations: [
         create("$seat", "graph-type", { category: "node", name: "QuerySeat", title: "Query seat", body: "Synthetic seat type." }),
-        create("$holds", "graph-type", { category: "edge", name: "query_holds", title: "Holds", body: "A synthetic link." }),
+        create("$holds", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "query_holds", title: "Holds", body: "A synthetic link." }),
         create("$a", "graph-node", { typeId: "$seat", title: "Seat A", body: "Long body ".repeat(50) }),
         create("$b", "graph-node", { typeId: "$seat", title: "Seat B" }),
         create("$edge", "graph-edge", { typeId: "$holds", fromId: "$a", toId: "$b" }),

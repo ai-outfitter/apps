@@ -53,8 +53,8 @@ export async function importEntities(db: Database, who: AppIdentity, input: unkn
       sql`INSERT INTO graph_nodes (id,typeId,slug,title,summary,body,website,properties,source,validity,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
       SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.slug'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.body'),json_extract(value,'$.website'),json_extract(value,'$.properties'),json_extract(value,'$.source'),json_extract(value,'$.validity'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
       FROM json_each(${JSON.stringify(fresh.map((node) => ({ ...node, source: projectReferences.get(node.id) ?? null })))})`,
-      sql`INSERT INTO graph_edges (id,typeId,fromId,toId,title,body,properties,validity,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
-      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.fromId'),json_extract(value,'$.toId'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.properties'),json_extract(value,'$.validity'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
+      sql`INSERT INTO graph_edges (id,typeId,fromId,toId,title,body,properties,validFrom,validTo,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
+      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.fromId'),json_extract(value,'$.toId'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.properties'),json_extract(value,'$.validity.from'),json_extract(value,'$.validity.to'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
       FROM json_each(${JSON.stringify(freshEdges)})`,
     ], "Graph changed; retry local import");
   }

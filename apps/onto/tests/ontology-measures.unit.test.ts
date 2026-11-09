@@ -20,15 +20,17 @@ test("every seed type parses with the extended ontology and the seed graph audit
 test("declared endpoints and relator slots agree with existing types", () => {
   for (const type of types) {
     const declared = v2(ctx.contracts.get(type.id)) ?? ctx.contracts.get(type.id);
-    for (const id of [...(declared?.endpoints?.from ?? []), ...(declared?.endpoints?.to ?? [])])
+    if (type.category === "edge" && !v2(declared)?.projection) assert.ok(declared?.endpoints, `${type.name} declares endpoints`);
+    const list = (side: unknown) => (Array.isArray(side) ? side as string[] : []);
+    for (const id of [...list(declared?.endpoints?.from), ...list(declared?.endpoints?.to)])
       assert.equal(ctx.types.get(id)?.category, "node", `${type.name} endpoint ${id}`);
     for (const slot of v2(declared)?.participation?.slots ?? []) {
       const edge = ctx.types.get(slot.edgeTypeId);
       assert.equal(edge?.category, "edge", `${type.name}.${slot.name}`);
       const endpoints = ctx.contracts.get(slot.edgeTypeId)?.endpoints;
       assert.ok(endpoints, `${type.name}.${slot.name} edge declares endpoints`);
-      assert.ok(endpoints.from.includes(type.id), `${type.name}.${slot.name} from`);
-      assert.deepEqual([...slot.participantTypes].sort(), [...endpoints.to].sort(), `${type.name}.${slot.name} to`);
+      assert.ok(Array.isArray(endpoints.from) && endpoints.from.includes(type.id), `${type.name}.${slot.name} from`);
+      assert.deepEqual([...slot.participantTypes].sort(), [...list(endpoints.to)].sort(), `${type.name}.${slot.name} to`);
     }
   }
 });
@@ -47,8 +49,8 @@ test("seeded stereotypes, validity and measures keep their published names", () 
     [["holder", "assigned_to", 0, 1], ["role", "assigns_role", 0, 1]]);
   assert.deepEqual(Object.fromEntries(["Goal", "MetricDefinition", "ControlDefinition", "ControlCommitment"].map((n) => [n, typeMeasures(byName.get(n) ?? {}).map((m) => m.name)])),
     { Goal: ["metrics", "pursuers"], MetricDefinition: ["measurement"], ControlDefinition: ["measurement", "commitments"], ControlCommitment: ["openObligations"] });
-  // Other apps' types (a governing body, a business unit) pursue goals too, so pursues names no endpoints.
-  assert.equal(ctx.contracts.get(named("pursues").id), undefined);
+  // Other apps' types (a governing body, a business unit) pursue goals too, so any type may pursue one.
+  assert.equal(ctx.contracts.get(named("pursues").id)?.endpoints?.from, "any");
   const obligations = countTarget(named("ControlCommitment"), { op: "count", of: "commitment" }, ctx);
   assert.equal(obligations !== "ambiguous" && obligations?.name, "ResponseObligation");
 });

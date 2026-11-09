@@ -7,7 +7,16 @@
       "title": "has use case",
       "body": "The source Project includes the target UseCase in its feature scope. Preserve the UseCase's canonical Planning project association; no execution or completion is implied.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000003"
+          ],
+          "to": "any"
+        }
+      }
     },
     {
       "id": "075f93f6-6860-4977-a1b8-b99c4e16c350",
@@ -16,7 +25,20 @@
       "title": "has requirement",
       "body": "The source Project, ProductSpecification or UserStory includes the target Requirement. Intent does not imply implementation or evaluation.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000003",
+            "76000000-0000-4000-8000-000000000001",
+            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+          ],
+          "to": [
+            "7fe211b7-0176-4cac-9799-886a3ee7936f"
+          ]
+        }
+      }
     },
     {
       "id": "08755272-8498-4671-8f63-ec97acc97f76",
@@ -25,7 +47,18 @@
       "title": "uses view",
       "body": "The source ArtifactDefinition selects the target KnowledgeGraph lens as a proposed source selection. The definition's section/order/audience rules are separate from the lens traversal; this relationship does not implement rendering.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000066"
+          ]
+        }
+      }
     },
     {
       "id": "16ae7b75-1acb-4db9-9872-860ef61045c9",
@@ -261,7 +294,16 @@
       "title": "artifact for",
       "body": "The source ArtifactDefinition specifies an artifact about the target local Project or other subject. It is a rendering subject link, not an output artifact or access grant.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+          ],
+          "to": "any"
+        }
+      }
     },
     {
       "id": "7fe211b7-0176-4cac-9799-886a3ee7936f",
@@ -311,7 +353,16 @@
       "title": "has acceptance criterion",
       "body": "The source Requirement, UserStory or UseCase is assessed against the target AcceptanceCriterion. The edge does not assert a passing evaluation; evidence must identify exact subject and criterion revisions.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": "any",
+          "to": [
+            "4a56e759-9bde-4f0a-857d-82526463b092"
+          ]
+        }
+      }
     },
     {
       "id": "b232f62e-7780-4123-bf50-81f83e4ff2a8",
@@ -320,7 +371,18 @@
       "title": "has issue",
       "body": "The source Project tracks the target Issue as work within its scope. The issue's canonical app record owns work status; this edge does not start execution or imply completion.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000003"
+          ],
+          "to": [
+            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+          ]
+        }
+      }
     },
     {
       "id": "d7744927-5ed5-46d2-89be-5815d6fe923c",
@@ -329,7 +391,18 @@
       "title": "targets requirement",
       "body": "The source Issue includes the target Requirement in its intended implementation scope. Follow the requirement's acceptance criteria for verification. This relationship is not a claim that the requirement is approved or implemented.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+          ],
+          "to": [
+            "7fe211b7-0176-4cac-9799-886a3ee7936f"
+          ]
+        }
+      }
     },
     {
       "id": "d8b2e79c-6454-4fde-8b9e-117f3bf2856e",
@@ -338,7 +411,16 @@
       "title": "has story",
       "body": "The source UseCase is elaborated by the target UserStory. This is a scope relationship, not implementation or approval.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": "any",
+          "to": [
+            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+          ]
+        }
+      }
     },
     {
       "id": "eccaf23c-de01-4fb8-b6ad-7df7f4924a4b",
@@ -347,7 +429,18 @@
       "title": "has artifact definition",
       "body": "The source Project includes the target ArtifactDefinition in its proposed or implemented feature scope. This is a definition ownership/scope relation, not a claim that the artifact has been generated or that the project's subject is the artifact's runtime subject.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000003"
+          ],
+          "to": [
+            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000001",
@@ -1018,7 +1111,18 @@
       "title": "revision of",
       "body": "ProductRevision → Product. Identity of the product whose exact revision is described.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000002"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000015"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000009",
@@ -1027,7 +1131,18 @@
       "title": "specifies",
       "body": "ProductSpecification → Product. Intended behavior, not implementation evidence.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000001"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000015"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000010",
@@ -1036,7 +1151,18 @@
       "title": "includes issue",
       "body": "ProductRevision → Issue. Included work; follow its canonical source for status and ownership.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000002"
+          ],
+          "to": [
+            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000011",
@@ -1045,7 +1171,18 @@
       "title": "governed by",
       "body": "ProductRevision → ProductSpecification. Applicable specification; pin its revision in the candidate body.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000002"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000001"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000012",
@@ -1054,7 +1191,18 @@
       "title": "demonstrates",
       "body": "Demonstration → ProductRevision. Experience captured for exactly the subject revision recorded in the body.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000003"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000002"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000013",
@@ -1063,7 +1211,18 @@
       "title": "evaluates",
       "body": "EvaluationRecord → ProductRevision. Result applies only to the subject revision recorded in the evaluation body.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000004"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000002"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000014",
@@ -1072,7 +1231,19 @@
       "title": "checks criterion",
       "body": "EvaluationRecord or PostReleaseVerification → AcceptanceCriterion. Pin the criterion revision in the body.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000004",
+            "76000000-0000-4000-8000-000000000007"
+          ],
+          "to": [
+            "4a56e759-9bde-4f0a-857d-82526463b092"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000015",
@@ -1081,7 +1252,21 @@
       "title": "supported by",
       "body": "An assessment, evaluation, decision, release or verification → its supporting evidence. Evidence is not an inferred approval or pass.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000005",
+            "76000000-0000-4000-8000-000000000004",
+            "71000000-0000-4000-8000-000000000061",
+            "7a000000-0000-4000-8000-000000000001",
+            "76000000-0000-4000-8000-000000000006",
+            "76000000-0000-4000-8000-000000000007"
+          ],
+          "to": "any"
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000016",
@@ -1090,7 +1275,18 @@
       "title": "assesses",
       "body": "ReadinessAssessment → ProductRevision. The assessment body pins the subject revision.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000005"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000002"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000017",
@@ -1099,7 +1295,16 @@
       "title": "applies definition",
       "body": "An assembled artifact or assessment → ArtifactDefinition. Pin the definition revision in the output; the recipe is distinct from its output.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": "any",
+          "to": [
+            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000018",
@@ -1108,7 +1313,18 @@
       "title": "release of",
       "body": "ReleaseRecord → ProductRevision. The release body pins the exact candidate revision activated.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000006"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000002"
+          ]
+        }
+      }
     },
     {
       "id": "76000000-0000-4000-8000-000000000019",
@@ -1117,7 +1333,18 @@
       "title": "verifies release",
       "body": "PostReleaseVerification → ReleaseRecord. Check the exact deployed record and candidate recorded in the body.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "76000000-0000-4000-8000-000000000007"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000006"
+          ]
+        }
+      }
     },
     {
       "id": "7b000000-0000-4000-8000-000000000003",
@@ -1126,7 +1353,14 @@
       "title": "evidence for",
       "body": "The source Document or Demonstration is evidence about the target ProductRevision, UserStory or other record. It records what was observed or imagined, such as an evidence bundle of screenshots or a design concept of mockup images; it is not an evaluation result, review or approval. A Wiki that created this type itself before it was seeded keeps its own; look the type up by name.",
       "properties": [],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": "any",
+          "to": "any"
+        }
+      }
     },
     {
       "id": "7b000000-0000-4000-8000-000000000004",
@@ -1135,10 +1369,29 @@
       "title": "includes record",
       "body": "The source evidence bundle Document includes the exact target record revision named by record_revision, in the stated role. Bundles enumerate their members with these edges so a reviewer can tell which story, demonstration and receipt versions were captured together. A Wiki that created this type itself before it was seeded keeps its own; look the type up by name.",
       "properties": [
-        { "name": "record_revision", "type": "number", "description": "Exact target graph record revision included in this bundle.", "required": true },
-        { "name": "role", "type": "string", "description": "Subject, story, flow, demonstration, source receipt, criterion, evaluation, definition or project.", "required": true }
+        {
+          "name": "record_revision",
+          "type": "number",
+          "description": "Exact target graph record revision included in this bundle.",
+          "required": true
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "description": "Subject, story, flow, demonstration, source receipt, criterion, evaluation, definition or project.",
+          "required": true
+        }
       ],
-      "archived": false
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "71000000-0000-4000-8000-000000000012"
+          ],
+          "to": "any"
+        }
+      }
     },
     {
       "id": "7b000000-0000-4000-8000-000000000005",
@@ -1150,8 +1403,12 @@
       "ontology": {
         "version": 2,
         "endpoints": {
-          "from": ["71000000-0000-4000-8000-000000000003"],
-          "to": ["199e5077-b65f-4c56-a672-06dd6ebe999d"]
+          "from": [
+            "71000000-0000-4000-8000-000000000003"
+          ],
+          "to": [
+            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+          ]
         }
       },
       "archived": false

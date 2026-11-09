@@ -75,15 +75,16 @@ const typeIds = {
   context: "e9600000-0000-4000-8000-000000000024",
 };
 export const featureRequestType = typeIds.request;
-const edgeType = (id: string, name: string, title: string, body: string) => ({ id, category: "edge" as const, name, title, body, properties: [] });
+const edgeType = (id: string, name: string, title: string, body: string, from: string[], to: string[] | "any") =>
+  ({ id, category: "edge" as const, name, title, body, properties: [], ontology: { version: 2 as const, endpoints: { from, to } } });
 const featureRequestTypes = wikiGraph.parse({
   types: [
     { id: typeIds.request, category: "node", name: "FeatureRequest", title: "Feature request", properties: [], jsonSchema: schemaJSON(featureRequestDocument),
       body: "A feature request filed through Software Foundry's RequestFeature, with authenticated provenance. Recorded only: no intake review or execution handoff is configured. Never a Product or an approval." },
-    edgeType(typeIds.organization, "feature_request_organization", "Feature request organization", "The organization resolved from the authenticated Software Foundry installation that owns this request."),
-    edgeType(typeIds.submitter, "feature_request_submitter", "Feature request submitter", "The verified Person or Agent that submitted this request. Identity binding, not a supplied name or node ID, establishes attribution."),
-    edgeType(typeIds.role, "feature_request_role", "Submission role", "A qualifying organizational role assignment verified by Governance at submission. This is historical submission evidence, not current authority or RAPID approval."),
-    edgeType(typeIds.context, "feature_request_context", "Feature request context", "An explicitly referenced existing node relevant to a request. Inclusion establishes relevance only, not approval, causality or a proven domain claim."),
+    edgeType(typeIds.organization, "feature_request_organization", "Feature request organization", "The organization resolved from the authenticated Software Foundry installation that owns this request.", [typeIds.request], ["71000000-0000-4000-8000-000000000001"]),
+    edgeType(typeIds.submitter, "feature_request_submitter", "Feature request submitter", "The verified Person or Agent that submitted this request. Identity binding, not a supplied name or node ID, establishes attribution.", [typeIds.request], ["71000000-0000-4000-8000-000000000005", "71000000-0000-4000-8000-000000000006"]),
+    edgeType(typeIds.role, "feature_request_role", "Submission role", "A qualifying organizational role assignment verified by Governance at submission. This is historical submission evidence, not current authority or RAPID approval.", [typeIds.request], ["71000000-0000-4000-8000-000000000019"]),
+    edgeType(typeIds.context, "feature_request_context", "Feature request context", "An explicitly referenced existing node relevant to a request. Inclusion establishes relevance only, not approval, causality or a proven domain claim.", [typeIds.request], "any"),
   ],
   nodes: [], edges: [],
 });

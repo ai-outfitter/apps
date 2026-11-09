@@ -259,8 +259,6 @@ test("organization-goals projects outgoing pursues to active Goals, bounded on a
       // Root pursues goals 0..24 (24 has an archived relationship) and archived goal 29.
       ...Array.from({ length: 25 }, (_, n) => pursue(root, goal(n), n === 24)),
       pursue(root, goal(29)),
-      pursue(root, notGoal),
-      pursue(goal(25), root),
       pursue(project, goal(26)),
       pursue(root, goal(27), false, core.measured),
       pursue(other, goal(28)),
