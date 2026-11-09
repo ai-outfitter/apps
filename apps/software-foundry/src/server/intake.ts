@@ -312,7 +312,7 @@ async function finishSubmission(context: IntakeContext, host: WorkflowHost<"inte
           ? await startExistingFoundryIssue(host, repo.name, issue.number, undefined, { snapshot, resolved })
           : await existingFoundryIssueRun(host, snapshot.installation.id, String(repo.repositoryId), issue.number);
         if (!run) return { submissionId: key, repository: repo.name, issue, run: null,
-          execution: { status: "blocked" as const, message: "Issue recorded. Foundry execution is not configured for the active package and repository; refresh the execution bindings to start it." } };
+          execution: { status: "blocked" as const, message: "Issue recorded. Foundry execution is not configured for this repository; configure Foundry for it to start work." } };
         // A replayed claim of the same run ID (created: false) is an existing run too.
         return { submissionId: key, repository: repo.name, issue, run: { id: run.id, workflow: run.workflow, existing: run.existing || !run.created, status: run.status, url: runURL(context, run.id, run.workflow) } };
       } catch (error) {

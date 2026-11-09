@@ -178,7 +178,7 @@ export async function configureFoundryWorkspaces(
 /** The current approved binding of `workflowId`/`actor` for one repository. */
 async function currentBinding(host: Unattended, snapshot: Snapshot, workflowId: string, actor: string, resource: string) {
   const candidates = snapshot.bindings.filter((binding) => binding.workflowId === workflowId && binding.actor === actor &&
-    binding.enabled && binding.packageHash === snapshot.installation.activeHash);
+    binding.enabled);
   const bound = await Promise.all(candidates.map((binding) => host.call("repository.read", { bindingId: binding.id })));
   const index = bound.findIndex((repo) => String(repo.repositoryId) === resource);
   if (index >= 0) return candidates[index];
@@ -312,7 +312,7 @@ export async function resolveFoundryRepository(host: Editor, snapshot: Snapshot,
   const candidates = snapshot.subscriptions.flatMap((subscription) => {
     const bindingId = subscription.inputs["triage.inputs.triagerBinding"];
     return subscription.enabled && subscription.workflowId === foundryWorkspaceWorkflow && typeof bindingId === "string" &&
-      snapshot.bindings.some((binding) => binding.id === bindingId && binding.enabled && binding.packageHash === snapshot.installation.activeHash) ? [{ subscription, bindingId }] : [];
+      snapshot.bindings.some((binding) => binding.id === bindingId && binding.enabled) ? [{ subscription, bindingId }] : [];
   });
   // The user's connection and the subscription's event-routing record have
   // different identities. Match the immutable repository, not connection IDs.

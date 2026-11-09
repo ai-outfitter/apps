@@ -510,7 +510,7 @@ const coreOperations = {
     url: z.url().max(2048).optional(),
     headSha: z.string().regex(/^[a-f0-9]{40}$/).optional(),
   }), json),
-  /** Approve a workspace executor binding for this installation's active package,
+  /** Approve a workspace executor binding for this installation (it survives package upgrades),
    * or return the enabled one with the same workflow, actor, target and context.
    * The host sets the workload identity policy. Operator configuration only. */
   "binding.approve": operation(["operator"], z.strictObject({
