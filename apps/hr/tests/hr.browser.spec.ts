@@ -11,6 +11,21 @@ test.afterAll(async () => {
   await worker?.dispose();
 });
 const origin = "https://hr.outfitter.example";
+test("the package answers health, refuses writes and sends its policy", async () => {
+  const health = await worker.fetch(`${origin}/__health`);
+  expect(await health.json()).toEqual({ app: "hr", status: "ok" });
+  const page = await worker.fetch(`${origin}/`);
+  expect(page.headers.get("content-security-policy")).toBe(
+    "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  );
+  expect(page.headers.get("cache-control")).toBe("private, no-store");
+  expect(page.headers.get("x-content-type-options")).toBe("nosniff");
+  for (const path of ["/", "/api/roles"]) {
+    const write = await worker.fetch(`${origin}${path}`, { method: "POST" });
+    expect(write.status).toBe(405);
+    expect(write.headers.get("allow")).toBe("GET, HEAD");
+  }
+});
 const links = [
   "TA Dashboard",
   "Roles",

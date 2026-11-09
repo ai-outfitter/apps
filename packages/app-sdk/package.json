@@ -7,6 +7,7 @@
     "./server": "./src/server.ts",
     "./migrations": "./src/migrations.ts",
     "./cloudflare/database": "./src/cloudflare/database.ts",
+    "./astro": "./src/astro.ts",
     "./cloudflare/middleware": "./src/cloudflare/middleware.ts",
     "./cloudflare/storage": "./src/cloudflare/storage.ts",
     "./storage": "./src/storage.ts",
