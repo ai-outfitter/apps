@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       artifact: ${{ steps.package.outputs.artifact }}
+      commit: ${{ steps.package.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,8 +39,11 @@ jobs:
           APP: ${{ inputs.app }}
           OUTPUT: ${{ runner.temp }}/release
         run: |
+          SOURCE_COMMIT=$(git rev-parse HEAD)
+          export SOURCE_COMMIT
           node scripts/official-app-artifact.mjs prepare "$APP" "$OUTPUT"
           echo "artifact=official-app-release-${APP#apps/}" >> "$GITHUB_OUTPUT"
+          echo "commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.artifact }}
@@ -63,4 +67,5 @@ jobs:
           GH_TOKEN: ${{ secrets.release-token || github.token }}
           APP: ${{ inputs.app }}
           INPUT: ${{ runner.temp }}/release
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
         run: node scripts/official-app-artifact.mjs publish "$APP" "$INPUT"
