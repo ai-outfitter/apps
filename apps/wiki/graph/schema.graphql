@@ -1,0 +1,101 @@
+type Query {
+  documents(after: ID, first: Int): [WikiDocument]
+  document(id: ID!, revision: Int): WikiDocument
+  documentRevisions(id: ID!, before: Int): [DocumentRevision]
+  pages: [WikiPage]
+  page(slug: String!): WikiPage
+}
+
+type WikiDocument {
+  documentId: ID
+  revision: Int
+  title: String
+  summary: String
+  body: String
+  generatedBody: String
+  provenance: String
+  editorId: String
+  createdAt: String
+  id: ID
+  publishedRevision: Int
+  archived: Boolean
+}
+
+type DocumentRevision {
+  documentId: ID
+  revision: Int
+  title: String
+  summary: String
+  body: String
+  generatedBody: String
+  provenance: String
+  editorId: String
+  createdAt: String
+}
+
+type WikiPage {
+  id: ID
+  slug: String
+  documentId: ID
+  entityRef: String
+  parentId: ID
+  revision: Int
+  autoPublish: Boolean
+  policyRef: String
+}
+
+type Mutation {
+  """Save a revisioned draft without publishing it."""
+  saveDocument(input: SaveDocumentInput!): WikiDocument
+
+  """Create or configure a Wiki page."""
+  savePage(input: SavePageInput!): WikiPage
+
+  """Publish a revision after its policy requirements pass."""
+  publishDocument(input: PublishDocumentInput!): WikiDocument
+
+  """Archive a document without deleting its history."""
+  archiveDocument(input: ArchiveDocumentInput!): WikiDocument
+}
+
+input SaveDocumentInput {
+  id: String
+  revision: Float
+  title: String!
+  summary: String
+  body: String
+  slug: String
+}
+
+input SavePageInput {
+  id: String
+  revision: Float
+  slug: String!
+  documentId: String
+  entityRef: SavePageInputEntityRef
+  parentId: String
+  autoPublish: Boolean
+  policyRef: SavePageInputPolicyRef
+}
+
+input SavePageInputEntityRef {
+  installationId: String!
+  type: String!
+  id: String!
+}
+
+input SavePageInputPolicyRef {
+  installationId: String!
+  type: String!
+  id: String!
+}
+
+input PublishDocumentInput {
+  id: String!
+  revision: Float!
+}
+
+input ArchiveDocumentInput {
+  id: String!
+  revision: Float!
+}

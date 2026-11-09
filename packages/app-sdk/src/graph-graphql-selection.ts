@@ -10,7 +10,7 @@
 // - otherwise `edges(types: [...], direction: ...)`, aliased `<edge>Links` /
 //   `<edge>IncomingLinks`, inside `... on <Type>` when a guard names one source type,
 //   on Node otherwise.
-// Roots come from each root type's collection (`slugs: $roots`, `first` from
+// Roots come from each root type's collection (`ids: $rootIds`, `first` from
 // maxNodes). Each record carries id, typeId, title and slug (the address agents use).
 // Beyond selects the last hop's edges once more, with only the far end's id and typeId,
 // so a reader can tell omitted records from missing ones. Terminal
@@ -26,7 +26,7 @@ import { wikiGraphRecords } from "./graph-records";
 
 export type SelectionDocument = {
   /** The GraphQL document as graphql-js `print`s it, so one definition always compiles to the same text.
-   * Its only variable is `$roots: [String!]!`, the root nodes' slugs. */
+   * Its only variable is `$rootIds: [ID!]!`. */
   query: string;
   operationName: string;
   /** JSON Schema of the operation's variables. */
@@ -34,11 +34,10 @@ export type SelectionDocument = {
   /** Selection hops the document spans. */
   hops: number;
 };
-/** The variables every compiled selection takes: its root nodes' slugs, which agents
- * read and send instead of UUIDs. */
+/** The variables every compiled selection takes: its root node IDs. */
 export const selectionVariables = {
-  type: "object", additionalProperties: false, required: ["roots"],
-  properties: { roots: { type: "array", minItems: 1, maxItems: 32, items: { type: "string", minLength: 1, maxLength: 80 }, description: "Root node slugs, each of one of the selection's root types." } },
+  type: "object", additionalProperties: false, required: ["rootIds"],
+  properties: { rootIds: { type: "array", minItems: 1, maxItems: 32, items: { type: "string", format: "uuid" }, description: "Root node IDs, each of one of the selection's root types." } },
 } as const;
 const roundConstants = Uint32Array.from({ length: 64 }, (_, index) => {
   const primes: number[] = [];
@@ -167,10 +166,10 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   };
   const operationName = options.operationName ?? "KnowledgeGraph";
   const first = Math.min(definition.maxNodes, 500);
-  const rootFields = roots.map(typeId => `  ${(layout.nodes.get(typeId) as NodeLayout).collection}(slugs: $roots, first: ${first}) { nodes { ...Record${hops.length ? " ...Step1" : ""} } }`);
+  const rootFields = roots.map(typeId => `  ${(layout.nodes.get(typeId) as NodeLayout).collection}(ids: $rootIds, first: ${first}) { nodes { ...Record${hops.length ? " ...Step1" : ""} } }`);
   const levels = hops.length ? Array.from({ length: definition.maxDepth + 1 }, (_, index) => fragment(index + 1)) : [];
   const document = [
-    `query ${operationName}($roots: [String!]!) {\n${rootFields.join("\n")}\n}`,
+    `query ${operationName}($rootIds: [ID!]!) {\n${rootFields.join("\n")}\n}`,
     "fragment Record on Node { id typeId title slug }",
     "fragment Link on Edge { id typeId fromId toId }",
     ...levels,

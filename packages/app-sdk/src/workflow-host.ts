@@ -261,14 +261,14 @@ const coreOperations = {
   "identity.list": operation(["interactive", "operator"], z.strictObject({ installationId: id }), z.array(z.object({ id, holderId: id, kind: z.enum(["human", "agent"]), principalId: z.string() }))),
   "identity.link": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id, principalId: z.string().min(1).max(300), kind: z.enum(["human", "agent"]) }), z.object({ linked: z.boolean() })),
   "identity.unlink": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id }), z.object({ removed: z.boolean() })),
-  "entities.types": operation(running, z.strictObject({ installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(entityType.extend({ installationId: id, hostname: z.string().nullable().optional(), template: z.string().optional(), slug: z.string().optional() }))),
+  "entities.types": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(entityType.extend({ installationId: id, hostname: z.string().nullable().optional(), template: z.string().optional(), slug: z.string().optional() }))),
   "entities.list": operation(running, entityQuery.extend({ installationId: id }), z.array(entityRecord)),
   "entities.get": operation(running, entityGet.extend({ installationId: id }), entityRecord),
   "entities.create": operation(running, entityWrite.extend({ installationId: id }), entityRecord),
   "entities.update": operation(running, entityUpdate.extend({ installationId: id }), entityRecord),
   /** Actions other installations of the same owner publish (`actions.invoke`).
    * The target app enforces the member's role; calls are attributed to this app. */
-  "actions.list": operation(running, z.strictObject({ installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(z.object({ installationId: id, actions: z.array(actionDescriptor) }))),
+  "actions.list": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(z.object({ installationId: id, actions: z.array(actionDescriptor) }))),
   "actions.call": operation(running, z.strictObject({ installationId: id, action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call"), json),
   /** Approved bindings, subscriptions and usable connections of this installation. Editors only. */
   snapshot: operation(unattended, z.strictObject({}), z.object({

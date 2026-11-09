@@ -9,3 +9,5 @@ node_modules/
 
 **/.wrangler/
 apps/onto/seeds/*.local.json
+
+apps/wiki/seeds/*.local.json

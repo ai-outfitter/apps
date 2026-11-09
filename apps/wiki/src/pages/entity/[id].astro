@@ -1,0 +1,22 @@
+---
+import Layout from "../../components/DocumentLayout.astro";
+import {defaultWiki} from "@ai-outfitter/app-sdk/graph-client";
+import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
+import {requestIdentity} from "@ai-outfitter/app-sdk/server";
+import {micromark} from "micromark";
+import {mount} from "../../documents/context";
+if(import.meta.env.OUTFITTER_APP_MODE==="demo")return Astro.redirect("../related");
+const host=workflowHost<"interactive">(Astro.locals),onto=await defaultWiki(host);
+const record=await host.call("entities.get",{installationId:onto.installationId,type:"graph-node",id:Astro.params.id ?? ""});
+const root=mount(Astro.request),identity=requestIdentity(Astro.request);
+---
+<Layout title={record.title} description={String(record.attributes.summary ?? "Live information from Onto.")}>
+ {identity.canEdit&&<form slot="intro-actions" data-wiki-form data-wiki-root={root} data-astro-reload method="post" action={`${root}api/apps/wiki-map/documents`}>
+  <input type="hidden" name="operation" value="SavePage"/>
+  <input type="hidden" name="entityRef" value={JSON.stringify(record.ref)}/>
+  <input type="hidden" name="slug" value={String(record.attributes.slug ?? record.ref.id)}/>
+  <button>Add to Wiki</button>
+ </form>}
+ <article class="wiki-doc" set:html={micromark(String(record.attributes.body ?? ""))}/>
+ <p class="wiki-meta">This is a live view. Adding a page keeps the entity in Onto and gives it a home in your Wiki.</p>
+</Layout>
