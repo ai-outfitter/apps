@@ -3516,9 +3516,10 @@ type Query {
   """This schema in SDL: a compact alternative to full introspection."""
   sdl: String!
   node(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Node
@@ -3546,9 +3547,10 @@ type Query {
     after: String
   ): SearchConnection!
   artifactDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ArtifactDefinition
@@ -3564,9 +3566,10 @@ type Query {
     at: DateTime
   ): ArtifactDefinitionConnection!
   userStory(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): UserStory
@@ -3582,9 +3585,10 @@ type Query {
     at: DateTime
   ): UserStoryConnection!
   issue(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Issue
@@ -3600,9 +3604,10 @@ type Query {
     at: DateTime
   ): IssueConnection!
   acceptanceCriterion(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AcceptanceCriterion
@@ -3618,9 +3623,10 @@ type Query {
     at: DateTime
   ): AcceptanceCriterionConnection!
   organization(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Organization
@@ -3636,9 +3642,10 @@ type Query {
     at: DateTime
   ): OrganizationConnection!
   businessUnit(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): BusinessUnit
@@ -3654,9 +3661,10 @@ type Query {
     at: DateTime
   ): BusinessUnitConnection!
   project(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Project
@@ -3672,9 +3680,10 @@ type Query {
     at: DateTime
   ): ProjectConnection!
   person(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Person
@@ -3690,9 +3699,10 @@ type Query {
     at: DateTime
   ): PersonConnection!
   agent(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Agent
@@ -3708,9 +3718,10 @@ type Query {
     at: DateTime
   ): AgentConnection!
   technology(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Technology
@@ -3726,9 +3737,10 @@ type Query {
     at: DateTime
   ): TechnologyConnection!
   physicalComponent(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): PhysicalComponent
@@ -3744,9 +3756,10 @@ type Query {
     at: DateTime
   ): PhysicalComponentConnection!
   goal(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Goal
@@ -3762,9 +3775,10 @@ type Query {
     at: DateTime
   ): GoalConnection!
   metricDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): MetricDefinition
@@ -3780,9 +3794,10 @@ type Query {
     at: DateTime
   ): MetricDefinitionConnection!
   document(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Document
@@ -3798,9 +3813,10 @@ type Query {
     at: DateTime
   ): DocumentConnection!
   entity(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Entity
@@ -3816,9 +3832,10 @@ type Query {
     at: DateTime
   ): EntityConnection!
   repository(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Repository
@@ -3834,9 +3851,10 @@ type Query {
     at: DateTime
   ): RepositoryConnection!
   product(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Product
@@ -3852,9 +3870,10 @@ type Query {
     at: DateTime
   ): ProductConnection!
   customerSegment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): CustomerSegment
@@ -3870,9 +3889,10 @@ type Query {
     at: DateTime
   ): CustomerSegmentConnection!
   problem(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Problem
@@ -3888,9 +3908,10 @@ type Query {
     at: DateTime
   ): ProblemConnection!
   role(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Role
@@ -3906,9 +3927,10 @@ type Query {
     at: DateTime
   ): RoleConnection!
   roleAssignment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): RoleAssignment
@@ -3924,9 +3946,10 @@ type Query {
     at: DateTime
   ): RoleAssignmentConnection!
   decisionType(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): DecisionType
@@ -3942,9 +3965,10 @@ type Query {
     at: DateTime
   ): DecisionTypeConnection!
   authorityDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AuthorityDefinition
@@ -3960,9 +3984,10 @@ type Query {
     at: DateTime
   ): AuthorityDefinitionConnection!
   authorityGrant(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): AuthorityGrant
@@ -3978,9 +4003,10 @@ type Query {
     at: DateTime
   ): AuthorityGrantConnection!
   offering(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Offering
@@ -3996,9 +4022,10 @@ type Query {
     at: DateTime
   ): OfferingConnection!
   decisionRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): DecisionRecord
@@ -4014,9 +4041,10 @@ type Query {
     at: DateTime
   ): DecisionRecordConnection!
   knowledgeGraph(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): KnowledgeGraph
@@ -4032,9 +4060,10 @@ type Query {
     at: DateTime
   ): KnowledgeGraphConnection!
   activity(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Activity
@@ -4050,9 +4079,10 @@ type Query {
     at: DateTime
   ): ActivityConnection!
   asset(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Asset
@@ -4068,9 +4098,10 @@ type Query {
     at: DateTime
   ): AssetConnection!
   financialObligation(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): FinancialObligation
@@ -4086,9 +4117,10 @@ type Query {
     at: DateTime
   ): FinancialObligationConnection!
   question(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Question
@@ -4104,9 +4136,10 @@ type Query {
     at: DateTime
   ): QuestionConnection!
   outfitterUser(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): OutfitterUser
@@ -4122,9 +4155,10 @@ type Query {
     at: DateTime
   ): OutfitterUserConnection!
   outfitterOrganization(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): OutfitterOrganization
@@ -4140,9 +4174,10 @@ type Query {
     at: DateTime
   ): OutfitterOrganizationConnection!
   productSpecification(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ProductSpecification
@@ -4158,9 +4193,10 @@ type Query {
     at: DateTime
   ): ProductSpecificationConnection!
   productRevision(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ProductRevision
@@ -4176,9 +4212,10 @@ type Query {
     at: DateTime
   ): ProductRevisionConnection!
   demonstration(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Demonstration
@@ -4194,9 +4231,10 @@ type Query {
     at: DateTime
   ): DemonstrationConnection!
   evaluationRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): EvaluationRecord
@@ -4212,9 +4250,10 @@ type Query {
     at: DateTime
   ): EvaluationRecordConnection!
   readinessAssessment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ReadinessAssessment
@@ -4230,9 +4269,10 @@ type Query {
     at: DateTime
   ): ReadinessAssessmentConnection!
   releaseRecord(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ReleaseRecord
@@ -4248,9 +4288,10 @@ type Query {
     at: DateTime
   ): ReleaseRecordConnection!
   postReleaseVerification(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): PostReleaseVerification
@@ -4266,9 +4307,10 @@ type Query {
     at: DateTime
   ): PostReleaseVerificationConnection!
   release(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Release
@@ -4284,9 +4326,10 @@ type Query {
     at: DateTime
   ): ReleaseConnection!
   requirement(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Requirement
@@ -4302,9 +4345,10 @@ type Query {
     at: DateTime
   ): RequirementConnection!
   friendship(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): Friendship
@@ -4320,9 +4364,10 @@ type Query {
     at: DateTime
   ): FriendshipConnection!
   controlDefinition(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ControlDefinition
@@ -4338,9 +4383,10 @@ type Query {
     at: DateTime
   ): ControlDefinitionConnection!
   controlCommitment(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ControlCommitment
@@ -4356,9 +4402,10 @@ type Query {
     at: DateTime
   ): ControlCommitmentConnection!
   responseObligation(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): ResponseObligation
@@ -4374,9 +4421,10 @@ type Query {
     at: DateTime
   ): ResponseObligationConnection!
   sourceIssueEpisode(
+    """The node's address, such as Organization:sunny."""
     id: ID
 
-    """The node's slug, unique in its Wiki; pass id or slug."""
+    """The node's slug, unique within its type; pass id or slug."""
     slug: String
     archived: Archived = EXCLUDE
   ): SourceIssueEpisode

@@ -21,7 +21,7 @@ import {
 } from "graphql";
 import { z } from "zod";
 import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
-import { withRecordHandles } from "./graph";
+import { withRecordAddresses } from "./graph";
 import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
@@ -44,7 +44,7 @@ const StagedChange = new GraphQLObjectType({
     operation: json, evidence: json,
     confidence: { type: GraphQLFloat }, reason: { type: GraphQLString },
     decision: { type: JSONScalar, description: "Who or which policy decided it, and when." },
-    record: { type: GraphQLString, description: "The committed record: a type name, node slug or edge type:from:to." },
+    record: { type: GraphQLString, description: "The committed record's address: Person, Organization:sunny or works_on(Person:ada → Project:sunny)." },
     recordRevision: { type: GraphQLInt },
   },
 });
@@ -66,7 +66,7 @@ const ChangeBatch = new GraphQLObjectType({
       resolve: async (batch, { refs }: { refs?: string[] | null }, context: ChangeContext) => {
         const operations = batch.operations ?? (await getBatch(context.db(), context.identity, {batchId:batch.id})).operations;
         const chosen = refs ? operations.filter((operation: {ref:string}) => refs.includes(operation.ref)) : operations;
-        return withRecordHandles(context.db(), chosen);
+        return withRecordAddresses(context.db(), chosen);
       },
     },
   },
@@ -159,7 +159,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
-      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by handle: typeId takes a type name, fromId and toId take node slugs or refs staged earlier in the batch, and an update names its record (node slug, type name or edge type:from:to) as id with its revision. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.",
+      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.",
       input: stageInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();

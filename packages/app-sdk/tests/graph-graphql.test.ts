@@ -123,8 +123,10 @@ test("archived records by ID only when asked for; ids are bounded", async () => 
   assert.equal(many.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
 });
 
-test("by-key roots take a slug or an ID, never both; collections filter by slugs", async () => {
+test("by-key roots take a slug, an ID or a node address, never both; collections filter by slugs", async () => {
   const result = await run(`{
+    addressed: node(id: "Person:ada") { slug }
+    wrongAddress: node(id: "Control:ada") { slug }
     ada: person(slug: "ada") { id title reportsToIncoming { slug } }
     any: node(slug: "reviews") { __typename slug }
     wrongType: team(slug: "ada") { title }
@@ -135,6 +137,7 @@ test("by-key roots take a slug or an ID, never both; collections filter by slugs
   }`);
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
   assert.deepEqual(result.data, {
+    addressed: { slug: "ada" }, wrongAddress: null,
     ada: { id: uuid(101), title: "Ada", reportsToIncoming: [{ slug: "grace" }] }, any: { __typename: "Control", slug: "reviews" },
     wrongType: null, missing: null, gone: null, asked: { title: "Gone" },
     persons: { nodes: [{ slug: "ada" }, { slug: "grace" }], aggregate: { count: 2 } },

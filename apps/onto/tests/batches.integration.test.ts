@@ -214,19 +214,19 @@ test("an agent stages, takes back and submits changes with documents; a member c
   assert.equal(read.data?.changeBatch.state, "committed");
   // Committed records come back by handle: node slugs, and an edge as type:from:to.
   assert.deepEqual(read.data?.changeBatch.operations.map((op: { ref: string; record: string }) => [op.ref, op.record]),
-    [["$ada", "ada"], ["$bea", "bea"], ["$friends", "test_friends_with:ada:bea"]]);
+    [["$ada", "Person:ada"], ["$bea", "Person:bea"], ["$friends", "test_friends_with(Person:ada → Person:bea)"]]);
   assert.equal((await run(f, "ChangeBatch", { id: uuid(999) }, owner)).data?.changeBatch, null);
 });
 
-test("agents name existing records by type name, node slug and edge type:from:to, never by UUID", async (t) => {
+test("agents name existing records by address, never by UUID", async (t) => {
   const f = await fixture();
   t.after(() => f.app.dispose());
   await json(await f.action("graph.apply", { requestKey: "people", operations: [person("$ada", 131, "Ada"), person("$bea", 132, "Bea")] }));
   const staged = await run(f, "StageChanges", { input: { title: "Handles", proposals: [
     { operation: { operation: "create", ref: "$gus", type: "graph-node", attributes: { typeId: "Person", title: "Gus" } } },
-    { operation: { operation: "create", ref: "$knows", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "$gus", toId: "ada" } } },
-    { operation: { operation: "create", ref: "$pair", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "ada", toId: "bea" } } },
-    { operation: { operation: "update", ref: "$ada", type: "graph-node", id: "ada", revision: 1, attributes: { summary: "Climbs on Thursdays." } } },
+    { operation: { operation: "create", ref: "$knows", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "$gus", toId: "Person:ada" } } },
+    { operation: { operation: "create", ref: "$pair", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "Person:ada", toId: "Person:bea" } } },
+    { operation: { operation: "update", ref: "$ada", type: "graph-node", id: "Person:ada", revision: 1, attributes: { summary: "Climbs on Thursdays." } } },
   ] } });
   assert.equal(staged.errors, undefined, JSON.stringify(staged.errors));
   const batchId = staged.data.stageChanges.id;
@@ -234,18 +234,18 @@ test("agents name existing records by type name, node slug and edge type:from:to
   await json(await f.review({ batchId, verdict: "approve" }));
   const read = (await run(f, "ChangeBatch", { id: batchId }, owner)).data.changeBatch;
   assert.deepEqual(read.operations.map((op: { ref: string; record: string }) => [op.ref, op.record]),
-    [["$gus", "gus"], ["$knows", "test_friends_with:gus:ada"], ["$pair", "test_friends_with:ada:bea"], ["$ada", "ada"]]);
+    [["$gus", "Person:gus"], ["$knows", "test_friends_with(Person:gus → Person:ada)"], ["$pair", "test_friends_with(Person:ada → Person:bea)"], ["$ada", "Person:ada"]]);
   // An edge is updated by its handle too.
   const archive = await run(f, "StageChanges", { input: { title: "Archive", proposals: [
-    { operation: { operation: "update", ref: "$pair", type: "graph-edge", id: "test_friends_with:ada:bea", revision: 1, attributes: { archived: true } } },
+    { operation: { operation: "update", ref: "$pair", type: "graph-edge", id: "test_friends_with(Person:ada -> Person:bea)", revision: 1, attributes: { archived: true } } },
   ] } });
   assert.equal((await run(f, "SubmitBatch", { input: { batchId: archive.data.stageChanges.id } })).errors, undefined);
   // Unknown handles are refused by name when the batch is submitted.
   const unknown = await run(f, "StageChanges", { input: { title: "Unknown", proposals: [
-    { operation: { operation: "create", ref: "$x", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "ada", toId: "nobody" } } },
+    { operation: { operation: "create", ref: "$x", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "Person:ada", toId: "Person:nobody" } } },
   ] } });
   const refused = await run(f, "SubmitBatch", { input: { batchId: unknown.data.stageChanges.id } });
-  assert.match(refused.errors?.[0]?.message ?? "", /Unknown node slug nobody/);
+  assert.match(refused.errors?.[0]?.message ?? "", /Unknown node address, such as Organization:sunny: Person:nobody/);
 });
 
 test("documents refuse a read-only member, bad input and a batch that commits by policy", async (t) => {

@@ -30,7 +30,7 @@ import { assertionInspectInput, assertionInspection, inspectAssertion } from "./
 const { "graph.apply": apply, ...reads } = publishActionTools("wiki-map", {
   "graph.apply": wikiActions["graph.apply"],
   "batch.inspect": defineAction({
-    description: "Inspect a Wiki change batch by its ID using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record (node slug, type name or edge type:from:to) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
+    description: "Inspect a Wiki change batch by its ID using the predefined ChangeBatch query. Returns proposed record attributes, evidence, confidence, policy, deadlines and decisions, including each committed record's address (Person, Organization:sunny or works_on(Person:ada → Project:sunny)) and revision. Read this before discussing or correcting a suggested project. Errors and truncation mean coverage is incomplete; pass refs to read specific proposals without loading the whole batch.",
     access: "read", input: z.strictObject({ id: z.uuid(), refs: z.array(z.string().min(1).max(200)).max(100).optional() }), output: z.json(),
     run: (context, { id, refs }) => wikiActions["graph.graphql"].invoke(context, {
       query: documents.ChangeBatch.document, operationName: "ChangeBatch", variables: { id, ...(refs ? { refs } : {}) }, maxBytes: 65536,

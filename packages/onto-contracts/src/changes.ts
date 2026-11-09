@@ -51,7 +51,7 @@ export const graphChangeInput = z.strictObject({
         operation.extend({ operation: z.literal("create") }),
         operation.extend({
           operation: z.literal("update"),
-          /** A type name, node slug or edge `type:from:to`; a record UUID also works. */
+          /** An address: a type name (`Person`), node (`Organization:sunny`) or edge (`works_on(Person:ada → Project:sunny)`, `@<validFrom>` when it has a start); a record UUID also works. */
           id: z.string().min(1).max(300),
           revision: z.number().int().positive(),
         }),

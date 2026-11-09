@@ -118,7 +118,7 @@
                             "additionalProperties": false
                           },
                           "anchors": {
-                            "description": "Nodes (slug or ID) every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise.",
+                            "description": "Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise.",
                             "maxItems": 20,
                             "type": "array",
                             "items": {
