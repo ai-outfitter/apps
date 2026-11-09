@@ -65,7 +65,7 @@
     },
     "packages/onto": {
       "release-type": "node",
-      "component": "onto"
+      "component": "onto-sdk"
     },
     "packages/connector-github": {
       "release-type": "node",
