@@ -69,8 +69,7 @@ installer or registry fallback is implied.
 
 Anonymous registry checks on 2026-11-07 returned HTTP 404 for the 14 existing public SDK
 packages checked before the new GitHub connector component, including `@ai-outfitter/app-sdk`, `app-build`,
-`app-test`, `onto` and `onto-contracts`. The latest existing archives above do
-not contain the pending Onto document contracts. Recheck actual tags, assets and
+`app-test`, `onto` and `onto-contracts`. Recheck actual tags, assets and
 package versions before selecting a later release.
 
 ## Release and cutover prerequisites

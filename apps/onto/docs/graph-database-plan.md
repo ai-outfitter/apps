@@ -14,7 +14,10 @@ In Onto:
 - **Time.** *Validity* is when something was true. *Revisions* are when Onto
   recorded it, kept with their history.
 - **Change batches.** Agents stage proposals, a person reviews them, and every
-  write records its evidence.
+  write records its evidence. A batch can name anchors, such as
+  `anchors: ["Organization:sunny"]`. Submitting it is then refused until every
+  node it creates reaches an anchor along any path of existing or staged
+  edges, in either direction.
 - **Assertions**: claims about a node or an edge, never confirmed truth.
 - **Saved views and flattening.** A saved view is a named selection that Onto
   can flatten into Markdown for an agent.
@@ -114,11 +117,12 @@ Only the platform and imports set keys. This replaces `externalProvider`,
 ## Getting there
 
 1. **Remove** documents, seals, source fences, GitHub sources and exports,
-   `seal-timer`, the document-generation workflow, their docs, and
-   `privateData`.
+   the document-generation workflow, their docs, and `privateData`. Batch
+   review windows keep closing on their hourly timer.
 2. **Reset the schema** to one migration holding the storage above, and delete
    the old migrations and the baseline protocol. Give every seed edge type its
    endpoint types, add the account types, and put batches back on UUIDs.
+   Batches gain optional anchors.
 3. **Addresses** replace today's handles everywhere agents read and write.
 4. **Import.** One script copies an old Wiki's database into a fresh Onto,
    keeping ids and slugs and listing any edge the new rules refuse. Once each

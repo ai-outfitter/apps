@@ -50,7 +50,7 @@ const audit = (who: AppIdentity) => ({
 });
 const jsonOrNull = (value: unknown) => value == null ? null : JSON.stringify(value);
 export function nodeView(row: typeof graphNodes.$inferSelect): GraphNode {
-  const { privateData: _private, externalProvider, externalId, validity, ...node } = row;
+  const { externalProvider, externalId, validity, ...node } = row;
   return { ...node, ...(validity ? { validity } : {}) };
 }
 export const edgeView = (row: typeof graphEdges.$inferSelect): GraphEdge => {
@@ -319,7 +319,7 @@ export async function saveNode(
   const inserted = await db
     .insert(graphNodes)
     .select(
-      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${jsonOrNull(source)},null,null,'{}',${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
+      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${jsonOrNull(source)},null,null,${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
     )
     .returning()
     .catch(conflict);

@@ -51,11 +51,6 @@ export const graphNodes = sqliteTable(
     source: text({ mode: "json" }).$type<EntityRef>(),
     externalProvider: text(),
     externalId: text(),
-    // Connector-owned values on the typed node; never part of shared output.
-    privateData: text({ mode: "json" })
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
     archived: integer({ mode: "boolean" }).notNull().default(false),
     revision: integer().notNull().default(1),
     createdBy: text(),
@@ -168,8 +163,6 @@ export const { proposals: actionProposals, guard: actionGuard } =
 /** Staged Wiki changes (docs/plans/wiki-change-batches.md); invisible to graph reads. */
 export const graphBatches = sqliteTable("graph_batches", {
   id: text().primaryKey(),
-  /** How agents name the batch; unique, from its title when it opens. */
-  slug: text().notNull().unique(),
   title: text().notNull(),
   purpose: text().notNull().default(""),
   source: text({ mode: "json" }).$type<Record<string, unknown> | null>(),

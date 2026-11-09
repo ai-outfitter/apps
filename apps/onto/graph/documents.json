@@ -3,14 +3,14 @@
     "name": "ChangeBatch",
     "kind": "query",
     "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    "query": "query ChangeBatch($slug: String!, $refs: [String!]) {\n  changeBatch(slug: $slug) {\n    slug\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
-    "hash": "497d42db151a3cab83f7d8c7754a0605774d372a5704f65bfefb65893f404a32",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "cb60fc898b312e136d3601d8b9edf5b9367899906ec91feff01e5a95d49455b8",
     "variables": {
       "type": "object",
       "properties": {
-        "slug": {
+        "id": {
           "type": "string",
-          "description": "GraphQL String!"
+          "description": "GraphQL ID!"
         },
         "refs": {
           "type": "array",
@@ -18,7 +18,7 @@
         }
       },
       "required": [
-        "slug"
+        "id"
       ]
     },
     "hidden": true
@@ -71,11 +71,11 @@
                       "input": {
                         "type": "object",
                         "properties": {
-                          "batch": {
-                            "description": "Add to this open batch, by slug; omit to open one.",
+                          "batchId": {
+                            "description": "Add to this open batch; omit to open one.",
                             "type": "string",
-                            "minLength": 1,
-                            "maxLength": 80
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
                           "title": {
                             "description": "Names the batch a new one opens with.",
@@ -306,6 +306,11 @@
                       "input": {
                         "type": "object",
                         "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
                           "refs": {
                             "minItems": 1,
                             "maxItems": 100,
@@ -314,17 +319,11 @@
                               "type": "string",
                               "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
                             }
-                          },
-                          "batch": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 80,
-                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "refs",
-                          "batch"
+                          "batchId",
+                          "refs"
                         ],
                         "additionalProperties": false
                       }
@@ -351,19 +350,18 @@
                       "input": {
                         "type": "object",
                         "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
                           "summary": {
                             "type": "string",
                             "maxLength": 2000
-                          },
-                          "batch": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 80,
-                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "batch"
+                          "batchId"
                         ],
                         "additionalProperties": false
                       }
@@ -390,6 +388,11 @@
                       "input": {
                         "type": "object",
                         "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
                           "refs": {
                             "minItems": 1,
                             "maxItems": 2000,
@@ -409,17 +412,11 @@
                           "comment": {
                             "type": "string",
                             "maxLength": 2000
-                          },
-                          "batch": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 80,
-                            "description": "The batch's slug."
                           }
                         },
                         "required": [
-                          "verdict",
-                          "batch"
+                          "batchId",
+                          "verdict"
                         ],
                         "additionalProperties": false
                       }
@@ -552,14 +549,14 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($slugs: [String!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    slugs: $slugs\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      slug\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "33b2e1ed9afd3bab6ed7360a3f320df8aa38ee38b6b2b2441417619402f6a1bb",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "1e96f40a36e6ceb41c697e2f6fa49cead34603cb8a39c533e2a3290d5554a7a6",
     "variables": {
       "type": "object",
       "properties": {
-        "slugs": {
+        "ids": {
           "type": "array",
-          "description": "GraphQL [String!]"
+          "description": "GraphQL [ID!]"
         },
         "search": {
           "type": "string",
@@ -607,7 +604,7 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "slug": {
+                  "id": {
                     "type": "string"
                   },
                   "title": {
@@ -707,214 +704,11 @@
     }
   },
   {
-    "name": "CreateDocument",
-    "kind": "mutation",
-    "story": "As an editor, I want to create a document from a definition, so that I can generate revisions.",
-    "query": "mutation CreateDocument($input: JSON!) {\n  createDocument(input: $input)\n}",
-    "hash": "b7fbe991093f05f5155af017a005da2f29e47e5787376ea231592e5b66378e59",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Create a document from a definition."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "createDocument": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "DefineDocument",
-    "kind": "mutation",
-    "story": "As an owner, I want to define trusted document sources, so that generated revisions use authorized bindings.",
-    "query": "mutation DefineDocument($input: JSON!) {\n  defineDocument(input: $input)\n}",
-    "hash": "33775a0c6d96e8113f4fea5ad55698324f12c17063afd9e7e70088b3eb88c2fe",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Define trusted document sources as an owner or admin."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "defineDocument": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "DocumentJob",
-    "kind": "query",
-    "story": "As an editor, I want to inspect generation status, so that I can see errors and supersession.",
-    "query": "query DocumentJob($input: JSON!) {\n  documentJob(input: $input)\n}",
-    "hash": "065a6ce20a56602d856d945749f0bea56381fa23591d34a15383b6d20e8dd1c3",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Inspect generation status and failure."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "documentJob": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "DocumentLive",
-    "kind": "query",
-    "story": "As an agent, I want to read current document sources, so that I can assess live evidence and completeness.",
-    "query": "query DocumentLive($input: JSON!) {\n  documentLive(input: $input)\n}",
-    "hash": "c8012061472878f3e7843ccdfa6469d049c61aa6364c60e64a2bbdee0230a8e3",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Read live document sources and completeness."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "documentLive": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "DocumentPolicy",
-    "kind": "query",
-    "story": "As an agent, I want to evaluate a revision policy, so that I can determine whether an action is allowed.",
-    "query": "query DocumentPolicy($input: JSON!) {\n  documentPolicy(input: $input)\n}",
-    "hash": "294a664bd5a7ea5fceb2fd685aae530edc279bbdee2c68a8326cb3496a65ea73",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Evaluate exact-revision policy for an action."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "documentPolicy": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "DocumentRevision",
-    "kind": "query",
-    "story": "As an agent, I want to read a generated document revision, so that I can inspect its captured evidence.",
-    "query": "query DocumentRevision($input: JSON!) {\n  documentRevision(input: $input)\n}",
-    "hash": "1165ae7ddd53b56334e02b4303092531757c54d35ba78742348449861738d9c6",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Read a generated revision and captured evidence."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "documentRevision": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "GenerateDocument",
-    "kind": "mutation",
-    "story": "As an editor, I want to queue document generation, so that a scheduled worker captures evidence.",
-    "query": "mutation GenerateDocument($input: JSON!) {\n  generateDocument(input: $input)\n}",
-    "hash": "12168091d05b267f7ed2ba1f02f5c7edb88abf8fbbfef377bbdf4abafa61427f",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Queue document generation."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "generateDocument": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
-    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    slug\n    state\n    counts\n  }\n}",
-    "hash": "b943e7b71eb8532d0918d38b8dc6f2fb4b199e2054dd64dfcceb289af1ea5176",
+    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n  }\n}",
+    "hash": "f6c5912f64162eeb8f0d648c8ea1ac82726cfc5efd71a82f4abda78ec49b2e1a",
     "variables": {
       "type": "object",
       "properties": {
@@ -929,69 +723,11 @@
     "hidden": true
   },
   {
-    "name": "RetryDocument",
-    "kind": "mutation",
-    "story": "As an owner, I want to retry a failed generation, so that a transient source failure can be recovered.",
-    "query": "mutation RetryDocument($input: JSON!) {\n  retryDocument(input: $input)\n}",
-    "hash": "31eeb23c03b8e2f8f497475816624fefa60c163179d276a8557cd8dcf18de2a2",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Retry a failed current generation as an owner or admin."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "retryDocument": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
-    "name": "SealDocument",
-    "kind": "mutation",
-    "story": "As an editor, I want to seal a current revision, so that its captured evidence is recorded without implying approval.",
-    "query": "mutation SealDocument($input: JSON!) {\n  sealDocument(input: $input)\n}",
-    "hash": "bcf8769c260b5c5fae18ac1ad6565ae507824fdec8647f7226a234d9f1829dc8",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "GraphQL JSON!"
-        }
-      },
-      "required": [
-        "input"
-      ]
-    },
-    "mcp": {
-      "description": "Seal a revision without granting approval."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "sealDocument": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
     "name": "StageChanges",
     "kind": "mutation",
     "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
-    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    slug\n    title\n    state\n    counts\n  }\n}",
-    "hash": "153bbe44ab3e69c0cef844f3a0fbb70d37a6d2cb30b1ca1cd9ec7d87348c5e61",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n  }\n}",
+    "hash": "78b8f60cbcdd798947149cc4898a96bd7c3f977342cb43095341c2105d60f989",
     "variables": {
       "type": "object",
       "properties": {
@@ -1009,8 +745,8 @@
     "name": "SubmitBatch",
     "kind": "mutation",
     "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
-    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    slug\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
-    "hash": "f19877e19d8aaf085be054f621cbfef0c7840a9d515b9ce5c92bcb39ca5bf06a",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
     "variables": {
       "type": "object",
       "properties": {

@@ -595,7 +595,7 @@ test("agents find exact types, nodes and incident edges without listing the wiki
     assert.equal(selected[0].title, "Keystone other");
     assert.deepEqual(Object.keys(selected[0].attributes), ["id", "summary"]);
     assert.equal(selected[0].ref.type, "graph-node");
-    assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", order: { field: "privateData", direction: "asc" } } })).status, 400);
+    assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", order: { field: "externalId", direction: "asc" } } })).status, 400);
     const discovery = await json(await app.call(path + "types", member));
     assert.ok(
       discovery.find((type: { type: string }) => type.type === "graph-node")

@@ -1,29 +1,14 @@
 type Query {
-  """Read an immutable generated revision."""
-  documentRevision(input: JSON!): JSON!
-
-  """Read live authorized sources and completeness."""
-  documentLive(input: JSON!): JSON!
-
-  """Evaluate exact-revision policy; unavailable is not approval."""
-  documentPolicy(input: JSON!): JSON!
-
-  """Inspect generation job status, failure and supersession."""
-  documentJob(input: JSON!): JSON!
-
   """
   Search saved change batches; operations and evidence are selected explicitly.
   """
-  changeBatches(first: Int = 100, after: String, ids: [ID!], slugs: [String!], search: String, state: [String!]): ChangeBatchConnection!
+  changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
 
   """
   One change batch, with every operation and its state; null when there is none.
   """
-  changeBatch(slug: String!): ChangeBatch
+  changeBatch(id: ID!): ChangeBatch
 }
-
-"""Any JSON value."""
-scalar JSON
 
 type ChangeBatchConnection {
   nodes: [ChangeBatch!]!
@@ -36,9 +21,6 @@ Proposed Wiki changes, invisible to every read until a member commits them on th
 """
 type ChangeBatch {
   id: ID!
-
-  """Names the batch in every change and read."""
-  slug: String!
   title: String!
   purpose: String!
 
@@ -67,6 +49,9 @@ type ChangeBatch {
     refs: [String!]
   ): [StagedChange!]!
 }
+
+"""Any JSON value."""
+scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -111,10 +96,10 @@ type Aggregate {
 }
 
 input ReviewBatchInput {
+  batchId: ID!
   refs: [String!]
   verdict: ReviewBatchInputVerdict!
   comment: String
-  batch: String!
 }
 
 enum ReviewBatchInputVerdict {
@@ -123,7 +108,7 @@ enum ReviewBatchInputVerdict {
 }
 
 input StageChangesInput {
-  batch: String
+  batchId: ID
   title: String
   purpose: String
   source: StageChangesInputSource
@@ -154,31 +139,16 @@ input StageChangesInputProposalsItemEvidenceItem {
 }
 
 input RemoveStagedChangesInput {
+  batchId: ID!
   refs: [String!]!
-  batch: String!
 }
 
 input SubmitBatchInput {
+  batchId: ID!
   summary: String
-  batch: String!
 }
 
 type Mutation {
-  """Create an owner-admin controlled definition version."""
-  defineDocument(input: JSON!): JSON!
-
-  """Create a document from an owned definition."""
-  createDocument(input: JSON!): JSON!
-
-  """Queue a durable generation job."""
-  generateDocument(input: JSON!): JSON!
-
-  """Seal an exact current revision; sealing is not approval."""
-  sealDocument(input: JSON!): JSON!
-
-  """Retry a failed current job as an owner or admin."""
-  retryDocument(input: JSON!): JSON!
-
   """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """

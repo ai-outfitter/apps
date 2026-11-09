@@ -1,5 +1,4 @@
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import type { createDocumentActions } from "./documents/integration";
 import type { GraphContext } from "@ai-outfitter/app-sdk/graph-graphql";
 import { executeGraphQuery, type GraphGraphqlInput, graphGraphqlInput } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
@@ -12,7 +11,7 @@ import { changeQueries } from "./graphql";
  * fields), through indexed reads of this Wiki's tables; the schema is generated from
  * its types on every call. Change batches (changeQueries) answer beside them, as the
  * Wiki's printed schema promises the platform. */
-export async function graphqlGraphRecords(db: ReturnType<typeof installationDatabase>, identity: AppIdentity, raw: GraphGraphqlInput, context: Partial<Omit<ActionContext, "identity">> & { documentActions?: ReturnType<typeof createDocumentActions> } = {}) {
+export async function graphqlGraphRecords(db: ReturnType<typeof installationDatabase>, identity: AppIdentity, raw: GraphGraphqlInput, context: Partial<Omit<ActionContext, "identity">> = {}) {
   const input = graphGraphqlInput.parse(raw);
   const source = databaseSource(db);
   return executeGraphQuery({

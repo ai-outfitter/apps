@@ -1,10 +1,5 @@
-import { createSourceFenceActions } from "../../../../../server/source-fences/actions";
-import { documentWorkflow } from "../../../../../server/documents/worker";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { createExportActions } from "../../../../../server/exports/github";
-import { agentDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { createDocumentActions } from "../../../../../server/documents/integration";
 import { enableAuditSchedule } from "../../../../../server/ontology-audit";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
 import { describeOntoGraph } from "../../../../../server/graph-provider";
@@ -86,7 +81,7 @@ export const wikiActions = {
   "graph.graphql": defineAction({
     description: "GraphQL read over this Wiki. Example: {\"query\":\"{ persons(first: 20) { nodes { slug title edges(direction: OUTGOING) { __typename to { slug title } } } aggregate { count } } }\"}. Example: {\"query\":\"{ search(text: \\\"a\\\", first: 10) { __typename slug title } }\"}. The schema is generated from this Wiki's types on every call (read it with { sdl } or __schema/__type): each node type becomes a PascalCase object type with a singular root field (camelCase; slug or id, archived: a slug is the node's address, unique in this Wiki, so node(slug:) finds any type) and a plural connection (first, after, archived, ids, slugs, text) returning nodes, pageInfo and aggregate { count }; stored properties are typed fields. Edge types with ontology endpoints add `<edge>` and `<edge>Edges` fields on source types and `<edge>Incoming`/`<edge>IncomingEdges` on target types (at, archived); every node has edges(types, direction), returning edge objects with from and to. Relator slots are fields named after the slot, and participant types get the relator connection with as: \"<slot>\". Archived records are excluded by default; relationships also hide retired ones. Depth 8 and 2000 fields at most; the whole response stays within maxBytes: lists are cut (extensions.truncated, truncatedPaths), never records, and a response that cannot fit returns RESPONSE_TOO_LARGE. Read only.",
     access: "read", input: graphGraphqlInput, output: graphGraphqlResult,
-    run: (context: ActionContext & { documentActions?: ReturnType<typeof createDocumentActions> }, input) => graphqlGraphRecords(installationDatabase(), context.identity, input, context),
+    run: (context: ActionContext, input) => graphqlGraphRecords(installationDatabase(), context.identity, input, context),
   }),
   "graph.read": defineAction({
     description: "Read the complete active Wiki snapshot. Returns stored types, nodes, relationships and revisions; no Markdown or prompt generation. Real Wikis exceed the MCP response limit: use graph_search (graph.query) or graph_query for bulk reads.",
@@ -104,17 +99,8 @@ export const wikiActions = {
 export const ALL: APIRoute = ({ request, params, locals }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational")
     return new Response("Read-only demo", { status: 403 });
-  const documentActions = createDocumentActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals) });
   return actionAPI(request, params.operation ?? "", {
     ...wikiActions,
-    ...createSourceFenceActions({db:agentDatabase,graph:installationDatabase}),
-    ...documentActions,
-    ...createExportActions({ db: agentDatabase, host: () => workflowHost<"interactive">(locals) }),
-    "onto.documents-schedule": defineAction({
-      description: "Enable daily queued document generation and lifecycle event delivery as the acting editor.",
-      access: "write", input: z.strictObject({}), output: z.json(),
-      run: () => workflowHost<"interactive">(locals).call("schedule.save", { workflow: documentWorkflow, cron: "15 8 * * *", timezone: "UTC", inputs: {}, enabled: true }),
-    }),
     "onto.schedule": defineAction({
       description: "Enable Onto’s daily graph audit and durable review processing as the acting editor. The platform checks schedule authority.",
       access: "write", input: z.strictObject({}), output: z.json(),
@@ -122,7 +108,6 @@ export const ALL: APIRoute = ({ request, params, locals }) => {
     }),
   }, (identity) => ({
     db: () => installationDatabase(),
-    documentActions,
     afterSubmit: (batchId: string) => reviewInBackground(locals, installationDatabase(), identity, batchId),
   }));
 };

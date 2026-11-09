@@ -138,8 +138,7 @@ test("a batch adding an external Project gets an error finding, and its policy c
   assert.deepEqual(collected.input.value.counts, { error: 1, warning: 1, note: 0 });
 
   // Agents read the same review through the ChangeBatch document.
-  const [{ slug }] = (await f.app.database.prepare("SELECT slug FROM graph_batches WHERE id = ?").bind(batchId).all()).results as { slug: string }[];
-  const read = await json(await f.action("graph.graphql", { query: "query ($slug: String!) { changeBatch(slug: $slug) { review } }", variables: { slug } }));
+  const read = await json(await f.action("graph.graphql", { query: "query ($id: ID!) { changeBatch(id: $id) { review } }", variables: { id: batchId } }));
   assert.equal(read.data.changeBatch.review.runId, review.runId);
 });
 
@@ -153,7 +152,7 @@ test("a Project part_of the owner passes, and the steward's own findings are kep
     ],
   }));
   t.after(() => f.app.dispose());
-  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id slug } }", { input: {
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
     title: "Our crop project",
     proposals: [
       { operation: node("$crop", 20, core.project, "Lunar greenhouse"), evidence: cite("plan") },
@@ -161,7 +160,7 @@ test("a Project part_of the owner passes, and the steward's own findings are kep
     ],
   } }));
   const batchId = staged.data.stageChanges.id;
-  const submitted = await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batch: staged.data.stageChanges.slug } }));
+  const submitted = await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
   const { state } = submitted.data.submitBatch;
   const { review } = (await f.reviewed(batchId)).batch;
   // A member batch still waits for a member.
