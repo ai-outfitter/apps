@@ -20,7 +20,9 @@ const roles = {
   repairer: "repair",
   lander: "land",
 } as const;
-const issueWorkflows = [foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow, foundryLandingWorkflow];
+/** The issue-to-merge workflows: checks in Actions (`foundryWorkspaceWorkflow`) or in a workspace. */
+export const issueToMergeWorkflows = [foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow];
+const issueWorkflows = [...issueToMergeWorkflows, foundryLandingWorkflow];
 
 export function foundryChecks(repository: string) {
   if (repository.toLowerCase() !== "ai-outfitter/webapp")

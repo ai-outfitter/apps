@@ -5,6 +5,7 @@ import { z } from "zod";
 import { evidenceKey, evidenceSpace } from "./demo-handoff";
 import { foundryForge, hostAPI } from "./forge";
 import { imageDimensions } from "./image-dimensions";
+import { issueToMergeWorkflows } from "./workspaces";
 
 /** A screenshot a workspace agent publishes for its pull request, as the
  * platform's publication route dispatches it to the `publish` phase. */
@@ -32,7 +33,7 @@ export async function publishFoundryEvidence(host: WorkflowHost<"publish">, loca
   const input = foundryEvidenceInput.parse(raw);
   const bytes = evidenceBytes(input.base64);
   const [loaded, repo] = await Promise.all([host.call("workflow.read", { id: input.node.runId }), host.call("repository.read", {})]);
-  if (loaded?.run.workflowId !== "issue-to-merge-actions-ci" || !publishingNodes.includes(input.node.nodeId) ||
+  if (!loaded || !issueToMergeWorkflows.includes(loaded.run.workflowId) || !publishingNodes.includes(input.node.nodeId) ||
       !loaded.attempts.some(attempt => attempt.id === input.node.attemptId && attempt.nodeId === input.node.nodeId))
     throw denied();
   const event = z.object({ issue: z.object({ number: z.number().int().positive() }), sourceRunId: z.uuid().optional() }).parse(loaded.inputs["triage.inputs.event"]);

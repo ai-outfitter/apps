@@ -2,8 +2,8 @@ import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workfl
 import { foundryLandingWorkflow } from "./landing-recovery";
 import {
   foundryWorkspaceWorkflow,
-  historicalFoundryWorkspaceWorkflow,
   issueRuns,
+  issueToMergeWorkflows,
   resolveFoundryRepository,
 } from "./workspaces";
 
@@ -26,7 +26,7 @@ export async function inspectFoundryWorkspace(host: Operator, repository: string
       : null,
     host.call("workflow.active", {
       slots: ["triage.inputs.event", "land.inputs.event"],
-      workflows: [foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow, foundryLandingWorkflow],
+      workflows: [...issueToMergeWorkflows, foundryLandingWorkflow],
     }),
     host.call("workflow.pending", {}),
   ]);
