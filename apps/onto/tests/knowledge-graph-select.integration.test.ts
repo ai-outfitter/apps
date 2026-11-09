@@ -56,9 +56,9 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.ok(!rendered.markdown.includes("Unrelated"));
     assert.equal(rendered.complete, true);
     // The query the read ran comes back with its hash and variables schema: show it, pass it back, or edit it.
-    assert.match(graph.query ?? "", /^query FactsLens\(\$roots: \[String!\]!\) \{/);
+    assert.match(graph.query ?? "", /^query FactsLens\(\$rootIds: \[ID!\]!\) \{/);
     assert.match(graph.hash ?? "", /^[0-9a-f]{64}$/);
-    assert.deepEqual((graph.variables as { required: string[] }).required, ["roots"]);
+    assert.deepEqual((graph.variables as { required: string[] }).required, ["rootIds"]);
     const againResponse = await select({ query: graph.query, rootIds: [ids.$root.id] });
     assert.equal(againResponse.status, 200, await againResponse.clone().text());
     const again = knowledgeGraphSelectResult.parse(await againResponse.json());

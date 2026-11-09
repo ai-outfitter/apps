@@ -2,6 +2,7 @@ import { agentDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { requestActor,requestIdentity,requestOriginActor,requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { serveGraphql } from "@ai-outfitter/app-sdk/app-graphql";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import {getOperationAST,parse} from "graphql";
 import { z } from "zod";
 import { graphqlSchema,type Context } from "./graphql";
 import { documents } from "./documents";
@@ -20,7 +21,7 @@ export function mount(request:Request) {
 }
 export async function run(name:keyof typeof documents,variables:Record<string,unknown>,ctx:Context) {
  const document=documents[name];
- const result=await serveGraphql({schema:graphqlSchema,query:document.document as string,variables,context:ctx,operation:name.startsWith("Wiki")?"query":"mutation",maxBytes:262144});
+ const result=await serveGraphql({schema:graphqlSchema,query:document.document as string,variables,context:ctx,operation:getOperationAST(parse(document.document as string))!.operation,maxBytes:262144});
  if(result.errors?.length) {
   const error=result.errors[0];throw new Response(error.message,{status:typeof error.extensions?.status==="number"?error.extensions.status:400});
  }
