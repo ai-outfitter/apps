@@ -24,13 +24,13 @@
       "capabilities": [
         "data.export",
         "graph.serve",
-        "organization.workshop.projects",
-        "organization.workshop.agent",
         "storage.buckets",
         "workflow.host",
         "entities.read",
         "entities.write",
-        "actions.invoke"
+        "actions.invoke",
+        "workflow.workshop-design.start",
+        "workflow.workshop-concept.start"
       ]
     }
   },

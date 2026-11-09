@@ -1,0 +1,44 @@
+version: beta
+id: workshop-design
+summary: Workshop's design agent turns one design request, or a follow-up to the current model, into a CAD plan and saves it as the project's next revision.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  # No actor fills this step: Workshop does, through the workflow host, when a
+  # member sends a design request from a project page. It sends the design
+  # agent prompt (agent/design-agent.md) with the request and the current
+  # model as data, validates the answer against the CAD plan contract, saves
+  # the project and records the revision here. A turn is one run.
+  - id: design
+    inference: {maxOutputTokens: 8000, timeoutMs: 300000}
+    inputs:
+      message:
+        schema: {type: string, minLength: 1, maxLength: 500, description: The member's design request or follow-up}
+      projectId:
+        schema: {type: [string, "null"], description: The project a follow-up changes; null for a new project}
+    outputs:
+      design:
+        connector: database
+        record: workshop-design.saved
+        schema:
+          type: object
+          properties:
+            projectId: {type: string, format: uuid}
+            revision: {type: integer, minimum: 1}
+            name: {type: string}
+            features: {type: integer, minimum: 1}
+            size:
+              type: array
+              items: {type: number}
+              minItems: 3
+              maxItems: 3
+            prompt:
+              type: object
+              properties:
+                path: {type: string}
+                digest: {type: string, description: SHA-256 of the exact prompt text}
+              required: [path, digest]
+          required: [projectId, revision, name, features, size, prompt]
+outputs:
+  design: design.outputs.design

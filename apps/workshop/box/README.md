@@ -52,8 +52,11 @@ the driver against a stand-in platform and a local git remote.
   more than 0.5 mm off. `tests/box-geometry.unit.test.ts` checks that a correct
   CAD plan passes each and a wrong one fails.
 
-The design agent runs on the platform (the webapp's `src/lib/workshop-design.ts`),
-so the platform gets the model settings; the box signs in as the local member.
+The design agent is Workshop's own (`src/server/design.ts`, prompt in
+`agent/design-agent.md`): each turn starts a `workshop-design` workflow run and
+asks the platform for one model answer through the workflow host's
+`inference.generate`, so the platform gets the model settings and meters the
+call to that run. The box signs in as the local member.
 
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=workshop \
