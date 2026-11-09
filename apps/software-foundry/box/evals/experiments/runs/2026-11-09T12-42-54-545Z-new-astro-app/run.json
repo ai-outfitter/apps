@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T12-42-54-545Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main3"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "landed",
+  "success": true,
+  "grade": {
+    "passed": 6,
+    "total": 6
+  },
+  "durationSeconds": 652.6,
+  "metrics": {
+    "wallSeconds": 609.5,
+    "modelSeconds": 519.4,
+    "modelCalls": 163,
+    "inputTokens": 5008611,
+    "outputTokens": 22688,
+    "outputTokensPerSecond": 43.7,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 14.3,
+        "modelCalls": 7,
+        "inputTokens": 53897,
+        "outputTokens": 840
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 218.9,
+        "modelCalls": 67,
+        "inputTokens": 2177772,
+        "outputTokens": 12582
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 16.9,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 108.4,
+        "modelCalls": 37,
+        "inputTokens": 1999204,
+        "outputTokens": 3364
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 63.9,
+        "modelCalls": 19,
+        "inputTokens": 317796,
+        "outputTokens": 1991
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 15.1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 66.4,
+        "modelCalls": 17,
+        "inputTokens": 301722,
+        "outputTokens": 2582
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 47.5,
+        "modelCalls": 16,
+        "inputTokens": 158220,
+        "outputTokens": 1329
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Landed and passed: screenshots, review, repair, final review, merge and release."
+}

@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T05-01-57-427Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "changes_requested",
+  "success": false,
+  "grade": {
+    "passed": 1,
+    "total": 6
+  },
+  "durationSeconds": 533.6,
+  "metrics": {
+    "wallSeconds": 497.6,
+    "modelSeconds": 417.3,
+    "modelCalls": 137,
+    "inputTokens": 2364411,
+    "outputTokens": 18358,
+    "outputTokensPerSecond": 44,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 16.3,
+        "modelCalls": 7,
+        "inputTokens": 50392,
+        "outputTokens": 674
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 217.9,
+        "modelCalls": 58,
+        "inputTokens": 1299616,
+        "outputTokens": 10595
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 1.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 39.1,
+        "modelCalls": 20,
+        "inputTokens": 349389,
+        "outputTokens": 2358
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 45.8,
+        "modelCalls": 15,
+        "inputTokens": 153060,
+        "outputTokens": 1078
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 15.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 74.2,
+        "modelCalls": 28,
+        "inputTokens": 449262,
+        "outputTokens": 2381
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 24,
+        "modelCalls": 9,
+        "inputTokens": 62692,
+        "outputTokens": 1272
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. First published screenshots. Review caught a stale lockfile; review-final withheld approval because the image links were https without the box's port (webapp #857)."
+}

@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T12-13-21-171Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main3"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "landed",
+  "success": false,
+  "grade": {
+    "passed": 3,
+    "total": 6
+  },
+  "durationSeconds": 1650,
+  "metrics": {
+    "wallSeconds": 1602.5,
+    "modelSeconds": 1521.2,
+    "modelCalls": 181,
+    "inputTokens": 4808477,
+    "outputTokens": 20734,
+    "outputTokensPerSecond": 13.6,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 14.8,
+        "modelCalls": 6,
+        "inputTokens": 46610,
+        "outputTokens": 772
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 132.4,
+        "modelCalls": 54,
+        "inputTokens": 1009763,
+        "outputTokens": 7178
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 14.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 118.5,
+        "modelCalls": 39,
+        "inputTokens": 1734385,
+        "outputTokens": 4753
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 95.6,
+        "modelCalls": 43,
+        "inputTokens": 934286,
+        "outputTokens": 3801
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 14.3,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 1144.4,
+        "modelCalls": 31,
+        "inputTokens": 1029616,
+        "outputTokens": 3170
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 15.5,
+        "modelCalls": 8,
+        "inputTokens": 53817,
+        "outputTokens": 1060
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Landed, but the grader could not start the worker: compatibility_date 2026-11-01 is newer than the test host's workerd (apps #67 makes the fixture start each app)."
+}

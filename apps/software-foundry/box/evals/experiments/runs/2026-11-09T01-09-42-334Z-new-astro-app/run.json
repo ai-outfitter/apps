@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T01-09-42-334Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:dev"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "changes_requested",
+  "success": false,
+  "grade": {
+    "passed": 1,
+    "total": 6
+  },
+  "durationSeconds": 555.7,
+  "metrics": {
+    "wallSeconds": 512.1,
+    "modelSeconds": 423.5,
+    "modelCalls": 136,
+    "inputTokens": 3048323,
+    "outputTokens": 18540,
+    "outputTokensPerSecond": 43.8,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 27.8,
+        "modelCalls": 6,
+        "inputTokens": 27507,
+        "outputTokens": 895
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 197.4,
+        "modelCalls": 59,
+        "inputTokens": 1790481,
+        "outputTokens": 9829
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 14.1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 44.6,
+        "modelCalls": 11,
+        "inputTokens": 116705,
+        "outputTokens": 1150
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 86.3,
+        "modelCalls": 38,
+        "inputTokens": 899391,
+        "outputTokens": 2772
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 13.9,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 41.4,
+        "modelCalls": 12,
+        "inputTokens": 103616,
+        "outputTokens": 2217
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 26,
+        "modelCalls": 10,
+        "inputTokens": 110623,
+        "outputTokens": 1677
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. First new-astro-app run. The app was correct (6/6 on a tree replayed from the implement session) but the box had no browser, so review asked for screenshots and nothing landed."
+}

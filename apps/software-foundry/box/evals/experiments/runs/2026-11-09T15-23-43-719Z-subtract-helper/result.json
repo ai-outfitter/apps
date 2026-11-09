@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "requestId": "3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e",
+  "status": "landed",
+  "issue": {
+    "number": 1,
+    "url": "http://127.0.0.1:3300/box/repo/issues/1"
+  },
+  "triage": {
+    "plan": "Plan for issue #1: add a named `subtract(a, b)` export to `index.mjs` returning `a - b`; add a `node:test` test covering subtraction; run `npm test`. Triage confirmed the issue is open and matches the checkout: `index.mjs` currently exports only `add`, and `package.json` defines `npm test` as `node --test`. No repository instruction files were found. No code was changed, tests were not run, and no comments were published.",
+    "questions": []
+  },
+  "change": {
+    "delivery": "pull_request",
+    "pullRequest": {
+      "schemaVersion": 1,
+      "number": 2,
+      "url": "http://127.0.0.1:3300/box/repo/pulls/2",
+      "title": "Add subtract helper",
+      "request": {
+        "requestId": "3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e",
+        "kind": "feature",
+        "issueNumber": 1
+      },
+      "baseBranch": "main",
+      "baseSha": "bd30a90b8580334dcb982ac46e24bfb84a6b46b3",
+      "headBranch": "outfitter/issue-1-b443b27b-37cf-580d-a374-5c600f199d70",
+      "headSha": "aafb8e30c674c5fcfff6e8ff4290dcc5323d4094",
+      "summary": "Implemented and pushed `subtract(a, b)` with node:test coverage. `npm test` passed. Opened draft PR #2 with a native `Closes #1` reference; screenshots are not applicable to this non-visual change.",
+      "changes": [
+        {
+          "path": "index.mjs",
+          "change": "modified",
+          "reason": "Implemented and pushed `subtract(a, b)` with node:test coverage. `npm test` passed. Opened draft PR #2 with a native `Closes #1` reference; screenshots are not applicable to this non-visual change."
+        },
+        {
+          "path": "test/index.test.mjs",
+          "change": "added",
+          "reason": "Implemented and pushed `subtract(a, b)` with node:test coverage. `npm test` passed. Opened draft PR #2 with a native `Closes #1` reference; screenshots are not applicable to this non-visual change."
+        }
+      ],
+      "acceptanceCriteria": [
+        {
+          "id": "export-subtract",
+          "status": "met",
+          "evidence": []
+        },
+        {
+          "id": "tested",
+          "status": "met",
+          "evidence": []
+        }
+      ],
+      "tests": [
+        {
+          "name": "test",
+          "command": "npm ci && npm test",
+          "conclusion": "success",
+          "commitSha": "aafb8e30c674c5fcfff6e8ff4290dcc5323d4094"
+        }
+      ],
+      "evidence": [],
+      "risks": [],
+      "limitations": [
+        "Acceptance criteria are judged from the checks and the independent review; no per-criterion evidence is attached."
+      ],
+      "review": {
+        "verdict": "approved",
+        "reviewer": "reviewer",
+        "commitSha": "aafb8e30c674c5fcfff6e8ff4290dcc5323d4094"
+      },
+      "draft": false
+    },
+    "mergeSha": "52edb71ec923b83df92322f7d438280f32ad45ee"
+  },
+  "checks": [
+    {
+      "name": "test",
+      "command": "npm ci && npm test",
+      "conclusion": "success",
+      "commitSha": "aafb8e30c674c5fcfff6e8ff4290dcc5323d4094"
+    }
+  ],
+  "review": {
+    "verdict": "approved",
+    "reviewer": "reviewer",
+    "commitSha": "aafb8e30c674c5fcfff6e8ff4290dcc5323d4094"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "metrics": {
+    "wallSeconds": 182.9,
+    "modelSeconds": 116.6,
+    "modelCalls": 41,
+    "inputTokens": 225827,
+    "outputTokens": 5459,
+    "outputTokensPerSecond": 46.8,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 15,
+        "modelCalls": 6,
+        "inputTokens": 29681,
+        "outputTokens": 555
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 15.9,
+        "modelCalls": 7,
+        "inputTokens": 37103,
+        "outputTokens": 812
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 0.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 33.4,
+        "modelCalls": 8,
+        "inputTokens": 47712,
+        "outputTokens": 1443
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 18.6,
+        "modelCalls": 7,
+        "inputTokens": 38026,
+        "outputTokens": 643
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 17.1,
+        "modelCalls": 5,
+        "inputTokens": 29182,
+        "outputTokens": 1108
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 16.6,
+        "modelCalls": 8,
+        "inputTokens": 44123,
+        "outputTokens": 898
+      }
+    ]
+  },
+  "startedAt": "2026-11-09T15:24:00.795Z",
+  "finishedAt": "2026-11-09T15:27:03.702Z",
+  "sessions": {
+    "branch": "outfitter/sessions",
+    "commitSha": "f6dff4f1288eda909d16b267115624528268dbdd",
+    "files": [
+      {
+        "agent": "triage",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/triage.jsonl",
+        "sha256": "8f8178f5ad85451bb5f775bd16199577d054126a1bbb51a8778f2b3c504634f3",
+        "bytes": 32084
+      },
+      {
+        "agent": "implement",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/implement.jsonl",
+        "sha256": "42cae53031481df2c9fcdc21d8bb06bfe3569d1215268389fc60b663bb4f4ea8",
+        "bytes": 35206
+      },
+      {
+        "agent": "review",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/review.jsonl",
+        "sha256": "b900c48b7953f6224e3ff73bc040adf82e19d1d0d3c009be3f5eac570dacc93a",
+        "bytes": 39627
+      },
+      {
+        "agent": "repair",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/repair.jsonl",
+        "sha256": "15e3deab8981a4109fbc35bc4fc1b6f38db0054999f30c6e5770ab69076f1887",
+        "bytes": 34908
+      },
+      {
+        "agent": "review-final",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/review-final.jsonl",
+        "sha256": "a6a80c91905d0ea95fe72944d2f7dd09e8ad081ee4719b8b56132f9f285f96ef",
+        "bytes": 35262
+      },
+      {
+        "agent": "land",
+        "path": "sessions/3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e/land.jsonl",
+        "sha256": "92073d5f434e97c12b0f664b35332a7d432744e0476cca7b5629a8cbe31a4c51",
+        "bytes": 36178
+      }
+    ]
+  },
+  "release": {
+    "tag": "v0.1.0",
+    "url": "http://127.0.0.1:3300/box/repo/releases/tag/v0.1.0",
+    "artifacts": [
+      {
+        "name": "repo-0.1.0.tar.gz",
+        "uri": "s3://foundry/releases/v0.1.0/repo-0.1.0.tar.gz",
+        "sha256": "702ff2a3ca06b3be22e5d4177ee406480b0206b04c7833f1c07b1542363745f5",
+        "bytes": 640
+      },
+      {
+        "name": "repo-0.1.0.bundle",
+        "uri": "s3://foundry/releases/v0.1.0/repo-0.1.0.bundle",
+        "sha256": "04f059a7e45aaf55a2ea32fde512a8056f69eac3fcded9d281fcb088b49253a6",
+        "bytes": 3309
+      }
+    ],
+    "evidenceBundle": {
+      "uri": "s3://foundry/releases/v0.1.0/evidence-bundle.json",
+      "sha256": "38b591a4e342f0606b1992bfe5a8dcc2a0c6ece7e138ae30311e4339ee9e6e22"
+    }
+  }
+}

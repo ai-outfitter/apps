@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /tmp/foundry-box-eval-IVKKM4/final
+
+ ✓ EVAL.ts > the manifest and package describe a demo-only Astro app
+ ✓ EVAL.ts > packages/ and apps/hr are unchanged
+ ✓ EVAL.ts > the built demo package > staged data and summarize
+ ✓ EVAL.ts > the built demo package > / lists every repository with its count and link 336ms
+ ✓ EVAL.ts > the built demo package > /repos/<name> lists its pull requests and an unknown name is 404
+ ✓ EVAL.ts > the built demo package > /__health, methods and headers
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  08:24:37
+   Duration  17.05s (transform 91ms, setup 0ms, collect 25ms, tests 16.75s, environment 0ms, prepare 78ms)
+

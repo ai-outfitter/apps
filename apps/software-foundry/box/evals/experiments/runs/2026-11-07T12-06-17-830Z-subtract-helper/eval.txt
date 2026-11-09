@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /tmp/foundry-box-eval-ShIDap/final
+
+ ✓ EVAL.ts > index.mjs exports a working subtract
+ ✓ EVAL.ts > a node:test test covers subtract and npm test passes 405ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  06:10:36
+   Duration  1.16s (transform 52ms, setup 0ms, collect 35ms, tests 412ms, environment 0ms, prepare 136ms)
+

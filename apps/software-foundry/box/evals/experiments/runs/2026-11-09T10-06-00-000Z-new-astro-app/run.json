@@ -1,0 +1,19 @@
+{
+  "runId": "2026-11-09T10-06-00-000Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main2"
+  },
+  "model": {
+    "provider": "spark",
+    "id": "GLM-5.3-Flash-EXL3"
+  },
+  "status": "stopped",
+  "success": false,
+  "durationSeconds": 7200,
+  "metrics": {
+    "modelCalls": 220
+  },
+  "notes": "Recorded afterwards; no metrics were written. Published both screenshots with working links (webapp #857), then the runner was stopped at a 2-hour shell limit during its last steps, removing the box. Spark runs now use BOX_TIMEOUT=10800 and a detached runner."
+}

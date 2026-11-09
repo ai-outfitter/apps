@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /tmp/foundry-box-eval-7itGnn/final
+
+ ✓ EVAL.ts > index.mjs exports a working subtract
+ ✓ EVAL.ts > a node:test test covers subtract and npm test passes
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  09:27:13
+   Duration  445ms (transform 28ms, setup 0ms, collect 18ms, tests 190ms, environment 0ms, prepare 70ms)
+

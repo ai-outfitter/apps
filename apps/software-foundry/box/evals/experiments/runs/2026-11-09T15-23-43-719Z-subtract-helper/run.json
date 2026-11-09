@@ -1,0 +1,99 @@
+{
+  "runId": "2026-11-09T15-23-43-719Z-subtract-helper",
+  "eval": "subtract-helper",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:keep",
+    "id": "4403faeb4c00cfc696ed25de52902f43240ef9d8bfd16e61660355212852df00",
+    "created": "2026-11-09 15:23:26.770489455 +0000 UTC"
+  },
+  "checkout": "d48c8b9c524b409dfec55353686b9a6d9f25c20a",
+  "volume": "foundry-box-2026-11-09t15-23-43-719z-subtract-helper",
+  "success": true,
+  "status": "landed",
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "durationSeconds": 210.3,
+  "metrics": {
+    "wallSeconds": 182.9,
+    "modelSeconds": 116.6,
+    "modelCalls": 41,
+    "inputTokens": 225827,
+    "outputTokens": 5459,
+    "outputTokensPerSecond": 46.8,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 15,
+        "modelCalls": 6,
+        "inputTokens": 29681,
+        "outputTokens": 555
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 15.9,
+        "modelCalls": 7,
+        "inputTokens": 37103,
+        "outputTokens": 812
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 0.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 33.4,
+        "modelCalls": 8,
+        "inputTokens": 47712,
+        "outputTokens": 1443
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 18.6,
+        "modelCalls": 7,
+        "inputTokens": 38026,
+        "outputTokens": 643
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 17.1,
+        "modelCalls": 5,
+        "inputTokens": 29182,
+        "outputTokens": 1108
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 16.6,
+        "modelCalls": 8,
+        "inputTokens": 44123,
+        "outputTokens": 898
+      }
+    ]
+  },
+  "startedAt": "2026-11-09T15:23:43.719Z",
+  "grade": {
+    "passed": 2,
+    "total": 2
+  },
+  "notes": "The first run with a kept volume, made to check keeping and reopening: `node box/runs.mjs open` showed the merged PR and the v0.1.0 release."
+}
