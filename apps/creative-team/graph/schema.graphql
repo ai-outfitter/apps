@@ -448,7 +448,7 @@ input BrandChangesInput {
 }
 
 input BrandChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: BrandChangesInputItemsItemAction!
   input: JSON!
 }
@@ -463,7 +463,7 @@ input ContentChangesInput {
 }
 
 input ContentChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ContentChangesInputItemsItemAction!
   input: JSON!
 }
@@ -479,7 +479,7 @@ input MapChangesInput {
 }
 
 input MapChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: MapChangesInputItemsItemAction!
   input: JSON!
 }
@@ -495,7 +495,7 @@ input DraftChangesInput {
 }
 
 input DraftChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: DraftChangesInputItemsItemAction!
   input: JSON!
 }

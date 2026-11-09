@@ -353,7 +353,7 @@ input ProjectChangesInput {
 }
 
 input ProjectChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ProjectChangesInputItemsItemAction!
   input: JSON!
 }
@@ -369,7 +369,7 @@ input UnitChangesInput {
 }
 
 input UnitChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: UnitChangesInputItemsItemAction!
   input: JSON!
 }
@@ -385,7 +385,7 @@ input ConceptChangesInput {
 }
 
 input ConceptChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ConceptChangesInputItemsItemAction!
   input: JSON!
 }
@@ -400,7 +400,7 @@ input AssemblyChangesInput {
 }
 
 input AssemblyChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: AssemblyChangesInputItemsItemAction!
   input: JSON!
 }
@@ -414,7 +414,7 @@ input ProductRevisionChangesInput {
 }
 
 input ProductRevisionChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ProductRevisionChangesInputItemsItemAction!
   input: JSON!
 }

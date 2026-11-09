@@ -35,8 +35,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -485,8 +485,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -531,8 +531,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -719,8 +719,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -843,8 +843,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -916,8 +916,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -979,8 +979,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1142,8 +1142,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1227,8 +1227,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1333,8 +1333,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",

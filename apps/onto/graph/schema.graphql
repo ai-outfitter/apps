@@ -218,7 +218,7 @@ input ChangeBatchChangesInput {
 }
 
 input ChangeBatchChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ChangeBatchChangesInputItemsItemAction!
   input: JSON!
 }

@@ -81,12 +81,16 @@ async function mayReplayResult(options: { replayResult?: boolean; authorizeRepla
   return options.replayResult !== false || await options.authorizeReplay?.().catch(() => false);
 }
 
+/** A caller-chosen idempotency key, unique per caller and document: any short name, such as
+ * "add-ada" or "stage-1". Retrying the same key with the same input replays its receipt. */
+export const changeKey = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/, "Use letters, digits, '.', '_', ':' or '-', at most 128").describe("Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input.");
+
 function inputsFor(schema: GraphQLSchema, group: BatchGroups[string]) {
   const fields = schema.getMutationType()?.getFields() ?? {};
   return z.array(z.discriminatedUnion("action", Object.entries(group.actions).map(([action, field]) => {
     const input = fields[field]?.extensions.batchInput as z.ZodType | undefined;
     if (!input) throw new Error(`Batch action ${field} must use mutationField`);
-    return z.strictObject({ key: z.uuid(), action: z.literal(action), input });
+    return z.strictObject({ key: changeKey, action: z.literal(action), input });
   }) as any)).min(1).max(20).superRefine((items, ctx) => {
     if (new Set(items.map(item => item.key)).size !== items.length) ctx.addIssue({ code: "custom", message: "Each item must have a distinct key." });
   });
@@ -99,7 +103,7 @@ export function batchSchema(schema: GraphQLSchema, groups: BatchGroups): GraphQL
   const fields = original.toConfig().fields;
   const additions = Object.fromEntries(Object.entries(groups).map(([name, group]) => {
     const describedInput = z.strictObject({ items: inputsFor(schema, group) });
-    const input = z.strictObject({items:z.array(z.strictObject({key:z.uuid(),action:z.enum(Object.keys(group.actions) as [string,...string[]]),input:z.unknown()})).min(1).max(20)}).superRefine((value,ctx)=>{
+    const input = z.strictObject({items:z.array(z.strictObject({key:changeKey,action:z.enum(Object.keys(group.actions) as [string,...string[]]),input:z.unknown()})).min(1).max(20)}).superRefine((value,ctx)=>{
       if(new Set(value.items.map(item=>item.key)).size!==value.items.length)ctx.addIssue({code:"custom",message:"Each item needs a distinct key."});
     });
     const definition=mutationField({ name, description: group.description, input, output: batchResultType,

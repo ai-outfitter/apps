@@ -40,7 +40,8 @@ const ids = (selection: GraphSelection) => ({
 });
 async function roundTrip(selection: GraphSelectionDefinition, rootIds = [uuid(101)]) {
   const compiled = selectionDocument(selection, types);
-  const result = await executeGraphQuery({ types, source: memorySource(snapshot as never), query: compiled.query, variables: { rootIds }, maxBytes: 1 << 20, maxDepth: selectionQueryDepth(selection.maxDepth), maxFields: 1e7 });
+  const roots = rootIds.map(id => snapshot.nodes.find(row => row.id === id)!.slug);
+  const result = await executeGraphQuery({ types, source: memorySource(snapshot as never), query: compiled.query, variables: { roots }, maxBytes: 1 << 20, maxDepth: selectionQueryDepth(selection.maxDepth), maxFields: 1e7 });
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
   const read = selectFromResult({ installationId: "wiki", types, data: result.data, rootIds, definition: selection });
   const direct = selectGraph(graph, rootIds, selection);
@@ -55,10 +56,10 @@ test("an incoming relationship, typed endpoint fields and generic edges read the
   assert.match(compiled.query, /\.\.\. on Project \{\s+producesEdges \{\s+\.\.\.Link\s+to \{/, "edge types with endpoints use their typed fields");
   assert.match(compiled.query, /\.\.\. on Problem \{\s+experiencesIncomingEdges \{\s+\.\.\.Link\s+from/);
   assert.match(compiled.query, /partOfIncomingLinks: edges\(types: \["part_of"\], direction: INCOMING\)/, "others read the edges connection");
-  assert.match(compiled.query, /organizations\(ids: \$rootIds, first: 100\)/);
+  assert.match(compiled.query, /organizations\(slugs: \$roots, first: 100\)/);
   assert.equal(print(parse(compiled.query)), compiled.query, "the text is graphql-js print output");
   assert.match(compiled.query, /fragment Record on Node \{\s+id\s+typeId\s+title\s+slug\s+\}/, "every record carries its slug");
-  assert.equal(compiled.variables.required[0], "rootIds");
+  assert.equal(compiled.variables.required[0], "roots", "roots are named by slug");
   for (const text of [compiled.query, "", "abc", "x".repeat(55), "x".repeat(64), "é漢🙂".repeat(300)])
     assert.equal(queryHash(text), createHash("sha256").update(text).digest("hex"), "queryHash is sha256 hex of the UTF-8 text");
   assert.equal(parse(compiled.query).definitions.filter(item => item.kind === "FragmentDefinition").length, 2 + 5, "Record, Link, Step1-4 and Beyond");

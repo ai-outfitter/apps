@@ -429,7 +429,7 @@ input RequestChangesInput {
 }
 
 input RequestChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: RequestChangesInputItemsItemAction!
   input: JSON!
 }
@@ -443,7 +443,7 @@ input ProjectChangesInput {
 }
 
 input ProjectChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ProjectChangesInputItemsItemAction!
   input: JSON!
 }
@@ -457,7 +457,7 @@ input WorkChangesInput {
 }
 
 input WorkChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: WorkChangesInputItemsItemAction!
   input: JSON!
 }

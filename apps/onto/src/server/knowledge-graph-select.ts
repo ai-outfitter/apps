@@ -59,14 +59,14 @@ function readFailure(result: GraphGraphqlResult, handWritten: boolean): never {
   throw new Response(`The GraphQL document could not be read: ${messages}`, { status: tooLarge ? 413 : handWritten ? 400 : 409 });
 }
 
-type ReadArgs = { input: KnowledgeGraphSelectInput; definition: GraphSelectionDefinition | null | undefined; types: TypeRow[]; record: EntityRecord | null; stored: Saved; source: GraphSource };
+type ReadArgs = { input: KnowledgeGraphSelectInput; definition: GraphSelectionDefinition | null | undefined; types: TypeRow[]; record: EntityRecord | null; stored: Saved; source: GraphSource; roots: string[] };
 /** Run the caller's query, else the record's stored query, else the selection compiled over
  * the live schema. A selection's stored query is kept current whenever types change
  * (knowledge-graph-refresh.ts), so it is the same document a page or agent runs by hash. */
-async function readWith({ input, definition, types, record, stored, source }: ReadArgs) {
+async function readWith({ input, definition, types, record, stored, source, roots }: ReadArgs) {
   const document = input.query ? withHash(input.query, selectionVariables)
     : stored ? withHash(stored.query, stored.variables) : compile(definition, types, record);
-  const read = await executeGraphQuery({ types, source, query: document.query, variables: { rootIds: input.rootIds }, ...readBudget });
+  const read = await executeGraphQuery({ types, source, query: document.query, variables: { roots }, ...readBudget });
   return { document, read };
 }
 
@@ -92,14 +92,17 @@ export async function selectKnowledgeGraphRecords(db: Database, who: AppIdentity
     ({ definition, stored } = savedKnowledgeGraph(record));
   }
   if (definition && input.maxNodes) definition = { ...definition, maxNodes: Math.min(definition.maxNodes, input.maxNodes) };
-  const { document, read } = await readWith({ input, definition, types, record, stored, source });
+  // Roots as stored, so a retired root is hidden as the selection walk hides it. Documents
+  // read them by slug, the address agents send.
+  const roots = await source.nodes({ ids: input.rootIds, archived: "include" });
+  const slugs = roots.flatMap(root => (typeof root.slug === "string" ? [root.slug] : []));
+  if (!slugs.length) throw new Response("The document returned none of the root nodes", { status: 404 });
+  const { document, read } = await readWith({ input, definition, types, record, stored, source, roots: slugs });
   if (read.errors?.length || read.data === null) readFailure(read, !!input.query);
   if (!definition) {
     try { definition = definitionFromResult(read.data, types, input.rootIds, { id: record ? `wiki:${record.ref.id}` : undefined, maxNodes: input.maxNodes ?? 200 }); }
     catch { throw new Response("The document returned none of the root nodes", { status: 404 }); }
   }
-  // Roots as stored, so a retired root is hidden as the selection walk hides it.
-  const roots = await source.nodes({ ids: input.rootIds, archived: "include" });
   let selection;
   try { selection = selectFromResult({ installationId: who.installationId, types, data: read.data, rootIds: input.rootIds, definition, records: roots }); }
   catch { throw new Response("KnowledgeGraph definition or roots are invalid", { status: 409 }); }

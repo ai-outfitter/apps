@@ -27,7 +27,7 @@ test("seed knowledge graphs ship their compiled GraphQL document, valid against 
     // A seed with both a selection and its query is a valid lens in the page's lens list.
     assert.doesNotThrow(() => loadKnowledgeGraph(standardData as never, node as never), node.title);
   }
-  assert.match(saved[3].query, /^query OrganizationOverview\(\$rootIds: \[ID!\]!\) \{\n {2}organizations\(ids: \$rootIds, first: 200\)/m);
+  assert.match(saved[3].query, /^query OrganizationOverview\(\$roots: \[String!\]!\) \{\n {2}organizations\(slugs: \$roots, first: 200\)/m);
 });
 
 test("stored seed queries read the demo Wiki exactly as the in-memory selection walk", async () => {
@@ -42,7 +42,7 @@ test("stored seed queries read the demo Wiki exactly as the in-memory selection 
     const query = String(contextDefinition({ body: String(record.attributes.body) })?.query);
     const typeIds = new Set(types.filter((type) => definition.rootTypes.includes(type.name)).map((type) => type.id));
     for (const root of graph.nodes.filter((node) => typeIds.has(String(node.attributes.typeId))).slice(0, 4)) {
-      const read = await executeGraphQuery({ types, source: memorySource(snapshot as never), query, variables: { rootIds: [root.ref.id] }, ...selectionReadBudget });
+      const read = await executeGraphQuery({ types, source: memorySource(snapshot as never), query, variables: { roots: [String(root.attributes.slug)] }, ...selectionReadBudget });
       assert.equal(read.errors, undefined, `${slug}: ${JSON.stringify(read.errors)}`);
       const selection = selectFromResult({ installationId: "demo", types, data: read.data, rootIds: [root.ref.id], definition });
       const direct = selectGraph(graph, [root.ref.id], definition);
