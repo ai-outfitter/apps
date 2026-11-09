@@ -2,6 +2,8 @@
  * local authority, generation provenance, workflow state or provider receipts.
  * Add new authority/state-machine tables here before exposing archive import. */
 export const archiveImportExclusions = [
+  "onto_wiki_migrations",
+  "onto_wiki_migration_sources",
   "graph_assertion_confirmations",
   "graph_changes",
   "graph_assets",

@@ -10,5 +10,5 @@
 - An entity's knowledge-graphs page accepts `rel` (repeat; `name:incoming`), `depth` and `max` to draw a draft graph a member can save. Keep `server/agent-route.ts` routes in sync with page params.
 
 - Onto is a graph database only ([plan](docs/graph-database-plan.md)). Documents, reports and pages belong to the Wiki app.
-- The schema is `migrations/0000_onto.sql`, schema only. Until the first installation, change it in place rather than adding migrations. Initialization loads versioned JSON without overwriting authored records.
+- `migrations/0000_onto.sql` is the installed schema baseline. Preserve it and add forward migrations for existing installations. Initialization loads versioned JSON without overwriting authored records. Trusted Wiki migration lineage is immutable, excluded from portable imports, and retained in installation backups.
 - Page loads and release notifications never run inference or app compilation. Use registered workflows, trusted schedule/task run identities, durable leases and idempotent receipts. A workflow schedule may only start its own workflow.
