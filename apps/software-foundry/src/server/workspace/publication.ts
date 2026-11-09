@@ -16,6 +16,8 @@ const foundryEvidenceInput = z.object({
 }).strict();
 const denied = () => new Response("Evidence unavailable", { status: 404 });
 const publishingNodes = ["implement", "repair", "review", "review-final"];
+/** The Foundry's issue-to-merge workflows: checks in Actions, or in a workspace (a box, a forge without Actions). */
+const publishingWorkflows = ["issue-to-merge-actions-ci", "issue-to-merge-workspace"];
 
 /** A bounded PNG: signature, IHDR and sane dimensions. */
 export function evidenceBytes(base64: string) {
@@ -32,7 +34,7 @@ export async function publishFoundryEvidence(host: WorkflowHost<"publish">, loca
   const input = foundryEvidenceInput.parse(raw);
   const bytes = evidenceBytes(input.base64);
   const [loaded, repo] = await Promise.all([host.call("workflow.read", { id: input.node.runId }), host.call("repository.read", {})]);
-  if (loaded?.run.workflowId !== "issue-to-merge-actions-ci" || !publishingNodes.includes(input.node.nodeId) ||
+  if (!publishingWorkflows.includes(loaded?.run.workflowId ?? "") || !publishingNodes.includes(input.node.nodeId) ||
       !loaded.attempts.some(attempt => attempt.id === input.node.attemptId && attempt.nodeId === input.node.nodeId))
     throw denied();
   const event = z.object({ issue: z.object({ number: z.number().int().positive() }), sourceRunId: z.uuid().optional() }).parse(loaded.inputs["triage.inputs.event"]);

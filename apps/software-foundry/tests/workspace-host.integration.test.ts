@@ -22,7 +22,7 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwA
 /** The built Worker behind real workerd RPC dispatch props, with its own D1
  * database and `runs` bucket. The host double answers GitHub through
  * `repository.request` as the platform would and records every call. */
-async function installed() {
+async function installed(workflowId = "issue-to-merge-actions-ci") {
   const pack = JSON.parse(await readFile(appArtifact(new URL("../", import.meta.url), "operational"), "utf8"));
   const source = `
 import { WorkerEntrypoint } from "cloudflare:workers";
@@ -34,7 +34,7 @@ const pull = { user: { id: 10 }, number: 7, state: "open", html_url: "https://gi
   base: { ref: "main", repo: { full_name: "acme/app" } } };
 function answer(operation, input) {
   if (operation === "repository.read") return { name: "acme/app", path: "/repos/acme/app", repositoryId: 1, installationId: 101, appId: 42 };
-  if (operation === "workflow.read") return { run: { id: "${runId}", workflowId: "issue-to-merge-actions-ci", status: "running", createdBy: "owner", createdAt: 1, updatedAt: 1 },
+  if (operation === "workflow.read") return { run: { id: "${runId}", workflowId: "${workflowId}", status: "running", createdBy: "owner", createdAt: 1, updatedAt: 1 },
     inputs: { "triage.inputs.event": ${JSON.stringify(event)} }, outputs: {}, readiness: { run: "running", steps: {} },
     attempts: [{ id: "${attemptId}", nodeId: "implement", state: "running", createdAt: 1, updatedAt: 1 }] };
   if (operation === "workspace.control") return { ready: true };
@@ -101,6 +101,18 @@ export default {
     { operation: string; input: Record<string, unknown> }[];
   return { worker, phase, calls };
 }
+
+test("screenshots publish from either issue-to-merge workflow, and from no other", async () => {
+  for (const workflowId of ["issue-to-merge-workspace", "issue-to-review"]) {
+    const { worker, phase } = await installed(workflowId);
+    try {
+      const published = await phase("publish", { node: { ...node, nodeId: "implement" }, number: 7, headSha: head, filename: "desktop.png", base64: png });
+      assert.equal(published.status, workflowId === "issue-to-review" ? 404 : 200, `${workflowId}: ${await published.clone().text()}`);
+    } finally {
+      await worker.dispose();
+    }
+  }
+});
 
 test("Foundry's workspace policy runs over the platform's real prepare, finalize and publish payloads", async () => {
   const { worker, phase, calls } = await installed();

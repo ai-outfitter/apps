@@ -68,6 +68,15 @@ test("Demo examples and data-src placeholders cannot count as displayed images",
 });
 
 
+test("Demo images may be served over HTTP only from this machine", () => {
+  const { url } = receipt("desktop.png");
+  const path = new URL(url).pathname;
+  for (const origin of ["http://localhost:8787", "http://software-foundry.box.outfitter.localhost:8787", "http://127.0.0.1:8787"])
+    assert.equal(demoImageKeys(`![Desktop](${origin}${path})`, runId).size, 1, origin);
+  for (const origin of ["http://example.com", "http://localhost.example.com", "http://10.0.0.1:8787", "ftp://localhost"])
+    assert.equal(demoImageKeys(`![Desktop](${origin}${path})\n<img src="${origin}${path}" />`, runId).size, 0, origin);
+});
+
 test("viewport labels accept named captures but identical pixels need review", async () => {
   const desktop = receipt("split-desktop.png"), mobile = receipt("split-mobile.png");
   const candidate = { number: 1, headSha: head, branch: "branch", url: "url" };
