@@ -56,7 +56,11 @@
     "./merge-patch": "./src/merge-patch.ts",
     "./github-pulls": "./src/github-pulls.ts",
     "./graph-contracts": "./src/graph-contracts/index.ts",
-    "./graph-client": "./src/graph-client.ts"
+    "./graph-client": "./src/graph-client.ts",
+    "./structured-result": "./src/structured-result.ts",
+    "./ui-preferences": "./src/ui-preferences.ts",
+    "./workflow-inference": "./src/workflow-inference.ts",
+    "./workflow-session": "./src/workflow-session.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",

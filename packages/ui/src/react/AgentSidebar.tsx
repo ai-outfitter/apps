@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { setUiPreference, uiPreferences } from "@ai-outfitter/app-sdk/ui-preferences";
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import ChatInput, { type ChatInputDraft, type ChatInputProps } from "./ChatInput";
 import { defaultEffort } from "@ai-outfitter/app-sdk/chat-input";
 import ChatPanel from "./ChatPanel";
@@ -20,7 +21,7 @@ export interface AgentMessage {
 export interface AgentConversation<M extends AgentMessage = AgentMessage> {
   /**
    * Changing it starts a fresh transcript and empties the composer. The host
-   * decides when: per saved chat, per focus, or on New chat.
+   * supplies the authorized saved thread for the current owner and context.
    */
   id: string;
   messages: readonly M[];
@@ -60,19 +61,23 @@ export interface AgentSidebarProps<M extends AgentMessage = AgentMessage> {
   onSend: (draft: AgentSendDraft) => undefined | false | Promise<undefined | false>;
   onStop?: () => void;
   onRetry?: () => void;
-  /** Shows New chat; the host resets or rescopes `conversation`. */
-  onNewConversation?: () => void;
   onOpenChange?: (open: boolean) => void;
   /** sessionStorage key that reopens the panel after a full-page navigation. */
   openStorageKey?: string;
+  /** Rendered open, from the `outfitter-ui` cookie the server read; opening and closing keep that cookie current. */
+  initialOpen?: boolean;
   /** One-shot: the panel opens on mount when this session key is set (then cleared), e.g. after the agent navigated. */
   reopenKey?: string;
   /** What goes inert while the panel covers a phone screen; defaults to the shared AppLayout's columns. */
   inertSelector?: string;
-  /** Host header actions before New chat and Close, such as Open in full chat. */
-  actions?: ReactNode;
   /** Context controls above the composer, available throughout the conversation. */
   composerActions?: ReactNode;
+  /** Platform administrators' session debug page (`/debug/session`); without `debug`, the header links Debug to it in a new tab. */
+  debugHref?: string;
+  /** Platform administrators' in-panel debug view; when given, Debug shows it in place of the transcript (it links `debugHref`). */
+  debug?: ReactNode;
+  /** Prepare a session when the in-panel debugger opens. */
+  onDebugOpen?: () => void;
   /** Review cards whose local drafts must survive streamed-message replacement. */
   transcriptContent?: ReactNode;
   /** Enable only capabilities supported by the host transport. */
@@ -91,7 +96,7 @@ export interface AgentSidebarProps<M extends AgentMessage = AgentMessage> {
 export default function AgentSidebar<M extends AgentMessage = AgentMessage>(props: AgentSidebarProps<M>) {
   const { id, agent, focus, conversation, openStorageKey, reopenKey, inertSelector = ".app-shell > .sidebar, .app-shell > .app-main" } = props;
   const label = `${agent.name} chat`;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(props.initialOpen ?? false);
   const panel = useRef<HTMLElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const focusOnOpen = useRef(false);
@@ -108,6 +113,9 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
         sessionStorage.setItem(openStorageKey, next ? "1" : "");
       } catch {}
     }
+    // The server renders the panel as the member left it (app-sdk ui-preferences).
+    if (next) setUiPreference("agent", id);
+    else if (uiPreferences(document.cookie).agent === id) setUiPreference("agent", undefined);
     if (next) focusOnOpen.current = takeFocus;
     else focusOnClose.current = takeFocus;
     latest.current.onOpenChange?.(next);
@@ -116,6 +124,8 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
   // Reopen after navigation, without taking focus from the new page.
   // biome-ignore lint/correctness/useExhaustiveDependencies: restores once per page.
   useEffect(() => {
+    // Rendered open by the server: the host loads the conversation as on any open.
+    if (props.initialOpen) latest.current.onOpenChange?.(true);
     try {
       const reopen = reopenKey ? sessionStorage.getItem(reopenKey) : null;
       if (reopenKey) sessionStorage.removeItem(reopenKey);
@@ -179,7 +189,8 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
   }, [open]);
 
   const busy = conversation?.status === "submitted" || conversation?.status === "streaming";
-  const { onNewConversation } = props;
+  const [debugging, setDebugging] = useState(false);
+  const showDebug = debugging && props.debug !== undefined;
   const header = (
     <header className="agent-sidebar-header">
       <div className="agent-sidebar-title">
@@ -188,21 +199,16 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
         </h2>
         {focus ? <FocusLine focus={focus} /> : null}
       </div>
-      {props.actions}
-      {onNewConversation ? (
-        <button
-          type="button"
-          className="agent-sidebar-action"
-          onClick={() => {
-            focusOnOpen.current = true;
-            onNewConversation();
-          }}
-          disabled={busy || !conversation}
-          title="New chat"
-        >
-          <Icon name="compose" size={18} />
-          <span className="visually-hidden">New chat</span>
+      {props.debug !== undefined ? (
+        <button type="button" className="agent-sidebar-action" onClick={() => { if (!showDebug) props.onDebugOpen?.(); setDebugging((on) => !on); }} aria-pressed={showDebug} title="Debug">
+          <Icon name="code" size={18} />
+          <span className="visually-hidden">Debug</span>
         </button>
+      ) : props.debugHref ? (
+        <a className="agent-sidebar-action" href={props.debugHref} data-astro-reload="" title="Debug">
+          <Icon name="code" size={18} />
+          <span className="visually-hidden">Debug</span>
+        </a>
       ) : null}
       <button ref={close} type="button" className="agent-sidebar-action" onClick={() => show(false)} title={`Close ${label}`}>
         <Icon name="sidebar" size={18} />
@@ -225,8 +231,9 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
         }
       }}
     >
+      <ResizeHandle panel={panel} label={label} />
       {conversation ? (
-        <Conversation key={conversation.id} {...props} conversation={conversation} header={header} busy={busy} active={open} />
+        <Conversation key={conversation.id} {...props} conversation={conversation} header={header} busy={busy} active={open} debugging={showDebug} />
       ) : (
         // Header and Close stay available, since a phone's page behind is inert.
         <div className="agent-sidebar-pending">
@@ -286,7 +293,9 @@ function Conversation<M extends AgentMessage>({
   transcriptContent,
   active,
   input,
-}: AgentSidebarProps<M> & { conversation: AgentConversation<M>; header: ReactNode; busy: boolean; active: boolean }) {
+  debug,
+  debugging,
+}: AgentSidebarProps<M> & { conversation: AgentConversation<M>; header: ReactNode; busy: boolean; active: boolean; debugging: boolean }) {
   const { messages, status, error, notice } = conversation;
   const [draft, setDraft] = useState("");
   const [hasFiles, setHasFiles] = useState(false);
@@ -384,7 +393,7 @@ function Conversation<M extends AgentMessage>({
           {notice}
         </p>
       ) : null}
-      {!messages.length ? (
+      {debugging ? debug : <>{!messages.length ? (
         <div className="agent-sidebar-intro">
           <p>{scope.intro}</p>
           <p className="agent-sidebar-scope">{scope.limits}</p>
@@ -411,7 +420,7 @@ function Conversation<M extends AgentMessage>({
         ))
       )}
       {transcriptContent}
-      {composerActions}
+      {composerActions}</>}
       {moved ? (
         <p className="agent-sidebar-moved" role="status">
           Earlier messages were about {describeFocus(sentFocus)}. New ones will be about {describeFocus(focus)}.
@@ -420,5 +429,82 @@ function Conversation<M extends AgentMessage>({
       {status === "submitted" ? <p className="thinking">Thinking…</p> : null}
       <div ref={end} />
     </ChatPanel>
+  );
+}
+
+const MIN_WIDTH = 280;
+const STEP = 32;
+
+/** The panel's width, applied as a CSS variable (CSSOM, so no inline style attribute reaches the page's policy). */
+function applyWidth(panel: HTMLElement | null, width: number | undefined) {
+  if (!panel) return;
+  if (width === undefined) panel.style.removeProperty("--agent-sidebar-width");
+  else panel.style.setProperty("--agent-sidebar-width", `${width}px`);
+}
+/** The page keeps at least this much beside the panel: one card's width and its gutters. */
+const MIN_PAGE = 400;
+/** The widest the panel may grow: what the page column and the panel share now, less MIN_PAGE. */
+function maxWidth(panel: HTMLElement | null) {
+  const page = panel?.closest(".app-shell")?.querySelector<HTMLElement>(":scope > .app-main");
+  const shared = (page?.getBoundingClientRect().width ?? window.innerWidth * 0.6) + (panel?.getBoundingClientRect().width ?? 0);
+  return Math.max(MIN_WIDTH, Math.round(Math.min(shared - MIN_PAGE, window.innerWidth * 0.7)));
+}
+const clampWidth = (panel: HTMLElement | null, width: number) => Math.round(Math.min(maxWidth(panel), Math.max(MIN_WIDTH, width)));
+
+/**
+ * Drag (or arrow keys) on the panel's inner edge to resize it; double-click resets.
+ * The width is kept in the outfitter-ui cookie, shared by every agent sidebar.
+ */
+function ResizeHandle({ panel, label }: { panel: RefObject<HTMLElement | null>; label: string }) {
+  const [dragging, setDragging] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applies the saved width once.
+  useEffect(() => {
+    try {
+      const saved = uiPreferences(document.cookie).agentWidth;
+      applyWidth(panel.current, saved === undefined ? undefined : clampWidth(panel.current, saved));
+    } catch {}
+  }, []);
+  const save = (width: number | undefined) => {
+    applyWidth(panel.current, width);
+    setUiPreference("agentWidth", width);
+  };
+  const current = () => panel.current?.getBoundingClientRect().width ?? 416;
+  return (
+    <button
+      type="button"
+      className="agent-sidebar-resize"
+      aria-label={`Resize ${label}`}
+      title="Drag to resize · double-click to reset"
+      data-dragging={dragging ? "" : undefined}
+      onDoubleClick={() => save(undefined)}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        save(clampWidth(panel.current, current() + (event.key === "ArrowLeft" ? STEP : -STEP)));
+      }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        const handle = event.currentTarget;
+        handle.setPointerCapture(event.pointerId);
+        const startX = event.clientX;
+        const startWidth = current();
+        let width = startWidth;
+        setDragging(true);
+        // The panel sits at the inline end, so dragging left widens it.
+        const move = (moved: PointerEvent) => {
+          width = clampWidth(panel.current, startWidth + (startX - moved.clientX));
+          applyWidth(panel.current, width);
+        };
+        const up = () => {
+          handle.removeEventListener("pointermove", move);
+          setDragging(false);
+          save(width);
+        };
+        handle.addEventListener("pointermove", move);
+        handle.addEventListener("pointerup", up, { once: true });
+        handle.addEventListener("pointercancel", up, { once: true });
+      }}
+    />
   );
 }

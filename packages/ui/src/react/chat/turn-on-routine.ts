@@ -1,6 +1,6 @@
 import type { WorkProfile } from "@ai-outfitter/app-sdk/platform-records";
-import { RECURRING_TASK_WORKFLOW_ID, type RecurringTaskResult } from "@ai-outfitter/workflow-recurring-task/types";
-import { type PlatformURL, ROUTINE_RESULT_SLOT, routineResultOf, routineResultText, samePath } from "../../routines/routine-result";
+import type { RecurringTaskResult } from "@ai-outfitter/workflow-recurring-task/types";
+import { type PlatformURL, RECURRING_TASK_WORKFLOW_ID, ROUTINE_RESULT_SLOT, routineResultOf, routineResultText, samePath } from "../../routines/routine-result";
 
 // Turns a task on as the member's routine from any card: `POST /api/routines`
 // saves it on a schedule and starts its first run, answering once the run is

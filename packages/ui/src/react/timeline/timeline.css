@@ -43,6 +43,15 @@
 .timeline-text {
   white-space: pre-wrap;
 }
+.timeline-markdown > :first-child {
+  margin-top: 0;
+}
+.timeline-markdown > :last-child {
+  margin-bottom: 0;
+}
+.timeline-markdown pre {
+  overflow-x: auto;
+}
 .timeline-file {
   max-width: 100%;
   max-height: 16rem;

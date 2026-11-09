@@ -1,0 +1,14 @@
+/* Highlighted code (highlight.ts): highlight.js class spans, in both color schemes. */
+.code-block { margin: 0; max-height: 480px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; }
+.code-block .hljs-attr { color: light-dark(#0b5cad, #7fb7ff); }
+.code-block .hljs-string { color: light-dark(#1d7a3a, #8fd19e); }
+.code-block .hljs-number { color: light-dark(#a3470b, #f0a46c); }
+.code-block .hljs-literal, .code-block .hljs-keyword { color: light-dark(#7a2fb0, #cf9cf2); }
+.code-block .hljs-punctuation { color: var(--muted); }
+.code-block .hljs-section { color: light-dark(#0b5cad, #7fb7ff); font-weight: 600; }
+.code-block .hljs-bullet { color: light-dark(#a3470b, #f0a46c); }
+.code-block .hljs-strong { font-weight: 700; }
+.code-block .hljs-code { color: light-dark(#7a2fb0, #cf9cf2); }
+.code-block .hljs-link, .code-block .hljs-symbol { color: light-dark(#1d7a3a, #8fd19e); }
+.code-block .hljs-quote { color: var(--muted); font-style: italic; }
+/* No italic for hljs-emphasis: snake_case names (graph_documents) read as emphasis in highlight.js markdown. */

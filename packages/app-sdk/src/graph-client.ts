@@ -12,6 +12,7 @@ import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { discoverEntityTypes } from "@ai-outfitter/app-sdk/entity-discovery";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
+import { type graphQueryInput, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 import {
   ontoContract,
   wikiGraphReadInput,
@@ -314,6 +315,28 @@ export async function readWikiGraph(
       "includeArchivedTypes" in input && !!input.includeArchivedTypes,
     ),
   };
+}
+
+/**
+ * Bounded, index-backed queries over the owner's Wiki through its `graph.query` action:
+ * named node, edge or type queries with filters and optional expansion (an inline
+ * selection or a saved KnowledgeGraph). This is how an app reads part of a Wiki; the
+ * whole-graph `readWikiGraph` is for exports and seeds.
+ */
+export async function queryWikiGraph(host: Host, input: z.input<typeof graphQueryInput>) {
+  const wiki = await defaultWiki(host);
+  const result = graphQueryResult.parse(
+    await host.call("actions.call", {
+      installationId: wiki.installationId,
+      action: "graph.query",
+      input,
+      readOnly: true,
+      maxResponseBytes: 512 * 1024,
+    }),
+  );
+  if (result.installationId !== wiki.installationId)
+    throw new Response("Wiki installation changed", { status: 409 });
+  return { wiki, ...result };
 }
 
 /** Select a saved lens from a graph already read through Wiki. No additional I/O. */

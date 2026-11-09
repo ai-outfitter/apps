@@ -36,10 +36,9 @@ needs Astro's React integration and mounts `AgentSidebar` as one island in
   scope={{ intro: "Describe a change…", limits: "Nothing changes until you approve it." }}
   conversation={{ id, messages, status, error, notice }}            // null while loading
   onSend={({ text, focus }) => { /* post to the host's own route */ }}
-  onStop={…} onRetry={…} onNewConversation={…}
+  onStop={…} onRetry={…}
   onOpenChange={(open) => { /* load lazily on first open */ }}
   openStorageKey="…"                        // reopen after full-page navigation
-  actions={<a href="…">Open in full chat</a>}
   renderContent={(message, { focus, busy, send }) => <>
     <AgentMessageText message={message} />
     {/* host cards: proposals, tool results */}
@@ -54,8 +53,8 @@ needs Astro's React integration and mounts `AgentSidebar` as one island in
 - **Messages** are `{ id, role, parts }`, where each part has a `type`. AI SDK
   `UIMessage`s fit as they are. The default body shows `text` parts as plain
   text; `renderContent` replaces it, for Markdown, tool parts or action cards.
-- **Status** `submitted` or `streaming` is busy: send becomes Stop, New chat is
-  disabled. `error` shows with Retry when `onRetry` is set.
+- **Status** `submitted` or `streaming` is busy: send becomes Stop. `error`
+  shows with Retry when `onRetry` is set.
 - **Sends** carry the text and the focus it was written for. Return or resolve
   `false` to keep the draft.
 
@@ -77,8 +76,12 @@ browser can send any focus. A host's route must, for every send and action:
 
 - `conversation.id` is the boundary. Changing it remounts the transcript and
   empties the composer; an unsent draft is dropped, never sent. The host
-  chooses the scope: one saved chat (root), one per focused item (a Workshop
-  project), or a reset on New chat.
+  chooses the authorized scope: one saved thread (home), or one per page
+  context (such as a Planning project). Closing and reopening preserves it.
+  Headers offer Debug when authorized and Close, with no reset or Chat
+  navigation. Home, Planning and Governance share this persistent-thread model;
+  compaction belongs beneath the UI. Additional side conversations are separate
+  work; this change does not introduce compaction or new thread creation flows.
 - When the focus changes under a non-empty draft (another item, or the same one
   at a new revision), the panel shows "Now viewing … This draft was written for
   …" and refuses to send until the member chooses **Keep draft for …** or
@@ -92,7 +95,7 @@ browser can send any focus. A host's route must, for every send and action:
 
 | Host | Status | Focus | Transport and actions |
 | --- | --- | --- | --- |
-| Root Outfitter chat (`src/components/SidebarChat.tsx`) | Implemented | None: Outfitter cannot see the page | `/api/chat`, `/api/chats/:id`, saved per user and organization; Markdown and tool parts; Open in full chat ([sidebar chat](../../docs/sidebar-chat.md)) |
+| Root Outfitter chat (`react/chat/ThreadSidebarChat`) | Implemented | None: Outfitter cannot see the page | Shared `/api/platform/threads` routes, saved per user and owner; Markdown, images and interactive cards in place ([sidebar chat](../../docs/sidebar-chat.md)) |
 | Workshop | Proposed | `workshop-project`, with the project revision | `POST /api/apps/workshop/agent` already takes `projectId` and `revision` and refuses stale follow-ups. It saves a revision directly; a proposal card needs an approve step that does not exist yet |
 | Software Foundry | Proposed | A task, issue or workflow run | Its own route, with approvals following [workflow authority](../../docs/app-workflow-authority.md) |
 | Forerunner demo (`catalog/apps/forerunner`) | Implemented, demo-only | `forerunner-stone`: the selected priority | None: per-stone fixture briefing and scripted suggestions in memory; free text is refused and kept ([README](../../catalog/apps/forerunner/README.md)) |
@@ -104,8 +107,9 @@ the browser; it is not the Workshop API.
 ## Current boundaries
 
 Installed app agents use generic platform inference with dispatch-only SDK
-callbacks; Planning owns its conversation, page context and approved document
-writes. Installed apps do not use the root `/api/chat` or `/api/chats/:id` store.
+callbacks; Planning owns its page context and approved document writes. Both
+installed apps and home use shared threads for conversation persistence; app
+domain records remain separate.
 Root sidebar chat still has no page context. A Chrome extension or a surface
 outside an Outfitter page is not implemented.
 
@@ -168,3 +172,23 @@ props. See [app agents](../../docs/app-agents.md) for server ownership and uploa
 Use `transcriptContent` for review cards with local edits. They remain mounted
 when a streamed message is replaced by saved history; `renderContent` is for
 message bodies whose identity may change when streaming finishes.
+
+## Debug view and link (platform administrators)
+
+Hosts over the shared thread service pass `debug={<AgentDebug threads={threads} … />}`
+when `useAgentInspector(threads)` is true. The header's Debug icon then shows, in
+place of the transcript, the model and provider, the system prompt, the tools with
+their input schemas and the context, prepared again from the last member message
+through the page's own thread client (`<id>/inspect`; a mounted app may reach only
+its own paths). The view links the full page below. A host with no `debug` and a
+`debugHref` gets a plain link instead.
+
+Hosts also pass `debugHref={sessionDebugHref(id)}`
+(from `agent-debug.ts`) once a conversation exists. It opens `/debug/session?thread=<id>` in a new tab,
+always on the root host (mounted pages leave `/debug` links alone). The page reads
+and continues the conversation through one central API, `/api/platform/debug/threads`,
+which takes the owner (organization or person) and installation from the conversation
+itself. It shows the model and provider, the full system prompt, each tool with its
+input schema, the provider's context, the page claim last sent, the whole transcript
+with every tool call and result, and a composer. Its MCP inspector link opens
+`/debug/mcp` filtered to the conversation's owner. Everyone else gets a 404 and no icon.
