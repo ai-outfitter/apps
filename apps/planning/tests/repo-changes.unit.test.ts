@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { githubRepositoryName, projectRepositories } from "../src/project-readiness";
+import { projectRepositories } from "../src/project-readiness";
 import { LOOKBACK_DAYS, summarizeCommits, windowStart } from "../src/server/repo-changes";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -30,8 +30,6 @@ test("a project's GitHub repositories come from its Wiki node's source_in edges,
     { nodeId: "webapp", edgeId: "e1", title: "webapp", repository: "ai-outfitter/webapp", url: "https://github.com/ai-outfitter/webapp", path: "catalog/apps/planning", ref: "main" },
   ]);
   assert.deepEqual(projectRepositories(graph, "planning", "other"), [], "an unlinked project has none");
-  assert.equal(githubRepositoryName("https://github.com/Org/Repo.git"), "org/repo");
-  assert.equal(githubRepositoryName("https://github.com/org"), null);
 });
 
 test("the window is since the previous digest when it ran within the lookback, otherwise the lookback", () => {

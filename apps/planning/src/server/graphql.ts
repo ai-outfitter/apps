@@ -28,7 +28,7 @@ import { issues, projects } from "./schema";
 import { saveUseCase, useCaseInput } from "./use-cases";
 import { repositories, pullRequests } from "./project-repositories";
 import { publishRepositories } from "./repository-patch";
-import { githubRepositoryName } from "../project-readiness";
+import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
 import { requireEditor } from "@ai-outfitter/app-sdk/server";
 
 /** Issue states that make a project active. */

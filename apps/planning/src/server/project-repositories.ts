@@ -1,6 +1,7 @@
 import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
-import { githubRepositoryName, projectRepositories, type ProjectRepository } from "../project-readiness";
+import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
+import { projectRepositories, type ProjectRepository } from "../project-readiness";
 import type { PlanningContext } from "./intake";
 import { projectRepositoriesSelection, readProjectSelection } from "./wiki-subgraph";
 

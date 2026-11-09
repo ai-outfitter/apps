@@ -4,6 +4,7 @@ import {
   type HomeCardSize,
 } from "@ai-outfitter/app-sdk/home-cards";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { clip } from "@ai-outfitter/app-sdk/untrusted-text";
 import { and, asc, count, eq, ne, sql, type SQL } from "drizzle-orm";
 import type { PlanningDatabase } from "./planning";
 import { issues, projects } from "./schema";
@@ -18,8 +19,6 @@ export const projectCounts: Record<HomeCardSize, number> = {
   large: 6,
 };
 
-const clip = (value: string, max: number) =>
-  value.length > max ? `${value.slice(0, max - 1)}…` : value;
 const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
 
 // Correlated counts use the (installationId, projectId, …) issue index. Outer

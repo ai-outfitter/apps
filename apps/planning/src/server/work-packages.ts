@@ -7,7 +7,8 @@ import {
   entityRecord,
   entityRef,
 } from "@ai-outfitter/app-sdk/entities";
-import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { canonicalJSON } from "@ai-outfitter/app-sdk/proposal-store";
+import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
@@ -231,28 +232,8 @@ export async function projectContext(
     (await loadProjectContext(db, who, host, input, workSubgraph)).context,
   );
 }
-export function canonicalJSON(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJSON).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.entries(value)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([k, v]) => `${JSON.stringify(k)}:${canonicalJSON(v)}`)
-      .join(",")}}`;
-  return JSON.stringify(value);
-}
-export async function packageDigest(value: unknown) {
-  return [
-    ...new Uint8Array(
-      await crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(canonicalJSON(value)),
-      ),
-    ),
-  ]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+export { canonicalJSON };
+export const packageDigest = (value: unknown) => sha256Hex(canonicalJSON(value));
 function scopeProvenance(
   graph: GraphSlice,
   issueNode: EntityRecord | undefined,
@@ -487,7 +468,6 @@ export async function previewWork(
     throw new Response(context.gaps.join(" "), { status: 409 });
   const {
     issue,
-    name,
     ids,
     requirements,
     definitions,

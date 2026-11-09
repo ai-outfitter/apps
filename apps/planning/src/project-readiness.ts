@@ -1,4 +1,5 @@
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
 
 export const readinessStages = [
   {
@@ -367,11 +368,6 @@ export function projectWikiSlug(graph: Graph, installationId: string, projectId:
 
 export type ProjectRepository = { nodeId: string; edgeId?: string; title: string; repository: string; url: string; path: string | null; ref: string | null };
 /** owner/name from a GitHub repository URL; null for anything else. */
-export function githubRepositoryName(url: unknown): string | null {
-  if (typeof url !== "string") return null;
-  const match = url.trim().match(/^https:\/\/github\.com\/([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/);
-  return match ? `${match[1]}/${match[2]}`.toLowerCase() : null;
-}
 /** The GitHub repositories the project's Wiki node has code in (`source_in`), with each edge's path and ref. */
 export function projectRepositories(graph: Graph, installationId: string, projectId: string): ProjectRepository[] {
   const q = query(graph);

@@ -1,7 +1,8 @@
 import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
-import { githubRepositoryName, wikiProjectAnchor } from "../project-readiness";
+import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
+import { wikiProjectAnchor } from "../project-readiness";
 import type { PlanningContext } from "./intake";
 
 const repositoryURL = z.string().trim().max(300).refine(value => !!githubRepositoryName(value), "Use a GitHub repository URL");

@@ -14,7 +14,6 @@ import { graphql } from "../graph/graphql";
 import { documents } from "../src/server/documents";
 import { graphqlSchema } from "../src/server/graphql";
 import { pullRequests } from "../src/server/project-repositories";
-import { issues, projects } from "../src/server/schema";
 
 // The built operational worker serves projects and issues over graph.graphql, the
 // call the platform's appGraphql makes.
