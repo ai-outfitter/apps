@@ -98,8 +98,9 @@ async function ready(name, url, attempts = 60) {
 }
 
 /** Forgejo's app.ini: SQLite, no registration, no outside calls. It listens on
- * every interface inside the container so a published port (only ever on the
- * host's loopback) can reach it; ROOT_URL stays the in-box origin. Its files
+ * the container's interfaces, as the platform does, so a published port can
+ * reach it (evals publish it on the host's loopback); ROOT_URL stays the in-box
+ * origin. Its files
  * (attachments, avatars, archives, packages) are kept in RustFS, Git LFS
  * objects (agent sessions) in their own bucket. */
 function forgejoConfig() {

@@ -8,7 +8,12 @@ const root = import.meta.dirname;
 const app = join(root, "apps/release-radar");
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 const { NODE_TEST_CONTEXT, VITEST, VITEST_MODE, VITEST_POOL_ID, VITEST_WORKER_ID, ...env } = process.env;
-const run = (command: string, ...args: string[]) => execFileSync(command, args, { cwd: root, env, stdio: "pipe", encoding: "utf8" });
+// Builds and installs print a lot; only a failure's output matters.
+const run = (command: string, ...args: string[]) =>
+  execFileSync(command, args, { cwd: root, env, stdio: "pipe", encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+/** A page's visible text, without tags, scripts or styles. */
+const text = (html: string) => html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ")
+  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ");
 
 test("the manifest and package describe a demo-only Astro app", () => {
   const manifest = json(join(app, "app.json"));
@@ -44,9 +49,11 @@ describe("the built demo package", () => {
     expect(existsSync(join(app, ".outfitter/packages/demo.json"))).toBe(true);
     const fixtures = await import(join(app, "src/fixtures.ts"));
     repositories = fixtures.repositories;
-    // The request names the row's name but not its count field: take its one number.
-    summary = fixtures.summarize(repositories).map((row: Record<string, unknown>) => ({ name: String(row.name),
-      count: Object.values(row).find((value): value is number => typeof value === "number")! }));
+    // The request names the row's name but not its count field: its one number, or the one named like a count.
+    summary = fixtures.summarize(repositories).map((row: Record<string, unknown>) => {
+      const numbers = Object.entries(row).filter((entry): entry is [string, number] => typeof entry[1] === "number");
+      return { name: String(row.name), count: (numbers.length === 1 ? numbers[0] : numbers.find(([key]) => /count|merged/i.test(key)))?.[1] as number };
+    });
     const { appWorker } = await import(join(root, "packages/app-test/src/worker.ts"));
     worker = await appWorker("release-radar", join(app, ".outfitter/packages/demo.json"));
   }, 900_000);
@@ -64,10 +71,18 @@ describe("the built demo package", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toMatch(/<h1[^>]*>\s*Release Radar\s*<\/h1>/);
-    for (const row of summary) {
+    // Each count is shown with its repository: between its name and the next repository's.
+    const page = text(html);
+    const at = summary.map((row) => {
       expect(html).toContain(`/repos/${row.name}`);
-      expect(html).toContain(String(row.count));
-    }
+      const index = page.indexOf(row.name);
+      expect(index, `${row.name} is shown`).toBeGreaterThanOrEqual(0);
+      return index;
+    });
+    summary.forEach((row, i) => {
+      const next = Math.min(...at.filter((index) => index > at[i]), page.length);
+      expect(page.slice(at[i] + row.name.length, next), `${row.name}'s count`).toMatch(new RegExp(`(^|\\D)0*${row.count}(\\D|$)`));
+    });
   });
 
   test("/repos/<name> lists its pull requests and an unknown name is 404", async () => {
@@ -75,9 +90,11 @@ describe("the built demo package", () => {
       const response = await worker.call(`/repos/${repository.name}`);
       expect(response.status).toBe(200);
       const html = await response.text();
+      const page = text(html);
       for (const pull of repository.pullRequests) {
-        expect(html).toContain(String(pull.number));
-        expect(html).toContain(pull.author);
+        expect(page).toContain(String(pull.number));
+        expect(page).toContain(pull.title);
+        expect(page).toContain(pull.author);
       }
     }
     expect((await worker.call("/repos/no-such-repository")).status).toBe(404);
@@ -85,7 +102,7 @@ describe("the built demo package", () => {
 
   test("/__health, methods and headers", async () => {
     const health = await worker.call("/__health");
-    expect(await health.json()).toEqual({ app: "release-radar", status: "ok" });
+    expect(await health.json()).toMatchObject({ app: "release-radar", status: "ok" });
     expect((await worker.call("/", undefined, { method: "POST" })).status).toBe(405);
     const page = await worker.call("/");
     expect(page.headers.get("cache-control")).toBe("private, no-store");

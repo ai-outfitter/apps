@@ -156,7 +156,7 @@ export class Controller {
     const token = secret?.stringData?.token;
     if (!token) return this.#report(key, "Starting", undefined, generation);
     const port = await this.freePort();
-    const root = this.#root(namespace, name);
+    const root = this.#link(namespace, name);
     const podName = `${name}-g${generation}`;
     const child = this.spawnRuntime(this.runtimeScript, {
       PORT: String(port),
@@ -178,15 +178,17 @@ export class Controller {
    * `/workspace` is short. Chrome keeps its profile and sockets under the
    * runtime's TMPDIR (`<root>/tmp`), and a Unix socket path over 108 bytes
    * makes it exit before the browser MCP can attach. */
-  #root(namespace, name) {
+  #link(namespace, name) {
     const directory = join(this.dataDirectory, namespace, name);
     mkdirSync(directory, { recursive: true });
-    const links = join(dirname(this.dataDirectory), "w");
-    mkdirSync(links, { recursive: true });
-    const link = join(links, createHash("sha256").update(`${namespace}/${name}`).digest("hex").slice(0, 8));
+    const link = this.#linkPath(`workspaces/${namespace}/${name}`);
+    mkdirSync(dirname(link), { recursive: true });
     rmSync(link, { force: true });
     symlinkSync(directory, link);
     return link;
+  }
+  #linkPath(key) {
+    return join(this.dataDirectory, ".w", createHash("sha256").update(key).digest("hex").slice(0, 12));
   }
   #report(key, reason, podName, generation) {
     const workspace = this.store.get(key);
@@ -202,6 +204,7 @@ export class Controller {
     const entry = this.processes.get(key);
     this.processes.delete(key);
     entry?.child.kill?.("SIGTERM");
+    rmSync(this.#linkPath(key), { force: true });
   }
   /** The local port serving a workspace's runtime, if it is running. */
   port(namespace, name) {

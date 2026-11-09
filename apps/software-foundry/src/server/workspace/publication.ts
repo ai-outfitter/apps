@@ -5,6 +5,7 @@ import { z } from "zod";
 import { evidenceKey, evidenceSpace } from "./demo-handoff";
 import { foundryForge, hostAPI } from "./forge";
 import { imageDimensions } from "./image-dimensions";
+import { foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow } from "./workspaces";
 
 /** A screenshot a workspace agent publishes for its pull request, as the
  * platform's publication route dispatches it to the `publish` phase. */
@@ -16,8 +17,8 @@ const foundryEvidenceInput = z.object({
 }).strict();
 const denied = () => new Response("Evidence unavailable", { status: 404 });
 const publishingNodes = ["implement", "repair", "review", "review-final"];
-/** The Foundry's issue-to-merge workflows: checks in Actions, or in a workspace (a box, a forge without Actions). */
-const publishingWorkflows = ["issue-to-merge-actions-ci", "issue-to-merge-workspace"];
+// Checks in Actions, or in a workspace (a box, a forge without Actions).
+const publishingWorkflows = [foundryWorkspaceWorkflow, historicalFoundryWorkspaceWorkflow];
 
 /** A bounded PNG: signature, IHDR and sane dimensions. */
 export function evidenceBytes(base64: string) {
@@ -34,7 +35,7 @@ export async function publishFoundryEvidence(host: WorkflowHost<"publish">, loca
   const input = foundryEvidenceInput.parse(raw);
   const bytes = evidenceBytes(input.base64);
   const [loaded, repo] = await Promise.all([host.call("workflow.read", { id: input.node.runId }), host.call("repository.read", {})]);
-  if (!publishingWorkflows.includes(loaded?.run.workflowId ?? "") || !publishingNodes.includes(input.node.nodeId) ||
+  if (!loaded || !publishingWorkflows.includes(loaded.run.workflowId) || !publishingNodes.includes(input.node.nodeId) ||
       !loaded.attempts.some(attempt => attempt.id === input.node.attemptId && attempt.nodeId === input.node.nodeId))
     throw denied();
   const event = z.object({ issue: z.object({ number: z.number().int().positive() }), sourceRunId: z.uuid().optional() }).parse(loaded.inputs["triage.inputs.event"]);

@@ -52,7 +52,9 @@ test("a runtime's WORKSPACE_ROOT is a short link to its workspace directory", as
   const root = spawned[0].env.WORKSPACE_ROOT;
   assert.equal(realpathSync(root), "/tmp/box-kube-test/outfitter-t-bc9822e9da2259c8178b/ws-13040ac9-cd1b-4c96-9dfc-e6c3503e2ef9");
   // Chrome's profile directory and sockets live under <root>/tmp; production's is /workspace/tmp.
-  assert.ok(`${root}/tmp`.length <= 30, root);
+  assert.ok(`${root}/tmp`.length <= 48, root);
+  controller.stopAll();
+  assert.throws(() => realpathSync(root), "a stopped runtime's link is removed");
 });
 
 test("routes only the resources the gateway uses", () => {
