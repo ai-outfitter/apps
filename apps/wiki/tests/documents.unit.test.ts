@@ -13,14 +13,14 @@ import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { archiveDocument,documentDigest,getDocument,listPages,publishDocument,revisions,saveDocument,savePage } from "../src/documents/store";
 
 const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:"member"},role:"owner",canEdit:true};
-function fixture() {
+function fixture(withImportRevision=true) {
  const sqlite=new DatabaseSync(":memory:"); sqlite.exec("PRAGMA foreign_keys=ON");
  const folder=new URL("../migrations/",import.meta.url);
  for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && !n.startsWith('0012') && !n.startsWith('0013')).sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
  sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
  INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',1,'member','{}','[]','{"title":"First","body":"First body"}',1);`);
  sqlite.exec(readFileSync(new URL('0012_documents.sql',folder),'utf8'));
- sqlite.exec(readFileSync(new URL('0013_imported_revision.sql',folder),'utf8'));
+ if(withImportRevision) sqlite.exec(readFileSync(new URL('0013_imported_revision.sql',folder),'utf8'));
  const db:AgentDatabase={query:async s=>sqlite.prepare(s.sql).all(...(s.params ?? []) as never[]) as Record<string,unknown>[],batch:async steps=>{
   sqlite.exec('BEGIN');try{for(const s of steps)sqlite.prepare(s.sql).run(...(s.params ?? []) as never[]);sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}
  }};
@@ -104,5 +104,16 @@ test('a resumed activation imports intervening legacy revisions and leaves Wiki 
   await assert.rejects(resumeLegacyImport(db),error=>error instanceof Response && error.status===409);
   assert.equal((await getDocument(db,'legacy')).body,'Authored in Wiki');
   assert.equal((await revisions(db,'legacy')).length,4);
+ }finally{sqlite.close();}
+});
+
+test('the import marker upgrade does not mistake existing Wiki edits for imported history',async()=>{
+ const {sqlite,db}=fixture(false);try{
+  await saveDocument(db,who,{id:'legacy',revision:2,title:'Existing Wiki edit',body:'Keep this draft'});
+  sqlite.exec(readFileSync(new URL('../migrations/0013_imported_revision.sql',import.meta.url),'utf8'));
+  assert.equal(sqlite.prepare("SELECT importedRevision FROM wiki_documents WHERE id='legacy'").get()?.importedRevision,2);
+  sqlite.exec("UPDATE graph_nodes SET revision=4,body='Later legacy change' WHERE id='legacy'");
+  await assert.rejects(resumeLegacyImport(db),error=>error instanceof Response&&error.status===409);
+  assert.equal((await getDocument(db,'legacy')).body,'Keep this draft');
  }finally{sqlite.close();}
 });
