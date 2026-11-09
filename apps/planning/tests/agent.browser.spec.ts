@@ -315,6 +315,15 @@ for (const [width, mount] of [[1440, ""], [390, "/o/org/planning"]] as const)
         await expect(panel.getByRole("link", { name: "Debug" })).toHaveCount(0);
         await shot(page, info, `other-member-${width}.png`);
       });
+      await test.step("a page that selects nothing talks in the Planning-wide thread", async () => {
+        h.as("alice");
+        await page.goto(`${origin}${mount}/operations`);
+        // The panel stays open across pages (the outfitter-ui cookie).
+        await expect(panel.getByText("Project intake")).toBeVisible();
+        await send("Here are today's meeting notes: ship the launch checklist.", [{ text: "Fixture inference: read the notes across projects." }]);
+        await expect(panel.getByText("Fixture inference: read the notes across projects.")).toBeVisible();
+        expect(h.sent.at(-1)?.metadata).toMatchObject({ "planning.page": { focus: { kind: "planning-board" } } });
+      });
       expect(errors).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     } finally {

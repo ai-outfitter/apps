@@ -1,4 +1,4 @@
-import { agentPage, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
+import { type AgentFocus, agentPage, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
 import { useMemo, useState, useSyncExternalStore } from "react";
 
@@ -17,6 +17,7 @@ export default function ScriptedAppAgentSidebar({
   agentName = "Outfitter",
   intro,
   emptyIntro,
+  defaultFocus,
   limits,
   demoReply,
 }: {
@@ -28,11 +29,14 @@ export default function ScriptedAppAgentSidebar({
   agentName?: string;
   intro: string;
   emptyIntro: string;
+  /** The app-wide conversation for a page that selects nothing (shown with `intro`, not `emptyIntro`). */
+  defaultFocus?: AgentFocus;
   limits: string;
   demoReply: string;
 }) {
   const page = useMemo(() => agentPage(pageId), [pageId]);
-  const claim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const pageClaim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const claim = useMemo(() => (pageClaim.focus || !defaultFocus ? pageClaim : { ...pageClaim, focus: defaultFocus }), [pageClaim, defaultFocus]);
   const [activated, setActivated] = useState(false);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [error, setError] = useState("");
