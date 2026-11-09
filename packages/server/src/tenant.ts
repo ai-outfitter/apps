@@ -269,6 +269,9 @@ async function pathTenant(url: URL, db: Database, root: URL, options: TenantOpti
     isNotNull(appInstallations.activeScript),
   ));
   if (!app?.activeScript) {
+    // The Wiki launcher resolves the member's accessible organization Wiki.
+    // Existing installations named wiki keep their own mount and take precedence.
+    if (appSlug === "wiki" && /^\/o\/[^/]+\/wiki\/?$/.test(url.pathname)) return { ...base, pathPrefix: organizationPath(slug) };
     if (options.defaultMounts?.has(appSlug)) return { ...base, pathPrefix: organizationPath(slug) };
     throw new Response("Unknown app", { status: 404 });
   }

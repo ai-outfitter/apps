@@ -28,6 +28,7 @@ const {
 } = Astro.props;
 ---
 <div class:list={["app-shell", { "app-shell--collapsible": desktopSidebar === "collapsible" }, className]}>
+  <slot name="rail" />
   <Sidebar brand={brand} homeHref={homeHref} badge={badge} label={sidebarLabel} desktopOpen={desktopOpen} persistKey={persistKey}>
     <slot name="navigation" />
   </Sidebar>

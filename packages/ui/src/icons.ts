@@ -1,5 +1,7 @@
 // Shared SVG path data for the React chat island and Astro pages.
 export const iconPaths = {
+  home: "M3 11 12 3l9 8 M5 10v10h14V10 M9 20v-6h6v6",
+  book: "M4 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4Z M20 4h-4a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h4Z",
   admin: "M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z M8 12l3 3 5-6",
   organization:
     "M4 21V3h12v18 M2 21h20 M16 9h4v12 M8 7h4 M8 11h4 M8 15h4 M9 21v-3h2v3",

@@ -19,3 +19,15 @@ initial zoom and an expanded view. Open batches support explicit proposal replac
 by ref and anchor edits; undecided member-review batches also allow valid anchor
 changes. Mutation results report dry-run validation and ask callers to repair failing
 drafts before submission. Submitted operations and member approval remain unchanged.
+
+## Proposal review readability
+
+Structured proposal bodies display labeled fields and lists, while Markdown keeps
+its rendered formatting. Reviewers see a batch overview, separate records and
+relationships, and the number of distinct sources. Per-proposal reasons and
+source citations expand on demand; Onto citations open the referenced record.
+The shared managed app shell uses the current platform mini sidebar and account
+menu, with navigation metadata supplied by the platform.
+
+Organization pages now use an organization-focused mini sidebar with Home, Wiki,
+Workflows, Apps and Settings, the organization identity, and Back to personal.

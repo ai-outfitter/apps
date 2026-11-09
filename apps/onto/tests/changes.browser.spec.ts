@@ -152,3 +152,65 @@ test("read a proposed document from Changes before approving its saved entity", 
     await app.dispose();
   }
 });
+
+test("review structured fields and their source without exposing raw JSON", async ({ page }) => {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "structured-review");
+  const action = async (name: string, input: object) => {
+    const response = await app.call("/api/internal/actions/v1/call", agent, { method: "POST", body: { action: name, input } });
+    expect(response.status, await response.clone().text()).toBe(200);
+    return response.json();
+  };
+  try {
+    const { batch } = await action("batch.open", { title: "Review prototype acceptance" });
+    await action("batch.add", { batchId: batch.id, proposals: [{
+      operation: { operation: "create", type: "graph-node", ref: "$acceptance", attributes: {
+        id: documentId, typeId: core.document, title: "Report missing measurements",
+        body: JSON.stringify({ condition: "Sensor stops reporting", expectedOutcome: "Show stale data", checks: ["Preserve last reading", "<script>throw new Error('unsafe')</script>"] }),
+      } }, reason: "Keep missing measurements visible to the grower.",
+      evidence: [{ provider: "test", recordId: "prototype-brief", quote: "Missing samples must be visible." }],
+    }] });
+    await action("batch.submit", { batchId: batch.id });
+    await page.route(`${origin}/**`, async route => {
+      const request = route.request(), url = new URL(request.url());
+      let response = await app.call(url.pathname + url.search, owner, {
+        method: request.method(), ...(request.postData() ? { body: request.postDataJSON() } : {}),
+      });
+      // The platform supplies this trusted metadata to both personal and org apps.
+      if (response.headers.get("content-type")?.includes("text/html")) {
+        const html = (await response.text()).replace("</head>", `<meta name="outfitter-apps" content="${origin}/apps"><meta name="outfitter-organization-navigation" content="{&quot;name&quot;:&quot;Sunny&quot;,&quot;href&quot;:&quot;${origin}/o/sunny&quot;}"></head>`);
+        response = new Response(html, { status: response.status, headers: response.headers });
+      }
+      await fulfillFrom(route, response);
+    });
+    await page.goto(`${origin}/changes/${batch.id}#proposal-acceptance`);
+    const personal = page.getByRole("navigation", { name: "Sunny organization", exact: true });
+    await expect(personal).toBeVisible();
+    await expect(personal.getByRole("link", { name: "Organization Wiki", exact: true })).toHaveAttribute("href", `${origin}/o/sunny/wiki`);
+    await expect(personal.getByRole("link", { name: "Organization apps", exact: true })).toHaveAttribute("href", `${origin}/o/sunny/apps`);
+    await expect(page.getByRole("link", { name: "Back to personal", exact: true })).toHaveAttribute("href", `${origin}/`);
+    await page.getByRole("link", { name: "Graph explorer", exact: true }).click();
+    await expect(personal).toBeVisible();
+    await expect(page.locator(".personal-rail").getByRole("button", { name: "Accounts", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Changes", exact: true }).click();
+    await page.getByRole("link", { name: "Review prototype acceptance", exact: true }).click();
+    await expect(personal).toBeVisible();
+    await page.getByRole("button", { name: "Proposals (1)", exact: true }).click();
+    const proposal = page.locator(".change-operation");
+    await expect(proposal.locator("dt")).toHaveText(["Condition", "Expected Outcome", "Checks"]);
+    await expect(proposal.locator("dd").nth(1)).toHaveText("Show stale data");
+    await expect(proposal.locator("script")).toHaveCount(0);
+    await expect(proposal.getByText("Document preview", { exact: true })).toHaveCount(0);
+    await expect(proposal.getByText("Keep missing measurements visible to the grower.", { exact: true })).toBeHidden();
+    await proposal.getByText("Why this change?", { exact: true }).click();
+    await expect(proposal.getByText("Keep missing measurements visible to the grower.", { exact: true })).toBeVisible();
+    await proposal.getByText("Sources (1)", { exact: true }).click();
+    await expect(proposal.getByText("Missing samples must be visible.", { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    await proposal.getByRole("button", { name: "Approve", exact: true }).click();
+    await expect(proposal).toContainText("Approved by a member");
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});

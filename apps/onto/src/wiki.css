@@ -343,3 +343,28 @@
 .ui-content .change-views button[aria-pressed="true"] { border-color: var(--text); color: var(--text); }
 .changes .change-graph .knowledge-graph-stage:not(.knowledge-graph-expanded) .knowledge-graph-viewport { height: max(420px, calc(100dvh - 460px)); }
 .change-description > p { margin-top: 12px; }
+
+/* Review content follows the decision: the proposed fields, then optional context. */
+.change-description { max-width: 90ch; display: grid; gap: 8px; padding-block: 8px; }
+.change-description h3, .change-category h3 { margin: 0; font-size: 14px; }
+.change-category { display: grid; gap: 12px; min-width: 0; }
+.change-operation { padding: 20px; gap: 14px; }
+.change-heading-main { display: grid; gap: 4px; }
+.change-heading-main > a { font-size: 17px; font-weight: 600; text-decoration: none; }
+.change-heading-main > a:hover { text-decoration: underline; }
+.change-content { max-width: 95ch; line-height: 1.6; overflow-wrap: anywhere; }
+.change-fields { margin: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px 20px; }
+.change-fields dt { color: var(--muted); font-size: 13px; padding-top: 2px; }
+.change-fields dd { margin: 0; }
+.change-fields ul { margin: 0; padding-left: 20px; }
+.change-operation details { font-size: 13px; color: var(--muted); }
+.change-operation summary { cursor: pointer; width: fit-content; }
+.change-operation details[open] > :not(summary) { margin-top: 10px; }
+.change-evidence { max-width: 95ch; }
+@media (max-width: 760px) {
+  .change-operation { padding: 14px; }
+  .change-fields { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .change-fields dd { margin-bottom: 8px; }
+  .change-heading { grid-template-columns: minmax(0, 1fr); }
+  .change-heading .change-actions { justify-self: end; }
+}

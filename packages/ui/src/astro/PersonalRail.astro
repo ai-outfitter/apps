@@ -1,0 +1,20 @@
+---
+import Icon from "./Icon.astro";
+import { railNavigation, type RailOrganization } from "../rail-navigation";
+interface Props {
+  /** Absolute trusted platform origin. Omit for managed apps, initialized from platform metadata. */
+  rootOrigin?: string;
+  organization?: RailOrganization;
+  current?: string;
+}
+const { rootOrigin, organization, current } = Astro.props;
+const navigation = railNavigation(rootOrigin ?? "https://outfitter.invalid", organization);
+---
+<div class="personal-rail" hidden={!rootOrigin}>
+  <a class="rail-scope" data-rail-scope href={rootOrigin && organization ? organization.href : undefined} title={organization?.name} aria-label={organization?.name} hidden={!organization}>{organization?.name.slice(0, 1).toUpperCase()}</a>
+  <nav aria-label={navigation.label} data-rail-navigation>
+    {navigation.links.map(link => <a href={rootOrigin ? link.href : undefined} data-rail-key={link.key} aria-label={link.label} title={link.label} aria-current={current === link.key ? "page" : undefined}><Icon name={link.icon} /></a>)}
+  </nav>
+  <a class="rail-personal-return" data-rail-personal-return href={rootOrigin && navigation.personalHref ? navigation.personalHref : undefined} aria-label="Back to personal" title="Back to personal" hidden={!organization}><Icon name="back" /><span>Personal</span></a>
+  <div class="personal-rail-account" data-personal-account><slot name="account" /></div>
+</div>

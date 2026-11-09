@@ -69,10 +69,11 @@ function title(op: BatchOperation, names: Map<string, string>, types: Map<string
   return String(a.title ?? a.name ?? op.ref);
 }
 
-function citation(item: Citation) {
-  const source = `${item.provider} · ${item.recordId}${item.version ? ` (version ${item.version})` : ""}`;
+function citation(item: Citation, names?: Map<string, string>) {
+  const source = `${names?.get(item.recordId) ?? `${item.provider} · ${item.recordId}`}${item.version ? ` (version ${item.version})` : ""}`;
+  const href = item.provider === "onto" && names?.has(item.recordId) ? entityUrl(item.recordId) : item.uri;
   return el("li", {},
-    item.uri ? el("a", { href: item.uri, rel: "noreferrer noopener", target: "_blank" }, source) : el("span", {}, source),
+    href ? el("a", { href, rel: "noreferrer noopener", target: "_blank" }, source) : el("span", {}, source),
     item.observedAt ? el("span", { class: "change-meta" }, ` · ${time(Date.parse(item.observedAt))}`) : null,
     item.quote ? el("blockquote", {}, item.quote) : null,
   );
@@ -182,12 +183,27 @@ function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
 
 const proposalAnchor = (op: BatchOperation) => `proposal-${encodeURIComponent(op.ref).replaceAll("%", "_")}`;
 
-function documentPreview(op: BatchOperation) {
+/** Structured assertion bodies are fields to review, rather than JSON documents. */
+function proposedContent(op: BatchOperation) {
   const body = op.operation.attributes.body;
   if (typeof body !== "string" || !body.trim()) return null;
-  const prose = el("div", { class: "prose" });
-  prose.innerHTML = micromark(body, { allowDangerousHtml: false, allowDangerousProtocol: false });
-  return el("details", { open: true }, el("summary", {}, "Document preview"), prose);
+  const label = (key: string) => key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ").replace(/^./, char => char.toUpperCase());
+  const fieldValue = (value: unknown): HTMLElement => {
+    if (Array.isArray(value)) return el("ul", {}, ...value.map(item => el("li", {}, fieldValue(item))));
+    if (value !== null && typeof value === "object") return el("dl", { class: "change-fields" },
+      ...Object.entries(value).flatMap(([key, item]) => [el("dt", {}, label(key)), el("dd", {}, fieldValue(item))]));
+    return el("span", {}, value === null ? "Not specified" : String(value));
+  };
+  let content: HTMLElement;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (parsed === null || typeof parsed !== "object") throw new Error("Prose");
+    content = fieldValue(parsed);
+  } catch {
+    content = el("div", { class: "prose" });
+    content.innerHTML = micromark(body, { allowDangerousHtml: false, allowDangerousProtocol: false });
+  }
+  return el("div", { class: "change-content" }, content);
 }
 
 function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string, string>, types: Map<string, string>, rerender: (next: BatchDetail) => void) {
@@ -199,18 +215,18 @@ function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string
   return el("li", { id: proposalAnchor(op), class: `change-operation change-${op.state}` },
     el("div", { class: "change-heading" },
       el("div", { class: "change-heading-main" },
-        el("span", { class: "change-kind" }, `${op.operation.operation === "update" ? "Update · " : ""}${kind}`),
+        el("span", { class: "change-kind" }, `${op.operation.operation === "update" ? "Update" : "Add"} · ${kind}`),
         op.recordId && op.state === "committed" ? el("a", { href: entityUrl(op.recordId, typeof op.operation.attributes.typeId === "string" ? op.operation.attributes.typeId : undefined) }, title(op, names, types)) : el("a", { href: `#${proposalAnchor(op)}` }, title(op, names, types)),
         op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
       ),
       actions,
     ),
-    op.reason ? el("p", {}, op.reason) : null,
+    proposedContent(op),
+    op.reason ? el("details", { class: "change-rationale" }, el("summary", {}, "Why this change?"), el("p", {}, op.reason)) : null,
     findingList(detail.batch.review?.findings.filter((item) => item.ref === op.ref) ?? []),
-    documentPreview(op),
     op.evidence.length
-      ? el("details", {}, el("summary", {}, `Evidence (${op.evidence.length})`), el("ul", { class: "change-evidence" }, ...op.evidence.map(citation)))
-      : el("p", { class: "change-meta" }, "No evidence cited."),
+      ? el("details", {}, el("summary", {}, `Sources (${op.evidence.length})`), el("ul", { class: "change-evidence" }, ...op.evidence.map(item => citation(item, names))))
+      : el("p", { class: "change-meta" }, "No supporting sources cited."),
     el("span", { class: "change-state" }, how),
   );
 }
@@ -289,6 +305,9 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     const types = new Map(graph.types.map((type) => [type.id, type.title]));
     const names = nameIndex(graph, operations);
     const bulk = bulkActions(current, draw);
+    const recordCount = operations.filter(op => op.operation.type !== "graph-edge").length;
+    const relationshipCount = operations.length - recordCount;
+    const sourceCount = new Set(operations.flatMap(op => op.evidence.map(item => JSON.stringify([item.provider, item.recordId, item.version])))).size;
     const view = proposedView(graph, operations);
     const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
     const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
@@ -302,7 +321,12 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       graph: el("div", { id: "batch-graph", class: "change-graph" }, viewer ?? el("p", {}, "No graph nodes in this batch.")),
       proposals: el("div", { id: "batch-proposals" }, ...groups.map(([state, ops]) => el("div", { class: "change-proposal-group" },
         el("h2", {}, `${opLabels[state] ?? state} (${ops.length})`),
-        el("ul", { class: "change-operations" }, ...ops.map(op => operationRow(current, op, names, types, draw)))))),
+        ...[
+          { label: "Records", items: ops.filter(op => op.operation.type !== "graph-edge") },
+          { label: "Relationships", items: ops.filter(op => op.operation.type === "graph-edge") },
+        ].filter(group => group.items.length).map(group => el("div", { class: "change-category" },
+          el("h3", {}, `${group.label} (${group.items.length})`),
+          el("ul", { class: "change-operations" }, ...group.items.map(op => operationRow(current, op, names, types, draw)))))))),
       review: el("div", { id: "batch-review" }, anchorSection(graph, current, draw), reviewSection(current, draw)),
     };
     const buttons = new Map<string, HTMLButtonElement>();
@@ -326,9 +350,10 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
       el("h2", {}, batch.title),
       el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state} · ${time(batch.createdAt)}`),
-      el("details", { class: "change-description" }, el("summary", {}, "Batch summary"),
+      el("div", { class: "change-description", role: "region", "aria-label": "What you are reviewing" },
+        el("h3", {}, "What you are reviewing"),
         el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
-        batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),
+        el("p", { class: "change-meta" }, `${recordCount} records · ${relationshipCount} relationships · ${sourceCount} sources`)),
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
       bulk,
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
@@ -385,7 +410,7 @@ export function historySection(id: string) {
           ? el("ol", { class: "change-history" }, ...history.revisions.map((row) => el("li", {},
             el("strong", {}, `Revision ${row.revision}`), ` · ${row.created ? "created" : "changed"} ${time(row.createdAt)} · ${approval(row.approval)}`,
             row.batchId ? el("span", {}, " · ", el("a", { href: batchUrl(row.batchId) }, row.batchTitle ?? "batch")) : null,
-            row.evidence.length ? el("ul", { class: "change-evidence" }, ...row.evidence.map(citation)) : null)))
+            row.evidence.length ? el("ul", { class: "change-evidence" }, ...row.evidence.map(item => citation(item))) : null)))
           : el("p", {}, "No recorded changes."),
         history.complete ? null : el("p", { class: "change-meta" }, "Earlier revisions were made before change history was recorded."),
       );
