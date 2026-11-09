@@ -1,0 +1,11 @@
+kind,item,quantity,evidence,notes
+printed,Base with standoff bosses (base.stl),1,this repository,224 x 178 x 5.5 mm; PETG; flat side down
+printed,Shell of four walls (shell.stl),1,this repository,224 x 178 x 83 mm; needs a 230 x 185 mm bed or print it as two halves
+printed,Top with lip (top.stl),1,this repository,224 x 178 x 9 mm; printed lip up
+cots,Mini-ITX motherboard,1,ATX specification,170 x 170 mm; holes C F H J; measure the I/O shield position on the actual board
+cots,Low-profile CPU cooler,1,allowance,95 x 95 x 37 mm envelope; check the cooler's drawing and socket position
+cots,Flex ATX power supply,1,Flex ATX specification,40 x 150 x 81.5 mm; IEC inlet position varies by model
+cots,M3 male-female standoff 6 mm,4,allowance,6 mm body plus 6 mm stud; 5.5 mm hex
+cots,M3 x 8 socket head cap screw,4,allowance,standoff to base from below
+cots,M3 x 6 pan head screw,4,allowance,board to standoff studs or nuts
+cots,M3 x 8 pan head screw,4,allowance,shell to top lip through the walls
