@@ -18,6 +18,9 @@ const history=(data?.documentRevisions ?? []) as {revision:number;title:string;b
 let entity:{title:string;attributes:Record<string,unknown>}|undefined;
 let entityError=false;
 if(page.entityRef && !demo){try{entity=await workflowHost<"interactive">(Astro.locals).call("entities.get",entityRef.parse(JSON.parse(page.entityRef)));}catch{entityError=true;}}
+const comparisonRevision=Astro.url.searchParams.get("compare");
+if(comparisonRevision && !/^[1-9][0-9]*$/.test(comparisonRevision)) return new Response("Invalid comparison revision",{status:400});
+const comparison=doc&&comparisonRevision&&!demo ? await run("CompareDocumentRevisions",{id:doc.id,before:Number(comparisonRevision),after:doc.revision},ctx!) as {before:typeof doc;after:typeof doc}:undefined;
 const title=doc?.title ?? entity?.title ?? page.slug;
 ---
 <Layout {title} description={doc?.summary ?? "A page connected to Onto."}>
@@ -30,5 +33,7 @@ const title=doc?.title ?? entity?.title ?? page.slug;
  {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={micromark(doc.generatedBody)}/></section>}
  {entity&&<section class="wiki-doc"><h2>Current information from Onto</h2><p>{entity.title}</p><p>{String(entity.attributes.summary ?? "")}</p><div set:html={micromark(String(entity.attributes.body ?? ""))}/></section>}
  {entityError&&<p>Linked information is currently unavailable. This page does not grant access to its source.</p>}
- {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a></li>)}</ul></details>}
+ {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a>{doc&&row.revision!==doc.revision&&<> · <a href={`?${requested?`revision=${requested}&`:""}compare=${row.revision}`}>Compare with revision {doc.revision}</a></>}</li>)}</ul></details>}
+{comparison&&<section aria-label="Revision comparison"><h2>Revision comparison</h2><div class="revision-comparison">{[comparison.before,comparison.after].map(revision=><section><h3>Revision {revision.revision}</h3><h4>{revision.title}</h4><p>{revision.summary}</p><h4>Authored content</h4><pre>{revision.body}</pre><h4>Generated content</h4><pre>{revision.generatedBody}</pre></section>)}</div></section>}
 </Layout>
+<style>.revision-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}.revision-comparison pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:700px){.revision-comparison{grid-template-columns:1fr}}</style>

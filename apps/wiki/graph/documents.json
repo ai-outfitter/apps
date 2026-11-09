@@ -44,6 +44,95 @@
     }
   },
   {
+    "name": "CompareDocumentRevisions",
+    "kind": "query",
+    "story": "As an editor, I want to compare two exact revisions, so that I can review authored and generated changes before publication.",
+    "query": "query CompareDocumentRevisions($id: ID!, $before: Int!, $after: Int!) {\n  before: document(id: $id, revision: $before) {\n    title\n    summary\n    body\n    generatedBody\n    revision\n  }\n  after: document(id: $id, revision: $after) {\n    title\n    summary\n    body\n    generatedBody\n    revision\n  }\n}",
+    "hash": "64ecd636b54b88e999c797321f7b8f93c12e420083a6106cf3af16c44312adea",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "before": {
+          "type": "integer",
+          "description": "GraphQL Int!"
+        },
+        "after": {
+          "type": "integer",
+          "description": "GraphQL Int!"
+        }
+      },
+      "required": [
+        "id",
+        "before",
+        "after"
+      ]
+    },
+    "mcp": {
+      "description": "Compare the authored and generated content of two immutable revisions."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "before": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "summary": {
+              "type": "string",
+              "nullable": true
+            },
+            "body": {
+              "type": "string",
+              "nullable": true
+            },
+            "generatedBody": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "summary": {
+              "type": "string",
+              "nullable": true
+            },
+            "body": {
+              "type": "string",
+              "nullable": true
+            },
+            "generatedBody": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "PublishDocument",
     "kind": "mutation",
     "story": "As an editor, I want to publish an eligible revision, so that readers see reviewed content.",

@@ -30,6 +30,10 @@ for(const mount of ["/apps/wiki-map/","/o/example/wiki-map/"])test(`read, edit a
   await page.getByRole('button',{name:'Publish revision 2'}).click();
   await expect(page.getByText('Revision 2 · Published',{exact:true})).toBeVisible();
   await page.getByText('Revision history',{exact:true}).click();
+  await page.getByRole('link',{name:'Compare with revision 2',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Revision comparison'})).toContainText('Initial notes');
+  await expect(page.getByRole('region',{name:'Revision comparison'})).toContainText('Revised notes for the project.');
+  await page.getByText('Revision history',{exact:true}).click();
   await page.getByRole('link',{name:'Revision 1: Project notebook',exact:true}).click();
   await expect(page.getByRole('article')).toContainText('Initial notes');
   await page.evaluate(async()=>{await Promise.all(document.getAnimations().map(animation=>animation.finished.catch(()=>undefined)));});
