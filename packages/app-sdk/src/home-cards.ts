@@ -361,7 +361,7 @@ export function homeCardOperations(cards: HomeCardProvider[]): Record<"catalog" 
   };
 }
 
-/** Mount behind dataAppMiddleware at `${homeCardPath}/[operation]`. The
+/** Mount behind the outfitterApp() middleware at `${homeCardPath}/[operation]`. The
  * platform alone calls this reserved route, with the viewer's identity. */
 export function homeCardAPI(request: Request, operation: string, cards: HomeCardProvider[]) {
   return operationAPI(request, operation, homeCardOperations(cards), () => requestIdentity(request));

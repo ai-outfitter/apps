@@ -6,7 +6,7 @@ import { defineConfig } from "astro/config";
 
 const mode = process.env.OUTFITTER_APP_MODE ?? "operational";
 // The demo is read-only fixtures: pages only, never a write.
-const formAction = `form-action ${mode === "demo" ? "'none'" : "'self'"}`;
+const formAction = `form-action ${mode === "operational" ? "'self'" : "'none'"}`;
 
 export default defineConfig({
   output: "server",
