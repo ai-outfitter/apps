@@ -23,6 +23,8 @@ test("installed Wiki creates a draft, preserves a publication, and refuses stale
   const data=await read.json() as {document:{revision:number;publishedRevision:number};documentRevisions:unknown[]};
   assert.deepEqual([data.document.revision,data.document.publishedRevision,data.documentRevisions.length],[2,1,2]);
   const legacy=await app.call(`/documents/${first.id}`,member);assert.equal(legacy.status,200);assert.match(await legacy.text(),/Updated notes/);
+  for(const path of ["/documents/project-notes",`/page?node=${first.id}`,"/page?slug=project-notes"]){const oldPage=await app.call(path,member);assert.equal(oldPage.status,200);assert.match(await oldPage.text(),/Updated notes/);}
+  const documentIndex=await app.call("/documents",member);assert.equal(documentIndex.status,200);assert.match(await documentIndex.text(),/Your Wiki/);
   const oldWrite=await app.call("/api/apps/wiki-map/graph/apply",owner,{method:"POST",body:{}});assert.notEqual(oldWrite.status,200);
  }finally{await app.dispose();}
 });
