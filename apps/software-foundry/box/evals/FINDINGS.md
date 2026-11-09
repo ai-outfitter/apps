@@ -41,9 +41,15 @@ it changes no UI, so no demo is required.
    for visual changes. That rule is in the prompt text, not a setting the
    driver can turn off, so every app or UI request ends `changes_requested`.
    The runtime's `/opt/workspace/browser-mcp.mjs` already supports
-   `CHROME_EXECUTABLE_PATH` or `AGENT_BROWSER_CDP_URL`. Fix: install Chromium
-   in the box image and set `CHROME_EXECUTABLE_PATH` for workspaces (needs an
-   image rebuild).
+   `CHROME_EXECUTABLE_PATH` or `AGENT_BROWSER_CDP_URL`. **Fixed in the image**
+   (not yet re-run with this eval): `box/Dockerfile` now installs Chrome for
+   Testing 154 and sets `CHROME_EXECUTABLE_PATH`, as the webapp's
+   `workspace/runtime/Dockerfile` does. The runtime's
+   `browser-agent-smoke.mjs` passes in the rebuilt image (pi drives Chrome
+   through the MCP and takes a screenshot) once its tool list includes
+   `resize_page` and `emulate`; the smoke script upstream lags `server.mjs`.
+   Publishing the screenshot (`publish-image.mjs`, the gateway's
+   `publish_evidence`) on the Forgejo path is still unverified.
 2. **The Forgejo `gh` shim lacks review and check reads.** Repair cannot see
    *why* a review asked for changes, so the repair loop is blind on any
    repository that is not GitHub.
