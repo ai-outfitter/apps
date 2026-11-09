@@ -35,7 +35,7 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     } } });
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET externalId=? WHERE id=?").bind('never-return', ids.$root.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$root.id).run();
     const entitySearch = async (type: string, query: string, filter = {}) => {
       const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, filter: { ...filter, query }, limit: 100 } });
       assert.equal(response.status, 200, await response.clone().text());

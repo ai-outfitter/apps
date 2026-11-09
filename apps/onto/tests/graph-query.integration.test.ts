@@ -28,7 +28,7 @@ test("graph.query batches compact reads through the action dispatcher without wr
     } } });
     assert.equal(applied.status, 200, await applied.clone().text());
     const ids = await applied.json() as Record<string, { id: string }>;
-    await app.database.prepare("UPDATE graph_nodes SET externalId=? WHERE id=?").bind('never-return', ids.$a.id).run();
+    await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$a.id).run();
     const catalog = await (await app.call("/api/internal/actions/v1/list", member)).json() as { name: string; access: string; permitted: boolean }[];
     const descriptor = catalog.find(action => action.name === "graph.query");
     assert.deepEqual(descriptor && { access: descriptor.access, permitted: descriptor.permitted }, { access: "read", permitted: true });

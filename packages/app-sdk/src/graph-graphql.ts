@@ -37,7 +37,7 @@
 //   (__schema, __type, sdl) and, one by one, on queries that use a renamed name.
 //   Archived types are not in the schema.
 // - A relator slot over an edge type replaces that edge's target field on the relator.
-// Privacy and state follow graph.query: privateData, externalProvider and externalId never
+// Privacy and state follow graph.query: a node's externalKey never
 // leave; archived records are excluded by default, and relationships also hide retired ones.
 import { type DocumentNode, execute, getOperationAST, type GraphQLSchema, type GraphQLError, Kind, parse, type SelectionNode, validate, visit } from "graphql";
 import { z } from "zod";

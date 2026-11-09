@@ -33,7 +33,7 @@ const edge = (n: number, typeId: number, from: number, to: number, extra: Record
 const snapshot = {
   installationId: "wiki-a", types,
   nodes: [
-    node(1, 1, "Ada", { privateData: '{"secret":"never-return"}', externalId: "ext-1" }), node(2, 1, "Grace"), node(3, 1, "Gone", { archived: true }),
+    node(1, 1, "Ada", { externalKey: "ai-outfitter.com/users:never-return" }), node(2, 1, "Grace"), node(3, 1, "Gone", { archived: true }),
     node(4, 2, "Platform"), node(5, 3, "Reviews", { properties: { threshold: 1, unit: "reviews", title: "shadowed" } }),
     node(6, 4, "Ada reviews", { validity: { from: "2026-01-01T00:00:00Z", to: null }, properties: { state: "active" } }),
     node(7, 4, "Team reviews", { properties: { state: "draft", valid_from: "2027-01-01T00:00:00Z" } }),
@@ -188,7 +188,7 @@ test("node, search and privacy", async () => {
   assert.deepEqual(result.data, { node: { __typename: "Person", id: uuid(101), properties: {}, body: "" }, search: [{ title: "Reviews", typeId: uuid(3) }, { title: "Ada reviews", typeId: uuid(4) }, { title: "Team reviews", typeId: uuid(4) }] });
   const everything = await run(`{ persons(archived: INCLUDE) { nodes { id properties edges(archived: INCLUDE) { properties from { properties } } } } }`);
   const text = JSON.stringify(everything);
-  for (const secret of ["never-return", "ext-1", "privateData", "externalId"]) assert.ok(!text.includes(secret), secret);
+  for (const secret of ["never-return", "externalKey"]) assert.ok(!text.includes(secret), secret);
   assert.equal((await run(`{ old(id: "${uuid(115)}") { id } }`)).errors?.[0]?.extensions?.code, "GRAPHQL_VALIDATION_FAILED", "archived types are not in the schema");
 });
 

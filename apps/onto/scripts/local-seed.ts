@@ -7,6 +7,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { entityRef } from "@ai-outfitter/app-sdk/entities";
+import { appRecordKey } from "@ai-outfitter/onto/contracts";
 import type { appWorker } from "@ai-outfitter/app-test/worker";
 import { drizzle } from "drizzle-orm/d1";
 import { z } from "zod";
@@ -355,7 +356,8 @@ function insertAll(database: Database, data: Graph, upsert = false) {
   const audited = ["archived", "revision", "createdBy", "updatedBy", "createdAt", "updatedAt"];
   return [
     insert("graph_types", ["id", "category", "name", "title", "body", "properties", "seedVersion", ...audited], types),
-    insert("graph_nodes", ["id", "typeId", "slug", "title", "summary", "body", "website", "properties", "source", ...audited], nodes),
+    insert("graph_nodes", ["id", "typeId", "slug", "title", "summary", "body", "website", "properties", "externalKey", ...audited],
+      nodes.map((n) => ({ ...n, externalKey: n.source ? appRecordKey(n.source) : null }))),
     insert("graph_edges", ["id", "typeId", "fromId", "toId", "title", "body", "properties", ...audited], edges),
   ];
 }
@@ -697,14 +699,14 @@ export async function seedPersonalInstallation({
     ids(database, "graph_edges"),
   ]);
   const { results: sources } = await database
-    .prepare("SELECT id, source FROM graph_nodes WHERE source IS NOT NULL")
-    .all<{ id: string; source: string }>();
-  const references = new Map(sources.map((row) => [row.id, row.source]));
+    .prepare("SELECT id, externalKey FROM graph_nodes WHERE externalKey IS NOT NULL")
+    .all<{ id: string; externalKey: string }>();
+  const references = new Map(sources.map((row) => [row.id, row.externalKey]));
   const missing =
     planned.graph.types.filter((t) => !typeIds.has(t.id)).length +
     planned.graph.nodes.filter((n) => !nodeIds.has(n.id)).length +
     planned.graph.edges.filter((e) => !edgeIds.has(e.id)).length +
-    planned.projects.filter((p) => references.get(p.id) !== JSON.stringify(p.source)).length;
+    planned.projects.filter((p) => !p.source || references.get(p.id) !== appRecordKey(p.source)).length;
   const actual = { types: typeIds.size, nodes: nodeIds.size, edges: edgeIds.size };
   if (missing || canonical(actual) !== canonical(counts(planned.graph)))
     throw new Error(`personal Wiki: stored ${describe(actual)}, planned ${describe(counts(planned.graph))}; ${missing} records or references were not stored`);

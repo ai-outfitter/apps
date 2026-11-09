@@ -1,5 +1,6 @@
 import { readType, storeType } from "../lib/type-metadata";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
+import { appRecordKey, appRecordRef } from "@ai-outfitter/onto/contracts";
 import {
   type AppIdentity,
   isUniqueViolation,
@@ -50,8 +51,8 @@ const audit = (who: AppIdentity) => ({
 });
 const jsonOrNull = (value: unknown) => value == null ? null : JSON.stringify(value);
 export function nodeView(row: typeof graphNodes.$inferSelect): GraphNode {
-  const { externalProvider, externalId, validity, ...node } = row;
-  return { ...node, ...(validity ? { validity } : {}) };
+  const { externalKey, validity, ...node } = row;
+  return { ...node, source: appRecordRef(externalKey), ...(validity ? { validity } : {}) };
 }
 export const edgeView = (row: typeof graphEdges.$inferSelect): GraphEdge => {
   const { validFrom, validTo, ...edge } = row;
@@ -282,15 +283,17 @@ export async function saveNode(
       slugify(input.title),
       new Set(graph.nodes.filter((n) => n.typeId === type.id).map((n) => n.slug).filter((slug) => slug !== undefined)),
     );
+  // An update never clears a key: accounts keep theirs, and a source cannot change.
   const row = {
     ...input,
     slug,
-    source,
+    ...(source ? { externalKey: appRecordKey(source) } : {}),
     ...audit(who),
     revision: (revision ?? 0) + 1,
   };
   const node = {
     ...row,
+    source,
     id: current?.id ?? input.id ?? crypto.randomUUID(),
   };
   requireOntologyValid(
@@ -319,7 +322,7 @@ export async function saveNode(
   const inserted = await db
     .insert(graphNodes)
     .select(
-      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${jsonOrNull(source)},null,null,${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
+      sql`select ${node.id},${type.id},${slug},${row.title},${row.summary},${row.body},${row.website},${jsonOrNull(row.validity)},${JSON.stringify(row.properties)},${source ? appRecordKey(source) : null},${Number(row.archived)},1,${who.userId},${who.userId},${row.updatedAt},${row.updatedAt} where ${condition}`,
     )
     .returning()
     .catch(conflict);

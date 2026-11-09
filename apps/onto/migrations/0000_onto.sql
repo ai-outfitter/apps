@@ -107,9 +107,7 @@ CREATE TABLE `graph_nodes` (
 	`body` text DEFAULT '' NOT NULL,
 	`website` text,
 	`properties` text DEFAULT '{}' NOT NULL,
-	`source` text,
-	`externalProvider` text,
-	`externalId` text,
+	`externalKey` text,
 	`archived` integer DEFAULT false NOT NULL,
 	`revision` integer DEFAULT 1 NOT NULL,
 	`createdBy` text,
@@ -223,13 +221,10 @@ WHEN NOT EXISTS (
 )
 BEGIN SELECT RAISE(ABORT, 'graph_edges: endpoint types not allowed by the edge type'); END;
 --> statement-breakpoint
-CREATE UNIQUE INDEX `graph_nodes_external_identity_idx` ON `graph_nodes` (`externalProvider`,`externalId`);
---> statement-breakpoint
 CREATE UNIQUE INDEX graph_nodes_type_slug ON graph_nodes(typeId, slug);
 --> statement-breakpoint
-CREATE UNIQUE INDEX `graph_nodes_source_idx` ON `graph_nodes` (`source`);
---> statement-breakpoint
-CREATE INDEX graph_nodes_source_record_idx ON graph_nodes(json_extract(source, '$.id')) WHERE source IS NOT NULL;
+-- The stable key of the outside record a node stands for: <host>/<table>:<id>.
+CREATE UNIQUE INDEX graph_nodes_external_key ON graph_nodes(externalKey);
 --> statement-breakpoint
 CREATE INDEX `graph_revisions_batch` ON `graph_revisions` (`batchId`);
 --> statement-breakpoint

@@ -1541,6 +1541,44 @@
   }
  },
  {
+  "id": "71000000-0000-4000-8000-000000000120",
+  "category": "node",
+  "name": "OutfitterUser",
+  "title": "Outfitter users",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000121",
+  "category": "node",
+  "name": "OutfitterOrganization",
+  "title": "Outfitter organizations",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000122",
+  "category": "edge",
+  "name": "account_of",
+  "title": "account of",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000120",
+     "71000000-0000-4000-8000-000000000121"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000005",
+     "71000000-0000-4000-8000-000000000006",
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
+ },
+ {
   "id": "86cd3b21-71e2-5dfa-9bd0-000000000001",
   "category": "node",
   "name": "Friendship",

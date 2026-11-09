@@ -249,18 +249,14 @@ test("Wiki publishes read-only artifact.preview through real action dispatch", a
         return [
           app.database
             .prepare(
-              "INSERT INTO graph_nodes(id,typeId,slug,title,source,createdAt,updatedAt) VALUES(?,?,?,?,?,0,0)",
+              "INSERT INTO graph_nodes(id,typeId,slug,title,externalKey,createdAt,updatedAt) VALUES(?,?,?,?,?,0,0)",
             )
             .bind(
               id(n),
               typeId("AcceptanceCriterion"),
               `execution-history-${n}`,
               `Execution history ${n}`,
-              JSON.stringify({
-                installationId: "planning",
-                type: "work-submission",
-                id: id(n),
-              }),
+              `ai-outfitter.com/apps/planning/work-submission:${id(n)}`,
             ),
           app.database
             .prepare(
