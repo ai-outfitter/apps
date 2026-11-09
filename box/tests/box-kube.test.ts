@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { realpathSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
@@ -39,6 +40,20 @@ function fakeController(store: Store) {
   });
   return { controller, spawned };
 }
+
+test("a runtime's WORKSPACE_ROOT is a short link to its workspace directory", async () => {
+  const store = new Store();
+  const { controller, spawned } = fakeController(store);
+  const [namespace, name] = ["outfitter-t-bc9822e9da2259c8178b", "ws-13040ac9-cd1b-4c96-9dfc-e6c3503e2ef9"];
+  await handleKube(store, "POST", workspacePath(namespace), workspace(name));
+  await handleKube(store, "POST", `/api/v1/namespaces/${namespace}/secrets`, { metadata: { name }, stringData: { token: "t".repeat(40) } });
+  await controller.reconcile();
+  await controller.reconcile();
+  const root = spawned[0].env.WORKSPACE_ROOT;
+  assert.equal(realpathSync(root), "/tmp/box-kube-test/outfitter-t-bc9822e9da2259c8178b/ws-13040ac9-cd1b-4c96-9dfc-e6c3503e2ef9");
+  // Chrome's profile directory and sockets live under <root>/tmp; production's is /workspace/tmp.
+  assert.ok(`${root}/tmp`.length <= 30, root);
+});
 
 test("routes only the resources the gateway uses", () => {
   assert.equal(route("/api/v1/namespaces/ws-a")?.key, "ns/ws-a");

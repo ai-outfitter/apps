@@ -9,11 +9,11 @@
 // Not a general Kubernetes: no watches, no label selectors, no auth. It listens
 // on loopback only and is reachable only from inside the box.
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { createServer as createNetServer } from "node:net";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Pure object store with Kubernetes create/get/merge-patch/put/delete semantics. */
@@ -156,8 +156,7 @@ export class Controller {
     const token = secret?.stringData?.token;
     if (!token) return this.#report(key, "Starting", undefined, generation);
     const port = await this.freePort();
-    const root = join(this.dataDirectory, namespace, name);
-    mkdirSync(root, { recursive: true });
+    const root = this.#root(namespace, name);
     const podName = `${name}-g${generation}`;
     const child = this.spawnRuntime(this.runtimeScript, {
       PORT: String(port),
@@ -173,6 +172,21 @@ export class Controller {
     this.processes.set(key, entry);
     this.store.put(`pods/${namespace}/${podName}`, pod(name, podName), namespace);
     this.#report(key, "Running", podName, generation);
+  }
+  /** A workspace's files stay in `<dataDirectory>/<namespace>/<name>`, but its
+   * runtime is given a short link to them as WORKSPACE_ROOT, as a Pod's
+   * `/workspace` is short. Chrome keeps its profile and sockets under the
+   * runtime's TMPDIR (`<root>/tmp`), and a Unix socket path over 108 bytes
+   * makes it exit before the browser MCP can attach. */
+  #root(namespace, name) {
+    const directory = join(this.dataDirectory, namespace, name);
+    mkdirSync(directory, { recursive: true });
+    const links = join(dirname(this.dataDirectory), "w");
+    mkdirSync(links, { recursive: true });
+    const link = join(links, createHash("sha256").update(`${namespace}/${name}`).digest("hex").slice(0, 8));
+    rmSync(link, { force: true });
+    symlinkSync(directory, link);
+    return link;
   }
   #report(key, reason, podName, generation) {
     const workspace = this.store.get(key);
