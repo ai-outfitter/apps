@@ -300,3 +300,23 @@ test("new primary-record columns cannot silently disappear", () =>
       /graph_nodes.future: no destination mapping/,
     );
   }));
+
+test("seed/source name collisions require explicit identity mapping", () =>
+  fixture((dir, old) => {
+    old
+      .prepare(
+        "INSERT INTO graph_types VALUES (?, 'edge', 'evidence_for', 'Evidence for', '', ?)",
+      )
+      .run(
+        custom,
+        JSON.stringify({
+          fields: [],
+          ontology: { version: 2, endpoints: { from: "any", to: "any" } },
+        }),
+      );
+    assert.throws(
+      () => importOldWiki(join(dir, "old.sqlite"), join(dir, "onto.sqlite")),
+      /evidence_for: source id .* conflicts with seed id .* explicit identity mapping required/,
+    );
+    assert.equal(existsSync(join(dir, "onto.sqlite")), false);
+  }));

@@ -137,12 +137,18 @@ export function importOldWiki(oldPath: string, newPath: string) {
           if (!mapped.has(column) && row[column] !== null)
             report.refused.push(`${table}.${column}: no destination mapping`);
     }
-    for (const type of [
-      ...oldTypes,
-      ...standardData.types.filter(
-        (seed) => !oldTypes.some((t) => t.id === seed.id),
-      ),
-    ] as Row[]) {
+    const additions = standardData.types.filter((seed) => {
+      if (oldTypes.some((type) => type.id === seed.id)) return false;
+      const existing = oldTypes.find((type) => type.name === seed.name);
+      if (existing) {
+        report.refused.push(
+          `graph_types ${seed.name}: source id ${existing.id} conflicts with seed id ${seed.id}; explicit identity mapping required`,
+        );
+        return false;
+      }
+      return true;
+    });
+    for (const type of [...oldTypes, ...additions] as Row[]) {
       const seed = oldTypes.some((row) => row.id === type.id)
         ? undefined
         : seeds.get(String(type.id));
