@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { actionPath } from "@ai-outfitter/app-sdk/actions";
 import type { WorkflowHostScope } from "@ai-outfitter/app-sdk/workflow-host";
-import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/wiki-proposals";
+import { wikiChangeDocuments } from "@ai-outfitter/onto/contracts";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { wikiFixtureCall } from "@ai-outfitter/app-test/wiki-fixture";
 import { appWorker } from "@ai-outfitter/app-test/worker";
