@@ -1,6 +1,6 @@
 // Every app under apps/ has a valid manifest and package, builds its demo
-// package with the SDK's builder and passes its unit tests. Browser tests are
-// left out: the box's checks have no Chromium.
+// package with the SDK's builder, starts in the SDK's Workers test host and
+// passes its unit tests. Browser tests are left out: the box's checks run none.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -30,5 +30,16 @@ for (const app of apps) {
     npm("run", "--workspace", `apps/${app}`, "build");
     assert.ok(existsSync(join(directory, ".outfitter/packages/demo.json")), "wrote the demo package");
     if (pkg.scripts["test:unit"]) npm("run", "--workspace", `apps/${app}`, "test:unit");
+  });
+  test(`${app}: the demo package starts and answers /__health`, async () => {
+    // The Workers runtime the platform's test host pins refuses, for example, a newer compatibility date.
+    const { appWorker } = await import(join(root, "packages/app-test/src/worker.ts"));
+    const worker = await appWorker(app, join(directory, ".outfitter/packages/demo.json"));
+    try {
+      const health = await worker.call("/__health");
+      assert.equal(health.status, 200, await health.text());
+    } finally {
+      await worker.dispose();
+    }
   });
 }
