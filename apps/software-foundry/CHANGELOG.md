@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.3...software-foundry-v0.3.4) (2026-11-09)
+
+
+### Bug Fixes
+
+* **software-foundry:** executor bindings survive package upgrades ([#97](https://github.com/ai-outfitter/apps/issues/97)) ([88ca9b5](https://github.com/ai-outfitter/apps/commit/88ca9b5775e96c3ca9f125c72efc52961f539e97))
+
 ## [0.3.3](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.2...software-foundry-v0.3.3) (2026-11-09)
 
 
