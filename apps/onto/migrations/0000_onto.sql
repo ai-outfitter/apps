@@ -224,3 +224,15 @@ CREATE INDEX `wiki_map_proposals_owner` ON `wiki_map_proposals` (`installationId
 CREATE UNIQUE INDEX `wiki_map_proposals_request` ON `wiki_map_proposals` (`installationId`,`requestKey`);
 --> statement-breakpoint
 CREATE INDEX `wiki_map_proposals_thread` ON `wiki_map_proposals` (`installationId`,`threadId`);
+--> statement-breakpoint
+-- Saved graph views people and agents share (server/explorations.ts); steps, never facts.
+CREATE TABLE `graph_explorations` (
+	`slug` text PRIMARY KEY NOT NULL,
+	`title` text NOT NULL,
+	`state` text NOT NULL,
+	`revision` integer NOT NULL,
+	`lastChange` text,
+	`createdBy` text NOT NULL,
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL
+) STRICT;

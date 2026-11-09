@@ -1,5 +1,6 @@
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import { enableAuditSchedule } from "../../../../../server/ontology-audit";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
 import { describeOntoGraph } from "../../../../../server/graph-provider";
@@ -81,7 +82,7 @@ export const wikiActions = {
   "graph.graphql": defineAction({
     description: "GraphQL read over this Wiki. Example: {\"query\":\"{ persons(first: 20) { nodes { slug title edges(direction: OUTGOING) { __typename to { slug title } } } aggregate { count } } }\"}. Example: {\"query\":\"{ search(text: \\\"a\\\", first: 10) { __typename slug title } }\"}. The schema is generated from this Wiki's types on every call (read it with { sdl } or __schema/__type): each node type becomes a PascalCase object type with a singular root field (camelCase; slug or id, archived: a slug is the node's address, unique in this Wiki, so node(slug:) finds any type) and a plural connection (first, after, archived, ids, slugs, text) returning nodes, pageInfo and aggregate { count }; stored properties are typed fields. Edge types with ontology endpoints add `<edge>` and `<edge>Edges` fields on source types and `<edge>Incoming`/`<edge>IncomingEdges` on target types (at, archived); every node has edges(types, direction), returning edge objects with from and to. Relator slots are fields named after the slot, and participant types get the relator connection with as: \"<slot>\". Archived records are excluded by default; relationships also hide retired ones. Depth 8 and 2000 fields at most; the whole response stays within maxBytes: lists are cut (extensions.truncated, truncatedPaths), never records, and a response that cannot fit returns RESPONSE_TOO_LARGE. Read only.",
     access: "read", input: graphGraphqlInput, output: graphGraphqlResult,
-    run: (context: ActionContext, input) => graphqlGraphRecords(installationDatabase(), context.identity, input, context),
+    run: (context: ActionContext & { host?: () => PullRequestHost }, input) => graphqlGraphRecords(installationDatabase(), context.identity, input, context),
   }),
   "graph.read": defineAction({
     description: "Read the complete active Wiki snapshot. Returns stored types, nodes, relationships and revisions; no Markdown or prompt generation. Real Wikis exceed the MCP response limit: use graph_search (graph.query) or graph_query for bulk reads.",
@@ -108,6 +109,7 @@ export const ALL: APIRoute = ({ request, params, locals }) => {
     }),
   }, (identity) => ({
     db: () => installationDatabase(),
+    host: () => workflowHost<"interactive">(locals),
     afterSubmit: (batchId: string) => reviewInBackground(locals, installationDatabase(), identity, batchId),
   }));
 };

@@ -13,17 +13,21 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import {
-  type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
+  GraphQLBoolean, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
   GraphQLSchema, GraphQLString,
 } from "graphql";
 import { z } from "zod";
+import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
 import { withRecordHandles } from "./graph";
 import { addToBatch, batchAddInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
+  /** The workflow host, for live reads an exploration opens (pull requests); absent where there is none. */
+  host?: () => PullRequestHost;
   /** Starts the ontology steward's review of a submitted batch in the background (graph.mutate only). */
   afterSubmit?: (batchId: string) => void };
 type MutationContext = ChangeContext & ActionContext;
@@ -68,6 +72,35 @@ const ChangeBatch = new GraphQLObjectType({
   },
 });
 
+const ExplorationNode = new GraphQLObjectType({
+  name: "ExplorationNode", description: "A record in an exploration's picture.",
+  fields: { key: { ...text, description: "<Type>:<slug> (Onto's node address); steps, hidden and focus name nodes by it." }, type: text, title: text, slug: { type: GraphQLString },
+    id: { type: nonNull(GraphQLID) }, step: { type: GraphQLString, description: "The step that added it; null for the start." },
+    url: { type: GraphQLString, description: "Its website; a pull request's GitHub page." },
+    proposedIn: { type: GraphQLID, description: "The change batch proposing it; set only for staged records a member has not committed (key proposed:<batch>/<ref>)." } },
+});
+const ExplorationEdge = new GraphQLObjectType({ name: "ExplorationEdge", description: "A relationship between two nodes in the picture.", fields: { from: text, to: text, label: text } });
+const ExplorationStepResult = new GraphQLObjectType({
+  name: "ExplorationStepResult", description: "What one step reached.",
+  fields: { key: text, count: { type: nonNull(GraphQLInt) }, truncated: { type: nonNull(GraphQLBoolean), description: "The step's limit cut it." }, error: { type: GraphQLString } },
+});
+const ExplorationPicture = new GraphQLObjectType({
+  name: "ExplorationPicture", description: "The nodes and relationships an exploration's steps reach now, rebuilt on every read.",
+  fields: { nodes: { type: nonNull(new GraphQLList(nonNull(ExplorationNode))) }, edges: { type: nonNull(new GraphQLList(nonNull(ExplorationEdge))) },
+    steps: { type: nonNull(new GraphQLList(nonNull(ExplorationStepResult))) }, truncated: { type: nonNull(GraphQLBoolean), description: "The picture reached its 300-node limit." } },
+});
+const Exploration = new GraphQLObjectType({
+  name: "Exploration", description: "A saved view of this Wiki's graph that members and agents change together. It stores steps, never facts.",
+  fields: {
+    slug: text, title: text, revision: { type: nonNull(GraphQLInt), description: "Send it as expectedRevision with the next patch." },
+    state: { ...json, description: "{title, start: {type, slug}, steps: {<key>: {from, path, direction?, limit?, type?}}, hidden: {<node key>: true}, focus?, direction?}; patch it with MutateExploration." },
+    lastChange: { type: JSONScalar, description: "{by, via, summary, nodes}: the latest change and the node keys it added." },
+    picture: { type: nonNull(ExplorationPicture) },
+    dryRun: { type: GraphQLBoolean },
+  },
+});
+const ExplorationSummary = new GraphQLObjectType({ name: "ExplorationSummary", fields: { slug: text, title: text, revision: { type: nonNull(GraphQLInt) }, start: json } });
+
 type Batch = Awaited<ReturnType<typeof getBatch>>;
 const view = ({ batch, counts, operations }: Batch) => ({ ...batch, counts, operations });
 
@@ -95,6 +128,15 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
       return {nodes,pageInfo:{hasNextPage:rows.length>first,endCursor:rows.length>first ? nodes.at(-1)?.id : null},aggregate:{count:Number(total.n)}};
     },
   },
+  explorations: {
+    type: nonNull(new GraphQLList(nonNull(ExplorationSummary))), description: "Saved explorations in this Wiki, by title.",
+    resolve: (_root, _args, context) => listExplorations(context.db()),
+  },
+  exploration: {
+    type: Exploration, description: "One exploration and its picture, rebuilt from current records; null when there is none.",
+    args: { slug: { type: nonNull(GraphQLString) } },
+    resolve: (_root, args, context) => readExploration(context.db(), explorationArgs.parse(args).slug, pictureProviders(context.db(), context.host)),
+  },
   changeBatch: {
     type: ChangeBatch, description: "One change batch, with every operation and its state; null when there is none.",
     args: { id: { type: nonNull(GraphQLID) } },
@@ -106,6 +148,12 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
+    mutateExploration: mutationField({
+      name: "MutateExploration", output: nonNull(Exploration),
+      description: "Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.",
+      input: mutateExplorationInput,
+      run: (context: MutationContext, input) => mutateExploration(context.db(), context.identity, context.actor, input, pictureProviders(context.db(), context.host)),
+    }),
     reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     stageChanges: mutationField({

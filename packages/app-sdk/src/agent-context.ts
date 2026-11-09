@@ -56,6 +56,7 @@ export type PageClaim = {
   draft?: Record<string, unknown>;
   view?: PageDescription;
 };
+export const repliedEvent = "outfitter:agent-replied";
 export function pageContext(id: string) {
   const key = `outfitter:agent-page:${id}`;
   let value: PageClaim = { focus: null };
@@ -91,6 +92,19 @@ export function pageContext(id: string) {
     },
     applied() {
       for (const notify of refresh) notify();
+    },
+    /**
+     * Runs after the sidebar agent finishes a reply, whose tools may have changed
+     * what the page shows, so the page can read it again. A window event, so the
+     * sidebar and the page need not share one bundle.
+     */
+    onReplied(notify: () => void) {
+      const listener = () => notify();
+      addEventListener(`${repliedEvent}:${id}`, listener);
+      return () => removeEventListener(`${repliedEvent}:${id}`, listener);
+    },
+    replied() {
+      dispatchEvent(new Event(`${repliedEvent}:${id}`));
     },
     key,
   };

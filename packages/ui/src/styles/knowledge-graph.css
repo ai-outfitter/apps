@@ -28,6 +28,13 @@
   fill: var(--surface);
   stroke: var(--border);
 }
+.knowledge-graph-viewport .kg-node-highlight {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.knowledge-graph-viewport .kg-node-proposed {
+  stroke-dasharray: 6 4;
+}
 .knowledge-graph-viewport .kg-edge-label,
 .knowledge-graph-viewport .kg-node-type {
   font-size: 12px;

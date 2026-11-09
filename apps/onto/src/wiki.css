@@ -304,3 +304,21 @@
 .change-finding p { margin: 2px 0 0; }
 .change-finding-error { border-left-color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
 .change-finding-warning { border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); }
+
+/* Explorations (scripts/exploration.ts): the graph, then what can be opened from the selected node. */
+.exploration { display: grid; gap: 12px; }
+.exploration-change, .exploration-note, .exploration-type { color: var(--muted); font-size: 13px; margin: 0; }
+.exploration-selected h2 { font-size: 16px; margin: 0 0 4px; }
+.exploration-actions { display: flex; flex-wrap: wrap; gap: 16px; }
+.exploration-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.exploration-link:hover, .exploration-link:focus-visible { text-decoration: underline; }
+.exploration-steps ul { margin: 8px 0; padding-left: 18px; }
+.exploration-steps li { margin: 4px 0; }
+.exploration-error { color: var(--error); }
+.exploration-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.exploration-start { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.exploration-start label { display: grid; gap: 4px; }
+.explorations { display: grid; gap: 12px; margin-bottom: 24px; }
+.explorations h2, .explorations p { margin: 0; }
+.exploration-start label { min-width: 0; flex: 1 1 240px; }
+.exploration-start select { min-width: 0; width: 100%; }

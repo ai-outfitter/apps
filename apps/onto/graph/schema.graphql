@@ -4,6 +4,14 @@ type Query {
   """
   changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
 
+  """Saved explorations in this Wiki, by title."""
+  explorations: [ExplorationSummary!]!
+
+  """
+  One exploration and its picture, rebuilt from current records; null when there is none.
+  """
+  exploration(slug: String!): Exploration
+
   """
   One change batch, with every operation and its state; null when there is none.
   """
@@ -95,6 +103,96 @@ type Aggregate {
   count: Int!
 }
 
+type ExplorationSummary {
+  slug: String!
+  title: String!
+  revision: Int!
+  start: JSON!
+}
+
+"""
+A saved view of this Wiki's graph that members and agents change together. It stores steps, never facts.
+"""
+type Exploration {
+  slug: String!
+  title: String!
+
+  """Send it as expectedRevision with the next patch."""
+  revision: Int!
+
+  """
+  {title, start: {type, slug}, steps: {<key>: {from, path, direction?, limit?, type?}}, hidden: {<node key>: true}, focus?, direction?}; patch it with MutateExploration.
+  """
+  state: JSON!
+
+  """
+  {by, via, summary, nodes}: the latest change and the node keys it added.
+  """
+  lastChange: JSON
+  picture: ExplorationPicture!
+  dryRun: Boolean
+}
+
+"""
+The nodes and relationships an exploration's steps reach now, rebuilt on every read.
+"""
+type ExplorationPicture {
+  nodes: [ExplorationNode!]!
+  edges: [ExplorationEdge!]!
+  steps: [ExplorationStepResult!]!
+
+  """The picture reached its 300-node limit."""
+  truncated: Boolean!
+}
+
+"""A record in an exploration's picture."""
+type ExplorationNode {
+  """
+  <Type>:<slug> (Onto's node address); steps, hidden and focus name nodes by it.
+  """
+  key: String!
+  type: String!
+  title: String!
+  slug: String
+  id: ID!
+
+  """The step that added it; null for the start."""
+  step: String
+
+  """Its website; a pull request's GitHub page."""
+  url: String
+
+  """
+  The change batch proposing it; set only for staged records a member has not committed (key proposed:<batch>/<ref>).
+  """
+  proposedIn: ID
+}
+
+"""A relationship between two nodes in the picture."""
+type ExplorationEdge {
+  from: String!
+  to: String!
+  label: String!
+}
+
+"""What one step reached."""
+type ExplorationStepResult {
+  key: String!
+  count: Int!
+
+  """The step's limit cut it."""
+  truncated: Boolean!
+  error: String
+}
+
+input MutateExplorationInput {
+  slug: String!
+  expectedRevision: Float!
+  patch: JSON!
+  summary: String
+  dryRun: Boolean
+}
+
 input ReviewBatchInput {
   batchId: ID!
   refs: [String!]
@@ -149,6 +247,11 @@ input SubmitBatchInput {
 }
 
 type Mutation {
+  """
+  Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.
+  """
+  mutateExploration(input: MutateExplorationInput!): Exploration!
+
   """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """

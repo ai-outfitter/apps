@@ -232,3 +232,18 @@ export const graphRevisions = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.kind, t.recordId, t.revision] })],
 );
+
+/** Saved views of the graph people and agents share (docs/graph-explorer.md).
+ * A view holds steps, never facts: every read rebuilds its picture from current records. */
+export const graphExplorations = sqliteTable("graph_explorations", {
+  slug: text().primaryKey(),
+  title: text().notNull(),
+  /** { start, steps, hidden, focus, direction } (server/explorations.ts). */
+  state: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  revision: integer().notNull(),
+  /** Who made the latest change, one line, and the node keys it touched. */
+  lastChange: text({ mode: "json" }).$type<Record<string, unknown> | null>(),
+  createdBy: text().notNull(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull(),
+});

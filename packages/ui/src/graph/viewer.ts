@@ -1,17 +1,19 @@
 import type { ElkLabel } from "elkjs/lib/elk-api";
+import type { KnowledgeGraphLayout } from "./layout";
 import type {
   KnowledgeGraphData as Graph,
   KnowledgeGraphNode as GraphNode,
   KnowledgeGraphSlice as View,
 } from "./model";
-import type { KnowledgeGraphLayout } from "./layout";
 import "../styles/knowledge-graph.css";
+
 export type {
   KnowledgeGraphData,
-  KnowledgeGraphNode,
   KnowledgeGraphEdge,
+  KnowledgeGraphNode,
   KnowledgeGraphSlice,
 } from "./model";
+
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: Record<string, unknown> = {},
@@ -140,6 +142,8 @@ function renderNodes(
   graph: Graph,
   result: KnowledgeGraphLayout,
   nodeHref: (id: string) => string,
+  highlight: ReadonlySet<string>,
+  proposed: ReadonlySet<string>,
 ) {
   for (const node of result.layout.children ?? []) {
     const x = node.x ?? 0,
@@ -178,7 +182,7 @@ function renderNodes(
       width: String(width),
       height: String(height),
       rx: "10",
-      class: "kg-node",
+      class: ["kg-node", highlight.has(record.id) ? "kg-node-highlight" : "", proposed.has(record.id) ? "kg-node-proposed" : ""].filter(Boolean).join(" "),
     });
     const lines = titleLines(record.title);
     lines.forEach((text, index) => {
@@ -205,6 +209,10 @@ export function createKnowledgeGraphViewer(
     direction?: "RIGHT" | "DOWN";
     initialScale?: number;
     nodeHref: (id: string) => string;
+    /** Node IDs to outline, such as the ones an agent just added. */
+    highlight?: Iterable<string>;
+    /** Node IDs drawn dashed: staged records a member has not committed yet. */
+    proposed?: Iterable<string>;
     onError?: (error: unknown) => void;
   },
 ) {
@@ -287,7 +295,7 @@ export function createKnowledgeGraphViewer(
         fill: "currentColor",
       });
       renderEdges(svg, result, markerId);
-      renderNodes(svg, graph, result, options.nodeHref);
+      renderNodes(svg, graph, result, options.nodeHref, new Set(options.highlight ?? []), new Set(options.proposed ?? []));
       loading.remove();
       ready = true;
       if (options.initialScale !== undefined) {
