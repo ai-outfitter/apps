@@ -18,6 +18,7 @@ import {
   verifyTables,
   lockStatements,
   unlockStatements,
+  finishUnlockStatements,
   sealLineage,
   tableDigests,
   type D1,
@@ -199,7 +200,7 @@ export async function migrateWikiOwner(d1: D1, input: MigrationOwner) {
     // Authority history remains immutable even on the previously deployed app package.
     await d1.query(input.destination.databaseId, [
       ...sealLineage(),
-      ...unlockStatements(candidate.tables.map((t) => t.name)),
+      ...finishUnlockStatements(candidate, destination),
     ]);
     destinationLocked = false;
     finalized = true;

@@ -298,3 +298,15 @@ export function sealLineage(): Statement[] {
       })),
   );
 }
+
+/** Include empty destination-only infrastructure tables, such as asset indexes. */
+export function finishUnlockStatements(
+  candidate: Snapshot,
+  destinationBefore: Snapshot,
+) {
+  return unlockStatements([
+    ...new Set(
+      [...candidate.tables, ...destinationBefore.tables].map((t) => t.name),
+    ),
+  ]);
+}

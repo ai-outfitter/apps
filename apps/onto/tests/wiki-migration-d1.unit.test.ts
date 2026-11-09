@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import {
   promotionStatements,
+  lockStatements,
+  finishUnlockStatements,
   sealLineage,
   verifyTables,
 } from "../scripts/wiki-migration-d1";
@@ -111,4 +113,29 @@ test("verification compares complete row contents rather than counts", () => {
       }),
     /readback mismatch/,
   );
+});
+
+test("finalization unlocks empty destination-only storage indexes", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec("CREATE TABLE app_storage_objects(id TEXT)");
+    for (const q of lockStatements(["app_storage_objects"], "migration"))
+      db.exec(q.sql);
+    assert.throws(
+      () => db.exec("INSERT INTO app_storage_objects VALUES('file')"),
+      /migration/,
+    );
+    for (const q of finishUnlockStatements(
+      { tables: [] },
+      { tables: [{ name: "app_storage_objects", columns: ["id"], rows: [] }] },
+    ))
+      db.exec(q.sql);
+    db.exec("INSERT INTO app_storage_objects VALUES('file')");
+    assert.equal(
+      db.prepare("SELECT count(*) AS n FROM app_storage_objects").get()!.n,
+      1,
+    );
+  } finally {
+    db.close();
+  }
 });
