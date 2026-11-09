@@ -167,6 +167,7 @@ needs three orders:
 | Index | Serves |
 | --- | --- |
 | `graph_nodes (typeId, slug)` unique | address lookup; listing a type in slug order |
+| `graph_nodes (outfitterUserId)` unique where not null | the signed-in member's Person or Agent node |
 | `graph_edges (fromId, typeId, toTypeId, toId, validFrom)` | outgoing edges of a type from a node, optionally to one type: traversals, saved views, typed GraphQL fields |
 | `graph_edges (toId, typeId, fromTypeId, fromId, validFrom)` | the same, incoming |
 | `graph_edges (typeId, fromId, toId, validFrom)` unique where not archived | edge identity: "does this link exist", edge address lookup |
