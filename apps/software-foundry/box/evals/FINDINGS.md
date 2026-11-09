@@ -108,6 +108,46 @@ Runs on Luna with these fixes:
 - `landing-recovery.ts` still recovers only `issue-to-merge-actions-ci` runs,
   so a box run that fails final review gets no landing recovery.
 
+## new-astro-app with the SDK integration: Luna and the DGX Spark (2026-11-09)
+
+Both runs started together, from the same `outfitter/software-foundry-box` image built at
+apps `6a396e4` (main with #56, #58, #60, #61 and this request) and webapp `addccbd`.
+The request asks for the SDK's `outfitterApp` integration instead of hand-written middleware.
+
+| model | result | wall s | model s | calls | tokens in | tokens out | out tok/s |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| luna / gpt-6-luna | changes_requested | 498 | 417 | 137 | 2.36M | 18.4k | 44 |
+| spark / GLM-5.3-Flash-EXL3 | failed (implement hit its tool limit) | 2943 | 2932 | 115 | 3.84M | 40.7k | 13.9 |
+
+| step | Luna s / calls | Spark s / calls |
+| --- | --- | --- |
+| triage | 16 / 7 | 1120 / 20 |
+| implement | 218 / 58 | 1812 / 95 (failed) |
+| validate | 2 / 0 | – |
+| review | 39 / 20 | – |
+| repair | 46 / 15 | – |
+| validate-final | 16 / 0 | – |
+| review-final | 74 / 28 | – |
+| land | 24 / 9 | – |
+
+**Luna: screenshots published, and the review gate worked.**
+- Implement served the app, captured desktop and mobile, and published both through the gateway and the Foundry's `publish` phase (`200 POST /api/internal/workflow-images`). It embedded them in the PR's Demo section. This was the first box run to do so.
+- The first review found a real defect: `package-lock.json` didn't match, so a clean `npm ci` failed. Repair fixed it.
+- Review-final ran `npm ci`, the Astro check, the build, the unit tests and the root `npm test`, and reviewed every criterion. It found no functional defect.
+- Review-final still requested changes, only because the published screenshot URLs didn't load in its browser and the PR page asked for Forgejo sign-in.
+- The URLs were `https://software-foundry.box.outfitter.localhost/…`. The platform dispatched phases at `https://<hostname>`, while the box serves `http://…:8787`; webapp #857 dispatches at the platform's own scheme and port. The image itself is served at the box's real address (200, 73 KB PNG).
+
+**Spark: capable, but slower and less efficient.**
+- Implement wrote the app and served the built package with `astro preview` (sturdier than `astro dev`). It captured and checked desktop and mobile PNGs and adjusted the mobile layout.
+- It spent its 101-call budget on managing preview servers (`pkill`, `pgrep`, restarts) and was killed at its final commit, before pushing.
+- Triage alone took 19 minutes. Overall the Spark was about 6x slower than Luna; the Workshop evals found about 3x.
+
+Fixes these runs led to, beyond the box screenshot gates above:
+- apps #61: `outfitterApp()` takes dev mode from the Astro command. A build with `NODE_ENV=development` (the box image) or `test` (vitest) had shipped without its CSP.
+- apps #60: apps take `@ai-outfitter/onto` and `connector-github` from the workspace, so the SDK release's `npm ci` no longer hits E404.
+- apps #63–#65: a recovery workflow rebuilds an app release at its tag. hr-v0.1.2 and workshop-v0.1.2 were recovered with it after back-to-back release merges left them without packages.
+- webapp #857: phases dispatch at the platform's scheme and port.
+
 ### Harness notes
 
 - Agent Eval only discovers a fixture that has `PROMPT.md`, even when
