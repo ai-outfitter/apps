@@ -1,0 +1,31 @@
+version: beta
+id: workshop-concept
+summary: Workshop generates one concept mockup image for a project and keeps it in the installation's own storage.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  # No actor fills this step: Workshop does, through the workflow host, when a
+  # member asks for a concept image on a project page. It asks the host for
+  # one image from the platform's image model, stores it in the app's
+  # `concepts` space and records the concept here.
+  - id: concept
+    inference: {timeoutMs: 120000}
+    inputs:
+      projectId:
+        schema: {type: string, format: uuid, description: The project the concept belongs to}
+    outputs:
+      concept:
+        connector: database
+        record: workshop-concept.saved
+        schema:
+          type: object
+          properties:
+            projectId: {type: string, format: uuid}
+            revision: {type: integer, minimum: 1}
+            conceptId: {type: string, format: uuid}
+            model: {type: string}
+            sha256: {type: string}
+          required: [projectId, revision, conceptId, model, sha256]
+outputs:
+  concept: concept.outputs.concept

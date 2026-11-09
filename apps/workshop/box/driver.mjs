@@ -21,7 +21,8 @@ import { billOfMaterials, designResult, designSession, exportSummary } from "./r
 
 export const app = "workshop";
 export const title = "Workshop box";
-/** The design agent calls the model from the platform, not from a workspace. */
+/** The design agent asks the platform for each model answer (the workflow host's
+ * inference.generate), not a workspace, so the platform gets the model settings. */
 export const platformModel = true;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -67,11 +68,12 @@ async function designTurn(box, cookie, body) {
   return { project, rationale };
 }
 
-/** The design agent's model calls between two times, from the platform's usage records (none without the database). */
+/** The design agent's model calls between two times, from the platform's usage records for
+ * workflow runs (none without the database). The box runs nothing else that meters to a workflow. */
 async function modelCalls(platform, from, to) {
   if (!platform) return [];
   const { rows } = await platform.execute({
-    sql: "SELECT inputTokens, outputTokens FROM inference_usage_records WHERE workloadKind='workshop' AND createdAt BETWEEN ? AND ? ORDER BY createdAt",
+    sql: "SELECT inputTokens, outputTokens FROM inference_usage_records WHERE workloadKind='workflow' AND createdAt BETWEEN ? AND ? ORDER BY createdAt",
     args: [from, to] });
   return rows.map((row) => ({ input: row.inputTokens === null ? null : Number(row.inputTokens), output: row.outputTokens === null ? null : Number(row.outputTokens) }));
 }

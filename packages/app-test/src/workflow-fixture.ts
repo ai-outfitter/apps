@@ -202,6 +202,8 @@ const phases = workflowPhaseHandler({
         runId, instructions: "Label the fixture issue.", data: { title: "Fixture issue" },
         schema: { type: "object", properties: { label: { type: "string" } }, required: ["label"], additionalProperties: false },
       })),
+      // An app-owned image prompt; the host renders it with the platform's image model and meters the run.
+      imaged: await outcome(() => host.call("inference.image", { runId, prompt: "A fixture concept render." })),
       // The fixture workflow declares no schedule trigger, so saving one is refused.
       scheduled: await outcome(() => host.call("schedule.save", { workflow: "fixture-flow", inputs: {} })),
       schedules: await outcome(() => host.call("schedules", {})),

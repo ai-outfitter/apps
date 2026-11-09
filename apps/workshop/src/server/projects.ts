@@ -40,7 +40,7 @@ export const exampleInput = z
   })
   .strict();
 // What the projects route takes: a starter example, or a whole first-revision
-// project, which the platform's design agent saves the model it generated as.
+// project (an import, or a client that built the project itself).
 export const createInput = z.union([exampleInput, z.object({ project: ProjectSchema }).strict()]);
 /** The project at the revision the caller saw, which every patching mutation takes.
  * Any text as the id: a malformed one is a project that is not found (404), as on the page. */

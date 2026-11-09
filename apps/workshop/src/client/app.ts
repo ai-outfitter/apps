@@ -569,7 +569,7 @@ onPageLoad((signal) => {
     await removeProjectEntry(button);
   }, { signal });
   /**
-   * A concept change through the app or platform API: saves first when the
+   * A concept change through the app's API: saves first when the
    * project is dirty, then selects the project revision the answer carries.
    */
   async function conceptRequest(path: string, method: string, body: unknown, pending: string, confirmation?: string) {
@@ -580,15 +580,14 @@ onPageLoad((signal) => {
     status.textContent = pending;
     try {
       loading(true);
-      const platform = path.startsWith("/api/");
-      const response = await fetch(platform ? path : `/api/apps/workshop/projects${path}`, {
+      const response = await fetch(`/api/apps/workshop/projects${path}`, {
         method,
         headers: body instanceof Blob ? { "Content-Type": body.type } : { "Content-Type": "application/json" },
         body: body instanceof Blob ? body : JSON.stringify(body),
       });
       if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`);
       const answer = await response.json();
-      const saved = ProjectSchema.parse(platform ? answer.project : answer);
+      const saved = ProjectSchema.parse(answer);
       selectProject(saved);
       status.textContent = `Saved revision ${saved.revision}.`;
       notice();
@@ -605,8 +604,7 @@ onPageLoad((signal) => {
     const form = $<HTMLFormElement>("#concept-form");
     const { prompt, caption } = formValues(form) as { prompt: string; caption: string };
     if (!prompt.trim()) return;
-    // Generation runs on the platform, which saves through the app as you.
-    await conceptRequest("/api/apps/workshop/agent/concepts", "POST", { projectId: project.id, revision: project.revision, prompt: prompt.trim(), caption: caption.trim() }, "Generating an image… this takes up to a minute.");
+    await conceptRequest(`/${project.id}/concepts/generate`, "POST", { revision: project.revision, prompt: prompt.trim(), caption: caption.trim() }, "Generating an image… this takes up to a minute.");
   });
   $("#concept-upload").addEventListener("change", async () => {
     const input = $<HTMLInputElement>("#concept-upload");

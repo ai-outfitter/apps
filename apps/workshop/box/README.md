@@ -30,18 +30,37 @@ the driver against a stand-in platform and a local git remote.
 - `evals/`: Agent Eval fixtures and `run.ts`. Each fixture is a part described
   with its dimensions, in the style of Text2CAD's expert prompts and CADPrompt's
   parts, limited to what Workshop's CAD plans make (boxes and cylinders, added
-  or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`. Its
+  or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`.
+  These are tier 0 of the ambition ladder in `../docs/vision.md`; the ladder
+  runs to COTS-driven moving assemblies, and new fixtures name their persona
+  and project. The `case-*` fixtures are the Mini-ITX case of
+  `../examples/mini-itx-case` one model at a time, in the order a model should
+  climb them: the purchased envelopes `case-board`, `case-psu` and
+  `case-cooler`, then the printed `case-base`, `case-top` and `case-shell`.
+  Their references are rendered from the example's `case.scad`, and CAD plans
+  allow up to 64 features and 300 mm per axis so the printed parts fit.
+  Public text-to-CAD benchmarks score single parts the same way and are the
+  comparison set for tier 0 and 1: BenchCAD (46 CAD operations, where
+  frontier models score near zero on fillets, chamfers and revolves),
+  CAD-bench (179 tasks, accepts agent harnesses that output STEP),
+  Text2CAD-Bench (600 examples in 4 levels) and CADTests (pass/fail
+  dimensional tests). Most are in CadQuery, so running them needs a CadQuery
+  or STEP output from Workshop. Its
   `reference/model.scad` is the part in OpenSCAD, rendered to
   `reference/model.stl`; `EVAL.ts` scores the box's `model.stl` against it
   (box/README.md, "Geometry scoring") and passes at IoU >= 0.95 with no surface
   more than 0.5 mm off. `tests/box-geometry.unit.test.ts` checks that a correct
   CAD plan passes each and a wrong one fails.
 
-The design agent runs on the platform (the webapp's `src/lib/workshop-design.ts`),
-so the platform gets the model settings; the box signs in as the local member.
+The design agent is Workshop's own (`src/server/design.ts`, prompt in
+`agent/design-agent.md`): each turn starts a `workshop-design` workflow run and
+asks the platform for one model answer through the workflow host's
+`inference.generate`, so the platform gets the model settings and meters the
+call to that run. The box signs in as the local member.
 
 ```sh
 docker build --build-context webapp=../webapp --build-arg BOX_APP=workshop \
   -f box/Dockerfile -t outfitter/workshop-box:dev .
 BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts cable-clip
+BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts case-board case-psu case-cooler case-base case-top case-shell
 ```

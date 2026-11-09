@@ -373,6 +373,18 @@ const coreOperations = {
     schema: jsonObject,
     ...StepInference.shape,
   }), z.object({ output: json })),
+  /** One image from the platform's image model for a running run of this
+   * installation, metered to that run like `inference.generate`. The platform
+   * uses its own image credential: images have no organization provider or
+   * relay. `prompt` is the member's text, sent to the model as given; the app
+   * stores the image and keeps only what it needs. Naming `step` applies that
+   * step's declared `timeoutMs` (default 120 s). */
+  "inference.image": operation(running, z.strictObject({
+    runId: runId,
+    step: slug.optional(),
+    prompt: z.string().min(1).max(4000),
+    size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
+  }), z.object({ contentType: z.literal("image/png"), base64: z.base64().max(16_000_000), model: z.string() })),
   /** Save this installation's schedule for one of its approved workflows, as
    * the scope's member (the run owner). One per workflow: saving again changes
    * it. A schedule naming `connectionId` and `resource` may use only that
