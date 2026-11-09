@@ -345,8 +345,9 @@ async function main() {
   const artifactsS3 = Object.fromEntries(Object.entries({ ...s3, ATTACHMENTS_S3_BUCKET: "artifacts" })
     .map(([name, value]) => [name.replace("ATTACHMENTS_", "ARTIFACTS_"), value]));
   // box-kube: workspaces as local runtime processes, with git and gh on Forgejo.
+  // A reopened box starts none: reconciling would wake workspaces and rewrite kube.json.
   writeFileSync(join(STATE, "kube-token"), "box");
-  start("box-kube", "node", [join(HERE, "box-kube.mjs")], {
+  if (!REOPEN) start("box-kube", "node", [join(HERE, "box-kube.mjs")], {
     BOX_KUBE_PORT: String(PORTS.kube), BOX_KUBE_STATE: join(STATE, "kube.json"), BOX_WORKSPACES_DIR: join(STATE, "workspaces"),
     BOX_RUNTIME_SCRIPT: "/opt/workspace/server.mjs", BOX_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`,
     OUTFITTER_FORGE: "forgejo", OUTFITTER_FORGE_ORIGIN: FORGEJO, ...(env.AI_MODEL ? { AI_MODEL: env.AI_MODEL } : {}),

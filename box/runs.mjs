@@ -3,14 +3,15 @@
 // volume): list them, reopen one to look around its Forgejo and platform as
 // the run left them, and remove them when done.
 //
-//   node box/runs.mjs list
+//   BOX_CLI=podman node box/runs.mjs list
 //   node box/runs.mjs open <volume> [--port 8787] [--forgejo-port 3300] [--image <ref>]
 //   node box/runs.mjs rm <volume>... | --all
 //
-// BOX_CLI picks the container CLI (podman by default here, as the evals use).
+// BOX_CLI picks the container CLI, docker by default as for the evals; set it
+// to podman when the evals ran with BOX_CLI=podman.
 import { spawn, spawnSync } from "node:child_process";
 
-const cli = process.env.BOX_CLI || "podman";
+const cli = process.env.BOX_CLI || "docker";
 const [command, ...rest] = process.argv.slice(2);
 const flag = (name, fallback) => {
   const index = rest.indexOf(`--${name}`);

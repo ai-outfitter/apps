@@ -183,15 +183,15 @@ that never starts (a taken port, say) is neither kept nor recorded. Set
 `box/runs.mjs` lists kept runs, reopens one for inspection and removes them:
 
 ```sh
-node box/runs.mjs list
+BOX_CLI=podman node box/runs.mjs list   # BOX_CLI as the evals used; docker by default
 node box/runs.mjs open <volume> [--port 8787] [--forgejo-port 3300]
 node box/runs.mjs rm <volume>... | --all
 ```
 
 `open` starts the image with `BOX_REOPEN=1`. The supervisor brings Forgejo,
-RustFS, box-kube, the gateway and the platform up on the kept state, but
-imports nothing, files no requests and runs no workflow ticks, so the box
-stays as the run left it.
+RustFS, the gateway and the platform up on the kept state, but imports
+nothing, files no requests, runs no workflow ticks and starts no workspaces
+(box-kube stays down), so the box stays as the run left it.
 
 ### Geometry scoring
 

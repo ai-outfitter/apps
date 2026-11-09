@@ -45,13 +45,14 @@ bundle, release) and the box log are kept in the ignored
 `../results/runs/<run>`.
 
 ```sh
+export BOX_CLI=podman                  # as the evals used; docker by default
 node box/runs.mjs list                 # kept runs, newest first
 node box/runs.mjs open <volume>        # Forgejo on :3300, the platform on :8787, as the run left them
 node box/runs.mjs rm <volume> | --all  # clean up
 ```
 
 `open` starts the box with `BOX_REOPEN=1`: no repository import, no requests,
-no workflow ticks. Ctrl-C stops it and keeps the volume. Sign in to Forgejo as
+no workflow ticks and no workspaces. Ctrl-C stops it and keeps the volume. Sign in to Forgejo as
 `box-admin`. The password is in `/box/secrets/forgejo-box-admin-password`
 inside the container: `podman exec <volume>-open cat …`. The platform answers
 only when published on 8787, its own origin; Forgejo works on any port

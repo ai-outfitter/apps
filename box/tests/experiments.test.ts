@@ -9,6 +9,7 @@ test("grade counts come from vitest's Tests line", () => {
   assert.deepEqual(gradeCounts("x\n      Tests  6 passed (6)\n"), { passed: 6, total: 6 });
   assert.deepEqual(gradeCounts("      Tests  3 failed | 3 passed (6)"), { passed: 3, total: 6 });
   assert.equal(gradeCounts("no report"), undefined);
+  assert.deepEqual(gradeCounts("\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m6 passed\x1b[39m\x1b[22m\x1b[90m (6)\x1b[39m"), { passed: 6, total: 6 }, "coloured output");
 });
 
 test("a run is recorded beside its grade and result, and indexed newest first", () => {

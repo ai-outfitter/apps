@@ -5,6 +5,7 @@ A run's volume holds its box state until removed: `node box/runs.mjs open <volum
 
 | run | model | box result | grade | eval | wall s | calls | tokens in | tokens out | volume |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [2026-11-09T15-38-36-239Z-subtract-helper](2026-11-09T15-38-36-239Z-subtract-helper/run.json) | luna / gpt-6-luna | landed | 2/2 | pass | 172.7 | 50 | 346.3k | 5.3k | `foundry-box-2026-11-09t15-38-36-239z-subtract-helper` |
 | [2026-11-09T15-23-43-719Z-subtract-helper](2026-11-09T15-23-43-719Z-subtract-helper/run.json) | luna / gpt-6-luna | landed | 2/2 | pass | 182.9 | 41 | 225.8k | 5.5k | `foundry-box-2026-11-09t15-23-43-719z-subtract-helper` |
 | [2026-11-09T12-42-54-545Z-new-astro-app](2026-11-09T12-42-54-545Z-new-astro-app/run.json) | luna / gpt-6-luna | landed | 6/6 | pass | 609.5 | 163 | 5M | 22.7k | – |
 | [2026-11-09T12-13-21-171Z-new-astro-app](2026-11-09T12-13-21-171Z-new-astro-app/run.json) | luna / gpt-6-luna | landed | 3/6 | fail | 1602.5 | 181 | 4.8M | 20.7k | – |

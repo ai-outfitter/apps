@@ -31,9 +31,11 @@ export type RunRecord = {
   result?: unknown;
 };
 
+const stripColour = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "");
+
 /** Passed and total tests from a vitest report ("Tests  3 failed | 3 passed (6)"). */
 export function gradeCounts(output: string) {
-  const line = output.split("\n").find((entry) => /^\s*Tests\s/.test(entry));
+  const line = stripColour(output).split("\n").find((entry) => /^\s*Tests\s/.test(entry));
   const total = Number(line?.match(/\((\d+)\)/)?.[1]);
   if (!line || !Number.isFinite(total)) return undefined;
   return { passed: Number(line.match(/(\d+) passed/)?.[1] ?? 0), total };
@@ -45,7 +47,7 @@ export function writeRunRecord(runs: string, record: RunRecord) {
   const directory = join(runs, record.runId);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, "run.json"), `${JSON.stringify(summary, null, 2)}\n`);
-  if (evalOutput) writeFileSync(join(directory, "eval.txt"), evalOutput.replace(/\x1b\[[0-9;]*m/g, ""));
+  if (evalOutput) writeFileSync(join(directory, "eval.txt"), stripColour(evalOutput));
   if (result) writeFileSync(join(directory, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
   writeRunIndex(runs);
 }
