@@ -13,6 +13,10 @@ export type AppMiddlewareOptions = {
   storage?: StorageManifest;
   /** Fixture pages only: no `/api/*` identity, no database in health, every write 405. */
   readOnly?: boolean;
+  /** Served by `astro dev`, which injects inline styles and scripts: no policy is sent.
+   * `outfitterApp()` sets it from the Astro command, never from NODE_ENV, so a build
+   * made with NODE_ENV=development or test still sends its policy. */
+  dev?: boolean;
 };
 
 // A Worker missing a declared bucket is not healthy, so every platform
@@ -35,7 +39,7 @@ async function health(app: string, storage?: StorageManifest, readOnly?: boolean
  * API request must carry the identity the platform forwards after
  * authenticating the member.
  */
-export function appMiddleware({ app, contentSecurityPolicy, readOnly, storage: declared }: AppMiddlewareOptions) {
+export function appMiddleware({ app, contentSecurityPolicy, readOnly, dev, storage: declared }: AppMiddlewareOptions) {
   const storage = declared && storageManifest.parse(declared);
   return defineMiddleware(async ({ request, locals }, next) => {
     const { pathname } = new URL(request.url);
@@ -55,9 +59,8 @@ export function appMiddleware({ app, contentSecurityPolicy, readOnly, storage: d
       response = error;
     }
     response.headers.set("Cache-Control", "private, no-store");
-    // `astro dev` injects inline styles and scripts, and Astro applies its own
-    // `security.csp` only to builds, so dev pages go without a policy.
-    if (!import.meta.env.DEV && !response.headers.has("Content-Security-Policy"))
+    // Astro applies its own `security.csp` only to builds, so dev pages go without a policy.
+    if (!dev && !response.headers.has("Content-Security-Policy"))
       response.headers.set("Content-Security-Policy", contentSecurityPolicy);
     response.headers.set("X-Content-Type-Options", "nosniff");
     return response;

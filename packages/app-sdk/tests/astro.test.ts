@@ -10,15 +10,19 @@ test("outfitterApp registers the app middleware with its options before the app'
   const directory = await mkdtemp(join(tmpdir(), "outfitter-app-"));
   try {
     const options = { app: "example", contentSecurityPolicy: "default-src 'none'", readOnly: true };
-    const added: { entrypoint: string | URL; order: string }[] = [];
-    const setup = outfitterApp(options).hooks["astro:config:setup"] as (hooks: unknown) => void;
-    setup({ addMiddleware: (middleware: (typeof added)[number]) => added.push(middleware), createCodegenDir: () => pathToFileURL(`${directory}/`) });
-    assert.equal(added.length, 1);
-    assert.equal(added[0].order, "pre");
-    assert.equal(
-      await readFile(added[0].entrypoint, "utf8"),
-      `import { appMiddleware } from "@ai-outfitter/app-sdk/cloudflare/middleware";\nexport const onRequest = appMiddleware(${JSON.stringify(options)});\n`,
-    );
+    // Only `astro dev` drops the policy; a build keeps it whatever NODE_ENV says.
+    for (const [command, dev] of [["build", false], ["dev", true], ["preview", false]] as const) {
+      const added: { entrypoint: string | URL; order: string }[] = [];
+      const setup = outfitterApp(options).hooks["astro:config:setup"] as (hooks: unknown) => void;
+      setup({ addMiddleware: (middleware: (typeof added)[number]) => added.push(middleware), command, createCodegenDir: () => pathToFileURL(`${directory}/`) });
+      assert.equal(added.length, 1);
+      assert.equal(added[0].order, "pre");
+      assert.equal(
+        await readFile(added[0].entrypoint, "utf8"),
+        `import { appMiddleware } from "@ai-outfitter/app-sdk/cloudflare/middleware";\nexport const onRequest = appMiddleware(${JSON.stringify({ ...options, dev })});\n`,
+        command,
+      );
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
