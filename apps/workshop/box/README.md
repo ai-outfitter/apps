@@ -30,7 +30,17 @@ the driver against a stand-in platform and a local git remote.
 - `evals/`: Agent Eval fixtures and `run.ts`. Each fixture is a part described
   with its dimensions, in the style of Text2CAD's expert prompts and CADPrompt's
   parts, limited to what Workshop's CAD plans make (boxes and cylinders, added
-  or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`. Its
+  or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`.
+  These are tier 0 of the ambition ladder in `../docs/vision.md`; the ladder
+  runs to COTS-driven moving assemblies, and new fixtures name their persona
+  and project.
+  Public text-to-CAD benchmarks score single parts the same way and are the
+  comparison set for tier 0 and 1: BenchCAD (46 CAD operations, where
+  frontier models score near zero on fillets, chamfers and revolves),
+  CAD-bench (179 tasks, accepts agent harnesses that output STEP),
+  Text2CAD-Bench (600 examples in 4 levels) and CADTests (pass/fail
+  dimensional tests). Most are in CadQuery, so running them needs a CadQuery
+  or STEP output from Workshop. Its
   `reference/model.scad` is the part in OpenSCAD, rendered to
   `reference/model.stl`; `EVAL.ts` scores the box's `model.stl` against it
   (box/README.md, "Geometry scoring") and passes at IoU >= 0.95 with no surface

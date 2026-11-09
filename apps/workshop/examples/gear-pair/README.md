@@ -1,5 +1,7 @@
 # Gear pair: two parts that drive each other
 
+Tier 3 of [docs/vision.md](../../docs/vision.md). Persona: a robotics team making its first drive train, a 2:1 reduction whose teeth never collide while it turns.
+
 A base with two axle posts and two spur gears that mesh: a 12-tooth gear that drives a 24-tooth gear the other way at half speed (2:1). Both gears are module 2 with a 20° pressure angle, and their centres are 36 mm apart. A press-fit cap holds each gear on its post.
 
 ![Gear pair](gears.gif)

@@ -1,5 +1,7 @@
 # Spinning wheel: first moving assembly
 
+Tier 3 of [docs/vision.md](../../docs/vision.md). Persona: a robotics team making its first moving joint, a wheel that turns on a fixed axle and stays on.
+
 Three printed parts: a stand with an 8 mm axle, a 40 mm wheel that spins on it, and a cap that presses onto the axle's 5 mm peg to keep the wheel on.
 
 ![Spinning wheel](spinner.gif)

@@ -1,0 +1,89 @@
+# Why Workshop exists
+
+Workshop is for people building ambitious physical things: a solar sensor
+node for a field study, a rover prototype for a robotics team, and one day
+hardware that has to survive another planet. A design agent that can only
+make a cable clip is a stepping stone toward that, not the goal. This page
+is the long-term vision, and every eval, example and feature in Workshop
+should say where it sits on it.
+
+## Who asks, and what they are building
+
+A design request without a project around it is a benchmark prompt. Workshop
+works for a person with a project, so every eval and example names its
+persona and project, says why the part exists (what it holds, mates with,
+carries or protects), and says what evidence would retire the risk it
+addresses. These are the people Workshop serves, in the order Workshop
+grows toward them:
+
+1. **A maker fixing something on their desk.** One printed part, dimensions
+   known up front. This is what today's single-part evals cover. It is the
+   smallest useful step, and never the finish line.
+2. **A researcher or solo founder building a field instrument.** The SNY-1
+   soil sensor node in Workshop's seed: an enclosure around a COTS devkit
+   and sensors, a firmware build, and an inventory tracked by MAC address.
+   The enclosure only matters because the devkit, probe slot, vent and solar
+   panel have to fit.
+3. **A small robotics team building a prototype.** A chassis, drive modules
+   repeated four times, COTS motors, drivers, wheels, a battery and a
+   controller, with mounting patterns taken from datasheets, a BOM that can
+   be ordered, moving joints, and bench evidence per stage. The
+   [artera/robotics](https://git.ncrmro.com/artera/robotics) prototype is
+   the reference for this level, and it is the level we evaluate models
+   against (DGX Spark against hosted models).
+4. **A team with a mission.** A Mars-rover-class project: environment,
+   mass and power budgets, redundancy, long test campaigns, and a record
+   that traces every requirement to the evidence behind it. Workshop never
+   claims to design this alone. It keeps the record honest and makes the
+   design agent useful at each stage.
+
+## The ambition ladder
+
+Each tier is defined by what a project needs, not by how hard the geometry
+is. A tier is reached when the design agent produces it from a persona's
+request and the eval scores it against a reference. The scoring that exists
+today is in `box/README.md` ("Geometry scoring").
+
+| Tier | What the project needs | Reference | Scored by | Status |
+| --- | --- | --- | --- | --- |
+| 0 | One printed part from a dimensioned description | `box/evals/evals/*` (cable clip, mounting plate, L bracket, flanged bushing) | Code runs, watertight, volume IoU, Chamfer and Hausdorff distance | Passing on Luna and Spark |
+| 1 | One part that mates with something: a hole pattern for a devkit, a bore for a bearing, a snap or press fit | New fixtures with a COTS envelope beside the part | Tier 0, plus clearance and interference against the envelope | Needs richer CAD plans (below) |
+| 2 | A static assembly: printed parts and COTS placed together, with a BOM | SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, BOM matched against a reference BOM, envelope and mass | Model exists, agent does not produce it yet |
+| 3 | A moving assembly: joints with a range of motion, gears that mesh, nothing collides while it moves | `examples/spinning-wheel`, `examples/gear-pair` | Interference swept over the motion range, ratio and range of motion | Hand-built seeds only |
+| 4 | A COTS-driven prototype: sub-assemblies, datasheet mounting patterns, firmware items, cable and battery volume, evidence per stage | artera/robotics | Tiers 1 to 3, plus BOM and mounting patterns against datasheets, and the project record: research decisions, evidence entries, stage gates | Target for model comparison |
+| 5 | A mission: budgets, environment, redundancy, requirement traceability | To be chosen | Mostly the record: every requirement has evidence or an open risk | Vision |
+
+Public text-to-CAD benchmarks cover tier 0 and parts of tier 1
+(BenchCAD, CAD-bench, Text2CAD-Bench, CADTests; see the eval README). They
+stop at single parts, so tiers 2 and up are Workshop's own.
+
+## What has to change in Workshop
+
+- **CAD plans** (`src/model/cad-plan.ts`) add and cut boxes and cylinders
+  along the axes. The ladder needs fillets, chamfers, countersinks, patterns,
+  rotation about any axis, and profiles that are extruded or revolved
+  (a gear tooth, a knob). The 200 mm envelope is a tier 0 limit, not a
+  Workshop one.
+- **Assemblies** (`src/lib/assembly.ts`) already have items, revisions,
+  sub-assemblies, COTS envelopes, firmware items and an indented BOM, in
+  the shape PLM systems use. A usage places an item with a position and a
+  turn about Z. The ladder adds full rotation, joints (revolute, prismatic)
+  with limits, and mates between features, so a wheel can be told it turns
+  on a post.
+- **COTS envelopes** come from the manufacturer's drawing with their
+  mounting pattern, and Workshop keeps a library of the ones projects use,
+  so a devkit or a motor is placed once and fit-checked everywhere.
+- **The design agent** produces an assembly and a BOM for a request, not a
+  single part, and records the research decisions and evidence a project
+  needs, because tier 4 scores the record as well as the geometry.
+- **Evals** carry the persona and project in every fixture. A reference is
+  an assembly with a BOM, not only an STL, and the interference check in the
+  examples becomes an eval step that sweeps the motion range.
+
+## How to add work to Workshop
+
+Name the tier and persona in the PR. A new eval fixture states who is
+asking and what project the part belongs to. A new CAD or assembly feature
+says which rung it unlocks. Work that only moves toward "the next milestone"
+without a persona behind it is a benchmark, and belongs in the comparison
+set rather than in Workshop's own evals.
