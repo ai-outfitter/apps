@@ -4,8 +4,6 @@ import launchWeek from "../fixtures/forerunner-day.launch-week.json" with { type
 export const day = launchWeek;
 
 export type Stone = (typeof day.stones)[number];
-export type Signal = (typeof day.signals)[number];
-export type Commitment = (typeof day.commitments)[number];
 
 const byId = <T extends { id: string }>(records: readonly T[], id: string, kind: string) => {
   const found = records.find((record) => record.id === id);

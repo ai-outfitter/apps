@@ -4,6 +4,7 @@ import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { Database } from "./items";
 import { getPreview, updatePreview, type Preview } from "./discovery";
+import type { Graph } from "./semantic-discovery";
 
 export const evaluationInput = z.strictObject({
   previewId: z.uuid(),
@@ -25,7 +26,6 @@ export const matchesInput = z.strictObject({
   query: z.string().max(160).default(""),
 });
 type Host = WorkflowHost<"interactive">;
-type Graph = Awaited<ReturnType<typeof readWikiGraph>>;
 async function savedPreview(db: Database, who: AppIdentity, id: string) {
   requireEditor(who);
   const preview = await getPreview(db, who, id);

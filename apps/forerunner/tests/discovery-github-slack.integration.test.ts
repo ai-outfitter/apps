@@ -10,7 +10,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { discoveryRuns, discoverySources, previewDiscovery, readableConnection } from "../src/server/discovery";
 
 // GitHub and Slack read like Gmail: a person's own connection, newest first,
-// each record in full, cited as docs/architecture/evidence.md describes.
+// each record in full, cited by the shared evidence convention.
 const types = ["Person"].map((name, i) => ({ id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`, name, category: "node", body: `A ${name}.` }));
 const who: AppIdentity = { installationId: "forerunner", userId: "alice", owner: { kind: "user", id: "alice" }, role: "owner", canEdit: true };
 const github = { id: "c0000000-0000-4000-8000-000000000003", provider: "github", resource: "42", label: "alice-gh", operations: ["activity.read"] };

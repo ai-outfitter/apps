@@ -4,7 +4,6 @@ import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-graphql";
 import {
   type AppIdentity,
   requireEditor,
-  sha256Hex,
 } from "@ai-outfitter/app-sdk/server";
 import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
@@ -16,7 +15,7 @@ import { discoveryOntology } from "./discovery-ontology";
 import type { Database } from "./items";
 import { generateSuggestions, skipSuggestions } from "./suggestions";
 import { discoveryRecords } from "./schema";
-import { type RunInput, semanticProposal } from "./semantic-discovery";
+import { type RunInput, semanticProposal, stableId } from "./semantic-discovery";
 
 const sourceRecord = z.strictObject({
   id: z.string().min(1).max(300),
@@ -28,7 +27,7 @@ const sourceRecord = z.strictObject({
     .max(2000)
     .optional(),
   participants: z.array(z.string().max(300)).max(30).default([]),
-  /** The citation's record id when it differs from `id`'s source identity (docs/architecture/evidence.md). */
+  /** The citation's record id when it differs from `id`'s source identity. */
   recordId: z.string().min(1).max(500).optional(),
   /** The provider's version of a record that changes, such as an issue's last update. */
   version: z.string().min(1).max(200).optional(),
@@ -146,10 +145,6 @@ async function own(
   if (!record)
     throw new Response("Discovery record not found", { status: 404 });
   return record;
-}
-export async function stableId(value: string) {
-  const hash = await sha256Hex(value);
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 export async function importSamples(
   db: Database,
@@ -456,7 +451,7 @@ export function githubText(item: GithubItem) {
 /** How a participant reads to the agent; the member's own account says so. */
 const participant = (handle: string, provider: string, own: string) => `@${handle} (${provider}${handle === own ? ", the operating user's own account" : ""})`;
 function githubRecord(item: GithubItem, login: string): z.infer<typeof sourceRecord> {
-  // The citation convention of docs/architecture/evidence.md: owner/repo/pull/N or owner/repo/issues/N.
+  // The evidence citation convention: owner/repo/pull/N or owner/repo/issues/N.
   const id = `${item.repository}/${item.kind === "pull-request" ? "pull" : "issues"}/${item.number}`;
   const people = [item.author, ...item.assignees, ...item.comments.map((c) => c.author)].filter((p): p is string => Boolean(p));
   return {
@@ -571,7 +566,7 @@ function huddleRecord(message: SlackMessage, notes: HuddleNotes): { text?: strin
   };
 }
 function slackRecord(message: SlackMessage, replies: z.infer<typeof slackMessage>[], self: string, notes?: HuddleNotes): z.infer<typeof sourceRecord> {
-  // The citation convention of docs/architecture/evidence.md: TEAM/CHANNEL/TS.
+  // The evidence citation convention: TEAM/CHANNEL/TS.
   const [, team, channel, ts] = message.id.split(":");
   const line = (m: { authorId: string | null; text: string }) => `@${m.authorId ?? "unknown"}: ${slackText(m.text)}`;
   // A huddle's thread is Slackbot's; its notes are what the huddle said.
@@ -686,12 +681,15 @@ async function prepareDiscovery(
   await diagnostic({ status: "complete", previewId: preview.id, operations, warnings, systemPrompt });
   return preview;
 }
-/** Recent runs' reads of one connection, newest first. */
-async function connectionReads(db: Database, who: AppIdentity, connectionId: string) {
-  const rows = await db.select({ data: discoveryRecords.data, createdAt: discoveryRecords.createdAt }).from(discoveryRecords)
+/** Recent runs' previews, newest first. */
+async function recentPreviews(db: Database, who: AppIdentity) {
+  const rows = await db.select({ data: discoveryRecords.data }).from(discoveryRecords)
     .where(and(scope(who), eq(discoveryRecords.kind, "preview"))).orderBy(desc(discoveryRecords.createdAt)).limit(60);
-  return rows.flatMap((row) => {
-    const preview = JSON.parse(row.data) as Preview;
+  return rows.map((row) => JSON.parse(row.data) as Preview);
+}
+/** Those previews' successful reads of one connection, newest first. */
+function connectionReads(previews: Preview[], connectionId: string) {
+  return previews.flatMap((preview) => {
     const read = preview.sources.find((s) => s.connectionId === connectionId && !s.error);
     return read ? [{ at: preview.createdAt, read }] : [];
   });
@@ -702,14 +700,15 @@ async function readWindow(db: Database, who: AppIdentity, connectionId: string, 
   const ago = (days: number) => new Date(Date.now() - days * day).toISOString();
   if (range === "7d") return { from: ago(7) };
   if (range === "30d") return { from: ago(30) };
-  const reads = await connectionReads(db, who, connectionId);
+  const reads = connectionReads(await recentPreviews(db, who), connectionId);
   if (range === "since-last") return { from: reads[0]?.at ?? ago(14) };
   const last = reads.find((r) => r.read.range === "all")?.read;
   return last?.more && last.next ? last.next : {};
 }
 /** When each direct connection was last read by a run. */
 export async function lastRuns(db: Database, who: AppIdentity, connectionIds: string[]) {
-  return Object.fromEntries(await Promise.all(connectionIds.map(async (id) => [id, (await connectionReads(db, who, id))[0]?.at ?? null] as const)));
+  const previews = await recentPreviews(db, who);
+  return Object.fromEntries(connectionIds.map((id) => [id, connectionReads(previews, id)[0]?.at ?? null]));
 }
 export async function getPreview(
   db: Database,
@@ -757,7 +756,7 @@ type Saved = { batchId: string; state: string; reviewBy: number | null; counts: 
 /**
  * Saves a preview as one Wiki change batch. The first discovery run creates
  * everything; later runs commit confident proposals and leave the rest for
- * review until the reviewer's end of day (docs/plans/wiki-change-batches.md).
+ * review until the reviewer's end of day.
  */
 async function saveBatch(db: Database, who: AppIdentity, host: Host, preview: Preview, timezone: string): Promise<Saved> {
   const call: BatchCall = async (action, input) =>
@@ -843,9 +842,9 @@ function suggestionsStep(db: Database, who: AppIdentity, host: Host, runId: stri
   };
 }
 
-/** Every attempt is retained privately, including failures before a preview exists. */
 /** A scheduled run: the reserved workflow run id and the schedule's one connection. */
 export type RunOptions = { runId?: string; connection?: SourceConnection; trigger?: "manual" | "schedule"; taskId?: string; progress?: (event: Record<string, unknown>) => Promise<void> };
+/** Every attempt is retained privately, including failures before a preview exists. */
 export async function previewDiscovery(db: Database, who: AppIdentity, host: Host, input: z.input<typeof previewInput>, save = false, options: RunOptions = {}) {
   requireEditor(who);
   const id = crypto.randomUUID(), startedAt = new Date().toISOString();

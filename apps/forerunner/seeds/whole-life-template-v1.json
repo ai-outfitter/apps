@@ -1,7 +1,7 @@
 {
   "format": "outfitter-forerunner-life-seed-v1",
   "synthetic": true,
-  "_note": "Template for docs/plans/forerunner-whole-life-seed.md. One example of every record. Fields starting with _ are comments and are ignored by loaders.",
+  "_note": "Template for a whole-life seed. One example of every record. Fields starting with _ are comments and are ignored by loaders.",
   "person": {
     "id": "person.me",
     "name": "Sam Example",

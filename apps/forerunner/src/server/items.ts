@@ -147,10 +147,7 @@ export async function updateItem(
 	input: unknown,
 ) {
 	const { revision, ...value } = parse(updateInput, input);
-	const [existing] = await db
-		.select()
-		.from(items)
-		.where(and(scope(who), eq(items.id, id)));
+	const existing = await findItem(db, who, id);
 	if (!existing) throw missing();
 	if (value.parentId === id)
 		throw new Response("An item cannot parent itself", { status: 400 });
@@ -176,10 +173,7 @@ export async function deleteItem(
 	input: unknown,
 ) {
 	const { revision } = parse(deleteInput, input);
-	const [existing] = await db
-		.select()
-		.from(items)
-		.where(and(scope(who), eq(items.id, id)));
+	const existing = await findItem(db, who, id);
 	if (!existing) throw missing();
 	if (existing.revision !== revision) throw conflict();
 	const rows = await guarded(() =>

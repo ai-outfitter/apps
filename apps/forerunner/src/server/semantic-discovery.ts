@@ -4,7 +4,7 @@ import type { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import type { OntologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { analysisBatches } from "./analysis-batches";
+import { type AnalysisInput, analysisBatches } from "./analysis-batches";
 import type { Operation, Proposal } from "./discovery";
 import { type DiscoveryOntology, discoveryPrompt } from "./discovery-ontology";
 
@@ -29,7 +29,8 @@ export function analysisSchema(ontology: DiscoveryOntology) {
 type Analysis = z.infer<ReturnType<typeof analysisSchema>>;
 export type Sample = { provider: string; account: string; accountId?: string; collectedAt: string; records: { id: string; title: string; text: string; date: string; url?: string; participants: string[]; recordId?: string; version?: string }[] };
 export type Graph = Awaited<ReturnType<typeof readWikiGraph>>;
-async function stable(value: string) {
+/** A UUID-shaped id derived from `value`; stored record ids depend on this exact shape. */
+export async function stableId(value: string) {
   const h = await sha256Hex(value);
   return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;
 }
@@ -62,7 +63,7 @@ function appendAnalysis(target: Analysis, answer: Analysis, prefix: string) {
   target.relationships.push(...answer.relationships.map(relation => ({ ...relation, from: prefix + relation.from, to: prefix + relation.to })));
 }
 
-export async function semanticProposal(host: WorkflowHost<"interactive">, graph: Graph, samples: Sample[], ontology: DiscoveryOntology, user: { id: string; name: string; email: string }, diagnostic: (event: Record<string, unknown>) => Promise<void> = async () => {}, options: { runId?: string; taskId?: string; selection?: unknown; instructions?: string; batchBudget?: number; onlyBatch?: number; batches?: import("./analysis-batches").AnalysisInput[] } = {}) {
+export async function semanticProposal(host: WorkflowHost<"interactive">, graph: Graph, samples: Sample[], ontology: DiscoveryOntology, user: { id: string; name: string; email: string }, diagnostic: (event: Record<string, unknown>) => Promise<void> = async () => {}, options: { runId?: string; taskId?: string; selection?: unknown; instructions?: string; batchBudget?: number; onlyBatch?: number; batches?: AnalysisInput[] } = {}) {
   const types = new Map(graph.types.map(t => [String(t.attributes.name), t]));
   const analysis = analysisSchema(ontology);
   const instructions = options.instructions ?? discoveryPrompt(user, ontology);
@@ -157,7 +158,7 @@ async function relationshipIdentity(graph: Graph, type: Graph["types"][number], 
     ((edge.attributes.fromId === fromId && edge.attributes.toId === toId) ||
      (symmetric && edge.attributes.fromId === toId && edge.attributes.toId === fromId)));
   const pair = symmetric ? [fromId, toId].sort() : [fromId, toId];
-  return existing?.ref.id ?? await stable(JSON.stringify([pair[0], String(type.attributes.name), pair[1]]));
+  return existing?.ref.id ?? await stableId(JSON.stringify([pair[0], String(type.attributes.name), pair[1]]));
 }
 
 async function proposalChanges(graph: Graph, types: Map<string, Graph["types"][number]>, refs: Map<string,Evidence>, output: Analysis) {
@@ -187,7 +188,7 @@ async function proposalChanges(graph: Graph, types: Map<string, Graph["types"][n
   };
   for (const entity of output.entities) {
     const anchors = entity.evidence.map(e => need(refs, e).identity).sort();
-    const id = entity.existingId ?? await stable(JSON.stringify([graph.wiki.installationId, entity.type, entity.name.toLowerCase(), anchors]));
+    const id = entity.existingId ?? await stableId(JSON.stringify([graph.wiki.installationId, entity.type, entity.name.toLowerCase(), anchors]));
     ids.set(entity.key, id);
     // The preview shows the evidence; the Wiki record keeps the summary, and the batch keeps the citations.
     const excerpt = `Forerunner proposal: ${entity.certainty}. ${entity.existingId ? "Proposed identity match; existing page is unchanged." : "Review before treating implications as facts."}\n\n${entity.summary}\n\nEvidence:\n${evidenceText(entity.evidence)}`;
@@ -213,7 +214,7 @@ export function reported(item: { confidence?: number; certainty?: "mentioned" | 
   return item.confidence ?? (item.certainty === "mentioned" ? 0.8 : 0.6);
 }
 
-/** One supplied source as a shared evidence citation (docs/architecture/evidence.md). */
+/** One supplied source as a shared evidence citation (@ai-outfitter/app-sdk/evidence). */
 export function citation(item: Evidence): EvidenceItem {
   return {
     provider: (item.provider ?? "platform-user").slice(0, 100),
@@ -284,7 +285,7 @@ function retainValidRelationships(output: Analysis, refs: Map<string, unknown>, 
   return warnings;
 }
 
-function selectedBatches(batches:import("./analysis-batches").AnalysisInput[],onlyBatch:number|undefined){
+function selectedBatches(batches:AnalysisInput[],onlyBatch:number|undefined){
   if(onlyBatch!==undefined&&!batches[onlyBatch])throw new Error("Selected batch does not exist");
   return [...batches.entries()].filter(([index])=>onlyBatch===undefined||onlyBatch===index);
 }

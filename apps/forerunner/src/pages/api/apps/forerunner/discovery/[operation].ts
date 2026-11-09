@@ -74,16 +74,17 @@ async function downloadSession(request:Request,locals:App.Locals){
     if (!id) throw new Response("Run id required",{status:400});
     const run = await discoveryRuns(db,who,id) as Record<string,unknown>;
     const preview=run.previewId || run.legacy ? await getPreview(db,who,String(run.previewId ?? run.id)) : null;
+    const history = {id:"app.history",parentId:null,kind:"result" as const,step:"discovery",at:new Date().toISOString(),data:JSON.parse(JSON.stringify({run,preview}))};
     if (run.workflowRunId) {
       const session = await workflowHost<"interactive">(locals).call("session.read",{runId:String(run.workflowRunId)});
-      session.entries.push({id:"app.history",parentId:null,kind:"result",step:"discovery",at:new Date().toISOString(),data:JSON.parse(JSON.stringify({run,preview}))});
+      session.entries.push(history);
       session.run.status=String(run.status ?? session.run.status);
       session.run.trigger=sessionTrigger(run.trigger);
       return sessionDownload(session);
     }
     return sessionDownload(workflowSession.parse({format:"outfitter-workflow-session-v1",exportedAt:new Date().toISOString(),
       run:{id,workflowId:"forerunner-discovery",createdBy:who.userId,installationId:who.installationId,organizationId:who.owner.kind === "organization" ? who.owner.id : null,trigger:run.trigger ?? "unknown",status:run.status ?? "unknown",createdAt:Date.parse(String(run.startedAt)) || 0,updatedAt:Date.parse(String(run.updatedAt ?? run.startedAt)) || 0,definition:null,definitionHash:"",packageHash:null},
-      inputs:run.input ?? null,outputs:run.output ?? null,attempts:[],entries:[{id:"app.history",parentId:null,kind:"result",step:"discovery",at:new Date().toISOString(),data:JSON.parse(JSON.stringify({run,preview}))}],gaps:["No linked workflow execution was retained. Exact model calls and replay context are unavailable."]}));
+      inputs:run.input ?? null,outputs:run.output ?? null,attempts:[],entries:[history],gaps:["No linked workflow execution was retained. Exact model calls and replay context are unavailable."]}));
 
 }
 
