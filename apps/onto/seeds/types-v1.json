@@ -1605,5 +1605,46 @@
         "to": "any"
       }
     }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000120",
+    "category": "node",
+    "name": "OutfitterUser",
+    "title": "Outfitter users",
+    "body": "## Outfitter users\n\nAn Outfitter account: a member or an agent principal on an Outfitter host. Its key is `<host>/users:<id>`, set only by the platform, and it never changes. Link it to the Person or Agent it belongs to with `account_of`.\n\n## For agents\n\nAn account is how Outfitter knows someone, not who they are. Describe the person on their Person page; an account grants nothing by itself.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000121",
+    "category": "node",
+    "name": "OutfitterOrganization",
+    "title": "Outfitter organizations",
+    "body": "## Outfitter organizations\n\nAn Outfitter organization account on an Outfitter host. Its key is `<host>/organizations:<id>`, set only by the platform. Link it to the Organization it belongs to with `account_of`.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000122",
+    "category": "edge",
+    "name": "account_of",
+    "title": "account of",
+    "body": "The source account belongs to the target Person, Agent or Organization. One account belongs to one holder at a time; relationships grant no access.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000120",
+          "71000000-0000-4000-8000-000000000121"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006",
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    },
+    "archived": false
   }
 ]

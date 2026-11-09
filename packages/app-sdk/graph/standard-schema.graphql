@@ -927,6 +927,24 @@ type About implements Edge {
   evidence: String
 }
 
+"""account of"""
+type AccountOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
 """revision of"""
 type RevisionOf implements Edge {
   id: ID!
@@ -1750,6 +1768,8 @@ type Organization implements Node {
   ownsEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
   hasObligation(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
   hasObligationEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
   commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
   commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
 
@@ -1896,6 +1916,8 @@ type Person implements Node {
   interactsWithEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
   interactsWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
   interactsWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
   friendIncoming(at: DateTime, archived: Archived = EXCLUDE): [Friendship!]!
   friendIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
   friendsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
@@ -1951,6 +1973,8 @@ type Agent implements Node {
   madeByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
   participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
   participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
+  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
 
   """as: holder"""
   roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
@@ -2678,6 +2702,60 @@ type Question implements Node {
   status: String
 }
 
+"""Outfitter users"""
+type OutfitterUser implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+}
+
+"""Outfitter organizations"""
+type OutfitterOrganization implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
+  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+}
+
 """Product specifications"""
 type ProductSpecification implements Node {
   id: ID!
@@ -3334,6 +3412,18 @@ type FinancialObligationConnection {
 
 type QuestionConnection {
   nodes: [Question!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OutfitterUserConnection {
+  nodes: [OutfitterUser!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OutfitterOrganizationConnection {
+  nodes: [OutfitterOrganization!]!
   pageInfo: PageInfo!
   aggregate: Aggregate!
 }
@@ -4013,6 +4103,42 @@ type Query {
     text: String
     at: DateTime
   ): QuestionConnection!
+  outfitterUser(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): OutfitterUser
+  outfitterUsers(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OutfitterUserConnection!
+  outfitterOrganization(
+    id: ID
+
+    """The node's slug, unique in its Wiki; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): OutfitterOrganization
+  outfitterOrganizations(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): OutfitterOrganizationConnection!
   productSpecification(
     id: ID
 

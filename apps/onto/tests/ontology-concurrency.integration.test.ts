@@ -65,6 +65,6 @@ test("node, edge and definition saves guard the graph they read", async () => {
     await assert.rejects(saveType(raced("graph_types", "endpoint"), who, {
       ...attributes, ontology: { version: 1, endpoints: { from: [entityTypeId], to: [entityTypeId] } },
     }, currentType, currentType.revision), (error: unknown) => error instanceof Response && error.status === 409);
-    assert.deepEqual((await getType(base, currentType.id)).ontology, { version: 2, endpoints: { from: "any", to: "any" } });
+    assert.deepEqual(((await getType(base, currentType.id)) as { ontology?: unknown }).ontology, { version: 2, endpoints: { from: "any", to: "any" } });
   } finally { await app.dispose(); }
 });

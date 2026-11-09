@@ -1,93 +1,68 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { appRecordKey, userKey, userPrincipal } from "@ai-outfitter/onto/contracts";
+import { core } from "../lib/graph";
+import { graphEdges, graphNodes, graphTypes } from "./schema";
 type Database = ReturnType<typeof installationDatabase>;
-import { graphNodes, graphTypes } from "./schema";
 
-const provider = "outfitter-principal";
-const active = () =>
-  and(eq(graphNodes.archived, false), eq(graphTypes.archived, false));
-const kind = (type: string) =>
-  type === "Agent" ? ("agent" as const) : ("human" as const);
-const holderType = (type: string) => type === "Person" || type === "Agent";
-function rows(db: Database) {
+// An Outfitter principal is an OutfitterUser node keyed `ai-outfitter.com/users:<id>`,
+// joined to the Person or Agent it belongs to by an active account_of edge.
+const outfitterUser = "71000000-0000-4000-8000-000000000120";
+const accountOf = "71000000-0000-4000-8000-000000000122";
+const holders = [core.person, core.agent];
+const kind = (typeId: string) => (typeId === core.agent ? ("agent" as const) : ("human" as const));
+const account = alias(graphNodes, "account");
+
+/** Active account_of links from Outfitter accounts to people and agents. */
+function links(db: Database) {
   return db
-    .select({
-      id: graphNodes.id,
-      holderId: graphNodes.id,
-      principalId: graphNodes.externalId,
-      type: graphTypes.name,
-    })
-    .from(graphNodes)
-    .innerJoin(graphTypes, eq(graphTypes.id, graphNodes.typeId))
-    .where(and(active(), eq(graphNodes.externalProvider, provider)));
+    .select({ edgeId: graphEdges.id, accountId: account.id, key: account.externalKey, holderId: graphNodes.id, typeId: graphNodes.typeId })
+    .from(graphEdges)
+    .innerJoin(account, eq(account.id, graphEdges.fromId))
+    .innerJoin(graphNodes, eq(graphNodes.id, graphEdges.toId))
+    .where(and(
+      eq(graphEdges.typeId, accountOf), eq(graphEdges.archived, false),
+      eq(account.typeId, outfitterUser), eq(account.archived, false),
+      eq(graphNodes.archived, false), inArray(graphNodes.typeId, holders),
+    ));
 }
+const view = (row: { holderId: string; key: string | null; typeId: string }) => ({
+  id: row.holderId, holderId: row.holderId, principalId: String(userPrincipal(row.key)), kind: kind(row.typeId),
+});
 
-/** Private canonical identity, selected by the host's verified principal/ref.
- * Public graph properties, titles, authored bodies and provenance are never identities. */
-export async function resolveIdentity(
-  db: Database,
-  input: { principalId: string; reference?: EntityRef },
-) {
+/** The holder for the host's verified principal or app reference. Titles and bodies are never identities. */
+export async function resolveIdentity(db: Database, input: { principalId: string; reference?: EntityRef }) {
   const { principalId, reference } = input;
-  const linked = (await rows(db)).filter(
-    (row) => row.principalId === principalId && holderType(row.type),
-  );
+  const linked = (await links(db).then((rows) => rows.filter((row) => row.key === userKey(principalId))))
+    .map((row) => ({ id: row.holderId, typeId: row.typeId }));
   const sourced = reference
-    ? await db
-        .select({ id: graphNodes.id, type: graphTypes.name })
-        .from(graphNodes)
-        .innerJoin(graphTypes, eq(graphTypes.id, graphNodes.typeId))
-        .where(
-          and(
-            active(),
-            sql`json_extract(${graphNodes.source}, '$.installationId')=${reference.installationId}`,
-            sql`json_extract(${graphNodes.source}, '$.type')=${reference.type}`,
-            sql`json_extract(${graphNodes.source}, '$.id')=${reference.id}`,
-          ),
-        )
+    ? await db.select({ id: graphNodes.id, typeId: graphNodes.typeId }).from(graphNodes)
+        .where(and(eq(graphNodes.archived, false), eq(graphNodes.externalKey, appRecordKey(reference))))
     : [];
-  // Both are verified identity evidence. A source reference must not hide an
-  // existing private principal link; conflicting holders remain blocked.
-  const matches = [
-    ...new Map([...linked, ...sourced].map((row) => [row.id, row])).values(),
-  ];
-  if (matches.length > 1 || matches.some((row) => !holderType(row.type)))
-    throw new Response("Ambiguous or invalid canonical identity", {
-      status: 409,
-    });
+  // Both are verified evidence; conflicting holders stay blocked.
+  const matches = [...new Map([...linked, ...sourced].map((row) => [row.id, row])).values()];
+  if (matches.length > 1 || matches.some((row) => !holders.includes(row.typeId)))
+    throw new Response("Ambiguous or invalid canonical identity", { status: 409 });
   const row = matches[0];
-  return row ? { holderId: row.id, principalId, kind: kind(row.type) } : null;
+  return row ? { holderId: row.id, principalId, kind: kind(row.typeId) } : null;
 }
 export async function listIdentities(db: Database, who: AppIdentity) {
   requireEditor(who);
-  return (await rows(db))
-    .filter((row) => holderType(row.type))
-    .map((row) => ({
-      id: row.id,
-      holderId: row.id,
-      principalId: String(row.principalId),
-      kind: kind(row.type),
-    }));
+  return (await links(db)).map(view);
 }
-export async function unlinkIdentity(
-  db: Database,
-  who: AppIdentity,
-  holderId: string,
-) {
+const archive = (db: Database, edgeIds: string[], who: AppIdentity) =>
+  db.update(graphEdges).set({ archived: true, updatedBy: who.userId, updatedAt: Date.now() }).where(inArray(graphEdges.id, edgeIds));
+
+export async function unlinkIdentity(db: Database, who: AppIdentity, holderId: string) {
   requireEditor(who);
-  await db
-    .update(graphNodes)
-    .set({ externalProvider: null, externalId: null })
-    .where(
-      and(
-        eq(graphNodes.id, holderId),
-        eq(graphNodes.externalProvider, provider),
-      ),
-    );
+  const edges = (await links(db)).filter((row) => row.holderId === holderId).map((row) => row.edgeId);
+  if (edges.length) await archive(db, edges, who);
   return { removed: true };
 }
+/** One principal belongs to one holder and one holder has one principal. Grants nothing. */
 export async function linkIdentity(
   db: Database,
   who: AppIdentity,
@@ -95,33 +70,29 @@ export async function linkIdentity(
 ) {
   requireEditor(who);
   const [holder] = await db
-    .select({ type: graphTypes.name, provider: graphNodes.externalProvider })
+    .select({ typeId: graphNodes.typeId, slug: graphNodes.slug, title: graphNodes.title })
     .from(graphNodes)
     .innerJoin(graphTypes, eq(graphTypes.id, graphNodes.typeId))
-    .where(and(active(), eq(graphNodes.id, input.holderId)));
-  if (holder?.type !== (input.kind === "human" ? "Person" : "Agent"))
+    .where(and(eq(graphNodes.archived, false), eq(graphTypes.archived, false), eq(graphNodes.id, input.holderId)));
+  if (holder?.typeId !== (input.kind === "human" ? core.person : core.agent))
     throw new Response("Identity type mismatch", { status: 409 });
-  if (holder.provider && holder.provider !== provider)
-    throw new Response(
-      "Preserve the existing provider identity; use its verified canonical reference",
-      { status: 409 },
-    );
-  // One principal identifies one canonical holder throughout this Wiki. This
-  // does not create any assignments, RAPID duties, or platform permissions.
-  await db.batch([
-    db
-      .update(graphNodes)
-      .set({ externalProvider: null, externalId: null })
-      .where(
-        and(
-          eq(graphNodes.externalProvider, provider),
-          eq(graphNodes.externalId, input.principalId),
-        ),
-      ),
-    db
-      .update(graphNodes)
-      .set({ externalProvider: provider, externalId: input.principalId })
-      .where(eq(graphNodes.id, input.holderId)),
-  ]);
+  const key = userKey(input.principalId);
+  const now = Date.now();
+  const [existing] = await db.select({ id: graphNodes.id, typeId: graphNodes.typeId }).from(graphNodes).where(eq(graphNodes.externalKey, key));
+  if (existing && existing.typeId !== outfitterUser) throw new Response("This key belongs to another record", { status: 409 });
+  const accountId = existing?.id ?? crypto.randomUUID();
+  const current = await links(db);
+  const replaced = current.filter((row) => (row.key === key) !== (row.holderId === input.holderId)).map((row) => row.edgeId);
+  const kept = current.some((row) => row.key === key && row.holderId === input.holderId);
+  const taken = new Set((await db.select({ slug: graphNodes.slug }).from(graphNodes).where(eq(graphNodes.typeId, outfitterUser))).map((row) => row.slug));
+  let slug = holder.slug;
+  for (let n = 2; taken.has(slug); n++) slug = `${holder.slug}-${n}`;
+  const audit = { createdBy: who.userId, updatedBy: who.userId, createdAt: now, updatedAt: now };
+  const writes = [
+    ...(existing ? [] : [db.insert(graphNodes).values({ id: accountId, typeId: outfitterUser, slug, title: holder.title, externalKey: key, ...audit })]),
+    ...(replaced.length ? [archive(db, replaced, who)] : []),
+    ...(kept ? [] : [db.insert(graphEdges).values({ id: crypto.randomUUID(), typeId: accountOf, fromId: accountId, toId: input.holderId, ...audit })]),
+  ];
+  if (writes.length) await db.batch(writes as unknown as Parameters<typeof db.batch>[0]);
   return { linked: true };
 }

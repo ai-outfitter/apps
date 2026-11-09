@@ -16,6 +16,7 @@ import {
   type AnyColumn,
   type SQLWrapper,
 } from "drizzle-orm";
+import { appRecordKey } from "@ai-outfitter/onto/contracts";
 import {
   edgeInput,
   type GraphEdge,
@@ -194,7 +195,7 @@ export function graphEntities(
               equals(graphNodes.typeId, f.typeId),
               among(graphNodes.typeId, f.typeIds),
               equals(graphNodes.slug, f.slug),
-              f.source === undefined ? undefined : eq(graphNodes.source, f.source),
+              f.source === undefined ? undefined : eq(graphNodes.externalKey, appRecordKey(f.source)),
             ),
           )
           .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "title" ? graphNodes.title : graphNodes.id) : asc(graphNodes.id), asc(graphNodes.id))

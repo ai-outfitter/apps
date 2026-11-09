@@ -112,7 +112,10 @@ OutfitterOrganization:sunny     --account_of-->  Organization:sunny
 A self-hosted Outfitter uses its own host. The slug is the readable name and can
 change, while the key never does, so an import never creates a record twice.
 Only the platform and imports set keys. This replaces `externalProvider`,
-`externalId` and the JSON `source` column.
+`externalId` and the JSON `source` column. Linking an identity creates the
+`OutfitterUser` node and its `account_of` edge; moving it archives the old
+edge. A node that mirrors another app's record, such as a Planning project's
+page, carries that record's key itself. Keys never leave Onto in results.
 
 ## Getting there
 

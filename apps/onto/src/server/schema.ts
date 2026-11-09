@@ -48,9 +48,7 @@ export const graphNodes = sqliteTable(
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
       .default({}),
-    source: text({ mode: "json" }).$type<EntityRef>(),
-    externalProvider: text(),
-    externalId: text(),
+    externalKey: text(),
     archived: integer({ mode: "boolean" }).notNull().default(false),
     revision: integer().notNull().default(1),
     createdBy: text(),
@@ -60,11 +58,7 @@ export const graphNodes = sqliteTable(
   },
   (t) => [
     uniqueIndex("graph_nodes_type_slug").on(t.typeId, t.slug),
-    uniqueIndex("graph_nodes_source_idx").on(t.source),
-    uniqueIndex("graph_nodes_external_identity_idx").on(
-      t.externalProvider,
-      t.externalId,
-    ),
+    uniqueIndex("graph_nodes_external_key").on(t.externalKey),
   ],
 );
 

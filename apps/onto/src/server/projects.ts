@@ -3,6 +3,7 @@ import { entityRef } from "@ai-outfitter/app-sdk/entities";
 import { type AppIdentity, requireEditor } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { eq } from "drizzle-orm";
+import { appRecordKey } from "@ai-outfitter/onto/contracts";
 import { z } from "zod";
 import { core, nodeInput } from "../lib/graph";
 import { type Database, nodeView, saveNode } from "./graph";
@@ -64,7 +65,7 @@ export async function createProjectContext(
   const existing = await db
     .select()
     .from(graphNodes)
-    .where(eq(graphNodes.source, source));
+    .where(eq(graphNodes.externalKey, appRecordKey(source)));
   if (existing[0]) return { project, node: nodeView(existing[0]) };
   try {
     const node = await saveNode(
@@ -85,7 +86,7 @@ export async function createProjectContext(
     const [linked] = await db
       .select()
       .from(graphNodes)
-      .where(eq(graphNodes.source, source));
+      .where(eq(graphNodes.externalKey, appRecordKey(source)));
     return {
       project,
       node: linked ? nodeView(linked) : null,

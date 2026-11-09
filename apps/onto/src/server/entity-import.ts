@@ -2,6 +2,8 @@ import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { type AppIdentity, requireEditor } from "@ai-outfitter/app-sdk/server";
 import type { z } from "zod";
 import { sql } from "drizzle-orm";
+import { appRecordKey } from "@ai-outfitter/onto/contracts";
+const externalKeyOf = (ref: EntityRef | undefined) => ref ? appRecordKey(ref) : null;
 import { entityImport } from "../lib/entity-import";
 import { core, type Graph, type GraphNode, validateProperties } from "../lib/graph";
 import { validateKnowledgeGraph } from "../lib/knowledge-graph-document";
@@ -50,9 +52,9 @@ export async function importEntities(db: Database, who: AppIdentity, input: unkn
   if (fresh.length || freshEdges.length) {
     const now = Date.now();
     await guardedGraphBatch(db, who, graph, [
-      sql`INSERT INTO graph_nodes (id,typeId,slug,title,summary,body,website,properties,source,validity,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
-      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.slug'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.body'),json_extract(value,'$.website'),json_extract(value,'$.properties'),json_extract(value,'$.source'),json_extract(value,'$.validity'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
-      FROM json_each(${JSON.stringify(fresh.map((node) => ({ ...node, source: projectReferences.get(node.id) ?? null })))})`,
+      sql`INSERT INTO graph_nodes (id,typeId,slug,title,summary,body,website,properties,externalKey,validity,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
+      SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.slug'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.body'),json_extract(value,'$.website'),json_extract(value,'$.properties'),json_extract(value,'$.externalKey'),json_extract(value,'$.validity'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
+      FROM json_each(${JSON.stringify(fresh.map((node) => ({ ...node, externalKey: externalKeyOf(projectReferences.get(node.id)) })))})`,
       sql`INSERT INTO graph_edges (id,typeId,fromId,toId,title,body,properties,validFrom,validTo,archived,revision,createdBy,updatedBy,createdAt,updatedAt)
       SELECT json_extract(value,'$.id'),json_extract(value,'$.typeId'),json_extract(value,'$.fromId'),json_extract(value,'$.toId'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.properties'),json_extract(value,'$.validity.from'),json_extract(value,'$.validity.to'),json_extract(value,'$.archived'),1,${who.userId},${who.userId},${now},${now}
       FROM json_each(${JSON.stringify(freshEdges)})`,

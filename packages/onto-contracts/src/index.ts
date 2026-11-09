@@ -165,4 +165,5 @@ export * from "./wiki-graph";
 export * from "./wiki-proposals";
 export * from "./changes";
 export * from "./batches";
+export * from "./external-keys";
 export const ontoContract = { id: "outfitter.onto", version: 1 } as const;

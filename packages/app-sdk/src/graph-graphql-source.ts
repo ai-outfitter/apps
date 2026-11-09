@@ -44,7 +44,7 @@ export interface GraphSource {
 }
 
 /** Never leave the Wiki, whatever a source hands over. */
-const hiddenKeys = ["privateData", "externalProvider", "externalId"];
+const hiddenKeys = ["externalKey"];
 export const publicRow = <T extends Record<string, unknown>>(row: T): T =>
   hiddenKeys.some(key => Object.hasOwn(row, key)) ? Object.fromEntries(Object.entries(row).filter(([key]) => !hiddenKeys.includes(key))) as T : row;
 /** Code-unit order, as graph.query sorts IDs. */

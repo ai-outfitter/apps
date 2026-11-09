@@ -76,9 +76,9 @@ test("graph.query finds pages by source and properties and keeps an inline selec
     } } });
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
-    const source = (projectId: string) => JSON.stringify({ installationId: planning, type: "project", id: projectId });
+    const source = (projectId: string) => `ai-outfitter.com/apps/${planning}/project:${projectId}`;
     for (const [ref, projectId] of [["$anchor", "p1"], ["$otherAnchor", "p2"]] as const)
-      await app.database.prepare("UPDATE graph_nodes SET source=? WHERE id=?").bind(source(projectId), ids[ref].id).run();
+      await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind(source(projectId), ids[ref].id).run();
 
     const read = await app.call(path, owner, { method: "POST", body: { action: "graph.query", access: "read", input: { maxBytes: 256 * 1024, queries: [
       { name: "anchors", entity: "node", sources: [{ installationId: planning, type: "project", id: "p1" }], expand: selection, fields: ["title", "summary", "slug"], limit: 10 },

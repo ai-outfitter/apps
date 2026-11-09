@@ -796,7 +796,7 @@ test("portable export refuses to omit required canonical participants", async (t
   const f = await fixture();
   t.after(() => f.app.dispose());
   await json(await f.apply(complete()));
-  await f.app.database.prepare("UPDATE graph_nodes SET source=?, revision=revision+1 WHERE id=?").bind(JSON.stringify({ installationId: "people", type: "person", id: "canonical" }), ids.alex).run();
+  await f.app.database.prepare("UPDATE graph_nodes SET externalKey=?, revision=revision+1 WHERE id=?").bind("ai-outfitter.com/apps/people/person:canonical", ids.alex).run();
   const exported = await json(await f.app.call("/api/apps/wiki-map/graph/export", owner));
   assert.equal(exported.transfer, null);
   assert.ok(exported.transferOmissions.nodes.includes(ids.alex));
