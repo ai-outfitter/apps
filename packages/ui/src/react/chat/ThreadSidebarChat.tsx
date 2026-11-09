@@ -45,7 +45,7 @@ async function sidebarConversation(id: string): Promise<Selected> {
 /**
  * "Ask Outfitter" beside a platform page: the shared agent sidebar over the
  * member's one `platform.sidebar` thread for this owner. The platform provides
- * that thread type itself (src/lib/platform-sidebar.ts), so no app is installed
+ * that thread type itself, so no app is installed
  * or asked for; turns go to the platform's thread routes. It has no focus:
  * Outfitter does not see the page it sits beside.
  */

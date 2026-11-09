@@ -1,7 +1,7 @@
 import type { ThreadEntry } from "@ai-outfitter/app-sdk/threads";
 import type { UIMessage } from "ai";
 
-/** What the platform recorded in a member's sidebar thread (src/lib/sidebar-activity.ts). */
+/** What the platform recorded in a member's sidebar thread. */
 export type SidebarActivity = { kind: "run" | "routine"; title: string; status: "complete" | "failed" | "created"; href: string; summary?: string };
 const activityOf = (entry: ThreadEntry) => {
   const part = entry.parts.find((item) => item.type === "data" && item.name === "platform.activity");

@@ -443,7 +443,7 @@ function ToolNote({ note, part }: { note: (typeof TOOL_NOTES)[string]; part: { s
   return <p className="chat-component chat-component-pending">{text}</p>;
 }
 
-/** Shared Forerunner card, mounted in the React chat without duplicating its graph UI. */
+/** The shared workflow card, mounted in the React chat without duplicating its graph UI. */
 const WorkflowProposal = memo(function WorkflowProposal({ output }: { output: Extract<z.infer<typeof workflowProposalOutput>, { valid: true }> }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {

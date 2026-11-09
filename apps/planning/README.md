@@ -4,13 +4,12 @@ Shared organization projects with goals, user stories, a draft press release and
 
 The package owns its routes, schemas, validation and installation-database migrations. It depends on generic Outfitter `api.serve`, `organization.members.read`, `threads.use` and `threads.provide` capabilities; app-side validation rejects assignments outside the current organization snapshot. Revisions prevent stale overwrites, and SQLite constraints reject cycles, cross-project parents and deletion of parents with children.
 
-Operational installations start empty. The demo uses synthetic read-only records and requires Demos access. Forerunner boards remain private and independent. Ask Outfitter uses saved project documents and issues to answer questions and prepare private changes for review. Explicit approval applies the exact proposed fields; unsaved drafts require an opt-in. Conversations live in the platform's shared thread service (`@ai-outfitter/app-sdk/threads`); see [Conversations and proposals](#conversations-and-proposals). Chat requires an approved organization inference provider; manual planning works without one. Source integrations, GitHub publication, custom agents and resident prioritization remain deferred. See [the shared app-agent contract](https://github.com/ai-outfitter/webapp/blob/main/docs/app-agents.md).
+Operational installations start empty. The demo uses synthetic read-only records and requires Demos access. Forerunner boards remain private and independent. Ask Outfitter uses saved project documents and issues to answer questions and prepare private changes for review. Explicit approval applies the exact proposed fields; unsaved drafts require an opt-in. Conversations live in the platform's shared thread service (`@ai-outfitter/app-sdk/threads`); see [Conversations and proposals](#conversations-and-proposals). Chat requires an approved organization inference provider; manual planning works without one. Source integrations, GitHub publication, custom agents and resident prioritization remain deferred.
 
 ## Home card
 
 Operational installs declare `home-cards.publish` and serve the reserved
-`/api/internal/home-cards/v1/[operation]` route (platform dispatch only; see the
-webapp's `docs/home-cards.md`). The read-only `projects` card lists this
+`/api/internal/home-cards/v1/[operation]` route (platform dispatch only). The read-only `projects` card lists this
 installation's projects in the Planning page's order (by name): 1, 3 or 6
 at small, medium and large, plus project and open-issue totals at large. Each
 project shows its open and completed issue counts from Planning's own records and
@@ -20,13 +19,11 @@ installation, Forerunner or personal records.
 
 ## Tests
 
-Run `npm test --workspace @ai-outfitter/app-planning` for non-browser integration
-coverage, and `npm run test:e2e --workspace @ai-outfitter/app-planning`
-for desktop/mobile operational and read-only demo journeys. The package's hooks
-refresh workflow catalogs and build both modes through the public app-test setup
-contract, so no prior root build, signed-in platform or provider credentials are
-required. Tests and Playwright output live in this package. Platform installation
-and authorization policy remains covered at root.
+Run `npm test --workspace @ai-outfitter/app-planning` for unit, integration and
+desktop/mobile browser journeys (`test:unit`, `test:integration` and `test:e2e`
+run each part). The hooks build Planning, Onto and Software Foundry from this
+repository through `@ai-outfitter/app-test/prepare`, so no signed-in platform or
+provider credentials are required.
 
 ## Ownership and architecture
 
@@ -198,7 +195,7 @@ Project/issue and selected source revisions are checked for concurrent edits.
 Responses above 500 KiB return 413 with a request to narrow context; this milestone
 does not page oversized packages. Retired requirements and recipes are rejected.
 Proposed requirements remain proposals even after a work package is approved.
-Planned [Wiki change batches](https://github.com/ai-outfitter/webapp/blob/main/docs/plans/wiki-change-batches.md) can name a
+Planned Wiki change batches can name a
 work package as their source, so Wiki changes made for it carry that link.
 
 Frozen briefs always identify sources by canonical entity references, independent
@@ -276,8 +273,7 @@ are shared; unlinking archives only this project's relationships.
 Planning publishes these app-owned changes immediately through the authorized
 Wiki APIs. If needed, it creates a Wiki Project with a canonical reference to the
 Planning project through the platform entity API. Conversational agent Wiki
-proposals retain their separate member-review flow; see the
-[knowledge graph architecture](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/knowledge-graph.md).
+proposals retain their separate member-review flow.
 
 `repositoryChanges` returns `published` with the Wiki Project ID and graph receipt,
 `unchanged`, or `failed` with an error and a retry input using the returned project

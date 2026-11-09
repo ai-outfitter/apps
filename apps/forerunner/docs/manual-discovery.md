@@ -1,6 +1,6 @@
 # Manual source discovery
 
-> Part of [the knowledge graph](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/knowledge-graph.md), Outfitter's central architecture for Wikis, ontology, reads and writes.
+> Part of the knowledge graph, Outfitter's central architecture for Wikis, ontology, reads and writes.
 
 Forerunner reads an editor's readable Gmail and Google Calendar connections and
 saves source-backed Wiki entries as part of each discovery run. Daily discovery is
@@ -52,9 +52,9 @@ The manual board remains independent. Demo mode remains synthetic and read-only.
    Existing edges are matched by their type and endpoints, respecting declared
    symmetry, so reruns do not duplicate edges stored under other IDs. Limits: first 40
    source records, 600 characters per excerpt, first 80 relevant existing nodes.
-   Inference uses the configured provider, including the LAN DGX Spark.
+   Inference uses the configured provider.
 5. A Sources **Rerun** uses the `discover` endpoint. After generation,
-   the server saves the run as one [Wiki change batch](https://github.com/ai-outfitter/webapp/blob/main/docs/plans/wiki-change-batches.md):
+   the server saves the run as one Wiki change batch:
    `batch.open`, then the Wiki's `StageChanges` document (the one chat agents run) with
    each operation's evidence (the cited source records, as `<account>/<record id>`),
    the model's own confidence and its reason, then `SubmitBatch`. Wiki records keep the
@@ -104,10 +104,9 @@ graph visibility remain deferred.
 
 ## Real data locally, without provider credentials
 
-The standard `scripts/dev-local.mjs` server intentionally does not inherit
-provider keys or production tokens. It cannot read Gmail merely because the user
-has connected Gmail in production. Personal local installations now include
-Forerunner alongside Wiki and Planning.
+The platform's local development server does not inherit provider keys or
+production tokens, so it cannot read Gmail merely because the user has connected
+Gmail in production.
 
 Use an agent's already-authorized Gmail/Calendar tools to read a small, explicitly
 bounded sample. Normalize it to the following format, write it outside every
@@ -177,30 +176,8 @@ and in full:
 Both mark the member's own GitHub login or Slack user id as "the operating
 user's own account" in a record's participants.
 
-For real local OAuth, use the provider-enabled development path and a registered
-Google callback; see `docs/google-connectors.md`. Importing a saved agent sample
-avoids that setup for screen inspection. It does not complete Google verification
-or validate the direct-provider path.
-
-## Local semantic inference on the DGX Sparks
-
-Use the LAN Spark through the existing OpenAI-compatible inference adapter.
-Run this from the feature checkout (older loaders do not recognize the flags):
-
-```sh
-node scripts/dev-local.mjs --port 4406 \
-  --inference-url http://192.168.1.176:8888/v1 \
-  --inference-model GLM-5.3-Flash-EXL3
-```
-
-The endpoint is explicit; no inference credentials are inherited from the parent
-shell. This development server supplies a placeholder authorization header for
-an unauthenticated LAN endpoint. HTTP inference is allowed only with the
-local-development marker and is refused in production. Normal provider selection
-remains in force; the private local seed must not contain owner inference
-providers if you intend to use only the explicitly configured Spark. Model
-responses and source text remain in the private local app database. Selecting Run discovery saves new Wiki entries automatically. This validates
-saved-sample extraction, not live Google OAuth. Do not use Ollama.
+Importing a saved agent sample avoids local OAuth setup for screen inspection. It
+does not complete Google verification or validate the direct-provider path.
 
 ## Hosted preview gap
 
@@ -255,8 +232,7 @@ backs up both originals, retains their separate scopes, and does not contact a
 provider or modify live production data. The friend name is explicitly supplied
 by the user; matching people are reused, ambiguous matches are refused.
 
-Start the same checkout with `node scripts/dev-local.mjs --port 4406 --no-build`.
-Fresh personal and organization installations then load their separate seed
+Start the platform's local development server. Fresh personal and organization installations then load their separate seed
 graphs. Existing persistent installations retain authored state and do not
 reseed on restart: add the complete missing pilot batch through scoped
 `graph.apply` instead of resetting their databases.

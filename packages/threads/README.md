@@ -1,9 +1,8 @@
 # @ai-outfitter/threads
 
 The platform's shared thread service: generic conversation persistence, reply
-leases, inference coordination, typed timeline entries and private images. It
-generalizes the platform's existing `chats`, `messages` and `attachments`
-tables (defined here in `src/schema.ts`, re-exported by `src/db/schema.ts`);
+leases, inference coordination, typed timeline entries and private images. Its
+`chats`, `messages` and `attachments` tables are defined in `src/schema.ts`;
 there is no second transcript store.
 
 Apps never import this package. They use `@ai-outfitter/app-sdk/threads`:
@@ -15,7 +14,7 @@ Apps never import this package. They use `@ai-outfitter/app-sdk/threads`:
 
 `createThreadService(adapters)` takes everything runtime-specific:
 
-| Adapter | Platform wiring (`src/lib/threads.ts`) |
+| Adapter | Platform wiring |
 | --- | --- |
 | `db` | the primary drizzle database (D1 on Workers, libSQL on Node), with atomic `batch` |
 | `objects` | private attachment object storage (R2/S3) |
@@ -23,6 +22,8 @@ Apps never import this package. They use `@ai-outfitter/app-sdk/threads`:
 | `accounting` | the usage ledger (`meterInference`, `recordDiagnostic`) |
 | `providers` | same-owner `threads.provide` installations and `dispatchAppOperation` callbacks |
 | `retain` | `waitUntil` / background work |
+| `platformTools` | optional: the platform's MCP tools, offered when `prepare` asks for `platformTools` |
+| `inspector` | optional: who may open a thread's debug view (`inspect`) |
 
 ## Rules it enforces
 
@@ -37,6 +38,8 @@ Apps never import this package. They use `@ai-outfitter/app-sdk/threads`:
 - One reply per thread through a lease on `chats` (`leaseToken`,
   `leaseGeneration`); a worker whose lease was taken over cannot write or
   release. Partial output is kept on failure, cancel and disconnect.
+- `history: { budget }` folds the oldest turns into a compaction checkpoint once
+  the history passes its token budget, so the prompt grows only at its end.
 - Provider-owned history types are read through the provider, never copied, and
   refuse every mutation.
 - Deletion asks a provider that declared `notify: ["deleted"]` first; without its

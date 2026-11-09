@@ -7,7 +7,7 @@ import { appWorker } from "@ai-outfitter/app-test/worker";
 import { graphql } from "../graph/graphql";
 
 // The built operational worker serves each member's own board and discovery records
-// over graph.graphql, the call the platform's appGraphql makes (src/lib/app-graphql.ts).
+// over graph.graphql, the call the platform's appGraphql makes.
 const alice = { userId: "alice", organizationId: "org", role: "member" };
 const bob = { ...alice, userId: "bob" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");

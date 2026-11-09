@@ -12,7 +12,7 @@ node apps/forerunner/evals/analysis-batches/check.mjs --baseline
 # The same grader against the actual production helper: 4 passed.
 node apps/forerunner/evals/analysis-batches/check.mjs
 # Discover the coding-agent task without launching an agent or sandbox.
-npm run evals:agent -- --project apps/forerunner/evals/analysis-batches codex --dry
+(cd apps/forerunner/evals/analysis-batches && npx agent-eval codex --dry)
 ```
 
 To benchmark a coding agent later, omit `--dry`; that needs Docker and agent credentials. No coding-agent trial or live inference trial was performed for this change (zero agent runs). The local verification uses one deterministic baseline run and one production run. The existing default experiment uses the coding CLI's native model and does not evaluate smaller inference models.

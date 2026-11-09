@@ -8,7 +8,7 @@ import { and, asc, count, eq, ne, sql, type SQL } from "drizzle-orm";
 import type { PlanningDatabase } from "./planning";
 import { issues, projects } from "./schema";
 
-// Home card for a portal homepage (docs/home-cards.md at the webapp root). It
+// Home card for a portal homepage. It
 // reads the projects of this Planning installation only, as every member
 // already can on the Planning page, with issue counts from Planning's own records.
 

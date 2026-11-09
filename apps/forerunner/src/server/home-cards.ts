@@ -10,7 +10,7 @@ import { z } from "zod";
 import { type Database, findItem, listItems, updateItem } from "./items";
 import type { Item } from "./schema";
 
-// Home card for a portal homepage (docs/home-cards.md at the webapp root). It
+// Home card for a portal homepage. It
 // lists the viewer's actual unfinished board items, never inferred suggestions,
 // and reads and completes only their own items in this installation, through
 // the same scoped helpers as the board's API: organization administrators have

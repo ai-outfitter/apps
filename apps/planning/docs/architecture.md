@@ -20,17 +20,17 @@ Both modes render the same app shell. Demo mode is synthetic and read-only. Clou
 
 Planning declares `api.serve`, `organization.members.read`, `threads.use` and `threads.provide`. Its Worker validates assignees against the live verified member snapshot, and stale picker data cannot authorize a removed member. Complete snapshots support up to 500 members and 60 KB encoded IDs; oversized snapshots fail closed.
 
-See the [generic platform contracts](https://github.com/ai-outfitter/webapp/blob/main/docs/app-runtime-capabilities.md) for authentication, forwarding, directory and catalog publication. Planning owns its catalog presentation and artwork in `app.json` and `catalog/cover.svg`.
+The platform owns authentication, forwarding, the member directory and catalog publication. Planning owns its catalog presentation and artwork in `app.json` and `catalog/cover.png`.
 
 ## Testing and release
 
-Domain/SQLite integration and desktop/mobile/read-only browser scenarios, configuration and setup stay in this package and use public SDK/test-host interfaces. Platform admission, identity, routing and installation checks live in the prerequisite platform PR. Preserve private Forerunner IDs and relationships; installing Planning does not publish or migrate them into shared records. Production release and installation require approval.
+Domain/SQLite integration and desktop/mobile/read-only browser scenarios, configuration and setup stay in this package and use public SDK/test-host interfaces. Platform admission, identity, routing and installation checks are tested with the platform. Preserve private Forerunner IDs and relationships; installing Planning does not publish or migrate them into shared records. Production release and installation require approval.
 
 See [Forerunner's roadmap](../../forerunner/docs/roadmap.md) for later evidence work. Planning's transcript intake uses pasted text and app-owned instructions; it does not depend on the Forerunner sidebar or a shared homepage workflow.
 
 ## Page-aware assistance
 
-Planning registers the [shared app-agent contract](https://github.com/ai-outfitter/webapp/blob/main/docs/app-agents.md).
+Planning registers the shared app-agent contract (`@ai-outfitter/app-sdk/threads`).
 It owns canonical project/issue context, proposal validation, revision checks,
 receipts and approved writes in its installation database. Conversation history
 is stored by the platform thread service, never in Planning's database (see the

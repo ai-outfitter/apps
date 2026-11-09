@@ -4,7 +4,7 @@ Status: manual delivery. Connected sources, proposals/publication, automatic ran
 
 ## One shared scan workflow
 
-Agreed design; implementation remains deferred. The homepage's connected-source scan and Forerunner's scan are the same workflow, with two entry points. Extend the existing webapp `catalog/workflows/forerunner-setup` workflow and reuse the Gmail/Calendar reads already exercised by homepage chat. Extract the legacy Google-specific chat orchestration into shared workflow/package contracts as needed; Forerunner must not import platform source or duplicate the scan pipeline.
+Agreed design; implementation remains deferred. The homepage's connected-source scan and Forerunner's scan are the same workflow, with two entry points. Extend the platform's existing setup workflow and reuse the Gmail/Calendar reads already exercised by homepage chat; Forerunner must not import platform source or duplicate the scan pipeline.
 
 The shared workflow discovers supported read capabilities from the member's live authorized connections and selected resources. Connector adapters supply typed tools and records for mail, calendars, conversations and repository work; adding a supported provider extends those adapters/registrations rather than creating another scan. Preserve source identity, citations, observation times and coverage. Unsupported capabilities and unavailable, disconnected, revoked or partially read sources are reported explicitly. A connected account alone does not authorize an app or background run to read it.
 
@@ -12,7 +12,7 @@ Homepage onboarding presents the scan's findings and task proposals in chat. For
 
 On-demand scanning is independently deliverable through the existing server/model path. Morning scheduling and continuous events trigger that same workflow when enabled. Resident execution is optional and cannot gate the shared scan; resident retention/revocation requirements apply only when evidence is actually sent to a resident. Shared Planning or external writes still require approval of the exact target and content.
 
-The scan writes its findings to the person's Wiki as one bounded discovery run per scan: a [Wiki change batch](https://github.com/ai-outfitter/webapp/blob/main/docs/plans/wiki-change-batches.md) with a frozen scope, evidence per proposal and the 0.95 auto-accept policy ([discovery runs](https://github.com/ai-outfitter/webapp/blob/main/docs/plans/wiki-discovery-runs.md)). Goals found this way feed [whole-life goals](https://github.com/ai-outfitter/webapp/blob/main/docs/plans/whole-life-goals.md).
+The scan writes its findings to the person's Wiki as one bounded discovery run per scan: a Wiki change batch with a frozen scope, evidence per proposal and the 0.95 auto-accept policy.
 
 Acceptance must run both entry points through the shared implementation with the same member, authorized sources and deterministic provider responses. Verify consistent findings/provenance, addition of another connector without a parallel scan, ordinary-member isolation, revocation, and partial-source failure. Live provider acceptance remains separate from fixtures.
 
@@ -41,12 +41,8 @@ Resident execution is a stretch goal. [Channels #82](https://github.com/ai-outfi
 
 CRM ingestion is deferred. Future personal CRM records require explicit member ownership; selected findings enter team CRM only through exact-content approval. Planning and CRM retain their own records, IDs and authorization. Gmail, Slack, continuous refresh, Linear integration and milestones remain outside this delivery.
 
-## Tracking and verification
-
-Parent: [#319](https://github.com/ai-outfitter/webapp/issues/319). Initial delivery covers [A: architecture](https://github.com/ai-outfitter/webapp/issues/336), [B: projects](https://github.com/ai-outfitter/webapp/issues/337), [C: issues](https://github.com/ai-outfitter/webapp/issues/338), and the manual portion of [K: rollout acceptance](https://github.com/ai-outfitter/webapp/issues/346).
-
-Deferred stretch work: [D: scoped evidence intake](https://github.com/ai-outfitter/webapp/issues/339), [E: Calendar](https://github.com/ai-outfitter/webapp/issues/340), [F: GitHub](https://github.com/ai-outfitter/webapp/issues/341), [G: residents](https://github.com/ai-outfitter/webapp/issues/342), [H: private proposals](https://github.com/ai-outfitter/webapp/issues/343), [I: morning rankings](https://github.com/ai-outfitter/webapp/issues/344), and [J: GitHub publication](https://github.com/ai-outfitter/webapp/issues/345). Later follow-ups remain [Gmail #347](https://github.com/ai-outfitter/webapp/issues/347), [Slack #348](https://github.com/ai-outfitter/webapp/issues/348), [continuous refresh #349](https://github.com/ai-outfitter/webapp/issues/349), and [CRM #350](https://github.com/ai-outfitter/webapp/issues/350).
+## Verification
 
 Initial acceptance covers installation-local SQLite/libSQL and Cloudflare persistence, member/installation isolation, CRUD, independent nesting, assignment, atomic ordering, completion, stale revisions, preserved private IDs, desktop/mobile journeys and read-only demos. Tests guard both app-to-platform and platform-to-app implementation dependencies. Existing unrelated legacy platform integrations are explicitly bounded by the guard and remain separate migration work. Preview verification is separate from provider acceptance; no live provider or production activation is claimed.
 
-Generic capability implementation and its policy tests belong to the [platform contracts](https://github.com/ai-outfitter/webapp/blob/main/docs/app-runtime-capabilities.md). Planning owns its [shared project/issue architecture](../../planning/docs/architecture.md). Forerunner owns private boards, fixture/domain/browser tests, catalog metadata and `catalog/cover.svg`.
+Generic capabilities and their policy tests belong to the platform. Planning owns its [shared project/issue architecture](../../planning/docs/architecture.md). Forerunner owns private boards, fixture/domain/browser tests, catalog metadata and `catalog/cover.png`.

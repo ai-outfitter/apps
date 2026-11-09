@@ -8,9 +8,7 @@ the agent's name and the page's focus, and the transcript and composer.
 The host owns everything with authority: transport, server routes, sign-in,
 persistence, inference and what an action does. The lower-level sidebar owns no conversation transport. The shared input stores
 its thinking-effort preference; the panel may store whether it is open. The UI
-package imports no platform source
-(`tests/app-package-boundary.test.ts` checks the UI package like an app package). The root
-Outfitter chat is the first host; app templates can adopt it in parallel.
+package imports no platform source. The root Outfitter chat is the first host.
 
 ## Exports
 
@@ -77,11 +75,9 @@ browser can send any focus. A host's route must, for every send and action:
 - `conversation.id` is the boundary. Changing it remounts the transcript and
   empties the composer; an unsent draft is dropped, never sent. The host
   chooses the authorized scope: one saved thread (home), or one per page
-  context (such as a Planning project). Closing and reopening preserves it.
+  context (such as a project). Closing and reopening preserves it.
   Headers offer Debug when authorized and Close, with no reset or Chat
-  navigation. Home, Planning and Governance share this persistent-thread model;
-  compaction belongs beneath the UI. Additional side conversations are separate
-  work; this change does not introduce compaction or new thread creation flows.
+  navigation. Compaction happens in the thread service, beneath the UI.
 - When the focus changes under a non-empty draft (another item, or the same one
   at a new revision), the panel shows "Now viewing … This draft was written for
   …" and refuses to send until the member chooses **Keep draft for …** or
@@ -95,19 +91,14 @@ browser can send any focus. A host's route must, for every send and action:
 
 | Host | Status | Focus | Transport and actions |
 | --- | --- | --- | --- |
-| Root Outfitter chat (`react/chat/ThreadSidebarChat`) | Implemented | None: Outfitter cannot see the page | Shared `/api/platform/threads` routes, saved per user and owner; Markdown, images and interactive cards in place ([sidebar chat](../../docs/sidebar-chat.md)) |
-| Workshop | Proposed | `workshop-project`, with the project revision | `POST /api/apps/workshop/agent` already takes `projectId` and `revision` and refuses stale follow-ups. It saves a revision directly; a proposal card needs an approve step that does not exist yet |
-| Software Foundry | Proposed | A task, issue or workflow run | Its own route, with approvals following [workflow authority](../../docs/app-workflow-authority.md) |
-| Forerunner demo (`catalog/apps/forerunner`) | Implemented, demo-only | `forerunner-stone`: the selected priority | None: per-stone fixture briefing and scripted suggestions in memory; free text is refused and kept ([README](../../catalog/apps/forerunner/README.md)) |
-
-`tests/ui/AgentSidebarFixture.tsx` is a Workshop-shaped host with project
-revisions, per-project conversations and proposal cards. It scripts replies in
-the browser; it is not the Workshop API.
+| Root Outfitter chat (`react/chat/ThreadSidebarChat`) | Implemented | None: Outfitter cannot see the page | Shared `/api/platform/threads` routes, saved per user and owner; Markdown, images and interactive cards in place |
+| Installed apps (`react/AppAgentSidebar`) | Implemented | The app's page claim | Shared threads plus the app's own `endpoint`; see below |
+| Forerunner demo ([`apps/forerunner`](../../apps/forerunner/README.md)) | Implemented, demo-only | `forerunner-stone`: the selected priority | None: per-stone fixture briefing and scripted suggestions in memory; free text is refused and kept |
 
 ## Current boundaries
 
 Installed app agents use generic platform inference with dispatch-only SDK
-callbacks; Planning owns its page context and approved document writes. Both
+callbacks; each app owns its page context and approved writes. Both
 installed apps and home use shared threads for conversation persistence; app
 domain records remain separate.
 Root sidebar chat still has no page context. A Chrome extension or a surface
@@ -115,9 +106,8 @@ outside an Outfitter page is not implemented.
 
 ## Verification
 
-`npm run test:e2e:ui` runs `tests/ui/agent-sidebar.spec.ts` against the
-fixture. The root journey is `tests/e2e/sidebar-chat.spec.ts`. The root
-`npm run check` typechecks the package source.
+`npm test --workspace @ai-outfitter/ui` runs the package's unit tests. Apps
+cover the sidebar in their own browser suites.
 
 ## Standard installed-app adapter
 
@@ -137,8 +127,7 @@ the member's proposals (`GET proposals?thread=`), review decisions
 from the app schema, with optional relationship display choices. Apps supply
 `intro`, `emptyIntro`, `limits` and `demoReply` strings alongside `id`, `pageId`
 and `endpoint`. Resolve mode-specific limits in the app; the shared adapter
-never describes an application's domain or simulates its demo content. See
-[app agent registration](../../docs/app-agents.md). `composerActions` places
+never describes an application's domain or simulates its demo content. `composerActions` places
 context controls above the composer without crowding the header.
 
 ## Shared timeline
@@ -167,7 +156,7 @@ such as draft inclusion, separate from the shared input's controls.
 
 Operational `AppAgentSidebar` enables shared image uploads and thinking effort.
 Its application copy (`intro`, `emptyIntro`, `limits`, `demoReply`) remains required
-props. See [app agents](../../docs/app-agents.md) for server ownership and uploads.
+props.
 
 Use `transcriptContent` for review cards with local edits. They remain mounted
 when a streamed message is replaced by saved history; `renderContent` is for

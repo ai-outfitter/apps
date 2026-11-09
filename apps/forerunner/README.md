@@ -14,8 +14,7 @@ real-data local testing and the agent sample format.
 ## Manual board
 
 Every person has their own personal Forerunner, served at `/apps/<id>/`: the
-platform provisions it once, when their account is created
-([app-build.md](https://github.com/ai-outfitter/webapp/blob/main/docs/app-build.md#apps-from-the-catalog)). In an
+platform provisions it once, when their account is created. In an
 organization, an owner or administrator installs the operational package from
 the catalog. Every member then starts with an empty private board. Members, including
 organization administrators, can access only their own records in that
@@ -53,8 +52,7 @@ path. Every member writes their own board; SetDailyRun requires an editor.
 ### Home card
 
 Operational installs declare `home-cards.publish` and serve the reserved
-`/api/internal/home-cards/v1/[operation]` route (platform dispatch only; see the
-webapp's `docs/home-cards.md`). The `my-priorities` card lists the viewer's own
+`/api/internal/home-cards/v1/[operation]` route (platform dispatch only). The `my-priorities` card lists the viewer's own
 unfinished items in board order (stones, pebbles, then sand, each by position):
 1, 3 or 5 at small, medium and large, plus open/in-progress counts at large.
 Each item links to `/?item=<id>`, which the board scrolls to and focuses.
@@ -76,15 +74,8 @@ implemented by this change.
 
 The demo remains synthetic and read-only. **View demo** requires access to the
 Demos organization; releasing an app does not grant that membership. Demo access
-policy is unchanged. Unsupervised is an operational organization, so the previous
-demo-only package could not be installed there; the new operational package
-resolves that catalog restriction.
-
-CI builds and publishes both immutable package modes. Its demo matrix updates
-Demos and upgrades opted-in operational installations that already exist. An
-initial customer installation remains an administrator action; CI does not create
-it automatically. No platform release is needed just to update an existing app,
-but the initial operational release includes new platform API routing.
+policy is unchanged. Releases follow this repository's app release flow; an
+initial organization installation remains an administrator action.
 
 ## What the demo shows
 
@@ -136,17 +127,11 @@ From this repository's root:
 npm run build --workspace apps/forerunner -- --mode demo
 npm run build --workspace apps/forerunner -- --mode operational
 npm run check --workspace apps/forerunner
-npm test --workspace apps/forerunner
-npm run test:e2e --workspace apps/forerunner
+npm test --workspace apps/forerunner   # unit, SQLite integration and browser suites
 ```
 
 The browser spec runs the compiled Worker in Miniflare. It checks desktop and
 phone widths, selection and history, the panel's focus, dialogue, Escape and
 phone inert behavior, and that no request is non-GET or to `/api/`, and that
-nothing is written to storage.
-
-## Package ownership and validation
-
-This package owns its domain/fixture/manifest/browser tests and `catalog/cover.png` artwork. Its manifest declares `api.serve`, `home-cards.publish` and catalog presentation; generic platform contracts are documented [here](https://github.com/ai-outfitter/webapp/blob/main/docs/app-runtime-capabilities.md).
-
-Run `npm test --workspace @ai-outfitter/app-forerunner` for unit and SQLite integration checks, and `npm run test:e2e --workspace @ai-outfitter/app-forerunner` for read-only demo and private manual journeys. Browser preparation and artifacts use public app-test interfaces. See [deferred roadmap and tracking](docs/roadmap.md).
+nothing is written to storage. Test preparation and artifacts use the public
+`@ai-outfitter/app-test` interfaces. See the [deferred roadmap](docs/roadmap.md).

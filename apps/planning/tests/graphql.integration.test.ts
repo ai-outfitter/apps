@@ -17,7 +17,7 @@ import { pullRequests } from "../src/server/project-repositories";
 import { issues, projects } from "../src/server/schema";
 
 // The built operational worker serves projects and issues over graph.graphql, the
-// call the platform's appGraphql makes (src/lib/app-graphql.ts at the repository root).
+// call the platform's appGraphql makes.
 const member = { userId: "member", organizationId: "org", role: "member" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");
 test("pull request reads use the acting user's authorized repository connection", async () => {
