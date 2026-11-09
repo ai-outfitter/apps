@@ -24,13 +24,14 @@ grows toward them:
    and sensors, a firmware build, and an inventory tracked by MAC address.
    The enclosure only matters because the devkit, probe slot, vent and solar
    panel have to fit.
-3. **A small robotics team building a prototype.** A chassis, drive modules
-   repeated four times, COTS motors, drivers, wheels, a battery and a
-   controller, with mounting patterns taken from datasheets, a BOM that can
-   be ordered, moving joints, and bench evidence per stage. The
-   [artera/robotics](https://git.ncrmro.com/artera/robotics) prototype is
-   the reference for this level, and it is the level we evaluate models
-   against (DGX Spark against hosted models).
+3. **A small robotics team building a prototype on a budget.** Several
+   sub-assemblies, printed tooling around COTS motors, bearings, rods and a
+   microcontroller, mounting patterns taken from datasheets, a BOM that can
+   be ordered for about $1,000, parts that move, and a validation record
+   that says what the CAD proves and what only the bench can. The
+   [artera/robotics](https://git.ncrmro.com/artera/robotics) coil winder and
+   axial-flux motor is the reference for this level (see below), and it is
+   the level we evaluate models against (DGX Spark against hosted models).
 4. **A team with a mission.** A Mars-rover-class project: environment,
    mass and power budgets, redundancy, long test campaigns, and a record
    that traces every requirement to the evidence behind it. Workshop never
@@ -50,12 +51,53 @@ today is in `box/README.md` ("Geometry scoring").
 | 1 | One part that mates with something: a hole pattern for a devkit, a bore for a bearing, a snap or press fit | New fixtures with a COTS envelope beside the part | Tier 0, plus clearance and interference against the envelope | Needs richer CAD plans (below) |
 | 2 | A static assembly: printed parts and COTS placed together, with a BOM | SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, BOM matched against a reference BOM, envelope and mass | Model exists, agent does not produce it yet |
 | 3 | A moving assembly: joints with a range of motion, gears that mesh, nothing collides while it moves | `examples/spinning-wheel`, `examples/gear-pair` | Interference swept over the motion range, ratio and range of motion | Hand-built seeds only |
-| 4 | A COTS-driven prototype: sub-assemblies, datasheet mounting patterns, firmware items, cable and battery volume, evidence per stage | artera/robotics | Tiers 1 to 3, plus BOM and mounting patterns against datasheets, and the project record: research decisions, evidence entries, stage gates | Target for model comparison |
+| 4 | A COTS-driven prototype: six sub-assemblies, about 90 bodies, datasheet mounting patterns, a priced BOM, a motion program and a validation record | artera/robotics (coil winder and AF60 motor) | Tiers 1 to 3, plus structure and BOM against the reference, dimensions against its `metrics.json`, interference sampled over the traverse, and the record: acceptance boundary, unclosed items, corrections | Target for model comparison |
 | 5 | A mission: budgets, environment, redundancy, requirement traceability | To be chosen | Mostly the record: every requirement has evidence or an open risk | Vision |
 
 Public text-to-CAD benchmarks cover tier 0 and parts of tier 1
 (BenchCAD, CAD-bench, Text2CAD-Bench, CADTests; see the eval README). They
 stop at single parts, so tiers 2 and up are Workshop's own.
+
+## Reference: the artera/robotics prototype
+
+The tier 4 reference is a working repository, not a prompt. One person with
+about $1,000 is building a two-axis coil winder (printed tooling, Pololu
+steppers, a TR8 lead screw, LM8UU bearings on 8 mm rods, a XIAO ESP32-S3
+running FluidNC) in order to wind the coils of a coreless axial-flux motor,
+AF60-3C4P-B882-R1: two 60 mm steel rotors with eight N52 magnets, three
+32-turn coils in a 2.5 mm potted stator, 608 bearings on an 8 mm shaft. A
+force bench and a two-motor gripper reuse the motor. What the repository
+contains is what a tier 4 eval has to score:
+
+- **Structure.** Six assemblies (`winder`, `former`, `fixture`, `motor`,
+  `force`, `gripper`), about 90 bodies, each part exported as STEP and STL
+  in its own coordinates and each assembly as one STEP in placement
+  coordinates. Purchased parts are envelopes carrying attachments and
+  mounting interfaces (a NEMA 17 face, a hub with six holes on a 19.05 mm
+  bolt circle), so a printed part is checked against the pattern it mounts to.
+- **Geometry Workshop cannot make today.** Rounded-trapezoid coil formers
+  with fillets, a stator disc with lead channels, bolt circles, a shaft stack
+  defined as a table of Z layers with 4.000 mm between magnet faces.
+- **A BOM with evidence.** 33 lines in two phases (winder $396, motor $414,
+  $100 reserve), each marked `vendor-listed` with a URL and capture date or
+  `allowance`, with notes on what to measure before buying.
+- **Motion.** A winding program (G-code) replayed to check commanded turns
+  and travel, and rigid-body clearance sampled at traverse positions, with
+  no overlap above 0.1 mm³ allowed.
+- **The record.** A validation page that separates software evidence from
+  the unclosed physical acceptance (COTS dimensions, print shrinkage, step
+  loss under wire tension, real air gaps), a list of the corrections the
+  checks forced (motor platforms raised, a bearing bore reopened), a
+  dimensioned revision document with `metrics.json`, and the line "do not
+  treat a successful CAD export as fabrication acceptance".
+
+A model under evaluation gets the persona, the budget and the goal, and is
+scored on how much of that it produces and how well it matches: the
+sub-assembly structure and part count, the BOM against the reference lines,
+the dimensions against `metrics.json`, interference over the sampled
+positions, and whether its record draws the same acceptance boundary. The
+repository's own checks (`bun run winder:export`, `winder:clearances`,
+`winder:program`) are the model for Workshop's eval steps at this tier.
 
 ## What has to change in Workshop
 
@@ -67,9 +109,11 @@ stop at single parts, so tiers 2 and up are Workshop's own.
 - **Assemblies** (`src/lib/assembly.ts`) already have items, revisions,
   sub-assemblies, COTS envelopes, firmware items and an indented BOM, in
   the shape PLM systems use. A usage places an item with a position and a
-  turn about Z. The ladder adds full rotation, joints (revolute, prismatic)
-  with limits, and mates between features, so a wheel can be told it turns
-  on a post.
+  turn about Z. The ladder adds full rotation, attachments and mounting
+  interfaces on items (as the robotics `CadPart` contract has), joints
+  (revolute, prismatic) with limits, and mates between features, so a wheel
+  can be told it turns on a post and a motor stand is checked against the
+  motor's face pattern.
 - **COTS envelopes** come from the manufacturer's drawing with their
   mounting pattern, and Workshop keeps a library of the ones projects use,
   so a devkit or a motor is placed once and fit-checked everywhere.
