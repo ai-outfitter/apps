@@ -94,6 +94,17 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/wiki": {
+      "release-type": "node",
+      "component": "wiki-map",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

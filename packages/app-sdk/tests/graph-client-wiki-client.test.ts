@@ -270,17 +270,17 @@ test("Onto discovery falls back only when absent, and rejects incomplete or ambi
     },
   } } });
   assert.equal((await defaultWiki(make())).installationId, "legacy");
-  assert.deepEqual(queries, [{template: "onto"}, {template: "wiki-map"}]);
+  assert.deepEqual(queries, [{template: "onto", requireTypes: true}, {template: "wiki-map"}]);
   queries.length = 0;
   rows = providers("onto").slice(0, 1);
   await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
-  assert.deepEqual(queries, [{template: "onto"}]);
+  assert.deepEqual(queries, [{template: "onto", requireTypes: true}]);
   rows = [...providers("first"), ...providers("second")];
   await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
   rows = providers("onto");
   queries.length = 0;
   await assert.rejects(defaultWiki(make())); // A distinct legacy source has no trusted receipt.
-  assert.deepEqual(queries.slice(0, 2), [{template: "onto"}, {template: "wiki-map"}]);
+  assert.deepEqual(queries.slice(0, 2), [{template: "onto", requireTypes: true}, {template: "wiki-map"}]);
 });
 
 

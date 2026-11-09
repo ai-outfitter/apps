@@ -1,0 +1,19 @@
+---
+import Layout from "../../components/DocumentLayout.astro";
+import {context,mount,run} from "../../documents/context";
+import {demoDocument} from "../../documents/demo";
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo",root=mount(Astro.request);
+const ctx=demo?undefined:context(Astro.request,Astro.locals);
+if(ctx&&!ctx.identity.canEdit)return new Response("Editing requires write access",{status:403});
+const data=demo?{document:demoDocument}:await run("WikiDocument",{id:Astro.params.id},ctx!);
+const doc=data.document as typeof demoDocument;
+---
+<Layout title={`Edit ${doc.title}`} description="Saving creates a draft revision. The published revision stays available.">
+ <form data-wiki-form data-wiki-root={root} data-astro-reload class="wiki-form" method="post" action={`${root}api/apps/wiki-map/documents`}>
+ <input type="hidden" name="operation" value="SaveDocument"/><input type="hidden" name="id" value={doc.id}/><input type="hidden" name="revision" value={doc.revision}/>
+ <label>Title<input name="title" value={doc.title} required maxlength="300" disabled={demo}/></label>
+ <label>Summary<input name="summary" value={doc.summary} maxlength="4000" disabled={demo}/></label>
+ <label>Document<textarea name="body" disabled={demo}>{doc.body}</textarea></label>
+ <button disabled={demo}>Save draft</button>
+ </form>
+</Layout>

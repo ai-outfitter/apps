@@ -1,0 +1,15 @@
+{
+  "0000_graph.sql": "7cc9ebde7aae03e6da61956ea304f6aa444c06c3774514c665491e45c2055e97",
+  "0001_knowledge_graphs.sql": "e7c345c18fa4de3ef5262960956d2d82d40feb0e4223a8e2695c351e628abe0d",
+  "0002_graph_changes.sql": "818f74ff9a12d5626f790949aeed1716b70b8f014c63b2d86aaf6af026d85768",
+  "0003_consolidate_products.sql": "854eec0c2ef5a515aee617a087ea21dcae629b0cecf50c5662e45c9991acb01f",
+  "0003_graph_change_receipts.sql": "5f8b15e139367f16252ec8003fca3fed02c05b0ea6769a345c715b1aac39b695",
+  "0004_product_documentation.sql": "af2467291f2a0a4d52950adc75ac3ebb373f1805412f149fea8d4236c922e928",
+  "0005_relators_and_assertions.sql": "46fe06dd1584974f905077aeaa390d8f9d0e8e3a6f833f879bcb506c3ad47670",
+  "0006_app_agent.sql": "444eec2842c48b44e45974403a120358b3681bf314d3c0b0ca3c8a850c2449f5",
+  "0007_shared_thread_proposals.sql": "9a314375ba41364707f62450bbc14946960e774cafec0b57b4a2bc474fc77f41",
+  "0008_graph_batches.sql": "8f97a0989db27f56d18bb6d5ed9c4537d0ec128bc8880906f767f47672d84509",
+  "0009_graph_context_indexes.sql": "852bc05d7795ad0a96dc63a9eed5744804f862ead71e6239a38c86d50853d5d0",
+  "0010_graph_source_index.sql": "e51b50b7f115054c6e3e50a73625e1edaf443aaf175de67e913ecfb2e0b36d74",
+  "0011_batch_reviews.sql": "b6507038647332d4c2dc9b52058706b6a14d0699f49fbb7736e2271de0a04742"
+}

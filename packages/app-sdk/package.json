@@ -60,7 +60,8 @@
     "./structured-result": "./src/structured-result.ts",
     "./ui-preferences": "./src/ui-preferences.ts",
     "./workflow-inference": "./src/workflow-inference.ts",
-    "./workflow-session": "./src/workflow-session.ts"
+    "./workflow-session": "./src/workflow-session.ts",
+    "./wiki-documents": "./src/wiki-documents.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",

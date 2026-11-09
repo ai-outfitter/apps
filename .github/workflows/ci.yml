@@ -61,3 +61,14 @@ jobs:
     uses: ./.github/workflows/check.yml
     with:
       config-path: .outfitter/apps.json
+  # Installations that follow main (Outfitter installation settings) build and
+  # install each push to main that passed its app's checks; others keep releases.
+  deploy:
+    needs: apps
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.has_apps == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      apps: ${{ needs.apps.outputs.apps }}

@@ -251,7 +251,7 @@ export function defaultWiki(host: Host) {
 }
 
 async function discoverWiki(host: Host) {
-  const onto = await discoverEntityTypes(host, { template: "onto" });
+  const onto = await discoverEntityTypes(host, { template: "onto", requireTypes: true });
   // An installed but inaccessible/incomplete Onto must not fall back to stale Wiki data.
   const template = onto.length ? "onto" : "wiki-map";
   const providers = onto.length ? onto : await discoverEntityTypes(host, { template: "wiki-map" });
