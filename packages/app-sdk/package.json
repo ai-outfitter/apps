@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-sdk",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "type": "module",
   "exports": {
@@ -57,7 +57,7 @@
     "./github-pulls": "./src/github-pulls.ts"
   },
   "dependencies": {
-    "@ai-outfitter/connector-core": "0.1.1",
+    "@ai-outfitter/connector-core": "0.1.2",
     "@ai-outfitter/workflow-core": "0.1.2",
     "@gql.tada/internal": "^1.2.2",
     "drizzle-orm": "^0.45.3",
@@ -65,7 +65,7 @@
     "gql.tada": "^1.11.4",
     "graphql": "^16.11.0",
     "zod": "^4.6.5",
-    "@ai-outfitter/onto-contracts": "0.1.0"
+    "@ai-outfitter/onto-contracts": "0.1.1"
   },
   "peerDependencies": {
     "astro": "^7.3.5"

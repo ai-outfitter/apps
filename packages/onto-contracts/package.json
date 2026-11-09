@@ -1,13 +1,13 @@
 {
   "name": "@ai-outfitter/onto-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@ai-outfitter/connector-core": "0.1.1",
+    "@ai-outfitter/connector-core": "0.1.2",
     "zod": "^4.6.5"
   },
   "scripts": {
