@@ -23,8 +23,6 @@ export const SUMMARY_OUTPUT_TOKENS = 6000;
 /** What the summary call reads of each folded entry and in total. */
 const ENTRY_CHARS = 4000;
 const TRANSCRIPT_CHARS = 240_000;
-/** An image's rough share of the prompt. */
-const IMAGE_TOKENS = 1000;
 
 export type Checkpoint = { id: string; summary: string; through: { id: string; at: number } };
 
@@ -41,8 +39,8 @@ export function checkpointOf(row: Pick<EntryRow, "id" | "role" | "metadata" | "c
 }
 
 /** A rough token count of what an entry adds to the prompt: about four characters a token. */
-export function estimateTokens(row: Pick<EntryRow, "content" | "parts">, images = 0) {
-  return Math.ceil((row.parts ?? row.content).length / 4) + images * IMAGE_TOKENS;
+export function estimateTokens(row: Pick<EntryRow, "content" | "parts">) {
+  return Math.ceil((row.parts ?? row.content).length / 4);
 }
 
 /** The summary's own share of the prompt. */

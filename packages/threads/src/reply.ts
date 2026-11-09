@@ -405,7 +405,6 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
     const transient = new Set([...providerTools.filter((descriptor) => descriptor.store === false), ...(platform?.tools ?? [])].map((descriptor) => descriptor.name));
     // Tools lead the prompt, so their order is part of the cached prefix: the platform's (the same
     // for every thread of the member) first, then the provider's, each by name, never by turn order.
-    const byName = (a: { name: string }, b: { name: string }) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     const tools: ToolSet = Object.fromEntries([...[...(platform?.tools ?? [])].sort(byName).map((descriptor) => [descriptor.name, tool({
       description: descriptor.description,
       inputSchema: jsonSchema(descriptor.inputSchema as Parameters<typeof jsonSchema>[0]),
@@ -413,7 +412,7 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
         if (abort.signal.aborted) throw new Error("Reply stopped");
         return descriptor.run(value ?? {});
       },
-    })]), ...[...providerTools].sort(byName).map((descriptor) => [descriptor.name, tool({
+    })]), ...providerTools.sort(byName).map((descriptor) => [descriptor.name, tool({
       description: descriptor.description,
       inputSchema: jsonSchema(descriptor.inputSchema as Parameters<typeof jsonSchema>[0]),
       execute: async (value, { toolCallId }) => {
@@ -523,16 +522,17 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
     if (platformOwned(row)) throw readOnlyThread();
     const provider = await helpers.conversationType(principal, row.installationId, row.type, "send");
     const [latest] = await db.select().from(messages).where(and(eq(messages.chatId, row.id), eq(messages.role, "user")))
-      .orderBy(desc(messages.createdAt), desc(messages.id)).limit(1);
+      .orderBy(...newestFirst).limit(1);
     const model = await adapters.inference.resolve(principal, { id: row.id, organizationId: row.organizationId })
       .then((resolved) => describeModel(resolved), async (error) => ({ error: await refusal(error) }));
     if (!latest) return { model, turn: null };
     const stored = toEntry(latest, [], row.userId);
     const entry = input.metadata === undefined ? stored : { ...stored, metadata: input.metadata as typeof stored.metadata };
+    const thread = toThread(row, now());
     const prepared = providerCallbacks.prepare.output.parse(await helpers.providerCall(principal, provider.installationId, "prepare", {
-      thread: toThread(row, now()), submissionId: latest.submissionId ?? latest.id, entry, retry: false,
+      thread, submissionId: latest.submissionId ?? latest.id, entry, retry: false,
     }));
-    const platform = await platformToolsFor(principal, prepared, toThread(row, now()));
+    const platform = await platformToolsFor(principal, prepared, thread);
     return {
       model,
       turn: {
@@ -540,7 +540,7 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
         sentAt: latest.createdAt,
         metadata: entry.metadata ?? null,
         system: systemPrompt(prepared, row, platform),
-        tools: [...providerToolsBeside(prepared.tools, platform), ...(platform?.tools ?? [])].map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+        tools: [...[...(platform?.tools ?? [])].sort(byName), ...providerToolsBeside(prepared.tools, platform).sort(byName)].map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
         context: prepared.context ?? null,
         history: prepared.history ?? { limit: DEFAULT_HISTORY },
         maxSteps: Math.max(prepared.maxSteps, platform?.minSteps ?? 0),
@@ -562,6 +562,7 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
   return { send, submission, cancel, inspect };
 }
 
+const byName = (a: { name: string }, b: { name: string }) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 const openaiOptions = (options: Record<string, string>) => (Object.keys(options).length ? { openai: options } : undefined);
 
 /** The platform's tools keep their MCP names; a provider tool of the same name gives way. */

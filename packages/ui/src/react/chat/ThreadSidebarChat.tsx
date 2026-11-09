@@ -7,6 +7,7 @@ import AgentDebug from "../AgentDebug";
 import AgentSidebar from "../AgentSidebar";
 import { sessionDebugHref, useAgentInspector } from "../agent-debug";
 import Markdown from "../Markdown";
+import { randomId } from "../../random-id";
 import { ChatTaskQuestion, ChatToolPart } from "./ChatComponents";
 import { ChatComponentContext } from "./context";
 import { activeTaskQuestion } from "./message-helpers";
@@ -16,15 +17,6 @@ import "../../styles/sidebar-chat-cards.css";
 /** The panel's one thread for this member and owner, as the page named it on the server. */
 type SidebarThread = { id: string; context: { type: string; id: string } };
 type Selected = { id: string; messages: UIMessage[]; persisted: boolean };
-// randomUUID is restricted to secure contexts; local development also runs over VPN HTTP.
-function randomId(): string {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 // The chat useChat holds until the saved conversation loads; it never sends.
 const PENDING = "pending";
 /** Entries the panel shows on open; the model's own view is bounded by compaction, not by this. */

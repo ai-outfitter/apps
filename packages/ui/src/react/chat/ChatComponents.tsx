@@ -22,7 +22,6 @@ import type { z } from "zod";
 import { connectedMessage } from "./message-helpers";
 
 const WORK_PROFILE = "work_profile";
-const workProfileOutput = workProfileStatus;
 const SERVICES = {
   gmail: "Gmail",
   "google-calendar": "Google Calendar",
@@ -481,7 +480,7 @@ export function ChatToolPart({ part, answered = false }: { part: UIMessage["part
   if (part.state !== "output-available") return null;
   if (part.type === `tool-${PROPOSE_WORKFLOW}`) return <WorkflowToolPart output={part.output} />;
   if (part.type === `tool-${WORK_PROFILE}`) {
-    const profile = workProfileOutput.safeParse(part.output);
+    const profile = workProfileStatus.safeParse(part.output);
     return profile.success ? <WorkProfileCard {...profile.data} /> : null;
   }
   const output = connectServicesOutput.safeParse(part.output);

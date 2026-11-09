@@ -14,6 +14,7 @@ import {
   threadRefKey,
 } from "@ai-outfitter/app-sdk/threads";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { randomId } from "../random-id";
 import AgentDebug from "./AgentDebug";
 import { sessionDebugHref, useAgentInspector } from "./agent-debug";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
@@ -197,15 +198,6 @@ const asMessage = (entry: TimelineEntry): Message => ({
  * proposals, decisions and deletion. Several conversations per page, child
  * conversations and read-only workflow histories open explicitly.
  */
-// randomUUID is restricted to secure contexts; getRandomValues also works on local HTTP hosts.
-function submissionId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the sidebar component owns its conversation, history and proposal state together.
 export default function AppAgentSidebar({
   id,
@@ -462,8 +454,8 @@ export default function AppAgentSidebar({
     if (demo) {
       setEntries((current) => [
         ...current,
-        { id: submissionId(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
-        { id: submissionId(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
+        { id: randomId(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
+        { id: randomId(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
       ]);
       return;
     }
@@ -479,7 +471,7 @@ export default function AppAgentSidebar({
       remember(target.id);
       const attachments = await Promise.all(files.map((file) => threads.upload(target.id, file)));
       if (expected !== generation.current) return false;
-      return stream(target, { submissionId: submissionId(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
+      return stream(target, { submissionId: randomId(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
     } catch (e) {
       if (expected === generation.current) setError(e instanceof Error ? e.message : "Send failed; your draft is preserved.");
       return false;

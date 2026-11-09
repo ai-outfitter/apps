@@ -449,9 +449,6 @@ export async function stableThreadId(namespace: string, ...parts: string[]) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/** Same-origin browser client for the platform thread routes. `send()` returns
- * the raw response: an AI SDK UI message stream, or JSON `{ submission }` for a
- * duplicate submission. */
 export type ModelDescription = { provider: string; model: string; source?: string };
 
 /** What a thread's latest member message sends to the model, as `inspect` prepares it again. */
@@ -473,6 +470,9 @@ export type ThreadInspection = {
   } | null;
 };
 
+/** Same-origin browser client for the platform thread routes. `send()` returns
+ * the raw response: an AI SDK UI message stream, or JSON `{ submission }` for a
+ * duplicate submission. */
 export function threadClient(options: { base?: string; installationId?: string; fetch?: typeof fetch } = {}) {
   const base = options.base ?? threadRoutesBase;
   const fetcher = options.fetch ?? fetch;
