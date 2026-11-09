@@ -5,7 +5,12 @@ Public source entry points for the existing authenticated app host contract:
 - `@ai-outfitter/app-sdk/server`: forwarded identity, editor checks and bounded JSON responses.
 - `@ai-outfitter/app-sdk/migrations`: package migration schema and executor.
 - `@ai-outfitter/app-sdk/cloudflare/database`: installation D1 adapter.
-- `@ai-outfitter/app-sdk/cloudflare/middleware`: app request and health middleware.
+- `@ai-outfitter/app-sdk/astro`: `outfitterApp({ app, contentSecurityPolicy, storage?, readOnly? })`,
+  the Astro integration that serves `/__health`, keeps pages GET/HEAD, requires
+  forwarded identity on `/api/*` and sets the app's headers, so an app needs no
+  `src/middleware.ts`. The CSP applies to built responses without a policy of their
+  own; `astro dev` sends none, because Vite serves dev CSS and scripts inline.
+- `@ai-outfitter/app-sdk/cloudflare/middleware`: the middleware it registers.
 - `@ai-outfitter/app-sdk/storage`: per-installation buckets, spaces, visibility and
   TTL (`storage()`, `storageRoutes()`, `storageMaintenance()`); see [app storage](../../docs/app-storage.md).
 - `@ai-outfitter/app-sdk/cloudflare/storage`: the storage host over `STORAGE_<BUCKET>` bindings.
