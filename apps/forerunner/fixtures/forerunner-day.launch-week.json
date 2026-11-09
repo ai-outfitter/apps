@@ -1,0 +1,209 @@
+{
+  "fixture": 1,
+  "revision": 2,
+  "synthetic": true,
+  "id": "forerunner-day.launch-week",
+  "description": "One synthetic Tuesday for an operations lead: three stones, each linked to an inbox signal, a calendar commitment, its progress or blocker and one decision.",
+  "day": {
+    "date": "2026-10-13",
+    "label": "Tuesday, October 13",
+    "timeZone": "America/Chicago",
+    "owner": { "name": "Avery Chen", "role": "Head of Operations, Northwind Labs" }
+  },
+  "signals": [
+    {
+      "id": "signal.inbox.launch-checklist",
+      "from": "Jordan Ellis",
+      "subject": "Launch checklist: billing migration still red",
+      "received": "07:42",
+      "summary": "The staging billing migration failed its second dry run; Jordan needs a call on the launch date before the go/no-go.",
+      "stone": "stone.self-serve-launch"
+    },
+    {
+      "id": "signal.inbox.brightwater-redlines",
+      "from": "Priya Natarajan · Brightwater Co-op",
+      "subject": "Section 7 redlines — need an answer by Thursday",
+      "received": "08:15",
+      "summary": "Brightwater asks to raise the liability cap from one to two times annual fees as a condition of renewal.",
+      "stone": "stone.brightwater-renewal"
+    },
+    {
+      "id": "signal.inbox.finalists",
+      "from": "Sam Rivera",
+      "subject": "Platform lead finalists — both free Friday",
+      "received": "09:03",
+      "summary": "Both finalists can do onsites Friday; one reference for Morgan Lee is still outstanding.",
+      "stone": "stone.platform-lead"
+    },
+    {
+      "id": "signal.inbox.offsite-poll",
+      "from": "Office team",
+      "subject": "Vote: November offsite venue",
+      "received": "09:30",
+      "summary": "A venue poll that closes next week.",
+      "stone": null
+    }
+  ],
+  "commitments": [
+    {
+      "id": "commitment.cal.go-no-go",
+      "title": "Self-serve launch go/no-go",
+      "start": "11:30",
+      "end": "12:00",
+      "attendees": ["Jordan Ellis", "Kai Okafor"],
+      "stone": "stone.self-serve-launch"
+    },
+    {
+      "id": "commitment.cal.one-on-one",
+      "title": "1:1 with Kai",
+      "start": "13:00",
+      "end": "13:30",
+      "attendees": ["Kai Okafor"],
+      "stone": null
+    },
+    {
+      "id": "commitment.cal.brightwater-review",
+      "title": "Brightwater contract review",
+      "start": "14:00",
+      "end": "14:45",
+      "attendees": ["Priya Natarajan", "Dana Brooks"],
+      "stone": "stone.brightwater-renewal"
+    },
+    {
+      "id": "commitment.cal.finalist-debrief",
+      "title": "Platform lead finalist debrief",
+      "start": "16:30",
+      "end": "17:00",
+      "attendees": ["Sam Rivera"],
+      "stone": "stone.platform-lead"
+    }
+  ],
+  "stones": [
+    {
+      "id": "stone.self-serve-launch",
+      "priority": "P1",
+      "due": "2026-10-27",
+      "rank": 1,
+      "title": "Ship the Q4 self-serve launch",
+      "outcome": "New customers can sign up and pay without talking to sales by October 27.",
+      "signal": "signal.inbox.launch-checklist",
+      "commitment": "commitment.cal.go-no-go",
+      "progress": { "done": 7, "total": 9, "summary": "Signup, onboarding and pricing pages are done. Billing migration and launch email remain." },
+      "blocker": { "summary": "The billing migration failed its second staging dry run.", "owner": "Jordan Ellis" },
+      "decision": {
+        "id": "decision.launch-date",
+        "question": "Hold October 27, or move the launch one week?",
+        "due": "Before the 11:30 go/no-go",
+        "options": [
+          { "id": "option.hold-date", "label": "Hold October 27", "consequence": "Ship with manual invoicing as a fallback while billing is fixed." },
+          { "id": "option.move-week", "label": "Move to November 3", "consequence": "Gives billing a third dry run; the launch email moves too." }
+        ]
+      },
+      "pebbles": [
+        { "id": "pebble.billing-dry-run", "priority": "P1", "due": "2026-10-14", "title": "Schedule a third billing dry run", "owner": "Jordan Ellis" },
+        { "id": "pebble.fallback-plan", "priority": "P1", "due": "2026-10-13", "title": "Write the manual-invoicing fallback", "owner": "Avery Chen" }
+      ],
+      "sand": [
+        { "id": "sand.launch-email-copy", "priority": "P2", "due": "2026-10-20", "title": "Approve launch email subject line", "kind": "decision" },
+        { "id": "sand.thank-jordan", "priority": "P3", "due": "2026-10-13", "title": "Thank Jordan for the early warning", "kind": "follow-up" }
+      ],
+      "dialogue": {
+        "briefing": "Launch is your top stone. Jordan's 07:42 email says billing failed its second dry run, and the go/no-go is at 11:30. You need to choose: hold October 27 or move a week.",
+        "suggestions": [
+          {
+            "id": "suggestion.launch.tradeoff",
+            "prompt": "What changes if we move a week?",
+            "reply": "Moving to November 3 gives billing a third dry run, and the launch email moves with it. Holding October 27 means shipping with manual invoicing until billing passes. Either way the decision is yours at 11:30."
+          },
+          {
+            "id": "suggestion.launch.prep",
+            "prompt": "What should I bring to the go/no-go?",
+            "reply": "Bring the two failed dry-run results, Jordan's estimate for a fix and the manual-invoicing fallback. The fallback is still a pebble with no draft yet."
+          }
+        ]
+      }
+    },
+    {
+      "id": "stone.brightwater-renewal",
+      "priority": "P2",
+      "due": "2026-10-31",
+      "rank": 2,
+      "title": "Renew the Brightwater Co-op contract",
+      "outcome": "A signed two-year renewal before the October 31 expiry.",
+      "signal": "signal.inbox.brightwater-redlines",
+      "commitment": "commitment.cal.brightwater-review",
+      "progress": { "done": 3, "total": 5, "summary": "Pricing and term length are agreed. Liability terms and signature remain." },
+      "blocker": { "summary": "Legal has not reviewed the two-times liability cap.", "owner": "Dana Brooks" },
+      "decision": {
+        "id": "decision.liability-cap",
+        "question": "Accept the two-times liability cap, or counter at one and a half?",
+        "due": "Thursday, per Priya's email",
+        "options": [
+          { "id": "option.accept-cap", "label": "Accept two times", "consequence": "Likely closes the renewal this week; needs Dana's sign-off." },
+          { "id": "option.counter-cap", "label": "Counter at one and a half times", "consequence": "Keeps exposure lower; adds at least one more round." }
+        ]
+      },
+      "pebbles": [
+        { "id": "pebble.legal-review", "priority": "P1", "due": "2026-10-14", "title": "Send section 7 to Dana for review", "owner": "Avery Chen" },
+        { "id": "pebble.pricing-fallback", "priority": "P2", "due": "2026-10-13", "title": "Prepare a pricing fallback for the 14:00 review", "owner": "Avery Chen" }
+      ],
+      "sand": [
+        { "id": "sand.confirm-thursday", "priority": "P1", "due": "2026-10-15", "title": "Tell Priya you will answer by Thursday", "kind": "follow-up" },
+        { "id": "sand.review-attendee", "priority": "P2", "due": "2026-10-13", "title": "Add Dana to the 14:00 review?", "kind": "decision" }
+      ],
+      "dialogue": {
+        "briefing": "Brightwater wants a two-times liability cap before renewing. Their contract review is at 14:00 and Priya asked for an answer by Thursday. Dana has not reviewed the cap yet.",
+        "suggestions": [
+          {
+            "id": "suggestion.brightwater.draft",
+            "prompt": "Draft a reply to Priya",
+            "reply": "A draft you could send: \"Thanks, Priya. We're reviewing section 7 with legal and will answer by Thursday. Happy to walk through it at 14:00.\" Nothing has been sent."
+          },
+          {
+            "id": "suggestion.brightwater.risk",
+            "prompt": "Which option is riskier?",
+            "reply": "Accepting raises exposure but likely closes this week. Countering keeps exposure lower but adds a round, with the contract expiring October 31. Dana's review should come before either."
+          }
+        ]
+      }
+    },
+    {
+      "id": "stone.platform-lead",
+      "priority": "P3",
+      "due": "2026-10-30",
+      "rank": 3,
+      "title": "Hire a platform engineering lead",
+      "outcome": "An accepted offer before the end of October.",
+      "signal": "signal.inbox.finalists",
+      "commitment": "commitment.cal.finalist-debrief",
+      "progress": { "done": 4, "total": 6, "summary": "Screens and panel interviews are done for both finalists. Onsites and the offer remain." },
+      "blocker": { "summary": "One reference for Morgan Lee is outstanding.", "owner": "Sam Rivera" },
+      "decision": {
+        "id": "decision.onsites",
+        "question": "Bring both finalists onsite Friday, or only Morgan?",
+        "due": "At the 16:30 debrief",
+        "options": [
+          { "id": "option.both-onsite", "label": "Both finalists", "consequence": "A direct comparison; Friday's schedule fills up." },
+          { "id": "option.morgan-only", "label": "Only Morgan", "consequence": "A faster path to an offer, pending the last reference." }
+        ]
+      },
+      "pebbles": [
+        { "id": "pebble.chase-reference", "priority": "P2", "due": "2026-10-14", "title": "Chase Morgan's outstanding reference", "owner": "Sam Rivera" },
+        { "id": "pebble.onsite-panel", "priority": "P2", "due": "2026-10-15", "title": "Pick the Friday onsite panel", "owner": "Avery Chen" }
+      ],
+      "sand": [
+        { "id": "sand.debrief-notes", "priority": "P2", "due": "2026-10-13", "title": "Ask Sam for panel notes before 16:30", "kind": "follow-up" }
+      ],
+      "dialogue": {
+        "briefing": "Both platform lead finalists can come onsite Friday. Morgan's last reference is outstanding. The debrief is at 16:30, where you decide who comes onsite.",
+        "suggestions": [
+          {
+            "id": "suggestion.platform.compare",
+            "prompt": "Summarize the finalists",
+            "reply": "Both passed screens and panel interviews. Morgan's references are pending one; the other finalist's are complete. Panel notes are with Sam and are not in this view."
+          }
+        ]
+      }
+    }
+  ]
+}

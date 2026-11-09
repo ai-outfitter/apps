@@ -1,0 +1,1 @@
+CREATE TABLE `planning_priority_order` (`installationId` text NOT NULL, `kind` text NOT NULL, `items` text NOT NULL DEFAULT '[]', `revision` integer NOT NULL DEFAULT 1, PRIMARY KEY (`installationId`,`kind`)) STRICT;

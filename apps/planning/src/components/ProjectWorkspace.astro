@@ -1,0 +1,190 @@
+---
+import { requestIdentity, requestPageURL } from "@ai-outfitter/app-sdk/server";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { appHref } from "../app-href";
+import { CARD_PROJECTS, lightOf, organizationCards, statusLabel } from "../project-cards";
+import { type ProjectPage } from "../server/project-page";
+import { wikiPageHref } from "../server/wiki-links";
+import ReleaseContent from "./ReleaseContent";
+
+interface Props { projectId?: string; model: ProjectPage; }
+const { projectId = "", model } = Astro.props;
+const project = model.projects.find(project => project.id === projectId);
+const bootstrap = JSON.stringify({ projects: model.projects, issues: model.issues }).replaceAll("<", "\\u003c");
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const canOrder = !demo && !!requestIdentity(Astro.request).organizationId && requestIdentity(Astro.request).canEdit;
+const href = (target: string) => appHref(Astro.url.pathname, target);
+const body = model.wikiBody ?? null;
+const pageURL = requestPageURL(Astro.request);
+const wikiHref = (path: string) => (model.wiki ? wikiPageHref(model.wiki, pageURL, path) : undefined);
+// Each section shows the Wiki's records when it has them; the project's own text otherwise.
+const sections = project ? [
+  { key: "goals", label: "Goals", records: body?.goals ?? [], text: project.goals },
+  { key: "useCases", label: "Use cases", records: body?.useCases ?? [], text: "" },
+  { key: "stories", label: "User stories", records: body?.stories ?? [], text: project.userStories },
+].filter((section) => section.records.length || section.text) : [];
+const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll("<", "\\u003c");
+---
+  <div id="planning" data-can-order={String(canOrder)} data-project-workspace data-project-id={projectId}>
+    <script is:inline type="application/json" id="project-page-data" set:html={bootstrap} />
+    <script is:inline type="application/json" id="organization-goals-data" set:html={goalsBootstrap} />
+    {demo && (
+      <p class="planning-notice">
+        Read-only demo · These projects and issues are synthetic.
+      </p>
+    )}
+    <p role="status" id="planning-notice" hidden={!model.error}>{model.error}</p>
+    <p role="status" id="directory-notice" hidden></p>
+    {projectId && <p id="project-back"><a href={href("/projects")}>← All projects</a></p>}
+    <p id="empty" hidden={!!model.projects.length || !!model.error}>
+      No projects yet. Create one to describe the outcome and start planning.
+    </p>
+    <div id="project-readiness" hidden></div>
+    <div id="project-cards" hidden={!!projectId} aria-label="Projects">
+      {!projectId && organizationCards(model.cards.map(({ project: item, openIssues }) => ({ ...item, openIssues })), model.organizationGoals ?? {}).map((card) => (
+        <section class="planning-org-card" aria-label={card.label}>
+          <header class="planning-org-card-header"><h2>{card.label}</h2></header>
+          {card.goals.length > 0 && (
+            <div class="planning-goal-chart" role="group" aria-label={`${card.label} goals`}>
+              {card.goals.map((row) => (
+                <div class="planning-goal-row">
+                  <div class="planning-goal-name">{row.goal.title}</div>
+                  <div class="planning-goal-bar" title={`${row.green} ready · ${row.yellow} decisions · ${row.none} unassessed`}>
+                    {row.total === 0 ? <span class="planning-goal-empty">none</span> : (["green", "yellow", "none"] as const).map((light) => row[light] > 0 && <span class="planning-goal-segment" data-light={light} style={`flex: ${row[light]}`}>{row[light]}</span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <ul class="planning-org-projects">
+            {card.projects.map((item, index) => { const light = lightOf(item); const decisions = item.readiness?.missing ?? []; const listId = `decisions-${item.id}`; return (
+              <li class="planning-org-more" data-order-row={item.id} hidden={index >= CARD_PROJECTS}>
+                <div class="planning-org-project">
+                  <a href={item.href ?? href(`/projects/${item.id}`)} class="planning-org-project-name">{item.name}</a>
+                  {canOrder && <button type="button" class="planning-drag-handle" draggable="true" data-drag-id={item.id} aria-label={`Reorder ${item.name}`} title="Drag to reorder; use arrow keys to move">⠿</button>}
+                  {item.state && <span class="planning-project-state">{item.state}</span>}
+                  {decisions.length > 0 ? <button type="button" class="planning-status" data-light={light} aria-expanded="false" aria-controls={listId}>{statusLabel(item)}</button> : <span class="planning-status" data-light={light}>{statusLabel(item)}</span>}
+                </div>
+                {decisions.length > 0 && <ul id={listId} class="planning-decisions" hidden>{decisions.map((need) => <li>{need}</li>)}</ul>}
+              </li>
+            ); })}
+          </ul>
+          {card.projects.length > CARD_PROJECTS && <button type="button" class="planning-org-toggle" data-more={`${card.projects.length - CARD_PROJECTS} more`} data-fewer="Fewer">{card.projects.length - CARD_PROJECTS} more</button>}
+        </section>
+      ))}
+    </div>
+    <section id="project-detail" hidden={!project} aria-label={project?.name ?? "Project"}>
+      {projectId && <p role="status" id="link-changes-status" hidden></p>}
+      <div id="project-documents" class="planning-documents" data-server-rendered>
+        {sections.map((section) => (
+          <article data-section={section.key} data-source={section.records.length ? "wiki" : "text"}>
+            <h2>{section.label}</h2>
+            {section.records.length ? (
+              <ul class="planning-wiki-records">{section.records.map((record) => <li><a href={wikiHref(record.path)}>{record.title}</a>{record.summary && <span class="muted"> {record.summary}</span>}</li>)}</ul>
+            ) : <div class="planning-markdown"><ReleaseContent content={section.text} /></div>}
+          </article>
+        ))}
+        {project?.githubRepository && <article data-section="repository"><h2>GitHub repository</h2><a href={project.githubRepository} target="_blank" rel="noopener noreferrer">{project.githubRepository}</a></article>}
+      </div>
+      {projectId && <section id="project-products" data-project-id={projectId} hidden></section>}
+      {projectId && <section id="project-shipped" class="planning-shipped" data-project-id={projectId} aria-labelledby="shipped-heading"><h2 id="shipped-heading">Recent repository activity</h2><p class="muted" data-shipped-status>Reading the project's repositories…</p></section>}
+      {projectId && <section id="project-pull-requests" class="planning-shipped" data-project-id={projectId} aria-labelledby="pull-requests-heading"><h2 id="pull-requests-heading">Recent pull requests</h2><p class="muted" data-pull-status>Reading pull requests…</p></section>}
+    </section>
+    <form id="project-editor" hidden>
+      <h2>Project documents</h2>
+      <label>
+        Name <input name="name" required maxlength="160" />
+      </label>
+      <label>GitHub repository (optional)<input name="githubRepository" type="url" placeholder="https://github.com/owner/repository" maxlength="300" aria-describedby="github-repository-help" /></label><small id="github-repository-help">Repository link only. Issues and pull requests are not read or published.</small>
+      {[
+        ["goals", "Goals"],
+        ["userStories", "User stories and acceptance criteria"],
+        ["pressRelease", "Draft press release"],
+        ["demoInstructions", "Demo instructions and links"],
+        ["demoResults", "Demo results and evidence"],
+      ].map(([name, label]) => (
+        <label>
+          {label}
+          <textarea name={name} rows="4" maxlength="16000"></textarea>
+        </label>
+      ))}
+      <div class="planning-toolbar">
+        <Button type="submit">Save project</Button>
+        <Button variant="secondary" data-cancel="project-editor">
+          Cancel
+        </Button>
+      </div>
+    </form>
+    <section id="project-issues" hidden={!project} aria-labelledby="issues-heading">
+      <div class="planning-toolbar">
+        <h2 id="issues-heading">Issues</h2>
+        <Button id="new-issue" disabled={demo}>
+          New issue
+        </Button>
+        <label class="planning-check">
+          <input id="show-completed" type="checkbox" />
+          Show completed
+        </label>
+      </div>
+      <p class="muted">
+        Stones, pebbles and sand are all issues. Any issue can have sub-issues.
+      </p>
+      <div id="issue-list">{project && model.groups.map(group => <Fragment><h3>{group.title}</h3>{!group.issues.length && <p class="muted">No issues in this view.</p>}{group.issues.map(({issue,metadata,moveUp,moveDown}) => <article class="planning-issue"><h4>{issue.title}</h4><small>{metadata}</small>{issue.description && <p>{issue.description}</p>}<div class="planning-toolbar">{["Edit", "Complete", "Delete", "Move up", "Move down"].map(action => <button type="button" class="ui-button ui-button--secondary" data-issue-action={action} data-issue-id={issue.id} disabled={demo || (action === "Move up" && !moveUp) || (action === "Move down" && !moveDown)}>{action}</button>)}</div></article>)}</Fragment>)}</div>
+    </section>
+    <form id="issue-editor" hidden>
+      <h2>Issue</h2>
+      <label>
+        Title <input name="title" required maxlength="200" />
+      </label>
+      <label>
+        Description{" "}
+        <textarea name="description" rows="4" maxlength="16000"></textarea>
+      </label>
+      <div class="planning-fields">
+        <label>
+          Category{" "}
+          <select name="category">
+            <option value="stone">Stone</option>
+            <option value="pebble">Pebble</option>
+            <option value="sand">Sand</option>
+          </select>
+        </label>
+        <label>
+          Status{" "}
+          <select name="status">
+            <option value="todo">To do</option>
+            <option value="in-progress">In progress</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+        <label>
+          Assignee{" "}
+          <select name="assigneeId">
+            <option value="">Unassigned</option>
+          </select>
+        </label>
+        <label>
+          Due date <input name="dueDate" type="date" />
+        </label>
+        <label>
+          Parent issue{" "}
+          <select name="parentId">
+            <option value="">No parent</option>
+          </select>
+        </label>
+      </div>
+      <div class="planning-toolbar">
+        <Button type="submit">Save issue</Button>
+        <Button variant="secondary" data-cancel="issue-editor">
+          Cancel
+        </Button>
+      </div>
+    </form>
+  </div>
+<script>import "../scripts/planning";</script>
+
+<script>
+  import "../scripts/products";
+</script>
+<script>import "../scripts/code-changes";</script>
+<script>import "../scripts/shipped";</script>

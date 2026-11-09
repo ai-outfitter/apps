@@ -1,0 +1,26 @@
+---
+import ForerunnerLayout from "../components/ForerunnerLayout.astro";
+import today from "../../fixtures/forerunner-today.json" with { type: "json" };
+import { rootHref } from "../root-href";
+
+// One timeline for the day. The demo draws the synthetic day; the operational
+// app builds the day from the member's board and the latest discovery run.
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const root = rootHref(Astro.url.pathname, 0);
+---
+<ForerunnerLayout title="Today" description="One timeline: what is happening, and short batches of small tasks so the rest of the day stays clear." page="today" introHidden>
+  {/* The greeting is the visible title; "Today" stays for screen readers and the tab. */}
+  <header class="today-header">
+    <p class="today-date"><span class="eyebrow" id="today-date">{demo ? today.day.label : ""}</span>{demo ? <svg role="img" aria-label={today.day.weather} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>{today.day.weather}</title><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"></path><path d="M8 19v2M8 13v2M16 19v2M16 13v2M12 21v2M12 15v2"></path></svg> : null}</p>
+    <h2 class="today-greeting" id="today-greeting">{demo ? `Morning, ${today.day.owner}.` : ""}</h2>
+  </header>
+  <p id="today-error" role="alert" hidden></p>
+  <section id="today-timeline" class="today" aria-label="Today's timeline" data-root={root}>{demo ? null : <p role="status">Loading today…</p>}</section>
+  {demo
+    ? <script id="today-data" type="application/json" set:html={JSON.stringify({ blocks: today.blocks })} />
+    : <section id="today-empty" class="paper today-empty" hidden>
+        <h3>Nothing on the timeline yet</h3>
+        <p>Add your first stone on the <a href={`${root}board`}>board</a>, or connect Google in <a href={`${root}settings`}>Settings</a> so discovery can fill in your day.</p>
+      </section>}
+</ForerunnerLayout>
+<script>import "../scripts/today";</script>

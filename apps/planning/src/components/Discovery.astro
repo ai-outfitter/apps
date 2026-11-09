@@ -1,0 +1,39 @@
+---
+import { appHref } from "../app-href";
+import Layout from "./PlanningLayout.astro";
+import type { loadDiscoveryPage } from "../server/discovery-page";
+interface Props { kind: "opportunities" | "customer-segments"; recordId?: string; result: Awaited<ReturnType<typeof loadDiscoveryPage>>; }
+const { kind, recordId = "", result } = Astro.props;
+const { page, error } = result;
+const opportunities = kind === "opportunities";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const title = recordId && page?.records[0] ? page.records[0].title : opportunities ? "Opportunities" : "Customer segments";
+const empty = recordId ? `${opportunities ? "Opportunity" : "Customer segment"} not found.` : opportunities ? "No user problems recorded yet." : "No customer segments recorded yet.";
+const href = (target: string) => appHref(Astro.url.pathname, target);
+---
+<Layout {title} description={opportunities ? "User problems worth solving." : "Groups of customers with shared needs."} wiki={demo ? null : page?.wiki ?? null}>
+  <div id="discovery" data-kind={kind} data-record-id={recordId}>
+    {recordId && <p><a href={href(`/${kind}`)}>← All {opportunities ? "opportunities" : "customer segments"}</a></p>}
+    <p id="discovery-status" role="status">{error || (demo ? "Read-only example" : "")}</p>
+    <p id="discovery-empty" hidden={!!error || !!page?.records.length}>{empty}</p>
+    <div id="discovery-records" class={recordId ? "planning-record-page" : "planning-card-grid"}>
+      {page?.records.map(record => recordId ? <div>
+        <p>{record.summary}</p>
+        <div class="planning-pills">{record.related.slice(0, 4).map(related => <span class="planning-pill">{related.kind}: {related.title}</span>)}</div>
+        <div id="discovery-graph" class="planning-card-detail">
+          <h3>Knowledge graph</h3>
+          <div role="group" aria-label={`Relationships for ${record.title}`}>
+            {record.related.length ? <ul>{record.related.map(related => <li><a href={href(related.href)}>{related.kind}: {related.title}</a></li>)}</ul> : <p class="muted">No relationships recorded yet.</p>}
+          </div>
+        </div>
+      </div> : <a class="planning-card planning-record-card" href={href(record.href)}>
+        <h2>{record.title}</h2>
+        <p>{record.summary}</p>
+        <div class="planning-pills">{record.related.slice(0, 4).map(related => <span class="planning-pill">{related.kind}: {related.title}</span>)}</div>
+        <span class="planning-card-hint">{opportunities ? "View opportunity →" : "View customer segment →"}</span>
+      </a>)}
+    </div>
+    {page?.graph && <script id="discovery-graph-data" type="application/json" set:html={JSON.stringify(page.graph).replace(/</g, "\\u003c")} />}
+  </div>
+</Layout>
+<script>import "../scripts/discovery";</script>

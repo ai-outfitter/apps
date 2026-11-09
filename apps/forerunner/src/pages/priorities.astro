@@ -1,0 +1,122 @@
+---
+import ManualBoard from "../components/ManualBoard.astro";
+
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+
+import ForerunnerLayout from "../components/ForerunnerLayout.astro";
+import { commitment, day, priorityHref, selectedStone, signal, stones } from "../fixtures";
+
+const requested = Astro.url.searchParams.get("priority");
+const selected = selectedStone(requested);
+const detailOpen = stones.some((item) => item.id === requested);
+const pebbleCards = stones.flatMap((parent) => parent.pebbles.map((item) => ({ ...item, parent })));
+const sandCards = stones.flatMap((parent) => parent.sand.map((item) => ({ ...item, parent })));
+const dueLabel = (date: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+---
+<ForerunnerLayout title={demo ? "Today's priorities" : "Your board"} description={demo ? "What moves today, and the decisions only you can make." : "Your private priorities and next actions."} agent={demo} page="board">
+  {demo ? <div class="forerunner-day" data-selected-priority={selected.id} data-default-priority={stones[0].id}>
+    <p class="forerunner-date"><span class="eyebrow">{day.day.label}</span> {day.day.owner.name} · {day.day.owner.role}</p>
+
+    <section class="forerunner-section" aria-labelledby="stones-heading">
+      <div class="forerunner-section-heading">
+        <div><span class="eyebrow">01 / PROJECTS</span><h2 id="stones-heading">Stones</h2></div>
+        <p>Highest-priority projects. Open a card to inspect what is moving it.</p>
+      </div>
+      <ol class="forerunner-card-row forerunner-stone-cards">
+        {stones.map((item) => (
+          <li>
+            <a class="forerunner-card forerunner-stone-card" href={priorityHref(item.id)} data-priority-link={item.id} data-record={item.id} aria-current={detailOpen && item.id === selected.id ? "true" : undefined}>
+              <span class="forerunner-card-top"><span class="forerunner-priority">Priority {item.priority}</span><span>Stone {item.rank}</span></span>
+              <strong>{item.title}</strong>
+              <span class="forerunner-card-description">{item.outcome}</span>
+              <span class="forerunner-card-bottom"><span>Due <time datetime={item.due}>{dueLabel(item.due)}</time></span><span>{item.progress.done} of {item.progress.total} steps{item.blocker ? " · Blocked" : ""}</span></span>
+            </a>
+          </li>
+        ))}
+      </ol>
+      <div class="forerunner-details">
+        {stones.map((item) => {
+          const inbox = signal(item.signal), meeting = commitment(item.commitment);
+          return (
+            <article class="paper forerunner-detail" id={`detail-${item.id}`} data-priority-detail hidden={!detailOpen || item.id !== selected.id} aria-labelledby={`title-${item.id}`}>
+              <div class="forerunner-detail-heading">
+                <div><span class="eyebrow">STONE {item.rank} / WHAT MOVES IT</span><h3 id={`title-${item.id}`} tabindex="-1">{item.title}</h3></div>
+                <a href="priorities" data-priority-close>Close details</a>
+              </div>
+              <ol class="forerunner-chain" aria-label={`What moves ${item.title} today`}>
+                <li data-link="signal" data-record={inbox.id}>
+                  <span class="eyebrow">Inbox signal · {inbox.received}</span>
+                  <strong>{inbox.subject}</strong>
+                  <small>From {inbox.from}</small>
+                  <p>{inbox.summary}</p>
+                </li>
+                <li data-link="commitment" data-record={meeting.id}>
+                  <span class="eyebrow">Calendar · {meeting.start}–{meeting.end}</span>
+                  <strong>{meeting.title}</strong>
+                  <small>With {meeting.attendees.join(", ")}</small>
+                </li>
+                <li data-link="progress">
+                  <span class="eyebrow">Progress</span>
+                  <p class="forerunner-progress"><progress value={item.progress.done} max={item.progress.total} aria-label={`${item.title} progress`}></progress> {item.progress.done} of {item.progress.total} steps</p>
+                  <p>{item.progress.summary}</p>
+                  {item.blocker ? <p class="forerunner-blocker"><strong>Blocked:</strong> {item.blocker.summary} <small>Owner: {item.blocker.owner}</small></p> : null}
+                </li>
+                <li data-link="decision" data-record={item.decision.id} class="forerunner-decision">
+                  <span class="eyebrow">Your decision · {item.decision.due}</span>
+                  <strong>{item.decision.question}</strong>
+                  <ul>{item.decision.options.map((option) => <li data-record={option.id}><b>{option.label}.</b> {option.consequence}</li>)}</ul>
+                  <button type="button" class="ui-button ui-button--secondary" disabled aria-describedby={`unavailable-${item.id}`}>Record decision</button>
+                  <small id={`unavailable-${item.id}`}>Recording decisions is unavailable; Forerunner has no connected workflow.</small>
+                </li>
+              </ol>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+
+    <section class="forerunner-section" aria-labelledby="pebbles-heading">
+      <div class="forerunner-section-heading">
+        <div><span class="eyebrow">02 / NEXT ACTIONS</span><h2 id="pebbles-heading">Pebbles</h2></div>
+        <p>The concrete work that advances a Stone.</p>
+      </div>
+      <ul class="forerunner-card-row">
+        {pebbleCards.map((item) => (
+          <li>
+            <a class="forerunner-card" href={priorityHref(item.parent.id)} data-priority-link={item.parent.id} data-record={item.id}>
+              <span class="forerunner-card-top"><span class="forerunner-priority">Priority {item.priority}</span><span>Stone {item.parent.rank}</span></span>
+              <strong>{item.title}</strong>
+              <span class="forerunner-card-description">{item.parent.title} · {item.owner}</span>
+              <span class="forerunner-card-bottom">Due <time datetime={item.due}>{dueLabel(item.due)}</time></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="forerunner-section" aria-labelledby="sand-heading">
+      <div class="forerunner-section-heading">
+        <div><span class="eyebrow">03 / SMALL MOVES</span><h2 id="sand-heading">Sand</h2></div>
+        <p>Quick decisions and follow-ups that should not stall the work.</p>
+      </div>
+      <ul class="forerunner-card-row">
+        {sandCards.map((item) => (
+          <li>
+            <a class="forerunner-card" href={priorityHref(item.parent.id)} data-priority-link={item.parent.id} data-record={item.id}>
+              <span class="forerunner-card-top"><span class="forerunner-priority">Priority {item.priority}</span><span>{item.kind === "decision" ? "Decision" : "Follow-up"}</span></span>
+              <strong>{item.title}</strong>
+              <span class="forerunner-card-description">{item.parent.title}</span>
+              <span class="forerunner-card-bottom">Due <time datetime={item.due}>{dueLabel(item.due)}</time></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+  : <ManualBoard />}
+</ForerunnerLayout>
+<script>
+  import { onPageLoad } from "@ai-outfitter/ui/page";
+  import { enhanceSelection } from "../scripts/selection";
+  onPageLoad(enhanceSelection);
+</script>

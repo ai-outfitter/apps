@@ -1,0 +1,235 @@
+{
+  "format": "outfitter-forerunner-life-seed-v1",
+  "synthetic": true,
+  "_note": "Template for docs/plans/forerunner-whole-life-seed.md. One example of every record. Fields starting with _ are comments and are ignored by loaders.",
+  "person": {
+    "id": "person.me",
+    "name": "Sam Example",
+    "city": "Austin, TX",
+    "timeZone": "America/Chicago",
+    "email": "sam@example.test"
+  },
+  "levels": [
+    { "id": "level.body", "rank": 1, "title": "Body" },
+    { "id": "level.safety", "rank": 2, "title": "Safety" },
+    { "id": "level.belonging", "rank": 3, "title": "Belonging" },
+    { "id": "level.esteem", "rank": 4, "title": "Esteem" },
+    { "id": "level.growth", "rank": 5, "title": "Growth" }
+  ],
+  "needs": [
+    { "id": "need.rest", "level": "level.body", "title": "Rest" },
+    { "id": "need.movement", "level": "level.body", "title": "Movement" },
+    { "id": "need.nourishment", "level": "level.body", "title": "Nourishment" },
+    { "id": "need.money", "level": "level.safety", "title": "Money" },
+    { "id": "need.home", "level": "level.safety", "title": "Home" },
+    { "id": "need.health-care", "level": "level.safety", "title": "Health care" },
+    { "id": "need.family", "level": "level.belonging", "title": "Family" },
+    { "id": "need.friends", "level": "level.belonging", "title": "Friends" },
+    { "id": "need.community", "level": "level.belonging", "title": "Community" },
+    { "id": "need.work", "level": "level.esteem", "title": "Work" },
+    { "id": "need.recognition", "level": "level.esteem", "title": "Recognition" },
+    { "id": "need.confidence", "level": "level.esteem", "title": "Confidence" },
+    { "id": "need.craft", "level": "level.growth", "title": "Craft" },
+    { "id": "need.teaching", "level": "level.growth", "title": "Teaching" },
+    { "id": "need.learning", "level": "level.growth", "title": "Learning" }
+  ],
+  "goals": [
+    {
+      "id": "goal.standup-set",
+      "title": "Perform a five-minute standup set",
+      "level": "level.esteem",
+      "serves_need": ["need.confidence", "need.recognition"],
+      "horizon": "quarter",
+      "due": "2026-12-15",
+      "status": "active",
+      "nextStep": "Record a practice run of the opener",
+      "proof": { "kind": "recording", "description": "A recording of the full set, performed live" },
+      "evidence": [{ "provider": "imessage", "recordId": "imessage.thread.jordan.2026-10-28", "observedAt": "2026-10-28T19:10:00Z", "quote": "open mic is the 15th, you in?" }]
+    },
+    {
+      "id": "goal.teach-yoga",
+      "title": "Teach yoga",
+      "level": "level.growth",
+      "serves_need": ["need.teaching", "need.movement"],
+      "horizon": "year",
+      "status": "active",
+      "nextStep": "Record this week's practice class",
+      "proof": { "kind": "url", "description": "The YouTube channel URL once the first class is published" },
+      "evidence": [{ "provider": "google-calendar", "recordId": "gcal.event.yoga-practice-2026-11-05", "observedAt": "2026-11-01T08:00:00Z" }]
+    },
+    {
+      "id": "goal.salon-dinner",
+      "title": "Throw a salon dinner",
+      "level": "level.belonging",
+      "serves_need": ["need.friends", "need.community"],
+      "horizon": "quarter",
+      "status": "active",
+      "nextStep": "Pick the place and send invites",
+      "event": "event.salon-dinner",
+      "evidence": [{ "provider": "gmail", "recordId": "gmail.msg.salon-idea", "observedAt": "2026-10-20T15:00:00Z" }]
+    },
+    {
+      "id": "goal.outfitter-alpha",
+      "title": "Ship the Outfitter alpha to design partners",
+      "level": "level.esteem",
+      "serves_need": ["need.work"],
+      "horizon": "quarter",
+      "due": "2026-12-01",
+      "status": "active",
+      "nextStep": "Close the Forerunner personal-install bugs",
+      "evidence": [{ "provider": "slack", "recordId": "slack.msg.alpha-date", "observedAt": "2026-10-30T16:00:00Z" }]
+    }
+  ],
+  "observations": [
+    {
+      "id": "obs.standup-practice-1",
+      "goal": "goal.standup-set",
+      "kind": "practice",
+      "date": "2026-10-30",
+      "artifact": { "provider": "upload", "recordId": "upload.standup-practice-1.m4a", "contentType": "audio/m4a" },
+      "note": "First timed run, 6m20s"
+    }
+  ],
+  "people": [
+    {
+      "id": "person.jordan",
+      "name": "Jordan Blake",
+      "relationship": "friend",
+      "channels": ["imessage", "slack"],
+      "lastContact": { "imessage": "2026-10-28", "slack": "2026-10-22" },
+      "evidence": [{ "provider": "imessage", "recordId": "imessage.thread.jordan.2026-10-28", "observedAt": "2026-10-28T19:10:00Z" }]
+    },
+    {
+      "id": "person.mom",
+      "name": "Dana Example",
+      "relationship": "family",
+      "channels": ["imessage"],
+      "lastContact": { "imessage": "2026-11-01" },
+      "evidence": [{ "provider": "imessage", "recordId": "imessage.thread.mom.2026-11-01", "observedAt": "2026-11-01T22:00:00Z" }]
+    }
+  ],
+  "places": [
+    { "id": "place.east-side-loft", "name": "East Side Loft", "kind": "venue", "city": "Austin, TX", "capacity": 14, "evidence": [{ "provider": "gmail", "recordId": "gmail.msg.loft-quote", "observedAt": "2026-10-25T14:00:00Z" }] },
+    { "id": "place.home", "name": "Home", "kind": "home", "city": "Austin, TX" }
+  ],
+  "events": [
+    {
+      "id": "event.salon-dinner",
+      "title": "Salon dinner",
+      "kind": "dinner",
+      "date": null,
+      "status": "planning",
+      "decisions": ["place", "guests"],
+      "candidate_for": ["place.east-side-loft", "place.home"],
+      "attends": [{ "person": "person.jordan", "status": "maybe" }],
+      "budget": { "amount": 600, "currency": "USD" },
+      "evidence": [{ "provider": "gmail", "recordId": "gmail.msg.salon-idea", "observedAt": "2026-10-20T15:00:00Z" }]
+    },
+    {
+      "id": "event.cooking-party",
+      "title": "Cooking party day",
+      "kind": "party",
+      "date": null,
+      "status": "planning",
+      "decisions": ["date", "guests"],
+      "attends": [],
+      "evidence": []
+    },
+    {
+      "id": "event.thanksgiving",
+      "title": "Thanksgiving dinner",
+      "kind": "holiday",
+      "date": "2026-11-26",
+      "status": "planning",
+      "decisions": ["menu"],
+      "attends": [{ "person": "person.mom", "status": "yes" }],
+      "tasks": [{ "title": "Order the turkey", "due": "2026-11-18", "status": "todo" }],
+      "evidence": [{ "provider": "imessage", "recordId": "imessage.thread.mom.2026-11-01", "observedAt": "2026-11-01T22:00:00Z" }]
+    }
+  ],
+  "gifts": [
+    { "id": "gift.mom", "gift_for": "person.mom", "occasion": "christmas", "idea": "Pottery class", "budget": { "amount": 120, "currency": "USD" }, "status": "idea", "evidence": [] }
+  ],
+  "finances": {
+    "currency": "USD",
+    "accounts": [
+      { "id": "account.checking", "name": "Checking ··42", "kind": "checking", "balance": 4820.15, "asOf": "2026-11-01", "evidence": [{ "provider": "upload", "recordId": "upload.bank-export-2026-11.csv", "observedAt": "2026-11-01T00:00:00Z" }] }
+    ],
+    "monthlySpend": [
+      { "month": "2026-10", "categories": { "housing": 1900, "food": 640, "transport": 180, "health": 95, "fun": 310 } }
+    ],
+    "budgets": [
+      { "for": "event.salon-dinner", "amount": 600 },
+      { "for": "gift.mom", "amount": 120 }
+    ]
+  },
+  "body": {
+    "source": "apple-health",
+    "_note": "Daily values only, last 90 days, units as Apple reports them. Metrics: steps, sleepHours, restingHeartRate, respiratoryRate, vo2Max, weight, bodyFatPercent, waist, height.",
+    "series": [
+      { "metric": "steps", "unit": "count", "values": [["2026-11-01", 8420], ["2026-11-02", 6110]], "evidence": [{ "provider": "apple-health", "recordId": "apple-health.export.2026-11-02", "observedAt": "2026-11-02T08:00:00Z" }] },
+      { "metric": "sleepHours", "unit": "h", "values": [["2026-11-01", 7.2], ["2026-11-02", 6.5]], "evidence": [{ "provider": "apple-health", "recordId": "apple-health.export.2026-11-02", "observedAt": "2026-11-02T08:00:00Z" }] },
+      { "metric": "vo2Max", "unit": "mL/kg/min", "values": [["2026-10-28", 41.2]], "evidence": [{ "provider": "apple-health", "recordId": "apple-health.export.2026-11-02", "observedAt": "2026-11-02T08:00:00Z" }] },
+      { "metric": "weight", "unit": "lb", "values": [["2026-11-01", 172.4]], "evidence": [{ "provider": "apple-health", "recordId": "apple-health.export.2026-11-02", "observedAt": "2026-11-02T08:00:00Z" }] }
+    ]
+  },
+  "sources": [
+    {
+      "format": "outfitter-forerunner-sample-v1",
+      "provider": "imessage",
+      "account": "+1 512 555 0100",
+      "collectedAt": "2026-11-02T20:00:00Z",
+      "collectionMethod": "agent-import",
+      "window": "Last 30 days; last message per thread",
+      "records": [
+        { "id": "imessage.thread.jordan.2026-10-28", "title": "Jordan Blake", "text": "open mic is the 15th, you in?", "date": "2026-10-28", "participants": ["Jordan Blake"] },
+        { "id": "imessage.thread.mom.2026-11-01", "title": "Dana Example", "text": "Are we doing Thanksgiving at yours this year?", "date": "2026-11-01", "participants": ["Dana Example"] }
+      ]
+    },
+    {
+      "format": "outfitter-forerunner-sample-v1",
+      "provider": "gmail",
+      "account": "sam@example.test",
+      "collectedAt": "2026-11-02T20:00:00Z",
+      "collectionMethod": "agent-import",
+      "window": "Last 30 days; bounded partial sample",
+      "records": [
+        { "id": "gmail.msg.salon-idea", "title": "Salon dinner — who's in?", "text": "Thinking a dozen people, one long table, one question for the night.", "date": "2026-10-20", "url": "https://mail.example.test/", "participants": ["Jordan Blake"] },
+        { "id": "gmail.msg.loft-quote", "title": "Quote: East Side Loft, Dec 6", "text": "Room for 14 at $450 for the evening.", "date": "2026-10-25", "url": "https://mail.example.test/", "participants": ["East Side Loft"] }
+      ]
+    },
+    {
+      "format": "outfitter-forerunner-sample-v1",
+      "provider": "google-calendar",
+      "account": "sam@example.test",
+      "collectedAt": "2026-11-02T20:00:00Z",
+      "collectionMethod": "agent-import",
+      "window": "Next 30 days",
+      "records": [
+        { "id": "gcal.event.yoga-practice-2026-11-05", "title": "Yoga practice class (record)", "text": "Weekly, 07:00–08:00", "date": "2026-11-05", "url": "https://calendar.example.test/", "participants": [] }
+      ]
+    },
+    {
+      "format": "outfitter-forerunner-sample-v1",
+      "provider": "slack",
+      "account": "Outfitter workspace",
+      "collectedAt": "2026-11-02T20:00:00Z",
+      "collectionMethod": "agent-import",
+      "window": "Last 30 days; named channels and DMs",
+      "records": [
+        { "id": "slack.msg.alpha-date", "title": "#alpha", "text": "Design partners get access Dec 1.", "date": "2026-10-30", "participants": ["Jordan Blake"] }
+      ]
+    },
+    {
+      "format": "outfitter-forerunner-sample-v1",
+      "provider": "apple-health",
+      "account": "iPhone export",
+      "collectedAt": "2026-11-02T08:00:00Z",
+      "collectionMethod": "agent-import",
+      "window": "2026-08-04 to 2026-11-02",
+      "records": [
+        { "id": "apple-health.export.2026-11-02", "title": "export.xml", "text": "Daily aggregates for steps, sleep, resting heart rate, respiratory rate, VO2 max, weight, body fat, waist, height.", "date": "2026-11-02", "participants": [] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+---
+import { appHref } from "../../../app-href";
+import Layout from "../../../components/PlanningLayout.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import ReleaseContent from "../../../components/ReleaseContent";
+import { requestIdentity, requestPageURL } from "@ai-outfitter/app-sdk/server";
+import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { demoProjectReleases, readProjectReleases, type ProjectReleaseReview } from "../../../server/project-releases";
+import { demoProjectPage, projectPage } from "../../../server/project-page";
+import { wikiPageHref } from "../../../server/wiki-links";
+const projectId = Astro.params.id ?? "";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+let model: ProjectReleaseReview | undefined;
+let error = "";
+try {
+  if (demo) model = demoProjectReleases(projectId);
+  else { const identity = requestIdentity(Astro.request); model = await readProjectReleases(workflowHost<"interactive">(Astro.locals), identity.installationId, projectId); }
+} catch (failure) {
+  if (failure instanceof Response && [401, 403].includes(failure.status)) throw failure;
+  Astro.response.status = failure instanceof Response && [404, 409, 413].includes(failure.status) ? failure.status : 503;
+  error = Astro.response.status === 404 ? "Project not found." : "Evidence is unavailable. Check the project's Wiki links and retry.";
+}
+const documents = model?.documents ?? [];
+const bundleId = Astro.url.searchParams.get("bundle");
+const document = bundleId ? documents.find(node => node.id === bundleId) : documents[0];
+if (!error && bundleId && !document) { Astro.response.status = 404; error = "This record is not linked to the selected project."; }
+const source = document && model?.wiki ? wikiPageHref(model.wiki, requestPageURL(Astro.request), `documents/${document.id}`) : "";
+const screens = document ? model?.demonstrations[document.id] ?? [] : [];
+const project = !error && !document ? (demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals, projectId)).projects[0] : undefined;
+const legacy = project ? [project.demoInstructions, project.demoResults].filter(Boolean).join("\n\n") : "";
+const firstHeading = document?.body.match(/^\s*#{1,6}\s+(.+?)\s*#*\s*(?:\r?\n|$)/)?.[1]?.trim();
+const bodyHasTitle = firstHeading === document?.title.trim();
+---
+<Layout title="Evidence" description={model?.project.title ?? "Review this project's supporting evidence."} wiki={model?.wiki ?? null}>
+  <div slot="intro-actions"><Button href={appHref(Astro.url.pathname, `/projects/${projectId}`)} variant="secondary">← Back to project</Button></div>
+  {demo && <p class="planning-notice">Read-only demo · These evidence records are synthetic.</p>}
+  {error ? <p role="alert">{error}</p> : <>
+    {documents.length > 1 && <nav class="planning-toolbar planning-release-records" aria-label="Evidence records">
+      {documents.map(node => <Button href={`?bundle=${node.id}`} variant="secondary" aria-current={document?.id === node.id ? "page" : undefined}>{node.title}</Button>)}
+    </nav>}
+    {document ? <article class="planning-release-reader">
+      {!bodyHasTitle && <h2>{document.title}</h2>}<p class="muted">Revision {document.revision}{source && <> · <a href={source}>Wiki source</a></>}</p>
+      <ReleaseContent content={document.body} />
+    </article> : legacy ? <article class="planning-release-reader"><h2>Project evidence</h2><ReleaseContent content={legacy} /></article> : <p>No evidence documents are linked to this project yet.</p>}
+    {screens.length > 0 && <div class="planning-evidence-screens"><h2>Screenshots</h2>{screens.map(demonstration => <div><h3>{demonstration.title}</h3><div class="planning-evidence-grid">{demonstration.media.map(url => <a href={url}><img src={url} alt={`${demonstration.title}, ${url.split("/").pop()}`} loading="lazy" /></a>)}</div></div>)}</div>}
+  </>}
+</Layout>

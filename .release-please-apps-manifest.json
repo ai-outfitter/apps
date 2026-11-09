@@ -4,5 +4,7 @@
   "apps/workshop": "0.1.2",
   "apps/software-foundry": "0.3.2",
   "apps/creative-team": "0.1.2",
-  "apps/onto": "0.1.2"
+  "apps/onto": "0.1.2",
+  "apps/planning": "0.1.0",
+  "apps/forerunner": "0.1.0"
 }

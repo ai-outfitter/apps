@@ -1,0 +1,9 @@
+---
+// Preserve old run links and bookmarked tab/item selections.
+const tab = Astro.url.searchParams.get("tab");
+const view = tab === "changes" || tab === "transcript" ? tab : "inputs";
+const target = new URL(Astro.url);
+target.pathname = `${target.pathname.replace(/\/$/, "")}/${view}`;
+target.searchParams.delete("tab");
+return Astro.redirect(target.pathname + target.search, 302);
+---

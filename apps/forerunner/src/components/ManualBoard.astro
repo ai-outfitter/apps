@@ -1,0 +1,38 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import "../forerunner.css";
+---
+
+  <div id="manual-board" class="forerunner-content">
+    <p>Your stones, pebbles and sand are visible only to you.</p>
+    <p id="board-error" role="alert" hidden></p>
+    <Button id="reload-board" variant="secondary">Reload board</Button>
+    <label class="completed-filter"><input id="show-completed" type="checkbox" /> Show completed items</label>
+    <p id="board-loading" role="status">Loading your board…</p>
+    {([['stone', 'Stones', 'Your highest priorities.'], ['pebble', 'Pebbles', 'Next actions that move a stone forward.'], ['sand', 'Sand', 'Small tasks, with or without a stone.']] as const).map(([category, name, description]) => (
+      <section class="forerunner-section" aria-labelledby={`${category}-heading`}>
+        <div class="forerunner-section-heading"><div><h2 id={`${category}-heading`}>{name}</h2><p>{description}</p></div><Button data-add={category}>Add {category}</Button></div>
+        <p data-empty={category} hidden>No {name.toLowerCase()} yet.</p>
+        <ol class="forerunner-card-row" data-items={category}></ol>
+      </section>
+    ))}
+    <section id="item-editor" aria-labelledby="editor-heading" hidden>
+      <h2 id="editor-heading">Add item</h2>
+      <form id="item-form" class="manual-form">
+        <label>Title<input name="title" required maxlength="160" /></label>
+        <label>Description<textarea name="description" maxlength="4000" rows="3"></textarea></label>
+        <label>Due date<input name="dueDate" type="date" /></label>
+        <label>Status<select name="status"><option value="todo">To do</option><option value="in-progress">In progress</option><option value="done">Done</option></select></label>
+        <div id="parent-field"><label for="parent-stone">Stone</label><select id="parent-stone" name="parentId"><option value="">No stone</option></select></div>
+        <div class="manual-actions"><Button type="submit">Save item</Button><Button id="cancel-edit" variant="secondary">Cancel</Button></div>
+        <p id="editor-error" role="alert" hidden></p>
+      </form>
+    </section>
+    <noscript>Enable JavaScript to load and edit your private board.</noscript>
+  </div>
+
+<script>
+  import { setOrganizationLink } from "../../navigation.js";
+  import "../scripts/manual-board";
+  setOrganizationLink("forerunner");
+</script>

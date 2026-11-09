@@ -1,0 +1,9 @@
+---
+import Activity from "../components/Activity.astro";
+import ForerunnerLayout from "../components/ForerunnerLayout.astro";
+
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+---
+<ForerunnerLayout title="History" description="Every discovery run, what it found, and what was saved." page="history">
+  {demo ? <p>This demo does not run discovery. <a href="runs/sample/inputs">Open a sample run</a> to see what one read, what the agent concluded from each email, and what it changed.</p> : <Activity />}
+</ForerunnerLayout>

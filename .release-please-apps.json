@@ -72,6 +72,28 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/planning": {
+      "release-type": "node",
+      "component": "planning",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/forerunner": {
+      "release-type": "node",
+      "component": "forerunner",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

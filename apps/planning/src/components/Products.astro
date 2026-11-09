@@ -1,0 +1,24 @@
+---
+import { requestIdentity } from "@ai-outfitter/app-sdk/server";
+import Icon from "@ai-outfitter/ui/astro/Icon.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import Layout from "./PlanningLayout.astro";
+interface Props { productId?: string; revisionId?: string }
+const { productId, revisionId } = Astro.props;
+const canEdit = import.meta.env.OUTFITTER_APP_MODE === "operational" && requestIdentity(Astro.request).canEdit;
+---
+<Layout title="Products" description="Explore what your products do and follow the experience through each revision.">
+  {!productId && import.meta.env.OUTFITTER_APP_MODE !== "demo" && <div slot="intro-actions" id="product-report-actions" class="planning-roadmap-actions" aria-label="Roadmap updates">
+    {canEdit && <><Button id="regenerate-product-report" variant="secondary" class="planning-roadmap-refresh" aria-label="Refresh product roadmap" title="Regenerate this week’s roadmap from the latest products, projects and goals"><Icon name="refresh" size={18} /></Button><label class="planning-daily-update" title="Regenerate the roadmap every day at 13:00 UTC"><input id="daily-product-report" type="checkbox" /> Daily updates</label></>}
+    <p id="product-report-run-status" role="status" hidden></p>
+  </div>}
+  {import.meta.env.OUTFITTER_APP_MODE === "demo" && <p class="planning-notice">Read-only demo · Products, screens and results are synthetic.</p>}
+  {!productId && import.meta.env.OUTFITTER_APP_MODE !== "demo" && <section id="product-roadmap" class="planning-product-section" aria-label="Product roadmap" hidden></section>}
+  <div id="products" data-can-edit={String(canEdit)} data-product-id={productId} data-revision-id={revisionId} aria-busy="true">
+    <p role="status">Loading products…</p>
+  </div>
+</Layout>
+<script>
+  import "../scripts/products";
+  import "../scripts/product-report-controls";
+</script>

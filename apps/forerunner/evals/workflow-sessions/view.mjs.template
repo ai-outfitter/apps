@@ -1,0 +1,31 @@
+import {spawn} from 'node:child_process';
+import {cp,mkdir,readFile,writeFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+
+const require=createRequire(import.meta.url);
+const upstream=dirname(require.resolve('@vercel/agent-eval-playground/package.json'));
+const packageDir=resolve('.workflow-playground');
+let nextBin=resolve(dirname(require.resolve('next/package.json')),'dist/bin/next');
+const version=JSON.stringify([require('@vercel/agent-eval-playground/package.json').version,require('next/package.json').version]);
+const state=resolve(packageDir,'.workflow-view-build');
+async function run(args,env){
+ const child=spawn(process.execPath,[nextBin,...args],{cwd:packageDir,env:{...process.env,...env},stdio:'inherit'});
+ const exit=await new Promise(r=>child.on('exit',r));if(exit!==0)throw new Error(`Playground exited ${exit}`);
+}
+let built;try{built=await readFile(state,'utf8')}catch{}
+// The published .next tree can target an older Next release. Build the upstream
+// source against the installed dependency once, rather than patching its files.
+if(built!==version){
+  await mkdir(packageDir,{recursive:true});
+  await cp(upstream,packageDir,{recursive:true,filter:path=>!['.next','node_modules','.workflow-view-build'].includes(path.split('/').at(-1))});
+  const install=spawn('npm',['install','--ignore-scripts'],{cwd:packageDir,stdio:'inherit'});
+  if(await new Promise(r=>install.on('exit',r))!==0)throw new Error('Playground dependency installation failed');
+  const localRequire=createRequire(resolve(packageDir,'package.json'));
+  nextBin=resolve(dirname(localRequire.resolve('next/package.json')),'dist/bin/next');
+  await run(['build','--webpack']);await writeFile(state,version);
+}
+const localRequire=createRequire(resolve(packageDir,'package.json'));
+nextBin=resolve(dirname(localRequire.resolve('next/package.json')),'dist/bin/next');
+const args=process.argv.slice(2);const port=args[args.indexOf('--port')+1]||'3000';
+await run(['start','-p',port],{RESULTS_DIR:resolve('results'),EVALS_DIR:resolve('evals')});

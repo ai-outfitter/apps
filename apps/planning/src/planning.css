@@ -1,0 +1,438 @@
+.planning-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+.planning-toolbar h2 {
+  margin: 0;
+  flex: 1;
+}
+#planning label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+#planning input,
+#planning textarea,
+#planning select {
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+}
+#planning .planning-check {
+  flex-direction: row;
+  align-items: center;
+}
+#planning input[type="checkbox"] {
+  width: auto;
+}
+#planning form {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+#planning form > label {
+  margin-bottom: 1rem;
+}
+.planning-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.planning-documents {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.planning-documents article {
+  min-width: 0;
+  max-width: 72ch;
+  overflow-wrap: anywhere;
+}
+.planning-documents p,
+.planning-issue p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.planning-documents h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.planning-documents p,
+.planning-issue small,
+.planning-notice {
+  color: var(--muted);
+}
+.planning-issue {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+.planning-issue h4 {
+  margin: 0 0 0.35rem;
+}
+@media (max-width: 600px) {
+  .planning-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #planning form {
+    padding: 1rem;
+  }
+  .planning-toolbar > label:first-child {
+    flex: 1;
+  }
+}
+
+#planning[data-use-cases] .planning-toolbar > label {
+  flex: 1 1 15rem;
+}
+
+/* Planning is a visual workspace; let its content use the available desktop width. */
+.ui-content:has(.planning-content) {
+  max-width: none;
+}
+.planning-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+  margin: 1rem 0 2rem;
+}
+.planning-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.planning-card > summary {
+  padding: 1.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+.planning-card > summary::-webkit-details-marker {
+  display: none;
+}
+.planning-card h2 {
+  font-size: 1.2rem;
+  margin: 0 0 0.65rem;
+}
+.planning-card p {
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.planning-card > summary > p {
+  margin: 0 0 1rem;
+}
+.planning-card:hover,
+.planning-project-card[aria-pressed="true"] {
+  border-color: var(--focus);
+}
+.planning-card > summary:focus-visible,
+.planning-project-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+}
+.planning-card[open] {
+  grid-column: 1 / -1;
+}
+.planning-card-hint {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 1rem;
+}
+.planning-card[open] .planning-card-hint {
+  display: none;
+}
+.planning-card-detail {
+  border-top: 1px solid var(--border);
+  padding: 1.5rem;
+}
+.planning-card-detail > h3:first-child {
+  margin-top: 0;
+}
+.planning-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.planning-pill {
+  background: var(--soft);
+  border-radius: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+}
+.planning-project-card {
+  text-align: left;
+  text-decoration: none;
+  display: block;
+  font: inherit;
+  padding: 1.5rem;
+  cursor: pointer;
+}
+.planning-project-card p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 600px) {
+  .planning-card > summary,
+  .planning-card-detail,
+  .planning-project-card {
+    padding: 1rem;
+  }
+}
+
+.planning-record-card {
+  display: block;
+  padding: 1.5rem;
+  text-decoration: none;
+}
+.planning-record-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.planning-record-page > .planning-card-detail {
+  padding: 1.5rem 0;
+  margin-top: 1.5rem;
+}
+
+/* Product exploration follows the experience; provenance has its own view. */
+#products { min-width: 0; }
+#products [hidden] { display: none; }
+.product-card { padding: 1.5rem; }
+.product-revision-link { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 0; border-top: 1px solid var(--border); }
+.product-revision-link span, .product-breadcrumb, .walkthrough-scope { color: var(--muted); font-size: .9rem; }
+.product-breadcrumb { margin-bottom: 1.5rem; }
+.product-revision-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+.product-revision-toolbar > p { max-width: 42rem; color: var(--muted); }
+.product-revision-toolbar label { display: grid; gap: .4rem; font-size: .85rem; min-width: 0; }
+.product-revision-toolbar select { max-width: 26rem; width: 100%; }
+#products button, #products select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: .5rem; padding: .65rem .85rem; }
+#products button { cursor: pointer; }
+#products button:disabled { opacity: .4; cursor: default; }
+#products button:focus-visible, #products a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+#products button[aria-pressed="true"], #products button[aria-current="step"] { border-color: var(--text); background: var(--soft); font-weight: 600; }
+.product-tabs { display: flex; gap: .5rem; border-bottom: 1px solid var(--border); padding: .75rem 0 1rem; }
+.walkthrough { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 2rem; margin-top: 1.75rem; }
+.walkthrough-chapters { display: grid; align-content: start; gap: .5rem; }
+.walkthrough-chapters h2 { font-size: .85rem; font-weight: 500; color: var(--muted); margin: 0 0 .75rem; }
+.walkthrough-chapters button { text-align: left; line-height: 1.5; }
+.walkthrough-stage { min-width: 0; }
+.walkthrough-stage h2 { font-size: clamp(1.3rem, 2vw, 1.9rem); margin: .5rem 0 .75rem; }
+.walkthrough-eyebrow { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin: 0; }
+.walkthrough-purpose { color: var(--muted); max-width: 52rem; line-height: 1.65; }
+.walkthrough-flow { margin: 1rem 0 1.5rem; font-size: .9rem; }
+.walkthrough-flow summary { cursor: pointer; }
+.walkthrough-flow h3 { font-size: .95rem; }
+.walkthrough-flow li { margin: .5rem 0; }
+.walkthrough-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; margin: 1.25rem 0; }
+.walkthrough-controls [role="group"] { display: flex; gap: .35rem; flex-wrap: wrap; }
+.walkthrough-controls > span { color: var(--muted); font-size: .85rem; }
+.walkthrough-capture { margin: 0; overflow: hidden; border: 1px solid var(--border); border-radius: .75rem; background: var(--soft); }
+.walkthrough-image { height: 68vh; overflow: auto; }
+.walkthrough-capture img { display: block; width: 100%; height: auto; }
+.walkthrough-capture[data-viewport="mobile"] img { max-width: 390px; margin-inline: auto; }
+.walkthrough-capture figcaption { display: grid; gap: .45rem; background: var(--surface); padding: 1rem 1.25rem; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.walkthrough-capture figcaption code, .walkthrough-capture figcaption small { color: var(--muted); font-size: .85rem; }
+.walkthrough-capture figcaption a { font-size: .8rem; justify-self: start; }
+.walkthrough-load { height: 68vh; display: grid; align-content: center; justify-items: center; text-align: center; padding: 2rem; }
+.walkthrough-pages { display: flex; gap: .5rem; overflow-x: auto; padding: 1rem 2px; }
+.walkthrough-pages button { flex: 0 0 auto; max-width: 20rem; overflow-wrap: anywhere; text-align: left; font-size: .8rem !important; }
+.walkthrough-pagination { display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding: 1rem 0; margin-top: .5rem; }
+.walkthrough-gap { padding: 1.5rem; background: var(--soft); border-radius: .75rem; }
+.product-evidence { max-width: 65rem; overflow-wrap: anywhere; }
+.product-evidence dl { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .75rem; }
+.product-evidence dd { margin: 0; }
+.product-evidence dt, .product-evidence > p { color: var(--muted); }
+.product-evidence li { margin: .75rem 0; }
+.product-warning { color: var(--text); }
+@media (max-width: 800px) {
+  .walkthrough { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .walkthrough-chapters { display: flex; overflow-x: auto; padding: 2px 2px .75rem; }
+  .walkthrough-chapters h2 { display: none; }
+  .walkthrough-chapters button { flex: 0 0 13rem; }
+  .product-revision-toolbar { display: block; }
+  .product-revision-toolbar select { max-width: 100%; }
+  .product-evidence dl { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+  .product-evidence dd { margin-bottom: .75rem; }
+  .product-revision-link { display: grid; }
+}
+@media (max-width: 600px) {
+  .planning-record-card {
+    padding: 1rem;
+  }
+}
+
+.walkthrough-unavailable { display: grid; place-items: center; min-height: 100%; padding: 2rem; margin: 0; text-align: center; }
+
+/* Project details read as a document, without a second title or enclosing card. */
+#project-detail {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.planning-documents p {
+  margin: 0.5rem 0 0;
+}
+#project-back {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.planning-readiness-group { margin-block: 2rem; }
+.planning-readiness-group > h2 { margin-bottom: .35rem; }
+.planning-readiness-group > p { margin-top: 0; color: var(--muted); }
+.planning-readiness { border-left: 3px solid var(--border); padding-left: 1rem; margin: 1rem 0; }
+.planning-readiness[data-stage="implement"] { border-color: #358663; }
+.planning-readiness[data-stage="plan"] { border-color: #b3872e; }
+.planning-readiness p { margin: .5rem 0; }
+.planning-readiness ul { padding-left: 1.25rem; margin: .5rem 0; }
+.planning-readiness-signal, .planning-readiness small { color: var(--muted); }
+.planning-readiness-rules { margin-block: 1rem 1.5rem; max-width: 72ch; }
+.planning-readiness-rules summary { cursor: pointer; }
+#project-readiness { max-width: 72ch; margin-bottom: 2rem; }
+
+.planning-home-product { border-top: 1px solid var(--border); padding: 1rem 0; }
+.planning-home-product h3 { margin: 0; }
+.planning-home-product p { max-width: 70ch; }
+
+.intro > p:empty { display: none; }
+.planning-home-section { padding: 0; border: 0; background: none; margin: 2rem 0; }
+.planning-home-section h2 { margin-bottom: 0.75rem; }
+.planning-home-product h3 { font-size: 1rem; }
+.planning-product-section { border: 0; border-radius: 0; border-top: 1px solid var(--border); background: none; padding: 1.5rem 0; margin: 1.5rem 0; }
+.planning-product-heading { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: start; justify-content: space-between; }
+.planning-product-heading h2 { margin: 0; }
+.planning-product-offerings { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; }
+.planning-product-offerings a { text-decoration: none; }
+.planning-product-projects { margin-top: 1.5rem; }
+.planning-product-projects > h3 { margin: 0 0 .75rem; }
+
+.planning-product-project-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.planning-product-project-table th, .planning-product-project-table td { padding: .75rem 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.planning-product-project-table th:first-child, .planning-product-project-table td:first-child { padding-right: 1rem; }
+
+.planning-project-readiness { color: var(--muted); }
+.planning-release-reader {
+  max-width: 78ch;
+  overflow-wrap: anywhere;
+}
+.planning-release-reader h2,
+.planning-release-reader h3 {
+  margin-top: 1.5rem;
+}
+.planning-release-reader li + li {
+  margin-top: 0.4rem;
+}
+.planning-release-records .ui-button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.planning-release-records [aria-current="page"] {
+  border-color: var(--text);
+}
+.planning-evidence-screens h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+}
+.planning-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.5rem;
+  align-items: start;
+}
+.planning-evidence-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+}
+
+/* Daily digest page */
+.planning-digests { display: grid; gap: 1rem; }
+.planning-digest { border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem 1.25rem; overflow-wrap: anywhere; }
+.planning-digest header { display: grid; gap: 0.25rem; margin-bottom: 0.75rem; }
+.planning-digest h3, .planning-digest h4 { margin: 0; }
+.planning-digest h4 { margin-top: 1rem; font-size: 0.95rem; }
+.planning-digest ul, .planning-digest ol { margin: 0.4rem 0 0; padding-left: 1.25rem; display: grid; gap: 0.3rem; }
+.planning-digest-summary p { margin: 0 0 0.5rem; }
+.planning-digest-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin: 0.75rem 0 0; }
+.planning-digest-counts div { border-radius: 0.5rem; padding: 0.5rem; background: var(--soft); }
+.planning-digest-counts dt { font-size: 0.8rem; color: var(--muted); }
+.planning-digest-counts dd { margin: 0; font-size: 1.25rem; font-weight: 600; }
+@media (max-width: 480px) { .planning-digest-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.planning-digest-runs ul { list-style: none; padding: 0; margin: 0.5rem 0; display: grid; gap: 0.4rem; }
+.planning-digest-runs li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.planning-run-failed { color: var(--text); outline: 1px solid var(--border); }
+
+/* Projects list: one card per organization with its goals' progress and its projects. */
+.planning-org-card { margin-block: 1.25rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); min-width: 0; }
+.planning-org-card-header { margin-bottom: .6rem; }
+.planning-org-card-header h2 { margin: 0; font-size: 1.1rem; }
+.planning-goal-chart { display: grid; gap: .4rem; margin: 0 0 .75rem; padding: .6rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.planning-goal-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, 40%); gap: .75rem; align-items: center; }
+.planning-goal-name { min-width: 0; font-size: .875rem; overflow-wrap: anywhere; }
+.planning-goal-bar { display: flex; gap: 2px; height: .6rem; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--border) 45%, transparent); }
+.planning-goal-segment { display: block; min-width: .6rem; height: 100%; font-size: 0; color: transparent; }
+.planning-goal-segment[data-light="green"] { background: #358663; }
+.planning-goal-segment[data-light="yellow"] { background: #b3872e; }
+.planning-goal-segment[data-light="none"] { background: var(--border); }
+.planning-goal-empty { font-size: .7rem; line-height: .6rem; color: var(--muted); padding-left: .25rem; }
+.planning-org-projects { display: grid; gap: .1rem; margin: 0; padding: 0; list-style: none; }
+.planning-org-project { display: flex; align-items: center; gap: .75rem; padding: .35rem 0; }
+.planning-org-project-name { flex: 1; min-width: 0; overflow-wrap: anywhere; color: inherit; text-decoration: none; }
+.planning-org-project-name:hover { text-decoration: underline; }
+.planning-status { flex-shrink: 0; font: inherit; font-size: .75rem; line-height: 1; padding: .3rem .6rem; border-radius: 999px; border: 1px solid transparent; color: #fff; background: var(--border); }
+.planning-status[data-light="green"] { background: #358663; }
+.planning-status[data-light="yellow"] { background: #b3872e; }
+.planning-status[data-light="none"] { color: var(--muted); background: transparent; border-color: var(--border); }
+button.planning-status { cursor: pointer; }
+button.planning-status[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px currentColor; }
+.planning-decisions { margin: 0 0 .5rem; padding-left: 1.1rem; font-size: .8rem; color: var(--muted); }
+.planning-org-toggle { margin-top: .35rem; padding: 0; border: 0; background: none; font: inherit; font-size: .8rem; color: var(--muted); cursor: pointer; }
+.planning-org-toggle:hover { color: var(--text); }
+@media (max-width: 40rem) { .planning-goal-row { grid-template-columns: 1fr; gap: .3rem; } }
+.planning-shipped { margin-block: 1.5rem; }
+.planning-shipped h2 { margin: 0 0 .25rem; font-size: 1.1rem; }
+.planning-shipped-repo { margin-top: .75rem; }
+.planning-shipped-repo h3 { margin: 0 0 .35rem; font-size: .95rem; }
+.planning-shipped-repo ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; font-size: .875rem; }
+/* Page actions stay beside the title; a long title shrinks and the buttons wrap within their group. */
+.intro-heading { flex-wrap: nowrap; align-items: flex-start; }
+.intro-heading h1 { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.intro-heading > .planning-toolbar { flex: 0 1 auto; justify-content: flex-end; flex-wrap: wrap; margin: 0; }
+@media (max-width: 40rem) { .intro-heading { flex-wrap: wrap; } }
+.planning-wiki-records { margin: .25rem 0 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+.planning-markdown > :first-child { margin-top: 0; }
+.planning-markdown h2, .planning-markdown h3 { font-size: 1rem; margin: 1rem 0 .4rem; }
+.planning-release summary { cursor: pointer; color: var(--muted); }
+
+.planning-roadmap-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; }
+.planning-daily-update { display: inline-flex; flex-direction: row; align-items: center; gap: .5rem; font-size: .875rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.planning-daily-update input { margin: 0; width: auto; accent-color: var(--text); }
+.planning-roadmap-actions [role="status"] { flex-basis: 100%; margin: 0; color: var(--muted); font-size: .875rem; }
+.planning-roadmap-meta { color: var(--muted); font-size: .875rem; margin: .5rem 0 0; }
+.planning-roadmap-links { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: .875rem; }
+.product-report-narrative { margin-top: 1.25rem; max-width: 80ch; line-height: 1.65; }
+@media (max-width: 640px) {
+  .planning-roadmap-actions { width: 100%; }
+  .planning-product-heading { gap: .75rem; }
+}
+
+.planning-roadmap-refresh { width: 2.5rem; height: 2.5rem; padding: 0; }
+
+.planning-drag-handle { cursor: grab; touch-action: none; color: inherit; border: 0; background: transparent; font-size: 1.25rem; padding: .25rem .5rem; }
+.planning-drag-handle:active { cursor: grabbing; }

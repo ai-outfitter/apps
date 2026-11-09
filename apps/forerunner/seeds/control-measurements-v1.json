@@ -1,0 +1,876 @@
+{
+  "response": {
+    "version": 1,
+    "description": "Proposed PostHog issue-response rule. A qualifying response requires diagnosis, an accountable owner and an actionable next step; acknowledgement alone does not qualify. Definitions only; no source adapter or scheduler is active.",
+    "grain": {
+      "type_id": "86cd3b21-71e2-5dfa-9bd0-000000000004",
+      "keys": [
+        "obligation_id",
+        "control_version"
+      ]
+    },
+    "window": {
+      "kind": "elapsed",
+      "amount": 8,
+      "unit": "hour",
+      "timezone": "UTC"
+    },
+    "graph_requirements": [
+      {
+        "name": "goal",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000018",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000010"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "accountable owner",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "direction": "incoming",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000013",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000005",
+              "71000000-0000-4000-8000-000000000018"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "source service",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000020",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000015"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "subject",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "direction": "incoming",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "name": "issue_episodes",
+        "relation": null,
+        "key_fields": [
+          "obligation_id",
+          "control_version"
+        ],
+        "required_fields": [
+          "triggered_at_epoch",
+          "addressed_at_epoch",
+          "evidence_complete",
+          "waived"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "name": "triggered_at_epoch",
+        "data_type": "nullable_number",
+        "unit": "UTC seconds",
+        "origin": "source"
+      },
+      {
+        "name": "addressed_at_epoch",
+        "data_type": "nullable_number",
+        "unit": "UTC seconds",
+        "origin": "source"
+      },
+      {
+        "name": "as_of_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "runtime"
+      },
+      {
+        "name": "threshold",
+        "data_type": "number",
+        "unit": "hour",
+        "origin": "parameter"
+      },
+      {
+        "name": "evidence_complete",
+        "data_type": "boolean",
+        "unit": "boolean",
+        "origin": "source"
+      },
+      {
+        "name": "waived",
+        "data_type": "boolean",
+        "unit": "boolean",
+        "origin": "source"
+      },
+      {
+        "name": "result",
+        "data_type": "string",
+        "unit": "status",
+        "origin": "evaluation"
+      },
+      {
+        "name": "due_at_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "evaluation"
+      }
+    ],
+    "parameters": {
+      "threshold": 8
+    },
+    "programs": {
+      "measurement": [
+        {
+          "name": "seconds",
+          "operator": "subtract",
+          "arguments": [
+            {
+              "input": "addressed_at_epoch"
+            },
+            {
+              "input": "triggered_at_epoch"
+            }
+          ]
+        },
+        {
+          "name": "hours",
+          "operator": "divide",
+          "arguments": [
+            {
+              "step": "seconds"
+            },
+            {
+              "value": 3600.0
+            }
+          ]
+        }
+      ],
+      "deadline": [
+        {
+          "name": "seconds",
+          "operator": "multiply",
+          "arguments": [
+            {
+              "input": "threshold"
+            },
+            {
+              "value": 3600
+            }
+          ]
+        },
+        {
+          "name": "due",
+          "operator": "add",
+          "arguments": [
+            {
+              "input": "triggered_at_epoch"
+            },
+            {
+              "step": "seconds"
+            }
+          ]
+        }
+      ],
+      "decision": [
+        {
+          "name": "waived",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "waived"
+            },
+            {
+              "value": true
+            }
+          ]
+        },
+        {
+          "name": "missing_trigger",
+          "operator": "is_null",
+          "arguments": [
+            {
+              "input": "triggered_at_epoch"
+            }
+          ]
+        },
+        {
+          "name": "incomplete",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "evidence_complete"
+            },
+            {
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "unknown",
+          "operator": "or",
+          "arguments": [
+            {
+              "step": "missing_trigger"
+            },
+            {
+              "step": "incomplete"
+            }
+          ]
+        },
+        {
+          "name": "seconds",
+          "operator": "multiply",
+          "arguments": [
+            {
+              "input": "threshold"
+            },
+            {
+              "value": 3600
+            }
+          ]
+        },
+        {
+          "name": "due",
+          "operator": "add",
+          "arguments": [
+            {
+              "input": "triggered_at_epoch"
+            },
+            {
+              "step": "seconds"
+            }
+          ]
+        },
+        {
+          "name": "response_present",
+          "operator": "is_not_null",
+          "arguments": [
+            {
+              "input": "addressed_at_epoch"
+            }
+          ]
+        },
+        {
+          "name": "on_time",
+          "operator": "lte",
+          "arguments": [
+            {
+              "input": "addressed_at_epoch"
+            },
+            {
+              "step": "due"
+            }
+          ]
+        },
+        {
+          "name": "met",
+          "operator": "and",
+          "arguments": [
+            {
+              "step": "response_present"
+            },
+            {
+              "step": "on_time"
+            }
+          ]
+        },
+        {
+          "name": "overdue",
+          "operator": "gte",
+          "arguments": [
+            {
+              "input": "as_of_epoch"
+            },
+            {
+              "step": "due"
+            }
+          ]
+        },
+        {
+          "name": "result",
+          "operator": "case",
+          "arguments": [
+            {
+              "step": "waived"
+            },
+            {
+              "value": "waived"
+            },
+            {
+              "step": "unknown"
+            },
+            {
+              "value": "unknown"
+            },
+            {
+              "step": "met"
+            },
+            {
+              "value": "met"
+            },
+            {
+              "step": "overdue"
+            },
+            {
+              "value": "breached"
+            },
+            {
+              "value": "pending"
+            }
+          ]
+        }
+      ],
+      "aggregation": [
+        {
+          "name": "due",
+          "operator": "lte",
+          "arguments": [
+            {
+              "input": "due_at_epoch"
+            },
+            {
+              "input": "as_of_epoch"
+            }
+          ]
+        },
+        {
+          "name": "met",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "result"
+            },
+            {
+              "value": "met"
+            }
+          ]
+        },
+        {
+          "name": "breached",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "result"
+            },
+            {
+              "value": "breached"
+            }
+          ]
+        },
+        {
+          "name": "evaluable",
+          "operator": "or",
+          "arguments": [
+            {
+              "step": "met"
+            },
+            {
+              "step": "breached"
+            }
+          ]
+        },
+        {
+          "name": "met_due",
+          "operator": "and",
+          "arguments": [
+            {
+              "step": "met"
+            },
+            {
+              "step": "due"
+            }
+          ]
+        },
+        {
+          "name": "evaluable_due",
+          "operator": "and",
+          "arguments": [
+            {
+              "step": "evaluable"
+            },
+            {
+              "step": "due"
+            }
+          ]
+        },
+        {
+          "name": "numerator_row",
+          "operator": "case",
+          "arguments": [
+            {
+              "step": "met_due"
+            },
+            {
+              "value": 1
+            },
+            {
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "denominator_row",
+          "operator": "case",
+          "arguments": [
+            {
+              "step": "evaluable_due"
+            },
+            {
+              "value": 1
+            },
+            {
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "numerator",
+          "operator": "sum",
+          "arguments": [
+            {
+              "step": "numerator_row"
+            }
+          ]
+        },
+        {
+          "name": "denominator",
+          "operator": "sum",
+          "arguments": [
+            {
+              "step": "denominator_row"
+            }
+          ]
+        },
+        {
+          "name": "safe_denominator",
+          "operator": "null_if",
+          "arguments": [
+            {
+              "step": "denominator"
+            },
+            {
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "percentage",
+          "operator": "multiply",
+          "arguments": [
+            {
+              "value": 100.0
+            },
+            {
+              "step": "numerator"
+            }
+          ]
+        },
+        {
+          "name": "rate",
+          "operator": "divide",
+          "arguments": [
+            {
+              "step": "percentage"
+            },
+            {
+              "step": "safe_denominator"
+            }
+          ]
+        }
+      ]
+    },
+    "evidence_rules": [
+      "One row per issue opening or reopening under a commitment version. Repeated exceptions never reset the clock.",
+      "Use the first evidenced qualifying response at or after the trigger and no later than the observation cutoff.",
+      "Missing trigger history or source coverage sets evidence_complete to false. A waiver requires explicit authorization and preserves history."
+    ],
+    "reporting": "Percentage of due, evaluable obligations met on time. Report pending, unknown and waived separately. Empty denominator is null, not 100%."
+  },
+  "quarterly": {
+    "version": 1,
+    "description": "Proposed quarterly friendship-contact rule. Only confirmed completed interactions count. Invitations, plans and cancellations are not completions. Definitions only; no source adapter or scheduler is active.",
+    "grain": {
+      "type_id": "86cd3b21-71e2-5dfa-9bd0-000000000003",
+      "keys": [
+        "commitment_id",
+        "control_version",
+        "quarter_start_epoch"
+      ]
+    },
+    "window": {
+      "kind": "calendar",
+      "amount": 1,
+      "unit": "quarter",
+      "timezone": "America/Chicago"
+    },
+    "graph_requirements": [
+      {
+        "name": "goal",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000018",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000010"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "accountable owner",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "direction": "incoming",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000013",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000005",
+              "71000000-0000-4000-8000-000000000018"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "source service",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000020",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000015"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "friendship",
+        "min_matches": 1,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "direction": "incoming",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000001"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "two friends",
+        "min_matches": 2,
+        "path": [
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "direction": "incoming",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000001"
+            ]
+          },
+          {
+            "edge_type_id": "86cd3b21-71e2-5dfa-9bd0-000000000011",
+            "direction": "outgoing",
+            "target_type_ids": [
+              "71000000-0000-4000-8000-000000000005"
+            ]
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "name": "confirmed_interactions",
+        "relation": null,
+        "key_fields": [
+          "interaction_id"
+        ],
+        "required_fields": [
+          "interaction_id",
+          "confirmed",
+          "completed_at_epoch",
+          "evidence_complete"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "name": "interaction_id",
+        "data_type": "string",
+        "unit": "identity",
+        "origin": "source"
+      },
+      {
+        "name": "confirmed",
+        "data_type": "boolean",
+        "unit": "boolean",
+        "origin": "source"
+      },
+      {
+        "name": "completed_at_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "source"
+      },
+      {
+        "name": "quarter_start_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "runtime"
+      },
+      {
+        "name": "quarter_end_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "runtime"
+      },
+      {
+        "name": "as_of_epoch",
+        "data_type": "number",
+        "unit": "UTC seconds",
+        "origin": "runtime"
+      },
+      {
+        "name": "confirmed_count",
+        "data_type": "number",
+        "unit": "interactions",
+        "origin": "measurement"
+      },
+      {
+        "name": "threshold",
+        "data_type": "number",
+        "unit": "interactions",
+        "origin": "parameter"
+      },
+      {
+        "name": "evidence_complete",
+        "data_type": "boolean",
+        "unit": "boolean",
+        "origin": "source"
+      }
+    ],
+    "parameters": {
+      "threshold": 1
+    },
+    "programs": {
+      "measurement": [
+        {
+          "name": "confirmed",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "confirmed"
+            },
+            {
+              "value": true
+            }
+          ]
+        },
+        {
+          "name": "after_start",
+          "operator": "gte",
+          "arguments": [
+            {
+              "input": "completed_at_epoch"
+            },
+            {
+              "input": "quarter_start_epoch"
+            }
+          ]
+        },
+        {
+          "name": "before_end",
+          "operator": "lt",
+          "arguments": [
+            {
+              "input": "completed_at_epoch"
+            },
+            {
+              "input": "quarter_end_epoch"
+            }
+          ]
+        },
+        {
+          "name": "observed",
+          "operator": "lte",
+          "arguments": [
+            {
+              "input": "completed_at_epoch"
+            },
+            {
+              "input": "as_of_epoch"
+            }
+          ]
+        },
+        {
+          "name": "qualifies",
+          "operator": "and",
+          "arguments": [
+            {
+              "step": "confirmed"
+            },
+            {
+              "step": "after_start"
+            },
+            {
+              "step": "before_end"
+            },
+            {
+              "step": "observed"
+            }
+          ]
+        },
+        {
+          "name": "count",
+          "operator": "count_distinct",
+          "arguments": [
+            {
+              "input": "interaction_id"
+            },
+            {
+              "step": "qualifies"
+            }
+          ]
+        }
+      ],
+      "deadline": [
+        {
+          "name": "due",
+          "operator": "identity",
+          "arguments": [
+            {
+              "input": "quarter_end_epoch"
+            }
+          ]
+        }
+      ],
+      "decision": [
+        {
+          "name": "met",
+          "operator": "gte",
+          "arguments": [
+            {
+              "input": "confirmed_count"
+            },
+            {
+              "input": "threshold"
+            }
+          ]
+        },
+        {
+          "name": "unknown",
+          "operator": "eq",
+          "arguments": [
+            {
+              "input": "evidence_complete"
+            },
+            {
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "open",
+          "operator": "lt",
+          "arguments": [
+            {
+              "input": "as_of_epoch"
+            },
+            {
+              "input": "quarter_end_epoch"
+            }
+          ]
+        },
+        {
+          "name": "result",
+          "operator": "case",
+          "arguments": [
+            {
+              "step": "met"
+            },
+            {
+              "value": "met"
+            },
+            {
+              "step": "unknown"
+            },
+            {
+              "value": "unknown"
+            },
+            {
+              "step": "open"
+            },
+            {
+              "value": "pending"
+            },
+            {
+              "value": "not_met"
+            }
+          ]
+        }
+      ]
+    },
+    "evidence_rules": [
+      "Filter to interactions between the two friends. Deduplicate aliases of the same interaction before counting.",
+      "Compute calendar quarter boundaries in America/Chicago, then convert to UTC seconds. Include the start and exclude the end.",
+      "A confirmed interaction can establish met with incomplete coverage. Zero establishes not_met only after quarter end with complete coverage."
+    ],
+    "reporting": "One result per friendship commitment, control version and calendar quarter. Show confirmed_count / threshold while the quarter is open."
+  }
+}

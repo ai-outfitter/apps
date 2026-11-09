@@ -1,0 +1,12 @@
+---
+import { appHref } from "../../../app-href";
+import Layout from "../../../components/PlanningLayout.astro";
+import WorkExecution from "../../../components/WorkExecution.astro";
+
+const projectId = Astro.params.id;
+if (!projectId) return new Response("Project not found", { status: 404 });
+---
+<Layout title="Project work" description="Review a work package, send it to Foundry, and inspect the evidence for acceptance.">
+  <p><a href={appHref(Astro.url.pathname, `/projects/${projectId}`)}>← Project context</a></p>
+  <WorkExecution {projectId} />
+</Layout>

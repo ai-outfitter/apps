@@ -1,0 +1,22 @@
+---
+interface Props { projectId:string; }
+const {projectId}=Astro.props;
+---
+<section id="work-context" data-project-id={projectId} aria-labelledby="work-context-title">
+  <h2 id="work-context-title">Requirements and acceptance criteria</h2>
+  <p role="status" id="work-context-status">Loading linked project context…</p>
+  <div id="work-context-records"></div>
+  <form id="work-preview-form" hidden>
+    <label>Work package template<select name="definitionId" required></select></label>
+    <fieldset><legend>Select implementation requirements</legend><div id="work-requirement-options"></div></fieldset>
+    <button type="submit" class="ui-button ui-button--secondary">Preview work package</button>
+  </form>
+  <details id="work-preview-output" hidden><summary>Generated work package</summary><pre class="work-preview-text" id="work-preview-text"></pre></details>
+</section>
+<script>import "../scripts/work-context";</script>
+<style>
+  .work-preview-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  :global(#work-context .work-scope-option) { display: flex; align-items: start; gap: .5rem; }
+  :global(#work-context .work-scope-option input) { width: auto; flex: 0 0 auto; margin-top: .3rem; }
+  :global(#work-context article + article) { margin-top: 1.5rem; }
+</style>
