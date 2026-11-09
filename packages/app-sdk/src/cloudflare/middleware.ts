@@ -19,7 +19,9 @@ async function health(app: string, storage?: StorageManifest) {
 /**
  * Middleware for an app that serves its own `/api/*` from its installation
  * database. Pages stay GET/HEAD; every API request must carry the identity the
- * platform forwards after authenticating the member.
+ * platform forwards after authenticating the member. `contentSecurityPolicy`
+ * applies to built responses that carry no policy of their own; the dev server
+ * sends none.
  */
 export function dataAppMiddleware(
   app: string,
@@ -46,7 +48,9 @@ export function dataAppMiddleware(
       response = error;
     }
     response.headers.set("Cache-Control", "private, no-store");
-    if (!response.headers.has("Content-Security-Policy"))
+    // `astro dev` injects inline styles and scripts, and Astro applies its own
+    // `security.csp` only to builds, so dev pages go without a policy.
+    if (!import.meta.env.DEV && !response.headers.has("Content-Security-Policy"))
       response.headers.set("Content-Security-Policy", contentSecurityPolicy);
     response.headers.set("X-Content-Type-Options", "nosniff");
     return response;
