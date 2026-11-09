@@ -79,3 +79,7 @@
 body:has(.knowledge-graph-expanded) {
   overflow: hidden;
 }
+
+.knowledge-graph-viewport .kg-node-change { stroke: var(--surface); stroke-width: 2; }
+.knowledge-graph-viewport .kg-node-change-new { fill: #16a34a; }
+.knowledge-graph-viewport .kg-node-change-edited { fill: #eab308; }

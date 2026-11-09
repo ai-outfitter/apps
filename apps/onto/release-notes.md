@@ -31,3 +31,6 @@ menu, with navigation metadata supplied by the platform.
 
 Organization pages now use an organization-focused mini sidebar with Home, Wiki,
 Workflows, Apps and Settings, the organization identity, and Back to personal.
+
+Change graphs mark new records with a green dot and edited records with a yellow
+dot. Context records remain unmarked; hover text also names the change.

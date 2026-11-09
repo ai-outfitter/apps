@@ -311,8 +311,10 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     const view = proposedView(graph, operations);
     const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
     const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
+    const nodeChanges = new Map(operations.filter(op => op.operation.type === "graph-node" && op.state !== "rejected")
+      .map(op => [recordIdOf(op), op.operation.operation === "create" ? "new" as const : "edited" as const]));
     const viewer = view.nodes.length
-      ? createKnowledgeGraphViewer(graph, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
+      ? createKnowledgeGraphViewer(graph, view, view.nodes[0], { initialScale: 0.85, nodeChange: id => nodeChanges.get(id), nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
       : null;
     const groups = (["awaiting_review", "committed", "rejected", "pending"] as const)
       .map((state) => [state, operations.filter((op) => op.state === state)] as const)

@@ -145,6 +145,7 @@ function renderNodes(
   nodeHref: (id: string) => string,
   highlight: ReadonlySet<string>,
   proposed: ReadonlySet<string>,
+  nodeChange?: (id: string) => "new" | "edited" | undefined,
 ) {
   for (const node of result.layout.children ?? []) {
     const x = node.x ?? 0,
@@ -176,7 +177,10 @@ function renderNodes(
       href: nodeHref(record.id),
       "data-graph-node": record.id,
     });
-    draw(link, "title", {}, record.title);
+    const change = nodeChange?.(record.id);
+    const changeLabel = change === "new" ? "New record" : change === "edited" ? "Edited record" : undefined;
+    draw(link, "title", {}, changeLabel ? `${record.title} · ${changeLabel}` : record.title);
+    if (changeLabel) link.setAttribute("aria-label", `${record.title} · ${changeLabel}`);
     draw(link, "rect", {
       x: String(x),
       y: String(y),
@@ -184,6 +188,10 @@ function renderNodes(
       height: String(height),
       rx: "10",
       class: ["kg-node", highlight.has(record.id) ? "kg-node-highlight" : "", proposed.has(record.id) ? "kg-node-proposed" : ""].filter(Boolean).join(" "),
+    });
+    if (change) draw(link, "circle", {
+      cx: String(x + width - 18), cy: String(y + height - 18), r: "5",
+      class: `kg-node-change kg-node-change-${change}`, "aria-hidden": "true",
     });
     const lines = titleLines(record.title);
     lines.forEach((text, index) => {
@@ -214,6 +222,8 @@ export function createKnowledgeGraphViewer(
     highlight?: Iterable<string>;
     /** Node IDs drawn dashed: staged records a member has not committed yet. */
     proposed?: Iterable<string>;
+    /** Small change indicators; omitted for records included only as context. */
+    nodeChange?: (id: string) => "new" | "edited" | undefined;
     onError?: (error: unknown) => void;
   },
 ) {
@@ -354,7 +364,7 @@ export function createKnowledgeGraphViewer(
         fill: "currentColor",
       });
       renderEdges(svg, result, markerId);
-      renderNodes(svg, graph, result, options.nodeHref, new Set(options.highlight ?? []), new Set(options.proposed ?? []));
+      renderNodes(svg, graph, result, options.nodeHref, new Set(options.highlight ?? []), new Set(options.proposed ?? []), options.nodeChange);
       loading.remove();
       ready = true;
       if (options.initialScale !== undefined) {

@@ -214,3 +214,45 @@ test("review structured fields and their source without exposing raw JSON", asyn
     await app.dispose();
   }
 });
+
+test("change graph distinguishes new records from edits", async ({ page }) => {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "change-indicators");
+  const savedId = "7b0e0000-0000-4000-8000-000000000092";
+  const action = async (name: string, input: object, identity: typeof owner = agent) => {
+    const response = await app.call("/api/internal/actions/v1/call", identity, { method: "POST", body: { action: name, input } });
+    expect(response.status, await response.clone().text()).toBe(200);
+    return response.json();
+  };
+  try {
+    await action("graph.apply", { requestKey: "saved-document", operations: [{
+      operation: "create", type: "graph-node", ref: "$saved", attributes: {
+        id: savedId, typeId: core.document, slug: "existing-record", title: "Existing record", body: "Original content",
+      },
+    }] }, owner);
+    const { batch } = await action("batch.open", { title: "Add and edit records" });
+    await action("batch.add", { batchId: batch.id, proposals: [
+      { operation: { operation: "create", type: "graph-node", ref: "$new", attributes: {
+        id: documentId, typeId: core.document, title: "New record", body: "New content",
+      } } },
+      { operation: { operation: "update", type: "graph-node", ref: "$edit", id: "Document:existing-record", revision: 1,
+        attributes: { title: "Edited record", body: "Updated content" } } },
+    ] });
+    await action("batch.submit", { batchId: batch.id });
+    await page.route(`${origin}/**`, async route => {
+      const request = route.request(), url = new URL(request.url());
+      await fulfillFrom(route, await app.call(url.pathname + url.search, owner, {
+        method: request.method(), ...(request.postData() ? { body: request.postDataJSON() } : {}),
+      }));
+    });
+    await page.goto(`${origin}/changes/${batch.id}`);
+    const created = page.locator(`[data-graph-node="${documentId}"]`);
+    const edited = page.locator(`[data-graph-node="${savedId}"]`);
+    await expect(created.locator("circle")).toHaveCSS("fill", "rgb(22, 163, 74)");
+    await expect(edited.locator("circle")).toHaveCSS("fill", "rgb(234, 179, 8)");
+    await expect(created).toHaveAttribute("aria-label", "New record · New record");
+    await expect(edited).toHaveAttribute("aria-label", "Edited record · Edited record");
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});
