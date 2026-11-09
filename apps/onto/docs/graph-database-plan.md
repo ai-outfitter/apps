@@ -37,7 +37,7 @@ enforces, and how today's data and code get there.
 | Other apps' canonical records (Planning projects) | The owning app. Onto keeps only a `source` reference |
 | More than one type per node | Not supported |
 | Edges on edges | Use a relator or an assertion instead |
-| Merging identities across Wikis | The platform |
+| Merging identities across Wikis | The platform. Onto stores only the Outfitter user id on Person and Agent nodes |
 | Connector-private data on nodes (`privateData`) | Dropped |
 | Search beyond title and text (embeddings, vectors) | Not now |
 
@@ -208,6 +208,12 @@ No major release: Onto stays on 0.x versions.
   `documents-and-recovery.md`, `source-fences.md` and
   `portable-archive-authority.md`. They return in the Wiki app only if it needs them.
 - Remove `privateData` and every path that reads or writes it.
+- Replace `externalProvider` / `externalId` with one column,
+  `outfitterUserId TEXT UNIQUE`, on Person and Agent nodes. It holds the
+  member's Outfitter user id, and `identity.ts` links and resolves by it. Only
+  one provider has ever existed (`outfitter-principal`), so the provider column
+  goes. It is a column rather than a property so it stays unique and indexed,
+  and agents cannot set it through proposals. Results leave it out.
 - Remove the change-batch slug from #48. Batches go back to UUIDs: delete
   migration `0016`, the `batch` inputs and the `slug` output.
 - Change `record-handles.ts` to the address grammar above, and delete the
@@ -217,10 +223,7 @@ No major release: Onto stays on 0.x versions.
 
 ## Open questions
 
-1. `externalProvider` / `externalId` on nodes link a member's identity to their
-   Person node (`identity.ts`). Keep them in Onto, or move them to the platform
-   with identity merging?
-2. The Wiki app that takes over pages, documents and reports: is it a new app
+1. The Wiki app that takes over pages, documents and reports: is it a new app
    in this repository, or the rebuilt webapp Wiki?
 
 ## Build order
