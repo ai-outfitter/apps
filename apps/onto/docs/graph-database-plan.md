@@ -37,7 +37,7 @@ enforces, and how today's data and code get there.
 | Other apps' canonical records (Planning projects) | The owning app. Onto keeps only a `source` reference |
 | More than one type per node | Not supported |
 | Edges on edges | Use a relator or an assertion instead |
-| Merging identities across Wikis | The platform. Onto stores only the Outfitter user id on Person and Agent nodes |
+| Merging identities across Wikis | The platform. Onto stores only the Outfitter id on Person, Agent and Organization nodes |
 | Connector-private data on nodes (`privateData`) | Dropped |
 | Search beyond title and text (embeddings, vectors) | Not now |
 
@@ -167,7 +167,7 @@ needs three orders:
 | Index | Serves |
 | --- | --- |
 | `graph_nodes (typeId, slug)` unique | address lookup; listing a type in slug order |
-| `graph_nodes (outfitterUserId)` unique where not null | the signed-in member's Person or Agent node |
+| `graph_nodes (outfitterId)` unique where not null | the Person, Agent or Organization node for an Outfitter user or organization |
 | `graph_edges (fromId, typeId, toTypeId, toId, validFrom)` | outgoing edges of a type from a node, optionally to one type: traversals, saved views, typed GraphQL fields |
 | `graph_edges (toId, typeId, fromTypeId, fromId, validFrom)` | the same, incoming |
 | `graph_edges (typeId, fromId, toId, validFrom)` unique where not archived | edge identity: "does this link exist", edge address lookup |
@@ -209,12 +209,13 @@ No major release: Onto stays on 0.x versions.
   `documents-and-recovery.md`, `source-fences.md` and
   `portable-archive-authority.md`. They return in the Wiki app only if it needs them.
 - Remove `privateData` and every path that reads or writes it.
-- Replace `externalProvider` / `externalId` with one column,
-  `outfitterUserId TEXT UNIQUE`, on Person and Agent nodes. It holds the
-  member's Outfitter user id, and `identity.ts` links and resolves by it. Only
-  one provider has ever existed (`outfitter-principal`), so the provider column
-  goes. It is a column rather than a property so it stays unique and indexed,
-  and agents cannot set it through proposals. Results leave it out.
+- Replace `externalProvider` / `externalId` with one column, `outfitterId TEXT`,
+  on Person, Agent and Organization nodes. It holds the Outfitter user id or
+  organization id (both UUIDs, so one unique column serves both), and
+  `identity.ts` links and resolves by it. Only one provider has ever existed
+  (`outfitter-principal`), so the provider column goes. It is a column rather
+  than a property so it stays unique and indexed, and agents cannot set it
+  through proposals. Results leave it out.
 - Remove the change-batch slug from #48. Batches go back to UUIDs: delete
   migration `0016`, the `batch` inputs and the `slug` output.
 - Change `record-handles.ts` to the address grammar above, and delete the
