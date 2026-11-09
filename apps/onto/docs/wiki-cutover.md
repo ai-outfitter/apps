@@ -90,3 +90,49 @@ verify those bindings before production use.
 6. Switch SDK/MCP/app initialization to Onto and validate document Wiki links.
    Keep source recovery available until all gates pass; archive source graph
    storage only after verified cutover.
+
+
+## Reconciled trusted operator migration
+
+The user-authorized operator path is `scripts/migrate-wiki-owner.ts`, backed by
+`scripts/wiki-migration-d1.ts`. It accepts an explicitly verified source and
+destination installation/database pair for one owner, a captured destination
+seed baseline, and callbacks which recheck current account authorization,
+installation/database bindings and native app reads. It is never exposed as a
+portable import or agent mutation. Credentials stay in the operator environment.
+
+`scripts/reconcile-wiki.ts` creates a plan bound to the exact source digest. The
+plan preserves an existing same-name type ID instead of adding a conflicting seed
+identity, matching ordinary add-only initialization. Existing endpoint contracts
+are retained. Missing contracts use declared seed endpoints only when every
+preserved relationship fits; otherwise the legacy unconstrained semantics are
+made explicit and recorded. Authored definitions remain intact. Each changed
+type gains a revision with its prior snapshot and a migration reason; existing
+revision rows are retained unchanged.
+
+The operator checks that the target still matches its captured seed baseline,
+locks source and target writes, takes fresh backups, converts locally, retains
+nonconflicting target seed records, and checks every original history row.
+The new `0001_wiki_migration_lineage` forward migration records source/destination,
+owner, source digest, reconciliation and verification. It also retains every
+original source row, including legacy identity fields and pre-reconciliation type
+definitions. Database triggers protect these lineage tables even while an older
+app package serves them; portable-import exclusions remain required as well.
+
+Rows load into staging tables. One D1 batch promotes the complete candidate, with
+foreign keys deferred and types/nodes inserted before endpoint-checked edges.
+Exact row hashes, foreign keys and a native Onto read are verified before target
+writes resume. Source Wiki data stays available read-only to prevent divergence.
+This migration does not redirect old application clients or convert Wiki pages;
+those consumers must use Onto before legacy write paths can be retired.
+
+A lost promotion response is inspected rather than blindly retried. Failures
+before promotion restore source/target write access. An uncertain promotion or
+failed verification remains locked, with private failure evidence and backups
+available for explicit recovery. No automatic deletion of source data occurs.
+
+Validation includes SQLite rollback, endpoint-trigger ordering, immutable lineage,
+content-hash readback, source-change rejection and type-identity preservation,
+plus an actual D1 rehearsal with a failed batch rollback and a full candidate
+promotion/readback. Private production receipts are separate from repository
+validation and contain the owner-specific result.

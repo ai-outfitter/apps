@@ -10,7 +10,8 @@ import { openSync, closeSync, readFileSync, rmSync, chmodSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { appRecordKey, userKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import { standardData } from "../src/lib/standard-data";
-import { storeType } from "../src/lib/type-metadata";
+import { storeType, readType } from "../src/lib/type-metadata";
+import { sourceDigest, type Reconciliation } from "./reconcile-wiki";
 
 type Row = Record<string, SQLInputValue>;
 const outfitterUser = "71000000-0000-4000-8000-000000000120";
@@ -24,7 +25,11 @@ export class WikiMigrationError extends Error {
   }
 }
 
-export function importOldWiki(oldPath: string, newPath: string) {
+export function importOldWiki(
+  oldPath: string,
+  newPath: string,
+  reconciliation?: Reconciliation,
+) {
   // O_EXCL also refuses symlinks and an alias of the source. Never overwrite a database.
   closeSync(openSync(newPath, "wx", 0o600));
   let old: DatabaseSync | undefined;
@@ -51,6 +56,12 @@ export function importOldWiki(oldPath: string, newPath: string) {
     const source = old,
       destination = db;
     source.exec("BEGIN");
+    if (
+      reconciliation &&
+      (reconciliation.format !== "wiki-onto-reconciliation-v1" ||
+        reconciliation.sourceDigest !== sourceDigest(source))
+    )
+      throw Error("Reconciliation source changed; capture and reconcile again");
     destination.exec("BEGIN");
     const has = (table: string) =>
       !!source
@@ -140,6 +151,12 @@ export function importOldWiki(oldPath: string, newPath: string) {
     const additions = standardData.types.filter((seed) => {
       if (oldTypes.some((type) => type.id === seed.id)) return false;
       const existing = oldTypes.find((type) => type.name === seed.name);
+      if (
+        existing &&
+        reconciliation?.seedAliases[seed.id] === existing.id &&
+        seed.category === existing.category
+      )
+        return false;
       if (existing) {
         report.refused.push(
           `graph_types ${seed.name}: source id ${existing.id} conflicts with seed id ${seed.id}; explicit identity mapping required`,
@@ -152,9 +169,17 @@ export function importOldWiki(oldPath: string, newPath: string) {
       const seed = oldTypes.some((row) => row.id === type.id)
         ? undefined
         : seeds.get(String(type.id));
-      let properties: unknown = seed
-        ? storeType(seed).properties
-        : (parse(type.properties) ?? []);
+      const patch = reconciliation?.types[String(type.id)];
+      if (
+        patch &&
+        (patch.before !== type.properties || type.category !== "edge")
+      )
+        throw Error("Reconciliation type changed");
+      let properties: unknown = patch
+        ? JSON.parse(patch.properties)
+        : seed
+          ? storeType(seed).properties
+          : (parse(type.properties) ?? []);
       if (type.category === "edge") {
         const stored = Array.isArray(properties)
           ? { fields: properties }
@@ -180,11 +205,11 @@ export function importOldWiki(oldPath: string, newPath: string) {
           ? Number(seed.archived ?? false)
           : Number(type.archived ?? 0),
         seedVersion: type.seedVersion ?? null,
-        revision: type.revision ?? 1,
+        revision: Number(type.revision ?? 1) + (patch ? 1 : 0),
         createdBy: type.createdBy ?? null,
-        updatedBy: type.updatedBy ?? null,
+        updatedBy: patch ? reconciliation!.actor : (type.updatedBy ?? null),
         createdAt: type.createdAt ?? now,
-        updatedAt: type.updatedAt ?? now,
+        updatedAt: patch ? reconciliation!.createdAt : (type.updatedAt ?? now),
       });
       typeNames.set(String(type.id), String(seed?.name ?? type.name));
       report.types++;
@@ -317,6 +342,33 @@ export function importOldWiki(oldPath: string, newPath: string) {
         }
       }
       report.tables[table] = copied;
+    }
+    if (reconciliation) {
+      for (const [id, patch] of Object.entries(reconciliation.types)) {
+        const prior = oldTypes.find((t) => t.id === id)!;
+        const current = destination
+          .prepare("SELECT * FROM graph_types WHERE id=?")
+          .get(id)!;
+        const view = (row: Record<string, unknown>) =>
+          readType({ ...row, properties: JSON.parse(String(row.properties)) });
+        insert("graph_revisions", {
+          kind: "graph-type",
+          recordId: id,
+          revision: current.revision as number,
+          batchId: null,
+          ref: "wiki-onto-contract",
+          proposedBy: reconciliation.actor,
+          approval: JSON.stringify({
+            kind: "migration",
+            sourceDigest: reconciliation.sourceDigest,
+            reason: patch.reason,
+          }),
+          evidence: "[]",
+          snapshot: JSON.stringify(view(current)),
+          prior: JSON.stringify(view(prior)),
+          createdAt: reconciliation.createdAt,
+        });
+      }
     }
     const broken = destination.prepare("PRAGMA foreign_key_check").all();
     if (broken.length)
