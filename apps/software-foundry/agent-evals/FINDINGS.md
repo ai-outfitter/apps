@@ -126,9 +126,8 @@ Runs on Luna with these fixes:
 ### Running it
 
 ```sh
-node apps/software-foundry/box/evals/scripts/new-astro-app.mjs   # fills the fixture first
-BOX_CLI=podman BOX_MODEL_ENV=model.env BOX_TIMEOUT=3600 \
-  node --import tsx apps/software-foundry/box/evals/run.ts new-astro-app
+node apps/software-foundry/agent-evals/scripts/new-astro-app.mjs   # fills the fixture first
+BOX_CLI=podman node --import tsx apps/software-foundry/agent-evals/run.ts luna new-astro-app
 ```
 
 ## Apps to build next
@@ -237,8 +236,8 @@ What each run taught:
 - **Luna 7**: passed. Both reviews ran, repair ran, and every check passed.
 - **Spark 3**: passed in 2 h 11 min, about 13x Luna's wall time. Each step
   spent 15–30 minutes on the model at about 17 output tokens/s, and Spark
-  wrote roughly 6x Luna's output tokens. Its runs need `BOX_TIMEOUT` of at
-  least 10800 and a runner that outlives a 2-hour shell limit.
+  wrote roughly 6x Luna's output tokens. Its runs need a timeout of at
+  least 10800 s (`experiments/spark.ts`) and a runner that outlives a 2-hour shell limit.
 - Review behaved as a real gate in every run. It caught a stale lockfile
   (Luna 4 and 5) and missing screenshots, and it approved only with evidence.
 

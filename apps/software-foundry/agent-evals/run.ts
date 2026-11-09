@@ -1,7 +1,10 @@
 // Runs the Software Foundry box evals with Agent Eval: each fixture under
 // evals/ goes through the sealed box and is graded by its EVAL.ts.
 //
-//   node --import tsx apps/software-foundry/box/evals/run.ts [eval ...]
+//   node --import tsx apps/software-foundry/agent-evals/run.ts <experiment> [eval ...]
+//
+// <experiment> is a file in experiments/ (luna, spark): one per model, with the
+// model settings in .env.<experiment> (.env.example).
 //
 // Settings: see runBoxEvals in box/eval/agent.ts.
 import { fileURLToPath } from "node:url";

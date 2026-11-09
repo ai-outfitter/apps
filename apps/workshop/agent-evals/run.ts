@@ -2,7 +2,10 @@
 // through the sealed box and is graded by its EVAL.ts against the designs the
 // box committed.
 //
-//   node --import tsx apps/workshop/box/evals/run.ts [eval ...]
+//   node --import tsx apps/workshop/agent-evals/run.ts <experiment> [eval ...]
+//
+// <experiment> is a file in experiments/ (luna, spark): one per model, with the
+// model settings in .env.<experiment> (.env.example).
 //
 // Settings: see runBoxEvals in box/eval/agent.ts.
 import { fileURLToPath } from "node:url";
