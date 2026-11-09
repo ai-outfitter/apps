@@ -34,10 +34,10 @@ enforces, and how today's data and code get there.
 | Document generation, seals, source fences, scheduled reports, flattened pages | The Wiki app, reading Onto |
 | Inference or reasoning beyond projections | Nowhere for now |
 | Authorization derived from relationships ("Ada is CTO" grants nothing) | Platform and app access only |
-| Other apps' canonical records (Planning projects) | The owning app. Onto keeps only an [external key](#external-keys) |
+| Other apps' canonical records (Planning projects) | The owning app. Onto keeps only an [external key](#accounts-and-external-keys) |
 | More than one type per node | Not supported |
 | Edges on edges | Use a relator or an assertion instead |
-| Merging identities across Wikis | The platform. Onto stores only [external keys](#external-keys) |
+| Merging identities across Wikis | The platform. Onto stores only [external keys](#accounts-and-external-keys) |
 | Connector-private data on nodes (`privateData`) | Dropped |
 | Search beyond title and text (embeddings, vectors) | Not now |
 
@@ -158,37 +158,46 @@ CREATE TABLE graph_edges (
 - Nodes and edges are archived, never deleted, so foreign keys use the default
   `NO ACTION`.
 
-## External keys
+## Accounts and external keys
 
-A node can stand for a record that lives elsewhere: an Outfitter user or
-organization, another app's record, or a connector's record such as a GitHub
-pull request. Each such link is one string key, `<authority>/<table>:<id>`:
+An outside record is its own node, not a key hung on another node. An
+Outfitter user, an Outfitter organization, a GitHub user or a GitHub pull
+request is a node of an account or record type, linked to what it stands for
+by an edge. This is the FOAF `OnlineAccount` / `holdsAccount` pattern.
+
+```
+OutfitterUser:nicholas  --account_of-->  Person:nicholas
+GitHubUser:ncrmro       --account_of-->  Person:nicholas
+OutfitterOrganization:sunny --account_of--> Organization:sunny
+GitHubPullRequest:sunny-12  --about-->   Project:sny-1
+```
+
+Each such node carries one stable key in a nullable column on `graph_nodes`:
+
+```sql
+externalKey TEXT UNIQUE   -- `<authority>/<table>:<id>`, set only on account and record types
+```
 
 | Record | Key |
 | --- | --- |
 | Outfitter user | `ai-outfitter.com/users:<uuid>` |
 | Outfitter organization | `ai-outfitter.com/organizations:<uuid>` |
 | Another app's record | `ai-outfitter.com/apps/<installation>/<type>:<id>` |
-| GitHub pull request | `github.com/ncrmro/sunny/pulls:12` |
+| GitHub user | `github.com/users:<numeric id>` |
 | A self-hosted Outfitter | its own host in place of `ai-outfitter.com` |
 
-```sql
-CREATE TABLE graph_node_keys (
-  key TEXT PRIMARY KEY,
-  nodeId TEXT NOT NULL REFERENCES graph_nodes(id)
-) STRICT;
-CREATE INDEX graph_node_keys_node_idx ON graph_node_keys (nodeId);
-```
-
-- One index answers "which node is this outside record", whatever the source.
-  A connector import looks a key up before it creates a node, so the same pull
-  request or person never becomes two nodes.
-- A node can carry several keys (a Person who is an Outfitter user and a
-  GitHub user). A key names one node.
+- The slug stays the readable address (`GitHubUser:ncrmro`) and can be renamed.
+  The key is the stable id from the outside system and never changes.
+- One unique index answers "which node is this outside record", whatever the
+  source, so an import never creates the same account or pull request twice.
+- A Person with an Outfitter account and a GitHub account is one Person with
+  two account nodes. Accounts can be wrong or later merged without touching
+  the Person.
+- A type declares whether its nodes carry a key. Keys are written by the
+  platform and by connector imports, not by agent proposals. Results show them.
 - This replaces `externalProvider` / `externalId` (only `outfitter-principal`
-  ever existed) and the JSON `source` column.
-- Keys are written by the platform and by connector imports, not by agent
-  proposals. Results show them, since they are readable and stable.
+  ever existed) and the JSON `source` column. `identity.ts` resolves the
+  signed-in member as their `OutfitterUser` node, then follows `account_of`.
 
 ## Indexes
 
@@ -199,7 +208,7 @@ needs three orders:
 | Index | Serves |
 | --- | --- |
 | `graph_nodes (typeId, slug)` unique | address lookup; listing a type in slug order |
-| `graph_node_keys (key)` primary key | the node for an Outfitter user, organization, app record or connector record |
+| `graph_nodes (externalKey)` unique where not null | the account or record node for an Outfitter, app or connector record |
 | `graph_edges (fromId, typeId, toTypeId, toId, validFrom)` | outgoing edges of a type from a node, optionally to one type: traversals, saved views, typed GraphQL fields |
 | `graph_edges (toId, typeId, fromTypeId, fromId, validFrom)` | the same, incoming |
 | `graph_edges (typeId, fromId, toId, validFrom)` unique where not archived | edge identity: "does this link exist", edge address lookup |
@@ -242,8 +251,9 @@ No major release: Onto stays on 0.x versions.
   `portable-archive-authority.md`. They return in the Wiki app only if it needs them.
 - Remove `privateData` and every path that reads or writes it.
 - Replace `externalProvider` / `externalId` and the JSON `source` column with
-  `graph_node_keys` (see [External keys](#external-keys)), and point
-  `identity.ts` and the source filters at it.
+  account nodes and `externalKey` (see
+  [Accounts and external keys](#accounts-and-external-keys)). Add the
+  account types and `account_of` to the seed.
 - Remove the change-batch slug from #48. Batches go back to UUIDs: delete
   migration `0016`, the `batch` inputs and the `slug` output.
 - Change `record-handles.ts` to the address grammar above, and delete the
