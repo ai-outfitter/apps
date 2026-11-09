@@ -1,4 +1,4 @@
-import { agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
+import { type AgentFocus, agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import { agentPageKey, navigatePart, navigatePartName } from "@ai-outfitter/app-sdk/agent-page";
 import { appEndpoint, appLocation, mountPrefix, openPage, pageHref, requestedPage } from "../agent-navigation";
 import { changeDiff, type FieldSchema } from "@ai-outfitter/app-sdk/agent-schema";
@@ -208,6 +208,7 @@ export default function AppAgentSidebar({
   agentName = "Outfitter",
   intro,
   emptyIntro,
+  defaultFocus,
   limits,
   demoReply,
   conversationNavigation = false,
@@ -222,6 +223,8 @@ export default function AppAgentSidebar({
   agentName?: string;
   intro: string;
   emptyIntro: string;
+  /** The app-wide conversation for a page that selects nothing (shown with `intro`, not `emptyIntro`). */
+  defaultFocus?: AgentFocus;
   limits: string;
   demoReply: string;
   /** Hide conversation management and workflow browsing for a focused page assistant. */
@@ -231,7 +234,8 @@ export default function AppAgentSidebar({
 }) {
   const page = useMemo(() => agentPage(pageId), [pageId]);
   const reopenKey = `outfitter:agent-reopen:${pageId}`;
-  const claim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const pageClaim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const claim = useMemo(() => (pageClaim.focus || !defaultFocus ? pageClaim : { ...pageClaim, focus: defaultFocus }), [pageClaim, defaultFocus]);
   // Switchable previews serve an operational package while explicitly selecting read-only fixtures.
   const demo = configuredDemo || (typeof document !== "undefined" &&
     document.querySelector<HTMLMetaElement>('meta[name="outfitter-preview-mode"]')?.content === "demo");

@@ -8,6 +8,7 @@ import { requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { requestUiPreferences } from "@ai-outfitter/app-sdk/ui-preferences";
 import type { WikiContext } from "../scripts/wiki-context";
 import { wikiPageHref } from "../server/wiki-links";
+import { intakeFocus } from "../agent-focus";
 
 interface Props {
   title: string;
@@ -61,7 +62,8 @@ const limits = demo
     endpoint="/api/apps/planning/agent"
     {demo}
     intro={products ? "Ask about this organization’s products and weekly roadmap." : intake ? "Describe a customer need or competitor. Inspect routes and evidence, then review proposed work." : "Discuss products, projects or the next piece of work. Review proposed changes before saving."}
-    emptyIntro={products ? "Loading product context…" : intake ? "Ask about customer and competitive intake." : "Open Projects to discuss meeting notes or choose a project."}
+    emptyIntro={products ? "Loading product context…" : "Ask about customer and competitive intake."}
+    defaultFocus={intakeFocus}
     {limits}
     demoReply="This is a scripted, read-only example. In operational Planning, Outfitter can discuss meeting notes and saved project documents, then prepare projects or issues for your review. No inference ran and no records changed."
   />
