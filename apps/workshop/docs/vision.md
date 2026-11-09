@@ -48,10 +48,16 @@ today is in `box/README.md` ("Geometry scoring").
 | --- | --- | --- | --- | --- |
 | 0 | One printed part from a dimensioned description | `box/evals/evals/*` (cable clip, mounting plate, L bracket, flanged bushing) | Code runs, watertight, volume IoU, Chamfer and Hausdorff distance | Passing on Luna and Spark |
 | 1 | One part that mates with something: a hole pattern for a devkit, a bore for a bearing, a snap or press fit | New fixtures with a COTS envelope beside the part | Tier 0, plus clearance and interference against the envelope | Needs richer CAD plans (below) |
-| 2 | A static assembly: printed parts and COTS placed together, with a BOM | `examples/mini-itx-case` (printed case around a board, cooler and power supply), SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, holes on bosses, connectors through openings, BOM matched against a reference BOM | Hand-built example and model; agent does not produce it yet |
+| 2 | A static assembly: printed parts and COTS placed together, with a BOM | `examples/mini-itx-case` (printed case around a board, cooler and power supply), SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, holes on bosses, connectors through openings, BOM matched against a reference BOM | A coding agent on a locally hosted model (DGX Spark) has already designed a case of this kind outside Workshop, so this tier is about measuring, not feasibility. Workshop's agent does not produce it yet |
 | 3 | A moving assembly: joints with a range of motion, gears that mesh, nothing collides while it moves | `examples/spinning-wheel`, `examples/gear-pair` | Interference swept over the motion range, ratio and range of motion | Hand-built seeds only |
 | 4 | A COTS-driven prototype: six sub-assemblies, about 90 bodies, datasheet mounting patterns, a priced BOM, a motion program and a validation record | Motor coil winder prototype (below) | Tiers 1 to 3, plus structure and BOM against the reference, dimensions against its metrics file, interference sampled over the traverse, and the record: acceptance boundary, unclosed items, corrections | Target for model comparison |
 | 5 | A mission: budgets, environment, redundancy, requirement traceability | To be chosen | Mostly the record: every requirement has evidence or an open risk | Vision |
+
+The mini-ITX case is also the first comparison we can run today: the same
+persona and request to a model on the DGX Spark and to hosted models, scored
+with the example's fit checks and BOM. A design one of them has already
+produced is kept as a baseline, with its session record, so later runs are
+measured against it rather than against nothing.
 
 Public text-to-CAD benchmarks cover tier 0 and parts of tier 1
 (BenchCAD, CAD-bench, Text2CAD-Bench, CADTests; see the eval README). They
