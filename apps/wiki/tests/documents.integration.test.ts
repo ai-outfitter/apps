@@ -5,6 +5,46 @@ import { appWorker } from "@ai-outfitter/app-test/worker";
 const owner={userId:"editor",organizationId:"example-org",role:"owner"};
 const member={...owner,userId:"reader",role:"member"};
 const api="/api/apps/wiki-map/documents";
+test("operational Wiki serves an anonymous installation shell before initialization without reading documents",async()=>{
+ const app=await appWorker("wiki-map",new URL("../.outfitter/packages/operational.json",import.meta.url));
+ try{
+  // Match deployment admission: no forwarded identity and no initializer call.
+  const health=await app.call("/__health");
+  assert.equal(health.status,200);
+  const status=await health.json() as {app:string;status:string;database:string};
+  assert.deepEqual([status.app,status.status,status.database],["wiki-map","ok","ok"]);
+  const page=await app.call("/");
+  assert.equal(page.status,200,await page.clone().text());
+  assert.match(page.headers.get("content-type") ?? "",/text\/html/);
+  assert.equal(page.headers.get("cache-control"),"private, no-store");
+  const html=await page.text();
+  assert.match(html,/Open Wiki through your workspace/);
+  const paths=new Set([...Object.keys(app.assets).filter(path=>/^\/_astro\/.*\.(?:js|css)$/.test(path)),...Array.from(html.matchAll(/(?:src|href)="(\/_astro\/[^"?#]+)"/g),match=>match[1])]);
+  assert.ok(paths.size>0,"the entry shell links its compiled assets");
+  for(const path of paths){
+   const asset=await app.call(path);
+   assert.equal(asset.status,200,path);
+   assert.match(asset.headers.get("content-type") ?? "",path.endsWith(".css")?/text\/css/:/javascript/,path);
+   await asset.arrayBuffer();
+  }
+  const created=await app.call(api,owner,{method:"POST",body:{operation:"SaveDocument",variables:{input:{title:"Private installation notes",body:"Private fixture body",slug:"private-installation-notes"}}}});
+  assert.equal(created.status,200,await created.clone().text());
+  const anonymous=await app.call("/");
+  assert.equal(anonymous.status,200);
+  assert.doesNotMatch(await anonymous.text(),/Private installation notes|Private fixture body/);
+  const authenticated=await app.call("/",member);
+  assert.equal(authenticated.status,200);
+  assert.equal(authenticated.headers.get("cache-control"),"private, no-store");
+  assert.match(await authenticated.text(),/Private installation notes/);
+  assert.equal((await app.call(api,undefined,{method:"POST",body:{operation:"WikiDocuments",variables:{}}})).status,401);
+  // A missing document store must not turn the anonymous entry into a data read.
+  await app.database.exec("DROP TABLE wiki_pages; DROP TABLE wiki_document_revisions; DROP TABLE wiki_documents;");
+  const withoutStore=await app.call("/");
+  assert.equal(withoutStore.status,200,await withoutStore.clone().text());
+  assert.match(await withoutStore.text(),/Open Wiki through your workspace/);
+ }finally{await app.dispose();}
+});
+
 test("installed Wiki creates a draft, preserves a publication, and refuses stale or unauthorized writes",async()=>{
  const app=await appWorker("wiki-map",new URL("../.outfitter/packages/operational.json",import.meta.url));
  try{
