@@ -4,6 +4,8 @@ import {createHash} from "node:crypto";
 import migrationHashes from "./legacy-migrations.json";
 import {graphql} from "graphql";
 import {graphqlSchema} from "../src/documents/graphql";
+import {requireGraphCutover} from "../src/documents/cutover";
+import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync,readFileSync } from "node:fs";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
@@ -72,5 +74,17 @@ test('reader provenance does not expose the original private graph snapshot',asy
   assert.deepEqual(JSON.parse(String((result.data?.document as {provenance:string}).provenance)),{kind:'legacy-graph',batchId:'batch'});
   assert.ok(!JSON.stringify(result).includes('private-source-value'));
   assert.ok(String(sqlite.prepare('SELECT provenance FROM wiki_document_revisions WHERE documentId=? AND revision=2').get('legacy')?.provenance).includes('private-source-value'));
+ }finally{sqlite.close();}
+});
+
+test('a changed legacy graph cannot activate the document Wiki without its migration receipt',async()=>{
+ const {sqlite,db}=fixture();let migrated=false;
+ const host=workflowHost<"interactive">({props:{workflowHost:{async call(operation,input){
+  if(operation==='entities.types')return {ok:true,value:(input as {template:string}).template==='onto'?['graph-type','graph-node','graph-edge'].map(type=>({installationId:'onto',type,title:type,description:'',schema:{},writable:true})):[]};
+  return {ok:true,value:{sourceInstallationIds:migrated?[who.installationId]:[]}};
+ }}}});
+ try{
+  await assert.rejects(requireGraphCutover(db,who,host),error=>error instanceof Response&&error.status===409);
+  migrated=true;await requireGraphCutover(db,who,host);
  }finally{sqlite.close();}
 });

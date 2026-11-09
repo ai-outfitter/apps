@@ -45,6 +45,9 @@ test("an entity page reads Onto without copying its entity and loses source acce
  const scope={organizationId:owner.organizationId,installationId:app.installationId,userId:owner.userId,packageHash:"fixture",phase:"interactive" as const,expiresAt:Date.now()+60000};
  try{
   const before=await app.database.prepare("SELECT count(*) AS count FROM wiki_documents").first<{count:number}>();
+  const typesResponse=await app.call("/api/internal/threads/v1/types",owner,{method:"POST",body:{},workflowHost:scope});
+  assert.equal(typesResponse.status,200,await typesResponse.clone().text());
+  assert.match(await typesResponse.text(),/wiki-map.conversation/);
   const created=await app.call(api,owner,{method:"POST",body:{operation:"SavePage",variables:{input:{slug:"ada",entityRef:{installationId:"onto",type:"graph-node",id:"person"}}}}});
   assert.equal(created.status,200,await created.clone().text());
   const page=await app.call("/p/ada",owner,{workflowHost:scope});
