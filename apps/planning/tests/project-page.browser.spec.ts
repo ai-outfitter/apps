@@ -141,7 +141,7 @@ for (const width of [1440, 390])
       // Wiki), and the Projects and OrganizationGoals documents it reads through the platform.
       expect(
         queries.filter((q) => q.operation === "entities.types").map((q) => q.input),
-      ).toEqual([{ template: "onto" }, { template: "wiki-map" }, { template: "wiki-map" }, { template: "wiki-map" }]);
+      ).toEqual([{ template: "onto", requireTypes: true }, { template: "wiki-map" }, { template: "wiki-map" }, { template: "wiki-map" }]);
       await page.screenshot({ path: test.info().outputPath(`projects-${width}.png`), fullPage: true });
       queries.length = 0;
       expect(
