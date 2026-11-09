@@ -1,0 +1,8 @@
+---
+import Layout from "../../components/Layout.astro";
+const { batchId } = Astro.params;
+---
+<Layout title="Review changes" description="What was found, the evidence for it, and what happens if you do nothing." page="page" routeDepth={2}>
+  <div id="changes" class="wiki-map changes" aria-busy="true" data-view="batch" data-batch-id={batchId}></div>
+</Layout>
+<script>import "../../scripts/changes.ts";</script>

@@ -1,0 +1,33 @@
+version: beta
+id: ontology-audit
+summary: Onto audits a bounded graph snapshot and records advisory findings.
+actors: {}
+triggers:
+  - on: schedule
+    cron: "0 8 * * *"
+steps:
+  - id: audit
+    inference: {maxOutputTokens: 4000, timeoutMs: 60000}
+    outputs:
+      findings:
+        connector: database
+        record: ontology-audit.recorded
+        schema:
+          type: object
+          properties:
+            summary: {type: string}
+            findings:
+              type: array
+              items:
+                type: object
+                properties:
+                  ref: {type: [string, "null"]}
+                  rule: {type: string}
+                  severity: {enum: [error, warning, note]}
+                  message: {type: string}
+                  fix: {type: [string, "null"]}
+                required: [ref, rule, severity, message, fix]
+            complete: {type: boolean}
+          required: [summary, findings, complete]
+outputs:
+  findings: audit.outputs.findings

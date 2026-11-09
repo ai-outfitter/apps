@@ -7,7 +7,7 @@ import {
   evidenceKey,
   evidenceList,
 } from "../src/evidence";
-import { assertionBody } from "../src/wiki";
+import { assertionBody } from "@ai-outfitter/onto-contracts";
 
 const hash = "a".repeat(64);
 

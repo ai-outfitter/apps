@@ -1,0 +1,228 @@
+type Query {
+  """Read an immutable generated revision."""
+  documentRevision(input: JSON!): JSON!
+
+  """Read live authorized sources and completeness."""
+  documentLive(input: JSON!): JSON!
+
+  """Evaluate exact-revision policy; unavailable is not approval."""
+  documentPolicy(input: JSON!): JSON!
+
+  """Inspect generation job status, failure and supersession."""
+  documentJob(input: JSON!): JSON!
+
+  """
+  Search saved change batches; operations and evidence are selected explicitly.
+  """
+  changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
+
+  """
+  One change batch, with every operation and its state; null when there is none.
+  """
+  changeBatch(id: ID!): ChangeBatch
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type ChangeBatchConnection {
+  nodes: [ChangeBatch!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+"""
+Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.
+"""
+type ChangeBatch {
+  id: ID!
+  title: String!
+  purpose: String!
+
+  """open, awaiting_review, committed, rejected or discarded."""
+  state: String!
+  source: JSON
+  createdAt: DateTime!
+  policy: JSON!
+  summary: JSON
+  reviewBy: DateTime
+
+  """
+  The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything.
+  """
+  review: JSON
+  expiresAt: DateTime!
+  updatedAt: DateTime!
+
+  """Operations by state."""
+  counts: JSON!
+  instructions: [ChangeInstruction!]!
+  operations(
+    """
+    Read only these proposal refs; omit for all. Use to inspect individual proposals when the whole batch exceeds the response limit.
+    """
+    refs: [String!]
+  ): [StagedChange!]!
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+"""One proposed graph.apply operation in a batch."""
+type StagedChange {
+  ref: String!
+
+  """pending, awaiting_review, committed or rejected."""
+  state: String!
+  operation: JSON!
+  evidence: JSON!
+  confidence: Float
+  reason: String
+
+  """Who or which policy decided it, and when."""
+  decision: JSON
+
+  """The committed record."""
+  recordId: ID
+  recordRevision: Int
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+input ReviewBatchInput {
+  batchId: ID!
+  refs: [String!]
+  verdict: ReviewBatchInputVerdict!
+  comment: String
+}
+
+enum ReviewBatchInputVerdict {
+  approve
+  reject
+}
+
+input StageChangesInput {
+  batchId: ID
+  title: String
+  purpose: String
+  source: StageChangesInputSource
+  proposals: [StageChangesInputProposalsItem!]!
+}
+
+input StageChangesInputSource {
+  kind: String!
+  ref: String!
+  label: String
+}
+
+input StageChangesInputProposalsItem {
+  operation: JSON!
+  evidence: [StageChangesInputProposalsItemEvidenceItem!]
+  confidence: Float
+  reason: String
+}
+
+input StageChangesInputProposalsItemEvidenceItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+  quote: String
+  observedAt: String
+}
+
+input RemoveStagedChangesInput {
+  batchId: ID!
+  refs: [String!]!
+}
+
+input SubmitBatchInput {
+  batchId: ID!
+  summary: String
+}
+
+type Mutation {
+  """Create an owner-admin controlled definition version."""
+  defineDocument(input: JSON!): JSON!
+
+  """Create a document from an owned definition."""
+  createDocument(input: JSON!): JSON!
+
+  """Queue a durable generation job."""
+  generateDocument(input: JSON!): JSON!
+
+  """Seal an exact current revision; sealing is not approval."""
+  sealDocument(input: JSON!): JSON!
+
+  """Retry a failed current job as an owner or admin."""
+  retryDocument(input: JSON!): JSON!
+
+  """
+  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
+  """
+  reviewBatch(input: ReviewBatchInput!): ChangeBatch!
+
+  """
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"<Person type id>","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. An update names id and revision; an edge's fromId and toId may be refs staged earlier in the batch. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
+  """
+  stageChanges(input: StageChangesInput!): ChangeBatch!
+
+  """Remove proposals from an open batch by ref."""
+  removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
+
+  """
+  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background and attaches advisory findings (review, empty until it finishes); its policy decides exactly as without them.
+  """
+  submitBatch(input: SubmitBatchInput!): ChangeBatch!
+
+  """Apply changebatch changes using explicit actions"""
+  changeBatchChanges(input: ChangeBatchChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+input ChangeBatchChangesInput {
+  items: [ChangeBatchChangesInputItemsItem!]!
+}
+
+input ChangeBatchChangesInputItemsItem {
+  key: ID!
+  action: ChangeBatchChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ChangeBatchChangesInputItemsItemAction {
+  stage
+  remove
+  submit
+  review
+}

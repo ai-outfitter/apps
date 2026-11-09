@@ -1,6 +1,6 @@
 // Naming and layout of the generated GraphQL schema, computed from type rows
 // alone. See graph-graphql.ts for the rules; this file only applies them.
-import type { OntologyV2 } from "./wiki";
+import type { OntologyV2 } from "@ai-outfitter/onto-contracts";
 import { compareIds } from "./graph-graphql-source";
 
 /** A Wiki type row as graph.query returns it in fields:"full" (extra keys ignored). */

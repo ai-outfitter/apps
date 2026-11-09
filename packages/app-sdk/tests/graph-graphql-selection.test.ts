@@ -4,7 +4,7 @@ import test from "node:test";
 import { parse, print } from "graphql";
 import { definitionFromResult, executeGraphQuery, queryHash, memorySource, resultRecords, selectFromResult, selectionDocument, selectionQueryDepth, type TypeRow } from "../src/graph-graphql";
 import { type GraphSelection, type GraphSelectionDefinition, graphSelectionDefinition, selectGraph } from "../src/graph-selection";
-import { wikiGraphRecords } from "../src/wiki";
+import { wikiGraphRecords } from "../src/graph-records";
 import type { z } from "zod";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

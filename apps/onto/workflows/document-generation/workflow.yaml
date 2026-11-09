@@ -1,0 +1,23 @@
+version: beta
+id: document-generation
+summary: Capture authorized sources and generate one immutable document revision.
+actors: {}
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 9 * * *"
+steps:
+  - id: render
+    inference: {maxOutputTokens: 4000, timeoutMs: 60000}
+    outputs:
+      document:
+        connector: database
+        record: document-generation.recorded
+        schema:
+          type: object
+          properties:
+            title: {type: string}
+            markdown: {type: string}
+          required: [title, markdown]
+outputs:
+  document: render.outputs.document

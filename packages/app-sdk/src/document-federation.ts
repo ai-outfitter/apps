@@ -1,7 +1,7 @@
 import { getNamedType, isObjectType, type GraphQLSchema, type OperationDefinitionNode, Kind } from "graphql";
 
 /** A standard connection document can be read once across its caller's authorized installations. */
-export type DocumentFederation = { collection: string; cursorVariable: "after" | "cursor"; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string } };
+export type DocumentFederation = { collection: string; cursorVariable: "after" | "cursor"; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string; body?: string } };
 
 /** Infer only the ordinary first/after connection contract; compound and lifecycle queries stay scoped. */
 export function documentFederation(schema: GraphQLSchema, operation: OperationDefinitionNode): DocumentFederation | undefined {

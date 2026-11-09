@@ -8,7 +8,7 @@ export type { DocumentFederation } from "./document-federation";
 import { queryHash } from "./graph-graphql-selection";
 
 /** One document and the user story that justifies it: "As a <who>, I want <what>, so that <why>." */
-export type McpPublication = { description: string; collection?: true; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string } };
+export type McpPublication = { description: string; collection?: true; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string; body?: string } };
 export type AppDocument = { scheduleSource?: true; mcp?: McpPublication; story: string; document: DocumentNode | string; hidden?: boolean; publicName?: string; inputSchema?: Record<string, unknown> };
 /** What the platform lists and runs: graph/documents.json holds one row per document. */
 export type AppDocumentRow = {

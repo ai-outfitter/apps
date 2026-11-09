@@ -10,7 +10,7 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { entityRef, type EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import type { GraphSelectionDefinition } from "@ai-outfitter/app-sdk/graph-selection";
 import { type GraphTemplate, renderKnowledgeGraph } from "@ai-outfitter/app-sdk/graph-templates";
-import { defaultWiki, stableGraphId, wikiAdapter } from "@ai-outfitter/app-sdk/wiki";
+import { defaultWiki, stableGraphId, wikiAdapter } from "@ai-outfitter/onto/client";
 import { repositoryName } from "./projects";
 import {
   approvedTarget,
