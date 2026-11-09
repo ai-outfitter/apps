@@ -10,7 +10,8 @@ const demoMiddleware = defineMiddleware(async ({ request }, next) => {
     return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
   const response = new URL(request.url).pathname === "/__health" ? Response.json({ app: "creative-team", status: "ok" }) : await next();
   response.headers.set("Cache-Control", "private, no-store");
-  if (!response.headers.has("Content-Security-Policy")) response.headers.set("Content-Security-Policy", fallbackPolicy);
+  // `astro dev` injects inline styles and scripts and applies no Astro CSP, so dev pages go without one.
+  if (!import.meta.env.DEV && !response.headers.has("Content-Security-Policy")) response.headers.set("Content-Security-Policy", fallbackPolicy);
   response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 });
