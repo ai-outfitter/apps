@@ -38,7 +38,8 @@
         "threads.use",
         "threads.provide",
         "workflow.ontology-audit.start",
-        "actions.invoke"
+        "actions.invoke",
+        "connector.github.pulls.list"
       ]
     }
   },

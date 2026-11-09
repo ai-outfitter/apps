@@ -714,6 +714,289 @@
     }
   },
   {
+    "name": "Exploration",
+    "kind": "query",
+    "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
+    "query": "query Exploration($slug: String!) {\n  exploration(slug: $slug) {\n    slug\n    title\n    revision\n    state\n    lastChange\n    picture {\n      nodes {\n        key\n        type\n        title\n        step\n        url\n        proposedIn\n      }\n      edges {\n        from\n        to\n        label\n      }\n      steps {\n        key\n        count\n        truncated\n        error\n      }\n      truncated\n    }\n  }\n}",
+    "hash": "4392875d23db84ec679a21bfd4a3a506b02a500da5735a346042ae7006b5bbae",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Read an exploration's picture (nodes by key, relationships, what each step reached) and its revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "exploration": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "state": {
+              "description": "JSON"
+            },
+            "lastChange": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "picture": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "step": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "proposedIn": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      },
+                      "truncated": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Explorations",
+    "kind": "query",
+    "story": "As a member or agent, I want to list the saved explorations of this Wiki, so that I can open one instead of rebuilding a view.",
+    "query": "query Explorations {\n  explorations {\n    slug\n    title\n    revision\n    start\n  }\n}",
+    "hash": "2d008c58bdba966bcef4e5745673b1ff44fd5bbfc1685818333f99cf782e98f8",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "List saved graph explorations: views of this Wiki that members and agents share."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "explorations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "start": {
+                "description": "JSON"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "MutateExploration",
+    "kind": "mutation",
+    "story": "As an agent or member, I want to open, close and hide parts of an exploration with one merge patch, so that the page and every agent see the same view change at once.",
+    "query": "mutation MutateExploration($input: MutateExplorationInput!) {\n  mutateExploration(input: $input) {\n    slug\n    title\n    revision\n    lastChange\n    picture {\n      nodes {\n        key\n        type\n        title\n        step\n        url\n        proposedIn\n      }\n      edges {\n        from\n        to\n        label\n      }\n      steps {\n        key\n        count\n        truncated\n        error\n      }\n      truncated\n    }\n  }\n}",
+    "hash": "859ba0c01cb9840253d8177b35a4aaedd84ee00270270b97c9e595a697a51ccc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MutateExplorationInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Open paths (offerings, products, projects, competitors, issues, repositories, open pullRequests or any edge type), hide nodes or start an exploration with a merge patch; the explore page updates live. Writes no records."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "mutateExploration": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "lastChange": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "picture": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "step": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "proposedIn": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      },
+                      "truncated": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",

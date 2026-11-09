@@ -51,7 +51,9 @@
     "./graph-provider": "./src/graph-provider.ts",
     "./document-policy": "./src/document-policy.ts",
     "./graph-records": "./src/graph-records.ts",
-    "./entity-discovery": "./src/entity-discovery.ts"
+    "./entity-discovery": "./src/entity-discovery.ts",
+    "./merge-patch": "./src/merge-patch.ts",
+    "./github-pulls": "./src/github-pulls.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.1",

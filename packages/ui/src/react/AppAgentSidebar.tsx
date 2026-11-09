@@ -436,6 +436,7 @@ export default function AppAgentSidebar({
       if (current()) {
         setStatus("ready");
         const saved = await loadThread(target).catch(() => undefined);
+        if (finished) page.replied();
         // Only after a finished reply, and unless the member has moved on.
         const opened = finished && saved && requestedPage(saved, input.submissionId);
         const href = opened && pageHref(prefix, opened.location, location.href);
