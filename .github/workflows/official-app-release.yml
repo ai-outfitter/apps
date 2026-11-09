@@ -26,6 +26,11 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
+      # The release tooling is this workflow's own, even when the app source is an older tag.
+      - uses: actions/checkout@v4
+        with:
+          path: .release-tooling
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -41,7 +46,7 @@ jobs:
         run: |
           SOURCE_COMMIT=$(git rev-parse HEAD)
           export SOURCE_COMMIT
-          node scripts/official-app-artifact.mjs prepare "$APP" "$OUTPUT"
+          node .release-tooling/scripts/official-app-artifact.mjs prepare "$APP" "$OUTPUT"
           echo "artifact=official-app-release-${APP#apps/}" >> "$GITHUB_OUTPUT"
           echo "commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
