@@ -7,7 +7,7 @@ import { standardData } from "../src/lib/standard-data";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const reader = { ...owner, userId: "reader", role: "member" };
 const init = "/api/internal/app-initialize";
-const snapshot = "/api/apps/wiki-map/graph/snapshot";
+const snapshot = "/api/apps/onto/graph/snapshot";
 
 test("JSON initialization is editor-only and repeated uploads leave the graph unchanged", async () => {
   const app = await appWorker(

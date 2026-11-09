@@ -100,7 +100,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       properties: { evidence: "https://www.apple.com/health/" },
     });
     const graph = await json(
-      await app.call("/api/apps/wiki-map/graph/snapshot", member),
+      await app.call("/api/apps/onto/graph/snapshot", member),
     );
     assert.equal(graph.nodes.length, seed.nodes.length + 4);
     const seededIds = new Set(seed.nodes.map((node) => node.id));
@@ -220,7 +220,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       400,
     );
     const bundle = await json(
-      await app.call("/api/apps/wiki-map/graph/export", owner),
+      await app.call("/api/apps/onto/graph/export", owner),
     );
     assert.ok(
       bundle.notes.some((n: { markdown: string }) =>
@@ -235,7 +235,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     });
     assert.equal(otherApple.attributes.slug, "apple-2");
     // The browser adapter keeps references but cannot establish one.
-    const browser = "/api/apps/wiki-map/graph/";
+    const browser = "/api/apps/onto/graph/";
     assert.equal(
       (
         await app.call(browser + "create", owner, {

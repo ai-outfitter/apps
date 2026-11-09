@@ -72,7 +72,7 @@ test("the hourly seal approves what is past its window, by policy and as no memb
   const sealed = await json(await f.action("batch.get", { batchId: batch.id }));
   assert.equal(sealed.batch.state, "committed");
   assert.equal(sealed.operations[0].decision.reason, "review-window");
-  const history = await json(await f.worker.call(`/api/apps/wiki-map/batches/history?id=${id}`, owner));
+  const history = await json(await f.worker.call(`/api/apps/onto/batches/history?id=${id}`, owner));
   assert.equal(history.revisions[0].approval.kind, "policy");
 
   assert.equal((await json(await f.seal("something.else"))).outcome, "declined");

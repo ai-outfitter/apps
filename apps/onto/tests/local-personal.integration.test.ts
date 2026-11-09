@@ -75,7 +75,7 @@ const context = { dataDirectory: "/nonexistent", seed, installations };
 const viewer = { userId: "local-viewer", organizationId: "", role: "owner", owner: { kind: "user", id: "local-viewer" } };
 type Stored = { id: string; title: string; archived: boolean; source: unknown; typeId: string };
 const snapshot = async (wiki: Awaited<ReturnType<typeof appWorker>>) => {
-  const response = await wiki.call("/api/apps/wiki-map/graph/snapshot", viewer);
+  const response = await wiki.call("/api/apps/onto/graph/snapshot", viewer);
   assert.equal(response.status, 200, await response.clone().text());
   return (await response.json()) as { types: { id: string; body: string; archived: boolean }[]; nodes: Stored[]; edges: Stored[] };
 };

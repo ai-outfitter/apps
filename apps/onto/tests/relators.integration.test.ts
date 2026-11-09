@@ -25,7 +25,7 @@ import {
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const reader = { userId: "reader", organizationId: "org", role: "member" };
 const actions = "/api/internal/actions/v1/call",
-  assertions = "/api/apps/wiki-map/assertions/",
+  assertions = "/api/apps/onto/assertions/",
   entities = "/api/internal/entities/v1/";
 // biome-ignore lint/suspicious/noExplicitAny: public JSON responses under test.
 async function json(response: Response): Promise<Record<string, any>> {
@@ -730,7 +730,7 @@ test("portable graphs preserve assertion evidence and subject revisions, while c
     ]),
   );
   const exported = await json(
-    await f.app.call("/api/apps/wiki-map/graph/export", owner),
+    await f.app.call("/api/apps/onto/graph/export", owner),
   );
   assert.equal(exported.confirmationArchive.confirmations.length, 1);
   assert.equal(
@@ -747,13 +747,13 @@ test("portable graphs preserve assertion evidence and subject revisions, while c
   );
   assert.equal(transferred.revision, 2);
   const preview = await json(
-    await destination.app.call("/api/apps/wiki-map/graph/preview", owner, {
+    await destination.app.call("/api/apps/onto/graph/preview", owner, {
       method: "POST",
       body: exported.transfer,
     }),
   );
   await json(
-    await destination.app.call("/api/apps/wiki-map/graph/restore", owner, {
+    await destination.app.call("/api/apps/onto/graph/restore", owner, {
       method: "POST",
       body: { transfer: exported.transfer, previewToken: preview.previewToken },
     }),
@@ -773,7 +773,7 @@ test("portable graphs preserve assertion evidence and subject revisions, while c
     newClaim.id = crypto.randomUUID();
     newClaim.slug = `revision-conflict-${revision}`;
     newClaim.body = JSON.stringify(claimBody(ids.union, revision));
-    const conflict = await destination.app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: mismatched });
+    const conflict = await destination.app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: mismatched });
     assert.equal(conflict.status, 409);
     assert.match(await conflict.text(), /subject revision differs/);
   }
@@ -784,11 +784,11 @@ test("stale historical assertions survive initial and repeated portable restores
   t.after(() => Promise.all([source.app.dispose(), destination.app.dispose()]));
   await json(await source.apply([...complete(), create("$claim", "graph-node", { id: ids.claim, typeId: ids.assertion, title: "Historical claim", slug: "historical-claim", body: JSON.stringify(claimBody()) })]));
   await json(await source.apply([update("$subject", "graph-node", ids.union, 1, { title: "Revised subject" })]));
-  const exported = await json(await source.app.call("/api/apps/wiki-map/graph/export", owner));
-  await json(await source.app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: exported.transfer }));
-  const plan = await json(await destination.app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: exported.transfer }));
-  await json(await destination.app.call("/api/apps/wiki-map/graph/restore", owner, { method: "POST", body: { transfer: exported.transfer, previewToken: plan.previewToken } }));
-  await json(await destination.app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: exported.transfer }));
+  const exported = await json(await source.app.call("/api/apps/onto/graph/export", owner));
+  await json(await source.app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: exported.transfer }));
+  const plan = await json(await destination.app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: exported.transfer }));
+  await json(await destination.app.call("/api/apps/onto/graph/restore", owner, { method: "POST", body: { transfer: exported.transfer, previewToken: plan.previewToken } }));
+  await json(await destination.app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: exported.transfer }));
   assert.equal((await json(await destination.action("assertion.inspect", { id: ids.claim }))).subjectCurrent, false);
 });
 
@@ -797,7 +797,7 @@ test("portable export refuses to omit required canonical participants", async (t
   t.after(() => f.app.dispose());
   await json(await f.apply(complete()));
   await f.app.database.prepare("UPDATE graph_nodes SET externalKey=?, revision=revision+1 WHERE id=?").bind("ai-outfitter.com/apps/people/person:canonical", ids.alex).run();
-  const exported = await json(await f.app.call("/api/apps/wiki-map/graph/export", owner));
+  const exported = await json(await f.app.call("/api/apps/onto/graph/export", owner));
   assert.equal(exported.transfer, null);
   assert.ok(exported.transferOmissions.nodes.includes(ids.alex));
   assert.ok(exported.transferLimitations.some((message: string) => message.includes("ontology dependencies")));

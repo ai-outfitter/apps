@@ -1,6 +1,6 @@
 # Onto
 
-Onto is its own app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It installs next to the webapp's Wiki Map (`wiki-map`) rather than replacing it: an organization moves its old Wiki into Onto as a separate step (`scripts/import-old-wiki.ts`). The graph routes keep the `/api/apps/wiki-map/` prefix so the platform's graph transfer reaches both apps the same way.
+Onto is its own app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It installs next to the webapp's Wiki Map (`wiki-map`) rather than replacing it: an organization moves its old Wiki into Onto as a separate step (`scripts/import-old-wiki.ts`).
 
 From the repository root, run `npm ci`, `npm run check -w @ai-outfitter/app-onto`, `npm run test:unit -w @ai-outfitter/app-onto`, and `npm run test:integration -w @ai-outfitter/app-onto`. Build both app modes with `npm run build -w @ai-outfitter/app-onto`; outputs are written to `apps/onto/.outfitter/packages/`. Browser tests use `npm run test:e2e -w @ai-outfitter/app-onto` and require Playwright and Chromium.
 

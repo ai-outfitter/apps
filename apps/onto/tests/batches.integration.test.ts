@@ -38,8 +38,8 @@ async function fixture() {
     (await json(await action("graph.query", { queries: [{ name: "q", ids: [id] }] }))).queries.q.matches.length > 0;
   // The Changes page's routes: a member's review, and a record's history.
   const review = (input: object, identity: object = owner) =>
-    app.call("/api/apps/wiki-map/batches/review", identity as typeof owner, { method: "POST", body: input });
-  const history = async (id: string) => json(await app.call(`/api/apps/wiki-map/batches/history?id=${id}`, owner));
+    app.call("/api/apps/onto/batches/review", identity as typeof owner, { method: "POST", body: input });
+  const history = async (id: string) => json(await app.call(`/api/apps/onto/batches/history?id=${id}`, owner));
   return { app, action, exists, review, history };
 }
 

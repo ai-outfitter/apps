@@ -42,17 +42,17 @@ test("a Wiki archive pulls into another installation and later pulls carry prod 
       assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
     // Seed one prod record through the existing Wiki import.
     const transfer = { format: "outfitter-wiki-transfer-v1", types: [], nodes: [node], edges: [] };
-    const preview = await prod.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: transfer });
+    const preview = await prod.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: transfer });
     const { previewToken } = await preview.json() as { previewToken: string };
-    assert.equal((await prod.call("/api/apps/wiki-map/graph/restore", owner, { method: "POST", body: { transfer, previewToken } })).status, 200);
+    assert.equal((await prod.call("/api/apps/onto/graph/restore", owner, { method: "POST", body: { transfer, previewToken } })).status, 200);
 
     assert.equal((await local.call("/api/outfitter/data/export", { ...owner, role: "member" })).status, 403);
     await pull(local, await exportAll(prod));
-    const snapshot = async () => (await (await local.call("/api/apps/wiki-map/graph/snapshot", owner)).json()) as { nodes: { id: string; title: string }[] };
+    const snapshot = async () => (await (await local.call("/api/apps/onto/graph/snapshot", owner)).json()) as { nodes: { id: string; title: string }[] };
     assert.equal((await snapshot()).nodes.find((n) => n.id === node.id)?.title, "Archive Org");
 
     // Edit in prod through the ordinary entity API, then pull again.
-    const updated = await prod.call("/api/apps/wiki-map/graph/update", owner, { method: "POST", body: { type: "graph-node", id: node.id, revision: 1, attributes: { title: "Renamed in prod" } } });
+    const updated = await prod.call("/api/apps/onto/graph/update", owner, { method: "POST", body: { type: "graph-node", id: node.id, revision: 1, attributes: { title: "Renamed in prod" } } });
     assert.equal(updated.status, 200, await updated.clone().text());
     await pull(local, await exportAll(prod));
     assert.equal((await snapshot()).nodes.find((n) => n.id === node.id)?.title, "Renamed in prod");

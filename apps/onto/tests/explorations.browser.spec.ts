@@ -92,7 +92,7 @@ test("a member and an agent change one exploration, and the page shows the agent
     await page.getByRole("navigation", { name: "Explore from Sunny pro" }).getByRole("button", { name: "Hide" }).click();
     await expect(page.locator("svg [data-graph-node]")).toHaveCount(7);
     // A competitor the agent stages appears dashed, without anyone changing the exploration.
-    const kit = (await (await app.call(`/api/apps/wiki-map/explorations/get?slug=${slug}`, owner)).json() as Json).picture.nodes.find((n: Json) => n.key === "Offering:sunny-home-kit");
+    const kit = (await (await app.call(`/api/apps/onto/explorations/get?slug=${slug}`, owner)).json() as Json).picture.nodes.find((n: Json) => n.key === "Offering:sunny-home-kit");
     await stage([
       { operation: { operation: "create", ref: "$rival", type: "graph-node", attributes: { typeId: type("Product"), title: "Rachio soil probe" } } },
       { operation: { operation: "create", ref: "$alt", type: "graph-edge", attributes: { typeId: type("alternative_for"), fromId: "$rival", toId: kit.id } } },

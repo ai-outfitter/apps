@@ -14,9 +14,9 @@ test("wiki transfer preserves IDs, is repeatable, rejects conflicts and denies m
       import.meta.url,
     ),
   );
-  const path = "/api/apps/wiki-map/graph/restore";
+  const path = "/api/apps/onto/graph/restore";
   const apply = async (transfer: unknown) => {
-    const preview = await app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: transfer });
+    const preview = await app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: transfer });
     if (!preview.ok) return preview;
     const plan = await preview.json() as { previewToken: string };
     return app.call(path, owner, { method: "POST", body: { transfer, previewToken: plan.previewToken } });
@@ -84,7 +84,7 @@ test("wiki transfer preserves IDs, is repeatable, rejects conflicts and denies m
       400,
     );
     const snapshot = (await (
-      await app.call("/api/apps/wiki-map/graph/snapshot", owner)
+      await app.call("/api/apps/onto/graph/snapshot", owner)
     ).json()) as { nodes: { id: string }[] };
     assert.ok(snapshot.nodes.some((n) => n.id === node.id));
     assert.ok(!snapshot.nodes.some((n) => n.id === invalid.nodes[0].id));
@@ -106,12 +106,12 @@ test("archive state of types, nodes and relationships survives transfer", async 
     { id: to, typeId: nodeType, slug: "archived-transfer-to", title: "Archived to", archived: true },
   ], edges: [{ id: edge, typeId: edgeType, fromId: from, toId: to, archived: true }] };
   try {
-    const preview = await app.call("/api/apps/wiki-map/graph/preview", owner, { method: "POST", body: transfer });
+    const preview = await app.call("/api/apps/onto/graph/preview", owner, { method: "POST", body: transfer });
     assert.equal(preview.status, 200, await preview.clone().text());
     const plan = await preview.json() as { previewToken: string };
-    const restored = await app.call("/api/apps/wiki-map/graph/restore", owner, { method: "POST", body: { transfer, previewToken: plan.previewToken } });
+    const restored = await app.call("/api/apps/onto/graph/restore", owner, { method: "POST", body: { transfer, previewToken: plan.previewToken } });
     assert.equal(restored.status, 200, await restored.clone().text());
-    const exported = await (await app.call("/api/apps/wiki-map/graph/export", owner)).json() as { transfer: { types: { id: string; archived: boolean }[]; nodes: { id: string; archived: boolean }[]; edges: { id: string; archived: boolean }[] } };
+    const exported = await (await app.call("/api/apps/onto/graph/export", owner)).json() as { transfer: { types: { id: string; archived: boolean }[]; nodes: { id: string; archived: boolean }[]; edges: { id: string; archived: boolean }[] } };
     assert.equal(exported.transfer.types.find(row => row.id === nodeType)?.archived, true);
     assert.equal(exported.transfer.nodes.find(row => row.id === from)?.archived, true);
     assert.equal(exported.transfer.edges.find(row => row.id === edge)?.archived, true);
@@ -180,7 +180,7 @@ test("transfer preview rejects ontology-invalid relationships", async () => {
     ],
   };
   try {
-    const response = await app.call("/api/apps/wiki-map/graph/preview", owner, {
+    const response = await app.call("/api/apps/onto/graph/preview", owner, {
       method: "POST",
       body: transfer,
     });
