@@ -25,7 +25,7 @@ import { v2 } from "../lib/ontology-model";
 import { requireOntologyValid } from "../lib/ontology-validation";
 import { storeType } from "../lib/type-metadata";
 import { checkProperties, graphUnchanged, readGraph } from "./graph";
-import { handleIndex, resolveHandle } from "../lib/record-handles";
+import { addressIndex, resolveAddress } from "../lib/addresses";
 import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { validateKnowledgeGraph, withCompiledQuery } from "../lib/knowledge-graph-document";
 import { graphChanges } from "./schema";
@@ -54,7 +54,7 @@ function fail(message: string, status = 400): never {
 type SavedRow =
   Graph["types"][number] | Graph["nodes"][number] | Graph["edges"][number];
 type Refs = Map<string, { id: string; type: Change["type"] }>;
-type Handles = ReturnType<typeof handleIndex>;
+type Handles = ReturnType<typeof addressIndex>;
 function resolveAssertionSubjects(
   graph: Graph,
   changes: Record<
@@ -94,7 +94,7 @@ function resolveSubject(
   if (typeof subject?.id !== "string") return;
   if (!subject.id.startsWith("$")) {
     if (subject.type !== "graph-node" && subject.type !== "graph-edge") return;
-    const id = resolveHandle(handles, subject.type, subject.id);
+    const id = resolveAddress(handles, subject.type, subject.id);
     if (id === subject.id) return;
     subject.id = id;
     node.body = JSON.stringify(body);
@@ -130,7 +130,7 @@ function resolveAttributes(change: Change, refs: Refs, handles: Handles) {
     const value = attributes[field];
     if (typeof value !== "string") continue;
     if (!value.startsWith("$")) {
-      attributes[field] = resolveHandle(handles, expected, value);
+      attributes[field] = resolveAddress(handles, expected, value);
       continue;
     }
     const ref = refs.get(value);
@@ -150,7 +150,7 @@ function allocateReferences(operations: Input["operations"], handles: Handles) {
       .uuid()
       .safeParse(
         change.operation === "update"
-          ? resolveHandle(handles, change.type, change.id)
+          ? resolveAddress(handles, change.type, change.id)
           : (change.attributes.id ?? crypto.randomUUID()),
       );
     if (!parsedId.success) fail("Invalid record ID");
@@ -231,7 +231,7 @@ function prepareNode(
 
 function prepareChanges(input: Input, graph: Graph, who: AppIdentity) {
   const current = records(graph);
-  const handles = handleIndex(graph);
+  const handles = addressIndex(graph);
   const refs = allocateReferences(input.operations, handles);
   const slugs = new Map<string, Set<string>>();
   for (const node of graph.nodes) {

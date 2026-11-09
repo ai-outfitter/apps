@@ -89,7 +89,9 @@ type StagedChange {
   """Who or which policy decided it, and when."""
   decision: JSON
 
-  """The committed record: a type name, node slug or edge type:from:to."""
+  """
+  The committed record's address: Person, Organization:sunny or works_on(Person:ada → Project:sunny).
+  """
   record: String
   recordRevision: Int
 }
@@ -259,7 +261,7 @@ type Mutation {
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 
   """
-  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by handle: typeId takes a type name, fromId and toId take node slugs or refs staged earlier in the batch, and an update names its record (node slug, type name or edge type:from:to) as id with its revision. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. Pass anchors (node addresses) to require every new node to connect to one. Re-adding an identical proposal does nothing; a ref already used for another is a conflict.
   """
   stageChanges(input: StageChangesInput!): ChangeBatch!
 

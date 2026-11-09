@@ -10,7 +10,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { readGraph } from "./graph";
-import { handleIndex, resolveHandle } from "../lib/record-handles";
+import { addressIndex, resolveAddress } from "../lib/addresses";
 import {
   applyGraphChanges,
   checkGraphChanges,
@@ -105,9 +105,9 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
 /** The saved nodes a batch's anchors name. */
 async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
   const graph = await readGraph(db, who);
-  const index = handleIndex(graph);
+  const index = addressIndex(graph);
   return anchors.map((anchor) => {
-    const id = resolveHandle(index, "graph-node", anchor);
+    const id = resolveAddress(index, "graph-node", anchor);
     if (!graph.nodes.some((node) => node.id === id && !node.archived)) fail(`Unknown anchor ${anchor}`);
     return id;
   });
@@ -116,7 +116,7 @@ async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
 /** Every node the batch creates must reach an anchor along saved or staged edges, in
  * either direction and through any number of nodes. Returns the titles that do not. */
 function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
-  const index = handleIndex(graph);
+  const index = addressIndex(graph);
   const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; attributes?: Record<string, unknown> };
   const idOf = (row: OperationRow) => String(op(row).attributes?.id ?? row.ref);
   const refs = new Map(rows.map((row) => [row.ref, idOf(row)]));

@@ -169,8 +169,8 @@ export const knowledgeGraphSelectFields = {
   definitionId: z.uuid().optional(),
   /** An inline definition, when no record publishes the view yet. */
   definition: graphSelectionDefinition.optional(),
-  /** Root nodes, each matching the definition's root types. */
-  rootIds: z.array(z.uuid()).min(1).max(32),
+  /** Root nodes by address (such as Organization:sunny) or ID, each matching the definition's root types. */
+  rootIds: z.array(z.string().trim().min(1).max(300)).min(1).max(32),
   /** Lower the node budget below the definition's. */
   maxNodes: z.number().int().min(1).max(500).optional(),
   /** A GraphQL document to read with instead of the saved or compiled one (a result's `query`, possibly

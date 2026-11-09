@@ -40,7 +40,7 @@ import {
 } from "./graph";
 import { organizationGoalsEntity } from "./organization-goals";
 import { graphEdges, graphNodes, graphTypes } from "./schema";
-import { edgeHandle } from "../lib/record-handles";
+import { recordAddress } from "../lib/addresses";
 
 const textFilter = z.string().min(1).max(200);
 const identifiers = z.array(textFilter).min(1).max(100);
@@ -96,17 +96,18 @@ const equals = (column: AnyColumn, value: string | boolean | undefined) =>
 
 const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(inArray(graphEdges.fromId, ids), inArray(graphEdges.toId, ids));
 
-type Named = { handle?: string };
-/** Edges with their handle (type name:from slug:to slug) for naming. */
+type Named = { address?: string };
+/** Edges with their address, such as works_on(Person:ada → Project:sunny), for naming. */
 async function named(db: Database, edges: GraphEdge[]) {
   if (!edges.length) return edges;
   const nodeIds = [...new Set(edges.flatMap((edge) => [edge.fromId, edge.toId]))];
-  const slugs = new Map<string, string>();
+  const nodes: { id: string; typeId: string; slug: string }[] = [];
   for (let i = 0; i < nodeIds.length; i += 90)
-    for (const row of await db.select({ id: graphNodes.id, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, nodeIds.slice(i, i + 90)))) slugs.set(row.id, row.slug);
-  const typeIds = [...new Set(edges.map((edge) => edge.typeId))];
-  const types = new Map((await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, typeIds))).map((row) => [row.id, row.name]));
-  return edges.map((edge): GraphEdge & Named => ({ ...edge, handle: edgeHandle(types.get(edge.typeId) ?? edge.typeId, slugs.get(edge.fromId) ?? edge.fromId, slugs.get(edge.toId) ?? edge.toId) }));
+    nodes.push(...await db.select({ id: graphNodes.id, typeId: graphNodes.typeId, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, nodeIds.slice(i, i + 90))));
+  const typeIds = [...new Set([...edges.map((edge) => edge.typeId), ...nodes.map((node) => node.typeId)])];
+  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, typeIds));
+  const address = recordAddress({ types, nodes, edges } as unknown as Parameters<typeof recordAddress>[0]);
+  return edges.map((edge): GraphEdge & Named => ({ ...edge, address: address("graph-edge", edge.id) ?? undefined }));
 }
 
 /** Published audit fields come from the same row as the record. */
@@ -220,8 +221,8 @@ export function graphEntities(
     schema: edgeInput,
     outputAttributes: provenance,
     filterSchema: edgeFilter,
-    // An untitled edge is named by its handle (type:from:to), never its UUID.
-    name: (row) => row.title || (row as Named).handle || row.id,
+    // An untitled edge is named by its address, never its UUID.
+    name: (row) => row.title || (row as Named).address || row.id,
     list: async (_who, offset, limit, filter, order) => {
       const f = filter ?? {};
       return named(db, (

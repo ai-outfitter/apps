@@ -73,12 +73,24 @@ function typeRefs(layout: SchemaLayout, category: "node" | "edge") {
   return (refs: string[] | null | undefined) => (refs ? [...new Set(refs.flatMap(ref => index.get(ref) ?? []))] : null);
 }
 
-/** A by-key root's record: through recordKeys when the source keys records, else by ID or slug (one node per slug in a graph). */
-async function findByKey(keys: GraphSchemaOptions["recordKeys"], args: KeyArgs, context: GraphContext, keep: (row: GraphRow) => boolean) {
+/** A node address: its type name and slug, such as `Organization:sunny`. */
+const nodeAddress = /^([A-Za-z_][A-Za-z0-9_]*):(.+)$/;
+/** A by-key root's record: through recordKeys when the source keys records, else by ID, address or slug
+ * (slugs are unique per type, so a bare slug is the first match the root accepts). */
+async function findByKey(keys: GraphSchemaOptions["recordKeys"], args: KeyArgs, context: GraphContext, keep: (row: GraphRow) => boolean,
+  typeIdOf: (name: string) => string | undefined) {
   if (!args.id === !args.slug) throw new GraphQLError("Pass exactly one of id and slug", { extensions: { code: "BAD_USER_INPUT" } });
   if (keys) return keys.find(args, context, keep);
-  const row = args.id ? await context.loader.node(args.id) : (await context.loader.slug(args.slug as string))[0];
-  return row && keep(row) ? row : null;
+  const address = args.id ? nodeAddress.exec(args.id) : null;
+  if (address) {
+    const typeId = typeIdOf(address[1]);
+    return (await context.loader.slug(address[2])).find(row => row.typeId === typeId && keep(row)) ?? null;
+  }
+  if (args.id) {
+    const row = await context.loader.node(args.id);
+    return row && keep(row) ? row : null;
+  }
+  return (await context.loader.slug(args.slug as string)).find(keep) ?? null;
 }
 /** How record keys show and which extra arguments by-key roots take. */
 const keyed = (keys: GraphSchemaOptions["recordKeys"]) => ({ shown: keys?.shownId ?? ((key: string) => key), idArgs: keys?.args ?? {} });
@@ -103,10 +115,10 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   const fromTo = (): Fields => ({ fromId: { type: nonNull(GraphQLID), resolve: row => shown(String(row.fromId)) }, toId: { type: nonNull(GraphQLID), resolve: row => shown(String(row.toId)) }, from: endpoint("fromId"), to: endpoint("toId") });
   /** By ID or slug (one of them), archived records only when asked for, as graph.query matches. */
   const byKey = (accept: (row: GraphRow) => boolean): GraphQLFieldConfig<unknown, GraphContext> => ({
-    args: { id: { type: GraphQLID }, slug: { type: GraphQLString, description: "The node's slug, unique in its Wiki; pass id or slug." }, archived: traverseArgs.archived, ...idArgs }, type: Node,
+    args: { id: { type: GraphQLID, description: "The node's address, such as Organization:sunny." }, slug: { type: GraphQLString, description: "The node's slug, unique within its type; pass id or slug." }, archived: traverseArgs.archived, ...idArgs }, type: Node,
     resolve: async (_root, args: KeyArgs & { archived: ArchivedFilter }, context) => {
       const keep = (row: GraphRow) => accept(row) && visible(row, args.archived, false);
-      return findByKey(keys, args, context, keep);
+      return findByKey(keys, args, context, keep, name => nodeTypes([name])?.[0]);
     },
   });
   const edgesField = (): GraphQLFieldConfig<GraphRow, GraphContext> => ({
