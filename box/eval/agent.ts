@@ -6,7 +6,7 @@
 // as a passing result.
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -68,8 +68,11 @@ export function fixtureRequest(app: BoxApp, fixture: string, prompt: string) {
 /** Runs the box to completion, streaming its log, within the eval's timeout. */
 function runBox(box: BoxOptions, work: string, timeout: number, signal?: AbortSignal) {
   const name = `${box.name}-eval-${work.split("-").pop()}`;
-  // Forgejo is published too, at the port its ROOT_URL names, so the box's PRs and their screenshots can be viewed while it runs.
-  const args = ["run", "--rm", "--name", name, "-p", `127.0.0.1:${box.inspectPort}:8787`, "-p", `127.0.0.1:${box.forgejoPort}:3300`, "-e", "BOX_EXIT_WHEN_DONE=1",
+  // The platform is published on every interface and told this machine's bare hostname, so another
+  // device opens it at http://<hostname>:<port> (the webapp's OUTFITTER_LOCAL_HOSTNAME). Forgejo is
+  // published on loopback, at the port its ROOT_URL names, so the box's PRs and their screenshots can be viewed while it runs.
+  const args = ["run", "--rm", "--name", name, "-p", `${box.inspectPort}:8787`, "-p", `127.0.0.1:${box.forgejoPort}:3300`,
+    "-e", `OUTFITTER_LOCAL_HOSTNAME=${hostname().split(".")[0]}`, "-e", "BOX_EXIT_WHEN_DONE=1",
     ...(box.modelEnv ? ["--env-file", box.modelEnv] : []),
     "-v", `${join(work, "repo")}:/in/repo:ro`, "-v", `${join(work, "requests")}:/in/requests:ro`, "-v", `${join(work, "out")}:/out`, box.image];
   return new Promise<{ code: number | null; log: string }>((done) => {
