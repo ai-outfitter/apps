@@ -2,7 +2,7 @@ import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { type AppIdentity, requireEditor } from "@ai-outfitter/app-sdk/server";
 import type { z } from "zod";
 import { sql } from "drizzle-orm";
-import { appRecordKey } from "@ai-outfitter/onto/contracts";
+import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
 const externalKeyOf = (ref: EntityRef | undefined) => ref ? appRecordKey(ref) : null;
 import { entityImport } from "../lib/entity-import";
 import { core, type Graph, type GraphNode, validateProperties } from "../lib/graph";

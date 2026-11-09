@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { bodyGraphReferences } from "../src/lib/body-graph-references";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   auditOntology,
   requireOntologyValid,

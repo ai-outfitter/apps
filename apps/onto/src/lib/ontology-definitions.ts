@@ -1,4 +1,4 @@
-import { endpointAllows, type OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { endpointAllows, type OntologyV2 } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   type OntologyContext,
   type OntologyType,

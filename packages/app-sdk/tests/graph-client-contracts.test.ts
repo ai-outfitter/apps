@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import * as contracts from "../src/contracts";
+import * as contracts from "../src/graph-contracts/index";
 import { evidenceList } from "@ai-outfitter/app-sdk/evidence";
 import { evidenceList as neutralEvidence } from "@ai-outfitter/connector-core/evidence";
 test("SDK evidence forwards the neutral connector-core schema", () => {

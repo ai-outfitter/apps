@@ -1,6 +1,6 @@
 import { readType, storeType } from "../lib/type-metadata";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
-import { appRecordKey, appRecordRef } from "@ai-outfitter/onto/contracts";
+import { appRecordKey, appRecordRef } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   type AppIdentity,
   isUniqueViolation,

@@ -9,7 +9,7 @@ import { knowledgeGraphRenderInput, knowledgeGraphRenderResult } from "@ai-outfi
 import { renderKnowledgeGraphRecords } from "../../../../../server/knowledge-graph-select";
 import { z } from "zod";
 import type { AppActor, AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { wikiGraphReadInput, wikiGraphReadResult } from "@ai-outfitter/onto/contracts";
+import { wikiGraphReadInput, wikiGraphReadResult } from "@ai-outfitter/app-sdk/graph-contracts";
 import { readGraphSnapshot } from "../../../../../server/graph-read";
 import { graphQueryInput, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 import { queryGraphRecords } from "../../../../../server/graph-query";

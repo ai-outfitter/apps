@@ -5,7 +5,7 @@ import {
   readWikiGraph,
   wikiAdapter,
   type WikiGraph,
-} from "../src/client";
+} from "../src/graph-client";
 import { workflowHost, type WorkflowHostStub } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";

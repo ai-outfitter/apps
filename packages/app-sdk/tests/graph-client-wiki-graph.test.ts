@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readWikiGraph } from "../src/client";
+import { readWikiGraph } from "../src/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 
 test("graph reader makes one action call and preserves the selected Wiki identity", async () => {

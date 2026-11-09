@@ -3,7 +3,7 @@ import {
   type HomeCardNode,
   type HomeCardSize,
 } from "@ai-outfitter/app-sdk/home-cards";
-import { typeSegment } from "@ai-outfitter/onto/client";
+import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import { and, asc, desc, eq, gt, or } from "drizzle-orm";
 import { core } from "../lib/graph";
 import { plainText } from "../lib/plain-text";

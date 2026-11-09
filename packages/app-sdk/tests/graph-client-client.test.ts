@@ -6,8 +6,7 @@ import {
   stableGraphId,
   typeSegment,
   defaultWiki,
-} from "../src/client";
-import { stableGraphId as legacyId, typeSegment as legacySegment, defaultWiki as legacyWiki } from "@ai-outfitter/onto/client";
+} from "../src/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 const descriptor = {
   version: 1 as const,
@@ -48,13 +47,11 @@ test("Onto requires its own contract and honors explicit provider bindings", asy
     (error: any) => error.status === 409,
   );
 });
-test("Onto client and legacy SDK preserve graph ID history and routes", async () => {
-  const parts = ["wiki-link-v1", "installation", "type", "from", "to"];
-  assert.equal(await stableGraphId(...parts), await legacyId(...parts));
-  for (const name of ["Person", "Company", "Status", "KnowledgeGraph"])
-    assert.equal(typeSegment(name), legacySegment(name));
+test("graph IDs and routes stay stable", async () => {
+  assert.equal(await stableGraphId("wiki-link-v1", "installation", "type", "from", "to"), await stableGraphId("wiki-link-v1", "installation", "type", "from", "to"));
+  assert.deepEqual(["Person", "Company", "Status", "KnowledgeGraph"].map(typeSegment), ["people", "companies", "statuses", "knowledge-graphs"]);
 });
-test("legacy discovery adapter preserves one Wiki and writable semantics", async () => {
+test("discovery finds one writable Wiki", async () => {
   const host = {
     call: async (name: string) => {
       assert.equal(name, "entities.types");
@@ -67,7 +64,7 @@ test("legacy discovery adapter preserves one Wiki and writable semantics", async
       }));
     },
   } as unknown as WorkflowHost<"interactive">;
-  assert.deepEqual(await defaultWiki(host), await legacyWiki(host));
+  assert.deepEqual(await defaultWiki(host), { installationId: "wiki", hostname: "notes.example", slug: "notes", writable: true });
 });
 test("Onto client reads re-enter scoped transport on every invocation", async () => {
   const calls: any[] = [];

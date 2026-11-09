@@ -4,7 +4,7 @@
 import { compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type PropertyFilter, sourceKey, type SourceRef, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { and, type AnyColumn, eq, inArray, or, type SQL, sql } from "drizzle-orm";
-import { appRecordKey, platformHost } from "@ai-outfitter/onto/contracts";
+import { appRecordKey, platformHost } from "@ai-outfitter/app-sdk/graph-contracts";
 import { readType } from "../lib/type-metadata";
 import { type Database, edgeView, nodeView } from "./graph";
 import { graphEdges, graphNodes, graphTypes } from "./schema";

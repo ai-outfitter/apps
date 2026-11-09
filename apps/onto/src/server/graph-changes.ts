@@ -6,7 +6,7 @@ import {
   requireEntityWriter,
   sha256Hex,
 } from "@ai-outfitter/app-sdk/server";
-import { ontologyContract } from "@ai-outfitter/onto/contracts";
+import { ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
 import { and, eq, sql } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { refreshKnowledgeGraphQueries } from "./knowledge-graph-refresh";
@@ -30,8 +30,8 @@ import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { validateKnowledgeGraph, withCompiledQuery } from "../lib/knowledge-graph-document";
 import { graphChanges } from "./schema";
 
-import { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/onto/contracts";
-export { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/onto/contracts";
+import { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/app-sdk/graph-contracts";
+export { graphChangeInput, graphChangeReceipt } from "@ai-outfitter/app-sdk/graph-contracts";
 type Input = z.infer<typeof graphChangeInput>;
 type Receipt = z.infer<typeof graphChangeReceipt>;
 type Change = Input["operations"][number];

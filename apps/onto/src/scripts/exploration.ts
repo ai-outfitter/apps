@@ -3,7 +3,7 @@
 // merge patch the agent sends (MutateExploration) when a member opens a path or
 // hides a node.
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
-import { typeSegment } from "@ai-outfitter/onto/client";
+import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import { createKnowledgeGraphViewer, disposeKnowledgeGraphViewers } from "@ai-outfitter/ui/knowledge-graph";
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import { appUrl, call, demoMode, el } from "./data";

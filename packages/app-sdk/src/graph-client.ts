@@ -18,7 +18,7 @@ import {
   wikiGraphReadResult,
   wikiGraph,
   type WikiGraph,
-} from "./contracts";
+} from "./graph-contracts/index";
 export { wikiGraphRecords };
 
 /** Discover Onto explicitly by its advertised contract, with an optional installation binding. */

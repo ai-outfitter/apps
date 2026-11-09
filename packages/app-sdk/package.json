@@ -54,7 +54,9 @@
     "./graph-records": "./src/graph-records.ts",
     "./entity-discovery": "./src/entity-discovery.ts",
     "./merge-patch": "./src/merge-patch.ts",
-    "./github-pulls": "./src/github-pulls.ts"
+    "./github-pulls": "./src/github-pulls.ts",
+    "./graph-contracts": "./src/graph-contracts/index.ts",
+    "./graph-client": "./src/graph-client.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",
@@ -64,8 +66,7 @@
     "drizzle-zod": "0.8.3",
     "gql.tada": "^1.11.4",
     "graphql": "^16.11.0",
-    "zod": "^4.6.5",
-    "@ai-outfitter/onto-contracts": "0.1.1"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "astro": "^7.3.5"

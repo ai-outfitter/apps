@@ -8,7 +8,7 @@
 //   sqlite3 onto.sqlite .dump > onto.sql   # then load onto.sql into the new Onto's D1
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { appRecordKey, userKey } from "@ai-outfitter/onto/contracts";
+import { appRecordKey, userKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import { standardData } from "../src/lib/standard-data";
 import { storeType } from "../src/lib/type-metadata";
 

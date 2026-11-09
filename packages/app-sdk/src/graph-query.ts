@@ -10,7 +10,7 @@ import { matchesSourceAndProperties, sourceKey } from "./graph-graphql-source";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
 import { wikiGraphRecords } from "./graph-records";
-import type { WikiGraphSnapshot } from "@ai-outfitter/onto-contracts";
+import type { WikiGraphSnapshot } from "./graph-contracts/index";
 
 export const graphQueryAction = "graph.query";
 const typeRef = z.string().trim().min(1).max(120);

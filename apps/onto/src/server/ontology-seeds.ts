@@ -1,6 +1,6 @@
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import type { AgentStatement } from "@ai-outfitter/app-sdk/agent-store";
-import type { WikiGraph } from "@ai-outfitter/onto/contracts";
+import type { WikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { Graph } from "../lib/graph";
 import type { OntologyGraph } from "../lib/ontology-model";
 import { readType } from "../lib/type-metadata";

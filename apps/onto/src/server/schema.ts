@@ -1,5 +1,5 @@
 export { graphChangeReceipts } from "@ai-outfitter/app-sdk/batch-receipts";
-import type { ValidityInterval } from "@ai-outfitter/onto/contracts";
+import type { ValidityInterval } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import {
   index,

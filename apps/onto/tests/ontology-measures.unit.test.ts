@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { typeMeasures, type OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { typeMeasures, type OntologyV2 } from "@ai-outfitter/app-sdk/graph-contracts";
 import { standardData } from "../src/lib/standard-data";
 import { auditOntology } from "../src/lib/ontology-validation";
 import { ontologyContext, v2 } from "../src/lib/ontology-model";

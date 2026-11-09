@@ -8,7 +8,7 @@ import { batchGroups } from "./batch-groups";
 // delegated writers cannot. scripts/graph-schema.ts writes
 // them to graph/documents.json.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
-import { wikiChangeDocuments } from "@ai-outfitter/onto/contracts";
+import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true},

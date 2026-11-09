@@ -1,6 +1,6 @@
 import type { Graph } from "../lib/graph";
-import { typeSegment } from "@ai-outfitter/onto/client";
-export { typeSegment } from "@ai-outfitter/onto/client";
+import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
+export { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 export function appUrl(path = "") {
   const depth = Number(document.getElementById("wiki-routing")?.dataset.routeDepth ?? 0);
   const segments = location.pathname.split("/").filter(Boolean);

@@ -1,4 +1,4 @@
-import { assertionBody, endpointAllows, validityInterval, type OntologyV2 } from "@ai-outfitter/onto/contracts";
+import { assertionBody, endpointAllows, validityInterval, type OntologyV2 } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   type OntologyContext,
   type OntologyNode,

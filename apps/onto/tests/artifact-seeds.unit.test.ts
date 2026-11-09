@@ -8,7 +8,7 @@ import definitions from "../seeds/artifacts-v1.json";
 import example from "../seeds/release-example-v1.json";
 import { readType, storeType } from "../src/lib/type-metadata";
 import { definitions as ontologyDefinitions, people, marriage } from "./fixtures/relators";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { typeInput } from "../src/lib/graph";
 import { standardData } from "../src/lib/standard-data";
 import { setupStandardData } from "../src/server/standard-data";

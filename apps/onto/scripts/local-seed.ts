@@ -7,7 +7,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { entityRef } from "@ai-outfitter/app-sdk/entities";
-import { appRecordKey } from "@ai-outfitter/onto/contracts";
+import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { appWorker } from "@ai-outfitter/app-test/worker";
 import { drizzle } from "drizzle-orm/d1";
 import { z } from "zod";

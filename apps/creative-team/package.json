@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "*",
-    "@ai-outfitter/onto": "*",
     "@ai-outfitter/server": "*",
     "@ai-outfitter/ui": "*",
     "@astrojs/cloudflare": "^14.3.3",

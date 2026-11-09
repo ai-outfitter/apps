@@ -1,4 +1,4 @@
-import type { WikiAssertion } from "@ai-outfitter/onto/contracts";
+import type { WikiAssertion } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { Graph, GraphNode } from "../lib/graph";
 import { call, el, link, notice } from "./data";
 

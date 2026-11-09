@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "*",
-    "@ai-outfitter/onto": "*",
     "@ai-outfitter/server": "*",
     "@ai-outfitter/ui": "*",
     "@ai-outfitter/workflow-batch-review": "0.1.0",

@@ -69,7 +69,7 @@ installer or registry fallback is implied.
 
 Anonymous registry checks on 2026-11-07 returned HTTP 404 for the 14 existing public SDK
 packages checked before the new GitHub connector component, including `@ai-outfitter/app-sdk`, `app-build`,
-`app-test`, `onto` and `onto-contracts`. Recheck actual tags, assets and
+and `app-test`. Recheck actual tags, assets and
 package versions before selecting a later release.
 
 ## Release and cutover prerequisites
@@ -82,9 +82,7 @@ contents/issues/pull-request write permissions; archive upload uses the release
 token override or the repository token. npm publishing credentials are not
 required for this distribution path.
 
-The Onto changes introduce `@ai-outfitter/onto-contracts` and
-`@ai-outfitter/onto`. Their release components must remain registered, and SDK
-consumers must receive the changed public dependency closure. Before installing
+Onto is released only as an app (`onto-v<version>`); its graph contracts and client live in the SDK. Before installing
 an operational package that carries `database.baselines`, the platform must
 accept that metadata and pass it to the migration executor. Existing
 installation data and consumer behavior still require upgrade acceptance.

@@ -2,7 +2,7 @@
 import {readFile} from "node:fs/promises";
 import {join} from "node:path";
 import {z} from "zod";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 const saved=z.strictObject({format:z.literal("outfitter-kg-examples-local-v1"),graph:wikiGraph});
 export async function loadLocalWikiSeed({dataDirectory,organization}:{dataDirectory:string;organization:{slug:string}}){
  const path=join(dataDirectory,"app-snapshots",organization.slug,"wiki-kg-examples.json");

@@ -34,30 +34,18 @@ supply credentials. Existing local EntityRef values remain valid local addresses
 | --- | --- |
 | Identity, scoped references, discovery, transport, workflow host | Platform SDK |
 | Artifact/evidence citation shapes | Neutral connector core; SDK evidence compatibility export |
-| Ontology, validity, graph records, assertions and graph/batch change schemas | `@ai-outfitter/onto-contracts` |
-| Public product contracts | `@ai-outfitter/onto/contracts` |
-| Product discovery and graph client | `@ai-outfitter/onto/client` |
+| Graph wire contracts (ontology, validity, graph records, assertions, graph/batch change schemas) and the graph client | Platform SDK: `@ai-outfitter/app-sdk/graph-contracts`, `@ai-outfitter/app-sdk/graph-client` |
 
-The pure contracts package depends only on neutral connector-core evidence and
-Zod. The SDK's graph algorithms (`graph-query`, `graph-graphql-*`,
-`graph-records`) type their rows with those contracts; Onto's client depends on
-the SDK. This direction avoids a package cycle. Contract and client packages
-participate in independent release-please components, with workspace dependency
-updates.
-
-The SDK has no `wiki`, `wiki-graph`, `wiki-proposals` or `ontology-measures`
-modules. Schemas are imported from `@ai-outfitter/onto/contracts`; the Wiki client
-(`defaultWiki`, `wikiAdapter`, `readWikiGraph`, `selectWikiGraph`, `stableGraphId`,
-`typeSegment`) from `@ai-outfitter/onto/client`; `wikiGraphRecords` from
-`@ai-outfitter/app-sdk/graph-records`. Contract-based discovery is
-`resolveOnto(host, binding)` and `ontoClient(host, provider)`. Stable graph ID
-salts, routes and stored identities are unchanged, so deployed data needs no
-migration; consumers outside this repository update their import paths when they
-take the SDK release that removes the modules.
+Onto is an installed app, not a library. Apps reach it through the platform: the
+SDK's graph client (`defaultWiki`, `wikiAdapter`, `readWikiGraph`,
+`selectWikiGraph`, `stableGraphId`, `typeSegment`, `resolveOnto`, `ontoClient`)
+calls the scoped entity and action host, and Onto's GraphQL documents are served
+through `graph.serve`. No app depends on an Onto package. Stable graph ID salts,
+routes and stored identities are unchanged.
 
 ## Validation
 
-Run the SDK, Onto client and pure contract tests and typechecks from this workspace.
+Run the SDK tests and typechecks from this workspace.
 The provider fixtures exercise Onto, minimal-app and connector-shaped identities,
 explicit bindings, incompatible versions, revoked access, response bounds and
 incomplete results. They establish local contract behavior, not live connector

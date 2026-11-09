@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import { appRecordKey, userKey, userPrincipal } from "@ai-outfitter/onto/contracts";
+import { appRecordKey, userKey, userPrincipal } from "@ai-outfitter/app-sdk/graph-contracts";
 import { core } from "../lib/graph";
 import { graphEdges, graphNodes, graphTypes } from "./schema";
 type Database = ReturnType<typeof installationDatabase>;

@@ -16,7 +16,7 @@ import {
   type AnyColumn,
   type SQLWrapper,
 } from "drizzle-orm";
-import { appRecordKey } from "@ai-outfitter/onto/contracts";
+import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   edgeInput,
   type GraphEdge,

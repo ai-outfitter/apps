@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validityInterval } from "@ai-outfitter/onto/contracts";
+import { validityInterval } from "@ai-outfitter/app-sdk/graph-contracts";
 import {
   type OntologyGraph,
   type OntologyContext,

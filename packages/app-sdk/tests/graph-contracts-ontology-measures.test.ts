@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ontologyContract, recordValidity, typeInput, typeMeasures, validityFields } from "../src/index";
+import { ontologyContract, recordValidity, typeInput, typeMeasures, validityFields } from "../src/graph-contracts/index";
 
 const measures = [
   { name: "measurement", expression: { op: "formula", language: "control-v1", fields: { measurement: "measurement_formula", unit: "unit" } } },

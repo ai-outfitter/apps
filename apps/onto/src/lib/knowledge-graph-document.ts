@@ -4,7 +4,7 @@
 // query is the definition. Reads run the stored `query` when there is one and
 // compile the selection only when it is absent.
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
-import { nodeInput } from "@ai-outfitter/onto/contracts";
+import { nodeInput } from "@ai-outfitter/app-sdk/graph-contracts";
 import { graphqlNames, queryHash, selectionDocument, selectionQueryDepth, selectionVariables, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { definitionFromKnowledgeGraph, graphSelectionDefinition } from "@ai-outfitter/app-sdk/graph-selection";
 import { isSavedQuery, knowledgeGraphDefinitionSchema } from "@ai-outfitter/app-sdk/knowledge-graph";

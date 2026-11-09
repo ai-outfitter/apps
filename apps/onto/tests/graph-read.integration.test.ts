@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { wikiGraphReadResult } from "@ai-outfitter/onto/contracts";
+import { wikiGraphReadResult } from "@ai-outfitter/app-sdk/graph-contracts";
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { typeInput, nodeInput, edgeInput, properties } from "@ai-outfitter/onto/contracts";
-export { propertyDefinition, typeInput, nodeInput, edgeInput, properties } from "@ai-outfitter/onto/contracts";
+import { typeInput, nodeInput, edgeInput, properties } from "@ai-outfitter/app-sdk/graph-contracts";
+export { propertyDefinition, typeInput, nodeInput, edgeInput, properties } from "@ai-outfitter/app-sdk/graph-contracts";
 export type TypeDefinition = z.infer<typeof typeInput> & {
   id: string;
   revision: number;

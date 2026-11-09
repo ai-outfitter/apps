@@ -12,8 +12,8 @@ import {
   requestOriginActor,
   respond,
 } from "@ai-outfitter/app-sdk/server";
-import { ontologyContract } from "@ai-outfitter/onto/contracts";
-import { typeSegment } from "@ai-outfitter/onto/client";
+import { ontologyContract } from "@ai-outfitter/app-sdk/graph-contracts";
+import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
 import { ontologyViolation } from "../lib/ontology-errors";

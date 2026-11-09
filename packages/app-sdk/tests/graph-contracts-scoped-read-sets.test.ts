@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { graphChangeInput } from "../src/index";
+import { graphChangeInput } from "../src/graph-contracts/index";
 
 test("scoped membership accepts only exact edge endpoint predicates", () => {
   const set = {

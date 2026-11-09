@@ -7,7 +7,7 @@ import {withCompiledQuery} from "../src/lib/knowledge-graph-document";
 import {standardData} from "../src/lib/standard-data";
 import {setupStandardData} from "../src/server/standard-data";
 import {refreshKnowledgeGraphQueries} from "../src/server/knowledge-graph-refresh";
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import {defaultTypes} from "../src/lib/default-types";
 import releaseExample from "../seeds/release-example-v1.json";
 

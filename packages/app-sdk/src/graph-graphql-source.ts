@@ -4,7 +4,7 @@
 import type { TypeRow } from "./graph-graphql-names";
 import { textMatch } from "./graph-query";
 import { isRetired } from "./knowledge-graph";
-import type { WikiGraphSnapshot } from "@ai-outfitter/onto-contracts";
+import type { WikiGraphSnapshot } from "./graph-contracts/index";
 
 export type ArchivedFilter = "exclude" | "include" | "only";
 export type GraphRow = Record<string, unknown> & { id: string; typeId: string; revision: number };

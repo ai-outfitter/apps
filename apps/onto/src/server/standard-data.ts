@@ -1,4 +1,4 @@
-import { wikiGraph } from "@ai-outfitter/onto/contracts";
+import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import type {
   AgentDatabase,
   AgentStatement,
