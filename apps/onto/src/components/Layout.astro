@@ -32,15 +32,11 @@ const mount = segments.slice(0, segments.length - routeDepth).join("/");
     { label: "Changes", href: `${rootHref}changes`, active: Astro.url.pathname.includes("/changes") },
   ]}
 >
-  <nav slot="sidebar" id="wiki-sidebar-records" class="wiki-sidebar-records" aria-label="Knowledge graph roots">
-    <div data-sidebar-graphs>Loading roots…</div>
-  </nav>
   <span id="wiki-routing" data-route-depth={routeDepth} hidden></span>
   <div slot="header-actions"><slot name="header-actions" /><button type="button" data-agent-sidebar-toggle aria-controls="onto-agent" aria-expanded="false" disabled>Ask Onto</button></div>
   <slot />
   <AppActionSidebar slot="overlays" app="onto" label="Onto" focusId="e9500000-0000-4000-8000-000000000002" conversationNavigation={false} />
 </ManagedAppLayout>
 <script>
-  import "../scripts/sidebar-records";
   import "../scripts/navigation";
 </script>
