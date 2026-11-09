@@ -61,6 +61,40 @@ it changes no UI, so no demo is required.
    before importing a stylesheet. My reference hit the same error. Fix: say
    so in the builder error and the SDK docs, or allow asset-free apps.
 
+### Screenshots in the box (2026-11-08, later)
+
+Getting a screenshot from a box agent into its Forgejo PR needed five fixes;
+all but the last are in this branch:
+
+| Gate | Symptom | Fix |
+| --- | --- | --- |
+| No Chrome in the image | MCP: "Chrome executable is not configured" | `box/Dockerfile` installs Chrome for Testing 154 |
+| Long workspace paths | every Chrome MCP call: "Target closed" | `box-kube.mjs` gives runtimes a short `/box/w/<hash>` root; Chrome's profile sockets under `TMPDIR` broke the 108-byte Unix socket limit past ~60 characters |
+| Gateway had no `WORKFLOW_NODE_URL` | `publish_evidence` → 503 | supervisor sets it (loopback HTTP, so `NODE_ENV=test` for the gateway) |
+| Foundry `publish` took only `issue-to-merge-actions-ci` | 404 for box runs | accepts `issue-to-merge-workspace` too |
+| Demo check counted only HTTPS images | box PRs always "Demo needs attention" | HTTP allowed for `localhost`, `*.localhost` and `127.0.0.1` |
+
+Forgejo now keeps attachments, avatars, archives and packages in RustFS
+(`forgejo` bucket; LFS stays in `lfs`), and evals publish Forgejo on
+`127.0.0.1:3300` so a running box's PRs can be opened from the host.
+
+Runs on Luna with these fixes:
+
+- Before the short root: **landed**, but with no screenshots. Every Chrome
+  call failed; the first review asked for screenshots, and review-final
+  approved anyway as "an evidence gap, not a defect". The demo gate is not
+  consistent between the two reviews.
+- With the short root: implement drove Chrome (31 MCP calls: `astro dev`,
+  desktop and mobile `take_screenshot` into `test-results/`), then ran out
+  of its tool limit before publishing. `astro dev` injects inline `<style>`
+  tags, and the hr-style middleware's `style-src 'self'` CSP blocks them, so
+  the dev page renders unstyled; the agent kept chasing CSS that the built
+  package serves correctly. Any Outfitter Astro app with that middleware
+  hits this. Open: screenshot the built demo package (the app-test
+  Miniflare host or `astro preview`) instead of `astro dev`, through the
+  Foundry's implement guidance or an SDK preview command, or relax the CSP
+  only in dev.
+
 ### Harness notes
 
 - Agent Eval only discovers a fixture that has `PROMPT.md`, even when
