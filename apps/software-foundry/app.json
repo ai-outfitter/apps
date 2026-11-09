@@ -1,6 +1,6 @@
 {
   "id": "outfitter/software-foundry",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
@@ -106,6 +106,6 @@
     "policy": "scripts/preview.mjs"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

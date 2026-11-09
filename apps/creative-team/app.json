@@ -1,6 +1,6 @@
 {
   "id": "outfitter/creative-team",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "modes": {
@@ -82,6 +82,6 @@
     "cover": "catalog/cover.svg"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

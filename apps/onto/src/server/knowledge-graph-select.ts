@@ -67,7 +67,7 @@ type ReadArgs = { input: KnowledgeGraphSelectInput; definition: GraphSelectionDe
 async function readWith({ input, definition, types, record, stored, source, roots }: ReadArgs) {
   const document = input.query ? withHash(input.query, selectionVariables)
     : stored ? withHash(stored.query, stored.variables) : compile(definition, types, record);
-  const read = await executeGraphQuery({ types, source, query: document.query, variables: { roots }, ...readBudget });
+  const read = await executeGraphQuery({ types, source, query: document.query, variables: { rootIds: input.rootIds, roots }, ...readBudget });
   return { document, read };
 }
 

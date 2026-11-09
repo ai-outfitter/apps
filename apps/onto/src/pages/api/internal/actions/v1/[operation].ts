@@ -17,7 +17,7 @@ import { graphGraphqlInput, graphGraphqlResult } from "@ai-outfitter/app-sdk/gra
 import { graphqlGraphRecords } from "../../../../../server/graph-graphql";
 import { actionAPI, defineAction } from "@ai-outfitter/app-sdk/actions";
 import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
-import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { agentDatabase, installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { reviewInBackground } from "../../../../../server/batch-review";
 import { applyGraphChanges, graphChangeInput, graphChangeReceipt } from "../../../../../server/graph-changes";
 import { graphqlSchema } from "../../../../../server/graphql";
@@ -34,6 +34,11 @@ import {
 const writer = ({ identity }: { identity: { canEdit: boolean; entityWriter?: string } }) => identity.canEdit || !!identity.entityWriter;
 const batchResult = z.record(z.string(), z.json());
 export const wikiActions = {
+  "graph.cutover-status": defineAction({
+    description: "List trusted legacy Wiki migrations into this installation; portable imports cannot create these receipts.",
+    access: "read", input: z.strictObject({}), output: z.object({ sourceInstallationIds: z.array(z.string()) }),
+    run: async ({ identity }) => ({ sourceInstallationIds: (await agentDatabase().query({sql: "SELECT DISTINCT sourceInstallationId FROM onto_wiki_migrations WHERE destinationInstallationId=?",params:[identity.installationId]})).map(row => String(row.sourceInstallationId)) }),
+  }),
   ...artifactActions,
   "graph.describe": defineAction({
     description: "Describe Onto graph contracts, supported types and capabilities. Discovery grants no record access.",

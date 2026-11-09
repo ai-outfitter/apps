@@ -56,7 +56,8 @@
     "./merge-patch": "./src/merge-patch.ts",
     "./github-pulls": "./src/github-pulls.ts",
     "./graph-contracts": "./src/graph-contracts/index.ts",
-    "./graph-client": "./src/graph-client.ts"
+    "./graph-client": "./src/graph-client.ts",
+    "./wiki-documents": "./src/wiki-documents.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",

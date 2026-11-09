@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4](https://github.com/ai-outfitter/apps/compare/onto-v0.1.3...onto-v0.1.4) (2026-11-09)
+
+
+### Features
+
+* move Wiki documents and pages into Outfitter Apps ([7135465](https://github.com/ai-outfitter/apps/commit/71354656e1837c7383fbd8333830f6f2c14d7e98))
+
+## [0.1.3](https://github.com/ai-outfitter/apps/compare/onto-v0.1.2...onto-v0.1.3) (2026-11-09)
+
+
+### Features
+
+* **app-sdk:** Onto is only an app; graph contracts and client live in the SDK ([a887fe8](https://github.com/ai-outfitter/apps/commit/a887fe8d6d5faf16dba1cab61d36abf84bcfa746))
+
 ## [0.1.2](https://github.com/ai-outfitter/apps/compare/onto-v0.1.1...onto-v0.1.2) (2026-11-09)
 
 

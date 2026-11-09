@@ -1,0 +1,74 @@
+{
+  "id": "outfitter/wiki-map",
+  "version": "0.1.1",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "storage": {
+    "buckets": {
+      "main": {
+        "spaces": {
+          "assets": {
+            "visibility": "organization",
+            "ttl": "10y",
+            "maxTtl": "10y"
+          }
+        }
+      }
+    }
+  },
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "storage.buckets",
+        "workflow.host",
+        "invocations.schedule",
+        "actions.publish",
+        "graph.serve",
+        "data.export",
+        "entities.read",
+        "threads.use",
+        "threads.provide"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "admin-only",
+    "personal": true,
+    "operational": {
+      "slug": "wiki-map",
+      "name": "Wiki",
+      "description": "Documents and pages connected to your organization’s knowledge."
+    },
+    "demo": {
+      "slug": "wiki-map",
+      "name": "Wiki",
+      "description": "Read documents and explore linked knowledge."
+    },
+    "presentation": {
+      "outcome": "Keep documents, history and connected knowledge together.",
+      "connectors": [],
+      "steps": [
+        [
+          "Write",
+          "Create and revise documents."
+        ],
+        [
+          "Connect",
+          "Link pages to people and projects in Onto."
+        ],
+        [
+          "Review",
+          "Publish revisions after their required approvals."
+        ]
+      ],
+      "access": "Members read documents; editors save drafts and publish eligible revisions. Source references never grant access."
+    }
+  },
+  "initialize": true,
+  "dependencies": [
+    "onto"
+  ]
+}
