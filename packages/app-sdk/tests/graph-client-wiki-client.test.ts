@@ -27,7 +27,7 @@ test("Wiki discovery coalesces within a dispatch but rechecks a new host's permi
   const stub: WorkflowHostStub = {
     async call(operation, input) {
       assert.equal(operation, "entities.types");
-      assert.deepEqual(input, { template: "wiki-map" });
+      assert.deepEqual(input, { template: "onto" });
       calls++;
       return { ok: true, value: providers("wiki", writable) };
     },
@@ -257,4 +257,26 @@ test("Wiki and collection helpers share discovery within one dispatch", async ()
   await defaultWiki(host);
   await appDataContext(host).apps.installation("wiki");
   assert.equal(calls, 1, "collection reads reuse the already discovered Wiki schemas");
+});
+
+
+test("Onto discovery falls back only when absent, and rejects incomplete or ambiguous providers", async () => {
+  const queries: unknown[] = [];
+  let rows = [] as ReturnType<typeof providers>;
+  const make = () => workflowHost<"interactive">({ props: { workflowHost: {
+    async call(_operation: string, input: unknown) {
+      queries.push(input);
+      return { ok: true, value: (input as {template: string}).template === "onto" ? rows : providers("legacy") };
+    },
+  } } });
+  assert.equal((await defaultWiki(make())).installationId, "legacy");
+  assert.deepEqual(queries, [{template: "onto"}, {template: "wiki-map"}]);
+  queries.length = 0;
+  rows = providers("onto").slice(0, 1);
+  await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
+  assert.deepEqual(queries, [{template: "onto"}]);
+  rows = [...providers("first"), ...providers("second")];
+  await assert.rejects(defaultWiki(make()), (error: unknown) => error instanceof Response && error.status === 409);
+  rows = providers("onto");
+  assert.equal((await defaultWiki(make())).slug, "onto");
 });

@@ -106,7 +106,7 @@ async function ensureRecord(
 }
 function setupRows(graph: WikiGraph): SetupRow[] {
   const groups = [
-    ["graph-type", graph.types, ["category", "name"]],
+    ["graph-type", graph.types.map(type => type.category === "edge" && !type.ontology ? { ...type, ontology: { version: 2 as const, endpoints: { from: "any" as const, to: "any" as const } } } : type), ["category", "name"]],
     ["graph-node", graph.nodes, ["typeId"]],
     ["graph-edge", graph.edges, ["typeId", "fromId", "toId"]],
   ] as const;
@@ -250,7 +250,10 @@ export function defaultWiki(host: Host) {
 }
 
 async function discoverWiki(host: Host) {
-  const providers = await discoverEntityTypes(host, { template: "wiki-map" });
+  const onto = await discoverEntityTypes(host, { template: "onto" });
+  // An installed but inaccessible/incomplete Onto must not fall back to stale Wiki data.
+  const template = onto.length ? "onto" : "wiki-map";
+  const providers = onto.length ? onto : await discoverEntityTypes(host, { template: "wiki-map" });
   const candidates = providers.filter(
     (p) =>
       p.type === "graph-type" &&
@@ -262,7 +265,7 @@ async function discoverWiki(host: Host) {
       ),
   );
   if (candidates.length !== 1)
-    throw new Response("The app requires one installed Wiki for its owner", {
+    throw new Response("The app requires one complete graph provider for its owner", {
       status: 409,
     });
   const wiki = candidates[0];
@@ -270,7 +273,7 @@ async function discoverWiki(host: Host) {
     installationId: wiki.installationId,
     hostname: wiki.hostname ?? null,
     /** Its address segment: `/apps/<slug>/` for a person's Wiki. */
-    slug: wiki.slug ?? "wiki-map",
+    slug: wiki.slug ?? template,
     writable: ["graph-type", "graph-node", "graph-edge"].every((type) =>
       providers.some(
         (p) =>

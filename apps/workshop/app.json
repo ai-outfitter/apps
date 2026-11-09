@@ -48,7 +48,7 @@
     }
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ],
   "initialize": true
 }
