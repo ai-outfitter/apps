@@ -10,16 +10,16 @@ const published = JSON.parse(readFileSync(new URL("../graph/documents.json", imp
 const emptyWiki = { version: 1, installationId: "wiki", types: [], nodes: [], edges: [], selection: null, truncated: false, missingTypes: [] };
 
 /**
- * An installed but empty Wiki for a test host: Wiki discovery finds it and
+ * An installed but empty Onto for a test host: graph discovery finds it and
  * `graph.query` answers with the SDK's own engine, as the Wiki does, and it lists no
  * records. Undefined for
  * every other call, which the host answers itself.
  */
 export async function emptyWikiAnswer(operation: string, raw: unknown): Promise<WorkflowHostResult | undefined> {
   const input = (raw ?? {}) as Record<string, unknown>;
-  if (operation === "entities.types" && input.template === "wiki-map")
+  if (operation === "entities.types" && input.template === "onto")
     return { ok: true, value: ["graph-type", "graph-node", "graph-edge"].map((type) => ({
-      type, installationId: "wiki", template: "wiki-map", hostname: "wiki.alpha.localhost", writable: false,
+      type, installationId: "wiki", template: "onto", hostname: "wiki.alpha.localhost", writable: false,
       collection: { "graph-type": "types", "graph-node": "nodes", "graph-edge": "edges" }[type], title: type, description: "", schema: {},
     })) };
   if (operation === "actions.call" && input.installationId === "wiki" && input.action === "graph.query")
