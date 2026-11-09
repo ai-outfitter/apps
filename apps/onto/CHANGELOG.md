@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/onto-v0.1.4...onto-v0.1.5) (2026-11-09)
+
+
+### Features
+
+* **onto:** improve graph review and batch iteration ([009b7e0](https://github.com/ai-outfitter/apps/commit/009b7e072cd96c24ba95c51264938bcc1b5f2242))
+
+
+### Bug Fixes
+
+* expose Planning issues and amend pending Onto batches ([#99](https://github.com/ai-outfitter/apps/issues/99)) ([278e24f](https://github.com/ai-outfitter/apps/commit/278e24fb0b635c09a8a4b660ebdafb09ebee1708))
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/onto-v0.1.3...onto-v0.1.4) (2026-11-09)
 
 
