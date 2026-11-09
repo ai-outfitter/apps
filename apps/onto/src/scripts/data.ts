@@ -22,7 +22,7 @@ export const demoMode = import.meta.env.OUTFITTER_APP_MODE === "demo";
 export async function call<T>(operation: string, input?: unknown): Promise<T> {
   if (demoMode) throw new Error("This demo is read-only.");
   const response = await fetch(
-    appUrl(`api/apps/wiki-map/${operation}`),
+    appUrl(`api/apps/onto/${operation}`),
     input
       ? {
           method: "POST",

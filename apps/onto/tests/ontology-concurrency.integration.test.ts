@@ -22,7 +22,7 @@ function beforeExecution(statement: D1PreparedStatement, before: () => Promise<v
 }
 
 test("node, edge and definition saves guard the graph they read", async () => {
-  const app = await appWorker("wiki-map", new URL("../.outfitter/packages/operational.json", import.meta.url));
+  const app = await appWorker("onto", new URL("../.outfitter/packages/operational.json", import.meta.url));
   const client = app.database;
   const who: AppIdentity = { userId: "owner", installationId: app.installationId, owner: { kind: "user", id: "owner" }, role: "owner", canEdit: true };
   const base = drizzle(client);

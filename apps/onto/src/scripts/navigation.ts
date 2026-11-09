@@ -2,7 +2,7 @@ import { disposeKnowledgeGraphViewers } from "@ai-outfitter/ui/knowledge-graph";
 import { organizationOriginForAppHost } from "@ai-outfitter/server/hosts";
 
 const organization = document.getElementById("org") as HTMLAnchorElement | null;
-const origin = organizationOriginForAppHost("wiki-map", location);
+const origin = organizationOriginForAppHost("onto", location);
 if (organization && origin) organization.href = origin;
 else if (organization) organization.hidden = true;
 

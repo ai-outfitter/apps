@@ -6,7 +6,7 @@ import seed from "../seeds/knowledge-graphs-v1.json";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 test("knowledge graph definitions are ordinary editable Wiki nodes with validated traversal", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     new URL(
       "../.outfitter/packages/operational.json",
       import.meta.url,
@@ -14,7 +14,7 @@ test("knowledge graph definitions are ordinary editable Wiki nodes with validate
   );
   try {
     const create = async (pattern: string) =>
-      app.call("/api/apps/wiki-map/graph/create", owner, {
+      app.call("/api/apps/onto/graph/create", owner, {
         method: "POST",
         body: {
           type: "graph-node",
@@ -46,7 +46,7 @@ test("knowledge graph definitions are ordinary editable Wiki nodes with validate
     const saved = await create(seed.nodes[0].properties.pattern);
     assert.equal(saved.status, 200);
     const record = (await saved.json()) as { ref: { id: string } };
-    const snapshot = await app.call("/api/apps/wiki-map/graph/snapshot", owner);
+    const snapshot = await app.call("/api/apps/onto/graph/snapshot", owner);
     const data = (await snapshot.json()) as {
       nodes: { id: string; typeId: string; body: string }[];
     };

@@ -23,8 +23,8 @@ const fixtures: Record<string, Record<string, string | number | null>> = {
 
 test("previewed portable imports cannot mint review jobs, while backups retain them", async (t) => {
   const artifact = appArtifact(new URL("..", import.meta.url), "operational");
-  const source = await appWorker("wiki-map", artifact, "archive-source");
-  const target = await appWorker("wiki-map", artifact, "archive-target");
+  const source = await appWorker("onto", artifact, "archive-source");
+  const target = await appWorker("onto", artifact, "archive-target");
   t.after(async () => {
     await source.dispose();
     await target.dispose();

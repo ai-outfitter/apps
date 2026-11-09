@@ -13,7 +13,7 @@ test("read a control's identity, measurement and missing data without opening it
   page,
 }, info) => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   try {

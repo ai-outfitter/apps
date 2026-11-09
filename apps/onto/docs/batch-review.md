@@ -12,7 +12,7 @@ for how batches fit the Wiki's writes.
 - **When.** `SubmitBatch` and `batch.submit` start the review after the batch's policy has
   decided. It runs in the background once the response is sent (the request's
   `waitUntil`), so submitting never waits for it; `review` stays null until it finishes. A member can ask for a fresh review with **Review again**
-  on the batch's Changes page (`POST /api/apps/wiki-map/batches/steward-review`, editors
+  on the batch's Changes page (`POST /api/apps/onto/batches/steward-review`, editors
   only). An open or discarded batch is not reviewed.
 - **What runs.** One `batch-review` workflow run per review
   ([workflow](../workflows/batch-review/workflow.yaml), `src/server/batch-review.ts`):

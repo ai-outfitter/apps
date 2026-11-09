@@ -9,7 +9,7 @@ const identity = "/api/internal/identity/v1/";
 const entities = "/api/internal/entities/v1/";
 
 test("an Outfitter account is an OutfitterUser node joined to its holder by account_of", async () => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   const call = async (path: string, body: object, status = 200) => {
     const response = await app.call(path, owner, { method: "POST", body });
     assert.equal(response.status, status, await response.clone().text());

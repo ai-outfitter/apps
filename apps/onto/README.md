@@ -1,10 +1,10 @@
 # Onto
 
-Onto is the public home of the Wiki Map app. The existing `outfitter/wiki-map` app identity and routes are retained for installation and data compatibility. The current webapp installation is still served by its bundled copy until the release-notification and scheduled-update migration is complete.
+Onto is its own app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It installs next to the webapp's Wiki Map (`wiki-map`) rather than replacing it: an organization moves its old Wiki into Onto as a separate step (`scripts/import-old-wiki.ts`).
 
 From the repository root, run `npm ci`, `npm run check -w @ai-outfitter/app-onto`, `npm run test:unit -w @ai-outfitter/app-onto`, and `npm run test:integration -w @ai-outfitter/app-onto`. Build both app modes with `npm run build -w @ai-outfitter/app-onto`; outputs are written to `apps/onto/.outfitter/packages/`. Browser tests use `npm run test:e2e -w @ai-outfitter/app-onto` and require Playwright and Chromium.
 
-The local platform runtime, component release metadata, and automatic production updates have not yet been switched to this package. Do not delete the bundled app until the public release path and existing-installation migration have been verified.
+Onto is released like the other official apps (`.release-please-apps.json`); the webapp pins each release in `catalog/external-apps/onto.json`.
 
 # Wiki: projects and shared context
 

@@ -22,7 +22,7 @@ export default defineConfig({
   integrations: [
     react(),
     outfitterApp({
-      app: "wiki-map",
+      app: "onto",
       // Pages are GET only; every /api/* request must carry the member identity the
       // platform forwards. Images load from the app's own files.
       contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",

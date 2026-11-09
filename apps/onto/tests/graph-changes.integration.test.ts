@@ -59,7 +59,7 @@ async function json(response: Response): Promise<any> {
   return response.json();
 }
 async function fixture() {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   return {
     app,
     apply: (requestKey: string, operations: object[], identity: typeof owner & { entityWriter?: string } = owner) =>

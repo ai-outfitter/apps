@@ -156,7 +156,7 @@ onPageLoad(async (signal) => {
     root?.setAttribute("aria-busy", "false");
     change.textContent = exploration.lastChange ? exploration.lastChange.via === "member" ? exploration.lastChange.summary : `${exploration.lastChange.summary} · ${exploration.lastChange.by}` : "";
     if (changed) drawGraph(exploration);
-    agentPage("wiki-map").describe({ title: exploration.title,
+    agentPage("onto").describe({ title: exploration.title,
       summary: `Exploration "${exploration.slug}" at revision ${exploration.revision}. Change it with the MutateExploration document; stage new records as a change batch.`,
       state: { exploration: exploration.slug, revision: exploration.revision, start: exploration.state.start, steps: Object.keys(exploration.state.steps) } });
     showSteps(exploration);
@@ -179,7 +179,7 @@ onPageLoad(async (signal) => {
   }
   // The sidebar agent changes this exploration with MutateExploration (or stages
   // records); its finished reply is when the page reads it again.
-  const page = agentPage("wiki-map");
+  const page = agentPage("onto");
   signal.addEventListener("abort", page.onReplied(() => {
     if (busy) return;
     read().then(() => { problem.hidden = true; }, (error) => { problem.hidden = false; problem.textContent = String(error instanceof Error ? error.message : error); });

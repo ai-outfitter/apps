@@ -4,10 +4,10 @@ import { appWorker } from "./fixtures/initialized-worker";
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
-const root = "/api/apps/wiki-map/graph";
+const root = "/api/apps/onto/graph";
 test("graph import previews do not write and bind receipts to the destination and unchanged file", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     new URL(
       "../.outfitter/packages/operational.json",
       import.meta.url,

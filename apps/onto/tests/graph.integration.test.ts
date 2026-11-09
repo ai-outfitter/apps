@@ -30,7 +30,7 @@ const artifact = () =>
   appArtifact(new URL("..", import.meta.url), "operational");
 
 test("humans and agents share a persisted, typed Meze graph and canonical project", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const create = async (
     type: string,
     attributes: object,
@@ -100,7 +100,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       properties: { evidence: "https://www.apple.com/health/" },
     });
     const graph = await json(
-      await app.call("/api/apps/wiki-map/graph/snapshot", member),
+      await app.call("/api/apps/onto/graph/snapshot", member),
     );
     assert.equal(graph.nodes.length, seed.nodes.length + 4);
     const seededIds = new Set(seed.nodes.map((node) => node.id));
@@ -220,7 +220,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
       400,
     );
     const bundle = await json(
-      await app.call("/api/apps/wiki-map/graph/export", owner),
+      await app.call("/api/apps/onto/graph/export", owner),
     );
     assert.ok(
       bundle.notes.some((n: { markdown: string }) =>
@@ -235,7 +235,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     });
     assert.equal(otherApple.attributes.slug, "apple-2");
     // The browser adapter keeps references but cannot establish one.
-    const browser = "/api/apps/wiki-map/graph/";
+    const browser = "/api/apps/onto/graph/";
     assert.equal(
       (
         await app.call(browser + "create", owner, {
@@ -300,7 +300,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
 });
 
 test("project-specific types and property forms share an extensible contract without new tables", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   try {
     const type = await json(
       await app.call(path + "create", owner, {
@@ -409,7 +409,7 @@ test("schema migrations do not replay old seed data", async () => {
   const { migrateAppDatabase } =
     await import("@ai-outfitter/app-sdk/migrations");
   const pack = JSON.parse(await readFile(artifact(), "utf8"));
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   try {
     const initialized = await app.call("/api/internal/app-initialize", owner, {
       method: "POST",
@@ -470,7 +470,7 @@ test("schema migrations do not replay old seed data", async () => {
 });
 
 test("agents find exact types, nodes and incident edges without listing the wiki", async () => {
-  const app = await appWorker("wiki-map", artifact());
+  const app = await appWorker("onto", artifact());
   const list = async (type: string, filter?: object, paging = {}) =>
     json(
       await app.call(path + "list", member, {

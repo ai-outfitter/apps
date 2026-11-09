@@ -25,7 +25,7 @@ async function json(response: Response): Promise<Record<string, any>> {
   return response.json();
 }
 async function fixture() {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       assert.equal(operation, "threads.submission");
       return { ok: true, value: { ...(input as object), state: "running", replyEntryIds: [] } };
@@ -38,8 +38,8 @@ async function fixture() {
     (await json(await action("graph.query", { queries: [{ name: "q", ids: [id] }] }))).queries.q.matches.length > 0;
   // The Changes page's routes: a member's review, and a record's history.
   const review = (input: object, identity: object = owner) =>
-    app.call("/api/apps/wiki-map/batches/review", identity as typeof owner, { method: "POST", body: input });
-  const history = async (id: string) => json(await app.call(`/api/apps/wiki-map/batches/history?id=${id}`, owner));
+    app.call("/api/apps/onto/batches/review", identity as typeof owner, { method: "POST", body: input });
+  const history = async (id: string) => json(await app.call(`/api/apps/onto/batches/history?id=${id}`, owner));
   return { app, action, exists, review, history };
 }
 
@@ -291,12 +291,12 @@ test("the Changes sidebar inspects canonical proposals through ChangeBatch witho
   await run(f, "SubmitBatch", { input: { batchId: id } });
   const ref = { id: uuid(82) };
   const thread = {
-    ref, id: ref.id, owner: { kind: "organization", id: "org" }, installationId: "wiki-map-installation",
-    createdBy: "owner", visibility: "private", type: "wiki-map.conversation", typeVersion: 1,
-    title: "Correct a suggestion", status: "active", context: { type: "wiki-map.page", id: "e9500000-0000-4000-8000-000000000002" },
+    ref, id: ref.id, owner: { kind: "organization", id: "org" }, installationId: "onto-installation",
+    createdBy: "owner", visibility: "private", type: "onto.conversation", typeVersion: 1,
+    title: "Correct a suggestion", status: "active", context: { type: "onto.page", id: "e9500000-0000-4000-8000-000000000002" },
     parent: null, pinned: false, working: true, readOnly: false, createdAt: 1, updatedAt: 1,
   };
-  const workflowHost = { organizationId: "org", installationId: "wiki-map-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
+  const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
   const callback = (name: string, body: object) => f.app.call(`/api/internal/threads/v1/${name}`, owner, { method: "POST", body, workflowHost }).then(json);
   const prepare = (location: string) => callback("prepare", { thread, submissionId: uuid(83), retry: false, entry: {
     id: "question", thread: ref, role: "user", parts: [{ type: "text", text: "What does this project suggestion say?" }], status: "complete",
@@ -310,7 +310,7 @@ test("the Changes sidebar inspects canonical proposals through ChangeBatch witho
   assert.equal(prepared.context.batch.data.changeBatch.operations[0].confidence, proposal.confidence);
   assert.equal(prepared.context.batch.data.changeBatch.state, "awaiting_review");
   assert.equal(prepared.context.batch.data.changeBatch.operations[0].record, null);
-  const tool = prepared.tools.find((item: { name: string }) => item.name === "wiki_map_batch_inspect");
+  const tool = prepared.tools.find((item: { name: string }) => item.name === "onto_batch_inspect");
   assert.equal(tool.store, false);
   const inspected = await callback("tool", { thread, submissionId: uuid(83), call: { id: "inspect", name: tool.name, input: { id } } });
   assert.deepEqual(inspected.output, prepared.context.batch);

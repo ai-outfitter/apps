@@ -11,7 +11,7 @@ const shots = process.env.EXPLORATION_SCREENSHOTS;
 type Json = any;
 
 async function setup(page: Page) {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} });
   const action = async (name: string, input: object) => (await app.call(actions, owner, { method: "POST", body: { action: name, input } })).json() as Promise<Json>;
   const { types } = await action("graph.read", {});
@@ -51,7 +51,7 @@ async function setup(page: Page) {
     query: "mutation S($input: StageChangesInput!) { stageChanges(input: $input) { id } }", variables: { input: { title: "Competitors", proposals } },
   });
   // The sidebar announces each finished reply; the page reads the exploration again.
-  const replied = () => page.evaluate(() => dispatchEvent(new Event("outfitter:agent-replied:wiki-map")));
+  const replied = () => page.evaluate(() => dispatchEvent(new Event("outfitter:agent-replied:onto")));
   return { app, agent, stage, type, replied };
 }
 
@@ -92,7 +92,7 @@ test("a member and an agent change one exploration, and the page shows the agent
     await page.getByRole("navigation", { name: "Explore from Sunny pro" }).getByRole("button", { name: "Hide" }).click();
     await expect(page.locator("svg [data-graph-node]")).toHaveCount(7);
     // A competitor the agent stages appears dashed, without anyone changing the exploration.
-    const kit = (await (await app.call(`/api/apps/wiki-map/explorations/get?slug=${slug}`, owner)).json() as Json).picture.nodes.find((n: Json) => n.key === "Offering:sunny-home-kit");
+    const kit = (await (await app.call(`/api/apps/onto/explorations/get?slug=${slug}`, owner)).json() as Json).picture.nodes.find((n: Json) => n.key === "Offering:sunny-home-kit");
     await stage([
       { operation: { operation: "create", ref: "$rival", type: "graph-node", attributes: { typeId: type("Product"), title: "Rachio soil probe" } } },
       { operation: { operation: "create", ref: "$alt", type: "graph-edge", attributes: { typeId: type("alternative_for"), fromId: "$rival", toId: kit.id } } },
@@ -123,7 +123,7 @@ test("a member and an agent change one exploration, and the page shows the agent
 });
 
 test("the read-only demo opens a synthetic exploration with live-looking pull requests and a proposed competitor", async ({ page }) => {
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "demo"));
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "demo"));
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {

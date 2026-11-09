@@ -31,7 +31,7 @@ async function fixture() {
     }
     return { ok: false, status: 403, message: `Unexpected ${operation}` };
   };
-  const worker = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), installationId, {
+  const worker = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), installationId, {
     workflowHost: () => ({ call: async (operation, input) => answer(operation, input as Record<string, unknown>) }),
   });
   const post = (path: string, body: unknown, headers: Record<string, string>, phase: WorkflowHostScope) =>
@@ -72,7 +72,7 @@ test("the hourly seal approves what is past its window, by policy and as no memb
   const sealed = await json(await f.action("batch.get", { batchId: batch.id }));
   assert.equal(sealed.batch.state, "committed");
   assert.equal(sealed.operations[0].decision.reason, "review-window");
-  const history = await json(await f.worker.call(`/api/apps/wiki-map/batches/history?id=${id}`, owner));
+  const history = await json(await f.worker.call(`/api/apps/onto/batches/history?id=${id}`, owner));
   assert.equal(history.revisions[0].approval.kind, "policy");
 
   assert.equal((await json(await f.seal("something.else"))).outcome, "declined");

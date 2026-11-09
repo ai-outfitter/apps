@@ -20,7 +20,7 @@ import { defaultTypes } from "../src/lib/default-types";
 
 test("fresh installations expose the shared type pages to readers and agents", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const member = { userId: "reader", organizationId: "org", role: "member" };
@@ -65,7 +65,7 @@ test("fresh installations expose the shared type pages to readers and agents", a
       assert.deepEqual(records.find((t) => t.ref.id === type.id)?.attributes.jsonSchema, type.jsonSchema);
     }
     const snapshot = (await (
-      await app.call("/api/apps/wiki-map/graph/snapshot", member)
+      await app.call("/api/apps/onto/graph/snapshot", member)
     ).json()) as {
       types: unknown[];
       nodes: { title: string }[];

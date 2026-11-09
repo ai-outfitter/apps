@@ -70,12 +70,12 @@ const seed = {
     edge(23, edited.id, uuid(1), { typeId: partOf }),
   ],
 };
-const installations = { "wiki-map": "local-personal-wiki-map", planning: "local-personal-planning" };
+const installations = { onto: "local-personal-onto", planning: "local-personal-planning" };
 const context = { dataDirectory: "/nonexistent", seed, installations };
 const viewer = { userId: "local-viewer", organizationId: "", role: "owner", owner: { kind: "user", id: "local-viewer" } };
 type Stored = { id: string; title: string; archived: boolean; source: unknown; typeId: string };
 const snapshot = async (wiki: Awaited<ReturnType<typeof appWorker>>) => {
-  const response = await wiki.call("/api/apps/wiki-map/graph/snapshot", viewer);
+  const response = await wiki.call("/api/apps/onto/graph/snapshot", viewer);
   assert.equal(response.status, 200, await response.clone().text());
   return (await response.json()) as { types: { id: string; body: string; archived: boolean }[]; nodes: Stored[]; edges: Stored[] };
 };
@@ -90,12 +90,12 @@ test("the personal graph is restored whole, with Project pages referencing perso
   assert.match(notices, new RegExp(`1 knowledge graphs use a pattern this Wiki cannot run \\(${uuid(5)}\\); they are stored unchanged`));
   assert.match(notices, /1 package entities and relationships are also in the seed/);
 
-  const wiki = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), installations["wiki-map"]);
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), installations.onto);
   try {
     const initialized = await wiki.call("/api/internal/app-initialize", { userId: "installer", organizationId: "org", role: "owner" }, { method: "POST", body: {} });
     assert.equal(initialized.status, 200);
     const before = await snapshot(wiki);
-    const report = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations["wiki-map"] });
+    const report = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations.onto });
     // A fresh baseline has no retired legacy type; initialization follows current defaults.
     assert.ok(!before.types.some((t) => t.id === "71000000-0000-4000-8000-000000000008"));
     assert.deepEqual(report.counts, inspected.counts);
@@ -108,7 +108,7 @@ test("the personal graph is restored whole, with Project pages referencing perso
     const graph = await snapshot(wiki);
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     for (const example of releaseExample.nodes) assert.ok(byId.has(example.id), example.title);
-    const restarted = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations["wiki-map"] });
+    const restarted = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations.onto });
     assert.deepEqual(restarted.counts, report.counts);
     for (const id of [uuid(10), uuid(11)])
       assert.deepEqual(byId.get(id)?.source, { installationId: "local-personal-planning", type: "project", id });
@@ -139,7 +139,7 @@ test("personal data that does not fit the Wiki is refused before anything is wri
   await assert.rejects(inspect({ format: "outfitter-graph-entities-v2" }), /not a supported Wiki file/);
   await inspect({ nodes: [...seed.nodes, node(uuid(4), core.project, "External project")] });
   await assert.rejects(inspect({ projects: [node(uuid(12), core.technology, "Not a project")] }), /is not a Project/);
-  await assert.rejects(inspect({}, { "wiki-map": installations["wiki-map"] } as typeof installations), /no personal Planning installation/);
+  await assert.rejects(inspect({}, { onto: installations.onto } as typeof installations), /no personal Planning installation/);
   await assert.rejects(
     inspect({ nodes: [{ ...seed.nodes[0], source: { installationId: "x", type: "person", id: "y" } }] }),
     /references another app's record/,

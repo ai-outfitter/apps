@@ -10,7 +10,7 @@ import { loadPersonalSeed } from "./personal-seed";
 export async function localWikiWorker(installationId: string, options: AppWorkerOptions = {}) {
   if (process.env.OUTFITTER_LOCAL_DEV !== "1" || process.env.NODE_ENV === "production")
     throw new Error("The local wiki entry is only available through the development server.");
-  const worker = await appWorker("wiki-map", fileURLToPath(new URL("../.outfitter/packages/operational.json", import.meta.url)), installationId, options);
+  const worker = await appWorker("onto", fileURLToPath(new URL("../.outfitter/packages/operational.json", import.meta.url)), installationId, options);
   try {
     const db = drizzle(worker.database);
     const identity = { userId: "local-seed", installationId, owner: { kind: "user" as const, id: "local-seed" }, role: "owner", canEdit: true };

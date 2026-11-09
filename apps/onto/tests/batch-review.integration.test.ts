@@ -30,7 +30,7 @@ async function json(response: Response): Promise<Json> {
 /** A Wiki whose owner is Artera, with a workflow host that records the review run. */
 async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No further findings.", findings: [] })) {
   const calls: { operation: string; input: Json }[] = [];
-  const app = await appWorker("wiki-map", appArtifact(new URL("..", import.meta.url), "operational"), "wiki-map-installation", {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       const body = input as Json;
       calls.push({ operation, input: body });
@@ -63,7 +63,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
     throw error;
   }
   const page = (path: string, init: { method?: string; body?: unknown } = {}) =>
-    app.call(`/api/apps/wiki-map/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
+    app.call(`/api/apps/onto/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
   /** The batch once its background review has been saved. */
   const reviewed = async (batchId: string) => {
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -198,7 +198,7 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.equal(again.counts.committed, 3);
   assert.equal(again.counts.awaiting_review, 1);
   // Only an editor can ask for a review, and an open batch is not reviewed.
-  assert.equal((await f.app.call("/api/apps/wiki-map/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
+  assert.equal((await f.app.call("/api/apps/onto/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
   const open = await json(await f.action("batch.open", { title: "Still open" }));
   assert.equal((await f.page("steward-review", { method: "POST", body: { batchId: open.batch.id } })).status, 409);
 });

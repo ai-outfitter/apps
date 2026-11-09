@@ -14,7 +14,7 @@ import { readGraph } from "../src/server/graph";
 
 test("local seeds import more than one relationship batch without duplicating on restart", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const directory = await mkdtemp(join(tmpdir(), "wiki-seed-"));
@@ -93,7 +93,7 @@ test("local seeds import more than one relationship batch without duplicating on
 
 test("downloaded projects bind to local Planning and reuse their receipt on restart", async () => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("..", import.meta.url), "operational"),
   );
   const directory = await mkdtemp(join(tmpdir(), "wiki-project-seed-"));
