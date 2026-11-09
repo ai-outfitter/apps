@@ -21,7 +21,9 @@ export function mount(request:Request) {
 }
 export async function run(name:keyof typeof documents,variables:Record<string,unknown>,ctx:Context) {
  const document=documents[name];
- const result=await serveGraphql({schema:graphqlSchema,query:document.document as string,variables,context:ctx,operation:getOperationAST(parse(document.document as string))!.operation,maxBytes:262144});
+ const operation=getOperationAST(parse(document.document as string))?.operation;
+ if(operation!=="query"&&operation!=="mutation")throw new Response("Unsupported document operation",{status:400});
+ const result=await serveGraphql({schema:graphqlSchema,query:document.document as string,variables,context:ctx,operation,maxBytes:262144});
  if(result.errors?.length) {
   const error=result.errors[0];throw new Response(error.message,{status:typeof error.extensions?.status==="number"?error.extensions.status:400});
  }
