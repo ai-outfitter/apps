@@ -7,9 +7,9 @@ import { sensorNodeAssembly } from "./sensor-node";
 export const ParamsSchema = z
   .object({
     design: z.enum(["cube", "tray", "button", "sensor", "custom"]),
-    width: z.number().min(1).max(200),
-    depth: z.number().min(1).max(200),
-    height: z.number().min(1).max(200),
+    width: z.number().min(1).max(300),
+    depth: z.number().min(1).max(300),
+    height: z.number().min(1).max(300),
     wall: z.number().min(1.2).max(6),
   })
   .strict()

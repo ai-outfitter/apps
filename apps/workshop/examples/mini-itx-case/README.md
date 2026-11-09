@@ -10,9 +10,9 @@ Three printed parts around three purchased ones. The purchased parts are envelop
 | --- | --- | --- | --- |
 | Base with standoff bosses and PSU stops | `base.stl` | 1 | Flat |
 | Shell: four walls, I/O and PSU openings, vent slots | `shell.stl` | 1 | Upright; 224 x 178 mm footprint, or print as two halves |
-| Top with lip and vent grid | `top.stl` | 1 | Already flipped, lip up |
+| Top with lip and vent grid | `top.stl` | 1 | Already flipped, lip up (`part="top-design"` renders it as designed) |
 
-Outside 224 x 178 x 89 mm. The top's lip drops inside the shell with 0.2 mm a side and takes four M3 screws through the walls. `bom.csv` lists the printed and purchased parts; `request.json` is the design request a Workshop agent would receive for this part.
+Outside 224 x 178 x 89 mm. Every part is boxes and cylinders, at most 45 features, so each is a Workshop CAD plan; the `case-*` fixtures in `box/evals/evals/` ask a model for them one at a time, and `tests/box-geometry.unit.test.ts` holds a plan for each that passes its eval. The top's lip drops inside the shell with 0.2 mm a side and takes four M3 screws through the walls. `bom.csv` lists the printed and purchased parts; `request.json` is the design request a Workshop agent would receive for this part.
 
 ## Fit checks
 

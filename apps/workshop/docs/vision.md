@@ -48,16 +48,17 @@ today is in `box/README.md` ("Geometry scoring").
 | --- | --- | --- | --- | --- |
 | 0 | One printed part from a dimensioned description | `box/evals/evals/*` (cable clip, mounting plate, L bracket, flanged bushing) | Code runs, watertight, volume IoU, Chamfer and Hausdorff distance | Passing on Luna and Spark |
 | 1 | One part that mates with something: a hole pattern for a devkit, a bore for a bearing, a snap or press fit | New fixtures with a COTS envelope beside the part | Tier 0, plus clearance and interference against the envelope | Needs richer CAD plans (below) |
-| 2 | A static assembly: printed parts and COTS placed together, with a BOM | `examples/mini-itx-case` (printed case around a board, cooler and power supply), SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, holes on bosses, connectors through openings, BOM matched against a reference BOM | A coding agent on a locally hosted model (DGX Spark) has already designed a case of this kind outside Workshop, so this tier is about measuring, not feasibility. Workshop's agent does not produce it yet |
+| 2 | A static assembly: printed parts and COTS placed together, with a BOM | `examples/mini-itx-case` (printed case around a board, cooler and power supply), SNY-1 sensor node (`src/lib/sensor-node.ts`) | No interference between items, holes on bosses, connectors through openings, BOM matched against a reference BOM | Hand-built example and model; no agent has produced it yet. The case's models are the first evals the DGX Spark runs one at a time (`box/evals/evals/case-*`) |
 | 3 | A moving assembly: joints with a range of motion, gears that mesh, nothing collides while it moves | `examples/spinning-wheel`, `examples/gear-pair` | Interference swept over the motion range, ratio and range of motion | Hand-built seeds only |
 | 4 | A COTS-driven prototype: six sub-assemblies, about 90 bodies, datasheet mounting patterns, a priced BOM, a motion program and a validation record | Motor coil winder prototype (below) | Tiers 1 to 3, plus structure and BOM against the reference, dimensions against its metrics file, interference sampled over the traverse, and the record: acceptance boundary, unclosed items, corrections | Target for model comparison |
 | 5 | A mission: budgets, environment, redundancy, requirement traceability | To be chosen | Mostly the record: every requirement has evidence or an open risk | Vision |
 
-The mini-ITX case is also the first comparison we can run today: the same
-persona and request to a model on the DGX Spark and to hosted models, scored
-with the example's fit checks and BOM. A design one of them has already
-produced is kept as a baseline, with its session record, so later runs are
-measured against it rather than against nothing.
+The mini-ITX case is also how the DGX Spark climbs from tier 0 to tier 2:
+each of its models is an eval of its own, from the purchased envelopes
+(board, power supply, cooler) through the printed parts (base, top, shell)
+to the assembly, with the same request a person would write and the
+example's fit checks as the score. The hand-built example is the reference,
+not a model's output; no model has produced it yet.
 
 Public text-to-CAD benchmarks cover tier 0 and parts of tier 1
 (BenchCAD, CAD-bench, Text2CAD-Bench, CADTests; see the eval README). They
@@ -107,10 +108,10 @@ Workshop's eval steps at this tier.
 ## What has to change in Workshop
 
 - **CAD plans** (`src/model/cad-plan.ts`) add and cut boxes and cylinders
-  along the axes. The ladder needs fillets, chamfers, countersinks, patterns,
-  rotation about any axis, and profiles that are extruded or revolved
-  (a gear tooth, a knob). The 200 mm envelope is a tier 0 limit, not a
-  Workshop one.
+  along the axes, up to 64 features and 300 mm per axis (raised from 24 and
+  200 mm for the case parts). The ladder needs fillets, chamfers,
+  countersinks, patterns, rotation about any axis, and profiles that are
+  extruded or revolved (a gear tooth, a knob).
 - **Assemblies** (`src/lib/assembly.ts`) already have items, revisions,
   sub-assemblies, COTS envelopes, firmware items and an indented BOM, in
   the shape PLM systems use. A usage places an item with a position and a

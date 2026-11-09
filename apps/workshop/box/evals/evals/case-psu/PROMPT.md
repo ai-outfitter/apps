@@ -1,0 +1,3 @@
+# Flex ATX power supply envelope
+
+A Flex ATX power supply as a fit envelope, standing on its long edge: a 40 mm wide, 150 mm deep, 81.5 mm tall block. On its rear face an IEC inlet block 27 mm wide, 19.5 mm tall and 5 mm proud, 3.4 mm from the left side of that face and 5 mm below its top.

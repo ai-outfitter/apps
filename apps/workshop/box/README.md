@@ -33,7 +33,12 @@ the driver against a stand-in platform and a local git remote.
   or cut): `cable-clip`, `mounting-plate`, `l-bracket`, `flanged-bushing`.
   These are tier 0 of the ambition ladder in `../docs/vision.md`; the ladder
   runs to COTS-driven moving assemblies, and new fixtures name their persona
-  and project.
+  and project. The `case-*` fixtures are the Mini-ITX case of
+  `../examples/mini-itx-case` one model at a time, in the order a model should
+  climb them: the purchased envelopes `case-board`, `case-psu` and
+  `case-cooler`, then the printed `case-base`, `case-top` and `case-shell`.
+  Their references are rendered from the example's `case.scad`, and CAD plans
+  allow up to 64 features and 300 mm per axis so the printed parts fit.
   Public text-to-CAD benchmarks score single parts the same way and are the
   comparison set for tier 0 and 1: BenchCAD (46 CAD operations, where
   frontier models score near zero on fillets, chamfers and revolves),
@@ -54,4 +59,5 @@ so the platform gets the model settings; the box signs in as the local member.
 docker build --build-context webapp=../webapp --build-arg BOX_APP=workshop \
   -f box/Dockerfile -t outfitter/workshop-box:dev .
 BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts cable-clip
+BOX_CLI=podman BOX_MODEL_ENV=spark.env node --import tsx apps/workshop/box/evals/run.ts case-board case-psu case-cooler case-base case-top case-shell
 ```

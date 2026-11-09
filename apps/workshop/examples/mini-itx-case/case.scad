@@ -4,13 +4,13 @@
 // dimensioned envelopes from their specifications, not manufacturer models.
 // All sizes in mm; origin at the outside front-left-bottom corner.
 //
-//   openscad -D 'part="base"' -o base.stl case.scad      (also shell, top)
+//   openscad -D 'part="base"' -o base.stl case.scad      (also shell, top; board, psu, cooler for the envelopes)
 //   openscad -D 'part="interference"' -o check.stl case.scad   (must be empty)
 //   openscad -D 'part="standoff-fit"' -o check.stl case.scad   (must be empty)
 //   openscad -D 'part="io-fit"' -o check.stl case.scad         (must be empty)
 //   openscad -D 'part="assembly"' -D '$t=0.5' -o frame.png case.scad   ($t explodes it)
 
-part = "assembly"; // base | shell | top | assembly | interference | standoff-fit | io-fit | pair
+part = "assembly"; // base | shell | top | board | psu | cooler | assembly | interference | standoff-fit | io-fit | pair
 pair = ["shell", "top"];             // the two parts "pair" intersects
 
 wall = 3;
@@ -68,8 +68,8 @@ module shell() {
     translate([io_x, D - wall - 1, io_z]) cube([io[0], wall + 2, io[1]]);
     translate([psu_x + 2, D - wall - 1, wall + 2]) cube([psu[0] - 4, wall + 2, psu[2] - 4]);
     // Vent slots: front wall over the board, left wall along the board.
-    for (i = [0 : 11]) translate([bx + 25 + i * 10, -1, 22]) cube([3, wall + 2, 45]);
-    for (i = [0 : 11]) translate([-1, by + 25 + i * 10, 22]) cube([wall + 2, 3, 45]);
+    for (i = [0 : 9]) translate([bx + 35 + i * 10, -1, 22]) cube([3, wall + 2, 45]);
+    for (i = [0 : 9]) translate([-1, by + 35 + i * 10, 22]) cube([wall + 2, 3, 45]);
     // Screw holes for the top's lip, centred on each wall.
     for (at = [[W / 2, -1, lip_screw_z], [W / 2, D - wall - 1, lip_screw_z]])
       translate(at) rotate([-90, 0, 0]) cylinder(d = screw_hole, h = wall + 2, $fn = 32);
@@ -87,7 +87,7 @@ module top() {
     }
     translate([in + lip[0], in + lip[0], H - wall - lip[1] - 1]) cube([W - 2 * (in + lip[0]), D - 2 * (in + lip[0]), lip[1] + 1]);
     // Vent grid over the cooler.
-    for (i = [-4 : 4], j = [-4 : 4]) hole(6, wall + 2, [cooler_c[0] + i * 10, cooler_c[1] + j * 10, H - wall - 1]);
+    for (i = [0 : 5], j = [0 : 5]) hole(6, wall + 2, [cooler_c[0] - 30 + i * 12, cooler_c[1] - 30 + j * 12, H - wall - 1]);
     // Pilot holes in the lip for the wall screws.
     for (at = [[W / 2, -1, lip_screw_z], [W / 2, D - in - lip[0] - 1, lip_screw_z]])
       translate(at) rotate([-90, 0, 0]) cylinder(d = 2.5, h = in + lip[0] + 2, $fn = 32);
@@ -137,6 +137,8 @@ module purchased() {
 if (part == "base") base();
 else if (part == "shell") shell();
 else if (part == "top") translate([0, 0, H]) mirror([0, 0, 1]) top();   // printed lip up
+else if (part == "top-design") top();                                  // as designed, lip down; the eval reference
+else if (part == "board" || part == "psu" || part == "cooler") pick(part);   // purchased envelopes, for the evals
 else if (part == "interference") {
   // Any solid here means a printed part overlaps another part when assembled.
   // Parts that rest on another are lifted 0.01 mm so face contact does not count.

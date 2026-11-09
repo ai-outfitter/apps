@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { Params } from "../lib/project";
 
-const coordinate = z.number().min(-250).max(250);
-const extent = z.number().min(1).max(200);
-const radius = z.number().min(0.1).max(200);
+const coordinate = z.number().min(-300).max(300);
+const extent = z.number().min(1).max(300);
+const radius = z.number().min(0.1).max(300);
 const point = z.tuple([coordinate, coordinate, coordinate]);
 const mode = z.enum(["add", "cut"]);
 const feature = z.discriminatedUnion("kind", [
@@ -31,7 +31,7 @@ export const CadPlanSchema = z
   .object({
     version: z.literal(1),
     units: z.literal("mm"),
-    features: z.array(feature).min(1).max(24),
+    features: z.array(feature).min(1).max(64),
   })
   .strict()
   .superRefine((plan, ctx) => {
@@ -40,8 +40,8 @@ export const CadPlanSchema = z
       return;
     }
     const bounds = planBounds(plan);
-    if (bounds.size.some((side) => side > 200))
-      ctx.addIssue({ code: "custom", message: "Design exceeds 200 mm" });
+    if (bounds.size.some((side) => side > 300))
+      ctx.addIssue({ code: "custom", message: "Design exceeds 300 mm" });
   });
 
 export type CadPlan = z.infer<typeof CadPlanSchema>;

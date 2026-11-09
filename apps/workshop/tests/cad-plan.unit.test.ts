@@ -65,8 +65,8 @@ test("CAD plans reject a cut first and oversize designs", () => {
       version: 1,
       units: "mm",
       features: [
-        { kind: "box", mode: "add", origin: [-100, 0, 0], size: [200, 40, 40] },
-        { kind: "box", mode: "add", origin: [100, 0, 0], size: [20, 40, 40] },
+        { kind: "box", mode: "add", origin: [-150, 0, 0], size: [300, 40, 40] },
+        { kind: "box", mode: "add", origin: [150, 0, 0], size: [20, 40, 40] },
       ],
     }).success,
     false,

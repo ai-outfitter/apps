@@ -145,7 +145,7 @@
                                         },
                                         "features": {
                                           "minItems": 1,
-                                          "maxItems": 24,
+                                          "maxItems": 64,
                                           "type": "array",
                                           "items": {
                                             "oneOf": [
@@ -168,18 +168,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       }
                                                     ],
                                                     "items": false,
@@ -192,17 +192,17 @@
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 300
                                                       }
                                                     ],
                                                     "items": false,
@@ -237,18 +237,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -300,
+                                                        "maximum": 300
                                                       }
                                                     ],
                                                     "items": false,
@@ -258,12 +258,12 @@
                                                   "radius": {
                                                     "type": "number",
                                                     "minimum": 0.1,
-                                                    "maximum": 200
+                                                    "maximum": 300
                                                   },
                                                   "height": {
                                                     "type": "number",
                                                     "minimum": 1,
-                                                    "maximum": 200
+                                                    "maximum": 300
                                                   },
                                                   "axis": {
                                                     "type": "string",
