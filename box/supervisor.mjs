@@ -22,6 +22,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** The webapp checkout the image runs the platform from. */
 const CHECKOUT = env.BOX_CHECKOUT || "/app";
 const STATE = env.BOX_STATE || "/box";
+// BOX_REOPEN starts a finished run's kept state (its /box volume) for inspection:
+// the services come up as they were left, with no import, requests or workflow ticks.
+const REOPEN = env.BOX_REOPEN === "1";
 const OUT = env.BOX_OUT || "/out";
 const PORTS = { forgejo: 3300, rustfs: 9000, kube: 7070, gateway: 4040, webapp: Number(env.BOX_INSPECT_PORT || 8787) };
 const FORGEJO = `http://127.0.0.1:${PORTS.forgejo}`;
@@ -186,6 +189,11 @@ async function importRepository(adminAuth, name) {
       headers: { Authorization: adminAuth, "Content-Type": "application/json" },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+  if (REOPEN) {
+    const existing = await api("GET", `/repos/${OWNER}/${name}`);
+    if (!existing.ok) throw new Error(`The kept state has no ${OWNER}/${name} (${existing.status})`);
+    return { repository: `${OWNER}/${name}`, defaultBranch: (await existing.json()).default_branch };
+  }
   await api("POST", "/orgs", { username: OWNER, visibility: "private" });
   const created = await api("POST", `/orgs/${OWNER}/repos`, { name, private: true, auto_init: false });
   if (created.status !== 201 && created.status !== 409) throw new Error(`Creating ${OWNER}/${name} failed (${created.status})`);
@@ -337,8 +345,9 @@ async function main() {
   const artifactsS3 = Object.fromEntries(Object.entries({ ...s3, ATTACHMENTS_S3_BUCKET: "artifacts" })
     .map(([name, value]) => [name.replace("ATTACHMENTS_", "ARTIFACTS_"), value]));
   // box-kube: workspaces as local runtime processes, with git and gh on Forgejo.
+  // A reopened box starts none: reconciling would wake workspaces and rewrite kube.json.
   writeFileSync(join(STATE, "kube-token"), "box");
-  start("box-kube", "node", [join(HERE, "box-kube.mjs")], {
+  if (!REOPEN) start("box-kube", "node", [join(HERE, "box-kube.mjs")], {
     BOX_KUBE_PORT: String(PORTS.kube), BOX_KUBE_STATE: join(STATE, "kube.json"), BOX_WORKSPACES_DIR: join(STATE, "workspaces"),
     BOX_RUNTIME_SCRIPT: "/opt/workspace/server.mjs", BOX_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`,
     OUTFITTER_FORGE: "forgejo", OUTFITTER_FORGE_ORIGIN: FORGEJO, ...(env.AI_MODEL ? { AI_MODEL: env.AI_MODEL } : {}),
@@ -376,6 +385,10 @@ async function main() {
     }),
   });
   await ready("platform", `${PLATFORM}/api/health`, 600);
+  if (REOPEN) {
+    log(`reopened ${repo.repository} for inspection: platform on :${PORTS.webapp}, Forgejo on :${PORTS.forgejo}`);
+    return;
+  }
   await driver.run(driverContext({ gatewayToken, bot, repo, s3 }));
   // The workflow tick a self-hosted server gets from its gateway every 15
   // minutes, here every few seconds so runs advance as soon as they can.

@@ -1,0 +1,46 @@
+{
+  "runId": "2026-11-09T05-01-41-989Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main"
+  },
+  "model": {
+    "provider": "spark",
+    "id": "GLM-5.3-Flash-EXL3"
+  },
+  "status": "failed",
+  "success": false,
+  "grade": {
+    "passed": 1,
+    "total": 6
+  },
+  "durationSeconds": 2982.3,
+  "metrics": {
+    "wallSeconds": 2943,
+    "modelSeconds": 2931.7,
+    "modelCalls": 115,
+    "inputTokens": 3836604,
+    "outputTokens": 40672,
+    "outputTokensPerSecond": 13.9,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 1120,
+        "modelCalls": 20,
+        "inputTokens": 295319,
+        "outputTokens": 12274
+      },
+      {
+        "name": "implement",
+        "status": "failed",
+        "seconds": 1811.7,
+        "modelCalls": 95,
+        "inputTokens": 3541285,
+        "outputTokens": 28398
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Implement spent its tool limit managing preview servers; triage alone took 19 minutes."
+}

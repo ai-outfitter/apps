@@ -1,0 +1,46 @@
+{
+  "runId": "2026-11-09T02-46-42-963Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:chrome"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "failed",
+  "success": false,
+  "grade": {
+    "passed": 1,
+    "total": 6
+  },
+  "durationSeconds": 370,
+  "metrics": {
+    "wallSeconds": 333.4,
+    "modelSeconds": 321.6,
+    "modelCalls": 106,
+    "inputTokens": 4149992,
+    "outputTokens": 12179,
+    "outputTokensPerSecond": 37.9,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 13.1,
+        "modelCalls": 5,
+        "inputTokens": 28727,
+        "outputTokens": 690
+      },
+      {
+        "name": "implement",
+        "status": "failed",
+        "seconds": 308.5,
+        "modelCalls": 101,
+        "inputTokens": 4121265,
+        "outputTokens": 11489
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Chrome worked after the short workspace root, but implement used up its tool limit chasing unstyled `astro dev` pages: the app's strict CSP blocked Vite's inline styles (fixed in apps #58/#61)."
+}

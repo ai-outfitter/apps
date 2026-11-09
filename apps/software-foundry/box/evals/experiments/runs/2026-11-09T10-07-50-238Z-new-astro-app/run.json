@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T10-07-50-238Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main2"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "changes_requested",
+  "success": false,
+  "grade": {
+    "passed": 1,
+    "total": 6
+  },
+  "durationSeconds": 564.5,
+  "metrics": {
+    "wallSeconds": 527.6,
+    "modelSeconds": 456.6,
+    "modelCalls": 134,
+    "inputTokens": 2156965,
+    "outputTokens": 14122,
+    "outputTokensPerSecond": 30.9,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 14.5,
+        "modelCalls": 6,
+        "inputTokens": 35119,
+        "outputTokens": 614
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 152.5,
+        "modelCalls": 31,
+        "inputTokens": 401533,
+        "outputTokens": 5621
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 2.3,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 104.4,
+        "modelCalls": 30,
+        "inputTokens": 639903,
+        "outputTokens": 2831
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 72.6,
+        "modelCalls": 21,
+        "inputTokens": 247039,
+        "outputTokens": 1480
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 14,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 47.5,
+        "modelCalls": 17,
+        "inputTokens": 190125,
+        "outputTokens": 1520
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 65.1,
+        "modelCalls": 29,
+        "inputTokens": 643246,
+        "outputTokens": 2056
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Implement skipped screenshots because the app had no dev script (apps #66); land's publish got 404, since land may not publish."
+}

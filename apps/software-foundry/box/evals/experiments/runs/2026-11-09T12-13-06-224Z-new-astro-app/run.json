@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-09T12-13-06-224Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:main3"
+  },
+  "model": {
+    "provider": "spark",
+    "id": "GLM-5.3-Flash-EXL3"
+  },
+  "status": "landed",
+  "success": true,
+  "grade": {
+    "passed": 6,
+    "total": 6
+  },
+  "durationSeconds": 7908.8,
+  "metrics": {
+    "wallSeconds": 7856.4,
+    "modelSeconds": 7756.7,
+    "modelCalls": 263,
+    "inputTokens": 7735814,
+    "outputTokens": 129989,
+    "outputTokensPerSecond": 16.8,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 830.8,
+        "modelCalls": 28,
+        "inputTokens": 468394,
+        "outputTokens": 11762
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 1833.1,
+        "modelCalls": 82,
+        "inputTokens": 2941943,
+        "outputTokens": 32054
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 16,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 1480.9,
+        "modelCalls": 31,
+        "inputTokens": 771209,
+        "outputTokens": 18327
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 1017,
+        "modelCalls": 38,
+        "inputTokens": 999146,
+        "outputTokens": 19467
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 16,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 1055.7,
+        "modelCalls": 39,
+        "inputTokens": 1062787,
+        "outputTokens": 20249
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 1539.2,
+        "modelCalls": 45,
+        "inputTokens": 1492335,
+        "outputTokens": 28130
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Landed and passed on the DGX Spark in 2 h 11 min."
+}

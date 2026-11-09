@@ -1,0 +1,16 @@
+{
+  "runId": "2026-11-09T02-31-32-620Z-new-astro-app",
+  "eval": "new-astro-app",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:chrome"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "no result",
+  "success": false,
+  "durationSeconds": 128.1,
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. The box exited before writing a result; its log was not kept then, so the cause is unknown."
+}

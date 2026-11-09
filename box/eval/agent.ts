@@ -9,9 +9,11 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
 import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from "@vercel/agent-eval";
 import type { Agent, AgentRunOptions, AgentRunResult } from "@vercel/agent-eval";
+import { gradeCounts, type RunRecord, writeRunRecord } from "./experiments.ts";
 
 const require = createRequire(import.meta.url);
 // A fixture's reference/ folder (a reference part to score against) is for grading only.
@@ -33,6 +35,11 @@ export type BoxOptions = {
   modelEnv?: string;
   /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
   sessionsDir?: string;
+  /** The app's evals folder: runs keep their artifacts in `results/runs/<run>` and are
+   * recorded in `experiments/runs/<run>` (experiments.ts). */
+  project?: string;
+  /** Keep each run's box state in a named volume to reopen later (box/runs.mjs); BOX_KEEP=0 drops it. */
+  keep?: boolean;
 };
 
 function git(directory: string, ...args: string[]) {
@@ -66,12 +73,13 @@ export function fixtureRequest(app: BoxApp, fixture: string, prompt: string) {
 }
 
 /** Runs the box to completion, streaming its log, within the eval's timeout. */
-function runBox(box: BoxOptions, work: string, timeout: number, signal?: AbortSignal) {
+function runBox(box: BoxOptions, work: string, timeout: number, signal?: AbortSignal, volume?: string) {
   const name = `${box.name}-eval-${work.split("-").pop()}`;
   // Forgejo is published too, at the port its ROOT_URL names, so the box's PRs and their screenshots can be viewed while it runs.
   const args = ["run", "--rm", "--name", name, "-p", `127.0.0.1:${box.inspectPort}:8787`, "-p", `127.0.0.1:${box.forgejoPort}:3300`, "-e", "BOX_EXIT_WHEN_DONE=1",
     ...(box.modelEnv ? ["--env-file", box.modelEnv] : []),
-    "-v", `${join(work, "repo")}:/in/repo:ro`, "-v", `${join(work, "requests")}:/in/requests:ro`, "-v", `${join(work, "out")}:/out`, box.image];
+    "-v", `${join(work, "repo")}:/in/repo:ro`, "-v", `${join(work, "requests")}:/in/requests:ro`, "-v", `${join(work, "out")}:/out`,
+    ...(volume ? ["-v", `${volume}:/box`] : []), box.image];
   return new Promise<{ code: number | null; log: string }>((done) => {
     const child = spawn(box.cli, args, { stdio: ["ignore", "pipe", "pipe"] });
     let log = "";
@@ -146,6 +154,37 @@ export function metricsTable(runs: RunMetrics[]) {
   return [header, ...rows].map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join("  ")).join("\n");
 }
 
+/** A named volume for one run's /box, labelled so box/runs.mjs can list, reopen and remove it. */
+function keptVolume(box: BoxOptions, runId: string, evalName: string) {
+  const volume = `${box.name}-${runId}`.toLowerCase().replace(/[^a-z0-9_.-]/g, "-");
+  const labels = { "outfitter.box": box.name, "outfitter.box.eval": evalName, "outfitter.box.run": runId, "outfitter.box.image": box.image };
+  const created = spawnSync(box.cli, ["volume", "create", ...Object.entries(labels).flatMap(([key, value]) => ["--label", `${key}=${value}`]), volume], { encoding: "utf8" });
+  if (created.status !== 0) throw new Error(`Creating volume ${volume} failed: ${created.stderr}`);
+  return volume;
+}
+
+/** The model an env file selects (box/README.md, "Models"), for a run that wrote no result. */
+function modelFromEnv(file?: string) {
+  if (!file || !existsSync(file)) return undefined;
+  const settings = parseEnv(readFileSync(file, "utf8"));
+  // The supervisor's own default model is Luna's.
+  return { provider: settings.SPARK_BASE_URL ? "spark" : "luna", id: settings.AI_MODEL || "gpt-6-luna" };
+}
+
+/** The image a run used, by reference and ID, so a record names exactly what ran. */
+function imageIdentity(box: BoxOptions) {
+  const inspected = spawnSync(box.cli, ["image", "inspect", "--format", "{{.Id}} {{.Created}}", box.image], { encoding: "utf8" });
+  const [id, ...created] = inspected.stdout.trim().split(" ");
+  return { ref: box.image, ...(inspected.status === 0 ? { id, created: created.join(" ") } : {}) };
+}
+
+/** The run's out folder (results, sessions, repo bundle, release) and the box log, kept beside the results. */
+function keepArtifacts(directory: string, work: string, log: string) {
+  mkdirSync(directory, { recursive: true });
+  if (existsSync(join(work, "out"))) cpSync(join(work, "out"), join(directory, "out"), { recursive: true });
+  writeFileSync(join(directory, "box.log"), log);
+}
+
 /** The agent's name as experiments use it. Agent Eval picks its transcript
  * parser by the agent's name, so the name carries pi's ("pi-coding-agent"):
  * the transcript is the box's agent sessions in pi's format. */
@@ -175,7 +214,16 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
   async function runOne(fixturePath: string, options: AgentRunOptions): Promise<AgentRunResult> {
       const started = Date.now();
       const work = mkdtempSync(join(tmpdir(), `${box.name}-eval-`));
+      const runId = `${new Date(started).toISOString().replace(/[:.]/g, "-")}-${basename(fixturePath)}`;
+      let record: Partial<RunRecord> = { runId, eval: basename(fixturePath), box: box.name, startedAt: new Date(started).toISOString() };
+      // A box the container runtime could not start (a taken port, a missing image) leaves nothing to record or keep.
+      let boxRan = false;
+      let volume: string | undefined;
       try {
+        // The box's state (Forgejo, RustFS, the platform's databases, workspaces) outlives the container.
+        volume = box.keep ? keptVolume(box, runId, basename(fixturePath)) : undefined;
+        const checkout = box.project ? spawnSync("git", ["-C", box.project, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim() : "";
+        record = { ...record, image: imageIdentity(box), ...(checkout ? { checkout } : {}), ...(volume ? { volume } : {}) };
         const repo = join(work, "repo");
         const original = files(fixturePath);
         for (const file of original) {
@@ -191,7 +239,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         mkdirSync(join(work, "out"));
         // The box runs as its own user; it writes results here.
         chmodSync(join(work, "out"), 0o777);
-        const ran = await runBox(box, work, options.timeout, options.signal);
+        const ran = await runBox(box, work, options.timeout, options.signal, volume);
         const resultFile = join(work, "out", "results", `${request.requestId.toLowerCase()}.json`);
         const result = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "utf8")) : undefined;
         // Every agent's session (box/sessions.mjs): kept beside the results, and merged for Agent Eval's transcript.
@@ -199,8 +247,21 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         if (box.sessionsDir && existsSync(sessions)) cpSync(sessions, join(box.sessionsDir, request.requestId.toLowerCase()), { recursive: true });
         const transcriptFile = join(sessions, "transcript.jsonl");
         const transcript = existsSync(transcriptFile) ? readFileSync(transcriptFile, "utf8") : result && JSON.stringify(result);
-        const measured = (success: boolean) => runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
-          durationSeconds: Math.round((Date.now() - started) / 100) / 10, metrics: result?.metrics });
+        const measured = (success: boolean) => {
+          runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
+            durationSeconds: Math.round((Date.now() - started) / 100) / 10, metrics: result?.metrics });
+          record = { ...record, success, durationSeconds: runs[runs.length - 1].durationSeconds };
+        };
+        // 125-127 are the container runtime's own: the box's supervisor never ran.
+        boxRan = ![125, 126, 127].includes(ran.code ?? 0);
+        if (!boxRan) {
+          measured(false);
+          return { success: false, output: ran.log, error: `The box did not start (exit ${ran.code})`, duration: Date.now() - started };
+        }
+        // Recorded before grading, so a run whose grading fails is still recorded.
+        record = { ...record, success: false, status: result?.status ?? `no result (exit ${ran.code})`, model: result?.model ?? modelFromEnv(box.modelEnv),
+          durationSeconds: Math.round((Date.now() - started) / 100) / 10, metrics: result?.metrics, ...(result ? { result } : {}) };
+        if (box.project) keepArtifacts(join(box.project, "results", "runs", runId), work, ran.log);
         if (!result) {
           measured(false);
           return { success: false, output: ran.log, error: `The box wrote no result (exit ${ran.code})`, duration: Date.now() - started,
@@ -209,6 +270,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         const tree = finalTree(work, "main");
         const { geometry, ...testResult } = grade(fixturePath, tree);
         measured(app.succeeded(result) && testResult.success);
+        record = { ...record, grade: gradeCounts(testResult.output), evalOutput: testResult.output };
         if (geometry) runs[runs.length - 1].geometry = geometry;
         const after = files(tree);
         const generatedFiles = Object.fromEntries(after.filter((file) => !original.includes(file) ||
@@ -225,6 +287,14 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
           observedModel: result.model?.id,
         };
       } finally {
+        if (!boxRan && volume) spawnSync(box.cli, ["volume", "rm", volume]);
+        if (boxRan && box.project && record.status) {
+          try {
+            writeRunRecord(join(box.project, "experiments", "runs"), record as RunRecord);
+          } catch (error) {
+            console.error(`Could not record ${runId}: ${(error as Error).message}`);
+          }
+        }
         // The box's files belong to its container user; a rootless runtime removes them as that user.
         spawnSync(box.cli, ["run", "--rm", "--user", "0", "--entrypoint", "rm", "-v", `${work}:/work`, box.image, "-rf", "/work/out"]);
         try {
@@ -245,7 +315,8 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const port = Number(env.BOX_PORT || 8787);
   const runs: RunMetrics[] = [];
   const sessionsDir = join(project, "results", `${box.name}-sessions`);
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv: env.BOX_MODEL_ENV, sessionsDir }, app, runs));
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv: env.BOX_MODEL_ENV, sessionsDir,
+    project, keep: env.BOX_KEEP !== "0" }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
   // One model: the box routes every call to the model its env file names.
   // BOX_TIMEOUT (seconds) overrides the experiment's timeout: a slower local model needs longer.

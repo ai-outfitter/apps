@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-07T12-06-17-830Z-subtract-helper",
+  "eval": "subtract-helper",
+  "box": "foundry-box",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:dev"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "landed",
+  "success": true,
+  "grade": {
+    "passed": 2,
+    "total": 2
+  },
+  "durationSeconds": 260.3,
+  "metrics": {
+    "wallSeconds": 205.5,
+    "modelSeconds": 130.9,
+    "modelCalls": 50,
+    "inputTokens": 197862,
+    "outputTokens": 6018,
+    "outputTokensPerSecond": 46,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 13.6,
+        "modelCalls": 6,
+        "inputTokens": 17119,
+        "outputTokens": 449
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 30.7,
+        "modelCalls": 14,
+        "inputTokens": 59458,
+        "outputTokens": 1794
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 3.5,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 23.4,
+        "modelCalls": 8,
+        "inputTokens": 33736,
+        "outputTokens": 1142
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 22.3,
+        "modelCalls": 8,
+        "inputTokens": 32329,
+        "outputTokens": 881
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 2.9,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 17.7,
+        "modelCalls": 6,
+        "inputTokens": 22620,
+        "outputTokens": 885
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 23.2,
+        "modelCalls": 8,
+        "inputTokens": 32600,
+        "outputTokens": 867
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Baseline: one-file change, before the Forgejo screenshot fixes."
+}

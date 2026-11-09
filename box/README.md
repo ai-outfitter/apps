@@ -169,6 +169,30 @@ Each run's time and model use (wall and model seconds, model calls, tokens in
 and out, output tokens per second) is printed after the results and saved in
 `results/<box>-metrics-<time>.json`, so runs on different models can be compared.
 
+### Kept runs and records
+
+Each run keeps the box's `/box` (Forgejo, RustFS, the platform's databases,
+workspaces) in a named volume labelled `outfitter.box.run`. `podman run --rm`
+removes the container, not the volume. The run's out folder and box log go to
+the app's ignored `evals/results/runs/<run>`, and a record (`run.json`, the
+grader's `eval.txt`, the box's `result.json`) to the committed
+`evals/experiments/runs/<run>`, with an index (`eval/experiments.ts`). A box
+that never starts (a taken port, say) is neither kept nor recorded. Set
+`BOX_KEEP=0` to drop the state after a run.
+
+`box/runs.mjs` lists kept runs, reopens one for inspection and removes them:
+
+```sh
+BOX_CLI=podman node box/runs.mjs list   # BOX_CLI as the evals used; docker by default
+node box/runs.mjs open <volume> [--port 8787] [--forgejo-port 3300]
+node box/runs.mjs rm <volume>... | --all
+```
+
+`open` starts the image with `BOX_REOPEN=1`. The supervisor brings Forgejo,
+RustFS, the gateway and the platform up on the kept state, but imports
+nothing, files no requests, runs no workflow ticks and starts no workspaces
+(box-kube stays down), so the box stays as the run left it.
+
 ### Geometry scoring
 
 `eval/geometry.ts` (`@ai-outfitter/box/geometry`) scores CAD output against a

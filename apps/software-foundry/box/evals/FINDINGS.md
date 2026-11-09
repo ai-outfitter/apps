@@ -1,5 +1,7 @@
 # Foundry box eval findings
 
+Every run is recorded in [`experiments/runs`](experiments/runs/README.md), and kept runs can be reopened (`experiments/README.md`).
+
 ## new-astro-app on Luna (2026-11-08)
 
 The `new-astro-app` fixture asks the Foundry to add a demo-mode Astro app,

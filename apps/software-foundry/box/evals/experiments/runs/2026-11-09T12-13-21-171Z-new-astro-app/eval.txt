@@ -1,0 +1,81 @@
+
+ RUN  v2.1.9 /tmp/foundry-box-eval-4CZCa2/final
+
+ ✓ EVAL.ts > the manifest and package describe a demo-only Astro app
+ ✓ EVAL.ts > packages/ and apps/hr are unchanged
+ ✓ EVAL.ts > the built demo package > staged data and summarize
+ × EVAL.ts > the built demo package > / lists every repository with its count and link
+   → The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1794228050904","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:release-radar: This Worker requires compatibility date \"2026-11-01\", but the newest date supported by this server binary is \"2026-10-03\".","context_depth":0}
+ × EVAL.ts > the built demo package > /repos/<name> lists its pull requests and an unknown name is 404
+   → The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1794228050904","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:release-radar: This Worker requires compatibility date \"2026-11-01\", but the newest date supported by this server binary is \"2026-10-03\".","context_depth":0}
+ × EVAL.ts > the built demo package > /__health, methods and headers
+   → The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1794228050904","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:release-radar: This Worker requires compatibility date \"2026-11-01\", but the newest date supported by this server binary is \"2026-10-03\".","context_depth":0}
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  06:40:34
+   Duration  16.66s (transform 115ms, setup 0ms, collect 36ms, tests 16.35s, environment 0ms, prepare 85ms)
+
+stderr | EVAL.ts > the built demo package > / lists every repository with its count and link
+service core:user:release-radar: This Worker requires compatibility date "2026-11-01", but the newest date supported by this server binary is "2026-10-03".
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  EVAL.ts > the built demo package
+MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1794228050904","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:release-radar: This Worker requires compatibility date \"2026-11-01\", but the newest date supported by this server binary is \"2026-10-03\".","context_depth":0}
+ ❯ StartupLogBuffer.handleStartupFailure node_modules/miniflare/src/runtime/index.ts:232:10
+ ❯ Runtime.updateConfig node_modules/miniflare/src/runtime/index.ts:353:21
+ ❯ _Miniflare.#assembleAndUpdateConfig node_modules/miniflare/src/index.ts:2709:28
+ ❯ node_modules/miniflare/src/index.ts:1045:5
+ ❯ Mutex.runWith node_modules/miniflare/src/workers/shared/sync.ts:72:12
+ ❯ _Miniflare.#waitForReady node_modules/miniflare/src/index.ts:2876:3
+ ❯ _Miniflare.dispatchFetch node_modules/miniflare/src/index.ts:3121:3
+ ❯ dispatch packages/app-test/src/worker.ts:162:15
+    160|         headers.set(hostHeader, token);
+    161|       }
+    162|       return (await host.dispatchFetch(request.url, {
+       |               ^
+    163|         method: request.method,
+    164|         headers: Object.fromEntries(headers),
+ ❯ EVAL.ts:74:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_RUNTIME_FAILURE', isUserError: 'Function<isUserError>', isSystemError: 'Function<isSystemError>' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  EVAL.ts > the built demo package > / lists every repository with its count and link
+ FAIL  EVAL.ts > the built demo package > /repos/<name> lists its pull requests and an unknown name is 404
+ FAIL  EVAL.ts > the built demo package > /__health, methods and headers
+MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1794228050904","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:release-radar: This Worker requires compatibility date \"2026-11-01\", but the newest date supported by this server binary is \"2026-10-03\".","context_depth":0}
+ ❯ StartupLogBuffer.handleStartupFailure node_modules/miniflare/src/runtime/index.ts:232:10
+ ❯ Runtime.updateConfig node_modules/miniflare/src/runtime/index.ts:353:21
+ ❯ _Miniflare.#assembleAndUpdateConfig node_modules/miniflare/src/index.ts:2709:28
+ ❯ node_modules/miniflare/src/index.ts:1045:5
+ ❯ Mutex.runWith node_modules/miniflare/src/workers/shared/sync.ts:72:12
+ ❯ _Miniflare.#waitForReady node_modules/miniflare/src/index.ts:2876:3
+ ❯ _Miniflare.dispatchFetch node_modules/miniflare/src/index.ts:3121:3
+ ❯ dispatch packages/app-test/src/worker.ts:162:15
+    160|         headers.set(hostHeader, token);
+    161|       }
+    162|       return (await host.dispatchFetch(request.url, {
+       |               ^
+    163|         method: request.method,
+    164|         headers: Object.fromEntries(headers),
+ ❯ EVAL.ts:74:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_RUNTIME_FAILURE', isUserError: 'Function<isUserError>', isSystemError: 'Function<isSystemError>' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+

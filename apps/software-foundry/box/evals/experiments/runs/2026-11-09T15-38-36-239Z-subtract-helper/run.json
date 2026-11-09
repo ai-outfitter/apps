@@ -1,0 +1,98 @@
+{
+  "runId": "2026-11-09T15-38-36-239Z-subtract-helper",
+  "eval": "subtract-helper",
+  "box": "foundry-box",
+  "startedAt": "2026-11-09T15:38:36.239Z",
+  "image": {
+    "ref": "localhost/outfitter/software-foundry-box:keep",
+    "id": "68923aafd24338067a4013bf60ec1bb88e338d5d5794018541df73831901763c",
+    "created": "2026-11-09 15:34:45.891405698 +0000 UTC"
+  },
+  "checkout": "0671e15e3189ef70f9cbbf9f3301b528fa852669",
+  "volume": "foundry-box-2026-11-09t15-38-36-239z-subtract-helper",
+  "success": true,
+  "status": "landed",
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "durationSeconds": 200.4,
+  "metrics": {
+    "wallSeconds": 172.7,
+    "modelSeconds": 105,
+    "modelCalls": 50,
+    "inputTokens": 346304,
+    "outputTokens": 5299,
+    "outputTokensPerSecond": 50.5,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 9.3,
+        "modelCalls": 5,
+        "inputTokens": 22604,
+        "outputTokens": 445
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 28.5,
+        "modelCalls": 14,
+        "inputTokens": 78664,
+        "outputTokens": 1167
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 2.1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 21.2,
+        "modelCalls": 9,
+        "inputTokens": 56720,
+        "outputTokens": 1245
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 17.6,
+        "modelCalls": 9,
+        "inputTokens": 56201,
+        "outputTokens": 899
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 2.1,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 15.7,
+        "modelCalls": 7,
+        "inputTokens": 100818,
+        "outputTokens": 836
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 12.7,
+        "modelCalls": 6,
+        "inputTokens": 31297,
+        "outputTokens": 707
+      }
+    ]
+  },
+  "grade": {
+    "passed": 2,
+    "total": 2
+  }
+}

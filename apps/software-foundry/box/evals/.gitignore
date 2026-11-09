@@ -4,3 +4,4 @@ evals/new-astro-app/packages/
 evals/new-astro-app/apps/
 evals/new-astro-app/package-lock.json
 evals/new-astro-app/node_modules/
+experiments/models/*.env

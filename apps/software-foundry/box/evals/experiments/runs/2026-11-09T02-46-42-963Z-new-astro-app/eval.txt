@@ -1,0 +1,54 @@
+
+ RUN  v2.1.9 /tmp/foundry-box-eval-D46LW1/final
+
+ × EVAL.ts > the manifest and package describe a demo-only Astro app
+   → ENOENT: no such file or directory, open '/tmp/foundry-box-eval-D46LW1/final/apps/release-radar/app.json'
+ ✓ EVAL.ts > packages/ and apps/hr are unchanged
+ ↓ EVAL.ts > the built demo package > staged data and summarize
+ ↓ EVAL.ts > the built demo package > / lists every repository with its count and link
+ ↓ EVAL.ts > the built demo package > /repos/<name> lists its pull requests and an unknown name is 404
+ ↓ EVAL.ts > the built demo package > /__health, methods and headers
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 4 skipped (6)
+   Start at  20:52:41
+   Duration  11.84s (transform 32ms, setup 0ms, collect 25ms, tests 11.58s, environment 0ms, prepare 63ms)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  EVAL.ts > the built demo package
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ EVAL.ts:44:68
+     42|     run("npm", "ci", "--no-audit", "--no-fund");
+     43|     run("npm", "test");
+     44|     expect(existsSync(join(app, ".outfitter/packages/demo.json"))).toB…
+       |                                                                    ^
+     45|     const fixtures = await import(join(app, "src/fixtures.ts"));
+     46|     repositories = fixtures.repositories;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  EVAL.ts > the manifest and package describe a demo-only Astro app
+Error: ENOENT: no such file or directory, open '/tmp/foundry-box-eval-D46LW1/final/apps/release-radar/app.json'
+ ❯ json EVAL.ts:9:43
+      7| const root = import.meta.dirname;
+      8| const app = join(root, "apps/release-radar");
+      9| const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
+       |                                           ^
+     10| const { NODE_TEST_CONTEXT, VITEST, VITEST_MODE, VITEST_POOL_ID, VITEST…
+     11| const run = (command: string, ...args: string[]) => execFileSync(comma…
+ ❯ EVAL.ts:14:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/tmp/foundry-box-eval-D46LW1/final/apps/release-radar/app.json' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

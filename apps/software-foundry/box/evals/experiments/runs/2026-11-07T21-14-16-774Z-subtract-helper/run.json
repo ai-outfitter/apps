@@ -1,0 +1,94 @@
+{
+  "runId": "2026-11-07T21-14-16-774Z-subtract-helper",
+  "eval": "subtract-helper",
+  "box": "foundry-box",
+  "image": {
+    "ref": "outfitter/software-foundry-box:dev"
+  },
+  "model": {
+    "provider": "luna",
+    "id": "gpt-6-luna"
+  },
+  "status": "landed",
+  "success": true,
+  "grade": {
+    "passed": 2,
+    "total": 2
+  },
+  "durationSeconds": 192.2,
+  "metrics": {
+    "wallSeconds": 165.8,
+    "modelSeconds": 103.2,
+    "modelCalls": 47,
+    "inputTokens": 198992,
+    "outputTokens": 5782,
+    "outputTokensPerSecond": 56,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 9.7,
+        "modelCalls": 4,
+        "inputTokens": 11005,
+        "outputTokens": 297
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 18.8,
+        "modelCalls": 10,
+        "inputTokens": 37808,
+        "outputTokens": 989
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 2.8,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 16.4,
+        "modelCalls": 7,
+        "inputTokens": 27357,
+        "outputTokens": 1028
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 19.3,
+        "modelCalls": 8,
+        "inputTokens": 50058,
+        "outputTokens": 1018
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 2.7,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 22.3,
+        "modelCalls": 8,
+        "inputTokens": 32188,
+        "outputTokens": 1263
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 16.7,
+        "modelCalls": 10,
+        "inputTokens": 40576,
+        "outputTokens": 1187
+      }
+    ]
+  },
+  "notes": "Recorded afterwards from the run's metrics; its box state was not kept. Baseline repeat."
+}
