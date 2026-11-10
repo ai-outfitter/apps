@@ -11,7 +11,7 @@ const member = { ...owner, userId: "member", role: "member" };
 const path = "/api/internal/actions/v1/call";
 // biome-ignore lint/suspicious/noExplicitAny: test JSON
 type Json = any;
-type Who = typeof owner;
+type Who = { userId: string; organizationId: string; role: string; callerOrganizationId?: string };
 
 test("a share shows another organization a KnowledgeGraph from its roots, minus hidden nodes, over current records", async (t) => {
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
@@ -34,7 +34,7 @@ test("a share shows another organization a KnowledgeGraph from its roots, minus 
   // Artera's graph: the sensor Sunny repackages, its firmware, an internal project Artera keeps to itself, and an unrelated product.
   await action(owner, "graph.apply", { requestKey: "share-fixture", operations: [
     node("$artera", "Organization", "Artera", "artera"),
-    node("$sunny", "Organization", "Sunny", "sunny"),
+    { ...node("$sunny", "Organization", "Sunny", "sunny"), attributes: { ...node("$sunny", "Organization", "Sunny", "sunny").attributes, properties: { organization_id: "sunny-org" } } },
     node("$sensor", "Product", "SNSP-1", "snsp-1"),
     node("$firmware", "Project", "SNSP-1 firmware", "snsp-1-firmware"),
     node("$costing", "Project", "SNSP-1 costing", "snsp-1-costing"),
@@ -79,8 +79,23 @@ test("a share shows another organization a KnowledgeGraph from its roots, minus 
   assert.match(JSON.stringify((await run("MutateShare", { input: { slug: "sunny", expectedRevision: 1, patch: { organization: "Product:snsp-1" } } })).errors), /not an Organization/);
   assert.match(JSON.stringify((await run("MutateShare", { input: { slug: "sunny", expectedRevision: 1, patch: { hidden: { "Product:snsp-1": true } } } })).errors), /root cannot be hidden/);
 
+  // A member of Sunny, calling as another organization, reads only Sunny's share and never the hidden list.
+  const sunnyMember = { userId: "shen", organizationId: "artera", role: "external", callerOrganizationId: "sunny-org" };
+  const outsider = { ...sunnyMember, callerOrganizationId: "other-org" };
+  const external = (who: Who, query: string, variables: object = {}) => action(who, "graph.graphql", { query, variables });
+  const asSunny = await external(sunnyMember, documents.Share.document as string, { slug: "sunny" });
+  assert.equal(asSunny.errors, undefined, JSON.stringify(asSunny.errors));
+  assert.ok(asSunny.data.share.view.nodes.some((n: Json) => n.address === "Product:snsp-1"));
+  assert.deepEqual(asSunny.data.share.hidden, {});
+  assert.equal((await external(outsider, documents.Share.document as string, { slug: "sunny" })).data.share, null);
+  assert.deepEqual((await external(outsider, "{ shares { slug } }")).data.shares, []);
+  assert.ok((await external(sunnyMember, "{ products(first: 5) { nodes { slug } } }")).errors?.length, "the rest of the graph is not open to other organizations");
+  const write = await app.call(path, sunnyMember, { method: "POST", body: { action: "graph.read", input: {} } });
+  assert.equal(write.status, 403, "other actions are closed to other organizations");
+
   const stopped = await run("MutateShare", { input: { slug: "sunny", expectedRevision: 1, patch: {}, archived: true } });
   assert.equal(stopped.errors, undefined, JSON.stringify(stopped.errors));
   assert.equal(stopped.data.mutateShare.archived, true);
   assert.equal(stopped.data.mutateShare.view, null, "an archived share shows nothing");
+  assert.equal((await external(sunnyMember, documents.Share.document as string, { slug: "sunny" })).data.share, null, "nor to the organization");
 });

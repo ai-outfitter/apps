@@ -129,3 +129,28 @@ async function resolveSome(source: ReturnType<typeof databaseSource>, addresses:
   const ids = await Promise.all(addresses.map(value => rootIdsOf(source, [value]).then(([id]) => id, () => null)));
   return ids.filter((id): id is string => !!id);
 }
+
+/** The Organization node's platform binding (its organization_id property). */
+async function organizationBinding(db: Database, organization: string) {
+  const source = databaseSource(db);
+  const [id] = await rootIdsOf(source, [organization]).catch(() => [null]);
+  const [node] = id ? await source.nodes({ ids: [id] }) : [];
+  const bound = (node?.properties as Record<string, unknown> | undefined)?.organization_id;
+  return typeof bound === "string" ? bound : null;
+}
+
+/** For a member of another organization (role external): the active shares whose Organization
+ * node is bound (organization_id) to the caller's organization, and nothing else. Hidden nodes
+ * are not named to them. */
+export async function sharesFor(db: Database, identity: AppIdentity, slug?: string) {
+  const caller = identity.callerOrganizationId;
+  if (identity.role !== "external" || !caller) return [];
+  const rows = (await db.select().from(graphShares).where(eq(graphShares.archived, false)).orderBy(asc(graphShares.title)))
+    .filter(row => slug === undefined || row.slug === slug);
+  const mine = [];
+  for (const row of rows) if (await organizationBinding(db, shareState.parse(row.state).organization) === caller) {
+    const share = await readShare(db, identity, row.slug);
+    if (share) mine.push({ ...share, hidden: {} });
+  }
+  return mine;
+}
