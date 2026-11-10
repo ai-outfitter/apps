@@ -39,7 +39,8 @@ function platformRequest(box, host, path, { method = "GET", body, cookie } = {})
       host: "127.0.0.1", port: box.port, path, method,
       headers: { Host: `${host}:${box.port}`, Origin: origin, ...(payload ? { "Content-Type": "application/json", "Content-Length": payload.length } : {}),
         ...(cookie ? { Cookie: cookie } : {}) },
-      timeout: 300_000,
+      // A design turn on a slow local model can take up to the step's 14-minute inference limit.
+      timeout: 900_000,
     }, (response) => {
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));

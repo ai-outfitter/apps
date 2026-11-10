@@ -11,7 +11,7 @@ steps:
   # model as data, validates the answer against the CAD plan contract, saves
   # the project and records the revision here. A turn is one run.
   - id: design
-    inference: {maxOutputTokens: 8000, timeoutMs: 300000}
+    inference: {maxOutputTokens: 16000, timeoutMs: 840000}
     inputs:
       message:
         schema: {type: string, minLength: 1, maxLength: 500, description: The member's design request or follow-up}
