@@ -9,6 +9,10 @@ on:
         description: Optional full public ai-outfitter/apps SDK commit
         type: string
         default: ''
+      catalog-apps:
+        description: Official app paths registered in the platform catalog (JSON array)
+        type: string
+        default: '[]'
       baseline-workflow:
         description: Calling workflow file used to find last successful push
         type: string
@@ -17,6 +21,12 @@ on:
       apps:
         description: Affected app paths
         value: ${{ jobs.plan.outputs.apps }}
+      non_catalog_apps:
+        description: Checked apps outside the platform catalog
+        value: ${{ jobs.plan.outputs.non_catalog_apps }}
+      catalog_apps:
+        description: Checked official catalog app paths
+        value: ${{ jobs.plan.outputs.catalog_apps }}
       has_apps:
         description: Whether apps were selected
         value: ${{ jobs.plan.outputs.has_apps }}
@@ -30,6 +40,8 @@ jobs:
       apps: ${{ steps.plan.outputs.apps }}
       has_apps: ${{ steps.plan.outputs.has_apps }}
       sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
+      catalog_apps: ${{ steps.catalog.outputs.apps }}
+      non_catalog_apps: ${{ steps.catalog.outputs.other }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,6 +69,18 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || steps.baseline.outputs.sha }}
           HEAD_SHA: ${{ github.sha }}
+      - id: catalog
+        env:
+          SELECTED_APPS: ${{ steps.plan.outputs.apps }}
+          CATALOG_APPS: ${{ inputs.catalog-apps }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const selected = JSON.parse(process.env.SELECTED_APPS);
+          const registered = JSON.parse(process.env.CATALOG_APPS);
+          appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(selected.filter(app => registered.includes(app)))}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `other=${JSON.stringify(selected.filter(app => !registered.includes(app)))}\n`);
+          NODE
   app:
     name: App validation (${{ matrix.app }})
     needs: plan
@@ -96,6 +120,18 @@ jobs:
           command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
           app: ${{ matrix.app }}
           config-path: ${{ inputs.config-path }}
+      - name: Retain checked catalog inputs
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && github.repository == 'ai-outfitter/apps' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          APP: ${{ matrix.app }}
+        run: node scripts/catalog-publication.mjs prepare "$APP" "$RUNNER_TEMP/catalog/bundle.json"
+      - uses: actions/upload-artifact@v4
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && github.repository == 'ai-outfitter/apps' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: catalog-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog/bundle.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Record validation provenance
         env:
           APP: ${{ matrix.app }}

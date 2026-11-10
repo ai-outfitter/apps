@@ -79,6 +79,24 @@ Keep release and deploy as separate caller jobs after the check job. The caller
 chooses triggers, permissions and deployment environments. Successful default-branch
 app checks should call deployment directly; no deployment enablement flag is needed.
 
+## Official catalog deployment
+
+The six official apps registered by the platform publish from successful app CI
+on `main`. `check.yml` retains the exact checked packages and catalog metadata;
+`catalog-deploy.yml` downloads those artifacts in a separate OIDC-authorized job.
+It never rebuilds app code with publication credentials. The platform takes the
+artifact hashes, records the source commit and workflow run, and reconciles
+catalog demos and installations following that repository. Busy workflows defer
+activation through the durable reconciliation queue. A published artifact or
+accepted queue request is not proof that every installation is active.
+
+Webapp retains reviewed app identity and compatibility policy. It resolves the
+current catalog channel from the registry instead of pinning component releases
+in source. Runtime GraphQL metadata follows each installation's exact active
+package during a partial rollout. App updates require no webapp version-pin PR,
+release tag or package version bump. Independent component releases and the
+shared personal-repository workflow below remain available.
+
 ## SaaS and self-hosted auto deployment
 
 `deploy.yml` accepts `apps`, `destination` (an HTTPS origin), `environment` and
