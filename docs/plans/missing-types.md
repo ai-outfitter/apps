@@ -101,23 +101,35 @@ time is one thing: each new record reaches the owner.
 - An Onto with no root bound reports that as the first staging finding, as
   the steward does today.
 
-### 3. New types are proposed in the org's own graph
+### 3. A domain's types belong to the app for that domain
 
-The agent proposes `graph-type` operations in the same batch, so the member
-reviews the vocabulary and the records together. Types start local to that
-organization. Promotion to the standard types is a separate, human decision.
+Decision (Nicholas, 2026-11-10): the platform does not hold marketing types
+or their evals. An app does.
 
-For Sunny that would be roughly: `Storyboard` (duration, format), `Shot`
-(order, beat, duration), `shot_of` (Shot → Storyboard), `uses_reference`
-(Shot → Document), with briefs and references staying Documents. The names
-are the agent's to propose and yours to approve; this list is an example,
-not a decision.
+- Storyboards, shots and the relationships between them are declared by the
+  marketing app, the way Creative team already declares `BrandInterview`
+  and its four relationship types (`apps/creative-team/src/server/wiki.ts`):
+  fixed IDs, added to the organization's Onto add-only on first use, written
+  through a change batch.
+- An agent asked for launch videos uses that app's documents, which stage
+  typed records. If the app is not installed, Onto's review should say so:
+  "these look like storyboards; the Creative team app has types for them."
+- Onto's job stays generic: notice a cluster of look-alike catch-all records,
+  and point at an installed or installable app that owns the shape. Only when
+  no app owns it does the agent propose org-local types in the batch.
+- Which app: extend Creative team (today a personal-brand app that already
+  drafts video scripts) or a new dedicated marketing app. Open, see below.
 
 ### 4. Evals
 
+The evals live with the app that owns the types, as Forerunner's and
+Planning's already do (`apps/<app>/evals/`). The platform keeps only the
+runner: starting a disposable Outfitter, seeding a graph, letting Onto's
+review run on a real model, recording the calls. The first version of these
+fixtures is in webapp#904 and moves to the app once it is chosen.
+
 Recreate this exact scenario and check that Onto notices the missing type
-and proposes it. Fixtures in webapp `evals/outfitter/evals/`, run by
-agent-eval as today:
+and proposes it:
 
 - **`onto-new-concept-types`**. Prompt, as the member gave it: plan launch
   videos for the organization's products, each with a storyboard of shots,
@@ -152,7 +164,7 @@ Documents. Worth doing only after the types are agreed.
 
 1. Advice only (agent decides), or should a generic cluster block submit?
    Recommended: advice only, with blocking left to a Governance control.
-2. Org-local types first, promoted to standard by you later?
+2. Which app owns marketing storyboards: Creative team, or a new one?
 3. Redo the Sunny video records once types exist?
 4. Build order: evals first for a baseline, then root node and default
    anchors, then open-batch review with type proposals, then the
