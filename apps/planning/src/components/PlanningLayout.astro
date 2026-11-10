@@ -38,7 +38,7 @@ const products = Astro.url.pathname === "/products" || Astro.url.pathname.starts
 const agentOpen = requestUiPreferences(Astro.request).agent === "planning-agent";
 const limits = demo
   ? "Scripted, read-only demo. No inference or writes."
-  : products ? "Uses this organization’s saved products and weekly roadmap. Confirm changes before they are submitted." : intake ? "Uses saved intake, active controls and reviewed work packages. Writes require explicit review and current authority." : "Uses saved Planning records and pasted notes. Proposed changes stay private until you approve them. No connected-source reads, external actions or resident agent.";
+  : products ? "Uses this organization’s saved products and weekly roadmap. Confirm changes before they are submitted." : intake ? "Uses saved intake, active controls and reviewed work packages. Writes require explicit review and current authority." : "Uses saved Planning records and pasted notes. Proposed changes stay private until you approve them.";
 ---
 
 <AppLayout
