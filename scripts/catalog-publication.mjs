@@ -141,7 +141,10 @@ export async function publishCatalogSet(bundles,{publish=publishCatalog,reconcil
     if(result.status==='rejected') { failures.push(`${bundle.slug}: publication or dependency failed: ${result.reason.message}`);continue; }
     try { report({slug:bundle.slug,...await reconcile(bundle,result.value.sha256)}); }
     catch(error) {
-      const pending={slug:bundle.slug,status:'activation-pending',...error.deployment,message:error.message};
+      // A successful publish response means the platform durably queued the
+      // eligible targets. Reconciliation transport errors cannot undo that
+      // acceptance, but they also cannot prove any activation status.
+      const pending={slug:bundle.slug,status:error.deployment ? 'activation-pending' : 'activation-unverified',...error.deployment,message:error.message};
       pendingActivation.push(pending);report(pending);
     }
   }

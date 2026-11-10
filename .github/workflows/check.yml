@@ -152,7 +152,7 @@ jobs:
           echo "App: $APP. Validation: $VALIDATION. Metadata checks do not certify app runtime, tests or builds." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: app-validation-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: app-validation-${{ inputs.app-set }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: outfitter-provenance.json
           if-no-files-found: error
   gate:

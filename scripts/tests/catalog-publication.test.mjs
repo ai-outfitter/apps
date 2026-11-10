@@ -111,3 +111,12 @@ test('accepted publication reports per-owner activation pending without failing 
   assert.equal(result[0].remaining,2);assert.equal(result[0].deferred,2);
   assert.deepEqual(reported,result);
 });
+
+test('transport errors after durable publication are reported as unverified, never completed activation',async()=>{
+ const {publishCatalogSet}=await import('../catalog-publication.mjs');
+ const [status]=await publishCatalogSet([{slug:'onto',app:{}}],{
+  publish:async()=>({sha256:'b'.repeat(64)}),reconcile:async()=>{throw Error('OIDC service unavailable');},report:()=>{},
+ });
+ assert.equal(status.status,'activation-unverified');assert.equal(status.remaining,undefined);
+ assert.equal(status.message,'OIDC service unavailable');
+});

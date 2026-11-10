@@ -20,3 +20,14 @@ test('actual reusable workflow selection isolates catalog publication from unrel
  assert.match(ci,/deploy:\n    needs: apps/);
  assert.match(ci,/deploy-source-apps:\n    needs: source-apps/);
 });
+
+test('both cohorts retain validation evidence under distinct names in the same run',async()=>{
+ const source=await readFile(new URL('../../.github/workflows/check.yml',import.meta.url),'utf8');
+ const template=source.match(/name: (app-validation-[^\n]+)/)[1];
+ function name(cohort) {
+  const values={'inputs.app-set':cohort,'strategy.job-index':'0','github.run_id':'123','github.run_attempt':'1'};
+  return template.replace(/\$\{\{\s*([^}]+?)\s*\}\}/g,(_,key)=>values[key.trim()]);
+ }
+ assert.notEqual(name('catalog'),name('source'));
+ assert.equal(name('catalog'),'app-validation-catalog-0-123-1');
+});
