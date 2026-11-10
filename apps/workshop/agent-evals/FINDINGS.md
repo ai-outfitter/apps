@@ -25,11 +25,14 @@ model, and the prompts are now fixed:
 - **case-psu:** the prompt said "rear face" without saying which end that is.
   The model put the inlet on -Y; the reference puts it on +Y, toward the back
   of the case. The 5 mm Hausdorff is the inlet's protrusion on the wrong end.
-  The prompt now names the +Y end.
+  The prompt now names the +Y end. On the re-run the model put the inlet on
+  +Y but measured "left" as seen from behind, which mirrored it in X, so the
+  prompt now says "3.4 mm from its -X side".
 - **case-top:** the prompt put the pilot holes "3.5 mm below the plate's top
   face", and the model did exactly that. The reference (`lip_screw_z = H - wall
   - 3.5`) measures from the plate's underside, 3 mm lower. The prompt now says
-  underside.
+  underside. On the re-run the top passed (IoU 1.000, Hausdorff 0.007 mm,
+  164 s, 5609 tokens out).
 
 The largest part, the shell, needed about 6400 output tokens and 195 s. The
 top needed 7200 tokens.
@@ -63,7 +66,7 @@ quota.
 
 ### Next
 
-- Re-run case-psu and case-top with the corrected prompts.
+- Re-run case-psu with its second prompt fix.
 - Run the same six on Luna (`experiments/luna.ts`) for comparison.
 - Go from parts to the assembly: the full case request in
   `examples/mini-itx-case/request.json`, graded on fit and interference.
