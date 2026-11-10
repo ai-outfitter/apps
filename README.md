@@ -81,7 +81,7 @@ app checks should call deployment directly; no deployment enablement flag is nee
 
 ## Official catalog deployment
 
-The six official apps registered by the platform publish from successful app CI
+The official apps registered by the platform publish from successful app CI
 on `main`. `check.yml` retains the exact checked packages and catalog metadata;
 `catalog-deploy.yml` downloads those artifacts in a separate OIDC-authorized job.
 It never rebuilds app code with publication credentials. The platform takes the
