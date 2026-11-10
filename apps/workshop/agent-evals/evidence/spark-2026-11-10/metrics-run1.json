@@ -1,0 +1,288 @@
+{
+  "experiment": "spark",
+  "image": "outfitter/workshop-box:dev",
+  "runs": [
+    {
+      "eval": "case-base",
+      "success": true,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 110.3,
+      "metrics": {
+        "wallSeconds": 96,
+        "modelSeconds": 91.4,
+        "modelCalls": 1,
+        "inputTokens": 565,
+        "outputTokens": 2772,
+        "outputTokensPerSecond": 30.3,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 91.4,
+            "modelCalls": 1,
+            "inputTokens": 565,
+            "outputTokens": 2772
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 1,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-base": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 1,
+          "chamferMm": 0,
+          "hausdorffMm": 0.007,
+          "chamferUnit": 0.126
+        }
+      }
+    },
+    {
+      "eval": "case-board",
+      "success": false,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 65.2,
+      "metrics": {
+        "wallSeconds": 51.3,
+        "modelSeconds": 47.2,
+        "modelCalls": 1,
+        "inputTokens": 538,
+        "outputTokens": 1461,
+        "outputTokensPerSecond": 31,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 47.2,
+            "modelCalls": 1,
+            "inputTokens": 538,
+            "outputTokens": 1461
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 1,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-board": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 0.9985,
+          "chamferMm": 0.001,
+          "hausdorffMm": 0.899,
+          "chamferUnit": 0.1558
+        }
+      }
+    },
+    {
+      "eval": "case-cooler",
+      "success": true,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 27.6,
+      "metrics": {
+        "wallSeconds": 13.2,
+        "modelSeconds": 9.3,
+        "modelCalls": 1,
+        "inputTokens": 447,
+        "outputTokens": 205,
+        "outputTokensPerSecond": 22,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 9.3,
+            "modelCalls": 1,
+            "inputTokens": 447,
+            "outputTokens": 205
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 0.8,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-cooler": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 0.9971,
+          "chamferMm": 0,
+          "hausdorffMm": 0,
+          "chamferUnit": 0.2733
+        }
+      }
+    },
+    {
+      "eval": "case-psu",
+      "success": true,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 72.7,
+      "metrics": {
+        "wallSeconds": 59.3,
+        "modelSeconds": 55.3,
+        "modelCalls": 1,
+        "inputTokens": 516,
+        "outputTokens": 1835,
+        "outputTokensPerSecond": 33.2,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 55.3,
+            "modelCalls": 1,
+            "inputTokens": 516,
+            "outputTokens": 1835
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 0.9,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-psu": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 1,
+          "chamferMm": 0,
+          "hausdorffMm": 0,
+          "chamferUnit": 0.1399
+        }
+      }
+    },
+    {
+      "eval": "case-shell",
+      "success": true,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 194.1,
+      "metrics": {
+        "wallSeconds": 178.9,
+        "modelSeconds": 173.8,
+        "modelCalls": 1,
+        "inputTokens": 573,
+        "outputTokens": 5346,
+        "outputTokensPerSecond": 30.8,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 173.8,
+            "modelCalls": 1,
+            "inputTokens": 573,
+            "outputTokens": 5346
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 1.6,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-shell": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 1,
+          "chamferMm": 0,
+          "hausdorffMm": 0.003,
+          "chamferUnit": 0.1674
+        }
+      }
+    },
+    {
+      "eval": "case-top",
+      "success": true,
+      "status": "designed",
+      "model": {
+        "provider": "spark",
+        "id": "GLM-5.3-Flash-EXL3"
+      },
+      "durationSeconds": 197.4,
+      "metrics": {
+        "wallSeconds": 181.4,
+        "modelSeconds": 174.9,
+        "modelCalls": 1,
+        "inputTokens": 538,
+        "outputTokens": 5662,
+        "outputTokensPerSecond": 32.4,
+        "steps": [
+          {
+            "name": "design",
+            "status": "succeeded",
+            "seconds": 174.9,
+            "modelCalls": 1,
+            "inputTokens": 538,
+            "outputTokens": 5662
+          },
+          {
+            "name": "export",
+            "status": "succeeded",
+            "seconds": 1.8,
+            "modelCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        ]
+      },
+      "geometry": {
+        "case-top": {
+          "runs": true,
+          "valid": true,
+          "watertight": true,
+          "iou": 1,
+          "chamferMm": 0,
+          "hausdorffMm": 0.007,
+          "chamferUnit": 0.1322
+        }
+      }
+    }
+  ]
+}
