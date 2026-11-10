@@ -9,6 +9,10 @@ on:
         description: Optional full public ai-outfitter/apps SDK commit
         type: string
         default: ''
+      app-set:
+        description: Validation cohort (all, catalog or source)
+        type: string
+        default: all
       catalog-apps:
         description: Official app paths registered in the platform catalog (JSON array)
         type: string
@@ -37,8 +41,8 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
-      apps: ${{ steps.plan.outputs.apps }}
-      has_apps: ${{ steps.plan.outputs.has_apps }}
+      apps: ${{ steps.catalog.outputs.selected }}
+      has_apps: ${{ steps.catalog.outputs.has_apps }}
       sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
       catalog_apps: ${{ steps.catalog.outputs.apps }}
       non_catalog_apps: ${{ steps.catalog.outputs.other }}
@@ -73,11 +77,17 @@ jobs:
         env:
           SELECTED_APPS: ${{ steps.plan.outputs.apps }}
           CATALOG_APPS: ${{ inputs.catalog-apps }}
+          APP_SET: ${{ inputs.app-set }}
         run: |
           node --input-type=module <<'NODE'
           import { appendFileSync } from 'node:fs';
-          const selected = JSON.parse(process.env.SELECTED_APPS);
+          import assert from 'node:assert/strict';
+          const affected = JSON.parse(process.env.SELECTED_APPS);
+          const cohort = process.env.APP_SET;
+          assert.ok(['all','catalog','source'].includes(cohort), 'Unknown validation cohort');
           const registered = JSON.parse(process.env.CATALOG_APPS);
+          const selected = affected.filter(app => cohort === 'all' || (cohort === 'catalog') === registered.includes(app));
+          appendFileSync(process.env.GITHUB_OUTPUT, `selected=${JSON.stringify(selected)}\nhas_apps=${selected.length > 0}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(selected.filter(app => registered.includes(app)))}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `other=${JSON.stringify(selected.filter(app => !registered.includes(app)))}\n`);
           NODE

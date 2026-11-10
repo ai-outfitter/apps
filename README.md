@@ -89,6 +89,9 @@ artifact hashes, records the source commit and workflow run, and reconciles
 catalog demos and installations following that repository. Busy workflows defer
 activation through the durable reconciliation queue. A published artifact or
 accepted queue request is not proof that every installation is active.
+The publication job succeeds once every selected artifact is accepted. Per-owner
+activation failures or workflow deferrals appear as explicit warnings and remain
+in the durable retry ledger; they do not force unchanged apps to rebuild.
 
 Webapp retains reviewed app identity and compatibility policy. It resolves the
 current catalog channel from the registry instead of pinning component releases

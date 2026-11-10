@@ -2,7 +2,7 @@
 // credential-bearing publication job. The platform verifies workload identity
 // and takes the digests of the bytes it accepts.
 import assert from 'node:assert/strict';
-import {readFile,writeFile,mkdir,readdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,readdir,appendFile} from 'node:fs/promises';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkApp} from './apps.mjs';
@@ -75,11 +75,11 @@ export async function reconcileCatalog(bundle,sha256,{env=process.env,fetcher=fe
   for(let batch=0;batch<20;batch++) {
     const result=await catalogRequest('/api/app-repositories/catalog/deploy',{slug:bundle.slug,sha256},bundle,{env,fetcher});
     for(const key of ['processed','remaining','failed','deferred']) assert.ok(Number.isInteger(result[key]) && result[key]>=0,`Invalid ${key} count`);
-    assert.equal(result.failed,0,`${bundle.slug}: deployment failures; inspect installation history`);
+    if(result.failed) throw Object.assign(Error(`${bundle.slug}: ${result.failed} deployment failures; inspect installation history`),{deployment:result});
     if(result.remaining===0) return result;
     // Busy workflows are durable pending work, not successful activation.
     // A later reconciliation resumes; avoid spinning with no progress.
-    if(result.processed===0) throw Error(`${bundle.slug}: ${result.remaining} installations pending (${result.deferred} deferred); inspect deployment status`);
+    if(result.processed===0) throw Object.assign(Error(`${bundle.slug}: ${result.remaining} installations pending (${result.deferred} deferred); inspect deployment status`),{deployment:result});
   }
   throw Error(`${bundle.slug}: reconciliation batch limit reached; inspect deployment status`);
 }
@@ -135,14 +135,18 @@ export async function publishCatalogSet(bundles,{publish=publishCatalog,reconcil
     return task;
   }
   const published=await Promise.allSettled(bundles.map(start));
-  const failures=[];
+  const failures=[],pendingActivation=[];
   for(const [index,result] of published.entries()) {
     const bundle=bundles[index];
     if(result.status==='rejected') { failures.push(`${bundle.slug}: publication or dependency failed: ${result.reason.message}`);continue; }
     try { report({slug:bundle.slug,...await reconcile(bundle,result.value.sha256)}); }
-    catch(error) { failures.push(`${bundle.slug}: ${error.message}`); }
+    catch(error) {
+      const pending={slug:bundle.slug,status:'activation-pending',...error.deployment,message:error.message};
+      pendingActivation.push(pending);report(pending);
+    }
   }
   assert.equal(failures.length,0,failures.join('\n'));
+  return pendingActivation;
 }
 
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
@@ -160,6 +164,10 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
     console.log(JSON.stringify(await reconcileCatalog(bundle,result.sha256)));
   } else if(command==='publish-all') {
     const bundles=await selectCatalogArtifacts(input,JSON.parse(process.env.SELECTED_APPS));
-    await publishCatalogSet(bundles);
+    const pending=await publishCatalogSet(bundles);
+    const summary=`Published ${bundles.length} verified catalog artifacts. ${pending.length} app rollouts remain pending or need attention. Publication acceptance is not completed activation; the platform retains per-installation status and retries.\n`;
+    console.log(summary);
+    if(process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY,summary+pending.map(item=>`${item.slug}: ${item.message}\n`).join(''));
+    for(const item of pending) console.log(`::warning title=App activation pending::${item.message.replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A')}`);
   } else throw Error('Usage: catalog-publication.mjs prepare APP_PATH OUTPUT | publish BUNDLE | publish-all DIRECTORY');
 }

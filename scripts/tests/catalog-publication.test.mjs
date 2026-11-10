@@ -98,3 +98,16 @@ test('dependency publication failure skips dependents while independent apps sti
   assert.deepEqual(published.sort(),['html-starter','onto']);
   assert.deepEqual(reconciled,['html-starter']);
 });
+
+test('accepted publication reports per-owner activation pending without failing source CI',async()=>{
+  const {publishCatalogSet}=await import('../catalog-publication.mjs');
+  const reported=[];
+  const result=await publishCatalogSet([{slug:'onto',app:{}}],{
+    publish:async()=>({sha256:'b'.repeat(64)}),
+    reconcile:async()=>{throw Object.assign(Error('Busy owner workflow'),{deployment:{processed:0,remaining:2,failed:0,deferred:2}});},
+    report:status=>reported.push(status),
+  });
+  assert.equal(result.length,1);assert.equal(result[0].status,'activation-pending');
+  assert.equal(result[0].remaining,2);assert.equal(result[0].deferred,2);
+  assert.deepEqual(reported,result);
+});
