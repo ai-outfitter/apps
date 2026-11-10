@@ -4,7 +4,8 @@
 // project (the first message, then each follow-up), build the model with the
 // app's own geometry (export.ts: STEP and STL), store the files in RustFS,
 // commit the design revision to the default branch under designs/<slug>/,
-// write its design-result, and release the designs that asked for one.
+// write its design-result, and release the designs that asked for one. After
+// each design turn it screenshots the project's workbench (screenshots.mjs).
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
@@ -18,6 +19,7 @@ import { recordSessions } from "../../../box/sessions.mjs";
 import { readRequests } from "./intake.mjs";
 import { releaseDesigns } from "./release.mjs";
 import { billOfMaterials, designResult, designSession, exportSummary } from "./results.mjs";
+import { openWorkbench, screenshotName } from "./screenshots.mjs";
 
 export const app = "workshop";
 export const title = "Workshop box";
@@ -108,6 +110,23 @@ function exportDesign(project, folder) {
   return exportSummary(result.stdout);
 }
 
+/** Screenshots the project's workbench after a step into /out/screenshots/<requestId>/ and RustFS.
+ * A screenshot that fails is logged; the design goes on without it. */
+async function screenshot(box, workbench, request, shots, step, project) {
+  if (!workbench) return;
+  try {
+    const { png, ready } = await workbench.capture(project);
+    const name = screenshotName(shots.length + 1, step);
+    const path = join("screenshots", request.requestId, name);
+    mkdirSync(join(box.out, "screenshots", request.requestId), { recursive: true });
+    writeFileSync(join(box.out, path), png);
+    shots.push({ step, revision: project.revision, path, sha256: sha256(png), bytes: png.length, ready,
+      uri: await box.store(`designs/${request.requestId}/screenshots/${name}`, png, "image/png") });
+  } catch (error) {
+    box.log(`${request.slug}: no screenshot after ${step} (${error.message})`);
+  }
+}
+
 /** @param {any} box the supervisor's driver context */
 export async function run(box) {
   const requests = readRequests(box.requests);
@@ -116,16 +135,20 @@ export async function run(box) {
   git(work, ["clone", "--quiet", "--branch", box.defaultBranch, box.remote, "repo"]);
   const cookie = await signIn(box);
   const platform = box.databases?.platform ? createClient({ url: `file:${box.databases.platform}` }) : undefined;
+  const workbench = await openWorkbench(box, cookie);
   const finished = [];
   for (const { name, request } of requests) {
     const startedAt = new Date().toISOString();
-    let project, exported, bom = [], files = [], commitSha, error;
+    let project, exported, bom = [], files = [], shots = [], commitSha, error;
     const trace = { steps: [], turns: [], platform };
     try {
       ({ project } = await timed(trace, "design", () => designTurn(box, cookie, { message: request.message }), request.message));
-      for (const [index, message] of request.followUps.entries())
+      await screenshot(box, workbench, request, shots, "design", project);
+      for (const [index, message] of request.followUps.entries()) {
         ({ project } = await timed(trace, `follow-up ${index + 1}`,
           () => designTurn(box, cookie, { message, projectId: project.id, revision: project.revision }), message));
+        await screenshot(box, workbench, request, shots, `follow-up ${index + 1}`, project);
+      }
       const folder = join(repo, "designs", request.slug);
       mkdirSync(folder, { recursive: true });
       exported = await timed(trace, "export", async () => exportDesign(project, folder));
@@ -160,12 +183,13 @@ export async function run(box) {
     } catch (caught) {
       box.log(`${name}: sessions not recorded (${caught.message})`);
     }
-    const result = designResult({ request, project, geometry, bom, files, commitSha, model: box.model, error, sessions,
+    const result = designResult({ request, project, geometry, bom, files, screenshots: shots, commitSha, model: box.model, error, sessions,
       metrics: runMetrics(trace.steps, { startedAt, finishedAt }), startedAt, finishedAt });
     writeFileSync(join(box.out, "results", `${request.requestId}.json`), `${JSON.stringify(result, null, 2)}\n`);
     finished.push({ request, result });
     box.log(`${name}: ${result.status}${commitSha ? ` at ${commitSha.slice(0, 8)}` : ` (${result.reason})`}`);
   }
+  await workbench?.close().catch(() => undefined);
   release(box, finished).then(() => box.finish(), (failure) => box.finish(failure));
 }
 

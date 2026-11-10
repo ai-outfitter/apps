@@ -33,6 +33,8 @@ export type BoxOptions = {
   modelEnv?: string;
   /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
   sessionsDir?: string;
+  /** Where each run's UI screenshots are kept (`<dir>/<eval>/<n>-<step>.png`), for boxes that take them. */
+  screenshotsDir?: string;
   /** One box run's limit in ms, counted from when it starts rather than while it waits its turn. */
   runTimeoutMs?: number;
 };
@@ -202,6 +204,9 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         // Every agent's session (box/sessions.mjs): kept beside the results, and merged for Agent Eval's transcript.
         const sessions = join(work, "out", "sessions", request.requestId.toLowerCase());
         if (box.sessionsDir && existsSync(sessions)) cpSync(sessions, join(box.sessionsDir, request.requestId.toLowerCase()), { recursive: true });
+        // The app's UI as the box saw it after each step (Workshop's workbench screenshots).
+        const screenshots = join(work, "out", "screenshots", request.requestId.toLowerCase());
+        if (box.screenshotsDir && existsSync(screenshots)) cpSync(screenshots, join(box.screenshotsDir, basename(fixturePath)), { recursive: true });
         const transcriptFile = join(sessions, "transcript.jsonl");
         const transcript = existsSync(transcriptFile) ? readFileSync(transcriptFile, "utf8") : result && JSON.stringify(result);
         const measured = (success: boolean) => runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
@@ -258,9 +263,10 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const runs: RunMetrics[] = [];
   const resultsDir = join(project, "results");
   const sessionsDir = join(resultsDir, experiment, "sessions");
+  const screenshotsDir = join(resultsDir, experiment, "screenshots");
   // Agent Eval checks an experiment's agent when it loads it, so the agent is registered first;
   // its per-run limit is set from the experiment once loaded.
-  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir };
+  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir, screenshotsDir };
   registerAgent(boxAgent(options, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${experiment}.ts`));
   options.runTimeoutMs = resolved.timeout * 1000;
@@ -287,6 +293,6 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   mkdirSync(join(resultsDir, experiment), { recursive: true });
   const file = join(resultsDir, experiment, `metrics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   writeFileSync(file, `${JSON.stringify({ experiment, image: env.BOX_IMAGE || box.image, runs }, null, 2)}\n`);
-  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}\nAgent sessions: ${sessionsDir}`);
+  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}\nAgent sessions: ${sessionsDir}${existsSync(screenshotsDir) ? `\nScreenshots: ${screenshotsDir}` : ""}`);
   process.exitCode = results.evals.every((entry) => entry.passedRuns === entry.totalRuns) ? 0 : 1;
 }
