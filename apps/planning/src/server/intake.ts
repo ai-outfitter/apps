@@ -16,6 +16,7 @@ import { renderGraphMarkdown } from "@ai-outfitter/app-sdk/graph-markdown";
 import { requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
+import { graphDatabase } from "./graph-database";
 import { intakeType, findingType, assertionBody } from "./intake-ontology";
 import { submitWorkInput, planningExecutionActions } from "./work-execution";
 import {
@@ -293,7 +294,7 @@ export class IntakeService {
   async options() {
     const host = this.c.host();
     const [database, apps] = await Promise.all([
-      defaultWiki(host).then(wiki => appDataContext(host).apps.installation(wiki.installationId)),
+      graphDatabase(host),
       host.call("actions.list", {}),
     ]);
     const types = await database.collection("types").list({

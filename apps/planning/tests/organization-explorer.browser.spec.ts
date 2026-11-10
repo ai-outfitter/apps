@@ -352,11 +352,13 @@ for (const width of [1440, 390])
       ).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath(`product-${width}.png`), fullPage: true });
       expect(requests).toEqual([]);
-      expect(discoveryInputs).toEqual([
+      // Graph discovery and the Planning installation lookup run concurrently.
+      expect(discoveryInputs).toHaveLength(3);
+      expect(discoveryInputs).toEqual(expect.arrayContaining([
         { template: "onto", requireTypes: true },
         { template: "wiki-map" },
         { installationId: "planning-home-ssr" },
-      ]);
+      ]));
       expect(
         listInputs.filter((input) =>
           ["graph-node", "graph-edge"].includes(input.type),

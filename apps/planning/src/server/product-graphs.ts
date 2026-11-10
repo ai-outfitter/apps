@@ -1,4 +1,4 @@
-import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
+import { graphDatabase, type GraphDatabase } from "./graph-database";
 import { z } from "zod";
 import { readProductRoadmap } from "./product-roadmap";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
@@ -399,14 +399,15 @@ async function readProductSources(
   graph: Omit<Awaited<ReturnType<typeof readWikiGraph>>, "snapshot"> & { truncated: boolean };
   projects: EntityRecord[];
   context: ReturnType<typeof appDataContext>;
-  graphDatabase: Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["installation"]>>;
+  graphDatabase: GraphDatabase;
 }> {
   const host = c.host();
   const context = appDataContext(host);
-  const graphDatabase = await context.apps.installation((await defaultWiki(host)).installationId);
-  const [graph, planning] = await Promise.all([
-    readScopedOrganizationGraph(graphDatabase, c.identity),
+  const database = graphDatabase(host);
+  const [graph, planning, graphDb] = await Promise.all([
+    database.then((db) => readScopedOrganizationGraph(db, c.identity)),
     context.apps.installation(c.identity.installationId),
+    database,
   ]);
   const projects: EntityRecord[] = [];
   for (let offset = 0; ; offset += 100) {
@@ -416,7 +417,7 @@ async function readProductSources(
     projects.push(...page);
     if (page.length < 100) break;
   }
-  return { graph, projects, context, graphDatabase };
+  return { graph, projects, context, graphDatabase: graphDb };
 }
 export async function readProductGraphs(
   c: Pick<PlanningReadContext, "identity" | "db" | "host">,

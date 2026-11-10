@@ -1,4 +1,4 @@
-import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
+import { graphDatabase } from "./graph-database";
 import { projectsViewerQuery } from "../../queries/projects";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import { renderMarkdownBlock } from "@ai-outfitter/app-sdk/graph-markdown";
@@ -454,7 +454,7 @@ async function wikiLink(
   host: WorkflowHost<"interactive">,
 ): Promise<ProjectPage["wiki"]> {
   try {
-    const wiki = await appDataContext(host).apps.installation((await defaultWiki(host)).installationId);
+    const wiki = await graphDatabase(host);
     return {
       installationId: wiki.installationId,
       hostname: wiki.hostname,

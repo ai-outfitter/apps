@@ -1,7 +1,6 @@
-import type { appDataContext } from "@ai-outfitter/app-sdk/database";
+import type { GraphDatabase } from "./graph-database";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 
-type GraphDatabase = Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["installation"]>>;
 const active = (r: EntityRecord) => !r.attributes.archived && !r.attributes.archivedAt;
 function body(record: EntityRecord): Record<string, unknown> {
   try {
