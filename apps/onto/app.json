@@ -1,6 +1,6 @@
 {
   "id": "outfitter/onto",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {

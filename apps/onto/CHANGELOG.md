@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/onto-v0.1.5...onto-v0.1.6) (2026-11-10)
+
+
+### Features
+
+* **onto:** let the share's organization read it from its own organization ([#113](https://github.com/ai-outfitter/apps/issues/113)) ([4d75e59](https://github.com/ai-outfitter/apps/commit/4d75e59c79a485910aaac95c70b937d630e74d35))
+* **onto:** share part of a graph with another organization ([#96](https://github.com/ai-outfitter/apps/issues/96)) ([61933ed](https://github.com/ai-outfitter/apps/commit/61933edee5af8f54784014112afc11f18c72519a))
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/onto-v0.1.4...onto-v0.1.5) (2026-11-09)
 
 
