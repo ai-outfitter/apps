@@ -90,10 +90,9 @@ function withoutHidden(roots: string[], nodes: EntityRecord[], edges: EntityReco
   }
   const reached = new Set(roots.filter(root => !hidden.has(root)));
   for (const id of reached) for (const other of next.get(id) ?? []) reached.add(other);
-  return {
-    nodes: nodes.filter(node => reached.has(node.ref.id)),
-    edges: edges.filter(edge => reached.has(String(edge.attributes.fromId)) && reached.has(String(edge.attributes.toId))),
-  };
+  const kept = nodes.filter(node => reached.has(node.ref.id)), shown = new Set(kept.map(node => node.ref.id));
+  // A truncated selection can return an edge whose far node it left out; show only edges between shown nodes.
+  return { nodes: kept, edges: edges.filter(edge => shown.has(String(edge.attributes.fromId)) && shown.has(String(edge.attributes.toId))) };
 }
 
 /** Exactly what the share's organization would read: the KnowledgeGraph walked from the
