@@ -66,7 +66,7 @@ jobs:
           [[ "$SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$BASE" =~ ^[a-f0-9]{40}$ ]]
           if [ "$MODE" = toolchain ] && [ "$CLOSED" != true ]; then test "$AUTHORIZED" = true; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.pr.outputs.closed != 'true'
         with:
           ref: ${{ steps.pr.outputs.sha }}
@@ -101,7 +101,7 @@ jobs:
       matrix:
         app: ${{ fromJSON(needs.plan.outputs.apps) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
@@ -110,14 +110,14 @@ jobs:
         env:
           SDK_SHA: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
         run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
         with:
           repository: ai-outfitter/apps
           ref: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
           path: .outfitter-sdk
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: inputs.build-mode == 'toolchain'
         with:
           repository: ai-outfitter/webapp
