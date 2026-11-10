@@ -19,7 +19,7 @@ The model was GLM-5.3-Flash-EXL3 on the Spark over the LAN (`experiments/spark.t
 | case-top | fail | 212.7 | 7224 | 34.4 | 1.000 | 0.985 |
 | case-shell | pass | 197.5 | 6377 | 32.7 | 1.000 | 0.007 |
 
-**All six now pass on the Spark.** The full run passed 4 of 6 in 708 s. Both failures came from ambiguous prompts, not from the
+**All six have passed on the Spark**, but not all in one run (see the repeat runs below). The full run passed 4 of 6 in 708 s. Both failures came from ambiguous prompts, not from the
 model, and the prompts are now fixed:
 
 - **case-psu:** the prompt said "rear face" without saying which end that is.
@@ -54,6 +54,33 @@ fixed in #108 and #112:
   Its overall limit now covers the whole queue, and each box keeps the
   experiment's timeout from when it starts.
 
+### Three repeat runs with workbench screenshots (2026-11-10, evening)
+
+The box now screenshots Workshop's design workbench after every design turn
+(#130, #135). The same six evals ran three more times on the Spark with the
+same model and the fixed prompts. The screenshots and the metrics of all three
+runs are in [`evidence/spark-2026-11-10/`](evidence/spark-2026-11-10/): one
+`1-design.png` per eval from the last run, and `metrics-run1.json`,
+`metrics-run2.json` and `metrics.json` (the last run).
+
+| eval | run 1 | run 2 | run 3 | passed |
+| --- | --- | --- | --- | --- |
+| case-board | fail (Hausdorff 0.90) | pass | fail (Hausdorff 1.27) | 1 of 3 |
+| case-psu | pass | pass | pass | 3 of 3 |
+| case-cooler | pass | pass | pass | 3 of 3 |
+| case-base | pass | fail (Hausdorff 2.5) | pass | 2 of 3 |
+| case-top | pass | pass | pass | 3 of 3 |
+| case-shell | pass | fail (IoU 0.80, Hausdorff 22) | fail (Hausdorff 1.23) | 1 of 3 |
+
+Runs 1 to 3 passed 5, 4 and 4 of 6. Every part has now passed at least once,
+but one pass per part is not a reliable result: the board and the shell pass
+about one time in three. Most failures are small details (IoU 0.998 to 1.0
+with a Hausdorff of 0.9 to 2.5 mm), and one shell was badly wrong.
+
+In run 3 the board's screenshot shows why the depth reads 174 mm: the model
+put the rear connector block from 3 mm inside the rear edge to 4 mm beyond
+it, as the prompt asks, so the miss is elsewhere in the block or the holes.
+
 ### Running it
 
 ```sh
@@ -68,6 +95,9 @@ quota.
 
 ### Next
 
+- Find what the board and the shell miss when they fail (compare the failing
+  CAD plans in the sessions with the reference), and report a pass rate over
+  several runs rather than one pass.
 - Run the same six on Luna (`experiments/luna.ts`) for comparison.
 - Go from parts to the assembly: the full case request in
   `examples/mini-itx-case/request.json`, graded on fit and interference.
