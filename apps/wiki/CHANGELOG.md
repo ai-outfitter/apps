@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.3...wiki-map-v0.1.4) (2026-11-10)
+
+
+### Bug Fixes
+
+* retain Wiki action invocation capability after release ([e22ae3d](https://github.com/ai-outfitter/apps/commit/e22ae3d851d9413f7a20c41c5fa1b79bf41f910d))
+* **wiki:** restore cutover action invocation capability ([#106](https://github.com/ai-outfitter/apps/issues/106)) ([f139ea7](https://github.com/ai-outfitter/apps/commit/f139ea7e6c413722442f3ed02b583df75ac9a836))
+
 ## [0.1.3](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.2...wiki-map-v0.1.3) (2026-11-09)
 
 
