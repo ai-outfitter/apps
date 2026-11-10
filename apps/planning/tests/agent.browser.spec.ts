@@ -211,7 +211,7 @@ for (const [width, mount] of [[1440, ""], [390, "/o/org/planning"]] as const)
         await send("Clarify this goal", [{ tools: [{ name: "amend_project", input: { goals: "Proposed launch goal" } }] }, { text: "Fixture inference: prepared a goal amendment for review." }]);
         await expect(panel.getByRole("heading", { name: "amend project" })).toBeVisible();
         await expect(panel.getByText("Fixture inference: prepared a goal amendment for review.")).toBeVisible();
-        await expect(panel.getByText("Private to you")).toBeVisible();
+        await expect(panel.getByText("Private to you")).toHaveCount(0);
         expect(h.sent.at(-1)?.metadata).toMatchObject({ "planning.page": { focus: { kind: "planning-project" } } });
         expect(JSON.stringify(h.sent.at(-1)?.metadata)).not.toContain("Private draft");
         await expect(page.locator("#project-documents")).toContainText("Saved goal");

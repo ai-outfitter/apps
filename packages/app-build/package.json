@@ -20,7 +20,8 @@
     "outfitter-app-build": "src/cli.mjs"
   },
   "exports": {
-    ".": "./src/build.mjs"
+    ".": "./src/build.mjs",
+    "./catalog": "./src/catalog-metadata.mjs"
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "0.1.4",

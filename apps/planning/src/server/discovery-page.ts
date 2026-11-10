@@ -1,3 +1,4 @@
+import { graphDatabase, type GraphDatabase } from "./graph-database";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import {
   workflowHost,
@@ -6,7 +7,6 @@ import {
 import { requestIdentity, requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import type { listDiscovery } from "./discovery";
-import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import { wikiPageHref } from "./wiki-links";
 
 type DiscoveryKind = "opportunities" | "customer-segments";
@@ -125,9 +125,7 @@ export function discoveryView(
 }
 
 type WikiCollection =
-  Awaited<
-    ReturnType<ReturnType<typeof appDataContext>["apps"]["database"]>
-  > extends { collection(name: string): infer C }
+  GraphDatabase extends { collection(name: string): infer C }
     ? C
     : never;
 async function listAll(
@@ -235,7 +233,7 @@ export async function readDiscoveryPage(
   url: URL,
   recordId = "",
 ) {
-  const database = await appDataContext(host).apps.database("wiki-map");
+  const database = await graphDatabase(host);
   const types = database.collection("types");
   const nodes = database.collection("nodes");
   const edges = database.collection("edges");
@@ -305,7 +303,7 @@ export function demoDiscoveryPage(
   };
   return discoveryView(
     {
-      wiki: { installationId: "demo", hostname: null, slug: "wiki-map", writable: false },
+      wiki: { installationId: "demo", hostname: null, slug: "onto", writable: false },
       records: [record],
       graph: { nodes: [record], edges: [], types: [] },
     },

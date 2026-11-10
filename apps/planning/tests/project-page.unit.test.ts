@@ -74,7 +74,7 @@ test("directory reads issue summaries only and leaves editing issues unloaded", 
   assert.deepEqual(issues.input.select, ["projectId", "status"]);
   assert.deepEqual(
     calls.filter((call) => call.operation === "entities.types").map((call) => call.input),
-    [{ installationId: "planning" }, { template: "wiki-map" }],
+    [{ installationId: "planning" }, { template: "onto", requireTypes: true }],
   );
   await assert.rejects(
     readProjectPage(host, "foreign"),

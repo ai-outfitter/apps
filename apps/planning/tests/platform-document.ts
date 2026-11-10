@@ -7,23 +7,25 @@ type Caller = { call(path: string, member?: Member, init?: { method?: string; bo
 type Published = { name: string; query: string; federation?: { collection: string; cursorVariable: string; provenance?: string } };
 
 const published = JSON.parse(readFileSync(new URL("../graph/documents.json", import.meta.url), "utf8")) as Published[];
-const emptyWiki = { version: 1, installationId: "wiki", types: [], nodes: [], edges: [], selection: null, truncated: false, missingTypes: [] };
+// Keep the fixture installation ID stable; Onto is the current graph provider.
+const emptyOnto = { version: 1, installationId: "wiki", types: [], nodes: [], edges: [], selection: null, truncated: false, missingTypes: [] };
 
 /**
- * An installed but empty Onto for a test host: graph discovery finds it and
- * `graph.query` answers with the SDK's own engine, as the Wiki does, and it lists no
+ * An installed but empty Onto graph for a test host: provider discovery finds it and
+ * `graph.query` answers with the SDK's own engine, as Onto does, and it lists no
  * records. Undefined for
  * every other call, which the host answers itself.
  */
-export async function emptyWikiAnswer(operation: string, raw: unknown): Promise<WorkflowHostResult | undefined> {
+export async function emptyOntoAnswer(operation: string, raw: unknown): Promise<WorkflowHostResult | undefined> {
   const input = (raw ?? {}) as Record<string, unknown>;
+  if (operation === "entities.types" && input.template === "wiki-map") return { ok: true, value: [] };
   if (operation === "entities.types" && input.template === "onto")
     return { ok: true, value: ["graph-type", "graph-node", "graph-edge"].map((type) => ({
-      type, installationId: "wiki", template: "onto", hostname: "wiki.alpha.localhost", writable: false,
+      type, installationId: "wiki", template: "onto", hostname: "onto.alpha.localhost", writable: false,
       collection: { "graph-type": "types", "graph-node": "nodes", "graph-edge": "edges" }[type], title: type, description: "", schema: {},
     })) };
   if (operation === "actions.call" && input.installationId === "wiki" && input.action === "graph.query")
-    return { ok: true, value: await queryGraph(emptyWiki as never, input.input as never) };
+    return { ok: true, value: await queryGraph(emptyOnto as never, input.input as never) };
   if (operation === "entities.list" && input.installationId === "wiki") return { ok: true, value: [] };
   if (operation === "entities.get" && input.installationId === "wiki") return { ok: false, status: 404, message: "Missing" };
   return undefined;
@@ -81,12 +83,12 @@ export async function answerPlatformDocument(app: Caller, member: Member, scope:
 
 /**
  * A Planning test host with the platform's side added: `platform.document` and an
- * empty Wiki are answered here (and shown to `observe`); every other call goes to `host`.
+ * empty Onto graph are answered here (and shown to `observe`); every other call goes to `host`.
  */
 export function withPlatform(app: Caller, member: () => Member, scope: WorkflowHostScope, host: WorkflowHostStub, observe?: (operation: string, raw: unknown) => void): WorkflowHostStub {
   return {
     async call(operation, raw) {
-      const answer = operation === "platform.document" ? await answerPlatformDocument(app, member(), scope, raw) : await emptyWikiAnswer(operation, raw);
+      const answer = operation === "platform.document" ? await answerPlatformDocument(app, member(), scope, raw) : await emptyOntoAnswer(operation, raw);
       if (!answer) return host.call(operation, raw);
       observe?.(operation, raw);
       return answer;

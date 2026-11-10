@@ -138,7 +138,7 @@ test("Discovery scoped collections select relevant records and deduplicate neigh
               ok: true,
               value: ["graph-type", "graph-node", "graph-edge"].map((type) => ({
                 installationId: "wiki",
-                template: "wiki-map",
+                template: "onto",
                 collection:
                   type === "graph-type"
                     ? "types"
@@ -151,7 +151,7 @@ test("Discovery scoped collections select relevant records and deduplicate neigh
                 title: type,
                 description: "",
                 schema: {},
-              })),
+              })).filter((type) => !input.template || type.template === input.template),
             };
           if (input.installationId !== "wiki")
             return { ok: false, status: 403, message: "Outside scope" };
@@ -189,9 +189,9 @@ test("Discovery scoped collections select relevant records and deduplicate neigh
   );
   assert.equal(page.records[0].title, "A user problem");
   assert.equal(page.records[0].related[0].title, "Team");
-  assert.equal(
-    calls.filter((call) => call.operation === "entities.types").length,
-    1,
+  assert.deepEqual(
+    calls.filter((call) => call.operation === "entities.types").map((call) => call.input),
+    [{ template: "onto", requireTypes: true }, { template: "wiki-map" }],
   );
   const lists = calls.filter((call) => call.operation === "entities.list");
   assert.deepEqual(

@@ -58,17 +58,37 @@ jobs:
       - uses: docker://rhysd/actionlint:1.7.12
 
   apps:
+    name: Catalog apps
     uses: ./.github/workflows/check.yml
     with:
       config-path: .outfitter/apps.json
-  # Installations that follow main (Outfitter installation settings) build and
-  # install each push to main that passed its app's checks; others keep releases.
+      app-set: catalog
+      catalog-apps: '["apps/hr","apps/html-starter","apps/onto","apps/software-foundry","apps/wiki","apps/workshop"]'
+  source-apps:
+    name: Source apps
+    uses: ./.github/workflows/check.yml
+    with:
+      config-path: .outfitter/apps.json
+      app-set: source
+      catalog-apps: '["apps/hr","apps/html-starter","apps/onto","apps/software-foundry","apps/wiki","apps/workshop"]'
+  # Publish the exact checked bytes once; the platform registry reconciles
+  # catalog/demo targets and eligible installations without a webapp release.
   deploy:
     needs: apps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.has_apps == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.catalog_apps != '[]'
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/catalog-deploy.yml
+    with:
+      apps: ${{ needs.apps.outputs.catalog_apps }}
+  deploy-source-apps:
+    needs: source-apps
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.source-apps.outputs.non_catalog_apps != '[]'
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/deploy.yml
     with:
-      apps: ${{ needs.apps.outputs.apps }}
+      apps: ${{ needs.source-apps.outputs.non_catalog_apps }}

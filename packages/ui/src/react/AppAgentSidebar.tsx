@@ -585,7 +585,7 @@ export default function AppAgentSidebar({
           Share with the organization (cannot be changed later)
         </label>
       ) : null}
-      {thread ? <p className="agent-thread-scope">{thread.visibility === "organization" ? "Shared with the organization" : "Private to you"}</p> : null}
+      {thread?.visibility === "organization" ? <p className="agent-thread-scope">Shared with the organization</p> : null}
       {thread?.parent ? <button type="button" className="ui-button ui-button--secondary" onClick={() => void openRef({ id: thread.parent!.id })}>Back to parent conversation</button> : null}
       {children.length ? (
         <details className="agent-children">
@@ -648,8 +648,8 @@ export default function AppAgentSidebar({
       composerActions={
         <>
           {navigation}
-          {!conversationNavigation && thread ? (
-            <p className="agent-thread-summary">{thread.visibility === "organization" ? "Shared with the organization" : "Private to you"}</p>
+          {!conversationNavigation && thread?.visibility === "organization" ? (
+            <p className="agent-thread-summary">Shared with the organization</p>
           ) : null}
           {info?.unresolved?.some((proposal) => proposal.threadId !== thread?.id) ? (
             <section className="agent-unresolved" aria-label="Unresolved actions">

@@ -699,8 +699,9 @@ test("intake options read active work gates through the host's own input schemas
       const input = parsed.data as Record<string, unknown>;
       if (name === "entities.types")
         return [
-          { type: "graph-type", collection: "types", template: "wiki-map", installationId: "wiki", writable: true },
-          { type: "graph-node", collection: "nodes", template: "wiki-map", installationId: "wiki", writable: true },
+          { type: "graph-type", collection: "types", template: "onto", installationId: "wiki", writable: true },
+          { type: "graph-node", collection: "nodes", template: "onto", installationId: "wiki", writable: true },
+          { type: "graph-edge", collection: "edges", template: "onto", installationId: "wiki", writable: true },
         ].filter((item) => !input.template || item.template === input.template);
       if (name === "entities.list" && input.type === "graph-type")
         return [{ ref: { installationId: "wiki", type: "graph-type", id: "control-type" }, title: "DecisionControlV4", revision: 1, attributes: {}, references: [] }];

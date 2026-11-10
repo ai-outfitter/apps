@@ -1,0 +1,37 @@
+name: Publish checked app catalog
+on:
+  workflow_call:
+    inputs:
+      apps:
+        description: Checked registered app paths (JSON array)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: catalog-publish-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'ai-outfitter/apps' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: outfitter
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: catalog-*-${{ github.run_id }}-*
+          path: checked-catalog
+      - name: Publish checked artifacts
+        env:
+          DEPLOY_BRANCH: main
+          SELECTED_APPS: ${{ inputs.apps }}
+        run: node scripts/catalog-publication.mjs publish-all checked-catalog

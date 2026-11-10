@@ -137,11 +137,12 @@ for (const width of [1440, 390])
         page.locator("#project-cards .planning-org-project").filter({ hasText: "Server rendered project" }).locator(".planning-status"),
       ).toBeVisible();
       await expect(page.getByText("Other organization project")).toHaveCount(0);
-      // Graph discovery once per request: the page itself (Onto, then the legacy
-      // Wiki), and the Projects and OrganizationGoals documents it reads through the platform.
-      expect(
-        queries.filter((q) => q.operation === "entities.types").map((q) => q.input),
-      ).toEqual([{ template: "onto", requireTypes: true }, { template: "wiki-map" }, { template: "wiki-map" }, { template: "wiki-map" }]);
+      // Onto discovery and legacy-source metadata once per request: the page itself, and the Projects and
+      // OrganizationGoals documents it reads through the platform.
+      const discovery = queries.filter((q) => q.operation === "entities.types").map((q) => q.input);
+      expect(discovery).toHaveLength(6);
+      expect(discovery.filter((input) => input.template === "onto")).toEqual(Array.from({ length: 3 }, () => ({ template: "onto", requireTypes: true })));
+      expect(discovery.filter((input) => input.template === "wiki-map")).toEqual(Array.from({ length: 3 }, () => ({ template: "wiki-map" })));
       await page.screenshot({ path: test.info().outputPath(`projects-${width}.png`), fullPage: true });
       queries.length = 0;
       expect(

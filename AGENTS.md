@@ -26,7 +26,7 @@ the served source SHA and actual page/assets before reporting a preview as live.
 The public SDK is canonical here. App builders and test hosts must work without
 private webapp source. Release-please owns package versions and dependency bumps.
 
-Production app releases notify Outfitter through OIDC after component release-please publication. Notifications record releases and requested updates; the platform scheduled tick dispatches hosted builds and activation. Ordinary pushes and CI artifacts are not production deployment inputs. Keep independent preview builds in app CI. This crossover is gated on deployed platform support and actual installation receipts. Do not add
+Official catalog apps publish their exact checked demo and operational packages from successful default-branch app CI through GitHub OIDC. Publication runs separately from app builds, with no deployment credentials in the build job. The platform verifies repository identity, default-branch source and workflow run, stores immutable artifacts, and reconciles eligible installations through the ordinary deployment lifecycle. Catalog artifact hashes and the moving main channel belong in the platform registry, never version-pin promotion PRs in webapp. Component releases remain available for consumers that explicitly select releases; they are not a prerequisite for main-following catalog deployment. Personal repositories retain the shared source-build deployment path. Keep independent preview builds in app CI. This crossover is gated on deployed platform support and actual installation receipts. Do not add
 deployment enablement flags. SaaS is the default destination; self-hosting changes
 the destination and runner reachability, not the repository identity contract.
 

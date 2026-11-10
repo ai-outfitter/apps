@@ -1,3 +1,4 @@
+import { graphDatabase, type GraphDatabase } from "./graph-database";
 /**
  * The organization's goals and the metrics that measure them, for the projects page
  * and the OrganizationGoals document. The Wiki owns them: the Organization page
@@ -6,7 +7,6 @@
  * goal's `measured_by` metrics. A personal installation has no organization and
  * answers nothing; so does an organization whose Wiki has no bound page.
  */
-import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 
 type Host = WorkflowHost<"interactive">;
@@ -30,7 +30,7 @@ type Projection = {
 };
 
 /** The one active Organization page bound to `organizationId`; none when missing or ambiguous. */
-async function boundOrganization(wiki: Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["database"]>>, organizationId: string) {
+async function boundOrganization(wiki: GraphDatabase, organizationId: string) {
   const [type] = await wiki.collection("types").list({ where: { name: "Organization", category: "node", archived: false }, select: ["name"], limit: 2 });
   if (!type) return null;
   const bound: string[] = [];
@@ -46,7 +46,7 @@ async function boundOrganization(wiki: Awaited<ReturnType<ReturnType<typeof appD
 }
 
 /** `measured_by` metrics of these goals, by goal id. */
-async function metricsOf(wiki: Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["database"]>>, goalIds: string[]) {
+async function metricsOf(wiki: GraphDatabase, goalIds: string[]) {
   const metrics = new Map<string, GoalMetric[]>(goalIds.map((id) => [id, []]));
   if (!goalIds.length) return metrics;
   const [relation] = await wiki.collection("types").list({ where: { name: "measured_by", category: "edge", archived: false }, select: ["name"], limit: 2 });
@@ -68,11 +68,11 @@ async function metricsOf(wiki: Awaited<ReturnType<ReturnType<typeof appDataConte
 
 export async function readOrganizationGoals(host: Host, identity: { organizationId?: string }): Promise<OrganizationGoals | null> {
   if (!identity.organizationId) return null;
-  let wiki: Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["database"]>>;
+  let wiki: GraphDatabase;
   try {
-    wiki = await appDataContext(host).apps.database("wiki-map");
+    wiki = await graphDatabase(host);
   } catch (error) {
-    if (error instanceof Response && [404, 409].includes(error.status)) return null;
+    if (error instanceof Response && error.status === 404) return null;
     throw error;
   }
   const organizationNode = await boundOrganization(wiki, identity.organizationId);
