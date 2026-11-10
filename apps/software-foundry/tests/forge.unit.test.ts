@@ -282,6 +282,10 @@ test("approval reuse re-reads the current independent formal review and rejects 
     await assert.rejects(forge.approval(candidate, review), (error: unknown) => error instanceof Response && error.status === 409);
   }
   reviews[0].state = "APPROVED";
+  // A later comment-only review by the reviewer's account leaves the approval current.
+  reviews.push({ ...reviews[0], id: 9, state: "COMMENTED" });
+  await forge.approval(candidate, review);
+  reviews.pop();
   reviews.push({ ...reviews[0], id: 9 });
   await assert.rejects(forge.approval(candidate, review), (error: unknown) => error instanceof Response && error.status === 409);
   reviews.pop();

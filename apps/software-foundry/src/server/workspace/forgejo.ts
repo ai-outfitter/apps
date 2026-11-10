@@ -142,7 +142,8 @@ export class ForgejoFoundryForge {
     const reviews = await this.api(this.path(`/pulls/${candidate.number}/reviews?limit=${page}`));
     if (reviews.length >= page) throw conflict("Review history exceeds safe merge limit");
     const latest = reviews
-      .filter((item: any) => item.user?.id === review.reviewer.id && item.state !== "PENDING" && !item.dismissed)
+      .filter((item: any) => item.user?.id === review.reviewer.id && item.state !== "PENDING" && !item.dismissed &&
+        (item.state !== "COMMENT" || item.id === review.id))
       .sort((a: any, b: any) => b.id - a.id)[0];
     if (!latest || latest.id !== review.id || latest.state !== "APPROVED" || latest.commit_id !== candidate.headSha ||
       latest.stale || pull.user.id === review.reviewer.id)

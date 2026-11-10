@@ -293,10 +293,13 @@ export class GithubFoundryForge {
     );
     if (reviews.length === 100)
       throw conflict("Review history exceeds safe merge limit");
+    // A later comment-only review by the same account (another agent signed in
+    // as the reviewer) does not change GitHub's approval state, so it is not the latest verdict.
     const latest = reviews
       .filter(
         (item: any) =>
-          item.user.id === review.reviewer.id && item.state !== "PENDING",
+          item.user.id === review.reviewer.id && item.state !== "PENDING" &&
+          (item.state !== "COMMENTED" || item.id === review.id),
       )
       .sort((a: any, b: any) => b.id - a.id)[0];
     if (
