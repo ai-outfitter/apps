@@ -293,20 +293,22 @@ export class GithubFoundryForge {
     );
     if (reviews.length === 100)
       throw conflict("Review history exceeds safe merge limit");
-    // A later comment-only review by the same account (another agent signed in
-    // as the reviewer) does not change GitHub's approval state, so it is not the latest verdict.
-    const latest = reviews
-      .filter(
-        (item: any) =>
-          item.user.id === review.reviewer.id && item.state !== "PENDING" &&
-          (item.state !== "COMMENTED" || item.id === review.id),
-      )
-      .sort((a: any, b: any) => b.id - a.id)[0];
+    // Other agents can sign in as the reviewer account. Their later comments or
+    // approvals of the same head leave Foundry's approval standing; a later
+    // change request, dismissal, or approval of another commit does not.
+    const own = reviews.find((item: any) => item.id === review.id);
+    const revoked = reviews.some(
+      (item: any) =>
+        item.user.id === review.reviewer.id && item.id > review.id &&
+        !["PENDING", "COMMENTED"].includes(item.state) &&
+        (item.state !== "APPROVED" || item.commit_id !== candidate.headSha),
+    );
     if (
-      !latest ||
-      latest.id !== review.id ||
-      latest.state !== "APPROVED" ||
-      latest.commit_id !== candidate.headSha ||
+      !own ||
+      own.user.id !== review.reviewer.id ||
+      own.state !== "APPROVED" ||
+      own.commit_id !== candidate.headSha ||
+      revoked ||
       pull.user.id === review.reviewer.id
     )
       throw conflict("Current independent formal approval required");

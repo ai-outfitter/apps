@@ -141,12 +141,13 @@ export class ForgejoFoundryForge {
   private async requireApproval(candidate: ChangeReceipt, review: ReviewReceipt, pull: any) {
     const reviews = await this.api(this.path(`/pulls/${candidate.number}/reviews?limit=${page}`));
     if (reviews.length >= page) throw conflict("Review history exceeds safe merge limit");
-    const latest = reviews
-      .filter((item: any) => item.user?.id === review.reviewer.id && item.state !== "PENDING" && !item.dismissed &&
-        (item.state !== "COMMENT" || item.id === review.id))
-      .sort((a: any, b: any) => b.id - a.id)[0];
-    if (!latest || latest.id !== review.id || latest.state !== "APPROVED" || latest.commit_id !== candidate.headSha ||
-      latest.stale || pull.user.id === review.reviewer.id)
+    // Later comments or same-head approvals by the reviewer account leave the approval standing.
+    const own = reviews.find((item: any) => item.id === review.id);
+    const revoked = reviews.some((item: any) => item.user?.id === review.reviewer.id && item.id > review.id &&
+      !["PENDING", "COMMENT"].includes(item.state) &&
+      (item.dismissed || item.state !== "APPROVED" || item.commit_id !== candidate.headSha));
+    if (!own || own.user?.id !== review.reviewer.id || own.state !== "APPROVED" || own.dismissed || own.stale ||
+      own.commit_id !== candidate.headSha || revoked || pull.user.id === review.reviewer.id)
       throw conflict("Current independent formal approval required");
   }
 
