@@ -84,3 +84,25 @@ test(`${slug} shows the whole assembly, its BOM with firmware, and units by MAC 
     await worker.dispose();
   }
 });
+
+test(`${slug} box screenshots show the whole 3D view below the project`, async ({ page }) => {
+  const { workbenchScreenshot } = await import("../box/screenshots.mjs");
+  const worker = await appWorker(slug, appArtifact(new URL("..", import.meta.url), "demo"));
+  const origin = `https://${slug}.outfitter.example`;
+  await routeReadOnly(page, origin, worker);
+  try {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(`${origin}/projects/sensor-mount-study-000000000101/design`);
+    await expect(page.locator("#viewer")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    const png = await workbenchScreenshot(page);
+    const card = await page.locator(".viewer-card").filter({ has: page.locator("#viewer") }).boundingBox();
+    const shots = process.env.WORKSHOP_SCREENSHOTS;
+    if (shots) await import("node:fs").then(({ writeFileSync }) => writeFileSync(`${shots}/workbench.png`, png));
+    // The PNG's height (IHDR) reaches past the bottom of the 3D view.
+    expect(card).not.toBeNull();
+    expect(png.readUInt32BE(20)).toBeGreaterThanOrEqual(Math.ceil(card!.y + card!.height));
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await worker.dispose();
+  }
+});
