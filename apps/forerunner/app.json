@@ -1,6 +1,6 @@
 {
   "id": "outfitter/forerunner",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "modes": {
@@ -78,8 +78,8 @@
     "presentation": {
       "outcome": "Keep your highest priorities moving with a private board of stones, pebbles and sand.",
       "connectors": [
-        "Gmail \u00b7 unavailable",
-        "Google Calendar \u00b7 unavailable"
+        "Gmail · unavailable",
+        "Google Calendar · unavailable"
       ],
       "steps": [
         [
