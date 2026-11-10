@@ -50,8 +50,11 @@ export async function openWorkbench(box, cookie) {
           .then(() => true, () => false);
         // The frame after the model is added, not the one before.
         await page.waitForTimeout(1000);
-        // The whole page: the viewer sits below the project's description, past the first screen.
-        return { png: await page.screenshot({ fullPage: true }), ready };
+        // The page's main pane scrolls on its own, so a full-page capture is only the window:
+        // scroll the 3D view into the window first. The sidebar and the workbench stay in view.
+        await page.locator(".viewer-card").scrollIntoViewIfNeeded().catch(() => undefined);
+        await page.waitForTimeout(300);
+        return { png: await page.screenshot(), ready };
       } finally {
         await page.close();
       }
