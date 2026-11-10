@@ -63,7 +63,7 @@ test("export.ts builds the model with Workshop's geometry, and the driver's docu
   const result = designResult({ request, project, geometry, bom, files, screenshots, commitSha: "a".repeat(40), model,
     startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
   assert.equal(DesignResult.parse(result).status, "designed");
-  assert.equal(result.screenshots[0].path, `screenshots/${request.requestId}/1-design.png`);
+  assert.equal(result.screenshots?.[0]?.path, `screenshots/${request.requestId}/1-design.png`);
   assert.equal(screenshotName(2, "follow-up 1"), "2-follow-up-1.png");
   assert.equal(workbenchPath(project), `/projects/${project.id.slice(-12)}/design`);
   const failed = designResult({ request, model, error: new Error("The design agent answered 502"), startedAt: result.startedAt, finishedAt: result.finishedAt });
