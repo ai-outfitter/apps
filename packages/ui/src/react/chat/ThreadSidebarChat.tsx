@@ -137,7 +137,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
       agent={{ name: label }}
       focus={null}
       scope={{
-        intro: "Ask Outfitter anything while you work. This thread is saved and private to you.",
+        intro: "Ask Outfitter anything while you work.",
         limits: "Outfitter can't see or change this page.",
       }}
       conversation={selected ? { id: selected.id, messages, status, error: error ? error.message || "Could not send your message." : undefined, notice } : null}

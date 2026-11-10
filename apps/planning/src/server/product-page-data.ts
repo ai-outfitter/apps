@@ -56,7 +56,7 @@ export async function readProductPage(
   if (!identity.organizationId)
     throw new Response("An organization scope is required", { status: 400 });
   const wiki = await defaultWiki(host);
-  const db = await appDataContext(host).apps.database("wiki-map");
+  const db = await appDataContext(host).apps.installation(wiki.installationId);
   const types = await db
     .collection("types")
     .list({ where: { name: "Organization", archived: false }, limit: 2 });

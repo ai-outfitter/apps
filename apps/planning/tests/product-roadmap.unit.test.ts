@@ -14,8 +14,8 @@ test("selects the current organization's latest quarterly roadmap and excludes f
     record("foreign", { typeId: "plan", body: json({ organization_id: "other", kind: "product_roadmap_lifecycle", sections: [] }) }),
   ];
   const context = { apps: { database: async () => ({ collection: (name: string) => ({ list: async ({ where }: { where: { typeId?: string } }) => (name === "types" ? types : nodes.filter(n => n.attributes.typeId === where.typeId)), get: async (id: string) => nodes.find(n => n.ref.id === id) }) }) } };
-  const result = await readProductRoadmap(context as never, "artera");
+  const result = await readProductRoadmap(await context.apps.database() as never, "artera");
   assert.equal(result?.id, "good");
   assert.equal(result?.status, "draft");
-  assert.equal(await readProductRoadmap(context as never, "other"), null);
+  assert.equal(await readProductRoadmap(await context.apps.database() as never, "other"), null);
 });

@@ -1,3 +1,4 @@
+import { graphDatabase, type GraphDatabase } from "./graph-database";
 import { z } from "zod";
 import { readProductRoadmap } from "./product-roadmap";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
@@ -398,12 +399,15 @@ async function readProductSources(
   graph: Omit<Awaited<ReturnType<typeof readWikiGraph>>, "snapshot"> & { truncated: boolean };
   projects: EntityRecord[];
   context: ReturnType<typeof appDataContext>;
+  graphDatabase: GraphDatabase;
 }> {
   const host = c.host();
   const context = appDataContext(host);
-  const [graph, planning] = await Promise.all([
-    readScopedOrganizationGraph(context, c.identity),
+  const database = graphDatabase(host);
+  const [graph, planning, graphDb] = await Promise.all([
+    database.then((db) => readScopedOrganizationGraph(db, c.identity)),
     context.apps.installation(c.identity.installationId),
+    database,
   ]);
   const projects: EntityRecord[] = [];
   for (let offset = 0; ; offset += 100) {
@@ -413,7 +417,7 @@ async function readProductSources(
     projects.push(...page);
     if (page.length < 100) break;
   }
-  return { graph, projects, context };
+  return { graph, projects, context, graphDatabase: graphDb };
 }
 export async function readProductGraphs(
   c: Pick<PlanningReadContext, "identity" | "db" | "host">,
@@ -430,7 +434,7 @@ export async function readProductHome(
   c: Pick<PlanningReadContext, "identity" | "db" | "host">,
   url: URL,
 ) {
-  const { graph, projects, context } = await readProductSources(c);
+  const { graph, projects, context, graphDatabase } = await readProductSources(c);
   const selected = selectProductGraphs(graph, c.identity, {}, projects, true);
   const setup =
     !selected.organization ||
@@ -444,7 +448,7 @@ export async function readProductHome(
   );
   return {
     progress: await readOrganizationProgress(context, c.identity, graph),
-    roadmap: selected.organization ? await readProductRoadmap(context, selected.organization.ref.id) : null,
+    roadmap: selected.organization ? await readProductRoadmap(graphDatabase, selected.organization.ref.id) : null,
     roadmapWikiBase: wikiPageHref(graph.wiki, url, "plans/"),
     wiki: graph.wiki,
     setup,

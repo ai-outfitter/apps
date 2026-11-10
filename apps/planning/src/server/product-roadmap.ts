@@ -1,7 +1,6 @@
-import type { appDataContext } from "@ai-outfitter/app-sdk/database";
+import type { GraphDatabase } from "./graph-database";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 
-type Context = ReturnType<typeof appDataContext>;
 const active = (r: EntityRecord) => !r.attributes.archived && !r.attributes.archivedAt;
 function body(record: EntityRecord): Record<string, unknown> {
   try {
@@ -16,8 +15,7 @@ function sections(value: unknown) {
 }
 
 /** Follow the quarterly product control's projected occurrence to its own plan. */
-export async function readProductRoadmap(context: Context, organizationId: string) {
-  const db = await context.apps.database("wiki-map");
+export async function readProductRoadmap(db: GraphDatabase, organizationId: string) {
   async function list(collection: "types" | "nodes", where: Record<string, unknown>) {
     const records: EntityRecord[] = [];
     for (let offset = 0; ; offset += 100) {

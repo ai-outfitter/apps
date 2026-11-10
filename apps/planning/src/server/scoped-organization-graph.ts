@@ -23,11 +23,10 @@ const nodeFields = [
 
 /** Read only the saved overview's bounded neighborhoods through published collections. */
 export async function readScopedOrganizationGraph(
-  context: Context,
+  database: Database,
   identity: AppIdentity,
 ) {
   const who = requireOrganization(identity);
-  const database = await context.apps.database("wiki-map");
   async function list(
     collection: ReturnType<Database["collection"]>,
     options: Parameters<ReturnType<Database["collection"]>["list"]>[0],

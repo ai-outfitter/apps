@@ -68,7 +68,7 @@
     "cover": "catalog/cover.png"
   },
   "dependencies": [
-    "wiki-map",
+    "onto",
     "governance"
   ],
   "initialize": true
