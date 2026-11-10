@@ -21,6 +21,11 @@ const row = (
   attributes,
   references,
 });
+function matchesProvider(provider: { template?: string; installationId: string }, raw: unknown) {
+  const selector = (raw ?? {}) as { template?: string; installationId?: string };
+  return (!selector.template || provider.template === selector.template) &&
+    (!selector.installationId || provider.installationId === selector.installationId);
+}
 async function fixture(
   page: Page,
   mode: "products" | "empty" | "failure" | "anonymous" | "unauthorized" | "forbidden" = "products",
@@ -121,8 +126,8 @@ async function fixture(
                   (type, i) => ({
                     installationId: "wiki",
                     type,
-                    template: "wiki-map",
-                    slug: "wiki",
+                    template: "onto",
+                    slug: "onto",
                     collection: ["types", "nodes", "edges"][i],
                     title: type,
                     description: "fixture",
@@ -140,7 +145,7 @@ async function fixture(
                   schema: {},
                   writable: true,
                 },
-              ],
+              ].filter((provider) => matchesProvider(provider, raw)),
             };
           }
           if (operation === "actions.call") return { ok: true, value: wikiGraphFixture("wiki", { types, nodes, edges }) };
@@ -324,10 +329,10 @@ for (const width of [1440, 390])
       ).toBeVisible();
       await expect(
         page.getByRole("link", { name: "Team planning", exact: true }),
-      ).toHaveAttribute("href", `/apps/wiki/products/${uuid(10)}`);
+      ).toHaveAttribute("href", `/apps/onto/products/${uuid(10)}`);
       await expect(
         page.getByRole("link", { name: "Team plan", exact: true }),
-      ).toHaveAttribute("href", `/apps/wiki/offerings/${uuid(30)}`);
+      ).toHaveAttribute("href", `/apps/onto/offerings/${uuid(30)}`);
       const projects = page.getByRole("table", {
         name: "Projects for Team planning",
       });
@@ -337,7 +342,7 @@ for (const width of [1440, 390])
       ).toHaveAttribute("href", `./projects/${projectId}`);
       await expect(
         projects.getByRole("link", { name: "Wiki-only project", exact: true }),
-      ).toHaveAttribute("href", `/apps/wiki/projects/${uuid(32)}`);
+      ).toHaveAttribute("href", `/apps/onto/projects/${uuid(32)}`);
       await expect(page.getByText("No projects linked yet.")).toHaveCount(7);
       await expect(
         page.getByText("Other company product", { exact: true }),
@@ -348,6 +353,7 @@ for (const width of [1440, 390])
       await page.screenshot({ path: test.info().outputPath(`product-${width}.png`), fullPage: true });
       expect(requests).toEqual([]);
       expect(discoveryInputs).toEqual([
+        { template: "onto", requireTypes: true },
         { template: "wiki-map" },
         { installationId: "planning-home-ssr" },
       ]);

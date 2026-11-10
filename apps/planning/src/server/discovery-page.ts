@@ -1,3 +1,4 @@
+import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import {
   workflowHost,
@@ -235,7 +236,7 @@ export async function readDiscoveryPage(
   url: URL,
   recordId = "",
 ) {
-  const database = await appDataContext(host).apps.database("wiki-map");
+  const database = await appDataContext(host).apps.installation((await defaultWiki(host)).installationId);
   const types = database.collection("types");
   const nodes = database.collection("nodes");
   const edges = database.collection("edges");

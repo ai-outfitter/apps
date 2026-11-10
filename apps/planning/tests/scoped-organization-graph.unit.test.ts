@@ -119,7 +119,7 @@ test("filtered product provenance reads a foreign offering's provider even outsi
     f.edge("package", "packages_product", "foreign-offering", "product"),
     f.edge("provider", "offered_by", "foreign-offering", "foreign-org"),
   );
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert(graph.edges.some((edge) => edge.ref.id === "provider"));
   assert(
     f.queries.some(
@@ -148,7 +148,7 @@ test("retired projects do not consume the saved overview's selection bound", asy
   }
   f.nodes.push(f.node("active-project", "Project"));
   f.edges.push(f.edge("current", "part_of", "active-project", "org-node"));
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert.equal(graph.truncated, false);
   assert(graph.nodes.some((node) => node.ref.id === "active-project"));
 });
@@ -158,7 +158,7 @@ test("dense neighborhoods surface truncation instead of false missing-context ga
     f.nodes.push(f.node(`project-${i}`, "Project"));
     f.edges.push(f.edge(`edge-${i}`, "part_of", `project-${i}`, "org-node"));
   }
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert.equal(graph.truncated, true);
   const result = productGraphs(graph, who, {});
   assert(result.gaps.some((gap) => gap.code === "truncated-overview"));
@@ -188,7 +188,7 @@ test("company lookup metadata does not consume the scoped traversal node budget"
   for (let i = 0; i < 1100; i++) f.nodes.push(f.node(`company-${i}`, "Organization"));
   f.nodes.push(f.node("our-project", "Project"), f.node("our-product", "Product"));
   f.edges.push(f.edge("own-project", "part_of", "our-project", "org-node"), f.edge("own-output", "produces", "our-project", "our-product"));
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert.equal(graph.truncated, false);
   assert(graph.nodes.some(node => node.ref.id === "our-product"));
   assert(!f.gets.some(id => id.startsWith("company-")));
@@ -209,7 +209,7 @@ test("direction guards and the depth limit prevent irrelevant endpoint fanout", 
     f.nodes.push(f.node(`unrelated-${i}`, "Product"));
     f.edges.push(f.edge(`wrong-direction-${i}`, "addresses", `unrelated-${i}`, "org-node"), f.edge(`beyond-depth-${i}`, "addresses", "scoped-problem", `unrelated-${i}`), f.edge(`wrong-source-type-${i}`, "produces", "org-node", `unrelated-${i}`));
   }
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert.equal(graph.truncated, false);
   assert.deepEqual(f.gets.sort(), ["org-node", "scoped-problem"]);
   assert(!f.queries.some(input => (input.filter as Record<string, unknown>)?.nodeId === "scoped-problem"));
@@ -224,7 +224,7 @@ test("retired duplicate bindings and same-slug non-graph nodes do not prevent va
   wrongLens.attributes.slug = "organization-overview";
   f.nodes.push(retired, wrongLens, f.node("current-project", "Project"));
   f.edges.push(f.edge("current-membership", "part_of", "current-project", "org-node"));
-  const graph = await readScopedOrganizationGraph(f.context, who);
+  const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert(graph.edges.some(edge => edge.ref.id === "current-membership"));
   assert(!graph.nodes.some(node => node.ref.id === retired.ref.id));
   const result = productGraphs(graph, who, {});

@@ -1,3 +1,4 @@
+import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 /**
  * The organization's goals and the metrics that measure them, for the projects page
  * and the OrganizationGoals document. The Wiki owns them: the Organization page
@@ -70,9 +71,9 @@ export async function readOrganizationGoals(host: Host, identity: { organization
   if (!identity.organizationId) return null;
   let wiki: Awaited<ReturnType<ReturnType<typeof appDataContext>["apps"]["database"]>>;
   try {
-    wiki = await appDataContext(host).apps.database("wiki-map");
+    wiki = await appDataContext(host).apps.installation((await defaultWiki(host)).installationId);
   } catch (error) {
-    if (error instanceof Response && [404, 409].includes(error.status)) return null;
+    if (error instanceof Response && error.status === 404) return null;
     throw error;
   }
   const organizationNode = await boundOrganization(wiki, identity.organizationId);

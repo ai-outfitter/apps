@@ -291,9 +291,10 @@ export class IntakeService {
     }
   }
   async options() {
+    const host = this.c.host();
     const [database, apps] = await Promise.all([
-      appDataContext(this.c.host()).apps.database("wiki-map"),
-      this.c.host().call("actions.list", {}),
+      defaultWiki(host).then(wiki => appDataContext(host).apps.installation(wiki.installationId)),
+      host.call("actions.list", {}),
     ]);
     const types = await database.collection("types").list({
       where: { names: ["DecisionControlV4"], archived: false },
