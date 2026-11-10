@@ -156,9 +156,9 @@ export const ProjectSchema = z
             size: z.number().min(25).max(80).optional(),
             dimensions: z
               .object({
-                width: z.number().min(1).max(200),
-                depth: z.number().min(1).max(200),
-                height: z.number().min(1).max(200),
+                width: z.number().min(1).max(300),
+                depth: z.number().min(1).max(300),
+                height: z.number().min(1).max(300),
               })
               .strict()
               .optional(),

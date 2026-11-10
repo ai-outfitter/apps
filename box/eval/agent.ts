@@ -33,6 +33,8 @@ export type BoxOptions = {
   modelEnv?: string;
   /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
   sessionsDir?: string;
+  /** One box run's limit in ms, counted from when it starts rather than while it waits its turn. */
+  runTimeoutMs?: number;
 };
 
 function git(directory: string, ...args: string[]) {
@@ -194,7 +196,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         mkdirSync(join(work, "out"));
         // The box runs as its own user; it writes results here.
         chmodSync(join(work, "out"), 0o777);
-        const ran = await runBox(box, work, options.timeout, options.signal);
+        const ran = await runBox(box, work, box.runTimeoutMs ?? options.timeout, options.signal);
         const resultFile = join(work, "out", "results", `${request.requestId.toLowerCase()}.json`);
         const result = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "utf8")) : undefined;
         // Every agent's session (box/sessions.mjs): kept beside the results, and merged for Agent Eval's transcript.
@@ -256,14 +258,18 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const runs: RunMetrics[] = [];
   const resultsDir = join(project, "results");
   const sessionsDir = join(resultsDir, experiment, "sessions");
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir }, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${experiment}.ts`));
-  // One model per experiment: the box routes every call to the model its env file names.
-  const config = { ...resolved, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
   const { fixtures, errors } = loadAllFixtures(join(project, "evals"));
   for (const error of errors) console.error(error.message);
   const chosen = selected.length ? fixtures.filter((fixture) => selected.includes(fixture.name)) : fixtures;
   if (!chosen.length) throw new Error(`No ${box.displayName} evals selected`);
+  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir,
+    runTimeoutMs: resolved.timeout * 1000 }, app, runs));
+  // One model per experiment: the box routes every call to the model its env file names. Agent Eval
+  // starts every eval's clock at once while boxes take turns, so its limit covers the whole queue
+  // and each box run keeps the experiment's timeout from when it starts.
+  const config = { ...resolved, timeout: resolved.timeout * chosen.length * (resolved.runs ?? 1),
+    model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
   console.log(`Running ${chosen.map((fixture) => fixture.name).join(", ")}; watch the box at http://outfitter.localhost:${port}`);
   const results = await runExperiment({
     config,

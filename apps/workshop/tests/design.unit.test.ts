@@ -35,3 +35,11 @@ test("a first request and a follow-up become the project's next revisions", () =
   // A preset project hands its starter shape to the model as a plan.
   assert.equal((designData("Taller", makeProject("holder")) as { currentModel: { plan: { features: unknown[] } } }).currentModel.plan.features.length, 2);
 });
+
+test("a part up to the plan limit saves: the 224 mm case base is one revision", () => {
+  const base = { name: "Case base", rationale: "A 224 x 178 x 9 mm plate.", plan: { version: 1, units: "mm", features: [
+    { kind: "box", mode: "add", origin: [-112, -89, 0], size: [224, 178, 9] },
+  ] } };
+  const project = designedProject("A case base", parseAnswer(base), undefined);
+  assert.deepEqual(project.iterations.at(-1)?.dimensions, { width: 224, depth: 178, height: 9 });
+});
