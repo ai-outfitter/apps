@@ -286,8 +286,13 @@ test("approval reuse re-reads the current independent formal review and rejects 
   reviews.push({ ...reviews[0], id: 9, state: "COMMENTED" });
   await forge.approval(candidate, review);
   reviews.pop();
+  // So does another agent's later approval of the same head.
   reviews.push({ ...reviews[0], id: 9 });
-  await assert.rejects(forge.approval(candidate, review), (error: unknown) => error instanceof Response && error.status === 409);
+  await forge.approval(candidate, review);
+  for (const later of [{ state: "CHANGES_REQUESTED" }, { state: "DISMISSED" }, { commit_id: "c".repeat(40) }]) {
+    reviews[1] = { ...reviews[0], id: 9, ...later };
+    await assert.rejects(forge.approval(candidate, review), (error: unknown) => error instanceof Response && error.status === 409);
+  }
   reviews.pop();
   pull.head.sha = "c".repeat(40);
   await assert.rejects(forge.approval(candidate, review), (error: unknown) => error instanceof Response && error.status === 409);
