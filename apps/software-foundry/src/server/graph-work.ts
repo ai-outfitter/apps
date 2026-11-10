@@ -78,7 +78,7 @@ const featureRequestTemplate: GraphTemplate = {
 const criterionBudget = 2000;
 const wikiBodyLimit = 20_000;
 
-/** A Wiki node at the revision the caller read (StartWork's root, RequestFeature's related nodes). */
+/** A Wiki node at the revision the caller read (work.start's root). */
 export const nodeWitness = z.strictObject({
   ref: entityRef.extend({ type: z.literal("graph-node") }),
   revision: z.number().int().positive(),

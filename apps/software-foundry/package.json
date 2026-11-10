@@ -29,7 +29,6 @@
     "@ai-outfitter/workflow-architecture-reanalysis": "0.1.0",
     "@ai-outfitter/workflow-dependency-review": "0.1.0",
     "@ai-outfitter/workflow-foundry-land-reviewed-change": "0.1.0",
-    "@ai-outfitter/workflow-foundry-request-intake": "0.1.0",
     "@ai-outfitter/workflow-foundry-workspace-checks": "0.1.0",
     "@ai-outfitter/workflow-issue-to-merge-actions-ci": "0.1.0",
     "@ai-outfitter/workflow-issue-to-merge-workspace": "0.1.0",

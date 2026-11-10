@@ -73,8 +73,7 @@
         "entities.read",
         "entities.write",
         "actions.invoke",
-        "platform.records",
-        "workflow.foundry-request-intake.start"
+        "platform.records"
       ]
     }
   },

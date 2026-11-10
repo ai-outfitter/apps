@@ -102,39 +102,11 @@ enum SubmitReleaseEvidenceInputAssetsItemVisibility {
   public
 }
 
-input SubmitRequestInput {
-  requestId: ID!
-  target: SubmitRequestInputTarget!
-  title: String!
-  problem: String!
-  requestedChange: String!
-  acceptanceCriteria: [String!]!
-  relatedNodes: [SubmitRequestInputRelatedNodesItem!]
-  kind: SubmitRequestInputKind!
-}
+"""The request's GitHub issue and the Foundry run working it."""
+type SubmittedRequest {
+  id: ID!
+  kind: String!
 
-input SubmitRequestInputTarget {
-  repository: String
-  project: ID
-}
-
-input SubmitRequestInputRelatedNodesItem {
-  ref: SubmitRequestInputRelatedNodesItemRef!
-  revision: Float!
-}
-
-input SubmitRequestInputRelatedNodesItemRef {
-  installationId: String!
-  type: String!
-  id: String!
-}
-
-enum SubmitRequestInputKind {
-  feature
-  bug
-}
-
-type SubmittedWork {
   """Read it back with work.get."""
   submissionId: ID!
   repository: String!
@@ -172,150 +144,44 @@ type WorkExecution {
   message: String!
 }
 
-input SubmitWorkInput {
-  target: SubmitWorkInputTarget!
-  workPackage: SubmitWorkInputWorkPackage
+input SubmitRequestInput {
   requestId: ID!
+  kind: SubmitRequestInputKind!
   title: String!
-  description: String!
-  acceptanceCriteria: [String!]!
-  issue: Float
-  context: [SubmitWorkInputContextItem!]
+  problem: String!
+  acceptanceCriteria: [SubmitRequestInputAcceptanceCriteriaItem!]!
+  bug: SubmitRequestInputBug
+  target: SubmitRequestInputTarget!
+  context: [SubmitRequestInputContextItem!]
 }
 
-input SubmitWorkInputTarget {
+enum SubmitRequestInputKind {
+  feature
+  bug
+}
+
+input SubmitRequestInputAcceptanceCriteriaItem {
+  id: String!
+  text: String!
+}
+
+input SubmitRequestInputBug {
+  stepsToReproduce: [String!]!
+  expected: String!
+  actual: String!
+  environment: String
+}
+
+input SubmitRequestInputTarget {
   repository: String
   project: String
 }
 
-input SubmitWorkInputWorkPackage {
-  version: Float!
-  rendered: String!
-  digest: String!
-  sources: [SubmitWorkInputWorkPackageSourcesItem!]!
-  criteria: [SubmitWorkInputWorkPackageCriteriaItem!]!
-  template: SubmitWorkInputWorkPackageTemplate
-}
-
-input SubmitWorkInputWorkPackageSourcesItem {
-  installationId: String!
-  type: String!
-  id: String!
-  revision: Float!
-}
-
-input SubmitWorkInputWorkPackageCriteriaItem {
-  installationId: String!
-  type: String!
-  id: String!
-  revision: Float!
-  condition: String!
-  expectedOutcome: String!
-}
-
-input SubmitWorkInputWorkPackageTemplate {
-  installationId: String!
-  type: String!
-  id: String!
-  revision: Float!
-}
-
-input SubmitWorkInputContextItem {
+input SubmitRequestInputContextItem {
   installationId: String!
   type: String!
   id: String!
   title: String
-}
-
-type StartedWork {
-  """Read it back with work.get."""
-  submissionId: ID!
-  repository: String!
-  issue: SubmittedIssue!
-  run: WorkRun
-  execution: WorkExecution
-  wikiIssue: WikiIssue!
-
-  """What the graph did not supply on this attempt; the work still started."""
-  gaps: [String!]!
-}
-
-"""
-The Wiki Issue holding the rendered request; its website is the GitHub issue.
-"""
-type WikiIssue {
-  ref: EntityRef!
-  revision: Int!
-}
-
-type EntityRef {
-  installationId: String!
-  type: String!
-  id: ID!
-}
-
-input StartWorkInput {
-  requestId: ID!
-  target: StartWorkInputTarget!
-  root: StartWorkInputRoot!
-  title: String
-}
-
-input StartWorkInputTarget {
-  repository: String
-  project: ID
-}
-
-input StartWorkInputRoot {
-  ref: StartWorkInputRootRef!
-  revision: Float!
-}
-
-input StartWorkInputRootRef {
-  installationId: String!
-  type: String!
-  id: String!
-}
-
-"""
-The Wiki FeatureRequest recording the request. No issue is opened and no work starts.
-"""
-type FeatureRequest {
-  ref: EntityRef!
-  revision: Int!
-  repository: String!
-  submittedAt: DateTime!
-
-  """
-  False when a retry with the same requestId found the request an earlier attempt recorded.
-  """
-  created: Boolean!
-}
-
-input RequestFeatureInput {
-  requestId: ID!
-  target: RequestFeatureInputTarget!
-  title: String!
-  problem: String!
-  requestedChange: String!
-  acceptanceCriteria: [String!]!
-  relatedNodes: [RequestFeatureInputRelatedNodesItem!]
-}
-
-input RequestFeatureInputTarget {
-  repository: String
-  project: ID
-}
-
-input RequestFeatureInputRelatedNodesItem {
-  ref: RequestFeatureInputRelatedNodesItemRef!
-  revision: Float!
-}
-
-input RequestFeatureInputRelatedNodesItemRef {
-  installationId: String!
-  type: String!
-  id: String!
 }
 
 input CreateProjectInput {
@@ -348,12 +214,11 @@ type Query {
   """
   changes(since: DateTime!, until: DateTime, repositories: [String!]): ChangeList!
 
-  """Read your submitted feature and bug requests."""
+  """Read your feature and bug requests with their GitHub issues."""
   requests(input: RequestsInput!): JSON
 }
 
 input RequestsInput {
-  details: Boolean
   ids: [ID!]
   search: String
   first: Int
@@ -367,38 +232,22 @@ type Mutation {
   submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
 
   """
-  Record a feature or bug request and start intake/triage. Implementation retains its own approval gates.
+  File a feature or bug request against a repository or Foundry project: kind, title, problem, acceptance criteria with ids, and for bugs steps to reproduce, expected and actual. Validated strictly against the work-request schema. Foundry opens the GitHub issue and starts its workflow, which triages, implements, reviews and merges. If execution is unavailable, returns the issue with run: null and execution details; the request is still recorded. Retry with the same requestId; changed content conflicts. Needs editor access.
   """
-  submitRequest(input: SubmitRequestInput!): JSON
-
-  """
-  Submit work to a GitHub repository accessible through your account or the organization's GitHub App. Records an issue (or a comment on an existing open issue), then starts the configured Foundry workflow. If execution is unavailable, returns the issue with run: null and execution details; the work is still recorded. An existing run is not restarted. Attribution comes from your authenticated connection. Retry only with the same requestId.
-  """
-  submitWork(input: SubmitWorkInput!): SubmittedWork!
-
-  """
-  Start Foundry work from the Wiki: name a root Wiki node (Project, UseCase, UserStory or Requirement) at its current revision and a repository or Foundry project. The Wiki flattens the knowledge graph around it through the feature request template and stores it as a Wiki Issue; Foundry then opens the GitHub issue and starts the configured workflow (as submitWork does), and the Wiki Issue links to both. The root needs at least one linked AcceptanceCriterion. Retry with the same requestId to resume. Needs an organization installation and editor access.
-  """
-  startWork(input: StartWorkInput!): StartedWork!
-
-  """
-  Record a feature request for a repository or Foundry project in this organization's Wiki: its title, problem, requested change, acceptance criteria and up to 20 related Wiki nodes. The request is attributed to your verified Person or Agent, your organization and your current Governance role; it opens no issue and starts no work. Needs an organization installation and editor access. Retry with the same requestId to resume; changed content conflicts.
-  """
-  requestFeature(input: RequestFeatureInput!): FeatureRequest!
+  submitRequest(input: SubmitRequestInput!): SubmittedRequest!
 
   """
   Add a Foundry project: a named group of repositories work can be routed to, at the lowest priority. Names are upper case and unique; repositories lower case, once each. Owners and admins only.
   """
   createProject(input: CreateProjectInput!): FoundryProject!
 
-  """Submit feature and bug requests for intake and triage"""
+  """
+  File feature and bug requests: each opens a GitHub issue and starts Foundry's workflow
+  """
   requestChanges(input: RequestChangesInput!): ChangeResults
 
   """Apply project changes using explicit actions"""
   projectChanges(input: ProjectChangesInput!): ChangeResults
-
-  """Apply work changes using explicit actions"""
-  workChanges(input: WorkChangesInput!): ChangeResults
 }
 
 type ChangeResults {
@@ -450,19 +299,4 @@ input ProjectChangesInputItemsItem {
 
 enum ProjectChangesInputItemsItemAction {
   createProject
-}
-
-input WorkChangesInput {
-  items: [WorkChangesInputItemsItem!]!
-}
-
-input WorkChangesInputItemsItem {
-  key: String!
-  action: WorkChangesInputItemsItemAction!
-  input: JSON!
-}
-
-enum WorkChangesInputItemsItemAction {
-  submitWork
-  startWork
 }

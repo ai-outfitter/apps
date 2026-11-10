@@ -22,16 +22,32 @@ export const BugDetails = z.strictObject({
   environment: z.string().max(2000).optional(),
 });
 
+/** A feature or bug request: the same brief the box reads from /in/requests and
+ * Software Foundry's RequestChanges accepts over MCP. */
+export const requestBrief = {
+  requestId: z.uuid(),
+  kind: z.enum(["feature", "bug"]),
+  title: z.string().min(1).max(200),
+  problem: z.string().min(1).max(20000),
+  acceptanceCriteria: z.array(AcceptanceCriterion).min(1).max(50),
+  bug: BugDetails.optional(),
+};
+/** Bug details go with bug requests only; criterion ids are unique. */
+export function checkRequestBrief(request: { kind: "feature" | "bug"; bug?: unknown; acceptanceCriteria: { id: string }[] }, context: z.RefinementCtx) {
+  if (request.kind === "bug" && !request.bug)
+    context.addIssue({ code: "custom", path: ["bug"], message: "bug requests need bug details" });
+  if (request.kind === "feature" && request.bug)
+    context.addIssue({ code: "custom", path: ["bug"], message: "only bug requests carry bug details" });
+  const ids = request.acceptanceCriteria.map((criterion) => criterion.id);
+  if (new Set(ids).size !== ids.length)
+    context.addIssue({ code: "custom", path: ["acceptanceCriteria"], message: "criterion ids must be unique" });
+}
+
 /** One unit of work handed to the box: becomes one issue on the box's forge. */
 export const WorkRequest = z
   .strictObject({
     schemaVersion: z.literal(1),
-    requestId: z.uuid(),
-    kind: z.enum(["feature", "bug"]),
-    title: z.string().min(1).max(200),
-    problem: z.string().min(1).max(20000),
-    acceptanceCriteria: z.array(AcceptanceCriterion).min(1).max(50),
-    bug: BugDetails.optional(),
+    ...requestBrief,
     /** `pull_request`: reviewed, then merged. `direct_commit`: lands on the default branch. */
     delivery: z.enum(["pull_request", "direct_commit"]).default("pull_request"),
     release: z
@@ -44,15 +60,7 @@ export const WorkRequest = z
       })
       .optional(),
   })
-  .superRefine((request, context) => {
-    if (request.kind === "bug" && !request.bug)
-      context.addIssue({ code: "custom", path: ["bug"], message: "bug requests need bug details" });
-    if (request.kind === "feature" && request.bug)
-      context.addIssue({ code: "custom", path: ["bug"], message: "only bug requests carry bug details" });
-    const ids = request.acceptanceCriteria.map((criterion) => criterion.id);
-    if (new Set(ids).size !== ids.length)
-      context.addIssue({ code: "custom", path: ["acceptanceCriteria"], message: "criterion ids must be unique" });
-  });
+  .superRefine(checkRequestBrief);
 
 export const Evidence = z.strictObject({
   kind: z.enum(["screenshot", "log", "report", "artifact"]),

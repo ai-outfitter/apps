@@ -14,10 +14,10 @@ const legacyDocuments = defineDocuments({
     story:"As an authorized editor, I want expiring upload links for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
   },
-  Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can follow intake and review.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
+  Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can find their GitHub issues.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
   WorkTargets: {
     hidden:true,
-    story: "As an agent, I want the Foundry projects with their repositories, so that I can name a target before submitting or starting work.",
+    story: "As an agent, I want the Foundry projects with their repositories, so that I can name a target before filing a request.",
     document: graphql(`query WorkTargets { foundryProjects(first: 50) { nodes { id name repositories } } }`),
   },
   DailyShipped: {
@@ -27,28 +27,6 @@ const legacyDocuments = defineDocuments({
       changes(since: $since, until: $until, repositories: $repositories) {
         changes { repository number title url mergedAt author mergeCommit kind areas } failed complete
       }
-    }`),
-  },
-  SubmitWork: {
-    story: "As an agent, I want to submit hand-written work to a repository, so that Foundry records the issue and starts its workflow.",
-    document: graphql(`mutation SubmitWork($input: SubmitWorkInput!) {
-      submitWork(input: $input) { submissionId repository issue { number url created } run { id workflow existing status url } execution { status message } }
-    }`),
-  },
-  StartWork: {
-    story: "As an agent, I want to start work from a Wiki node, so that the GitHub issue carries the knowledge graph around it and the Wiki Issue links to both.",
-    document: graphql(`mutation StartWork($input: StartWorkInput!) {
-      startWork(input: $input) {
-        submissionId repository issue { number url created } run { id workflow existing status url } execution { status message }
-        wikiIssue { ref { installationId type id } revision } gaps
-      }
-    }`),
-  },
-  RequestFeature: {
-    hidden:true,
-    story: "As a design partner's agent, I want to file a feature request with its problem, requested change and acceptance criteria against an Outfitter repository, so that Outfitter records it in its Wiki, attributed to me, my organization and my role, for its team to review.",
-    document: graphql(`mutation RequestFeature($input: RequestFeatureInput!) {
-      requestFeature(input: $input) { ref { installationId type id } revision repository submittedAt created }
     }`),
   },
   CreateProject: {
@@ -62,10 +40,10 @@ const legacyDocuments = defineDocuments({
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
   SubmitReleaseEvidence:{description:"Get expiring PUT links for PNG/JSON release evidence. Supply stable asset keys, size and SHA-256; upload with the same authenticated account, then repeat to read verified receipts. No approval or deployment."},
   "Requests": {
-    "description": "Read feature and bug intake requests and their durable triage results."
+    "description": "Read your feature and bug requests with their GitHub issues."
   },
   "RequestChanges": {
-    "description": "Submit feature or bug requests to app-owned intake and triage. Implementation approval remains separate."
+    "description": "File feature or bug requests (kind, title, problem, requested change, acceptance criteria; strict JSON Schema). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key."
   }
 });
 

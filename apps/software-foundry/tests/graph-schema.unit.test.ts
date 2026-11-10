@@ -10,5 +10,5 @@ test("the committed GraphQL schema, types and documents match what graph.graphql
   assert.deepEqual(committed.filter((row:{hidden?:boolean})=>!row.hidden).map((row:{name:string;kind:string})=>[row.name,row.kind]),[
     ["RequestChanges","mutation"],["Requests","query"],["SubmitReleaseEvidence","mutation"],
   ]);
-  assert.equal(committed.find((row:{name:string})=>row.name==="SubmitWork")?.hidden,true,"legacy execution remains hidden");
+  for (const name of ["SubmitWork","StartWork","RequestFeature","WorkChanges"]) assert.equal(committed.some((row:{name:string})=>row.name===name),false,`${name} is gone: RequestChanges is the one front door`);
 });

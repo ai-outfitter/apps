@@ -50,6 +50,13 @@
       "when": 1793921126847,
       "tag": "0006_release_evidence_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794268800000,
+      "tag": "0007_requests_open_issues",
+      "breakpoints": true
     }
   ]
 }

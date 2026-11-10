@@ -19,7 +19,7 @@ import { existingFoundryIssueRun, foundryIssueRunId, issueRuns, resolveFoundryRe
 export type IntakeContext = ActionContext & { host: () => WorkflowHost<"interactive">; db: () => FoundryDatabase; storageLocals?: StorageLocals; origin: string };
 
 const conflict = (message: string) => new Response(message, { status: 409 });
-const target = z.strictObject({
+export const target = z.strictObject({
   repository: repositoryName.optional(),
   /** A Foundry project that must include the repository. */
   project: z.string().min(1).max(128).optional(),
