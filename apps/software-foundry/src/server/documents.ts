@@ -43,7 +43,7 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
     "description": "Read your feature and bug requests with their GitHub issues."
   },
   "RequestChanges": {
-    "description": "File feature or bug requests (kind, title, problem, requested change, acceptance criteria; strict JSON Schema). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key."
+    "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key."
   }
 });
 
