@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.4...software-foundry-v0.3.5) (2026-11-10)
+
+
+### Features
+
+* **software-foundry:** RequestChanges is the one front door for feature and bug requests ([#119](https://github.com/ai-outfitter/apps/issues/119)) ([82ee1d9](https://github.com/ai-outfitter/apps/commit/82ee1d988291ec0bdf187d4ca111c9bd57b5f8b8))
+
 ## [0.3.4](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.3...software-foundry-v0.3.4) (2026-11-09)
 
 
