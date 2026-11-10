@@ -76,41 +76,36 @@ test("CreateProject: the projects page and agents add a project through one docu
   } finally { close(); }
 });
 
-test("SubmitWork and StartWork gate and validate as their actions do before touching the host", async () => {
+test("RequestChanges validates a feature or bug strictly, then files it through submitWork", async () => {
   const { db, close } = await foundryDatabase();
   try {
-    const submission = { target: { project: "missing" }, requestId: "aaaaaaaa-1111-4111-8111-111111111111", title: "Work", description: "Description", acceptanceCriteria: ["Done"] };
-    await assert.rejects(run(caller(db, false), "SubmitWork", submission), status(403));
-    assert.equal((await run(caller(db, true), "SubmitWork", { ...submission, requestId: "not-a-uuid" })).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
-    assert.equal((await run(caller(db, true), "SubmitWork", { ...submission, target: {} })).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
-    // An editor reaches submitWork itself: the unknown project is its refusal, raised before any host call.
-    const missing = await run(caller(db, true), "SubmitWork", submission);
+    const submit = (context: FoundryContext, input: unknown) => mutate.invoke(context, {
+      query: "mutation Submit($input: SubmitRequestInput!) { submitRequest(input: $input) { id kind issue { url } } }",
+      operationName: "Submit", variables: { input },
+    }) as Promise<{ data: Record<string, unknown> | null; errors?: { message: string; extensions?: Record<string, unknown> }[] }>;
+    const request = { kind: "bug", requestId: "cccccccc-1111-4111-8111-111111111111", target: { project: "missing" }, title: "Export drops rows", problem: "Exports lose a row.", acceptanceCriteria: [{ id: "all-rows", text: "The file holds every selected row" }],
+      bug: { stepsToReproduce: ["Select 3 rows", "Export"], expected: "3 rows", actual: "2 rows" } };
+    await assert.rejects(submit(caller(db, false), request), status(403));
+    for (const invalid of [{ kind: "chore" }, { kind: undefined }, { kind: "feature" }, { bug: undefined }, { problem: "" }, { acceptanceCriteria: [] }, { acceptanceCriteria: ["untyped"] },
+      { acceptanceCriteria: [{ id: "a", text: "x" }, { id: "a", text: "y" }] }, { target: {} }, { requestId: "not-a-uuid" }, { title: "x".repeat(201) }, { extra: true }])
+      assert.ok(await submit(caller(db, true), { ...request, ...invalid }).then((result) => result.errors?.length, status(400)), JSON.stringify(invalid));
+    // An editor reaches submitWork: the unknown project is its refusal, raised before any host call.
+    const missing = await submit(caller(db, true), request);
     assert.deepEqual([missing.errors?.[0]?.message, missing.errors?.[0]?.extensions], ["Foundry project not found", { code: "REFUSED", status: 409 }]);
-
-    const start = { requestId: "bbbbbbbb-1111-4111-8111-111111111111", target: { repository: "acme/app" }, root: { ref: { installationId: "wiki", type: "graph-node", id: "story" }, revision: 1 } };
-    await assert.rejects(run(caller(db, false), "StartWork", start), status(403));
-    assert.equal((await run(caller(db, true), "StartWork", { ...start, root: { ...start.root, revision: 0 } })).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
-    // startWork's own gate: an editor of a personal installation is refused by the field.
-    const personal = await run(caller(db, true, "user"), "StartWork", start);
-    assert.deepEqual(personal.errors?.[0]?.extensions, { code: "REFUSED", status: 403 });
-    // An organization editor reaches startWork, which asks the host for the Wiki first.
-    assert.deepEqual((await run(caller(db, true), "StartWork", start)).errors?.[0]?.extensions, { code: "REFUSED", status: 503 });
+    // The request is recorded once; the same requestId with changed content conflicts.
+    const changed = await submit(caller(db, true), { ...request, title: "Something else" });
+    assert.deepEqual(changed.errors?.[0]?.extensions, { code: "REFUSED", status: 409 });
+    const { readRequests, requestReadInput } = await import("../src/server/requests");
+    assert.deepEqual((await readRequests(caller(db, true), requestReadInput.parse({}))).nodes, [{ id: request.requestId, kind: "bug", title: "Export drops rows", issueUrl: null }]);
   } finally { close(); }
 });
 
-test("RequestFeature gates and validates before touching the host", async () => {
-  const { db, close } = await foundryDatabase();
-  try {
-    const request = { requestId: "cccccccc-1111-4111-8111-111111111111", target: { repository: "acme/app" }, title: "Export", problem: "Rebuilt by hand", requestedChange: "Export the selection", acceptanceCriteria: ["The file holds the selection"] };
-    await assert.rejects(run(caller(db, false), "RequestFeature", request), status(403));
-    for (const invalid of [{ problem: " " }, { acceptanceCriteria: [] }, { target: {} }, { requestId: "not-a-uuid" }, { title: "x".repeat(161) },
-      { relatedNodes: [{ ref: { installationId: "wiki", type: "graph-edge", id: "e" }, revision: 1 }] }])
-      assert.equal((await run(caller(db, true), "RequestFeature", { ...request, ...invalid })).errors?.[0]?.extensions?.code, "BAD_USER_INPUT", JSON.stringify(invalid));
-    // The field's own gate: a personal installation, or a request an app started on its own.
-    assert.deepEqual((await run(caller(db, true, "user"), "RequestFeature", request)).errors?.[0]?.extensions, { code: "REFUSED", status: 403 });
-    const app = { ...caller(db, true), originActor: { kind: "app", id: "planning" } } as FoundryContext;
-    assert.deepEqual((await run(app, "RequestFeature", request)).errors?.[0]?.extensions, { code: "REFUSED", status: 403 });
-    // An organization editor reaches requestFeature, which asks the host for the organization first.
-    assert.deepEqual((await run(caller(db, true), "RequestFeature", request)).errors?.[0]?.extensions, { code: "REFUSED", status: 503 });
-  } finally { close(); }
+test("A request renders its kind, problem and bug details into the issue description", async () => {
+  const { requestDescription, requestInput } = await import("../src/server/requests");
+  const base = { requestId: "DDDDDDDD-1111-4111-8111-111111111111", target: { repository: "acme/app" }, title: "T", problem: "P", acceptanceCriteria: [{ id: "a", text: "A" }] };
+  const feature = requestInput.parse({ ...base, kind: "feature" });
+  assert.equal(feature.requestId, "dddddddd-1111-4111-8111-111111111111");
+  assert.equal(requestDescription(feature), "**Kind:** feature\n\nP");
+  assert.equal(requestDescription(requestInput.parse({ ...base, kind: "bug", bug: { stepsToReproduce: ["Open", "Click"], expected: "E", actual: "X" } })),
+    "**Kind:** bug\n\nP\n\n## Steps to reproduce\n1. Open\n2. Click\n\n## Expected\nE\n\n## Actual\nX");
 });

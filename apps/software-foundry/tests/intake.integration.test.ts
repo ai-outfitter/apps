@@ -626,3 +626,36 @@ test("large optional evidence collections retain bounded records and nullable ob
     assert.deepEqual(result.blockers,[]);
   } finally {await f.worker.dispose();}
 });
+
+test("RequestChanges files a bug as one issue and starts the workflow through graph.mutate", async () => {
+  const f = await installed();
+  try {
+    await f.calls();
+    const bugId = "cccccccc-2222-4222-8222-222222222222";
+    const request = { kind: "bug", requestId: bugId, target: { repository: "acme/app" }, title: "Totals double-count refunds",
+      problem: "Monthly totals are wrong whenever an order was refunded.", acceptanceCriteria: [{ id: "refund-once", text: "A refunded order reduces the total exactly once" }],
+      bug: { stepsToReproduce: ["Create an order for 10", "Refund it"], expected: "Total is 0", actual: "Total is -10" } };
+    const mutate = async (key: string, input: unknown) => {
+      const response = await f.dispatch("/api/internal/actions/v1/call", { actor: codex, originActor: codex, body: { action: "graph.mutate", input: {
+        query: "mutation RequestChanges($input: RequestChangesInput!) { requestChanges(input: $input) { items { key status result error } } }",
+        operationName: "RequestChanges", variables: { input: { items: [{ key, action: "submit", input }] } },
+      } } });
+      assert.equal(response.status, 200, await response.clone().text());
+      return JSON.stringify(await response.json());
+    };
+    const filed = await mutate("11111111-aaaa-4aaa-8aaa-111111111111", request);
+    assert.match(filed, /"created":true/, filed);
+    const calls = await f.calls();
+    assert.equal(starts(calls), 1);
+    const created = calls.find((call) => call.operation === "connector.execute" && call.input.operation === "issues.create")!;
+    const issue = (await f.state()).issues[Object.keys((await f.state()).issues).map(Number).at(-1)!];
+    assert.equal(created.input.input.title, "Totals double-count refunds");
+    assert.match(issue.body, /\*\*Kind:\*\* bug/);
+    assert.match(issue.body, /## Steps to reproduce\n1\. Create an order for 10\n2\. Refund it/);
+    assert.match(issue.body, /- \[ \] `refund-once`: A refunded order reduces the total exactly once/);
+    // A bug without bug details is refused before anything reaches GitHub.
+    const { bug: _bug, ...noDetails } = request;
+    assert.match(await mutate("22222222-aaaa-4aaa-8aaa-222222222222", { ...noDetails, requestId: "dddddddd-2222-4222-8222-222222222222" }), /bug requests need bug details/);
+    assert.equal(writes(await f.calls()), 0);
+  } finally { await f.worker.dispose(); }
+});

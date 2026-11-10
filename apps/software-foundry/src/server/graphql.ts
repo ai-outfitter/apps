@@ -1,5 +1,5 @@
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
-import { submitRequest, requestInput, readRequests, requestReadInput } from "./requests";
+import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
@@ -11,10 +11,8 @@ import {
   GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldResolver, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType,
   GraphQLObjectType, GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
-import { requestFeature, requestFeatureInput } from "./feature-requests";
 import { readChanges } from "./github/changes";
-import { startWork, startWorkDescription, startWorkInput } from "./graph-work";
-import { type IntakeContext, submitDescription, submitInput, submitWork } from "./intake";
+import type { IntakeContext } from "./intake";
 import { requireAvailable, userGithub } from "./pages";
 import { createProject, createProjectInput } from "./projects";
 import { foundryProjects, workSubmissions } from "./schema";
@@ -120,43 +118,21 @@ const submissionFields = {
   run: { type: workRun },
   execution: { type: workExecution },
 };
-const submittedWork = new GraphQLObjectType({ name: "SubmittedWork", fields: submissionFields });
-const entityRef = new GraphQLObjectType({ name: "EntityRef", fields: { installationId: { type: nonNull(GraphQLString) }, type: { type: nonNull(GraphQLString) }, id: { type: nonNull(GraphQLID) } } });
-const wikiIssue = new GraphQLObjectType({ name: "WikiIssue", description: "The Wiki Issue holding the rendered request; its website is the GitHub issue.", fields: {
-  ref: { type: nonNull(entityRef) }, revision: { type: nonNull(GraphQLInt) },
-} });
-const startedWork = new GraphQLObjectType({ name: "StartedWork", fields: {
+const submittedRequest = new GraphQLObjectType({ name: "SubmittedRequest", description: "The request's GitHub issue and the Foundry run working it.", fields: {
+  id: { type: nonNull(GraphQLID) }, kind: { type: nonNull(GraphQLString) },
   ...submissionFields,
-  wikiIssue: { type: nonNull(wikiIssue) },
-  gaps: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "What the graph did not supply on this attempt; the work still started." },
-} });
-const featureRequest = new GraphQLObjectType({ name: "FeatureRequest", description: "The Wiki FeatureRequest recording the request. No issue is opened and no work starts.", fields: {
-  ref: { type: nonNull(entityRef) }, revision: { type: nonNull(GraphQLInt) }, repository: { type: nonNull(GraphQLString) },
-  submittedAt: { type: nonNull(DateTimeScalar) },
-  created: { type: nonNull(GraphQLBoolean), description: "False when a retry with the same requestId found the request an earlier attempt recorded." },
 } });
 
-// Foundry's writes. graph.mutate admits editors (mutateAction's default); a function with a
-// narrower policy (startWork, requestFeature) enforces it itself. Variables travel within the SDK's 32 KiB
-// limit: Planning sends larger submissions (a frozen work package) to the work.submit action.
+// Foundry's writes. graph.mutate admits editors (mutateAction's default). Variables travel
+// within the SDK's 32 KiB limit: Planning sends larger submissions (a frozen work package)
+// to the work.submit action.
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
     submitReleaseEvidence:mutationField<typeof submitReleaseEvidenceInput,FoundryContext>({name:"SubmitReleaseEvidence",description:"Reserve expiring authenticated PUT links for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.",input:submitReleaseEvidenceInput,run:submitReleaseEvidence}),
-    submitRequest: mutationField({name:"SubmitRequest",description:"Record a feature or bug request and start intake/triage. Implementation retains its own approval gates.",input:requestInput,run:submitRequest}),
-    submitWork: mutationField<typeof submitInput, FoundryContext>({
-      name: "SubmitWork", description: submitDescription, input: submitInput, output: nonNull(submittedWork),
-      run: submitWork,
-    }),
-    startWork: mutationField<typeof startWorkInput, FoundryContext>({
-      name: "StartWork", description: startWorkDescription, input: startWorkInput, output: nonNull(startedWork),
-      run: startWork,
-    }),
-    requestFeature: mutationField<typeof requestFeatureInput, FoundryContext>({
-      name: "RequestFeature",
-      description: "Record a feature request for a repository or Foundry project in this organization's Wiki: its title, problem, requested change, acceptance criteria and up to 20 related Wiki nodes. The request is attributed to your verified Person or Agent, your organization and your current Governance role; it opens no issue and starts no work. Needs an organization installation and editor access. Retry with the same requestId to resume; changed content conflicts.",
-      input: requestFeatureInput, output: nonNull(featureRequest),
-      run: requestFeature,
+    submitRequest: mutationField<typeof requestInput, FoundryContext>({
+      name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
+      run: submitRequest,
     }),
     createProject: mutationField<typeof createProjectInput, FoundryContext>({
       name: "CreateProject",
@@ -177,5 +153,5 @@ const baseGraphqlSchema = new GraphQLSchema({
 });
 
 const requestQuery = baseGraphqlSchema.getQueryType()!;
-const requestSchema = new GraphQLSchema({...baseGraphqlSchema.toConfig(),types:baseGraphqlSchema.toConfig().types.filter(type=>type!==requestQuery),query:new GraphQLObjectType({...requestQuery.toConfig(),fields:{...requestQuery.toConfig().fields,requests:mutationField({name:"Requests",description:"Read your submitted feature and bug requests.",input:requestReadInput,run:readRequests})}})});
+const requestSchema = new GraphQLSchema({...baseGraphqlSchema.toConfig(),types:baseGraphqlSchema.toConfig().types.filter(type=>type!==requestQuery),query:new GraphQLObjectType({...requestQuery.toConfig(),fields:{...requestQuery.toConfig().fields,requests:mutationField({name:"Requests",description:"Read your feature and bug requests with their GitHub issues.",input:requestReadInput,run:readRequests})}})});
 export const graphqlSchema = batchSchema(requestSchema, batchGroups);
