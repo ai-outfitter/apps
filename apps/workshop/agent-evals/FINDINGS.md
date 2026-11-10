@@ -19,7 +19,7 @@ The model was GLM-5.3-Flash-EXL3 on the Spark over the LAN (`experiments/spark.t
 | case-top | fail | 212.7 | 7224 | 34.4 | 1.000 | 0.985 |
 | case-shell | pass | 197.5 | 6377 | 32.7 | 1.000 | 0.007 |
 
-4 of 6 passed in 708 s. Both failures came from ambiguous prompts, not from the
+**All six now pass on the Spark.** The full run passed 4 of 6 in 708 s. Both failures came from ambiguous prompts, not from the
 model, and the prompts are now fixed:
 
 - **case-psu:** the prompt said "rear face" without saying which end that is.
@@ -27,7 +27,8 @@ model, and the prompts are now fixed:
   of the case. The 5 mm Hausdorff is the inlet's protrusion on the wrong end.
   The prompt now names the +Y end. On the re-run the model put the inlet on
   +Y but measured "left" as seen from behind, which mirrored it in X, so the
-  prompt now says "3.4 mm from its -X side".
+  prompt now says "3.4 mm from its -X side". With that it passed (IoU 1.000,
+  Hausdorff 0 mm, 32 s, 971 tokens out).
 - **case-top:** the prompt put the pilot holes "3.5 mm below the plate's top
   face", and the model did exactly that. The reference (`lip_screw_z = H - wall
   - 3.5`) measures from the plate's underside, 3 mm lower. The prompt now says
@@ -66,7 +67,6 @@ quota.
 
 ### Next
 
-- Re-run case-psu with its second prompt fix.
 - Run the same six on Luna (`experiments/luna.ts`) for comparison.
 - Go from parts to the assembly: the full case request in
   `examples/mini-itx-case/request.json`, graded on fit and interference.
