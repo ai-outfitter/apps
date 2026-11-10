@@ -258,13 +258,16 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const runs: RunMetrics[] = [];
   const resultsDir = join(project, "results");
   const sessionsDir = join(resultsDir, experiment, "sessions");
+  // Agent Eval checks an experiment's agent when it loads it, so the agent is registered first;
+  // its per-run limit is set from the experiment once loaded.
+  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir };
+  registerAgent(boxAgent(options, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${experiment}.ts`));
+  options.runTimeoutMs = resolved.timeout * 1000;
   const { fixtures, errors } = loadAllFixtures(join(project, "evals"));
   for (const error of errors) console.error(error.message);
   const chosen = selected.length ? fixtures.filter((fixture) => selected.includes(fixture.name)) : fixtures;
   if (!chosen.length) throw new Error(`No ${box.displayName} evals selected`);
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir,
-    runTimeoutMs: resolved.timeout * 1000 }, app, runs));
   // One model per experiment: the box routes every call to the model its env file names. Agent Eval
   // starts every eval's clock at once while boxes take turns, so its limit covers the whole queue
   // and each box run keeps the experiment's timeout from when it starts.
