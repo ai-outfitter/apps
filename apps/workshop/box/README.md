@@ -9,6 +9,12 @@ branch under `designs/<slug>/`: `project.json`, `model.step`, `model.stl` and
 for a release are tagged, and a Forgejo release links an evidence bundle that
 pins each design's commit and file hashes.
 
+After each design turn the box opens the project's design workbench in the
+image's Chrome, signed in as its member, and saves a screenshot once the 3D
+view has drawn: `/out/screenshots/<requestId>/<n>-<step>.png`, also in RustFS
+and listed under `screenshots` in the design-result. An eval run copies them to
+`agent-evals/results/<experiment>/screenshots/<eval>/`.
+
 | Schema | What it describes |
 | --- | --- |
 | `schemas/design-request.schema.json` | One design request (`/in/requests/*.json`) |
@@ -25,6 +31,7 @@ the driver against a stand-in platform and a local git remote.
 - `intake.mjs`, `results.mjs`, `release.mjs`: request checks, the BOM and
   design-result, and the release with its evidence bundle (the shared
   `box/release.mjs` step), as the Software Foundry box splits them.
+- `screenshots.mjs`: the workbench screenshots after each design turn.
 - `export.ts`: builds a project's model with `src/model/geometry.ts` and
   writes STEP and STL.
 - `../agent-evals/`: the Agent Eval project (`evals/` fixtures, one experiment per model in `experiments/`, `run.ts`). Each fixture is a part described

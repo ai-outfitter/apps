@@ -8,6 +8,7 @@ import { nextVersion } from "../../../box/lib.mjs";
 import { parseRequest, readRequests } from "../box/intake.mjs";
 import { evidenceBundle } from "../box/release.mjs";
 import { billOfMaterials, designResult, exportSummary } from "../box/results.mjs";
+import { screenshotName, workbenchPath } from "../box/screenshots.mjs";
 import { makeProject } from "../src/lib/project";
 import { CadPlanSchema } from "../src/model/cad-plan";
 import { DesignRequest, DesignResult, EvidenceBundle, boxJsonSchema, boxSchemas } from "../src/box/contract";
@@ -57,9 +58,14 @@ test("export.ts builds the model with Workshop's geometry, and the driver's docu
   const bom = billOfMaterials(project, exported);
   const files = [{ path: "designs/cable-clip/model.step", sha256: "d".repeat(64), bytes: 1, uri: "s3://workshop/designs/x/model.step" }];
   const geometry = { bounds: exported.bounds, volumeMm3: exported.volumeMm3, features: exported.features };
-  const result = designResult({ request, project, geometry, bom, files, commitSha: "a".repeat(40), model,
+  const screenshots = [{ step: "design", revision: 1, path: `screenshots/${request.requestId}/${screenshotName(1, "design")}`, sha256: "e".repeat(64), bytes: 1,
+    uri: "s3://workshop/designs/x/screenshots/1-design.png", ready: true }];
+  const result = designResult({ request, project, geometry, bom, files, screenshots, commitSha: "a".repeat(40), model,
     startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
   assert.equal(DesignResult.parse(result).status, "designed");
+  assert.equal(result.screenshots?.[0]?.path, `screenshots/${request.requestId}/1-design.png`);
+  assert.equal(screenshotName(2, "follow-up 1"), "2-follow-up-1.png");
+  assert.equal(workbenchPath(project), `/projects/${project.id.slice(-12)}/design`);
   const failed = designResult({ request, model, error: new Error("The design agent answered 502"), startedAt: result.startedAt, finishedAt: result.finishedAt });
   assert.equal(DesignResult.parse(failed).reason, "The design agent answered 502");
   const bundle = evidenceBundle({ tag: "v0.1.0", version: "0.1.0", commitSha: "a".repeat(40), model, designed: [{ request, result }], artifacts: [],

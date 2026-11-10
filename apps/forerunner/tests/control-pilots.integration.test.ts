@@ -7,8 +7,8 @@ import { mergePilot, personalControlPilot, organizationControlPilot, pilotId, pe
 
 test("personal and organization control pilots are complete, separate and repeatable", async t => {
   const artifact = appArtifact(new URL("../../onto/", import.meta.url), "operational");
-  const personal = await appWorker("wiki-map", artifact, "personal-pilot");
-  const org = await appWorker("wiki-map", artifact, "org-pilot");
+  const personal = await appWorker("onto", artifact, "personal-pilot");
+  const org = await appWorker("onto", artifact, "org-pilot");
   t.after(() => Promise.all([personal.dispose(),org.dispose()]));
   const a="10000000-0000-4000-8000-000000000001", b="10000000-0000-4000-8000-000000000002", scope="10000000-0000-4000-8000-000000000003";
   const call = async (app:typeof personal, path:string, body:unknown) => {

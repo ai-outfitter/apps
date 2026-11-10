@@ -409,7 +409,7 @@ const coreOperations = {
   "routines.list": operation(["operator", "interactive", "schedule"], z.strictObject({}), z.object({ routines: z.array(memberRoutine), runs: z.array(memberRun) })),
   /** Turn a task on as one of the member's routines, as the main site's "Turn on" does: a
    * recurring task on its cadence ("Weekdays at 8am"), whose first run starts now. */
-  "routines.create": operation(["operator", "interactive"], z.strictObject({ ...routineTask.shape, timezone: z.string().min(1).max(64).optional() }),
+  "routines.create": operation(["operator", "interactive"], z.strictObject({ ...routineTask.shape, timezone: z.string().min(1).max(64).optional(), requestId: z.uuid().optional() }),
     z.object({ routine: memberRoutine, runId: id })),
   /** Pause or resume one of the member's routines, or rewrite a recurring task's task and
    * cadence (`task`). Resuming never starts the occurrences it missed. */

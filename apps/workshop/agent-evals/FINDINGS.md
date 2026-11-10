@@ -61,7 +61,8 @@ cp apps/workshop/agent-evals/.env.example apps/workshop/agent-evals/.env.spark  
 BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark case-board case-psu case-cooler case-base case-top case-shell
 ```
 
-Build the box image from a clean webapp checkout (`git worktree add`). Agent
+Each run's workbench screenshots land in `results/<experiment>/screenshots/<eval>/`,
+one per design turn. Build the box image from a clean webapp checkout (`git worktree add`). Agent
 worktrees under `webapp/.claude/worktrees` can exhaust the container storage
 quota.
 

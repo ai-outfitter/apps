@@ -94,6 +94,19 @@ export const Sessions = z.strictObject({
   files: z.array(z.strictObject({ agent: z.string().min(1), path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.int().nonnegative() })),
 });
 
+/** The project's workbench after a design step (box/screenshots.mjs): a PNG under /out and in RustFS. */
+export const Screenshot = z.strictObject({
+  step: z.string().min(1),
+  revision: z.number().int().positive(),
+  /** Relative to /out: screenshots/<requestId>/<n>-<step>.png. */
+  path: z.string().regex(/^screenshots\/[^/]+\/[a-z0-9-]+\.png$/),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  bytes: z.int().nonnegative(),
+  uri: z.string().regex(/^s3:\/\/[a-z0-9.-]+\/.+$/),
+  /** Whether the 3D view had drawn the model when the screenshot was taken. */
+  ready: z.boolean(),
+});
+
 /** What happened to one design request (`/out/results/<requestId>.json`). */
 export const DesignResult = z
   .strictObject({
@@ -109,6 +122,7 @@ export const DesignResult = z
       .optional(),
     bom: z.array(BomLine),
     files: z.array(DesignFile),
+    screenshots: z.array(Screenshot).optional(),
     commitSha: sha.optional(),
     model: Model,
     release: Release.optional(),

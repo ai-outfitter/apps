@@ -103,7 +103,7 @@ const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
       name: "SetDailyRun",
       description: "Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.",
       input: scheduleChange, output: nonNull(dailyRun),
-      run: (context, input) => changeSchedule(context.host(), context.identity, input),
+      run: (context, input) => changeSchedule(context.host(), context.identity, input, context.db()),
     }),
   },
 });
