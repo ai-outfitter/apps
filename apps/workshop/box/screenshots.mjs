@@ -50,7 +50,8 @@ export async function openWorkbench(box, cookie) {
           .then(() => true, () => false);
         // The frame after the model is added, not the one before.
         await page.waitForTimeout(1000);
-        return { png: await page.screenshot(), ready };
+        // The whole page: the viewer sits below the project's description, past the first screen.
+        return { png: await page.screenshot({ fullPage: true }), ready };
       } finally {
         await page.close();
       }
