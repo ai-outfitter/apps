@@ -42,18 +42,19 @@ Deepwork owner shares `Product:deepwork` with Artera and with Sunny as two
 shares. Artera's share to Sunny never passes Deepwork records along, because a
 share only walks the graph it lives in.
 
-## Not yet
+## Reading a share from another organization
 
-The platform doesn't route another organization's reads to a share yet. Webapp
-draft #771 adds the piece needed: a caller from another organization arrives with
-role `external` and `callerOrganizationId`, and only documents an app marks
-`external` run. Once that lands:
+A member of the share's organization reads it over MCP with their own agent
+connection: `graph_query {scope: "artera", fromScope: "sunny", app: "onto",
+document: "Share", variables: {slug: "sunny"}}`. The platform checks that they
+belong to `fromScope` and calls Onto as role `external` with
+`callerOrganizationId`, read access and no workflow host.
 
-1. Onto marks `Share` external. For an external caller, it serves only the
-   share whose `organization` node carries that caller's
-   `ai-outfitter.com/organizations:<uuid>` key (through `OutfitterOrganization`
-   and `account_of`) and refuses every other document.
-2. The platform adds `fromScope` to `graph_query` as well as `graph_mutate`.
+Onto then answers only `share` and `shares`. Each returns only active shares whose
+Organization node's `organization_id` is the caller's organization. Hidden
+nodes are not named to them, and every other action and field is refused. The
+Organization node must carry that binding, otherwise the share is served to no
+one.
 
 ## How other graphs shape access
 

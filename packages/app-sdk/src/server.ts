@@ -30,6 +30,10 @@ export const identityHeaders = {
   // Absent means the member. Only the platform sets them.
   actor: "x-outfitter-actor",
   originActor: "x-outfitter-origin-actor",
+  // The caller's own organization when a member of another organization calls
+  // this organization's installation (role `external`). Only the platform sets
+  // it, after checking the caller's current membership of that organization.
+  callerOrganization: "x-outfitter-caller-organization",
 } as const;
 
 /** Who made a call for `userId`. The platform verifies it; request bodies never supply it.
@@ -106,6 +110,10 @@ export type AppIdentity = {
   canEdit: boolean;
   /** Trusted app-to-app entity delegation, never a platform admin role. */
   entityWriter?: string;
+  /** Set only with role `external`: the caller is a member of this other
+   * organization, not of the installation's organization, and may run only
+   * actions the app marks `external`. The app decides whom it serves. */
+  callerOrganizationId?: string;
 };
 
 /** An identity on an organization-owned installation. */
@@ -125,6 +133,7 @@ export function identityHeaderValues(
     [identityHeaders.owner]: `${owner.kind}:${owner.id}`,
     ...(identity.access ? { [identityHeaders.access]: identity.access } : {}),
     ...(identity.entityWriter ? { [identityHeaders.entityWriter]: identity.entityWriter } : {}),
+    ...(identity.callerOrganizationId ? { [identityHeaders.callerOrganization]: identity.callerOrganizationId } : {}),
   };
 }
 
@@ -150,6 +159,10 @@ export function requestIdentity(request: Request): AppIdentity {
   const access = value(identityHeaders.access) || rolesAppAccess(role);
   if (!userId || !installationId || !role || !owner || !isAccess(access) || access === "none")
     throw new Response("Unauthorized", { status: 401 });
+  // A call from another organization names it; nothing else carries one.
+  const caller = value(identityHeaders.callerOrganization);
+  if ((role === "external") !== Boolean(caller) || (caller && owner.kind !== "organization"))
+    throw new Response("Unauthorized", { status: 401 });
   return {
     userId,
     ...(owner.kind === "organization" ? { organizationId: owner.id } : {}),
@@ -159,6 +172,7 @@ export function requestIdentity(request: Request): AppIdentity {
     access,
     canEdit: access !== "read",
     ...(value(identityHeaders.entityWriter) ? { entityWriter: value(identityHeaders.entityWriter) } : {}),
+    ...(caller ? { callerOrganizationId: caller } : {}),
   };
 }
 

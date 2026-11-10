@@ -92,8 +92,9 @@ export function graphqlAction<Context extends ActionContext>(schema: GraphQLSche
 
 const mutateDescription = "GraphQL mutation over this app's records: one mutation operation, from a document the app publishes. Each field validates its input and checks the caller's access itself.";
 /** The `graph.mutate` action over `schema`, for the app's actionAPI: mutation operations only, as a write.
- * `canInvoke` replaces the default editor gate when a mutation's own check allows non-editors (a duty, say). */
-export function mutateAction<Context extends ActionContext>(schema: GraphQLSchema, options: { canInvoke?: (context: Context) => boolean } = {}) {
+ * `canInvoke` replaces the default editor gate when a mutation's own check allows non-editors (a duty, say).
+ * `external` admits members of other organizations (role `external`), who reach only fields marked `external`. */
+export function mutateAction<Context extends ActionContext>(schema: GraphQLSchema, options: { canInvoke?: (context: Context) => boolean; external?: true } = {}) {
   if (!schema.getMutationType()) throw new Error("mutateAction needs a schema with a Mutation type");
   return defineAction({
     description: mutateDescription, access: "write", input: graphMutateInput, output: graphGraphqlResult, ...options,
@@ -157,6 +158,9 @@ export type MutationFieldOptions<Input extends z.ZodType, Context> = {
   /** What the field returns; JSON when omitted. */
   output?: GraphQLOutputType;
   run: (context: Context, input: z.output<Input>) => unknown;
+  /** A member of another organization (role `external`, `identity.callerOrganizationId`) may run it;
+   * every other field refuses them. `run` decides whom it serves. */
+  external?: true;
 };
 /** A Mutation field `(input: <Name>Input!)` whose GraphQL input type is derived from the zod schema the app
  * already validates with (an action's input, say), so typegen and agents see typed variables. The zod schema
@@ -169,6 +173,8 @@ export function mutationField<Input extends z.ZodType, Context = TableContext & 
     args: { input: { type: new GraphQLNonNull(inputType(json, `${options.name}Input`)) } },
     resolve: async (_source, args: { input: unknown }, context) => {
       const parsed = options.input.safeParse(args.input);
+      if ((context as Partial<ActionContext>).identity?.role === "external" && !options.external)
+        throw new GraphQLError("Not open to other organizations", { extensions: { code: "REFUSED", status: 403 } });
       if (!parsed.success) throw new GraphQLError(parsed.error.issues.map(issue => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; "), { extensions: { code: "BAD_USER_INPUT" } });
       try { return await options.run(context, parsed.data); }
       catch (error) { throw await fieldError(error); }

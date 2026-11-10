@@ -22,7 +22,7 @@ import {
 import { z } from "zod";
 import { explorationArgs, pictureProviders, listExplorations, mutateExploration, mutateExplorationInput, readExploration } from "./explorations";
 import { readGraph, withRecordAddresses } from "./graph";
-import { listShares, mutateShareInput, mutateShare, readShare, shareSlug } from "./graph-shares";
+import { listShares, mutateShareInput, mutateShare, readShare, shareSlug, sharesFor } from "./graph-shares";
 import { recordAddress } from "../lib/addresses";
 import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
 
@@ -252,6 +252,13 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     }),
   },
 });
+
+/** All a member of another organization can ask: the shares made for their organization. */
+export const externalSchema = new GraphQLSchema({ query: new GraphQLObjectType<unknown, ChangeContext>({ name: "Query", fields: {
+  shares: { type: nonNull(new GraphQLList(nonNull(Share))), description: "What this graph shares with your organization.", resolve: (_root, _args, context) => sharesFor(context.db(), context.identity) },
+  share: { type: Share, description: "One share made for your organization; null when there is none.", args: { slug: { type: nonNull(GraphQLString) } },
+    resolve: async (_root, args, context) => (await sharesFor(context.db(), context.identity, shareSlug.parse(args.slug)))[0] ?? null },
+} }) });
 
 const baseGraphqlSchema = new GraphQLSchema({ query: new GraphQLObjectType({ name: "Query", fields: changeQueries }), mutation: Mutation });
 
