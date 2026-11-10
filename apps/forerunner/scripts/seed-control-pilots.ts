@@ -18,7 +18,7 @@ if (!friendName || friendName.length>120) throw Error("Invalid friend name");
 const personalPath=join(directory,"personal.local.json"), orgPath=join(directory,"wiki-snapshots","outfitter.json");
 const [personal,org,types]=await Promise.all([
   readFile(personalPath,"utf8").then(JSON.parse), readFile(orgPath,"utf8").then(JSON.parse),
-  readFile(fileURLToPath(new URL("../../onto/seeds/control-pilot-types-v1.json",import.meta.url)),"utf8").then(s=>z.array(typeInput.extend({id:z.uuid()})).parse(JSON.parse(s))),
+  readFile(fileURLToPath(new URL("../seeds/control-pilot-types-v1.json",import.meta.url)),"utf8").then(s=>z.array(typeInput.extend({id:z.uuid()})).parse(JSON.parse(s))),
 ]);
 if(personal.format!=="outfitter-graph-entities-v1" || org.format!=="outfitter-wiki-graph-v1") throw Error("Unsupported private seed format");
 const requirePerson=(graph:WikiGraph,id:string)=>{

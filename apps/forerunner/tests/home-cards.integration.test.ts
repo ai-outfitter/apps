@@ -13,6 +13,7 @@ import {
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
+import { discoveryRecords } from "../src/server/schema";
 import { homeCards } from "../src/server/home-cards";
 import {
 	createItem,
@@ -48,13 +49,13 @@ const value = (
 	status = "todo",
 ) => ({ title, category, parentId, description: "", dueDate: null, status });
 
-async function setup() {
+async function setup(host?: Parameters<typeof homeCards>[1]) {
 	const client = createClient({ url: ":memory:" });
 	const db = drizzle(client);
 	await migrate(db, {
 		migrationsFolder: fileURLToPath(new URL("../migrations", import.meta.url)),
 	});
-	const cards = homeCards(() => db);
+	const cards = homeCards(() => db, host);
 	// A request exactly as platform dispatch forwards it for `who`.
 	const call = async (operation: string, who: AppIdentity, body?: unknown) => {
 		const { canEdit: _, ...identity } = who;
@@ -110,7 +111,7 @@ test("the catalog declares one priorities card with its complete action", async 
 		for (const who of [alice, admin, personal]) {
 			const { status, body } = await call("catalog", who);
 			assert.equal(status, 200);
-			assert.deepEqual(homeCardCatalog.parse(body).cards, [
+			assert.deepEqual(homeCardCatalog.parse(body).cards.filter((card) => card.cardId === "my-priorities"), [
 				{
 					cardId: "my-priorities",
 					title: "My tasks",
@@ -320,4 +321,56 @@ test("long titles and parents stay within card limits", async () => {
 	} finally {
 		client.close();
 	}
+});
+
+
+test("personal feed separates tasks and routines, keeps old suggestions, and reads without inference", async () => {
+ const { db, client, call } = await setup();
+ try {
+  await createItem(db, personal, value("Small job", "sand"));
+  const now = Date.now();
+  const old = { id: crypto.randomUUID(), kind: "workflow", title: "Weekly review", why: "A recurring need", task: { title: "Review", description: "Review", cadence: "Weekly", steps: [] }, app: null, routineId: null, routineName: null, status: "open", createdAt: new Date(now).toISOString() };
+  const task = { ...old, id: crypto.randomUUID(), kind: "task", title: "Send form", task: null, oneOffTask: { title: "Send form", description: "Prepare it" } };
+  await db.insert(discoveryRecords).values({ id: crypto.randomUUID(), installationId: personal.installationId, ownerId: personal.userId, kind: "suggestions", data: JSON.stringify({ runId: "run-1", suggestions: [old, task] }), createdAt: now });
+  const view = async (id: string) => { const result = await call("read", personal, { cardId: `feed-${id}`, size: "large" }); assert.equal(result.status, 200); return ready(homeCardReadResult.parse(result.body)); };
+  assert.deepEqual(listOf(await view("all")).map((item) => item.title), ["Small job", "Weekly review", "Send form"]);
+  assert.deepEqual(listOf(await view("quick-ones")).map((item) => item.title), ["Small job", "Send form"]);
+  assert.deepEqual(listOf(await view("routines")).map((item) => item.title), ["Weekly review"]);
+  assert.ok((await view("role")).some((node) => node.kind === "notice"));
+  assert.equal((await call("read", otherInstall, { cardId: "feed-all", size: "large" })).status, 403);
+ } finally { client.close(); }
+});
+
+
+test("role view uses the saved profile and exposes failed discovery", async () => {
+ const calls: string[] = [];
+ const host = { call: async (name: string) => { calls.push(name); return { work: { suspectedRole: { title: "Engineer" } } }; } } as unknown as ReturnType<NonNullable<Parameters<typeof homeCards>[1]>>;
+ const { db, client, call } = await setup(() => host);
+ try {
+  const now = Date.now();
+  const suggestion = { id: crypto.randomUUID(), kind: "app", title: "Review designs", why: "Design work", roleRelevance: { title: "Engineer", reason: "Supports design reviews" }, task: null, app: { name: "Reviews", goal: "Review" }, routineId: null, routineName: null, status: "open", createdAt: new Date(now).toISOString() };
+  await db.insert(discoveryRecords).values([{ id: crypto.randomUUID(), installationId: personal.installationId, ownerId: personal.userId, kind: "suggestions", data: JSON.stringify({ runId: "run-1", suggestions: [suggestion] }), createdAt: now }, { id: crypto.randomUUID(), installationId: personal.installationId, ownerId: personal.userId, kind: "run", data: JSON.stringify({ id: "failed", status: "failed", startedAt: new Date(now).toISOString() }), createdAt: now + 1 }]);
+  const result = await call("read", personal, { cardId: "feed-role", size: "large" });
+  assert.equal(result.status, 200);
+  const parsed = homeCardReadResult.parse(result.body);
+  assert.equal(parsed.title, "For Engineer");
+  const body = ready(parsed);
+  assert.equal(listOf(body)[0].title, "Review designs");
+  assert.ok(body.some((node) => node.kind === "notice" && node.tone === "warning"));
+  assert.deepEqual(calls, ["profile.read"]);
+ } finally { client.close(); }
+});
+
+
+test("feed preserves distinct records sharing a title and deduplicates repeated IDs", async () => {
+ const { db, client, call } = await setup();
+ try {
+  await createItem(db, personal, value("Review invoices", "sand"));
+  const now = Date.now();
+  const suggestion = { id: crypto.randomUUID(), kind: "workflow", title: "Review invoices", why: "A recurring need", task: { title: "Review", description: "Review", cadence: "Weekly", steps: [] }, app: null, routineId: null, routineName: null, status: "open", createdAt: new Date(now).toISOString() };
+  await db.insert(discoveryRecords).values({ id: crypto.randomUUID(), installationId: personal.installationId, ownerId: personal.userId, kind: "suggestions", data: JSON.stringify({ runId: "run-1", suggestions: [suggestion, suggestion] }), createdAt: now });
+  const result = await call("read", personal, { cardId: "feed-all", size: "large" });
+  const body = ready(homeCardReadResult.parse(result.body));
+  assert.deepEqual(listOf(body).map((item) => item.title), ["Review invoices", "Review invoices"]);
+ } finally { client.close(); }
 });

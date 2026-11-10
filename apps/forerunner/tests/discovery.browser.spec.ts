@@ -52,7 +52,7 @@ async function entityResult(
     return {
       ok: true,
       value: ((await response.json()) as Record<string, unknown>[]).map(
-        (t) => ({ ...t, installationId: "wiki" }),
+        (t) => ({ ...t, installationId: "wiki", template:"onto" }),
       ),
     };
 
@@ -87,7 +87,7 @@ for (const width of [1440, 390])
     page,
   }, info) => {
     const wiki = await appWorker(
-      "wiki-map",
+      "onto",
       appArtifact(new URL("../../onto", import.meta.url), "operational"),
       "wiki",
     );

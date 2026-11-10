@@ -5,7 +5,7 @@ import manifest from "../app.json" with { type: "json" };
 test("manual Forerunner declares private operation and a read-only demo", () => {
   assert.deepEqual(manifest.modes.demo.capabilities, []);
   assert.ok(manifest.modes.operational.capabilities.includes("actions.invoke"));
-  assert.deepEqual(manifest.dependencies, ["wiki-map"]);
+  assert.deepEqual(manifest.dependencies, ["onto"]);
   assert.equal(manifest.dataLocation, "installation-database");
   assert.match(manifest.catalog.presentation.access, /Private manual board/);
   assert.match(

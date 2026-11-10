@@ -207,6 +207,8 @@ export const homeCardDefinition = z.strictObject({
   cardId: homeCardKey,
   title,
   description: text.optional(),
+  surfaces: z.array(z.enum(["home", "for-you"])).min(1).max(2).refine((values) => new Set(values).size === values.length, "Duplicate surface").optional(),
+  view: z.strictObject({ id: homeCardKey, label, order: z.number().int().optional() }).optional(),
   sizes: z.array(homeCardSize).min(1).max(homeCardSizes.length).refine((sizes) => new Set(sizes).size === sizes.length, "Duplicate size"),
   defaultSize: homeCardSize,
   actionIds: z.array(homeCardKey).max(L.actionsPerCard).refine((ids) => new Set(ids).size === ids.length, "Duplicate action"),
@@ -278,6 +280,8 @@ export type HomeCardProvider = {
   cardId: string;
   title: string;
   description?: string;
+  surfaces?: ("home" | "for-you")[];
+  view?: { id: string; label: string; order?: number };
   sizes: HomeCardSize[];
   defaultSize: HomeCardSize;
   /** Inline mutations by actionId. Each handler authorizes the specific
@@ -294,6 +298,8 @@ export type HomeCardProvider = {
 
 const definitionOf = (card: HomeCardProvider): HomeCardDefinition => ({
   cardId: card.cardId, title: card.title, ...(card.description === undefined ? {} : { description: card.description }),
+  ...(card.surfaces === undefined ? {} : { surfaces: card.surfaces }),
+  ...(card.view === undefined ? {} : { view: card.view }),
   sizes: card.sizes, defaultSize: card.defaultSize, actionIds: Object.keys(card.actions ?? {}),
 });
 
