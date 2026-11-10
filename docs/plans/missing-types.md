@@ -53,28 +53,53 @@ rule:
 > same parent), propose the type and its relationship types in the same
 > batch, with endpoints. `Document` is for prose, not for records.
 
-### 2. Onto answers at staging time
+### 2. Onto reviews the draft while it is still open
 
-The staging receipt already carries `validation` and `instructions`
-(`REPAIR_CHANGES`). Add advisory findings beside them, computed by plain
-checks over the draft, no model call:
+Today the steward reviews only after submit. Move the review earlier, so the
+agent hears back while it can still change the batch.
 
-- `type.generic-cluster`: three or more created nodes of a catch-all type
-  (`Document`, `Entity`) that share a parent through the same edge type, or
-  whose titles share a pattern (leading numbers, a common suffix, a unit in
-  brackets). The Sunny batch trips this three times: shots, concepts, references.
-- `edge.generic-cluster`: one edge type used between the same pair of
-  catch-all types more than a handful of times (`part_of` Document → Document, 26 times).
-- `property.in-title`: a number-plus-unit or ordinal repeated across sibling titles.
+- **Every staging call** returns plain checks beside `validation`, with no
+  model call:
+  - `type.generic-cluster`: three or more created nodes of a catch-all type
+    (`Document`, `Entity`) that share a parent through the same edge type, or
+    whose titles share a pattern (leading numbers, a common suffix, a unit in
+    brackets). The Sunny batch trips this three times: shots, concepts, references.
+  - `edge.generic-cluster`: one edge type used between the same pair of
+    catch-all types many times (`part_of` Document → Document, 26 times).
+  - `property.in-title`: a number-plus-unit or ordinal repeated across sibling titles.
+- **The steward's model review runs on open batches too.** Review jobs are
+  already keyed by a digest of the batch content (`onto_review_jobs`), so an
+  open batch is reviewed once per distinct draft, not once per call. The
+  agent reads `review` on the batch before it submits.
+- **Onto proposes the type, not only the complaint.** A missing-type finding
+  carries a `fix` the agent can stage as it is: the `graph-type` operations
+  (node type with properties, edge types with endpoints) and which staged
+  records should move to them. The agent accepts it, changes it or restages
+  with a `reason` for keeping Documents. The steward still writes nothing itself.
+- Instruction code `CONSIDER_TYPES`, not required. Nothing is blocked.
 
-Each finding names the records and says what to consider: "12 Documents
-under 3 parents look like one kind of record with an order. Consider
-proposing a type." It comes with instruction code `CONSIDER_TYPES`, marked
-not required. The agent decides: propose types, or restage with a `reason`
-saying why Documents are right. Nothing is blocked.
+Making any of this binding (hold a batch until its review is clean) is the
+Governance control already sketched in `apps/onto/docs/batch-review.md`,
+adopted per organization. Not part of this plan.
 
-The steward's batch review gets the same rule names so a member sees them on
-the Changes page if the agent ignored them.
+### 2a. A root node, and anchors that default to it
+
+Agents keep choosing anchors nobody asked for. What matters almost every
+time is one thing: each new record reaches the owner.
+
+- Onto gets a first-class **root node**: the Organization bound to an
+  organization's Onto, the person for a personal Onto. The steward already
+  finds it (`ownerOf` in `batch-review.ts`, organizations only); make it a
+  stored fact of the installation, exposed to agents in one read.
+- **Every batch is anchored to the root by default.** An agent passes no
+  anchors and each new node must still reach the root through saved or
+  staged relationships. `owner.unreachable` becomes a staging check instead
+  of an after-the-fact audit finding.
+- Extra anchors stay possible for narrow work, but the tool description stops
+  advertising them: "Batches are anchored to the root. Add anchors only when
+  the member asks for a narrower scope."
+- An Onto with no root bound reports that as the first staging finding, as
+  the steward does today.
 
 ### 3. New types are proposed in the org's own graph
 
@@ -90,21 +115,32 @@ not a decision.
 
 ### 4. Evals
 
-Two fixtures in webapp `evals/outfitter/evals/`, run by agent-eval as today,
-starting from the existing organization checkpoint:
+Recreate this exact scenario and check that Onto notices the missing type
+and proposes it. Fixtures in webapp `evals/outfitter/evals/`, run by
+agent-eval as today:
 
-- **`onto-new-concept-types`**. Prompt: "Plan two 15-second launch videos for
-  our sensor, each with four shots, and save them to Onto." Assertions: the
-  batch proposes at least one node type and one edge type with endpoints;
-  no shot is a `Document`; order and duration are properties, not title
-  text. Judge: are the proposed types sensible and minimal.
-- **`onto-questions-not-records`**. Prompt: "Review our Onto records and
-  raise anything unclear." Assertions: no `Question` nodes staged; open
-  points appear as batch questions or Planning issues.
+- **`onto-new-concept-types`**. Prompt, as the member gave it: plan launch
+  videos for the organization's products, each with a storyboard of shots,
+  and save them to Onto. Assertions:
+  - the batch's review names the missing type and carries a stageable fix;
+  - the final batch creates at least one node type and one edge type with
+    endpoints, and no shot is a `Document`;
+  - order and duration are properties, not title text;
+  - every new node reaches the root, and the agent passed no extra anchors.
+  Judge: the types are sensible and minimal.
+- **Same scenario on separate Ontos.** Each organization has its own Onto,
+  so the fixture runs once on a Sunny-shaped graph and once on an
+  Outfitter-shaped graph. Both must reach the same conclusion: a storyboard
+  type, a shot type and a typed relationship between them. The run reports
+  the proposed type names and properties side by side, so drift between
+  instances is visible. Type names may differ in wording; the shape may not.
+- **`onto-questions-not-records`**. Prompt: review our Onto records and raise
+  anything unclear. Assertions: no `Question` nodes staged; open points
+  appear as batch questions or Planning issues.
 
-Run both now to record the failing baseline, then after each change. That
-shows whether the instruction alone (step 1) is enough or the receipt
-advice (step 2) is needed.
+Only the Sunny and Outfitter fixtures are saved in the repo. Artera is not.
+
+Run them now to record the failing baseline, then after each change.
 
 ## The Sunny batch
 
@@ -115,8 +151,9 @@ Documents. Worth doing only after the types are agreed.
 ## Decisions for Nicholas
 
 1. Advice only (agent decides), or should a generic cluster block submit?
-   Recommended: advice only.
+   Recommended: advice only, with blocking left to a Governance control.
 2. Org-local types first, promoted to standard by you later?
 3. Redo the Sunny video records once types exist?
-4. Build order: evals first for a baseline, then the instruction, then the
-   receipt advice. Agree?
+4. Build order: evals first for a baseline, then root node and default
+   anchors, then open-batch review with type proposals, then the
+   instruction text. Agree?
