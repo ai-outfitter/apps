@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { readJSON, requestIdentity, respond } from "@ai-outfitter/app-sdk/server";
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { forerunnerContext } from "../../../../server/context";
 import { documents, runDocument } from "../../../../server/documents";
@@ -20,5 +21,5 @@ export const PUT: APIRoute = ({ request, locals }) =>
 /** Turns the daily run on by default ({ timezone }); never re-enables one the member turned off. */
 export const POST: APIRoute = ({ request, locals }) =>
   respond(async () => ({
-    schedule: await defaultSchedule(workflowHost<"interactive">(locals), requestIdentity(request), await readJSON(request, scheduleDefault, 1024)),
+    schedule: await defaultSchedule(workflowHost<"interactive">(locals), requestIdentity(request), await readJSON(request, scheduleDefault, 1024), installationDatabase()),
   }));

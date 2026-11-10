@@ -29,7 +29,8 @@
         "storage.artifacts.read",
         "storage.artifacts.write",
         "routines.manage",
-        "platform.documents"
+        "platform.documents",
+        "platform.records"
       ]
     }
   },
@@ -104,6 +105,6 @@
     "cover": "catalog/cover.png"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

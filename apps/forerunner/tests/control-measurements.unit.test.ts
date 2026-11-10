@@ -53,7 +53,7 @@ test("structured bodies validate and the compiler rejects unknown inputs and inv
   const {documentSchema}=await import("@ai-outfitter/app-sdk/agent-schema");
   const {readFileSync}=await import("node:fs");
   const {compileMeasurement,responseDefinition,quarterlyDefinition}=await import("../scripts/control-measurements");
-  const types=JSON.parse(readFileSync(new URL("../../onto/seeds/control-pilot-types-v1.json",import.meta.url),"utf8"));
+  const types=JSON.parse(readFileSync(new URL("../seeds/control-pilot-types-v1.json",import.meta.url),"utf8"));
   const schema=documentSchema(types.find((type:{name:string})=>type.name==="ControlDefinition").jsonSchema);
   for(const body of [responseDefinition,quarterlyDefinition]) assert.deepEqual(schema.parse(body),body);
   assert.equal(schema.safeParse({...responseDefinition,window:{...responseDefinition.window,amount:0}}).success,false);

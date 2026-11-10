@@ -8,7 +8,7 @@ import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { ForerunnerContext } from "../src/server/context";
 import { documents, runDocument } from "../src/server/documents";
-import { generateSuggestions, listSuggestions, updateSuggestion } from "../src/server/suggestions";
+import { generateSuggestions, listSuggestions, saveRoleSnapshot, updateSuggestion } from "../src/server/suggestions";
 
 // After a saved daily run, the `suggestions` step suggests new workflows, changes to the
 // member's recurring tasks and apps; the member turns one on, applies a change or
@@ -87,7 +87,7 @@ test("a workflow suggestion turns on a routine, a change rewrites its routine, a
     const { updateSuggestion: turnedOn } = await runDocument(documents.UpdateSuggestion.document, { input: { id: workflow.id, status: "applied", timezone: "America/Chicago" } }, context);
     assert.equal(turnedOn.status, "applied");
     assert.deepEqual(calls.find((call) => call.name === "routines.create")?.input,
-      { ...task("Thanksgiving guests"), evidence: "Invitations went out this week.", timezone: "America/Chicago" });
+      { ...task("Thanksgiving guests"), evidence: "Invitations went out this week.", requestId: workflow.id, timezone: "America/Chicago" });
     await updateSuggestion(db, who, host, { id: change.id, status: "applied" });
     assert.deepEqual(calls.find((call) => call.name === "routines.update")?.input, { id: "r1", task: { ...task("Morning brief and studio"), evidence: "Sign-up questions arrive most mornings." } });
     await assert.rejects(updateSuggestion(db, who, host, { id: app.id, status: "applied" }), (error: Response) => error.status === 409);
@@ -104,5 +104,96 @@ test("a failed answer settles the step as failed and keeps the suggestions the m
     const { host, calls } = fakeHost(new Error("model timed out"));
     assert.deepEqual(await generateSuggestions(db, who, host, "run-1", read), []);
     assert.deepEqual(calls.at(-1)?.input, { runId: "run-1", slot: "suggestions.outputs.result", value: { status: "failed", suggestions: 0 } });
+  } finally { client.close(); }
+});
+
+test("one-off application creates one own sand item across concurrent requests and retries", async () => {
+  const { client, db } = await database();
+  try {
+    const { host } = fakeHost({ suggestions: [{ kind: "task", title: "Send form", why: "A form is due", routineId: null, task: null, app: null, oneOffTask: { title: "Send form", description: "Prepare the form" }, roleRelevance: null }] });
+    const [suggestion] = await generateSuggestions(db, who, host, "run-task", read);
+    assert.ok(suggestion);
+    await Promise.allSettled([updateSuggestion(db, who, host, { id: suggestion.id, status: "applied" }), updateSuggestion(db, who, host, { id: suggestion.id, status: "applied" })]);
+    await updateSuggestion(db, who, host, { id: suggestion.id, status: "applied" });
+    const { listItems } = await import("../src/server/items");
+    assert.deepEqual((await listItems(db, who)).map((item) => [item.id, item.title, item.category]), [[suggestion.id, "Send form", "sand"]]);
+    assert.equal((await listSuggestions(db, who, ["applied"]))[0].id, suggestion.id);
+  } finally { client.close(); }
+});
+
+test("a routine suggestion retries an ambiguous creation with the same request ID", async () => {
+  const { client, db } = await database();
+  try {
+    const base = fakeHost();
+    const [suggestion] = (await generateSuggestions(db, who, base.host, "run-retry", read)).filter((item) => item.kind === "workflow");
+    const calls: Record<string, unknown>[] = [];
+    const host = { call: async (name: string, input: Record<string, unknown>) => {
+      if (name === "routines.create") { calls.push(input); if (calls.length === 1) throw new Error("response lost"); return { routine: routines[0], runId: "run-9" }; }
+      return base.host.call(name as never, input as never);
+    } } as unknown as WorkflowHost<"interactive">;
+    await assert.rejects(updateSuggestion(db, who, host, { id: suggestion.id, status: "applied" }));
+    assert.equal((await updateSuggestion(db, who, host, { id: suggestion.id, status: "applied" })).status, "applied");
+    assert.deepEqual(calls[0], calls[1]);
+    assert.equal(calls[0].requestId, suggestion.id);
+  } finally { client.close(); }
+});
+
+
+test("scheduled generation uses the saved authorized role without reading the profile", async () => {
+  const { client, db } = await database();
+  try {
+    const profileHost = { call: async (name: string) => { assert.equal(name, "profile.read"); return { work: { suspectedRole: { title: "Engineer", confidence: "high", reasoning: "Design work" } } }; } } as unknown as WorkflowHost<"interactive">;
+    await saveRoleSnapshot(db, who, profileHost);
+    const { host, calls } = fakeHost({ suggestions: [] });
+    await generateSuggestions(db, who, host, "run-scheduled", read);
+    assert.equal(calls.some((call) => call.name === "profile.read"), false);
+    const input = calls.find((call) => call.name === "inference.generate")?.input as { data: { role: { title: string }; roleStatus: string } };
+    assert.equal(input.data.role.title, "Engineer");
+    assert.equal(input.data.roleStatus, "ready");
+  } finally { client.close(); }
+});
+
+test("definite routine failures reopen suggestions so a member can dismiss", async () => {
+  const { client, db } = await database();
+  try {
+    const base = fakeHost();
+    const proposals = await generateSuggestions(db, who, base.host, "run-rejected", read);
+    for (const kind of ["workflow", "change"]) {
+      const selected = proposals.find(item => item.kind === kind)!;
+      const host = { call: async (name: string, input: Record<string, unknown>) => {
+        if (name === "routines.create" || name === "routines.update") throw new Response("No longer available", { status: kind === "workflow" ? 400 : 404 });
+        return base.host.call(name as never, input as never);
+      } } as unknown as WorkflowHost<"interactive">;
+      await assert.rejects(updateSuggestion(db, who, host, { id: selected.id, status: "applied" }));
+      assert.ok((await listSuggestions(db, who, ["open"])).some(item => item.id === selected.id));
+      assert.equal((await updateSuggestion(db, who, host, { id: selected.id, status: "dismissed" })).status, "dismissed");
+    }
+  } finally { client.close(); }
+});
+
+test("a saved keyed routine keeps its apply claim and timezone after conflict, throttling, server or network failure", async () => {
+  const { client, db } = await database();
+  try {
+    const base = fakeHost();
+    const [selected] = (await generateSuggestions(db, who, base.host, "run-persisted-create", read)).filter(item => item.kind === "workflow");
+    const calls: Record<string, unknown>[] = [];
+    const saved = new Map<string, Record<string, unknown>>();
+    const failures = [409, 429, 500, null];
+    const host = { call: async (name: string, input: Record<string, unknown>) => {
+      if (name !== "routines.create") return base.host.call(name as never, input as never);
+      calls.push(input); saved.set(String(input.requestId), input);
+      const status = failures.shift();
+      if (status === null) throw new Error("response lost");
+      if (status !== undefined) throw new Response("First run did not start", { status });
+      return { routine: routines[0], runId: "run-9" };
+    } } as unknown as WorkflowHost<"interactive">;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await assert.rejects(updateSuggestion(db, who, host, { id: selected.id, status: "applied", timezone: attempt ? "UTC" : "America/Chicago" }));
+      assert.ok((await listSuggestions(db, who, ["applying"])).some(item => item.id === selected.id));
+    }
+    assert.equal((await updateSuggestion(db, who, host, { id: selected.id, status: "applied" })).status, "applied");
+    assert.equal(saved.size, 1);
+    for (const call of calls) assert.deepEqual(call, calls[0]);
+    assert.equal(calls[0].timezone, "America/Chicago");
   } finally { client.close(); }
 });

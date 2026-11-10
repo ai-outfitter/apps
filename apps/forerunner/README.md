@@ -135,3 +135,7 @@ phone widths, selection and history, the panel's focus, dialogue, Escape and
 phone inert behavior, and that no request is non-GET or to `/api/`, and that
 nothing is written to storage. Test preparation and artifacts use the public
 `@ai-outfitter/app-test` interfaces. See the [deferred roadmap](docs/roadmap.md).
+
+### Personal suggestions
+
+The personal For you feed combines unfinished board items with saved discovery suggestions. Quick Ones contains sand and one-off task suggestions; Routines contains proposed new or changed routines; the role view uses the saved work profile and shows only suggestions with matching role relevance. Discovery generates suggestions during its existing run; opening the feed does not run inference. Schedule setup stores a member-authorized role snapshot for unattended generation; the role view checks the current profile before showing a match. Suggestions retain their discovery run and require an explicit apply or dismiss action. One-off tasks become sand items. Active routines are managed in Automations.

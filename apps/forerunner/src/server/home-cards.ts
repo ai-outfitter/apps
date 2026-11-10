@@ -1,14 +1,18 @@
 import {
 	defineHomeCard,
 	type HomeCardActionContext,
+	type HomeCardListItem,
 	type HomeCardNode,
 	type HomeCardProvider,
 	type HomeCardSize,
 } from "@ai-outfitter/app-sdk/home-cards";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
+import { discoveryRuns } from "./discovery";
 import { type Database, findItem, listItems, updateItem } from "./items";
 import type { Item } from "./schema";
+import { latestSuggestionStatus, listSuggestions, updateSuggestion } from "./suggestions";
 
 // Home card for a portal homepage. It
 // lists the viewer's actual unfinished board items, never inferred suggestions,
@@ -148,8 +152,85 @@ export async function completeItem(
 	return { outcome: "applied" as const, message: "Completed." };
 }
 
-export function homeCards(db: () => Database): HomeCardProvider[] {
-	return [
+type FeedView = "all" | "quick-ones" | "routines" | "role";
+
+type FeedSuggestion = Awaited<ReturnType<typeof listSuggestions>>[number];
+type FeedHost = () => WorkflowHost<"interactive">;
+
+async function feedRole(view: FeedView, host?: FeedHost) {
+ if (view !== "role" || !host) return { role: null, profileFailed: false };
+ try { return { role: (await host().call("profile.read", {})).work?.suspectedRole.title ?? null, profileFailed: false }; }
+ catch { return { role: null, profileFailed: true }; }
+}
+
+function matchesView(s: FeedSuggestion, view: FeedView, role: string | null) {
+ if (view === "all") return true;
+ if (view === "quick-ones") return s.kind === "task";
+ if (view === "routines") return s.kind === "workflow" || s.kind === "change";
+ return !!role && s.roleRelevance?.title.toLowerCase() === role.toLowerCase();
+}
+
+async function feedTimezone(host: FeedHost | undefined, suggestions: FeedSuggestion[]) {
+ if (!host || !suggestions.some((s) => s.kind === "workflow")) return "UTC";
+ try { return (await host().call("schedules", {})).find((s) => s.workflowId === "forerunner-discovery")?.timezone ?? "UTC"; }
+ catch { return "UTC"; }
+}
+
+function suggestionEntry(s: FeedSuggestion, timezone: string): HomeCardListItem {
+ const children: HomeCardNode[] = [];
+ if (s.kind !== "app") {
+  const verb = s.status === "applying" ? "Retry" : "Apply";
+  const label = s.kind === "workflow" ? `${verb} (${timezone})` : s.status === "applying" ? "Retry apply" : "Apply";
+  children.push({ kind: "action", actionId: "apply-suggestion", label, input: { id: s.id, ...(s.kind === "workflow" ? { timezone } : {}) }, style: "primary" });
+ }
+ if (s.status === "open") children.push({ kind: "action", actionId: "dismiss-suggestion", label: "Dismiss", input: { id: s.id }, style: "secondary" });
+ return { id: s.id, title: clip(s.title, 120), subtitle: clip(`${s.why}${s.roleRelevance ? ` · ${s.roleRelevance.reason}` : ""} · Discovery run ${s.runId}`, 500), link: { path: "/workflows#suggestions" }, children };
+}
+
+function feedEntries(view: FeedView, board: Awaited<ReturnType<typeof openPriorities>>, chosen: FeedSuggestion[], timezone: string) {
+ const boardItems = view === "all" ? board.open : view === "quick-ones" ? board.open.filter((item) => item.category === "sand") : [];
+ // Accepted one-off tasks retain the suggestion ID; titles are not identities.
+ const seen = new Set(boardItems.map((item) => item.id));
+ const unique = chosen.filter((suggestion) => { if (seen.has(suggestion.id)) return false; seen.add(suggestion.id); return true; });
+ return [...boardItems.map((item) => entry(item, board.all)), ...unique.map((s) => suggestionEntry(s, timezone))];
+}
+
+function feedBody(entries: HomeCardListItem[], view: FeedView, role: string | null, profileFailed: boolean, runFailed: boolean, suggestionsFailed: boolean): HomeCardNode[] {
+ const body: HomeCardNode[] = [];
+ if (suggestionsFailed) body.push({ kind: "notice", tone: "warning", text: "The latest suggestion generation failed. Earlier suggestions remain available." });
+ if (runFailed) body.push({ kind: "notice", tone: "warning", text: "Your latest discovery run failed. Open its history to review and retry." }, { kind: "link", label: "Review discovery history", target: { path: "/history" } });
+ if (view === "role" && !role) body.push({ kind: "notice", tone: "info", text: profileFailed ? "Your work profile could not be loaded. Try again later." : "Add your work profile to see suggestions for your role." });
+ if (!entries.length) body.push({ kind: "empty", text: "No suggestions or tasks here yet." });
+ else {
+  body.push({ kind: "list", items: entries.slice(0, 20) });
+  if (entries.length > 20) body.push({ kind: "text", text: `Showing 20 of ${entries.length}. Open your board or suggestions to see the rest.` }, { kind: "link", label: "Open board", target: { path: "/board" } }, { kind: "link", label: "Open suggestions", target: { path: "/workflows#suggestions" } });
+ }
+ return body;
+}
+
+async function readFeed(db: Database, identity: AppIdentity, view: FeedView, label: string, host?: FeedHost) {
+ const [board, suggestions, runs, status, profile] = await Promise.all([openPriorities(db, identity), listSuggestions(db, identity), discoveryRuns(db, identity), latestSuggestionStatus(db, identity), feedRole(view, host)]);
+ const chosen = suggestions.filter((s) => matchesView(s, view, profile.role));
+ const timezone = await feedTimezone(host, chosen);
+ const entries = feedEntries(view, board, chosen, timezone);
+ return { title: profile.role ? clip(`For ${profile.role}`, 120) : label, body: feedBody(entries, view, profile.role, profile.profileFailed, runs[0]?.status === "failed", status?.status === "failed") };
+}
+
+function feedCard(db: () => Database, host: FeedHost | undefined, view: FeedView, label: string, order: number): HomeCardProvider {
+ return defineHomeCard({
+   cardId: `feed-${view}`, title: label, can: (identity) => identity.owner.kind === "user" && identity.canEdit, surfaces: ["for-you"], view: { id: view, label, order }, sizes: ["large"], defaultSize: "large",
+   read: ({ identity }) => readFeed(db(), identity, view, label, host),
+   actions: {
+     "complete-item": ({ identity, input, revision }) => completeItem(db(), identity, { input, revision }),
+     "apply-suggestion": async ({ identity, input }) => { const value = z.strictObject({ id: z.uuid(), timezone: z.string().min(1).max(64).optional() }).parse(input); if (!host) throw new Response("Host unavailable", { status: 503 }); await updateSuggestion(db(), identity, host(), { ...value, status: "applied" }); return { outcome: "applied" as const }; },
+     "dismiss-suggestion": async ({ identity, input }) => { const value = z.strictObject({ id: z.uuid() }).parse(input); if (!host) throw new Response("Host unavailable", { status: 503 }); await updateSuggestion(db(), identity, host(), { ...value, status: "dismissed" }); return { outcome: "applied" as const }; },
+   },
+ });
+}
+
+export function homeCards(db: () => Database, host?: FeedHost): HomeCardProvider[] {
+ const feed = ([ ["all", "All"], ["quick-ones", "Quick Ones"], ["routines", "Routines"], ["role", "For your role"] ] as const).map(([view, label], order) => feedCard(db, host, view, label, order));
+ return [...feed,
 		defineHomeCard({
 			cardId: "my-priorities",
 			title: "My tasks",

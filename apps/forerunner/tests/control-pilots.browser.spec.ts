@@ -15,7 +15,7 @@ test("structured control shows missing graph paths and recomputes after connecti
   page,
 }, info) => {
   const app = await appWorker(
-    "wiki-map",
+    "onto",
     appArtifact(new URL("../../onto/", import.meta.url), "operational"),
   );
   try {

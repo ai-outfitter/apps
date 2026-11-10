@@ -47,7 +47,7 @@ export const discoveryRecords = sqliteTable(
     id: text().primaryKey(),
     installationId: text().notNull(),
     ownerId: text().notNull(),
-    kind: text({ enum: ["sample", "preview", "run", "suggestions"] }).notNull(),
+    kind: text({ enum: ["sample", "preview", "run", "suggestions", "role-snapshot", "suggestion-status"] }).notNull(),
     data: text().notNull(),
     createdAt: integer().notNull(),
   },

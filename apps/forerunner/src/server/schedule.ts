@@ -3,6 +3,7 @@ import { scheduleInput, type PhaseInput, type WorkflowHost } from "@ai-outfitter
 import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
 import { previewDiscovery, readableConnection, timezone } from "./discovery";
+import { saveRoleSnapshot } from "./suggestions";
 import type { Database } from "./items";
 
 // The daily discovery run. It is on by default: the first time a member opens
@@ -47,7 +48,7 @@ export const scheduleChange = z.strictObject({
 });
 
 /** Turns the daily run on or off. It runs as the member who turned it on. */
-export async function changeSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, input: z.infer<typeof scheduleChange>) {
+export async function changeSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, input: z.infer<typeof scheduleChange>, db?: Database) {
   requireEditor(who);
   if (!input.enabled) {
     const current = (await host.call("schedules", {})).find((item) => item.workflowId === discoveryWorkflow);
@@ -60,6 +61,7 @@ export async function changeSchedule(host: WorkflowHost<"interactive">, who: App
   const connection = (await host.call("snapshot", {})).connections.find((c) => c.id === id);
   if (!connection?.resource || !readableConnection(connection))
     throw new Response("That account is not connected for discovery", { status: 409 });
+  if (db) await saveRoleSnapshot(db, who, host);
   await host.call("schedule.save", {
     workflow: discoveryWorkflow, timezone: input.timezone, enabled: true,
     connectionId: connection.id, resource: connection.resource,
@@ -78,13 +80,15 @@ export const scheduleDefault = z.strictObject({ timezone: timezone.default("UTC"
  * Personal installations only: an organization's Forerunner reads org sources,
  * not a member's mailbox, so it starts off. Editors only.
  */
-export async function defaultSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, input: z.infer<typeof scheduleDefault>) {
+export async function defaultSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, input: z.infer<typeof scheduleDefault>, db?: Database) {
   requireEditor(who);
   const saved = (await host.call("schedules", {})).some((item) => item.workflowId === discoveryWorkflow);
+  if (saved && who.owner.kind === "user" && db) await saveRoleSnapshot(db, who, host);
   if (saved || who.owner.kind !== "user") return scheduleStatus(host, who);
   const readable = (await host.call("snapshot", {})).connections.filter(readableConnection);
   const connection = readable.find((c) => c.provider === "gmail") ?? readable.find((c) => c.provider === "google-calendar");
   if (!connection?.resource) return off;
+  if (db) await saveRoleSnapshot(db, who, host);
   await host.call("schedule.save", {
     workflow: discoveryWorkflow, timezone: input.timezone, enabled: true,
     connectionId: connection.id, resource: connection.resource,
