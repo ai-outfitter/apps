@@ -245,3 +245,19 @@ export const graphExplorations = sqliteTable("graph_explorations", {
   createdAt: integer().notNull(),
   updatedAt: integer().notNull(),
 });
+
+/** What this graph shows another organization (docs/graph-sharing.md): a saved
+ * KnowledgeGraph walked from named roots, minus hidden nodes. Read only; it grants
+ * nothing until the platform routes that organization's reads here. */
+export const graphShares = sqliteTable("graph_shares", {
+  slug: text().primaryKey(),
+  title: text().notNull(),
+  /** { organization, graph, roots, hidden } as node addresses (server/graph-shares.ts). */
+  state: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  archived: integer({ mode: "boolean" }).notNull().default(false),
+  revision: integer().notNull(),
+  createdBy: text().notNull(),
+  createdAt: integer().notNull(),
+  updatedBy: text().notNull(),
+  updatedAt: integer().notNull(),
+});

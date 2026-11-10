@@ -1250,6 +1250,99 @@
     }
   },
   {
+    "name": "MutateShare",
+    "kind": "mutation",
+    "story": "As an editor, I want to show another organization part of this graph with one merge patch, so that they read current records without a copy.",
+    "query": "mutation MutateShare($input: MutateShareInput!) {\n  mutateShare(input: $input) {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n    view {\n      nodes {\n        address\n        title\n        summary\n      }\n      edges {\n        address\n      }\n      incomplete\n    }\n  }\n}",
+    "hash": "967795eef7f7fb7731f018aa813e8fdaa3fe20584aae90e6512fe88909a9d451",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MutateShareInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "mutateShare": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "archived": {
+              "type": "boolean"
+            },
+            "organization": {
+              "type": "string"
+            },
+            "graph": {
+              "type": "string"
+            },
+            "roots": {
+              "description": "JSON"
+            },
+            "hidden": {
+              "description": "JSON"
+            },
+            "view": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "incomplete": {
+                  "type": "boolean"
+                }
+              },
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
@@ -1309,6 +1402,153 @@
             "reviewBy": {
               "description": "DateTime",
               "nullable": true
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "Share",
+    "kind": "query",
+    "story": "As a member or agent, I want to see exactly what another organization reads through a share, so that nothing is exposed by surprise.",
+    "query": "query Share($slug: String!) {\n  share(slug: $slug) {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n    view {\n      nodes {\n        address\n        title\n        summary\n      }\n      edges {\n        address\n      }\n      incomplete\n    }\n  }\n}",
+    "hash": "57d0d846e4cea87f70473a491ba37a6e62652a476e6945365b71278b3792cea6",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Preview exactly what another organization reads through a share, as node and edge addresses."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "share": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "archived": {
+              "type": "boolean"
+            },
+            "organization": {
+              "type": "string"
+            },
+            "graph": {
+              "type": "string"
+            },
+            "roots": {
+              "description": "JSON"
+            },
+            "hidden": {
+              "description": "JSON"
+            },
+            "view": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "incomplete": {
+                  "type": "boolean"
+                }
+              },
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Shares",
+    "kind": "query",
+    "story": "As an editor or agent, I want to list what this graph shows other organizations, so that I can review or change a share.",
+    "query": "query Shares {\n  shares {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n  }\n}",
+    "hash": "296c081cf1ba1936e0a6da4ccab8bd0ee8dba47051dedc56652303fabfd1c725",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "List what this graph shows other organizations: each share's KnowledgeGraph, roots and hidden nodes."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "organization": {
+                "type": "string"
+              },
+              "graph": {
+                "type": "string"
+              },
+              "roots": {
+                "description": "JSON"
+              },
+              "hidden": {
+                "description": "JSON"
+              }
             }
           }
         }

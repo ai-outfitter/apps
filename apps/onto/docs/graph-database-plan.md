@@ -19,6 +19,8 @@ In Onto:
   node it creates reaches an anchor along any path of existing or staged
   edges, in either direction.
 - **Assertions**: claims about a node or an edge, never confirmed truth.
+- **Shares.** What this graph shows one other organization: a saved
+  KnowledgeGraph walked from roots, minus hidden nodes ([sharing](graph-sharing.md)).
 - **Saved views and flattening.** A saved view is a named selection that Onto
   can flatten into Markdown for an agent.
 

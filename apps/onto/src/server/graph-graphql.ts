@@ -17,7 +17,7 @@ export async function graphqlGraphRecords(db: ReturnType<typeof installationData
   const source = databaseSource(db);
   return executeGraphQuery({
     types: await source.types(), source,
-    schemaOptions: { rootExtensions: changeQueries as GraphQLFieldConfigMap<unknown, GraphContext>, typeNames: ["ChangeBatch", "StagedChange", "Exploration", "ExplorationSummary", "ExplorationPicture", "ExplorationNode", "ExplorationEdge", "ExplorationStepResult"] },
+    schemaOptions: { rootExtensions: changeQueries as GraphQLFieldConfigMap<unknown, GraphContext>, typeNames: ["ChangeBatch", "StagedChange", "Exploration", "ExplorationSummary", "ExplorationPicture", "ExplorationNode", "ExplorationEdge", "ExplorationStepResult", "Share", "ShareView", "ShareNode", "ShareEdge"] },
     context: { ...context, db: () => db, identity },
     query: input.query, variables: input.variables, operationName: input.operationName, maxBytes: input.maxBytes,
   });

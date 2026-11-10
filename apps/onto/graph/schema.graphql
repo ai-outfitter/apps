@@ -13,6 +13,16 @@ type Query {
   exploration(slug: String!): Exploration
 
   """
+  What this graph shows other organizations, by title. Select view to see what each one reads.
+  """
+  shares: [Share!]!
+
+  """
+  One share and what its organization reads now; null when there is none.
+  """
+  share(slug: String!): Share
+
+  """
   One change batch, with every operation and its state; null when there is none.
   """
   changeBatch(id: ID!): ChangeBatch
@@ -195,6 +205,52 @@ type ExplorationStepResult {
   error: String
 }
 
+"""
+What this graph shows another organization: a saved KnowledgeGraph walked from roots, minus hidden nodes. It holds a selection, never a copy.
+"""
+type Share {
+  slug: String!
+  title: String!
+  revision: Int!
+  archived: Boolean!
+
+  """The Organization node it is for, such as Organization:sunny."""
+  organization: String!
+
+  """The KnowledgeGraph that picks relationships, types and depth."""
+  graph: String!
+
+  """{"Type:slug": true} the walk starts from."""
+  roots: JSON!
+
+  """{"Type:slug": true} left out, with anything reached only through them."""
+  hidden: JSON!
+
+  """Null while archived."""
+  view: ShareView
+}
+
+"""
+What the organization reads now: current records the KnowledgeGraph reaches from the roots, without hidden nodes.
+"""
+type ShareView {
+  nodes: [ShareNode!]!
+  edges: [ShareEdge!]!
+
+  """The KnowledgeGraph's maxNodes or read budget cut the walk."""
+  incomplete: Boolean!
+}
+
+type ShareNode {
+  address: String!
+  title: String!
+  summary: String
+}
+
+type ShareEdge {
+  address: String!
+}
+
 input ReviseBatchInput {
   batchId: ID!
   proposals: [ReviseBatchInputProposalsItem!]
@@ -224,6 +280,13 @@ input MutateExplorationInput {
   patch: JSON!
   summary: String
   dryRun: Boolean
+}
+
+input MutateShareInput {
+  slug: String!
+  expectedRevision: Float!
+  patch: JSON!
+  archived: Boolean
 }
 
 input ReviewBatchInput {
@@ -296,6 +359,11 @@ type Mutation {
   Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.
   """
   mutateExploration(input: MutateExplorationInput!): Exploration!
+
+  """
+  Editors only. Create or change what this graph shows another organization with a merge patch over {title, organization, graph, roots, hidden} and the revision you read (0 creates). organization is an Organization node address, graph a KnowledgeGraph address whose relationships, stop types and maxDepth decide what is reached, roots and hidden are {"Type:slug": true}. archived:true stops it. Answers with what the organization would read.
+  """
+  mutateShare(input: MutateShareInput!): Share!
 
   """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
