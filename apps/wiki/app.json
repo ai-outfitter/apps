@@ -26,6 +26,7 @@
         "workflow.host",
         "invocations.schedule",
         "actions.publish",
+        "actions.invoke",
         "graph.serve",
         "data.export",
         "entities.read",
