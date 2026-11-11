@@ -10,6 +10,29 @@ export const workbenchPath = (project) => `/projects/${String(project.id).slice(
 export const screenshotName = (index, step) => `${index}-${step.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
 
 /**
+ * A PNG of the whole page. Workshop's shell is one window tall and its main pane scrolls,
+ * so a full-page capture is only the window: the window grows to the pane's whole height
+ * first (up to 4000 px), so the screenshot holds the workbench and the whole 3D view.
+ * @param {import("playwright-core").Page} page
+ */
+export async function workbenchScreenshot(page) {
+  const width = page.viewportSize()?.width ?? 1440;
+  const height = await page.evaluate(() => {
+    let hidden = 0;
+    for (const element of document.querySelectorAll("*")) {
+      const overflow = getComputedStyle(element).overflowY;
+      if ((overflow === "auto" || overflow === "scroll") && element.scrollHeight > element.clientHeight)
+        hidden = Math.max(hidden, element.scrollHeight - element.clientHeight);
+    }
+    return Math.max(document.documentElement.scrollHeight, window.innerHeight + hidden);
+  });
+  await page.setViewportSize({ width, height: Math.min(Math.ceil(height), 4000) });
+  // The 3D view redraws at its new size.
+  await page.waitForTimeout(1000);
+  return page.screenshot({ fullPage: true });
+}
+
+/**
  * Opens a browser signed in as the box's member, or returns undefined when there is none.
  * @param {any} box the supervisor's driver context
  * @param {string} cookie the member's session cookie ("name=value; ...")
@@ -45,16 +68,14 @@ export async function openWorkbench(box, cookie) {
     async capture(project) {
       const page = await context.newPage();
       try {
-        await page.goto(`${origin}${workbenchPath(project)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        const response = await page.goto(`${origin}${workbenchPath(project)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        // A page that did not load has no 3D view to wait for.
+        if (!response?.ok()) throw new Error(`the workbench answered ${response?.status() ?? "nothing"}`);
         const ready = await page.locator('#viewer[data-ready="true"]').waitFor({ state: "attached", timeout: 120_000 })
           .then(() => true, () => false);
         // The frame after the model is added, not the one before.
         await page.waitForTimeout(1000);
-        // The page's main pane scrolls on its own, so a full-page capture is only the window:
-        // scroll the 3D view into the window first. The sidebar and the workbench stay in view.
-        await page.locator(".viewer-card").scrollIntoViewIfNeeded().catch(() => undefined);
-        await page.waitForTimeout(300);
-        return { png: await page.screenshot(), ready };
+        return { png: await workbenchScreenshot(page), ready };
       } finally {
         await page.close();
       }
