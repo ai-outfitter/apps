@@ -18,6 +18,7 @@ import { randomId } from "../random-id";
 import AgentDebug from "./AgentDebug";
 import { sessionDebugHref, useAgentInspector } from "./agent-debug";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
+import { ResourceLink } from "./resource-link";
 import type { ChatInputDraft } from "./ChatInput";
 import SchemaFields from "./SchemaFields";
 import Timeline, { TimelinePartView, type TimelineEntry } from "./timeline/Timeline";
@@ -530,10 +531,7 @@ export default function AppAgentSidebar({
   const renderers = {
     data: {
       "platform.resource-link": (part: Extract<ThreadPart, { type: "data" }>) => {
-        const link = part.data as { uri?: unknown; name?: unknown } | null;
-        return link && typeof link.uri === "string" && typeof link.name === "string"
-          ? <p className="agent-resource-link"><a href={link.uri} target="_blank" rel="noopener noreferrer">{link.name}</a></p>
-          : null;
+        return <ResourceLink data={part.data as { uri?: unknown; name?: unknown } | null} />;
       },
       [navigatePartName]: (part: Extract<ThreadPart, { type: "data" }>) => {
         const target = navigatePart.safeParse(part.data);
@@ -680,10 +678,8 @@ export default function AppAgentSidebar({
             <TimelinePartView key={index} part={part} renderers={renderers} markdown={message.entry.role === "assistant"} onOpenThread={(ref, title) => void openRef(ref, title)} />
           ))}
           {message.entry.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link").map((part, index) => {
-            const link = part.type === "data" ? part.data as { uri?: unknown; name?: unknown } | null : null;
-            return link && typeof link.uri === "string" && typeof link.name === "string"
-              ? <p key={`${link.uri}:${index}`} className="agent-resource-link"><a href={link.uri} target="_blank" rel="noopener noreferrer">{link.name}</a></p>
-              : null;
+            const data = part.type === "data" ? part.data as { uri?: unknown; name?: unknown } | null : null;
+            return <ResourceLink key={`${typeof data?.uri === "string" ? data.uri : "link"}:${index}`} data={data} />;
           })}
           {conversationNavigation && !demo && thread && message.entry.status !== "partial" && ["user", "assistant"].includes(message.entry.role) ? (
             <button type="button" className="agent-child-action" onClick={() => void startChild(message.entry)} disabled={status !== "ready"}>
