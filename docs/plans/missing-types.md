@@ -160,12 +160,110 @@ It is committed, so it needs a follow-up batch: create the types, recreate
 the 18 concept and shot records under them, move their edges and archive the
 Documents. Worth doing only after the types are agreed.
 
+## The Unsupervised batch (added 2026-11-10)
+
+Batch `62527391` ("Confluence engineering export: systems, proposals and
+operations", 201 proposals, awaiting review) shows three more problems.
+
+### The steward cannot read a large batch
+
+The review failed with "413 Step data too large" and one warning,
+`owner.unknown`.
+
+- **413.** `batch-review.ts` sends up to 300 operations, each with its full
+  body and evidence quotes, in one `inference.generate` call. The platform
+  caps a step's data at 64 KB (`MAX_DATA` in webapp
+  `src/lib/workflow-app-inference.ts`). In this batch one proposal is about
+  3 KB, most of it a pasted PDF page, so 201 of them are roughly ten times
+  the cap. Any batch past about 20 such proposals fails the same way.
+- **Fix.** The steward reads a batch in parts that fit: operations grouped by
+  type and neighbourhood, evidence cut to a short quote plus its citation,
+  one model call per part, findings merged. The review states how much it
+  covered. The built-in checks already run on the whole batch.
+- **`owner.unknown`.** Unsupervised's Onto has no single Organization node
+  carrying `organization_id`, so every owner check is skipped. The root node
+  in section 2a removes this case: the root is a stored fact of the
+  installation, set at install or picked once by an editor, not rediscovered
+  on each review.
+
+### Too many types is the same fault as too few
+
+Unsupervised's graph already carries a long list of one-purpose types from
+earlier agent batches: `DomainConcept`, `DataField`, `DataGroup`,
+`LeverParticipation`, `VisibilityRule`, `UseCase`, `DeliveryInterface`,
+`AcceptanceCriterion`, `EvaluationRecord` and more, next to a general
+`Concept` type this batch uses. Sunny got one catch-all type for
+everything; Unsupervised got a new type per idea. The exact batch that
+introduced them could not be read back (batch details over about 40
+proposals exceed the read budget; another thing to fix).
+
+- The instruction rule in section 1 gains its other half: "Propose a type
+  only when several records share a shape the member will query by. Prefer
+  one type with a property over several near-identical types."
+- New built-in check `type.sprawl`: a batch that creates more than a few
+  node types, or a type with fewer than three records, or types whose
+  properties and endpoints match an existing type. The fix it carries names
+  the type to fold into.
+- The steward's review of an open batch judges new types first, before any
+  records are read, since everything else depends on them.
+- Evals: a third fixture where the right answer is one type with a `kind`
+  property, so a run that scores well on launch videos by inventing types
+  freely fails here.
+
+### Cards that say nothing
+
+Every card in this batch reads the same. Taking `Scalar Feature`:
+
+- summary: "Scalar feature with an encoding but no index or perspective."
+- body: the same sentence under `## Facts`, then a fixed
+  `## Evidence and status` paragraph repeated on all 201 cards;
+- reason: "PDF page 103 supports this Concept and its facts", a template;
+- evidence: a 2 KB run of the PDF page, most of it about other things.
+
+A reviewer cannot tell from the card what the record is for or why it should
+exist. Rules for the tool description, each with a built-in check:
+
+- `summary` says what the thing is and why this organization cares, in a
+  sentence a member could approve on its own (`card.summary-repeats-body`,
+  `card.summary-repeats-title`);
+- `body` is only for content beyond the summary; boilerplate shared by
+  every card belongs once on the batch (`card.boilerplate`, the same
+  paragraph on more than five cards);
+- `reason` says why this record and not what the source page was;
+- an evidence quote is the sentence that supports the claim, capped in
+  length (`evidence.quote-too-long`).
+
+## Reading a batch as pages, not cards
+
+Nicholas, 2026-11-10: the cards are hard to navigate; he wants to open the
+page for each item.
+
+- A proposed node opens in the existing node page
+  (`src/pages/[nodeType]/[nodeId].astro`) at its future address with
+  `?batch=<id>`: same layout, body, properties and relationships as a saved
+  node, read from the batch.
+- The page marks it plainly: one line under the title, "Proposed in
+  <batch title>, not saved", linking back to the batch. Proposed
+  relationships and proposed neighbours carry the same mark; saved ones do
+  not. An edited node shows the saved page with the proposed changes marked.
+- Approve and Reject for that one proposal sit on the page, with its
+  evidence, reason, findings and any batch question that names it.
+- Next and previous walk the batch in a useful order: types first, then
+  nodes grouped by type, with a node's relationships shown on its page
+  instead of as separate cards.
+- The Changes page becomes the list: one line per proposal (type, title,
+  summary, state), each a link to its page. The graph view links to the same
+  pages. Explore and node lists can show proposed records with the mark when
+  opened from a batch, never otherwise.
+
 ## Decisions for Nicholas
 
 1. Advice only (agent decides), or should a generic cluster block submit?
    Recommended: advice only, with blocking left to a Governance control.
 2. Which app owns marketing storyboards: Creative team, or a new one?
 3. Redo the Sunny video records once types exist?
-4. Build order: evals first for a baseline, then root node and default
-   anchors, then open-batch review with type proposals, then the
-   instruction text. Agree?
+4. Batch items as pages (above): agree, and should the card list go away
+   entirely or stay as the one-line index?
+5. Build order: evals first for a baseline, then root node and default
+   anchors, then open-batch review with type proposals (reading large batches in
+   parts), then batch item pages, then the instruction text. Agree?
