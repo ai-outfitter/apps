@@ -1,5 +1,5 @@
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
-import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText } from "./requests";
+import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
@@ -124,6 +124,12 @@ const submittedRequest = new GraphQLObjectType({ name: "SubmittedRequest", descr
   ...submissionFields,
 } });
 
+const resumedRequest = new GraphQLObjectType({ name: "ResumedRequest", description: "The request and the run now working it.", fields: {
+  id: { type: nonNull(GraphQLID) },
+  run: { type: nonNull(new GraphQLObjectType({ name: "ResumedRun", fields: {
+    id: { type: nonNull(GraphQLID) }, existing: { type: nonNull(GraphQLBoolean) }, status: { type: nonNull(GraphQLString) },
+  } })) },
+} });
 const enabledRepository = new GraphQLObjectType({ name: "EnabledRepository", description: "The repository's Foundry subscription.", fields: {
   repository: { type: nonNull(GraphQLString) }, subscriptionId: { type: nonNull(GraphQLID) }, workflow: { type: nonNull(GraphQLString) },
 } });
@@ -138,6 +144,12 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
     submitRequest: mutationField<typeof requestInput, FoundryContext>({
       name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
       run: submitRequest,
+    }),
+    resumeRequest: mutationField<typeof resumeInput, FoundryContext>({
+      name: "ResumeRequest",
+      description: "Start a request's stopped Foundry run again (it failed or awaits details), on the same open issue. A running run is returned, not restarted. Needs editor access.",
+      input: resumeInput, output: nonNull(resumedRequest),
+      run: resumeRequest,
     }),
     enableRepository: mutationField<typeof enableRepositoryInput, FoundryContext>({
       name: "EnableRepository",

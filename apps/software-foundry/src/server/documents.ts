@@ -46,7 +46,7 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
     "description": "Turn Foundry execution on for a repository (action enable, input {repository}): approves Foundry's role agents and subscribes to the repository's issues, so RequestChanges there starts work instead of answering that execution is not configured. Repeat to refresh after a Foundry change. Owners and admins only; use a new item key each time."
   },
   "RequestChanges": {
-    "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key."
+    "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key. Action resume {requestId, resumeId} starts a request's failed or awaiting-details run again on the same issue."
   }
 });
 
