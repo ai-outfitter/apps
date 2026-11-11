@@ -20,6 +20,8 @@ function fakePlatform() {
     let text = "";
     req.on("data", (chunk) => (text += chunk));
     req.on("end", () => {
+      // No workbench page here, so the driver's screenshots fail fast and the design goes on.
+      if (req.url?.startsWith("/projects/")) return res.writeHead(404).end();
       const body = JSON.parse(text || "{}");
       calls.push({ host: req.headers.host, path: req.url, body, cookie: req.headers.cookie });
       if (req.url === "/api/auth/sign-in/email") {
