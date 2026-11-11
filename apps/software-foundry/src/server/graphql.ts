@@ -15,6 +15,7 @@ import { readChanges } from "./github/changes";
 import type { IntakeContext } from "./intake";
 import { requireAvailable, userGithub } from "./pages";
 import { createProject, createProjectInput } from "./projects";
+import { enableRepository, enableRepositoryInput } from "./repositories";
 import { foundryProjects, workSubmissions } from "./schema";
 
 type Caller = TableContext & ActionContext & { host: () => WorkflowHost<"interactive">; repositories?: Promise<string[]>; readable?: string[] };
@@ -123,6 +124,10 @@ const submittedRequest = new GraphQLObjectType({ name: "SubmittedRequest", descr
   ...submissionFields,
 } });
 
+const enabledRepository = new GraphQLObjectType({ name: "EnabledRepository", description: "The repository's Foundry subscription.", fields: {
+  repository: { type: nonNull(GraphQLString) }, subscriptionId: { type: nonNull(GraphQLID) }, workflow: { type: nonNull(GraphQLString) },
+} });
+
 // Foundry's writes. graph.mutate admits editors (mutateAction's default). Variables travel
 // within the SDK's 32 KiB limit: Planning sends larger submissions (a frozen work package)
 // to the work.submit action.
@@ -133,6 +138,12 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
     submitRequest: mutationField<typeof requestInput, FoundryContext>({
       name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
       run: submitRequest,
+    }),
+    enableRepository: mutationField<typeof enableRepositoryInput, FoundryContext>({
+      name: "EnableRepository",
+      description: "Turn Foundry execution on for a repository this organization's GitHub connection reaches: approve its role agents and subscribe to its issues, so requests filed there start Foundry's issue-to-merge workflow. Repeat after a Foundry change to refresh. Owners and admins only.",
+      input: enableRepositoryInput, output: nonNull(enabledRepository),
+      run: enableRepository,
     }),
     createProject: mutationField<typeof createProjectInput, FoundryContext>({
       name: "CreateProject",

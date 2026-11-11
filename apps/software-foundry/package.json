@@ -19,7 +19,6 @@
     "test:e2e": "playwright test --config playwright.config.ts",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
     "playground": "node scripts/playground.mjs",
-    "configure-repository": "node scripts/configure-repository.mjs",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json",
     "test:workflow": "node scripts/check-workflows.mjs"
   },

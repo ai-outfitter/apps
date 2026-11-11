@@ -152,3 +152,15 @@ test("workspace guidance scopes repository commands and requires actual viewport
   assert.match(playground,/resize_page or emulate/);
   assert.match(workspaceGuidance("ai-outfitter/webapp").join("\n"),/build:node/);
 });
+
+test("an owner or admin turns a repository on from Foundry itself, within interactive host operations", async () => {
+  const { enableRepository } = await import("../src/server/repositories");
+  const { operationAllowed } = await import("@ai-outfitter/app-sdk/workflow-host");
+  const { host, calls, subscriptions } = platform();
+  const context = (canEdit: boolean) => ({ identity: { userId: "owner", canEdit }, host: () => host }) as never;
+  assert.deepEqual(await enableRepository(context(true), { repository: "acme/app", reviewer: "vega" }),
+    { repository: "acme/app", subscriptionId: "subscription", workflow: foundryWorkspaceWorkflow });
+  assert.equal(subscriptions.length, 1);
+  assert.ok(calls.every((call) => operationAllowed(call.operation, "interactive")), "no operator-only operation is needed");
+  await assert.rejects(enableRepository(context(false), { repository: "acme/app", reviewer: "vega" }));
+});
