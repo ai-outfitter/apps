@@ -27,9 +27,11 @@ export function outfitterApp({ standalone = process.env.OUTFITTER_STANDALONE ===
   return {
     name: "@ai-outfitter/app-sdk",
     hooks: {
-      "astro:config:setup": ({ addMiddleware, command, createCodegenDir, config }) => {
+      "astro:config:setup": ({ addMiddleware, command, createCodegenDir, config, updateConfig }) => {
         const dev = command === "dev";
         if (standalone) {
+          // A product preview shows the product, not Astro's dev toolbar.
+          updateConfig?.({ devToolbar: { enabled: false } });
           const root = config?.root ? fileURLToPath(config.root) : process.cwd();
           const settings: StandaloneOptions = {
             app: options.app,

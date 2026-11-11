@@ -3,7 +3,9 @@
 An Outfitter app can run as its own product, with no Outfitter platform in front of
 it. The same app code serves both: on the platform it trusts the identity headers and
 workflow host the platform forwards; standalone, the SDK signs people in and answers
-those itself. Workshop is the first app wired for it.
+those itself. Workshop and Onto are wired for it: `npm run standalone` in either.
+Onto loads its standard data when an owner runs
+`POST /api/internal/app-initialize` once, as the platform does after install.
 
 ## Run Workshop locally
 
@@ -51,6 +53,20 @@ usual app middleware when `OUTFITTER_STANDALONE=1` (or `standalone: true`):
 Google sign-in needs an allow list: `ALLOWED_EMAILS`, `ALLOWED_DOMAINS` (matched on
 the address or Google's `hd` claim) or `ADMIN_EMAILS`. With none set, no one may sign
 in. The redirect URI to register with Google is `<origin>/login/google/callback`.
+
+## Alpha evidence from story specs
+
+Each app's value story is a story spec in `tests/stories` (Workshop:
+`workshop-alpha-value-story`, Onto: `onto-alpha-value-story`), walked against the
+app running standalone and captured step by step, as webapp's story specs are
+(docs/release-artifacts.md there):
+
+```sh
+npm run standalone &                       # in apps/workshop or apps/onto
+STORY_ORIGIN=http://localhost:4321 npx playwright test -c playwright.stories.config.ts
+```
+
+The JSON report becomes the alpha revision's evidence bundle in Onto.
 
 ## Deploy as one Worker
 
