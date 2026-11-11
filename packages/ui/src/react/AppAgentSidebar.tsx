@@ -529,6 +529,12 @@ export default function AppAgentSidebar({
   const proposalById = new Map(proposals.map((p) => [p.id, p]));
   const renderers = {
     data: {
+      "platform.resource-link": (part: Extract<ThreadPart, { type: "data" }>) => {
+        const link = part.data as { uri?: unknown; name?: unknown } | null;
+        return link && typeof link.uri === "string" && typeof link.name === "string"
+          ? <p className="agent-resource-link"><a href={link.uri} target="_blank" rel="noopener noreferrer">{link.name}</a></p>
+          : null;
+      },
       [navigatePartName]: (part: Extract<ThreadPart, { type: "data" }>) => {
         const target = navigatePart.safeParse(part.data);
         const href = target.success ? pageHref(prefix, target.data.location, location.href) : null;
@@ -673,6 +679,12 @@ export default function AppAgentSidebar({
             // biome-ignore lint/suspicious/noArrayIndexKey: entry parts are immutable and ordered.
             <TimelinePartView key={index} part={part} renderers={renderers} markdown={message.entry.role === "assistant"} onOpenThread={(ref, title) => void openRef(ref, title)} />
           ))}
+          {message.entry.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link").map((part, index) => {
+            const link = part.type === "data" ? part.data as { uri?: unknown; name?: unknown } | null : null;
+            return link && typeof link.uri === "string" && typeof link.name === "string"
+              ? <p key={`${link.uri}:${index}`} className="agent-resource-link"><a href={link.uri} target="_blank" rel="noopener noreferrer">{link.name}</a></p>
+              : null;
+          })}
           {conversationNavigation && !demo && thread && message.entry.status !== "partial" && ["user", "assistant"].includes(message.entry.role) ? (
             <button type="button" className="agent-child-action" onClick={() => void startChild(message.entry)} disabled={status !== "ready"}>
               Start child conversation

@@ -439,7 +439,9 @@ export function replies(adapters: ThreadAdapters, helpers: Helpers) {
         else parts.push({ type: "text", text: chunk.text });
       } else if (chunk.type === "tool-call") parts.push({ type: "tool-call", callId: chunk.toolCallId, name: chunk.toolName, input: (chunk.input ?? null) as never });
       else if (chunk.type === "tool-result") {
-        const output = transient.has(chunk.toolName) ? omittedToolOutput : chunk.output ?? null;
+        const rawOutput = chunk.output ?? null;
+        if (transient.has(chunk.toolName)) parts.push(...userResourceLinks(rawOutput));
+        const output = transient.has(chunk.toolName) ? omittedToolOutput : rawOutput;
         parts.push({ type: "tool-result", callId: chunk.toolCallId, name: chunk.toolName, output: output as never });
         parts.push(...(extra.get(chunk.toolCallId) ?? []));
       } else if (chunk.type === "tool-error")
@@ -584,6 +586,21 @@ async function refusal(error: unknown) {
 /** An entry's values as an INSERT ... SELECT projection, column for column. */
 
 const omitted = (output: unknown) => Boolean(output && typeof output === "object" && (output as { omitted?: unknown }).omitted === true);
+
+/** Persist only standard MCP resource links explicitly addressed to the user, never their tool result. */
+function userResourceLinks(output: unknown): ThreadPart[] {
+  if (!output || typeof output !== "object") return [];
+  const rawContent = (output as { content?: unknown }).content;
+  const content = Array.isArray(rawContent) ? rawContent : Array.isArray(output) ? output : [];
+  if (!content.length) return [];
+  return content.flatMap((item): ThreadPart[] => {
+    if (!item || typeof item !== "object") return [];
+    const block = item as { type?: unknown; uri?: unknown; name?: unknown; annotations?: { audience?: unknown } };
+    if (block.type !== "resource_link" || typeof block.uri !== "string" || typeof block.name !== "string"
+      || !Array.isArray(block.annotations?.audience) || !block.annotations.audience.includes("user")) return [];
+    return [{ type: "data", name: "platform.resource-link", data: { uri: block.uri, name: block.name } }];
+  });
+}
 
 function changes(result: unknown) {
   const value = result as { rowsAffected?: number; meta?: { changes?: number }; changes?: number };
