@@ -68,7 +68,9 @@ export async function openWorkbench(box, cookie) {
     async capture(project) {
       const page = await context.newPage();
       try {
-        await page.goto(`${origin}${workbenchPath(project)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        const response = await page.goto(`${origin}${workbenchPath(project)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        // A page that did not load has no 3D view to wait for.
+        if (!response?.ok()) throw new Error(`the workbench answered ${response?.status() ?? "nothing"}`);
         const ready = await page.locator('#viewer[data-ready="true"]').waitFor({ state: "attached", timeout: 120_000 })
           .then(() => true, () => false);
         // The frame after the model is added, not the one before.
