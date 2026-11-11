@@ -117,6 +117,39 @@ function setupRows(graph: WikiGraph): SetupRow[] {
     return rows.map((fields) => ({ type, fields, identityKeys }));
   });
 }
+/** The graph's references (type endpoints, node and edge types and ends) after `mapped`. */
+function remapFields(fields: SetupRow["fields"], mapped: (id: string) => string): SetupRow["fields"] {
+  const next: Record<string, unknown> = { ...fields };
+  for (const key of ["typeId", "fromId", "toId"])
+    if (typeof next[key] === "string") next[key] = mapped(next[key] as string);
+  const ontology = next.ontology as { endpoints?: Record<string, unknown> } | undefined;
+  if (ontology?.endpoints)
+    next.ontology = {
+      ...ontology,
+      endpoints: Object.fromEntries(
+        Object.entries(ontology.endpoints).map(([end, value]) => [
+          end,
+          Array.isArray(value) ? value.map((id) => (typeof id === "string" ? mapped(id) : id)) : value,
+        ]),
+      ),
+    };
+  return next as SetupRow["fields"];
+}
+/** The ID of the active type with this category and name, when the Wiki has one. */
+async function typeByName(host: Host, installationId: string, fields: SetupRow["fields"]) {
+  for (let offset = 0; offset < 10_000; offset += 100) {
+    const page = await host.call("entities.list", { installationId, type: "graph-type", offset, limit: 100 });
+    const match = page.find(
+      (type) =>
+        !type.attributes.archived &&
+        type.attributes.category === fields.category &&
+        type.attributes.name === fields.name,
+    );
+    if (match) return match.ref.id;
+    if (page.length < 100) return undefined;
+  }
+  return undefined;
+}
 /** A UUID-shaped ID derived from `parts`: the same parts always name the same record. */
 export async function stableGraphId(...parts: unknown[]) {
   const digest = new Uint8Array(
@@ -207,12 +240,30 @@ export function wikiAdapter(host: Host, installationId: string) {
       }
       throw new Response("Wiki has too many types", { status: 413 });
     },
+    /**
+     * Adds the graph's missing records. A type the Wiki already has under its
+     * own ID (same category and name) is kept, and the graph's later rows
+     * point at that ID instead.
+     */
     async setup(input: WikiGraph) {
+      const ids = new Map<string, string>();
+      const mapped = (id: string) => ids.get(id) ?? id;
       const rows = setupRows(wikiGraph.parse(input));
       const result = { created: 0, existing: 0 };
       for (const row of rows) {
-        const created = await ensureRecord(host, installationId, row);
-        result[created ? "created" : "existing"]++;
+        const fields = remapFields(row.fields, mapped);
+        try {
+          const created = await ensureRecord(host, installationId, { ...row, fields });
+          result[created ? "created" : "existing"]++;
+        } catch (error) {
+          const existing =
+            row.type === "graph-type" && error instanceof Response && error.status === 409
+              ? await typeByName(host, installationId, fields).catch(() => undefined)
+              : undefined;
+          if (!existing) throw error;
+          ids.set(row.fields.id, existing);
+          result.existing++;
+        }
       }
       return result;
     },
