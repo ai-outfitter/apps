@@ -1,29 +1,49 @@
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "./fixtures/initialized-worker";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { create } from "./fixtures/relators";
 import { core } from "../src/lib/graph";
 
 const origin = "https://wiki.outfitter.example";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const agent = { ...owner, entityWriter: "outfitter/eval" };
 const documentId = "7b0e0000-0000-4000-8000-000000000091";
+const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
 
-test("read a proposed document from Changes before approving its saved entity", async ({ page }, info) => {
+/** A fresh Onto worker and a way to call its batch actions as an agent. */
+async function openApp() {
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async () => { throw new Error("Unexpected host call"); } }),
   });
-  const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
   const action = async (name: string, input: object) => {
-    const response = await app.call("/api/internal/actions/v1/call", agent, {
-      method: "POST", body: { action: name, input },
-    });
+    const response = await app.call("/api/internal/actions/v1/call", agent, { method: "POST", body: { action: name, input } });
     expect(response.status, await response.clone().text()).toBe(200);
-    return response.json() as Promise<{
-      batch: { id: string; state: string };
-      operations: { recordId: string | null }[];
-    }>;
+    return response.json() as Promise<{ batch: { id: string; state: string }; operations: { recordId: string | null }[] }>;
   };
+  return { app, action };
+}
+
+/** Serve the page from the worker as the owner. */
+async function proxyTo(page: Page, app: Awaited<ReturnType<typeof openApp>>["app"]) {
+  await page.route(`${origin}/**`, async (route) => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname === "/api/platform/threads" && url.searchParams.get("view") === "snapshot") {
+      await route.fulfill({ json: { thread: null, entries: [], before: null } });
+      return;
+    }
+    await fulfillFrom(route, await app.call(url.pathname + url.search, owner, {
+      workflowHost,
+      method: request.method(),
+      ...(request.postData() ? { body: request.postDataJSON() } : {}),
+    }));
+  });
+  // HTTP development hostnames do not expose crypto.randomUUID.
+  await page.addInitScript(() => Object.defineProperty(crypto, "randomUUID", { value: undefined }));
+}
+
+test("read a proposed document from Changes before approving its saved entity", async ({ page }, info) => {
+  const { app, action } = await openApp();
   try {
     const { batch } = await action("batch.open", {
       title: "Hardware milestone research",
@@ -46,22 +66,9 @@ test("read a proposed document from Changes before approving its saved entity", 
     });
     expect(absent.status).toBe(404);
 
-    await page.route(`${origin}/**`, async (route) => {
-      const request = route.request(), url = new URL(request.url());
-      if (url.pathname === "/api/platform/threads" && url.searchParams.get("view") === "snapshot") {
-        await route.fulfill({ json: { thread: null, entries: [], before: null } });
-        return;
-      }
-      await fulfillFrom(route, await app.call(url.pathname + url.search, owner, {
-        workflowHost,
-        method: request.method(),
-        ...(request.postData() ? { body: request.postDataJSON() } : {}),
-      }));
-    });
+    await proxyTo(page, app);
     const batchUrl = `${origin}/changes/${batch.id}`;
     await test.step("read the proposal while it has no saved entity", async () => {
-      // HTTP development hostnames do not expose crypto.randomUUID.
-      await page.addInitScript(() => Object.defineProperty(crypto, "randomUUID", { value: undefined }));
       await page.goto(`${origin}/changes`);
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("link", { name: "Hardware milestone research", exact: true }).click();
@@ -147,6 +154,36 @@ test("read a proposed document from Changes before approving its saved entity", 
       await expect(page.getByRole("heading", { level: 1, name: "First hardware and firmware milestone", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Proposed acceptance checks", exact: true })).toBeVisible();
     });
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});
+
+test("records of a type proposed in the same batch show that type in the batch graph", async ({ page }) => {
+  const { app, action } = await openApp();
+  const storyboardType = "7b0e0000-0000-4000-8000-0000000000a1";
+  const shotType = "7b0e0000-0000-4000-8000-0000000000a2";
+  const shotOf = "7b0e0000-0000-4000-8000-0000000000a3";
+  const proposal = (ref: string, type: string, attributes: object) => ({ operation: create(ref, type, attributes) });
+  try {
+    const { batch } = await action("batch.open", { title: "Storyboard types", source: { kind: "agent-task", ref: "changes-browser-types" } });
+    await action("batch.add", { batchId: batch.id, proposals: [
+      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "Storyboard", title: "Storyboards", body: "A type.", properties: [] }),
+      proposal("$t-shot", "graph-type", { id: shotType, category: "node", name: "Shot", title: "Shots", body: "A type.", properties: [] }),
+      proposal("$t-shot-of", "graph-type", { id: shotOf, category: "edge", name: "shot_of", title: "shot of", body: "A type.", properties: [], ontology: { version: 2, endpoints: { from: [shotType], to: [storyboardType] } } }),
+      proposal("$board", "graph-node", { typeId: "$t-storyboard", title: "Find your spot" }),
+      proposal("$shot", "graph-node", { typeId: "$t-shot", title: "Choose a place" }),
+      proposal("$edge", "graph-edge", { typeId: "$t-shot-of", fromId: "$shot", toId: "$board" }),
+    ] });
+    await action("batch.submit", { batchId: batch.id });
+    await proxyTo(page, app);
+    await page.goto(`${origin}/changes/${batch.id}`);
+    const graph = page.locator(".knowledge-graph-viewport svg");
+    await expect(graph.locator("a").filter({ hasText: "Choose a place" })).toContainText("Shots");
+    await expect(graph.locator("a").filter({ hasText: "Find your spot" })).toContainText("Storyboards");
+    await expect(graph).toContainText("shot_of");
+    await expect(graph).not.toContainText("Entity");
   } finally {
     await page.unrouteAll({ behavior: "wait" });
     await app.dispose();
