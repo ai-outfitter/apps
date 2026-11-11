@@ -36,6 +36,9 @@ type MutationContext = ChangeContext & ActionContext;
 
 const nonNull = <T extends GraphQLNullableType>(type: T) => new GraphQLNonNull(type);
 const text = { type: nonNull(GraphQLString) };
+/** App-relative review route, rooted at the exact installed app scope. */
+export const batchReviewUrl = (identity: Pick<AppIdentity, "owner">, batchId: string) =>
+  `${identity.owner.kind === "organization" ? `/o/${encodeURIComponent(identity.owner.id)}/onto/` : `/apps/${encodeURIComponent(identity.owner.id)}/` }changes/${encodeURIComponent(batchId)}`;
 const json = { type: nonNull(JSONScalar) };
 
 const StagedChange = new GraphQLObjectType({
@@ -70,10 +73,11 @@ const ChangeBatch = new GraphQLObjectType({
     validation: { type: nonNull(JSONScalar), description: "Current dry-run result: valid, error and operations. valid=false means repair the draft before submitting; nothing has been applied.", resolve: (batch, _args, context: ChangeContext) => batchValidation(batch, context) },
     policy: json, summary: { type: JSONScalar },
     reviewBy: { type: DateTimeScalar },
+    reviewUrl: { type: GraphQLString, resolve: (batch, _args, context: ChangeContext) => batchReviewUrl(context.identity, batch.id) },
     review: { type: JSONScalar, description: "The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
-    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context) }) },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context) }, batchReviewUrl(context.identity, batch.id)) },
     operations: {
       type: nonNull(new GraphQLList(nonNull(StagedChange))),
       args: { refs: { type: new GraphQLList(nonNull(GraphQLString)), description: "Read only these proposal refs; omit for all. Use to inspect individual proposals when the whole batch exceeds the response limit." } },

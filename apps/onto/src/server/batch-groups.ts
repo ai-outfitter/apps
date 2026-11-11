@@ -1,8 +1,10 @@
 import type { BatchGroups } from "@ai-outfitter/app-sdk/batch-documents";
+import { batchReviewUrl } from "./graphql";
 
 export const batchGroups = {
   "ChangeBatchChanges": {
-    "resultFields": ["id", "title", "state", "counts", "reviewBy", "anchors", "validation"],
+    "resultFields": ["id", "title", "state", "counts", "reviewBy", "reviewUrl", "anchors", "validation"],
+    reviewUrl: (context, value) => value && typeof value === "object" && "id" in value ? batchReviewUrl(context.identity, String(value.id)) : undefined,
     "description": "Apply changebatch changes using explicit actions",
     "actions": {
       "amend": "reviseBatch",

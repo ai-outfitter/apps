@@ -812,8 +812,8 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "1e96f40a36e6ceb41c697e2f6fa49cead34603cb8a39c533e2a3290d5554a7a6",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "dd8614fcd5c6845a7dd00d5bb6b4c5fc593cc349025b5df6a64644eb09eb64e4",
     "variables": {
       "type": "object",
       "properties": {
@@ -881,6 +881,10 @@
                   },
                   "reviewBy": {
                     "description": "DateTime",
+                    "nullable": true
+                  },
+                  "reviewUrl": {
+                    "type": "string",
                     "nullable": true
                   },
                   "instructions": {
@@ -1365,8 +1369,8 @@
     "name": "ReviseBatch",
     "kind": "mutation",
     "story": "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
-    "query": "mutation ReviseBatch($input: ReviseBatchInput!) {\n  reviseBatch(input: $input) {\n    id\n    title\n    state\n    counts\n    reviewBy\n  }\n}",
-    "hash": "595312ed638ff35747bec7a64af29bc26a4b48fcd6d00ae089fc17e5ad083b35",
+    "query": "mutation ReviseBatch($input: ReviseBatchInput!) {\n  reviseBatch(input: $input) {\n    id\n    title\n    state\n    counts\n    reviewBy\n    reviewUrl\n  }\n}",
+    "hash": "cfec203c61f8438a303177e7791f5831c7fdef3e88d3ea8b28c5c0e13f880368",
     "variables": {
       "type": "object",
       "properties": {
@@ -1401,6 +1405,10 @@
             },
             "reviewBy": {
               "description": "DateTime",
+              "nullable": true
+            },
+            "reviewUrl": {
+              "type": "string",
               "nullable": true
             }
           }

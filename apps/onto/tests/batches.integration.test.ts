@@ -6,6 +6,7 @@ import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { drizzle } from "drizzle-orm/d1";
 import { documents } from "../src/server/documents";
 import { sealDueBatches } from "../src/server/graph-batches";
+import { batchReviewUrl } from "../src/server/graphql";
 import { core } from "../src/lib/graph";
 import { create, definitions, ids } from "./fixtures/relators";
 
@@ -324,12 +325,18 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const send=async(items:object[],identity:object=agent)=>(await call("ChangeBatchChanges",{items},identity)).data.changeBatchChanges;
   const first=await send([{key:uuid(900),action:"stage",input:{title:"Batch contract",proposals:[{operation:person("$first",901,"First"),evidence:cite("first")}]}}]);
   const id=first.items[0].result.id;
+  assert.equal(first.items[0].result.reviewUrl, batchReviewUrl({ owner: { kind: "organization", id: "org" } }, id));
+  const expectedReviewUrl = batchReviewUrl({ owner: { kind: "organization", id: "org" } }, first.items[0].result.id);
   assert.equal(first.items[0].status,"pending");assert.equal(first.instructions[0].code,"SUBMIT_CHANGES");
+  assert.equal(first.instructions[0].url, expectedReviewUrl);
+  const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
+  assert.equal(listed.data.changeBatches.nodes.find((batch: { id: string }) => batch.id === first.items[0].result.id).reviewUrl, expectedReviewUrl);
   const append={key:uuid(902),action:"stage",input:{batchId:id,proposals:[{operation:person("$second",903,"Second"),evidence:cite("second")}]}};
   await send([append]);await send([append]);
   const submitted=await send([{key:uuid(904),action:"submit",input:{batchId:id}}]);
   assert.equal(submitted.items[0].result.counts.awaiting_review,2);
   assert.equal(submitted.instructions[0].actor,"human");
+  assert.equal(submitted.instructions[0].url, expectedReviewUrl);
   assert.equal(await f.exists(uuid(901)),false);
   const denied=await send([{key:uuid(905),action:"review",input:{batchId:id,verdict:"approve"}}]);
   assert.notEqual(denied.items[0].status,"complete");
@@ -420,6 +427,7 @@ test("member amendments replace and add proposals without committing; invalid or
   ] };
   const revised = await run(f, "ReviseBatch", { input: amendment }, connection);
   assert.equal(revised.errors, undefined);
+  assert.equal(revised.data.reviseBatch.reviewUrl, batchReviewUrl({ owner: { kind: "organization", id: "org" } }, batchId));
   assert.deepEqual([revised.data.reviseBatch.state, revised.data.reviseBatch.counts], ["awaiting_review", { awaiting_review: 4 }]);
   const after = await json(await f.action("batch.get", { batchId }));
   assert.deepEqual(after.batch.policy, before.batch.policy); assert.equal(after.batch.reviewBy, before.batch.reviewBy);
