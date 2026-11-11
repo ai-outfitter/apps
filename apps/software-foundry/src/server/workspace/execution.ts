@@ -96,21 +96,31 @@ async function actionsValidation(host: Finalize, api: Parameters<typeof actionsC
 }
 
 
-const commonGuidance = [
-  "For screenshot review, previous.evidence width/height are trusted original PNG IHDR dimensions, re-read from installation storage and hash-verified by the coordinator. Browser image-page screenshots and tool-rendered image sizes are not the source image dimensions. Inspect the published images visually and use their receipt dimensions; independently fetch and inspect PNG headers/hash if you dispute those receipts. A stale previous.demo gap must be checked against the current PR and published receipts, not repeated as an unresolved finding after its link is corrected.",
+const reviewScreenshots = "For screenshot review, previous.evidence width/height are trusted original PNG IHDR dimensions, re-read from installation storage and hash-verified by the coordinator. Browser image-page screenshots and tool-rendered image sizes are not the source image dimensions. Inspect the published images visually and use their receipt dimensions; independently fetch and inspect PNG headers/hash if you dispute those receipts. A stale previous.demo gap must be checked against the current PR and published receipts, not repeated as an unresolved finding after its link is corrected.";
+const publishScreenshots = [
   "The PR body must include a native Closes #ISSUE_NUMBER reference to the assigned issue before screenshot publication. If publishing returns HTTP 409, confirm that closing issue reference with gh pr view PR_NUMBER --json closingIssuesReferences, and confirm the pushed PR head equals git rev-parse HEAD. Correct PR metadata or push the intended commit before retrying; do not treat an unlinked PR as completed implementation.",
-  "Demo screenshots are run artifacts, not repository source. Keep them outside Git (for example under test-results), never commit them or use Git LFS. After pushing the code commit and opening the PR, upload each selected PNG from inside its checkout with node /opt/workspace/publish-image.mjs PR_NUMBER SCREENSHOT.png. Put the returned image URLs in the PR Demo section and retain their headSha receipts. Share only non-sensitive demo screenshots, never session files or credentials.",
+  "Screenshots are needed only when the change alters a page or component people see. Keep them outside Git (for example under test-results), never commit them or use Git LFS. After pushing the code commit and opening the PR, upload each PNG from inside its checkout with node /opt/workspace/publish-image.mjs PR_NUMBER SCREENSHOT.png and put the returned URLs in the PR Demo section. Capture distinct desktop and mobile viewports (Chrome resize_page or emulate before each), name them desktop.png and mobile.png, and embed them as ![Desktop](URL) and ![Mobile](URL).",
+];
+/** How an implementer spends its tool calls: the plan first, the code path before the test. */
+const implementing = [
+  "The triage plan in previous.summary names the files and checks: start there instead of re-exploring the repository. Read a file once and edit it in place; do not re-print files after each edit.",
+  "Write new tests by copying the closest existing test in the same file and changing only what the plan needs. Iterate on that one test file. If a test fails twice the same way, read the code path it exercises before changing the test again.",
+];
+const reviewing = [
   "Review and validation nodes must not push code or publish reviews; the coordinator publishes their verified results.",
 ];
 
-/** Repository-specific commands never leak into another repository's task. */
-export function workspaceGuidance(repository: string) {
+/** Each role's guidance, with repository-specific commands only for their repository. */
+export function workspaceGuidance(repository: string, role = "implement") {
+  const webapp = repository.toLowerCase() === "ai-outfitter/webapp";
+  if (role === "review") return [
+    ...reviewing, reviewScreenshots,
+    ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly. Reviewers have read-only Actions access; inspect current-commit CI logs independently. For protected previews import installPreview from /opt/workspace/preview.mjs and call it with the Playwright context and previous.previews.verifiedUrl before page.goto; it uses the trusted gateway and assertReadOnly checks. Do not add service credentials to the browser; never try a person's login. Block only same-origin /cdn-cgi/rum telemetry during read-only fixture checks, and fail on every other product write. Report missing preview access explicitly rather than treating an Access login page as successful acceptance."] : []),
+  ];
+  if (role === "triage") return [];
   return [
-    ...commonGuidance,
-    ...(repository.toLowerCase() === "ai-outfitter/webapp" ? [
-  "For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly. Reviewers have read-only Actions access; inspect current-commit CI logs independently. For protected previews import installPreview from /opt/workspace/preview.mjs and call it with the Playwright context and previous.previews.verifiedUrl before page.goto; it uses the trusted gateway and assertReadOnly checks. Do not add service credentials to the browser; never try a person's login. Block only same-origin /cdn-cgi/rum telemetry during read-only fixture checks, and fail on every other product write. Report missing preview access explicitly rather than treating an Access login page as successful acceptance.",
-    ] : []),
-    "Capture genuinely distinct desktop and mobile viewports: use Chrome resize_page or emulate before each screenshot and check the resulting PNG dimensions. Name the captures desktop.png and mobile.png. Embed their published URLs as ![Desktop](URL) and ![Mobile](URL), not ordinary download links.",
+    ...implementing, ...publishScreenshots,
+    ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly."] : []),
   ];
 }
 
@@ -136,7 +146,7 @@ export async function prepareWorkspaceNode(
     mode: "agent",
     role: target.role,
     checks: target.checks,
-    guidance: workspaceGuidance((await host.call("repository.read", {})).name),
+    guidance: workspaceGuidance((await host.call("repository.read", {})).name, target.role),
     ...(preview ? { preview: { url: preview.url, revision: preview.headSha } } : {}),
   };
 }

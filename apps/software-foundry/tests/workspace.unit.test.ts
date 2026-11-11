@@ -145,12 +145,17 @@ test("an editor's start on an existing issue uses the stable installation, repos
 });
 
 
-test("workspace guidance scopes repository commands and requires actual viewport captures", async () => {
+test("each role gets only its own guidance, and repository commands only for their repository", async () => {
   const {workspaceGuidance}=await import("../src/server/workspace/execution");
-  const playground=workspaceGuidance("ai-outfitter/outfitter-playground-internal").join("\n");
-  assert.doesNotMatch(playground,/build:node|anonymous-onboarding/);
-  assert.match(playground,/resize_page or emulate/);
-  assert.match(workspaceGuidance("ai-outfitter/webapp").join("\n"),/build:node/);
+  const implement=workspaceGuidance("ai-outfitter/outfitter-playground-internal","implement").join("\n");
+  assert.doesNotMatch(implement,/build:node|anonymous-onboarding|IHDR|must not push/);
+  assert.match(implement,/resize_page or emulate/);
+  assert.match(implement,/previous\.summary/);
+  const review=workspaceGuidance("ai-outfitter/webapp","review").join("\n");
+  assert.match(review,/IHDR/);assert.match(review,/installPreview/);
+  assert.doesNotMatch(review,/copying the closest existing test/);
+  assert.deepEqual(workspaceGuidance("acme/app","triage"),[]);
+  assert.match(workspaceGuidance("ai-outfitter/webapp","repair").join("\n"),/build:node/);
 });
 
 test("an owner or admin turns a repository on from Foundry itself, within interactive host operations", async () => {
