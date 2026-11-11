@@ -38,7 +38,7 @@ const nonNull = <T extends GraphQLNullableType>(type: T) => new GraphQLNonNull(t
 const text = { type: nonNull(GraphQLString) };
 /** App-relative review route, rooted at the exact installed app scope. */
 export const batchReviewUrl = (identity: Pick<AppIdentity, "owner">, batchId: string) =>
-  `${identity.owner.kind === "organization" ? `/o/${encodeURIComponent(identity.owner.id)}/onto/` : `/apps/${encodeURIComponent(identity.owner.id)}/` }changes/${encodeURIComponent(batchId)}`;
+  `${identity.owner.kind === "organization" ? `/o/${encodeURIComponent(identity.owner.id)}/onto/` : "/apps/onto/"}changes/${encodeURIComponent(batchId)}`;
 const json = { type: nonNull(JSONScalar) };
 
 const StagedChange = new GraphQLObjectType({

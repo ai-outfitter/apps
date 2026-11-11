@@ -338,6 +338,12 @@ test("plural change documents append durably, submit explicitly, and preserve th
   assert.equal(submitted.instructions[0].actor,"human");
   assert.equal(submitted.instructions[0].url, expectedReviewUrl);
   assert.equal(await f.exists(uuid(901)),false);
+  const personalIdentity = { ...agent, owner: { kind: "user" as const, id: "personal-owner" } };
+  const personalStage = await send([{ key: uuid(907), action: "stage", input: { title: "Personal batch", proposals: [{ operation: person("$personal", 908, "Personal"), evidence: cite("personal") }] } }], personalIdentity);
+  const personalId = personalStage.items[0].result.id;
+  const personalUrl = `/apps/onto/changes/${personalId}`;
+  assert.equal(personalStage.items[0].result.reviewUrl, personalUrl);
+  assert.equal(personalStage.instructions[0].url, personalUrl);
   const denied=await send([{key:uuid(905),action:"review",input:{batchId:id,verdict:"approve"}}]);
   assert.notEqual(denied.items[0].status,"complete");
   const approved=await send([{key:uuid(906),action:"review",input:{batchId:id,verdict:"approve"}}],owner);
