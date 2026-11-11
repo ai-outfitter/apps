@@ -66,8 +66,9 @@ function title(op: BatchOperation, names: Map<string, string>, types: Map<string
     const end = (value: unknown) => names.get(String(value)) ?? "an existing entity";
     return `${end(a.fromId)} → ${types.get(String(a.typeId)) ?? "related to"} → ${end(a.toId)}`;
   }
-  return String(a.title ?? a.name ?? op.ref);
+  return label(op);
 }
+const label = (op: BatchOperation) => String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref);
 
 function citation(item: Citation) {
   const source = `${item.provider} · ${item.recordId}${item.version ? ` (version ${item.version})` : ""}`;
@@ -78,26 +79,29 @@ function citation(item: Citation) {
   );
 }
 
-/** The proposed records as graph nodes and edges, over the current Wiki for existing endpoints. */
+/** The Wiki as if this batch were applied: proposed types, nodes and edges over the saved ones. */
 function proposedView(graph: Graph, ops: BatchOperation[]) {
   const live = ops.filter((op) => op.state !== "rejected");
-  const refs = new Map(ops.map((op) => [op.ref, recordIdOf(op)]));
+  const of = (type: Operation["type"]) => live.filter((op) => op.operation.type === type);
+  const types = new Map(graph.types.map((type) => [type.id, type]));
+  for (const op of of("graph-type")) {
+    const id = recordIdOf(op);
+    types.set(id, { body: "", properties: [], archived: false, ...types.get(id), ...op.operation.attributes, id, title: label(op) } as Graph["types"][number]);
+  }
   const nodes = new Map<string, GraphNode>();
-  for (const op of live.filter((item) => item.operation.type === "graph-node")) {
+  for (const op of of("graph-node")) {
     const id = recordIdOf(op), a = op.operation.attributes;
     const saved = graph.nodes.find((node) => node.id === id);
     nodes.set(id, { ...(saved ?? {}), id, typeId: String(a.typeId ?? saved?.typeId ?? ""), title: String(a.title ?? saved?.title ?? op.ref) } as GraphNode);
   }
-  const resolve = (value: unknown) => refs.get(String(value)) ?? String(value);
   const edges: GraphEdge[] = [];
-  for (const op of live.filter((item) => item.operation.type === "graph-edge")) {
-    const a = op.operation.attributes;
-    const fromId = resolve(a.fromId), toId = resolve(a.toId);
+  for (const op of of("graph-edge")) {
+    const a = op.operation.attributes, fromId = String(a.fromId), toId = String(a.toId);
     for (const end of [fromId, toId]) addSaved(graph, nodes, end);
     if (nodes.has(fromId) && nodes.has(toId))
       edges.push({ id: recordIdOf(op), typeId: String(a.typeId), fromId, toId, title: "", body: "", properties: {}, archived: false } as GraphEdge);
   }
-  return { nodes: [...nodes.values()], edges };
+  return { types: [...types.values()], nodes: [...nodes.values()], edges };
 }
 function recordIdOf(op: BatchOperation) {
   const id = op.operation.attributes.id;
@@ -273,37 +277,30 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     currentSignature = JSON.stringify(current);
     disposeKnowledgeGraphViewers(root);
     const { batch } = current;
+    // A field may name a saved record by address or a record this batch creates by $ref.
+    const refs = new Map(current.operations.map(op => [op.ref, recordIdOf(op)]));
     const operations = current.operations.map(op => {
       const operation = structuredClone(op.operation), a = operation.attributes;
       if (operation.id) operation.id = index[operation.type].get(operation.id) ?? operation.id;
       for (const field of ["typeId", "fromId", "toId"] as const) {
-        if (typeof a[field] === "string") a[field] = index[field === "typeId" ? "graph-type" : "graph-node"].get(a[field]) ?? a[field];
+        const value = a[field];
+        if (typeof value === "string") a[field] = refs.get(value) ?? index[field === "typeId" ? "graph-type" : "graph-node"].get(value) ?? value;
       }
       return { ...op, operation };
     });
-    // Types proposed in this batch name its records too, before anything is saved.
-    const proposedTypes = operations.filter(op => op.operation.type === "graph-type" && op.state !== "rejected");
-    const typeRefs = new Map(proposedTypes.map(op => [op.ref, recordIdOf(op)]));
-    for (const { operation } of operations) {
-      const typeId = operation.attributes.typeId;
-      if (typeof typeId === "string" && typeRefs.has(typeId)) operation.attributes.typeId = typeRefs.get(typeId);
-    }
-    const shown: Graph = { ...graph, types: [...graph.types, ...proposedTypes
-      .filter(op => !graph.types.some(type => type.id === recordIdOf(op)))
-      .map(op => ({ body: "", properties: [], archived: false, ...op.operation.attributes, id: recordIdOf(op), title: String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref) }) as unknown as Graph["types"][number])] };
     agentPage("onto").describe({
       title: batch.title,
       summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
       state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
     });
-    const types = new Map(shown.types.map((type) => [type.id, type.title]));
+    const view = proposedView(graph, operations);
+    const types = new Map(view.types.map((type) => [type.id, type.title]));
     const names = nameIndex(graph, operations);
     const bulk = bulkActions(current, draw);
-    const view = proposedView(graph, operations);
     const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
     const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
     const viewer = view.nodes.length
-      ? createKnowledgeGraphViewer(shown, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
+      ? createKnowledgeGraphViewer({ ...graph, types: view.types }, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
       : null;
     const groups = (["awaiting_review", "committed", "rejected", "pending"] as const)
       .map((state) => [state, operations.filter((op) => op.state === state)] as const)
