@@ -584,3 +584,29 @@ test("inspect prepares the latest member turn again for administrators only, and
   await assert.rejects(threads.inspect(member("bob", "acme"), thread.id), status(404));
   assert.equal(await threads.inspector(member("bob", "acme")), false);
 });
+
+test("user-facing MCP resource links are stored without tool output; assistant-only links are discarded", async () => {
+  const { db } = await threadDatabase();
+  const retained: Promise<unknown>[] = [];
+  const model = () => ({ effort: false, model: new MockLanguageModelV3({ doStream: async () => ({ stream: simulateReadableStream({ chunks: [
+    { type: "tool-call", toolCallId: "link-1", toolName: "review", input: "{}" },
+    { ...finish, finishReason: { unified: "tool-calls" as const, raw: "tool_calls" } },
+  ] }) }) }) });
+  const { threads } = service(db, { model, retained, provider: ({ operation }) => operation === "prepare"
+    ? { tools: [{ name: "review", description: "Review", inputSchema: { type: "object" }, store: false }] }
+    : operation === "tool" ? { output: { content: [
+      { type: "resource_link", uri: "https://example.test/review", name: "Review changes", annotations: { audience: ["user"], priority: 0.8 } },
+      { type: "resource_link", uri: "https://example.test/private", name: "Private", annotations: { audience: ["assistant"], priority: 0.1 } },
+      { type: "text", text: "sensitive raw output" },
+    ] } } : undefined });
+  const alice = member("alice", "acme");
+  const thread = await threads.create(alice, { type: "chat.conversation", title: "Links" });
+  await threads.send(alice, { threadId: thread.id, submissionId: crypto.randomUUID(), text: "Review" });
+  await settle(retained);
+  const [reply] = (await threads.entries(alice, { ref: { id: thread.id } })).entries.filter((entry) => entry.role === "assistant");
+  const links = reply.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link");
+  assert.ok(links.length >= 1);
+  assert.deepEqual(links[0], { type: "data", name: "platform.resource-link", data: { uri: "https://example.test/review", name: "Review changes" } });
+  assert.equal(JSON.stringify(reply.parts).includes("sensitive raw output"), false);
+  assert.equal(JSON.stringify(reply.parts).includes("example.test/private"), false);
+});
