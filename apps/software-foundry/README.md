@@ -6,10 +6,4 @@ Run `npm run check --workspace apps/software-foundry`, `npm run test --workspace
 
 ## Enabling a repository
 
-Foundry starts work only on repositories its organization installation has configured (role bindings plus an issue subscription). Otherwise `RequestChanges` records the issue and answers "execution is not configured for this repository". An operator with the workspace gateway token enables a repository in the Outfitter organization, and can repeat it after any Foundry change to the bindings:
-
-```sh
-npm run configure-repository --workspace @ai-outfitter/app-software-foundry -- ai-outfitter/apps --gateway-token-from-kubernetes
-```
-
-It prints the approved subscription and an inspection that must show `configurationValid: true` with reviewer `vega-unsup`. The repository's gating checks come from `foundryChecks` in `src/server/workspace/workspaces.ts`. Configure only after the Foundry change that sets them is deployed, because the bindings record the checks at approval time.
+Foundry starts work only on repositories its organization installation has turned on (role agents plus an issue subscription). Otherwise `RequestChanges` records the issue and answers "execution is not configured for this repository". An organization owner or admin turns a repository on with the `RepositoryChanges` mutation (action `enable`, input `{ repository }`) over MCP, and repeats it to refresh after a Foundry change. The repository's gating checks come from `foundryChecks` in `src/server/workspace/workspaces.ts` and are recorded when it is turned on.

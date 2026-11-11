@@ -184,6 +184,18 @@ input SubmitRequestInputContextItem {
   title: String
 }
 
+"""The repository's Foundry subscription."""
+type EnabledRepository {
+  repository: String!
+  subscriptionId: ID!
+  workflow: String!
+}
+
+input EnableRepositoryInput {
+  repository: String!
+  reviewer: String
+}
+
 input CreateProjectInput {
   name: String!
   repositories: [String!]
@@ -237,6 +249,11 @@ type Mutation {
   submitRequest(input: SubmitRequestInput!): SubmittedRequest!
 
   """
+  Turn Foundry execution on for a repository this organization's GitHub connection reaches: approve its role agents and subscribe to its issues, so requests filed there start Foundry's issue-to-merge workflow. Repeat after a Foundry change to refresh. Owners and admins only.
+  """
+  enableRepository(input: EnableRepositoryInput!): EnabledRepository!
+
+  """
   Add a Foundry project: a named group of repositories work can be routed to, at the lowest priority. Names are upper case and unique; repositories lower case, once each. Owners and admins only.
   """
   createProject(input: CreateProjectInput!): FoundryProject!
@@ -245,6 +262,9 @@ type Mutation {
   File feature and bug requests: each opens a GitHub issue and starts Foundry's workflow
   """
   requestChanges(input: RequestChangesInput!): ChangeResults
+
+  """Turn Foundry execution on for a repository"""
+  repositoryChanges(input: RepositoryChangesInput!): ChangeResults
 
   """Apply project changes using explicit actions"""
   projectChanges(input: ProjectChangesInput!): ChangeResults
@@ -285,6 +305,20 @@ input RequestChangesInputItemsItem {
 
 enum RequestChangesInputItemsItemAction {
   submit
+}
+
+input RepositoryChangesInput {
+  items: [RepositoryChangesInputItemsItem!]!
+}
+
+input RepositoryChangesInputItemsItem {
+  key: String!
+  action: RepositoryChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum RepositoryChangesInputItemsItemAction {
+  enable
 }
 
 input ProjectChangesInput {

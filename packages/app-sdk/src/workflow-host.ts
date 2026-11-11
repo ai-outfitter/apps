@@ -512,8 +512,9 @@ const coreOperations = {
   }), json),
   /** Approve a workspace executor binding for this installation (it survives package upgrades),
    * or return the enabled one with the same workflow, actor, target and context.
-   * The host sets the workload identity policy. Operator configuration only. */
-  "binding.approve": operation(["operator"], z.strictObject({
+   * The host sets the workload identity policy. Configuration: the operator phase, or an
+   * organization owner/admin acting in the app (never a resident agent or setup). */
+  "binding.approve": operation(["operator", "interactive"], z.strictObject({
     workflowId: id,
     actor: id,
     label: z.string().min(1).max(256),
@@ -522,8 +523,8 @@ const coreOperations = {
   }), z.object({ id, revision: id, reused: z.boolean() })),
   /** Save the workflow subscription of an organization connection resource; one
    * per installation, connection and resource. Its events start the workflow as
-   * the scope's member while they remain an editor. Operator configuration only. */
-  "subscription.save": operation(["operator"], z.strictObject({
+   * the scope's member while they remain an editor. Configuration, as for `binding.approve`. */
+  "subscription.save": operation(["operator", "interactive"], z.strictObject({
     connectionId: id,
     resource: z.string().min(1).max(1024),
     workflowId: id,

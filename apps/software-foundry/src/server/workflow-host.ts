@@ -57,7 +57,8 @@ async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<P
   const result = input.operation === "inspect"
     ? await inspectFoundryWorkspace(host, input.repository, input.reviewer, input.number)
     : input.operation === "configure"
-      ? await configureFoundryWorkspaces(host, input.repository, input.reviewer, input.model, input.ci)
+      // The operator phase allows every configuration operation the interactive one does.
+      ? await configureFoundryWorkspaces(host as unknown as WorkflowHost<"interactive">, input.repository, input.reviewer, input.model, input.ci)
       : await startExistingFoundryIssue(host, input.repository, input.number, input.resume);
   return JSON.parse(JSON.stringify(result));
 }

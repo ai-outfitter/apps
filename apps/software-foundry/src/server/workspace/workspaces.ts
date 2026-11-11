@@ -146,12 +146,14 @@ export async function submissionRepository(host: Editor, snapshot: Snapshot, rep
   return { name: metadata.full_name, path: `/repos/${metadata.full_name}`, repositoryId: metadata.id, connection };
 }
 
-/** Approve the bindings and subscription Foundry needs for one repository.
+/** Approve the bindings and subscription Foundry needs for one repository: an
+ * organization owner/admin turns a repository on from Foundry (EnableRepository),
+ * and the platform applies its own approval checks.
  * Identical current bindings are reused; the platform applies its own approval checks.
  * Issue creation and comments need no separate approval: the platform checks
  * the caller, the connection's enabled repositories and Foundry's manifest. */
 export async function configureFoundryWorkspaces(
-  host: WorkflowHost<"operator">,
+  host: WorkflowHost<"interactive">,
   repository: string,
   reviewer: string,
   model = "gpt-6-luna",
