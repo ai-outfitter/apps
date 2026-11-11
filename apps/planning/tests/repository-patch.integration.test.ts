@@ -115,3 +115,56 @@ test("patchProject publishes multiple repositories, creates its canonical Wiki P
     assert.equal(activeEdges.filter(row => row.attributes.fromId === shared.data.patchProject.repositoryChanges.wikiProjectId).length, 1, "another project's shared link survives");
   } finally { await app.dispose(); await wiki.dispose(); }
 });
+
+test("patchProject links a project without repositories to an existing or new Onto Project node by slug", async () => {
+  const wiki = await appWorker("wiki-map", appArtifact(new URL("../../onto", import.meta.url), "operational"), "project-node-wiki");
+  assert.equal((await wiki.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
+  const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "operational"), "project-node-planning", {
+    workflowHost: () => ({ call: (operation, input) => wikiFixtureCall(wiki, { ...owner, actor: { kind: "app", id: "project-node-planning" } }, operation, input) }),
+  });
+  const scope = { organizationId: "org", installationId: app.installationId, userId: owner.userId, packageHash: "test", phase: "interactive" as const, expiresAt: Date.now() + 600000 };
+  const graphql = async (query: string, variables: object = {}, mutation = false) => {
+    const response = await app.call("/api/internal/actions/v1/call", owner, { method: "POST", workflowHost: scope,
+      body: { action: mutation ? "graph.mutate" : "graph.graphql", input: { query, variables } } });
+    assert.equal(response.status, 200, await response.clone().text());
+    return await response.json() as any;
+  };
+  const link = async (id: string, revision: number, projectNode: string) => {
+    const result = await graphql('mutation($input:PatchProjectInput!){patchProject(input:$input){revision repositoryChanges projectNodeChanges}}',
+      { input: { project: { id, revision }, mask: { projectNode } } }, true);
+    assert.equal(result.errors, undefined, JSON.stringify(result));
+    return result.data.patchProject;
+  };
+  const wikiNodes = async () => {
+    const response = await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "graph-node", limit: 100 } });
+    return await response.json() as EntityRecord[];
+  };
+  const linkedTo = async (id: string) => (await wikiNodes()).filter(row => row.references.some(ref => ref.installationId === app.installationId && ref.id === id));
+  const existingId = "44444444-4444-4444-8444-444444444444";
+  const types = await (await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "graph-type", limit: 100 } })).json() as EntityRecord[];
+  const projectType = types.find(row => row.attributes.name === "Project")!.ref.id;
+  try {
+    for (const [id, name] of [[projectId, "Reduce costs"], [existingId, "Existing context"]])
+      await app.database.prepare("INSERT INTO planning_projects(id,installationId,name,githubRepository,createdBy,updatedBy,createdAt,updatedAt) VALUES(?,?,?,'','seed','seed',1,1)").bind(id, app.installationId, name).run();
+    const created = await link(projectId, 1, "Project:reduce-costs");
+    assert.equal(created.projectNodeChanges.state, "created", JSON.stringify(created.projectNodeChanges));
+    assert.equal(created.projectNodeChanges.slug, "reduce-costs");
+    assert.equal(created.repositoryChanges, null, "no repository is needed");
+    const [node] = await linkedTo(projectId);
+    assert.equal(node.title, "Reduce costs");
+    assert.equal((await link(projectId, created.revision, "reduce-costs")).projectNodeChanges.state, "unchanged");
+    const other = await link(projectId, created.revision + 1, "something-else");
+    assert.equal(other.projectNodeChanges.state, "failed", "a linked project is not silently moved");
+    const response = await wiki.call("/api/internal/entities/v1/create", owner, { method: "POST", body: { type: "graph-node", attributes: { typeId: projectType, title: "Existing context node", slug: "existing-context" }, references: [] } });
+    assert.equal(response.status, 200, await response.clone().text());
+    const linked = await link(existingId, 1, "existing-context");
+    assert.equal(linked.projectNodeChanges.state, "linked", JSON.stringify(linked.projectNodeChanges));
+    const anchors = await linkedTo(existingId);
+    assert.equal(anchors.length, 1);
+    assert.equal(anchors[0].title, "Existing context node", "linking keeps the node's own title");
+    const taken = await link(existingId, linked.revision, "reduce-costs");
+    assert.equal(taken.projectNodeChanges.state, "failed");
+    const read = await graphql('query($ids:[ID!]){projects(ids:$ids){nodes{id slug}}}', { ids: [projectId, existingId] });
+    assert.deepEqual(read.data.projects.nodes.map((row: any) => row.slug).sort(), ["existing-context", "reduce-costs"]);
+  } finally { await app.dispose(); await wiki.dispose(); }
+});

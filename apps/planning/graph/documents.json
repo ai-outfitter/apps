@@ -1641,7 +1641,7 @@
   {
     "name": "MutateProject",
     "kind": "mutation",
-    "story": "As an authorized caller, I want to create, edit with a field mask (including requirements and repository links), archive projects, or retry their delivery preparation, so that each change has a durable receipt and explicit next steps.",
+    "story": "As an authorized caller, I want to create, edit with a field mask (including requirements, repository links and the Onto Project node link), archive projects, or retry their delivery preparation, so that each change has a durable receipt and explicit next steps.",
     "query": "mutation MutateProject($input: MutateProjectInput!) {\n  mutateProject(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
     "hash": "7abec2a1062a677a9c20b81bdeea81e963754b0d11eb16ba09e48a607e9efef5",
     "variables": {
@@ -2109,6 +2109,11 @@
                                   "additionalProperties": false
                                 },
                                 "description": "Replace the project's repository links with this list. Links are published immediately by the Planning app."
+                              },
+                              "projectNode": {
+                                "description": "Link this project to its Onto Project node by slug (reduce-databricks-costs or Project:reduce-databricks-costs). An unlinked Project node with this slug is linked; when none exists one is created with this slug and the project's name. No repository is needed. A project linked to a different node is refused.",
+                                "type": "string",
+                                "maxLength": 88
                               },
                               "requirements": {
                                 "description": "Requirements to add or revise, each by its stable key. Others stay as they are.",
@@ -2698,8 +2703,8 @@
     "name": "PatchProject",
     "kind": "mutation",
     "story": "As a member, I want to apply only my project's edited fields, so that omitted documents remain unchanged.",
-    "query": "mutation PatchProject($input: PatchProjectInput!) {\n  patchProject(input: $input) {\n    id\n    name\n    githubRepository\n    goals\n    userStories\n    pressRelease\n    demoInstructions\n    demoResults\n    archived\n    revision\n    requirementChanges\n    repositoryChanges\n    preparation\n    run\n    instructions\n  }\n}",
-    "hash": "5df33c56fbab2032a3e65a0df1e8ac3671ee950b52e21478550cc3efc8e0ca70",
+    "query": "mutation PatchProject($input: PatchProjectInput!) {\n  patchProject(input: $input) {\n    id\n    name\n    githubRepository\n    goals\n    userStories\n    pressRelease\n    demoInstructions\n    demoResults\n    archived\n    revision\n    requirementChanges\n    repositoryChanges\n    projectNodeChanges\n    preparation\n    run\n    instructions\n  }\n}",
+    "hash": "7a5edf6300231e3cf96f2c8835856a882b7884409240b751f8b3ab5dade643d7",
     "variables": {
       "type": "object",
       "properties": {

@@ -1,7 +1,7 @@
 import type { BatchGroups } from "@ai-outfitter/app-sdk/batch-documents";
 
 export const batchGroups = {
-  MutateProject:{description:"Create, edit with a field mask (including requirements and repository links), archive projects, or retry their delivery preparation",resultFields:["id","name","archived","revision","requirementChanges","repositoryChanges","preparation","run","instructions"],actions:{create:"createProject",edit:"patchProject",archive:"archiveProject",prepare:"prepareProject"}},
+  MutateProject:{description:"Create, edit with a field mask (including requirements, repository links and the Onto Project node link), archive projects, or retry their delivery preparation",resultFields:["id","name","archived","revision","requirementChanges","repositoryChanges","projectNodeChanges","preparation","run","instructions"],actions:{create:"createProject",edit:"patchProject",archive:"archiveProject",prepare:"prepareProject"}},
   "ProjectChanges": {
     "description": "Apply project changes using explicit actions",
     "actions": {

@@ -27,7 +27,7 @@ import { projectContext, projectReadiness, projectSlug } from "./project-context
 import { issues, projects } from "./schema";
 import { saveUseCase, useCaseInput } from "./use-cases";
 import { repositories, pullRequests } from "./project-repositories";
-import { publishRepositories } from "./repository-patch";
+import { linkProjectNode, publishRepositories } from "./repository-patch";
 import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
 import { requireEditor } from "@ai-outfitter/app-sdk/server";
 
@@ -103,6 +103,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
     readiness: { type: nonNull(readinessType), resolve: (project, _args, context) => projectReadiness(context, project.id) },
     githubRepository: { type: GraphQLString, resolve: project => project.githubRepository || null },
     repositoryChanges: { type: JSONScalar, description: "Repository publication status, receipt and retry instructions returned by patchProject." },
+    projectNodeChanges: { type: JSONScalar, description: "Onto Project node link returned by patchProject: state (unchanged, linked or created), slug, or the error and retry instructions." },
     repositories: { type: nonNull(connectionType(repositoryType)), args: pageArgs(), resolve: async (project, args: PageArgs & { ids?: string[] | null }, context, info) => {
       const { first, start } = pageStart(args);
       const ids = idList(args.ids);
@@ -406,10 +407,10 @@ const mutation = new GraphQLObjectType<unknown, Context>({
     patchProject: mutationField<typeof patchProjectInput, Context>({
       name:"PatchProject",description:"Overlay only mask fields on an existing Projects record. Read with includeIdentifiers:true first. Revision conflicts require a fresh read; omitted fields are preserved.",
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: preserve partial publication results across the two app databases
-      input:patchProjectInput,output:nonNull(Project),run:async(context,{project,mask:{requirements,retireRequirements,repositories:desired,...mask}})=>{
-        if (desired !== undefined) {
+      input:patchProjectInput,output:nonNull(Project),run:async(context,{project,mask:{requirements,retireRequirements,repositories:desired,projectNode,...mask}})=>{
+        if (desired !== undefined || projectNode !== undefined) {
           requireEditor(context.identity);
-          if (mask.githubRepository !== undefined) throw new Response("Edit repositories or githubRepository in a patch, not both", { status: 400 });
+          if (desired !== undefined && mask.githubRepository !== undefined) throw new Response("Edit repositories or githubRepository in a patch, not both", { status: 400 });
           const current = await savedProject(context, project.id);
           if (!current || current.archived || current.revision !== project.revision) throw new Response("This record changed. Reload before retrying.", { status: 409 });
         }
@@ -417,6 +418,18 @@ const mutation = new GraphQLObjectType<unknown, Context>({
         const saved = await saveProjectChange(context, { kind: "edit", project, mask, requirements: requirements ?? [], retire: retireRequirements ?? [] });
         let row = await savedProject(context, saved.projectId);
         let repositoryChanges: unknown = null;
+        let projectNodeChanges: unknown = null;
+        if (projectNode !== undefined) {
+          try {
+            projectNodeChanges = await linkProjectNode(context, project.id, row.name, projectNode);
+          } catch (error) {
+            projectNodeChanges = {
+              state: "failed",
+              error: error instanceof Response ? await error.text() : "Linking the Onto Project node failed. Reload and retry.",
+              retry: { project: { id: row.id, revision: row.revision }, mask: { projectNode } },
+            };
+          }
+        }
         if (desired !== undefined) {
           try {
             repositoryChanges = await publishRepositories(context, project.id, row.name, desired);
@@ -435,7 +448,7 @@ const mutation = new GraphQLObjectType<unknown, Context>({
             };
           }
         }
-        return { ...row, ...deliveryResult(saved, row.revision), repositoryChanges };
+        return { ...row, ...deliveryResult(saved, row.revision), repositoryChanges, projectNodeChanges };
       },
     }),
     prepareProject: mutationField<typeof prepareInput, Context>({
