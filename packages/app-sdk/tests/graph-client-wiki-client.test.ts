@@ -295,3 +295,54 @@ test("an empty Onto cannot shadow an unmigrated legacy graph", async () => {
  migrated=true;
  assert.equal((await defaultWiki(host())).installationId,"destination");
 });
+
+test("Wiki setup keeps a type the Wiki already has under its own ID and points later rows at it", async () => {
+  const existingId = crypto.randomUUID();
+  const [seedType, seedEdgeType, nodeId] = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+  const records = new Map<string, EntityRecord>();
+  const record = (type: string, attributes: EntityRecord["attributes"] & { id: string }): EntityRecord => ({
+    ref: { installationId: "wiki", type, id: attributes.id },
+    revision: 1,
+    title: String(attributes.name ?? attributes.title ?? ""),
+    attributes,
+    references: [],
+  });
+  records.set(existingId, record("graph-type", { id: existingId, category: "node", name: "Part", archived: false }));
+  const stub: WorkflowHostStub = {
+    async call(operation: string, value: unknown) {
+      const input = value as { type: string; id: string; attributes: EntityRecord["attributes"] & { id: string } };
+      if (operation === "entities.get") {
+        const found = records.get(input.id);
+        return found ? { ok: true, value: found } : { ok: false, status: 404, message: "Missing" };
+      }
+      if (operation === "entities.list")
+        return { ok: true, value: [...records.values()].filter((row) => row.ref.type === input.type) };
+      assert.equal(operation, "entities.create");
+      const taken = [...records.values()].some(
+        (row) => row.ref.type === "graph-type" && input.type === "graph-type" && row.attributes.name === input.attributes.name,
+      );
+      if (taken) return { ok: false, status: 409, message: "Name taken" };
+      records.set(input.attributes.id, record(input.type, input.attributes));
+      return { ok: true, value: records.get(input.attributes.id)! };
+    },
+  };
+  const adapter = wikiAdapter(workflowHost<"interactive">({ props: { workflowHost: stub } }), "wiki");
+  const result = await adapter.setup({
+    types: [
+      { id: seedType, category: "node", name: "Part", title: "Parts", body: "A part", properties: [], archived: false },
+      {
+        id: seedEdgeType, category: "edge", name: "part_of", title: "part of", body: "Part of", properties: [], archived: false,
+        ontology: { version: 2, endpoints: { from: [seedType], to: [seedType] } },
+      },
+    ],
+    nodes: [{ id: nodeId, typeId: seedType, title: "Bracket", body: "", summary: "", website: null, properties: {}, archived: false }],
+    edges: [],
+  });
+  assert.deepEqual(result, { created: 2, existing: 1 });
+  assert.equal(records.has(seedType), false);
+  assert.equal(records.get(nodeId)!.attributes.typeId, existingId);
+  assert.deepEqual((records.get(seedEdgeType)!.attributes.ontology as { endpoints: unknown }).endpoints, {
+    from: [existingId],
+    to: [existingId],
+  });
+});
