@@ -58,30 +58,62 @@ export function planRepositoryPatch(graph: Graph, installationId: string, projec
   return proposals;
 }
 
+/** An Onto Project node slug; `Project:<slug>` addresses are accepted. */
+export const projectNodeSlug = z.string().trim().max(88).transform(value => value.replace(/^Project:/, ""))
+  .pipe(z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use a Project node slug such as reduce-databricks-costs").max(80))
+  .describe("Link this project to its Onto Project node by slug (reduce-databricks-costs or Project:reduce-databricks-costs). An unlinked Project node with this slug is linked; when none exists one is created with this slug and the project's name. No repository is needed. A project linked to a different node is refused.");
+
+type Linked = { state: "unchanged" | "linked" | "created"; wikiProjectId: string; slug: string | null };
+const nodeSlug = (graph: Graph, id: string) => {
+  const slug = graph.nodes.find(node => node.ref.id === id)?.attributes.slug;
+  return typeof slug === "string" ? slug : null;
+};
+
+/** Make sure exactly one Onto Project node documents this Planning project, without touching repositories. */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: link an existing node or create one, tolerating a concurrent link
+export async function linkProjectNode(context: PlanningContext, projectId: string, title: string, slug?: string): Promise<Linked> {
+  requireEditor(context.identity);
+  const host = context.host();
+  const installationId = context.identity.installationId;
+  const reference = { installationId, type: "project", id: projectId };
+  let graph = await readWikiGraph(host);
+  const linked = () => {
+    const anchor = wikiProjectAnchor(graph, installationId, projectId);
+    return anchor ? { wikiProjectId: anchor, slug: nodeSlug(graph, anchor) } : null;
+  };
+  const current = linked();
+  if (current) {
+    if (slug && current.slug !== slug) throw new Response(`This project is already linked to Project:${current.slug ?? current.wikiProjectId}.`, { status: 409 });
+    return { state: "unchanged", ...current };
+  }
+  const typeId = graph.types.find(row => row.attributes.name === "Project" && !row.attributes.archived)?.ref.id;
+  if (!typeId) throw new Response("Onto Project type is unavailable", { status: 409 });
+  const existing = slug ? graph.nodes.find(node => node.attributes.typeId === typeId && node.attributes.slug === slug && !node.attributes.archived) : undefined;
+  if (existing?.references.length) throw new Response(`Project:${slug} already documents another app record.`, { status: 409 });
+  try {
+    if (existing)
+      await host.call("entities.update", { installationId: graph.wiki.installationId, type: "graph-node", id: existing.ref.id, revision: existing.revision, attributes: { title: existing.title }, references: [reference] });
+    else
+      await host.call("entities.create", { installationId: graph.wiki.installationId, type: "graph-node", attributes: { typeId, title, ...(slug ? { slug } : {}) }, references: [reference] });
+  } catch (error) {
+    // A concurrent request may have linked the canonical node. Its source is unique.
+    graph = await readWikiGraph(host);
+    if (!linked()) throw error;
+  }
+  graph = await readWikiGraph(host);
+  const saved = linked();
+  if (!saved) throw new Response("Onto Project was not linked. Reload and retry.", { status: 409 });
+  if (slug && saved.slug !== slug) throw new Response(`This project is already linked to Project:${saved.slug ?? saved.wikiProjectId}.`, { status: 409 });
+  return { state: existing ? "linked" : "created", ...saved };
+}
+
 /** App-owned publication; conversational agent proposals keep their separate review flow. */
 export async function publishRepositories(context: PlanningContext, projectId: string, title: string, wanted: RepositoryPatch) {
   requireEditor(context.identity);
   const host = context.host();
-  let graph = await readWikiGraph(host);
-  let anchor = wikiProjectAnchor(graph, context.identity.installationId, projectId);
-  if (!anchor && wanted.length) {
-    const typeId = graph.types.find(row => row.attributes.name === "Project" && !row.attributes.archived)?.ref.id;
-    if (!typeId) throw new Response("Wiki Project type is unavailable", { status: 409 });
-    try {
-      await host.call("entities.create", {
-        installationId: graph.wiki.installationId, type: "graph-node",
-        attributes: { typeId, title },
-        references: [{ installationId: context.identity.installationId, type: "project", id: projectId }],
-      });
-    } catch (error) {
-      // A concurrent request may have created the canonical node. Its source is unique.
-      graph = await readWikiGraph(host);
-      if (!wikiProjectAnchor(graph, context.identity.installationId, projectId)) throw error;
-    }
-    graph = await readWikiGraph(host);
-    anchor = wikiProjectAnchor(graph, context.identity.installationId, projectId);
-    if (!anchor) throw new Response("Wiki Project was not linked. Reload and retry the repository patch.", { status: 409 });
-  }
+  if (wanted.length) await linkProjectNode(context, projectId, title);
+  const graph = await readWikiGraph(host);
+  const anchor = wikiProjectAnchor(graph, context.identity.installationId, projectId);
   const proposals = planRepositoryPatch(graph, context.identity.installationId, projectId, wanted);
   if (!proposals.length) return { state: "unchanged", wikiProjectId: anchor ?? null };
   const receipt = await host.call("actions.call", {

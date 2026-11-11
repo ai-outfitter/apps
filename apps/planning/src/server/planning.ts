@@ -7,7 +7,7 @@ import { projects, issues } from "./schema";
 export type PlanningDatabase = BaseSQLiteDatabase<"async", any>;
 import { projectFields, projectMaskFields, issueFields } from "./fields";
 import { requirementList, retireList } from "./requirements";
-import { repositoryPatch } from "./repository-patch";
+import { projectNodeSlug, repositoryPatch } from "./repository-patch";
 export const revisionField = z.number().int().positive();
 const changed = () =>
   new Response(
@@ -104,6 +104,7 @@ export const projectBase = z.record(z.string(),z.unknown()).pipe(z.object({id:z.
 /** Mask fields replace those fields; requirements upsert by key and retireRequirements retire by key (docs/plans/project-delivery-flow.md). */
 export const patchMask = projectMaskFields.extend({
   repositories: repositoryPatch.optional(),
+  projectNode: projectNodeSlug.optional(),
   requirements: requirementList.optional().describe("Requirements to add or revise, each by its stable key. Others stay as they are."),
   retireRequirements: retireList.optional().describe("Keys of requirements that no longer apply."),
 }).refine(value => Object.values(value).some(field => field !== undefined), "Provide at least one field to edit");
@@ -119,8 +120,8 @@ export async function setProjectState(db: PlanningDatabase, identity: AppIdentit
 }
 export async function patchProject(db:PlanningDatabase, identity:AppIdentity, raw:unknown) {
   const {project,mask}=patchProjectInput.parse(raw);
-  if (mask.repositories !== undefined || mask.requirements !== undefined || mask.retireRequirements !== undefined)
-    throw new Response("Use the PatchProject GraphQL document for repository and requirement changes", { status: 400 });
+  if (mask.repositories !== undefined || mask.projectNode !== undefined || mask.requirements !== undefined || mask.retireRequirements !== undefined)
+    throw new Response("Use the PatchProject GraphQL document for repository, Onto node and requirement changes", { status: 400 });
   const [row]=await db.update(projects).set({...mask,revision:project.revision+1,updatedBy:identity.userId,updatedAt:Date.now()})
     .where(and(eq(projects.id,project.id),eq(projects.installationId,identity.installationId),eq(projects.revision,project.revision),eq(projects.archived,false))).returning();
   if(!row)throw changed();

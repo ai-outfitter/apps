@@ -118,7 +118,7 @@ const legacyDocuments = defineDocuments({
   },
   PatchProject: {
     story:"As a member, I want to apply only my project's edited fields, so that omitted documents remain unchanged.",
-    document:graphql(`mutation PatchProject($input:PatchProjectInput!){patchProject(input:$input){id name githubRepository goals userStories pressRelease demoInstructions demoResults archived revision requirementChanges repositoryChanges preparation run instructions}}`),
+    document:graphql(`mutation PatchProject($input:PatchProjectInput!){patchProject(input:$input){id name githubRepository goals userStories pressRelease demoInstructions demoResults archived revision requirementChanges repositoryChanges projectNodeChanges preparation run instructions}}`),
   },
   PrepareProject: {
     story:"As an editor or agent, I want to retry a project's delivery preparation after its dispatch failed, so that a saved requirement change is never lost or prepared twice.",

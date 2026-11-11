@@ -118,6 +118,11 @@ type Project {
   Repository publication status, receipt and retry instructions returned by patchProject.
   """
   repositoryChanges: JSON
+
+  """
+  Onto Project node link returned by patchProject: state (unchanged, linked or created), slug, or the error and retry instructions.
+  """
+  projectNodeChanges: JSON
   repositories(first: Int = 100, after: String, ids: [ID!]): ProjectRepositoryConnection!
 
   """What the project must achieve (Markdown)."""
@@ -589,6 +594,7 @@ input PatchProjectInputMask {
   demoInstructions: String
   demoResults: String
   repositories: [PatchProjectInputMaskRepositoriesItem!]
+  projectNode: String
   requirements: [PatchProjectInputMaskRequirementsItem!]
   retireRequirements: [String!]
 }
@@ -1200,7 +1206,7 @@ type Mutation {
   saveUseCase(input: SaveUseCaseInput!): JSON
 
   """
-  Create, edit with a field mask (including requirements and repository links), archive projects, or retry their delivery preparation
+  Create, edit with a field mask (including requirements, repository links and the Onto Project node link), archive projects, or retry their delivery preparation
   """
   mutateProject(input: MutateProjectInput!): ChangeResults
 
