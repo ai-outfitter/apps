@@ -11,3 +11,5 @@ node_modules
 apps/onto/seeds/*.local.json
 
 apps/wiki/seeds/*.local.json
+
+**/.dev.vars

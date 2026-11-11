@@ -577,8 +577,14 @@ export interface WorkflowHost<P extends WorkflowPhase = WorkflowPhase> {
   call<K extends PhaseOperation<P>>(operation: K, input: OperationInput<K>): Promise<OperationOutput<K>>;
 }
 
+/** The `locals` key where standalone mode (`./cloudflare/standalone`) puts the
+ * host the app answers itself. Only server middleware writes `locals`. */
+export const standaloneHostKey = "outfitterStandaloneHost";
+
 type PropsSource = { props?: unknown } | { cfContext?: { props?: unknown } } | undefined | null;
 function hostStub(source: PropsSource): WorkflowHostStub | undefined {
+  const local = source && (source as Record<string, unknown>)[standaloneHostKey];
+  if (local && typeof (local as WorkflowHostStub).call === "function") return local as WorkflowHostStub;
   const holder = source && "cfContext" in source ? source.cfContext : source;
   const props = holder && "props" in holder ? holder.props : undefined;
   const stub = (props as { workflowHost?: unknown } | undefined)?.workflowHost;
