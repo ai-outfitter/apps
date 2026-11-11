@@ -5,7 +5,7 @@ import { batchGroups } from "./batch-groups";
 // them). scripts/graph-schema.ts writes them to graph/documents.json, which the platform
 // lists (graph_documents) and runs by name (graph_mutate); the page's routes run the same
 // documents with runDocument.
-import { defineDocuments } from "@ai-outfitter/app-sdk/app-documents";
+import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
 import { documentRunner } from "@ai-outfitter/app-sdk/app-graphql";
 import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
@@ -71,7 +71,19 @@ const legacyDocuments = defineDocuments({
   },
 });
 
-export const documents = withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups);
+// Only these reach MCP clients, on the platform's /mcp and on Workshop's own /mcp/workshop;
+// the single-action documents stay for Workshop's own pages. Design turns and concept
+// images are Workshop workflows: platform StartTasks and WorkflowRuns with app workshop.
+export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  WorkshopProjects: { description: "Find hardware projects by name, product revision or creator. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true },
+  WorkshopProjectHandoff: { description: "Read one project as persisted: brief, requirements, stage, product revision and its whole assembly with usage lines. Changes nothing." },
+  WorkshopUnits: { description: "Find physical units (boards, parts) by part number, MAC, status or project.", collection: true },
+  ProjectChanges: { description: "Create a project from a starter example, write its brief, requirements and stage, or delete it. Edits and deletes need the id and revision from WorkshopProjects; stable item keys make retries safe." },
+  AssemblyChanges: { description: "Replace a project's product structure: assemblies, parts, boards and firmware with quantities and placements. Read WorkshopProjectHandoff first and send its revision; the whole assembly is replaced." },
+  UnitChanges: { description: "Record, update or delete physical units by MAC address or serial. Updates and deletes need the id and revision from WorkshopUnits." },
+  ConceptChanges: { description: "Publish a project's concept mockups to its product revision in the Wiki, or remove one mockup, at the project's current revision." },
+  ProductRevisionChanges: { description: "Name the Wiki product revision a project builds, at the project's current revision." },
+});
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */
 export const runDocument = documentRunner<WorkshopContext>(() => graphqlSchema);
