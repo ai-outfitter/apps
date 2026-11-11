@@ -25,6 +25,16 @@ export const issueToMergeWorkflows = [foundryWorkspaceWorkflow, historicalFoundr
 const issueWorkflows = [...issueToMergeWorkflows, foundryLandingWorkflow];
 
 export function foundryChecks(repository: string) {
+  // The apps monorepo gates on its Tooling CI jobs: root tests plus the
+  // catalog and source app validation gates (each fans out per changed app).
+  if (repository.toLowerCase() === "ai-outfitter/apps")
+    return [
+      { name: "test", commands: [["npm", "ci"], ["npm", "test"]] },
+      ...["Catalog apps / CI gate", "Source apps / CI gate"].map((name) => ({
+        name,
+        commands: [["npm", "ci"], ["npm", "test", "--workspaces", "--if-present"]],
+      })),
+    ];
   if (repository.toLowerCase() !== "ai-outfitter/webapp")
     return [
       {

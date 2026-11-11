@@ -140,6 +140,11 @@ test("issue starts are stable per installation and explicit resume is independen
     foundryChecks("ai-outfitter/webapp").map((check) => check.name),
     ["check", "integration", "browser-e2e (node)", "browser-e2e (cloudflare)"],
   );
+  assert.deepEqual(
+    foundryChecks("ai-outfitter/apps").map((check) => check.name),
+    ["test", "Catalog apps / CI gate", "Source apps / CI gate"],
+  );
+  assert.deepEqual(foundryChecks("ai-outfitter/outfitter-playground-internal").map((check) => check.name), ["test"]);
 });
 
 test("candidate admission requires the assigned branch, current head, native closing link and default target", async () => {

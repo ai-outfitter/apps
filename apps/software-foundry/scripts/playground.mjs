@@ -13,7 +13,7 @@ import {
 import { jsonClient } from "./json-client.mjs";
 const PLATFORM = "https://ai-outfitter.com/api/internal/app-workflows/software-foundry";
 /** The gateway-authenticated `operator` phase of the organization's Foundry installation. */
-export function platformClient(token, request = fetch) {
+export function platformClient(token, request = fetch, repository = TARGET) {
   const call = jsonClient({
     origin: PLATFORM,
     token,
@@ -26,8 +26,29 @@ export function platformClient(token, request = fetch) {
     call("POST", PLATFORM, {
       organization: "outfitter",
       connectionId: "0a9b21c8-84ba-410e-a80e-82451d0982a9",
-      input: { operation, repository: TARGET, ...(number ? { number } : {}) },
+      input: { operation, repository, ...(number ? { number } : {}) },
     });
+}
+/** The operator gateway token from the nonprod cluster secret (operator machine only). */
+export function kubernetesGatewayToken() {
+  return Buffer.from(
+          execFileSync(
+            "kubectl",
+            [
+              "--context",
+              "webapp-nonprod",
+              "-n",
+              "outfitter-cloud",
+              "get",
+              "secret",
+              "webapp-auth",
+              "-o",
+              "jsonpath={.data.WORKSPACE_GATEWAY_TOKEN}",
+            ],
+            { stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" },
+          ).trim(),
+          "base64",
+        ).toString("utf8");
 }
 function connected(result) {
   if (
@@ -314,26 +335,7 @@ if (
 ) {
   try {
     const options = args(process.argv.slice(2));
-    const gatewayToken = options.kubernetes
-      ? Buffer.from(
-          execFileSync(
-            "kubectl",
-            [
-              "--context",
-              "webapp-nonprod",
-              "-n",
-              "outfitter-cloud",
-              "get",
-              "secret",
-              "webapp-auth",
-              "-o",
-              "jsonpath={.data.WORKSPACE_GATEWAY_TOKEN}",
-            ],
-            { stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" },
-          ).trim(),
-          "base64",
-        ).toString("utf8")
-      : process.env.WORKSPACE_GATEWAY_TOKEN;
+    const gatewayToken = options.kubernetes ? kubernetesGatewayToken() : process.env.WORKSPACE_GATEWAY_TOKEN;
     console.log(
       JSON.stringify(
         await runPlayground({
