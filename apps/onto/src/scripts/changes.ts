@@ -281,19 +281,29 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       }
       return { ...op, operation };
     });
+    // Types proposed in this batch name its records too, before anything is saved.
+    const proposedTypes = operations.filter(op => op.operation.type === "graph-type" && op.state !== "rejected");
+    const typeRefs = new Map(proposedTypes.map(op => [op.ref, recordIdOf(op)]));
+    for (const { operation } of operations) {
+      const typeId = operation.attributes.typeId;
+      if (typeof typeId === "string" && typeRefs.has(typeId)) operation.attributes.typeId = typeRefs.get(typeId);
+    }
+    const shown: Graph = { ...graph, types: [...graph.types, ...proposedTypes
+      .filter(op => !graph.types.some(type => type.id === recordIdOf(op)))
+      .map(op => ({ body: "", properties: [], archived: false, ...op.operation.attributes, id: recordIdOf(op), title: String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref) }) as unknown as Graph["types"][number])] };
     agentPage("onto").describe({
       title: batch.title,
       summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
       state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
     });
-    const types = new Map(graph.types.map((type) => [type.id, type.title]));
+    const types = new Map(shown.types.map((type) => [type.id, type.title]));
     const names = nameIndex(graph, operations);
     const bulk = bulkActions(current, draw);
     const view = proposedView(graph, operations);
     const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
     const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
     const viewer = view.nodes.length
-      ? createKnowledgeGraphViewer(graph, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
+      ? createKnowledgeGraphViewer(shown, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
       : null;
     const groups = (["awaiting_review", "committed", "rejected", "pending"] as const)
       .map((state) => [state, operations.filter((op) => op.state === state)] as const)

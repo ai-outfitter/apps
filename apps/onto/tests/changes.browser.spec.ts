@@ -152,3 +152,44 @@ test("read a proposed document from Changes before approving its saved entity", 
     await app.dispose();
   }
 });
+
+test("records of a type proposed in the same batch show that type in the batch graph", async ({ page }) => {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
+    workflowHost: () => ({ call: async () => { throw new Error("Unexpected host call"); } }),
+  });
+  const workflowHost = { organizationId: "org", installationId: "onto-installation", userId: "owner", packageHash: "fixture", phase: "interactive" as const, expiresAt: Date.now() + 60_000 };
+  const action = async (name: string, input: object) => {
+    const response = await app.call("/api/internal/actions/v1/call", agent, { method: "POST", body: { action: name, input } });
+    expect(response.status, await response.clone().text()).toBe(200);
+    return response.json() as Promise<{ batch: { id: string } }>;
+  };
+  const storyboardType = "7b0e0000-0000-4000-8000-0000000000a1", shotType = "7b0e0000-0000-4000-8000-0000000000a2", shotOf = "7b0e0000-0000-4000-8000-0000000000a3";
+  const create = (ref: string, type: string, attributes: object) => ({ operation: { operation: "create", type, ref, attributes } });
+  try {
+    const { batch } = await action("batch.open", { title: "Storyboard types", source: { kind: "agent-task", ref: "changes-browser-types" } });
+    await action("batch.add", { batchId: batch.id, proposals: [
+      create("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "Storyboard", title: "Storyboards", body: "A type.", properties: [] }),
+      create("$t-shot", "graph-type", { id: shotType, category: "node", name: "Shot", title: "Shots", body: "A type.", properties: [] }),
+      create("$t-shot-of", "graph-type", { id: shotOf, category: "edge", name: "shot_of", title: "shot of", body: "A type.", properties: [], ontology: { version: 2, endpoints: { from: [shotType], to: [storyboardType] } } }),
+      create("$board", "graph-node", { typeId: "$t-storyboard", title: "Find your spot" }),
+      create("$shot", "graph-node", { typeId: "$t-shot", title: "Choose a place" }),
+      create("$edge", "graph-edge", { typeId: "$t-shot-of", fromId: "$shot", toId: "$board" }),
+    ] });
+    await action("batch.submit", { batchId: batch.id });
+    await page.route(`${origin}/**`, async (route) => {
+      const request = route.request(), url = new URL(request.url());
+      if (url.pathname === "/api/platform/threads" && url.searchParams.get("view") === "snapshot") return route.fulfill({ json: { thread: null, entries: [], before: null } });
+      await fulfillFrom(route, await app.call(url.pathname + url.search, owner, { workflowHost, method: request.method(), ...(request.postData() ? { body: request.postDataJSON() } : {}) }));
+    });
+    await page.addInitScript(() => Object.defineProperty(crypto, "randomUUID", { value: undefined }));
+    await page.goto(`${origin}/changes/${batch.id}`);
+    const graph = page.locator(".knowledge-graph-viewport svg");
+    await expect(graph.locator("a").filter({ hasText: "Choose a place" })).toContainText("Shots");
+    await expect(graph.locator("a").filter({ hasText: "Find your spot" })).toContainText("Storyboards");
+    await expect(graph).toContainText("shot_of");
+    await expect(graph).not.toContainText("Entity");
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});
