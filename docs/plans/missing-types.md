@@ -101,32 +101,54 @@ time is one thing: each new record reaches the owner.
 - An Onto with no root bound reports that as the first staging finding, as
   the steward does today.
 
-### 3. A domain's types belong to the app for that domain
+### 3. The ontology comes first; an app can come later
 
-Decision (Nicholas, 2026-11-10): the platform does not hold marketing types
-or their evals. An app does.
+Decision (Nicholas, 2026-11-11, replacing the 2026-11-10 idea of an app
+owning these types): let the ontology live. Do not build an app to host
+storyboard types now. Each organization's Onto gets the data structure we
+think is best, as organization-local types proposed through a batch. If an
+app is ever built for this work, it adopts the types that already exist.
 
-- Storyboards, shots and the relationships between them are declared by the
-  marketing app, the way Creative team already declares `BrandInterview`
-  and its four relationship types (`apps/creative-team/src/server/wiki.ts`):
-  fixed IDs, added to the organization's Onto add-only on first use, written
-  through a change batch.
-- An agent asked for launch videos uses that app's documents, which stage
-  typed records. If the app is not installed, Onto's review should say so:
-  "these look like storyboards; the Creative team app has types for them."
-- Onto's job stays generic: notice a cluster of look-alike catch-all records,
-  and point at an installed or installable app that owns the shape. Only when
-  no app owns it does the agent propose org-local types in the batch.
-- Which app: extend Creative team (today a personal-brand app that already
-  drafts video scripts) or a new dedicated marketing app. Open, see below.
+- New types are ordinary `graph-type` proposals in a batch, reviewed like
+  any other change. No app, seed file or SDK change is needed.
+- The first set is staged in Sunny's Onto as batch `5ada8637`
+  ("Storyboard types for launch videos, with one worked example"):
+
+  | Type | What it is | Fields |
+  | --- | --- | --- |
+  | `CreativeBrief` | who a piece of marketing is for and what it may claim | audience, single_message, claim_boundary, call_to_action, success_metric, status |
+  | `Storyboard` | the plan for one video | duration_seconds, aspect_ratio, variant, opening, status |
+  | `Shot` | one beat of a storyboard | sequence, start_seconds, duration_seconds, beat, action, camera, voiceover, overlay, sound, transition, source_route, claim_status, status |
+  | `VisualReference` | something shots must match | status, requirements, file_uri, version |
+
+  | Relationship | From → to |
+  | --- | --- |
+  | `promotes` | CreativeBrief → Product or Offering |
+  | `follows_brief` | Storyboard → CreativeBrief |
+  | `shot_of` | Shot → Storyboard |
+  | `uses_reference` | Shot → VisualReference |
+  | `cut_from` | Storyboard → Storyboard |
+
+  The type IDs are fixed, so another organization's Onto can take the same
+  types and stay comparable.
+- The batch rebuilds one storyboard (Find your spot) under the types as an
+  example and changes nothing else. Once the shape is agreed, a follow-up
+  batch converts the other 17 concept and shot records, the briefs and the
+  references, and archives the Documents. A record's type cannot be changed
+  in place, so conversion is create-new plus archive-old.
+- Onto's job stays generic: notice look-alike catch-all records and propose
+  organization-local types in the batch.
 
 ### 4. Evals
 
-The evals live with the app that owns the types, as Forerunner's and
-Planning's already do (`apps/<app>/evals/`). The platform keeps only the
-runner: starting a disposable Outfitter, seeding a graph, letting Onto's
-review run on a real model, recording the calls. The first version of these
-fixtures is in webapp#904 and moves to the app once it is chosen.
+With no app to hold them, these evals are Onto's own: they test whether
+Onto and the agent notice a missing type. They move from webapp#904 to
+`apps/onto/evals/`, as Forerunner's and Planning's sit in their apps. The
+platform keeps only the runner: starting a disposable Outfitter, seeding a
+graph, letting Onto's review run on a real model, recording the calls.
+
+The types above are the reference answer the judge compares against: same
+shape, wording may differ.
 
 Recreate this exact scenario and check that Onto notices the missing type
 and proposes it:
@@ -260,7 +282,7 @@ page for each item.
 
 1. Advice only (agent decides), or should a generic cluster block submit?
    Recommended: advice only, with blocking left to a Governance control.
-2. Which app owns marketing storyboards: Creative team, or a new one?
+2. Are the staged storyboard types (Sunny batch `5ada8637`) the right shape?
 3. Redo the Sunny video records once types exist?
 4. Batch items as pages (above): agree, and should the card list go away
    entirely or stay as the one-line index?
