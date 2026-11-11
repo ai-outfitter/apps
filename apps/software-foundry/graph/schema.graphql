@@ -184,6 +184,23 @@ input SubmitRequestInputContextItem {
   title: String
 }
 
+"""The request and the run now working it."""
+type ResumedRequest {
+  id: ID!
+  run: ResumedRun!
+}
+
+type ResumedRun {
+  id: ID!
+  existing: Boolean!
+  status: String!
+}
+
+input ResumeRequestInput {
+  requestId: ID!
+  resumeId: ID!
+}
+
 """The repository's Foundry subscription."""
 type EnabledRepository {
   repository: String!
@@ -249,6 +266,11 @@ type Mutation {
   submitRequest(input: SubmitRequestInput!): SubmittedRequest!
 
   """
+  Start a request's stopped Foundry run again (it failed or awaits details), on the same open issue. A running run is returned, not restarted. Needs editor access.
+  """
+  resumeRequest(input: ResumeRequestInput!): ResumedRequest!
+
+  """
   Turn Foundry execution on for a repository this organization's GitHub connection reaches: approve its role agents and subscribe to its issues, so requests filed there start Foundry's issue-to-merge workflow. Repeat after a Foundry change to refresh. Owners and admins only.
   """
   enableRepository(input: EnableRepositoryInput!): EnabledRepository!
@@ -305,6 +327,7 @@ input RequestChangesInputItemsItem {
 
 enum RequestChangesInputItemsItemAction {
   submit
+  resume
 }
 
 input RepositoryChangesInput {

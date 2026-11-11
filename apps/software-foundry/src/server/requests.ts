@@ -8,6 +8,7 @@ import { entityRef } from "@ai-outfitter/app-sdk/entities";
 import { requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { checkRequestBrief, requestBrief } from "../box/contract";
 import { submitWork, target, type IntakeContext } from "./intake";
+import { issueRuns, startExistingFoundryIssue, submissionRepository } from "./workspace/workspaces";
 
 /** The box's work-request brief (box/schemas/work-request.schema.json) plus where it goes. */
 export const requestInput = z.strictObject({
@@ -55,4 +56,27 @@ export async function readRequests(context:IntakeContext,input:z.output<typeof r
   const rows = await context.db().all(sql`SELECT id,kind,title,issue_url FROM foundry_requests WHERE created_by=${context.identity.userId} AND id > ${input.after ?? ""} ${input.ids?.length ? sql`AND id IN (${sql.join(input.ids.map(id=>sql`${id}`),sql`, `)})` : sql``} ${input.search ? sql`AND title LIKE ${`%${input.search}%`}` : sql``} ORDER BY id LIMIT ${input.first+1}`) as RequestRow[];
   const nodes = rows.slice(0,input.first).map(row=>({id:row.id,kind:row.kind,title:row.title,issueUrl:row.issue_url}));
   return {nodes,pageInfo:{hasNextPage:rows.length>input.first,endCursor:rows.length>input.first ? nodes.at(-1)?.id : null}};
+}
+
+export const resumeInput = z.strictObject({
+  requestId: z.uuid().transform((value) => value.toLowerCase()).describe("The request whose stopped run to start again."),
+  resumeId: z.uuid().transform((value) => value.toLowerCase())
+    .describe("Caller-generated ID for this restart. Reuse it to retry the same restart; a new one restarts again."),
+});
+
+/** Start a request's failed (or awaiting-details) run again on its open issue.
+ * Only the newest run of the request's issue resumes, and only once it has stopped. */
+export async function resumeRequest(context: IntakeContext, input: z.output<typeof resumeInput>) {
+  requireEditor(context.identity);
+  const [row] = (await context.db().all(sql`SELECT issue_url FROM foundry_requests WHERE id=${input.requestId} AND created_by=${context.identity.userId}`)) as { issue_url: string | null }[];
+  const issue = row?.issue_url?.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)$/);
+  if (!issue) throw new Response("Request has no recorded issue", { status: 404 });
+  const host = context.host();
+  const repo = await submissionRepository(host, await host.call("snapshot", {}), issue[1]);
+  const number = Number(issue[2]);
+  const [latest] = await issueRuns(host, String(repo.repositoryId), number);
+  if (!latest) throw new Response("The request's issue has no run to resume", { status: 409 });
+  if (latest.status === "running") return { id: input.requestId, run: { id: latest.id, existing: true, status: latest.status } };
+  const run = await startExistingFoundryIssue(host, repo.name, number, { runId: latest.id, requestId: input.resumeId });
+  return { id: input.requestId, run: { id: run.id, existing: Boolean(run.existing), status: run.status } };
 }

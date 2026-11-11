@@ -342,7 +342,7 @@
       ]
     },
     "mcp": {
-      "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key."
+      "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key. Action resume {requestId, resumeId} starts a request's failed or awaiting-details run again on the same issue."
     },
     "inputSchema": {
       "type": "object",
@@ -517,6 +517,48 @@
                           "problem",
                           "acceptanceCriteria",
                           "target"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "resume"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "requestId": {
+                            "description": "The request whose stopped run to start again.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "resumeId": {
+                            "description": "Caller-generated ID for this restart. Reuse it to retry the same restart; a new one restarts again.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "resumeId"
                         ],
                         "additionalProperties": false
                       }
