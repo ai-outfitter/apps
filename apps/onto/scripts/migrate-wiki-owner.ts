@@ -133,9 +133,19 @@ export async function migrateWikiOwner(d1: D1, input: MigrationOwner) {
     );
     const candidate = candidateSnapshot(candidatePath);
     // Every source history row remains byte-for-byte present alongside new contract revisions.
+    const archivedLegacyTables = new Set(["wiki_pages", "wiki_assets", "wiki_links", "wiki_contacts"]);
+    const lineageRows = candidate.tables.find((t) => t.name === "onto_wiki_migration_sources")?.rows ?? [];
     for (const table of source.tables.filter(
       (t) => !["graph_types", "graph_nodes", "graph_edges"].includes(t.name),
     )) {
+      if (archivedLegacyTables.has(table.name)) {
+        const archived = lineageRows.filter((row) => row.migrationId === id && row.tableName === table.name)
+          .sort((a, b) => Number(a.ordinal) - Number(b.ordinal));
+        if (archived.length !== table.rows.length || archived.some((row, index) =>
+          Number(row.ordinal) !== index || JSON.stringify(table.rows[index]) !== String(row.row)))
+          throw Error(`Legacy Wiki lineage changed: ${table.name}`);
+        continue;
+      }
       const migrated = candidate.tables.find((t) => t.name === table.name);
       if (!migrated) {
         if (table.rows.length)
@@ -162,13 +172,28 @@ export async function migrateWikiOwner(d1: D1, input: MigrationOwner) {
       new URL("../migrations/0001_wiki_migration_lineage.sql", import.meta.url),
       "utf8",
     );
-    await d1.query(input.destination.databaseId, [
-      ...migrationStatements(migration).map((sql) => ({ sql })),
-      {
-        sql: "INSERT INTO _outfitter_migrations (name,appliedAt) VALUES (?,?)",
-        params: ["0001_wiki_migration_lineage", Date.now()],
-      },
+    const [existingLineage, existingLedger] = await d1.query(input.destination.databaseId, [
+      { sql: "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('onto_wiki_migrations','onto_wiki_migration_sources') ORDER BY name" },
+      { sql: "SELECT name FROM _outfitter_migrations WHERE name='0001_wiki_migration_lineage'" },
     ]);
+    if (existingLedger.length) {
+      if (existingLineage.length !== 2) throw Error("Destination lineage schema is incomplete");
+      const [migrations, sources] = await d1.query(input.destination.databaseId, [
+        { sql: "SELECT count(*) AS count FROM onto_wiki_migrations" },
+        { sql: "SELECT count(*) AS count FROM onto_wiki_migration_sources" },
+      ]);
+      if (Number(migrations[0]?.count) || Number(sources[0]?.count))
+        throw Error("Destination already has Wiki migration lineage");
+    } else {
+      if (existingLineage.length) throw Error("Destination has unrecorded Wiki lineage tables");
+      await d1.query(input.destination.databaseId, [
+        ...migrationStatements(migration).map((sql) => ({ sql })),
+        {
+          sql: "INSERT INTO _outfitter_migrations (name,appliedAt) VALUES (?,?)",
+          params: ["0001_wiki_migration_lineage", Date.now()],
+        },
+      ]);
+    }
     await stageCandidate(d1, input.destination.databaseId, candidate);
     await input.verifyAuthority();
     // Source locks are still present; exact source digest must remain unchanged.

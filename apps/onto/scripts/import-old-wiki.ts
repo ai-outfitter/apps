@@ -116,12 +116,27 @@ export function importOldWiki(
       "graph_edges",
       ...historyTables,
     ]);
+    // These pre-graph Wiki records remain in the source database with their
+    // original foreign keys. The trusted lineage archive captures every row;
+    // the graph copy carries their current entity representation.
+    const legacyPageTables = ["wiki_pages", "wiki_assets", "wiki_links", "wiki_contacts"];
+    const legacyPages = new Set(rows("wiki_pages").map((page) => String(page.id)));
+    const graphNodes = new Set(rows("graph_nodes").map((node) => String(node.id)));
+    for (const page of rows("wiki_pages"))
+      if (!graphNodes.has(String(page.id))) report.refused.push(`wiki_pages ${page.id}: no graph node`);
+    for (const asset of rows("wiki_assets"))
+      if (!legacyPages.has(String(asset.pageId))) report.refused.push(`wiki_assets ${asset.id}: page missing`);
+    for (const contact of rows("wiki_contacts"))
+      if (!legacyPages.has(String(contact.pageId))) report.refused.push(`wiki_contacts ${contact.pageId}: page missing`);
+    for (const link of rows("wiki_links"))
+      if (!legacyPages.has(String(link.fromId)) || !legacyPages.has(String(link.toId))) report.refused.push(`wiki_links ${link.id}: endpoint missing`);
     // A new source table cannot silently disappear during a future cutover.
     for (const { name } of source
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
       .all() as { name: string }[]) {
       if (
         handled.has(name) ||
+        (reconciliation && legacyPageTables.includes(name)) ||
         name.startsWith("sqlite_") ||
         ["__drizzle_migrations", "d1_migrations", "_cf_KV"].includes(name)
       )

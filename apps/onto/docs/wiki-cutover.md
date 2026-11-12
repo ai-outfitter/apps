@@ -1,5 +1,45 @@
 # Wiki → Onto cutover audit and rehearsal
 
+## Pre-graph Wiki page compatibility
+
+Some older Wiki installations still have the original `wiki_pages` table and
+`wiki_assets`, `wiki_links`, and `wiki_contacts` tables that refer to it. The
+document Wiki's immutable `0012_documents` migration creates a different
+`wiki_pages` table. Do not delete, overwrite, or mark `0012_documents` applied
+to work around the name collision.
+
+First complete the trusted `migrateWikiOwner` graph cutover and verify its
+receipt, destination native read, and source write lock. The operator archives
+every original page and child row in `onto_wiki_migration_sources`; every old
+page must also map to a graph node. A destination that already has the empty
+`0001_wiki_migration_lineage` schema can be used without rerunning that
+migration. A nonempty destination lineage requires separate reconciliation.
+
+Then run the Wiki compatibility operator with the new migration receipt:
+
+```sh
+CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> \
+  node --import tsx apps/wiki/scripts/reconcile-legacy-pages.ts \
+  /private/cutover/receipt.local.json /private/cutover/pages-plan.local.json
+
+CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> \
+  node --import tsx apps/wiki/scripts/reconcile-legacy-pages.ts \
+  /private/cutover/receipt.local.json /private/cutover/pages-apply.local.json --apply
+```
+
+Use a fresh private backup path for each invocation. The first call reads and
+captures the old rows only. The second requires matching Onto lineage and
+source graph write locks, backs up the page and child rows, and renames the old
+table to `wiki_legacy_pages`. SQLite retargets child foreign keys and the
+original table's write locks to the archive. The operator verifies row hashes
+and foreign keys after the rename. If a response is lost, inspect the source
+schema and backup before retrying; a second rename is refused.
+
+Finally retry the ordinary Wiki upgrade. `0012_documents` and
+`0013_imported_revision` create and populate the new document tables. Check
+the archival row counts, child foreign keys, document counts, and
+`PRAGMA foreign_key_check` after the upgrade.
+
 Onto owns the graph. Wiki owns authored documents, pages and reports, reading
 Onto through the public graph contract. This is the current product boundary in
 [the graph database plan](graph-database-plan.md). The hosted platform's older
