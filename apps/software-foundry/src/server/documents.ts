@@ -11,7 +11,7 @@ import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
   SubmitReleaseEvidence:{
-    story:"As an authorized editor, I want expiring upload links for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
+    story:"As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
   },
   Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can find their GitHub issues.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
@@ -38,7 +38,7 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
-  SubmitReleaseEvidence:{description:"Get expiring PUT links for PNG/JSON release evidence. Supply stable asset keys, size and SHA-256; upload with the same authenticated account, then repeat to read verified receipts. No approval or deployment."},
+  SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."
   },
