@@ -338,6 +338,11 @@ export async function runDigestTask(db: PlanningDatabase, host: WorkflowHost<"in
 export async function scheduledDigests(db: PlanningDatabase, host: WorkflowHost<"interactive"|"schedule">, actor: AppIdentity, runId: string, options: {now?:number;timezone?:string;date?:string;startRun?:boolean} = {}) {
   if(options.startRun!==false) await host.call("workflow.start", { workflow: digestWorkflow, id: runId, inputs: {} });
   const active = await db.select().from(projects).where(and(eq(projects.installationId, actor.installationId), eq(projects.archived, false), eq(projects.state, "active"))).orderBy(asc(projects.name));
+  // Persist the exact local-day source chain first. Rolling digest inference is
+  // independent and may be slow or fail; it must not delay downstream owner
+  // reports and the personal morning brief.
+  let reports = await runReportChain(db, host, actor, active, runId, {...options,includeOverview:actor.owner.kind!=="user"});
+  if(actor.owner.kind==="user") reports=await savePersonalOverview(host,actor,reports,runId,options.now??Date.now(),await storedPersonalPriorities(db,actor));
   const digestIds: string[] = [];
   let unchanged = 0;
   const failedProjects: string[] = [];
@@ -349,8 +354,6 @@ export async function scheduledDigests(db: PlanningDatabase, host: WorkflowHost<
     else unchanged++;
     } catch { failedProjects.push(target.id); }
   }
-  let reports = await runReportChain(db, host, actor, active, runId, {...options,includeOverview:actor.owner.kind!=="user"});
-  if(actor.owner.kind==="user") reports=await savePersonalOverview(host,actor,reports,runId,options.now??Date.now(),await storedPersonalPriorities(db,actor));
   const result = { written: digestIds.length, unchanged, digestIds, reports, failedProjects };
   await host.call("workflow.collect", { runId, slot: `${digestStep}.outputs.digests`, value: result, ...(reports.status === "incomplete" || failedProjects.length ? {complete:false} : {}) });
   if (reports.status === "incomplete" || failedProjects.length) throw new Response("Daily report chain is incomplete; saved source outcomes are retained in Wiki", {status:502});

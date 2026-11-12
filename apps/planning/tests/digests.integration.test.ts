@@ -80,6 +80,27 @@ test("the morning run writes a digest for each changed project and skips unchang
   }
 });
 
+test("the scheduled local-day report chain is saved before rolling digest inference", async () => {
+  const { client, db } = await setup();
+  try {
+    const target = await planning.createProject(db, editor, project);
+    await planning.createIssue(db, editor, issue(target.id, "Check release evidence"), []);
+    const fixture = host("fail");
+    const scheduledFor = Date.parse("2026-11-13T09:00:00Z"); // 03:00 America/Chicago
+    const result = await scheduledDigests(db, fixture.host, editor, "scheduled-run", { now: scheduledFor, timezone: "America/Chicago" });
+    assert.deepEqual(result.reports.period, {
+      date: "2026-11-12", timezone: "America/Chicago",
+      start: Date.parse("2026-11-12T06:00:00Z"), end: Date.parse("2026-11-13T06:00:00Z"),
+    });
+    assert.equal(result.reports.projects.length, 1);
+    assert.ok(result.reports.projects[0].report);
+    assert.ok(result.reports.overview);
+    const firstReportWrite = fixture.calls.findIndex(call => call.operation === "actions.call" && call.input.action === "graph.mutate");
+    const firstInference = fixture.calls.findIndex(call => call.operation === "inference.generate");
+    assert.ok(firstReportWrite >= 0 && firstInference > firstReportWrite, "saved reports precede independent inference");
+  } finally { client.close(); }
+});
+
 test("Generate digest now starts the registered task; the platform's dispatch saves the digest", async () => {
   const { client, db } = await setup();
   try {
