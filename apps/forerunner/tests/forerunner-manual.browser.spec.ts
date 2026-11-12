@@ -88,6 +88,7 @@ for (const width of [1440, 390]) {
 					.fill("Small task edited");
 				await page.getByRole("button", { name: "Save changes" }).click();
                 await page.locator(".intro").getByRole("link", { name: "Your board", exact: true }).click();
+                await expect(page).toHaveURL(/\/board$/);
 				await page.reload();
 				const edited = page.locator("article").filter({
 					has: page.getByRole("heading", {
@@ -231,18 +232,18 @@ for (const width of [1440, 390]) {
 						revision: item.revision,
 					}),
 				});
-				await page.getByRole("button", { name: "Save item" }).click();
-				await expect(page.locator("#editor-error")).toContainText(
+				await page.getByRole("button", { name: "Save changes" }).click();
+				await expect(page.locator("#task-error")).toContainText(
 					"draft is kept",
 				);
 				await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
 					"Kept draft",
 				);
-				await page.getByRole("button", { name: "Reload board" }).click();
+				await page.getByRole("button", { name: "Load latest revision" }).click();
 				await expect(
-					page.getByRole("heading", { name: "Changed elsewhere" }),
-				).toBeVisible();
-				await page.getByRole("button", { name: "Save item" }).click();
+					page.locator("#latest-task-value"),
+				).toContainText("Changed elsewhere");
+				await page.getByRole("button", { name: "Save changes" }).click();
 				await expect(
 					page.getByRole("heading", { name: "Kept draft" }),
 				).toBeVisible();
