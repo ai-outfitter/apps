@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { d1Operator, type D1 } from "../../onto/scripts/wiki-migration-d1";
+import { d1Operator, type D1 } from "./wiki-migration-d1";
 
 type Binding = { id: string; databaseId: string };
 type Receipt = {

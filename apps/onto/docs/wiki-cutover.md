@@ -19,11 +19,11 @@ Then run the Wiki compatibility operator with the new migration receipt:
 
 ```sh
 CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> \
-  node --import tsx apps/wiki/scripts/reconcile-legacy-pages.ts \
+  node --import tsx apps/onto/scripts/reconcile-legacy-pages.ts \
   /private/cutover/receipt.local.json /private/cutover/pages-plan.local.json
 
 CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> \
-  node --import tsx apps/wiki/scripts/reconcile-legacy-pages.ts \
+  node --import tsx apps/onto/scripts/reconcile-legacy-pages.ts \
   /private/cutover/receipt.local.json /private/cutover/pages-apply.local.json --apply
 ```
 

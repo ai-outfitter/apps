@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { lockStatements, type D1 } from "../../onto/scripts/wiki-migration-d1";
+import { lockStatements, type D1 } from "../scripts/wiki-migration-d1";
 import { reconcileLegacyPages } from "../scripts/reconcile-legacy-pages";
 
 test("legacy Wiki pages remain a foreign-keyed archive while document migrations create a new page table", async () => {
@@ -57,8 +57,8 @@ test("legacy Wiki pages remain a foreign-keyed archive while document migrations
     assert.deepEqual([...new Set(source.prepare("PRAGMA foreign_key_list(wiki_links)").all().map(row => row.table))], ["wiki_legacy_pages"]);
     assert.deepEqual(source.prepare("PRAGMA foreign_key_check").all(), []);
     assert.throws(() => source.exec("UPDATE wiki_legacy_pages SET body='changed'"), /migrated/);
-    source.exec(readFileSync(new URL("../migrations/0012_documents.sql", import.meta.url), "utf8"));
-    source.exec(readFileSync(new URL("../migrations/0013_imported_revision.sql", import.meta.url), "utf8"));
+    source.exec(readFileSync(new URL("../../wiki/migrations/0012_documents.sql", import.meta.url), "utf8"));
+    source.exec(readFileSync(new URL("../../wiki/migrations/0013_imported_revision.sql", import.meta.url), "utf8"));
     assert.equal(source.prepare("SELECT count(*) AS n FROM wiki_pages").get()?.n, 1);
     assert.equal(source.prepare("SELECT count(*) AS n FROM wiki_legacy_pages").get()?.n, 1);
     assert.equal(source.prepare("SELECT count(*) AS n FROM wiki_links").get()?.n, 1);
