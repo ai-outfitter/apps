@@ -59,6 +59,11 @@ type ChangeBatch {
   reviewBy: DateTime
 
   """
+  The review page, relative to this installation (the platform returns it as a full link).
+  """
+  reviewUrl: String
+
+  """
   The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything.
   """
   review: JSON

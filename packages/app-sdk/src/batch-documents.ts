@@ -10,7 +10,7 @@ import type { AppDocument } from "./app-documents";
 export type Instruction = { code: string; itemKey: string; actor: "caller" | "agent" | "human" | "system"; required: boolean; message: string; call?: unknown; taskId?: string; url?: string };
 export type ChangeReceipt = { key: string; status: "complete" | "pending" | "failed" | "uncertain"; result?: unknown; error?: { code: string; message: string } };
 export type BatchResult = { items: ChangeReceipt[]; instructions: Instruction[] };
-export type BatchGroups = Record<string, { description: string; actions: Record<string, string>; resultFields?: string[]; documents?: Record<string, DocumentNode>; replayResult?: boolean; authorizeReplay?: (context: any) => Promise<boolean> }>;
+export type BatchGroups = Record<string, { description: string; actions: Record<string, string>; resultFields?: string[]; documents?: Record<string, DocumentNode>; reviewUrl?: (context: any, value: unknown) => string | undefined; replayResult?: boolean; authorizeReplay?: (context: any) => Promise<boolean> }>;
 const text = { type: new GraphQLNonNull(GraphQLString) };
 export const instructionType = new GraphQLObjectType({ name: "ChangeInstruction", fields: {
   code: text, itemKey: text, actor: text, required: { type: new GraphQLNonNull(GraphQLBoolean) }, message: text,
@@ -25,14 +25,14 @@ export const batchResultType = new GraphQLObjectType({ name: "ChangeResults", fi
 } });
 
 /** Status guidance is emitted only for actual unfinished domain work. */
-export function resultInstructions(key: string, value: unknown): Instruction[] {
+export function resultInstructions(key: string, value: unknown, url?: string): Instruction[] {
   if (!value || typeof value !== "object") return [];
   const result = value as Record<string, any>;
   const instructions: Instruction[] = Array.isArray(result.instructions) ? result.instructions.map((instruction:Instruction)=>({...instruction,itemKey:key})) : [];
   if((result.preview === true || result.phase === "preview") && result.previewToken)instructions.push({code:"CONFIRM_INSTALL",itemKey:key,actor:"caller",required:true,message:"Review the installation preview, then confirm its previewToken using a new request key."});
-  if (result.state === "open" && result.validation?.valid === false) instructions.push({ code: "REPAIR_CHANGES", itemKey: key, actor: "caller", required: true, message: `Repair the draft before submitting: ${String(result.validation.error ?? "Graph validation failed")}` });
-  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: true, message: "Append remaining changes, then submit the batch." });
-  if ((result.state === "awaiting_review" || result.status === "awaiting_review") && !instructions.length) instructions.push({ code: "AWAIT_REVIEW", itemKey: key, actor: "human", required: true, message: "Wait for an authorized reviewer; submission does not grant approval." });
+  if (result.state === "open" && result.validation?.valid === false) instructions.push({ code: "REPAIR_CHANGES", itemKey: key, actor: "caller", required: true, message: `Repair the draft before submitting: ${String(result.validation.error ?? "Graph validation failed")}`, ...(url ? { url } : {}) });
+  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: true, message: "Append remaining changes, then submit the batch.", ...(url ? { url } : {}) });
+  if ((result.state === "awaiting_review" || result.status === "awaiting_review") && !instructions.length) instructions.push({ code: "AWAIT_REVIEW", itemKey: key, actor: "human", required: true, message: "Wait for an authorized reviewer; submission does not grant approval.", ...(url ? { url } : {}) });
   instructions.push(...workInstructions(key, result));
   return instructions;
 }
@@ -56,13 +56,17 @@ export async function retainedChange(context: any, document: string, key: string
   await db.run(sql`INSERT INTO graph_change_receipts (actor, document, request_key, fingerprint, claim, created_at) VALUES (${actor}, ${document}, ${key}, ${fingerprint}, ${nonce}, ${Date.now()}) ON CONFLICT DO NOTHING`);
   const [row] = await db.all(sql`SELECT fingerprint, claim, result FROM graph_change_receipts WHERE actor = ${actor} AND document = ${document} AND request_key = ${key}`);
   if (row.fingerprint !== fingerprint) return { receipt: { key, status: "failed", error: { code: "IDEMPOTENCY_CONFLICT", message: "This key already identifies different input." } }, instructions: [] };
-  if (row.result && await mayReplayResult(options)) return JSON.parse(row.result);
+  if (row.result && await mayReplayResult(options)) {
+    const replay = JSON.parse(row.result);
+    if (context.__batchReviewUrl && replay.receipt?.result) replay.instructions = resultInstructions(key, replay.receipt.result, context.__batchReviewUrl(replay.receipt.result));
+    return replay;
+  }
   if (row.result) return { receipt: { key, status: "uncertain" }, instructions: [{ code: "READ_BEFORE_RETRY", itemKey: key, actor: "caller", required: true, message: "Read current records using your current access; this key will not repeat the change." }] };
   if (row.claim !== nonce) return { receipt: { key, status: "uncertain" }, instructions: [{ code: "READ_BEFORE_RETRY", itemKey: key, actor: "caller", required: true, message: "The request is running or its response was lost. Read the affected records before retrying; this key will not repeat writes." }] };
   let answer: { receipt: ChangeReceipt; instructions: Instruction[] };
   try {
     const result = await run();
-    const instructions = resultInstructions(key, result);
+    const instructions = resultInstructions(key, result, context.__batchReviewUrl?.(result));
     answer = { receipt: { key, status: instructions.some(item => item.required) ? "pending" : "complete", result }, instructions };
   } catch (error) {
     // A refused operation can have saved earlier cross-service work. Do not silently retry it.
@@ -116,7 +120,8 @@ export function batchSchema(schema: GraphQLSchema, groups: BatchGroups): GraphQL
           if (!validator) throw new Error("Batch action is missing its input validator");
           const valid=validator.safeParse(item.input);
           if(!valid.success){result.items.push({key:item.key,status:"failed",error:{code:"INVALID_INPUT",message:valid.error.issues.map(issue=>`${issue.path.join(".")}: ${issue.message}`).join("; ")}});continue;}
-          const saved = await retainedChange(context, name, item.key, item, async () => {
+          const itemContext = group.reviewUrl ? Object.assign(Object.create(context), { __batchReviewUrl: (value: unknown) => group.reviewUrl!(context, value) }) : context;
+          const saved = await retainedChange(itemContext, name, item.key, item, async () => {
             return executeBatchItem(schema, group, field, item, context);
           }, { replayResult: group.replayResult, authorizeReplay: group.authorizeReplay ? () => group.authorizeReplay!(context) : undefined });
           result.items.push(saved.receipt); result.instructions.push(...saved.instructions);
