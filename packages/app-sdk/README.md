@@ -22,6 +22,10 @@ Public source entry points for the existing authenticated app host contract:
 - `@ai-outfitter/app-sdk/workflow-inference`: the system prompt and untrusted-data framing of a workflow inference step.
 - `@ai-outfitter/app-sdk/workflow-session`: the exported workflow session format, for replay and evals.
 
+## Page links
+
+Page links: an app never knows where the platform mounts it. Forwarded identity carries only ids (`organizationId`, `userId`), never the organization slug or app slug, and pages are routed by slug, so a path built from an id is a broken link. Return links relative to the installation (for example `changes/<batchId>`, no leading slash) under `url` or `*Url` keys; the platform resolves them against the installation's real mount before an agent or person sees them. Never build `/o/...` or other mount paths in app code, and never read the mount from the incoming request.
+
 Only the Cloudflare adapter imports `cloudflare:workers`. Forwarded headers are
 trusted only behind the authenticated platform dispatch boundary; this package
 does not make a directly exposed Worker safe.
