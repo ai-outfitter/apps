@@ -74,12 +74,18 @@ function syntheticWorkflowResult(operation: string): Record<string, unknown> | n
   return undefined;
 }
 
-/** Reruns the saved sample from Sources, which owns reruns. */
+/** Start through the retained API; app-owned evidence review stays on the run page. */
 async function rerun(page: Page, origin: string) {
-  await page.goto(`${origin}/sources`);
-  const row = page.locator(".source-row", { hasText: "Gmail · artist@example.test" });
-  await row.getByRole("button", { name: "Rerun", exact: true }).click();
-  await row.getByRole("button", { name: "Run now", exact: true }).click();
+  await page.goto(`${origin}/history`);
+  const id = await page.evaluate(async () => {
+    const { sources } = await (await fetch("/api/apps/forerunner/discovery/sources")).json();
+    const source = sources.find((row: {label: string}) => row.label.includes("artist@example.test"));
+    if (!source) throw new Error("Missing imported source");
+    const response = await fetch("/api/apps/forerunner/discovery/discover", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({sources:[source.id], timezone:"UTC"})});
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()).id;
+  });
+  await page.goto(`${origin}/runs/${id}/inputs`);
 }
 
 for (const width of [1440, 390])
@@ -94,16 +100,6 @@ for (const width of [1440, 390])
     expect((await wiki.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status).toBe(200);
     let applies = 0;
     let historicalPreview = false;
-    let pauseAnalysis = false;
-    let analysisStarted!: () => void;
-    let releaseAnalysis!: () => void;
-    const started = new Promise<void>(resolve => { analysisStarted = resolve; });
-    const resumed = new Promise<void>(resolve => { releaseAnalysis = resolve; });
-    const holdAnalysis = async (operation: string) => {
-      if (operation !== "inference.generate" || !pauseAnalysis) return;
-      analysisStarted();
-      await resumed;
-    };
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     const diagnostics = false;
@@ -130,7 +126,6 @@ for (const width of [1440, 390])
                 },
               };
             const body = input as Record<string, unknown>;
-            await holdAnalysis(operation);
             const modelResult = syntheticWorkflowResult(operation);
             if (modelResult !== undefined) return { ok: true, value: modelResult };
             if (operation === "actions.call") {
@@ -187,12 +182,7 @@ for (const width of [1440, 390])
       const created = await wiki.call("/api/internal/actions/v1/call", owner, {method:"POST",body:{action:"graph.apply",input:{requestKey:"test-contact",operations:[{operation:"create",type:"graph-node",ref:"$contact",attributes:{id:contactId,typeId:personType.ref.id,title:"Correct contact"}}]}}});
       expect(created.status).toBe(200);
       await page.setViewportSize({width,height:900});
-      await page.goto(`${origin}/settings`);
-      await expect(page.getByRole("button",{name:"Debug runs"})).toHaveCount(0);
-      await page.getByText("No accounts connected yet").waitFor();
-      await expect(page.getByRole("link",{name:"Connect Google"})).toBeVisible();
-      await expect(page.locator("#settings-daily-status")).toHaveText("The daily run is unavailable right now.");
-      // Settings no longer imports agent samples; the import endpoint stays for agents.
+      await page.goto(`${origin}/history`);
       const imported = await page.evaluate(async (body) => (await fetch("/api/apps/forerunner/discovery/import", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})).ok, sample);
       expect(imported).toBe(true);
       await rerun(page, origin);
@@ -279,31 +269,12 @@ for (const width of [1440, 390])
       await expect(page.locator("#activity-run-status")).toContainText("Saved");
       await expect(page.locator("#run-mail-detail .run-conclusion")).toContainText("Already in graph");
       expect(applies).toBe(1);
-      await test.step("a source run finishes after navigating away without pulling the member back", async () => {
-        pauseAnalysis = true;
-        const response = page.waitForResponse(r => r.url().endsWith("/discovery/discover") && r.request().method() === "POST", { timeout: 10_000 });
-        await rerun(page, origin);
-        await started;
-        if (!(await page.locator("#sidebar").isVisible()))
-          await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-        await page.locator("#sidebar").getByRole("link", { name: "History", exact: true }).click();
-        await expect(page).toHaveURL(/\/history$/);
-        releaseAnalysis();
-        expect((await response).status()).toBe(200);
-        await expect(page).toHaveURL(/\/history$/);
-        await page.reload();
-        await expect(page.locator("a.activity-event").filter({ hasText: "Discovery" }).first()).toContainText("Saved");
-        pauseAnalysis = false;
-        await page.locator("a.activity-event").filter({ hasText: "Discovery" }).first().click();
-        await expect(page.locator("#activity-run-status")).toContainText("Saved");
-      });
       const failureStatus=await page.evaluate(async()=>(await fetch("/api/apps/forerunner/discovery/discover",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sources:["connection:missing"]})})).status);
       expect(failureStatus).toBeGreaterThanOrEqual(400);
       await page.getByRole("link",{name:"Back to history"}).click();
       await page.locator("a.activity-event").filter({hasText:"Failed"}).first().click();
       await expect(page.locator("#activity-run-error")).toBeVisible();
     } finally {
-      releaseAnalysis();
       await page.unrouteAll({ behavior: "wait" });
       await app.dispose();
       await wiki.dispose();

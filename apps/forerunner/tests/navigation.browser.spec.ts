@@ -4,7 +4,7 @@ import { appWorker } from "@ai-outfitter/app-test/worker";
 import { type Page, test } from "@playwright/test";
 
 const origin = "https://forerunner.outfitter.example";
-const links = ["Today", "Life", "Knowledge graph", "Sources", "Workflows", "History", "Forerunner settings"];
+const links = ["Today", "Life", "Knowledge graph", "History"];
 
 for (const mode of ["demo", "operational"] as const)
   test(`sidebar links swap ${mode} pages inside the app shell`, async ({ page }) => {
