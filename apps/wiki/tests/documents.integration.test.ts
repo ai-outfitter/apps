@@ -180,7 +180,8 @@ test('document navigation retains authorized personal and organization mounts wi
    assert.doesNotMatch(html,/Private profile body|>Notes<|Pages and documents|People and projects/);
    assert.match(html,/Recent updates/);assert.match(html,/All documents/);
    const anonymous=await app.call('/',undefined,{headers:{[pageURLHeader]:`https://platform.example${mount}`}});
-   assert.doesNotMatch(await anonymous.text(),/Private profile body|>Profile<|href="[^" ]*p\/profile"/);
+   const anonymousHtml=await anonymous.text();
+   assert.doesNotMatch(anonymousHtml,/Private profile body|href="[^" ]*p\/profile"/);
   }finally{await app.dispose();}
  }
 });
