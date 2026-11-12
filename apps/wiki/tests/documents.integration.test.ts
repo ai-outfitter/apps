@@ -34,6 +34,12 @@ test("operational Wiki serves an anonymous installation shell before initializat
   const anonymous=await app.call("/");
   assert.equal(anonymous.status,200);
   assert.doesNotMatch(await anonymous.text(),/Private installation notes|Private fixture body/);
+  for(const path of ["/recent","/documents"]){
+   const denied=await app.call(path);
+   assert.doesNotMatch(await denied.text(),/Private installation notes|Private fixture body/);
+  }
+  assert.equal((await app.call('/recent?before=bad&id=x',member)).status,400);
+  assert.equal((await app.call('/related?type=Unknown',member)).status,400);
   const authenticated=await app.call("/",member);
   assert.equal(authenticated.status,200);
   assert.equal(authenticated.headers.get("cache-control"),"private, no-store");
@@ -66,7 +72,7 @@ test("installed Wiki creates a draft, preserves a publication, and refuses stale
   assert.deepEqual([data.document.revision,data.document.publishedRevision,data.documentRevisions.length],[2,1,2]);
   const legacy=await app.call(`/documents/${first.id}`,member);assert.equal(legacy.status,200);assert.match(await legacy.text(),/Updated notes/);
   for(const path of ["/documents/project-notes",`/page?node=${first.id}`,"/page?slug=project-notes"]){const oldPage=await app.call(path,member);assert.equal(oldPage.status,200);assert.match(await oldPage.text(),/Updated notes/);}
-  const documentIndex=await app.call("/documents",member);assert.equal(documentIndex.status,200);assert.match(await documentIndex.text(),/Your Wiki/);
+  const documentIndex=await app.call("/documents",member);assert.equal(documentIndex.status,200);assert.match(await documentIndex.text(),/All documents/);
   const oldWrite=await app.call("/api/apps/wiki-map/graph/apply",owner,{method:"POST",body:{}});assert.notEqual(oldWrite.status,200);
  }finally{await app.dispose();}
 });
@@ -156,4 +162,25 @@ test('the released Wiki refuses an unreceipted graph and resumes only after veri
     assert.equal(document.body, 'Preserved legacy body');
     assert.equal((await app.database.prepare("SELECT body FROM graph_nodes WHERE id='legacy-document'").first())?.body, document.body);
   } finally { await app.dispose(); }
+});
+
+
+test('document navigation retains authorized personal and organization mounts without fabricated trees',async()=>{
+ const {pageURLHeader}=await import('@ai-outfitter/app-sdk/server');
+ for(const mount of ['/apps/wiki-map/','/o/example-org/wiki-map/']){
+  const app=await appWorker('wiki-map',new URL('../.outfitter/packages/operational.json',import.meta.url));
+  const identity=mount.startsWith('/apps/')?{userId:'editor',organizationId:'',owner:{kind:'user' as const,id:'editor'},role:'owner'}:owner;
+  try{
+   await app.call(api,identity,{method:'POST',body:{operation:'SaveDocument',variables:{input:{title:'Profile',body:'Private profile body',slug:'profile'}}}});
+   const response=await app.call('/recent',identity,{headers:{[pageURLHeader]:`https://platform.example${mount}recent`}});
+   assert.equal(response.status,200);
+   const html=await response.text();
+   assert.match(html,new RegExp(`href="${mount}p/profile"`));
+   assert.match(html,new RegExp(`href="${mount}related\\?type=Goal"`));
+   assert.doesNotMatch(html,/Private profile body|>Notes<|Pages and documents|People and projects/);
+   assert.match(html,/Recent updates/);assert.match(html,/All documents/);
+   const anonymous=await app.call('/',undefined,{headers:{[pageURLHeader]:`https://platform.example${mount}`}});
+   assert.doesNotMatch(await anonymous.text(),/Private profile body|>Profile<|href="[^" ]*p\/profile"/);
+  }finally{await app.dispose();}
+ }
 });

@@ -2,7 +2,7 @@ import { defineEntity, type EntityProvider, type EntityRef } from "@ai-outfitter
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { and, asc, desc, eq, or, sql, type AnyColumn } from "drizzle-orm";
 import { z } from "zod";
-import { projects, issues, type Project, type Issue } from "./schema";
+import { priorityOrder, projects, issues, type Project, type Issue } from "./schema";
 import { projectFields, issueFields } from "./fields";
 import { createProject, updateProject, createIssue, updateIssue, type PlanningDatabase } from "./planning";
 
@@ -41,7 +41,24 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   const noReferences = (references: EntityRef[]) => {
     if (references.length) throw new Response("Project references are not supported", { status: 400 });
   };
-  return [defineEntity<Project, typeof projectFields, typeof projectFilter>({
+  const portfolioSchema = z.strictObject({ kind: z.enum(["organizations", "projects"]), items: z.array(z.string()).max(500) });
+  const portfolio = async (who: AppIdentity) => {
+    if (who.owner.kind !== "user" || who.organizationId) throw new Response("Personal portfolio only", { status: 403 });
+    const rows = await db.select().from(priorityOrder).where(eq(priorityOrder.installationId, who.installationId));
+    return rows.filter(row => ["portfolio-organizations", "portfolio-projects"].includes(row.kind)).map(row => ({
+      id: row.kind.slice("portfolio-".length), revision: row.revision,
+      kind: row.kind.slice("portfolio-".length) as "organizations" | "projects", items: z.array(z.string()).parse(JSON.parse(row.items)),
+    }));
+  };
+  return [defineEntity<{ id: string; revision: number } & z.infer<typeof portfolioSchema>, typeof portfolioSchema>({
+    type: "portfolio-priority", collection: "portfolio-priorities", title: "Personal portfolio priority",
+    description: "Read-only saved personal organization or project ordering. References do not grant access; resolve them against current authorized records. Change through ReorderPersonalPortfolio.",
+    schema: portfolioSchema, name: row => row.kind,
+    // Entity catalog enumeration is shared with organization projects. A
+    // personal-only collection is empty there, while direct reads still refuse.
+    list: async (who, offset, limit) => who.owner.kind === "user" && !who.organizationId ? (await portfolio(who)).slice(offset, offset + limit) : [],
+    get: async (who, id) => { const row = (await portfolio(who)).find(row => row.id === id); if (!row) throw new Response("Priority not saved", { status: 404 }); return row; },
+  }), defineEntity<Project, typeof projectFields, typeof projectFilter>({
     type: "project", title: "Planning project", description: "The canonical project record: goals, user stories, repository and acceptance documents. Wiki pages reference this record.",
     schema: projectFields, collection: "projects", filterSchema: projectFilter,
     orderFields: ["id", "name"], selectFields: ["id", ...Object.keys(projectFields.shape)], name: row => row.name,
@@ -74,4 +91,9 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
       return updateIssue(db, who, current.id, { ...input, revision }, input.assigneeId ? memberIds() : []);
     },
   })];
+}
+
+/** Domain callers select providers by type; catalog order can grow independently. */
+export function planningEntity(db: PlanningDatabase, type: "project" | "issue") {
+  return planningEntities(db).find(provider => provider.type === type)!;
 }

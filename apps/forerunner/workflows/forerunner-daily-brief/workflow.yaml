@@ -1,0 +1,27 @@
+version: beta
+id: forerunner-daily-brief
+summary: Save a personal morning brief from yesterday's authorized project reports, current priorities, and the previous brief, with explicit source gaps.
+actors: {}
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 5 * * *"
+steps:
+  - id: collect
+    inputs: {}
+    outputs:
+      brief:
+        connector: database
+        record: daily-brief.saved
+        schema:
+          type: object
+          properties:
+            documentId: {type: string}
+            revision: {type: integer}
+            slug: {type: string}
+            date: {type: string}
+            status: {type: string, enum: [complete, incomplete]}
+          required: [documentId, revision, slug, date, status]
+          additionalProperties: false
+outputs:
+  brief: collect.outputs.brief

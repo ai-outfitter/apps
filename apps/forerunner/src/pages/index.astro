@@ -1,5 +1,6 @@
 ---
 import { platformHref } from "../platform-href";
+import DailySummary from "../components/DailySummary.astro";
 import ForerunnerLayout from "../components/ForerunnerLayout.astro";
 import today from "../../fixtures/forerunner-today.json" with { type: "json" };
 import { rootHref } from "../root-href";
@@ -23,5 +24,7 @@ const root = rootHref(Astro.url.pathname, 0);
         <h3>Nothing on the timeline yet</h3>
         <p>Add your first stone on the <a href={`${root}board`}>board</a>, or manage accounts in <a href={platformHref(Astro.request, "/connections")}>Connections</a> and scheduled work in <a href={platformHref(Astro.request, "/automations")}>Automations</a>.</p>
       </section>}
+  <DailySummary {root} />
+  <DailySummary {root} period="week" />
 </ForerunnerLayout>
 <script>import "../scripts/today";</script>

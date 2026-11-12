@@ -185,6 +185,7 @@ for (const width of [1440, 390])
     try {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto(`${origin}/projects/${projectId}`);
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(
         page.getByRole("heading", {
           name: "Requirements and acceptance criteria",

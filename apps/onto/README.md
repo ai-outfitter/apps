@@ -1,6 +1,6 @@
 # Onto
 
-Onto is its own app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It installs next to the webapp's Wiki Map (`wiki-map`) rather than replacing it: an organization moves its old Wiki into Onto as a separate step (`scripts/import-old-wiki.ts`).
+Onto is the knowledge graph and ontology app, `outfitter/onto`, installed at `/o/<org>/onto/` or `/apps/onto/`. It owns entities, relationships, ontology audits and change-batch reviews. Wiki is the separate documents and pages app (`outfitter/wiki-map`, displayed as **Wiki**); its existing `wiki-map` installation identity and URLs remain compatible. Importing a historical Wiki graph into Onto is a separate migration (`scripts/import-old-wiki.ts`).
 
 From the repository root, run `npm ci`, `npm run check -w @ai-outfitter/app-onto`, `npm run test:unit -w @ai-outfitter/app-onto`, and `npm run test:integration -w @ai-outfitter/app-onto`. Build both app modes with `npm run build -w @ai-outfitter/app-onto`; outputs are written to `apps/onto/.outfitter/packages/`. Browser tests use `npm run test:e2e -w @ai-outfitter/app-onto` and require Playwright and Chromium.
 

@@ -1,3 +1,8 @@
+import { dailyBriefSchedule, dailyBriefScheduleInput, setDailyBriefSchedule, generateDailyBrief, generateDailyBriefInput } from "./daily-brief";
+import { dailyHomeInput, readDailyHome } from "./daily-home";
+import { createPlanningIntake, planningCandidates, planningCandidatesInput, planningIntakeInput } from "./planning-intake";
+import { readDayReview } from "./day-review";
+import { reviewInput } from "./review-period";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
@@ -69,6 +74,7 @@ const revisioned = "Send the revision last read; a stale one is refused (409) so
 const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
   name: "Mutation",
   fields: {
+    createPlanningIntake: mutationField({ name: "CreatePlanningIntake", description: "Explicitly capture one selected saved discovered need in the same owner's authorized Planning installation. Uses only current canonical Wiki content, honors corrected identity and revision, and retries with a deterministic intake request ID. Never copies private source samples or automatically shares across owners.", input: planningIntakeInput, run: (context: ForerunnerContext, input) => createPlanningIntake(context.db(), context.identity, context.host(), input) }),
     createItem: mutationField<typeof createInput, ForerunnerContext>({
       name: "CreateItem",
       description: "Add a stone (a top priority), a pebble (a stone's next action, parentId required) or sand (a small task, optionally under a stone) to the caller's board, last in its category. Status is todo, in-progress or done; dueDate an ISO date. At most 500 items.",
@@ -99,6 +105,8 @@ const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
       input: suggestionInput, output: nonNull(suggestionType),
       run: (context, input) => updateSuggestion(context.db(), context.identity, context.host(), input),
     }),
+    setDailyBriefSchedule: mutationField({ name: "SetDailyBriefSchedule", description: "Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.", input: dailyBriefScheduleInput, run: (context: ForerunnerContext, input) => setDailyBriefSchedule(context.host(), context.identity, input) }),
+    generateDailyBrief: mutationField({ name: "GenerateDailyBrief", description: "Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.", input: generateDailyBriefInput, run: (context: ForerunnerContext, input) => generateDailyBrief(context.db(), context.identity, context.host(), input) }),
     setDailyRun: mutationField<typeof scheduleChange, ForerunnerContext>({
       name: "SetDailyRun",
       description: "Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.",
@@ -116,6 +124,10 @@ const baseGraphqlSchema = new GraphQLSchema({
   query: new GraphQLObjectType({
     name: "Query",
     fields: {
+      dailyHome: mutationField({ name: "DailyHome", description: "Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. No generation starts.", input: dailyHomeInput, run: (context: ForerunnerContext, input) => readDailyHome(context.db(), context.identity, context.host(), input) }),
+      dailyBriefSchedule: mutationField({ name: "DailyBriefSchedule", description: "Read the personal daily brief schedule; no scheduling side effects.", input: z.strictObject({}), run: (context: ForerunnerContext) => dailyBriefSchedule(context.host(), context.identity) }),
+      dayReview: mutationField({ name: "DayReview", description: "Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.", input: reviewInput, run: (context: ForerunnerContext, input) => readDayReview(context.db(), context.identity, context.host(), input) }),
+      planningCandidates: mutationField({ name: "PlanningCandidates", description: "Read saved canonical need identities and revisions for a private discovery selection; excludes raw source samples and uncommitted proposals.", input: planningCandidatesInput, run: (context: ForerunnerContext, input) => planningCandidates(context.db(), context.identity, context.host(), input) }),
       ...board,
       ...tableType(discoveryRecords, {
         field: "discoveryRecords", type: "DiscoveryRecord",

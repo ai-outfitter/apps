@@ -236,7 +236,7 @@ for (const width of [1440, 390]) {
         `/products/${ids.product}/revisions/${ids.revision}`,
       );
       await page
-        .getByRole("link", { name: "← All projects", exact: true })
+        .getByRole("link", { name: "All projects", exact: true })
         .click();
       await expect(page.locator("#project-detail")).toBeHidden();
       await expect(page.locator("#project-issues")).toBeHidden();
@@ -260,6 +260,7 @@ for (const width of [1440, 390]) {
       expect(legacy.status).toBe(302);
       expect(legacy.headers.get("location")).toBe(new URL(projectUrl).pathname);
       await page.goto(projectUrl);
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(page).toHaveURL(projectUrl);
       await expect(page.locator("#project-name")).toHaveText(
         "Launch manual planning",
@@ -338,6 +339,7 @@ for (const width of [1440, 390]) {
       // A removed assignee survives an unrelated edit instead of being cleared.
       memberIds.splice(memberIds.indexOf(bob), 1);
       await page.reload();
+      await page.getByText("Project documents and work details",{exact:true}).click();
       const renamed = page.locator("article.planning-issue").filter({
         has: page.getByRole("heading", {
           name: "Release the usable manual apps",
@@ -360,6 +362,7 @@ for (const width of [1440, 390]) {
       await expect(renamed).toContainText("Former member");
       directoryUnavailable = true;
       await page.reload();
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(page.locator("#project-name")).toBeVisible();
       await expect(page.locator("#directory-notice")).toBeHidden();
       await expect(renamed).toContainText("Assigned member");
@@ -393,6 +396,7 @@ for (const width of [1440, 390]) {
       memberIds.push(bob);
       currentMember = bob;
       await page.reload();
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(
         page.getByRole("heading", {
           name: "Release the usable manual apps",
@@ -416,6 +420,7 @@ for (const width of [1440, 390]) {
       expect(disposable.status).toBe(200);
       const disposableProject = await disposable.json() as {id:string};
       await page.goto(`${pOrigin}/projects/${disposableProject.id}`);
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(page.locator("#project-name")).toHaveText("Disposable project");
       page.once("dialog", dialog => dialog.accept());
       await page.getByRole("button",{name:"Delete",exact:true}).click({noWaitAfter:true});
@@ -467,8 +472,9 @@ test("Planning demo remains synthetic and read-only", async ({ page }) => {
       /\/projects\/00000000-0000-4000-8000-000000000001$/,
     );
     await expect(page.locator("#project-name")).toBeVisible();
+    await page.getByText("Project documents and work details",{exact:true}).click();
     await expect(
-      page.getByRole("navigation", {name:"Project actions"}).getByRole("button", { name: "Edit", exact: true }),
+      page.getByRole("group", {name:"Project maintenance"}).getByRole("button", { name: "Edit", exact: true }),
     ).toBeDisabled();
     await page
       .getByRole("button", { name: "Ask Outfitter", exact: true })

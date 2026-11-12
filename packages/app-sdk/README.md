@@ -83,3 +83,12 @@ capability and `workflowPhaseHandler()` for the reserved
 (`eventInput`/`eventResult`, `prepareInput`/`prepareResult`,
 `finalizeInput`/`finalizeResult`) are exported as zod schemas. Only trusted dispatch props supply the
 capability; identity headers alone never do.
+
+
+Budgeted thread history may include `sources: [{ installationId, type, id,
+revision }]` (at most four). The platform must authorize the same owner and load
+that exact entity revision on every reply. Source snapshots are transient,
+attributed untrusted context, never a transcript checkpoint or privileged
+instruction. Unavailable access or revisions fail the reply visibly. Sources do
+not claim thread coverage or permit dropping messages; the combined context is
+bounded to 64 KiB. See the `threadContextSource` and `prepare.history` contracts.

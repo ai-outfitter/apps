@@ -1,4 +1,7 @@
+import { dailyReportReadInput, readDailyReport } from "./digest-wiki";
+import { dailyReportsInput, startDailyReports } from "./digests";
 import { readOrder, saveOrder, orderInput, sortByOrder } from "./priority-order";
+import { personalPortfolio, portfolioOrderInput, reorderPersonalPortfolio } from "./personal-portfolio";
 import { connectionType, idList, mutationField, type PageArgs, page, pageArgs, pageStart, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import { batchSchema, readBatchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
@@ -8,7 +11,7 @@ import {
   GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
 import { z } from "zod";
-import { productReportRuns, productReportSchedule, productReportScheduleInput, changeProductReportSchedule, startProductReport } from "./product-report-workflow";
+import { productReportRuns, productReportSchedule, productReportScheduleInput, changeProductReportSchedule, startProductReport, productReportInput } from "./product-report-workflow";
 import { readProductPage, productPageMarkdown } from "./product-page-data";
 import { batchGroups, readGroups } from "./batch-groups";
 import { linkChangesInput, linkProjectChanges } from "./code-changes";
@@ -17,7 +20,7 @@ import { deliveryInput, projectDelivery, submitDeliveryPackage, submitPackageInp
 import { changeDigestSchedule, digestListInput, digestRuns, digestSchedule, digestScheduleInput, generateDigestInput, listDigests, startDigest } from "./digests";
 import { issueFields as issueInput, projectFields } from "./fields";
 import {
-  claimInput, claimWork, createIntake, type IntakeRow, IntakeService, intakeInput, type PlanningContext, previewIntakeInput, previewIntakeWork, publishResult,
+  releaseFitInput, setIntakeReleaseFit, claimInput, claimWork, createIntake, type IntakeRow, IntakeService, intakeInput, type PlanningContext, previewIntakeInput, previewIntakeWork, publishResult,
   recordResult, recordResultInput, resetSubmission, resetSubmissionInput, reviseScope, reviseScopeInput, routeInput, routeIntake, saveDraftInput,
   saveResultDraft, selection, submitIntakeInput, submitIntakeWork,
 } from "./intake";
@@ -25,7 +28,7 @@ import { type OrganizationGoals, readOrganizationGoals } from "./organization-go
 import { archiveProject, archiveProjectInput, projectStateInput, setProjectState, createIssue, deleteIssue, deleteProject, patchProjectInput, reorderInput, reorderIssues, revisionField, updateIssue, updateProject, patchProject as patchProjectRecord } from "./planning";
 import { projectContext, projectReadiness, projectSlug } from "./project-context";
 import { issues, projects } from "./schema";
-import { saveUseCase, useCaseInput } from "./use-cases";
+import { listUseCases, saveUseCase, useCaseInput } from "./use-cases";
 import { repositories, pullRequests } from "./project-repositories";
 import { linkProjectNode, publishRepositories } from "./repository-patch";
 import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
@@ -96,7 +99,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
     id: { type: nonNull(GraphQLID) },
     name: text,
     archived: {type:nonNull(GraphQLBoolean)},
-    rank: { type: GraphQLInt, resolve: async (row, _args, context) => { if (!context.identity.organizationId) return null; const order = await readOrder(context.db(), context.identity, "projects"); const index = order.items.indexOf(row.id); return index < 0 ? null : index; } },
+    rank: { type: GraphQLInt, resolve: async (row, _args, context) => { const order = await readOrder(context.db(), context.identity, "projects"); const index = order.items.indexOf(row.id); return index < 0 ? null : index; } },
     state: { ...text, description: "Project lifecycle: draft, backlog, active, completed or archived." },
     slug: {type:GraphQLString,resolve:(project,_args,context)=>projectSlug(context,project.id)},
     ...contextFields,
@@ -165,6 +168,9 @@ const intake = new GraphQLObjectType<IntakeSource, Context>({ name: "Intake", fi
   description: { ...text, resolve: row => row.body.input.description },
   sourceUrls: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), resolve: row => row.body.input.sourceUrls ?? [] },
   sources: { type: nonNull(JSONScalar), description: "Wiki records at the revisions the intake was scoped to.", resolve: row => row.body.input.sources },
+  originatingMessage: { type: JSONScalar, description: "Caller-provided conversation provenance; grants no transcript access.", resolve: row => row.body.input.originatingMessage ?? null },
+  releaseFit: { type: JSONScalar, description: "Persisted release disposition, existing Release revision, rationale and backlog status.", resolve: row => row.body.releaseFit ?? null },
+  releaseFitHistory: { type: nonNull(JSONScalar), resolve: row => row.body.releaseFitHistory ?? [] },
   routes: { type: nonNull(new GraphQLList(nonNull(intakeRoute))), resolve: async (row, _args, context) => (await new IntakeService(context).inspect(row)).body.routes },
   routing: { type: JSONScalar, description: "The automatic routing run: runId and state (running, proposed, complete or failed)." , resolve: row => row.body.routing ?? null },
   routingError: { type: GraphQLString, description: "Set by createIntake when the saved intake could not be routed; route it later." },
@@ -181,8 +187,9 @@ const digest = new GraphQLObjectType({ name: "ProjectDigest", description: "What
   summaryError: { type: GraphQLString, description: "Why there is no summary, when there is none." },
   changes: { type: nonNull(JSONScalar), description: "shipped, started, added, reopened, edited and removed issues ({ id, title, category, status }, at most 20 each); counts (exact); changed project documents by label; delivery { submitted, accepted }; current priorities (in-progress first, then top open stones and pebbles); totals { open, inProgress, done }." },
 } });
-const digestScheduleType = new GraphQLObjectType({ name: "DigestSchedule", description: "The morning digest of every active project, daily at 13:00 UTC.", fields: {
+const digestScheduleType = new GraphQLObjectType({ name: "DigestSchedule", description: "The local morning report chain: organization projects at 03:00, personal overview at 04:00 by default.", fields: {
   enabled: { type: nonNull(GraphQLBoolean) },
+  cron: {type:GraphQLString}, timezone:{type:GraphQLString},
   nextRunAt: { type: GraphQLFloat, description: "Epoch milliseconds; null when off." },
   lastRunAt: { type: GraphQLFloat },
   lastOutcome: { type: GraphQLString },
@@ -233,10 +240,19 @@ async function productsPage(context: Context, at?: string | null) {
     return {...page,products,markdown:productPageMarkdown({...page,products})};
   }catch(error){if(error instanceof Response)throw new GraphQLError(await error.text());throw error;}
 }
+const dailyReportSource=new GraphQLObjectType({name:"DailyReportSource",fields:{id:{type:nonNull(GraphQLID)},name:text,ownerKind:text,ownerId:text,planningInstallationId:text,organizationSlug:{type:GraphQLString},report:{type:JSONScalar}}});
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
+      const {first,start}=pageStart(args),id=context.identity.installationId;
+      if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start);
+      const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone});
+      const row={id,name:"Daily report",ownerKind:context.identity.owner.kind,ownerId:context.identity.owner.id,planningInstallationId:id,organizationSlug:null,report};
+      return page(context,info,[row],row=>row.id,first,start);
+    }},
     priorityOrder: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>readOrder(context.db(),context.identity,z.enum(["projects","products"]).parse(args.kind))},
+    personalPortfolio: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>personalPortfolio(context,z.enum(["organizations","projects"]).parse(args.kind))},
     productReportRuns: {type:nonNull(JSONScalar),resolve:(_source,_args,context)=>productReportRuns(context.host())},
     productReportSchedule: {type:nonNull(JSONScalar),resolve:(_source,_args,context)=>productReportSchedule(context.host())},
     products: {type:nonNull(new GraphQLList(nonNull(productCard))),args:{at:{type:GraphQLString}},resolve:async(_source,args:{at?:string},context)=>(await productsPage(context,args.at)).products},
@@ -278,6 +294,16 @@ const query = new GraphQLObjectType<unknown, Context>({
       },
     },
     ...issueFields,
+    useCases: mutationField({
+      name: "UseCases", description: "Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.",
+      input: z.strictObject({ projectId: z.uuid() }),
+      run: (context: Context, input) => listUseCases(context.db(), context.identity, context.host(), input.projectId),
+    }),
+    intakeReleaseOptions: mutationField({
+      name: "IntakeReleaseOptions", description: "Read the canonical project's existing Wiki Releases with their IDs, revisions and linked evidence before recording intake release fit.",
+      input: z.strictObject({ projectId: z.uuid() }),
+      run: (context: Context, input) => new IntakeService(context).releaseReview(input.projectId),
+    }),
     intakes: {
       type: nonNull(connectionType(intake)),
       description: "Customer and competitive intakes with their routed child work, in ID order. Reading routes inspects each intake against Governance, so first defaults to 20.",
@@ -304,6 +330,7 @@ const query = new GraphQLObjectType<unknown, Context>({
       input: deliveryInput,
       run: (context, input) => projectDelivery(context, input),
     }),
+    dailyReport: mutationField<typeof dailyReportReadInput, Context>({name:"DailyReport",description:"Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.",input:dailyReportReadInput,output:JSONScalar,run:(context,input)=>readDailyReport(context.host(),context.identity,input)}),
     projectDigests: mutationField<typeof digestListInput, Context>({
       name: "ProjectDigests",
       description: "A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.",
@@ -361,7 +388,7 @@ const revisionRule = "Name the revision you read; a changed record is refused (4
 const mutation = new GraphQLObjectType<unknown, Context>({
   name: "Mutation",
   fields: {
-    generateProductReport: mutationField<z.ZodObject<{}>,Context>({name:"GenerateProductReport",description:"Regenerate the current weekly product report as a registered task. Editors only.",input:z.strictObject({}),run:(context)=>startProductReport(context.host(),context.identity)}),
+    generateProductReport: mutationField<typeof productReportInput,Context>({name:"GenerateProductReport",description:"Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.",input:productReportInput,run:(context,input)=>startProductReport(context.host(),context.identity,input)}),
     changeProductReportSchedule: mutationField<typeof productReportScheduleInput,Context>({name:"ChangeProductReportSchedule",description:"Enable or disable daily roadmap regeneration. Editors only.",input:productReportScheduleInput,run:(context,input)=>changeProductReportSchedule(context.host(),context.identity,input)}),
 
     createIssue: mutationField<typeof issueInput, Context>({
@@ -470,6 +497,10 @@ const mutation = new GraphQLObjectType<unknown, Context>({
         return saveOrder(context.db(),context.identity,input,allowed);
       },
     }),
+    reorderPersonalPortfolio: mutationField<typeof portfolioOrderInput, Context>({
+      name: "ReorderPersonalPortfolio", description: "Save your personal organization or cross-organization project order at the revision read. Does not change shared priorities.",
+      input: portfolioOrderInput, output: nonNull(JSONScalar), run: reorderPersonalPortfolio,
+    }),
     setProjectState: mutationField<typeof projectStateInput, Context>({
       name: "SetProjectState", description: "Set the project lifecycle state at the revision read; archived projects can be restored.",
       input: projectStateInput, output: nonNull(Project), run: async (context, input) => savedProject(context, (await setProjectState(context.db(), context.identity, input)).id),
@@ -483,6 +514,11 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       description: `Delete a project that has no issues. ${revisionRule}`,
       input: recordChange, output: nonNull(deleted),
       run: (context, { id, revision }) => deleteProject(context.db(), context.identity, id, { revision }),
+    }),
+    setIntakeReleaseFit: mutationField<typeof releaseFitInput, Context>({
+      name: "SetIntakeReleaseFit", description: "Record current-release, deferred, needs-research or rejected with rationale, an optional existing project Release revision, and history. Current-release requires a Release; deferred without one stays in intake backlog. Optimistic revision and stable requestId required. Does not approve or start delivery. Editors only.",
+      input: releaseFitInput, output: nonNull(intake),
+      run: (context, input) => setIntakeReleaseFit(intakeService(context), input),
     }),
     createIntake: mutationField<typeof intakeInput, Context>({
       name: "CreateIntake",
@@ -538,6 +574,7 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       input: resetSubmissionInput, output: nonNull(intake),
       run: (context, input) => resetSubmission(intakeService(context), input),
     }),
+    generateDailyReports: mutationField<typeof dailyReportsInput, Context>({name:"GenerateDailyReports",description:"Start one durable task that captures every active project's previous local day, then saves this owner's overview from those exact reports.",input:dailyReportsInput,output:nonNull(JSONScalar),run:(context,input)=>startDailyReports(context.host(),context.identity,input)}),
     generateProjectDigest: mutationField<typeof generateDigestInput, Context>({
       name: "GenerateProjectDigest",
       description: "Start the project-digest task for one project: the platform runs it durably and records its run; the digest appears in projectDigests when the run completes. Returns { id, task, created }: id is the run, read with digestRuns or the platform's TaskRuns. Editors only.",

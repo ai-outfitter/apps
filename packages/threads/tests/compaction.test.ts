@@ -110,3 +110,56 @@ test("a failed summary still bounds the prompt and says what it left out", async
     assert.equal(entries.at(-1)?.role, "assistant", "the reply still completes");
   } finally { await Promise.allSettled(retained); client.close(); }
 });
+
+
+test("pinned sources reload each reply as transient data without claiming or compacting transcript coverage",async(context)=>{
+  let clock=1_900_000_000_000;context.mock.method(Date,"now",()=>clock++);
+  const {db,client}=await threadDatabase();const retained:Promise<unknown>[]=[];
+  const recorded=recordingModel("THREAD-ONLY-SUMMARY");
+  const source={installationId:"notes",type:"document",id:"daily-note",revision:2};
+  let readable=true,loads=0;
+  try {
+    const {threads}=service(db,{model:recorded.model,retained,
+      provider:({operation})=>operation==="prepare" ? {instructions:"Project conversation",history:{budget:4000,sources:[source]}} : undefined,
+      source:async(principal,ref)=>{loads++;assert.equal(principal.userId,"alice");assert.deepEqual(ref,source);if(!readable)throw new Response("Pinned note access revoked",{status:403});return {title:"Daily note",body:"SOURCE-PRIVATE-CONTENT"};},
+    });
+    const alice=member("alice",null);
+    const seed=Array.from({length:40},(_,index)=>({id:crypto.randomUUID(),role:index%2 ? "assistant" as const : "user" as const,text:`turn ${index} ${"w".repeat(800)}`}));
+    const thread=await threads.create(alice,{type:"chat.conversation",title:"Project",entries:seed});
+    await threads.send(alice,{threadId:thread.id,submissionId:crypto.randomUUID(),text:"Late message after the daily note"});await Promise.all(retained.splice(0));
+    assert.equal(loads,1);assert.equal(recorded.summaries.length,1);
+    assert.doesNotMatch(recorded.summaries[0],/SOURCE-PRIVATE-CONTENT/);
+    const prompt=JSON.stringify(recorded.prompts[0]);assert.match(prompt,/SOURCE-PRIVATE-CONTENT/);assert.match(prompt,/attributed untrusted data/);assert.match(prompt,/Late message after the daily note/);
+    const sourceMessage=recorded.prompts[0].find(message=>JSON.stringify(message).includes("SOURCE-PRIVATE-CONTENT")) as {role:string};
+    assert.equal(sourceMessage.role,"user","source data is never privileged system instructions");
+    const saved=await threads.entries(alice,{ref:{id:thread.id},limit:200});
+    assert.doesNotMatch(JSON.stringify(saved),/SOURCE-PRIVATE-CONTENT/);
+    await threads.send(alice,{threadId:thread.id,submissionId:crypto.randomUUID(),text:"Continue"});await Promise.all(retained.splice(0));assert.equal(loads,2);
+    readable=false;
+    await assert.rejects(threads.send(alice,{threadId:thread.id,submissionId:crypto.randomUUID(),text:"After revocation"},{stream:true}),(error:unknown)=>error instanceof Response && error.status===403);
+    assert.match(JSON.stringify(await threads.entries(alice,{ref:{id:thread.id},limit:200})),/pinned context source is unavailable/);
+    assert.equal(loads,3);assert.equal(recorded.prompts.length,2,"revocation refuses before sending cached note content to the model");
+    const bob=member("bob",null);
+    await assert.rejects(threads.send(bob,{threadId:thread.id,submissionId:crypto.randomUUID(),text:"Cross-user"}));
+    assert.equal(loads,3,"private thread denial happens before source access");
+  } finally {client.close();}
+});
+
+
+test("unavailable source adapter and oversized source contexts fail before model inference",async()=>{
+  const {db,client}=await threadDatabase();const recorded=recordingModel("summary");
+  const source={installationId:"notes",type:"document",id:"note",revision:1};
+  try {
+    const alice=member("alice",null);
+    for(const oversized of [false,true]) {
+      const {threads}=service(db,{model:recorded.model,
+        provider:({operation})=>operation==="prepare" ? {history:{budget:4000,sources:[source]}} : undefined,
+        ...(oversized ? {source:async()=>"x".repeat(65536)} : {}),
+      });
+      const thread=await threads.create(alice,{type:"chat.conversation",title:"Source failure"});
+      await assert.rejects(threads.send(alice,{threadId:thread.id,submissionId:crypto.randomUUID(),text:"Read source"},{stream:true}),(error:unknown)=>error instanceof Response && error.status===(oversized ? 413 : 503));
+      assert.match(JSON.stringify(await threads.entries(alice,{ref:{id:thread.id},limit:20})),/pinned context source is unavailable/);
+    }
+    assert.equal(recorded.prompts.length,0);assert.equal(recorded.summaries.length,0);
+  } finally {client.close();}
+});

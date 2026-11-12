@@ -6,7 +6,7 @@ import {mkdir} from "node:fs/promises";
 
 for(const mount of ["/apps/wiki-map/","/o/wiki-map/wiki-map/"])test(`read, edit and publish a document at ${mount}`,async({page})=>{
  const app=await appWorker("wiki-map",new URL("../.outfitter/packages/operational.json",import.meta.url));
- const owner={userId:"editor",organizationId:"example-org",role:"owner"};
+ const owner=mount.startsWith("/apps/")?{userId:"editor",organizationId:"",owner:{kind:"user" as const,id:"editor"},role:"owner"}:{userId:"editor",organizationId:"example-org",role:"owner"};
  try{
   await app.call("/api/apps/wiki-map/documents",owner,{method:"POST",body:{operation:"SaveDocument",variables:{input:{title:"Project notebook",body:"Initial notes",slug:"project-notebook"}}}});
   await page.route("https://wiki.example/**",async route=>{
@@ -19,6 +19,24 @@ for(const mount of ["/apps/wiki-map/","/o/wiki-map/wiki-map/"])test(`read, edit 
    await fulfillFrom(route,response);
   });
   await page.goto(`https://wiki.example${mount}`);
+  const navigation=page.getByRole('navigation',{name:'Wiki navigation',exact:true});
+  await expect(navigation.getByRole('link')).toHaveText(['Overview','Recent updates','Goals','Projects','People']);
+  await expect(navigation.getByRole('link',{name:'Overview',exact:true})).toHaveAttribute('aria-current','page');
+  await app.call("/api/apps/wiki-map/documents",owner,{method:"POST",body:{operation:"SaveDocument",variables:{input:{title:"Notes",body:"A real notes root",slug:"notes"}}}});
+  await navigation.getByRole('link',{name:'Recent updates',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Recent updates',exact:true})).toBeVisible();
+  await expect(navigation.getByRole('link',{name:'Notes',exact:true})).toBeVisible();
+  if(mount.startsWith('/apps/'))await expect(page.locator('#org')).toBeHidden();
+  else await expect(page.locator('#org')).toHaveAttribute('href','https://wiki.example/o/wiki-map');
+  await expect(navigation.getByRole('link',{name:'Recent updates',exact:true})).toHaveAttribute('aria-current','page');
+  await navigation.getByRole('link',{name:'Goals',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Goals',exact:true})).toBeVisible();
+  await expect(navigation.getByRole('link',{name:'Goals',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(navigation.getByRole('link',{name:'Projects',exact:true})).not.toHaveAttribute('aria-current','page');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('link',{name:'All documents',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'All documents',exact:true})).toBeVisible();
+
   await page.getByRole('link',{name:'Project notebook',exact:true}).click();
   await expect(page.getByRole('article')).toContainText('Initial notes');
   await page.getByRole('link',{name:'Edit draft',exact:true}).click();

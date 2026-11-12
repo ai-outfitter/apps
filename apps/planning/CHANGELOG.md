@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Read personal GitHub pull requests using the account connection owner and real connection ID through the shared SDK helper.
+
+- Keep project detail available when bounded Wiki context has no release/evidence types, while retaining supported evidence paths and project scope checks.
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/planning-v0.1.0...planning-v0.1.1) (2026-11-10)
 
 

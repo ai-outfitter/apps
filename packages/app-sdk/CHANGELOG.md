@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Route personal GitHub pull request reads by account ownership, retaining the actual connection ID instead of requiring a synthetic ID.
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.3...app-sdk-v0.1.4) (2026-11-09)
 
 

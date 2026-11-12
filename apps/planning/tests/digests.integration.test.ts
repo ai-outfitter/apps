@@ -6,8 +6,11 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import type { OrganizationIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { reportHost } from "./fixtures/report-host";
+import { projects } from "../src/server/schema";
+import { eq } from "drizzle-orm";
 import * as planning from "../src/server/planning";
-import { changeDigestSchedule, listDigests, runDigestTask, scheduledDigests, startDigest } from "../src/server/digests";
+import { changeDigestSchedule, digestTimezone, listDigests, runDigestTask, scheduledDigests, startDigest } from "../src/server/digests";
 
 const editor: OrganizationIdentity = {
   userId: "bob", organizationId: "org", owner: { kind: "organization", id: "org" },
@@ -26,22 +29,21 @@ async function setup() {
 function host(inference: "answer" | "fail" = "answer") {
   // biome-ignore lint/suspicious/noExplicitAny: a host double answers every operation's own input shape.
   type Input = Record<string, any>;
-  const calls: { operation: string; input: Input }[] = [];
-  const double = {
-    async call(operation: string, input: Input) {
-      calls.push({ operation, input });
-      if (operation === "workflow.start") return { id: input.id, workflow: input.workflow, created: true };
-      if (operation === "task.start") return { id: input.id, task: input.task, created: true };
-      if (operation === "workflow.collect") return { run: {}, steps: [] };
-      if (operation === "inference.generate") {
-        if (inference === "fail") throw new Response("Inference unavailable", { status: 502 });
-        return { output: { headline: "Launch plan shipped", summary: "The team shipped the launch plan." } };
-      }
-      if (operation === "schedule.save") return { ...input, id: "s1", nextRunAt: 1, lastRunAt: null, lastOutcome: null };
-      throw new Error(`Unexpected ${operation}`);
-    },
-  };
-  return { calls, host: double as unknown as WorkflowHost<"interactive"> & WorkflowHost<"schedule"> };
+  const fixture=reportHost();
+  const call=fixture.host.call.bind(fixture.host) as (operation:string,input:Input)=>Promise<unknown>;
+  fixture.host.call=(async(operation:string,input:Input)=>{
+    if(operation === "inference.generate"){
+      fixture.calls.push({operation,input});
+      if(inference === "fail")throw new Response("Inference unavailable",{status:502});
+      return {output:{headline:"Launch plan shipped",summary:"The team shipped the launch plan."}};
+    }
+    if(operation === "schedule.save"){
+      fixture.calls.push({operation,input});
+      return {...input,id:"s1",nextRunAt:1,lastRunAt:null,lastOutcome:null};
+    }
+    return call(operation,input);
+  }) as typeof fixture.host.call;
+  return fixture;
 }
 const issue = (projectId: string, title: string, status: "todo" | "in-progress" | "done" = "todo") =>
   ({ projectId, title, category: "stone" as const, status, description: "", assigneeId: null, dueDate: null, parentId: null });
@@ -109,6 +111,89 @@ test("Generate digest now starts the registered task; the platform's dispatch sa
 test("only editors turn the morning digest on", async () => {
   const { calls, host: double } = host();
   await assert.rejects(changeDigestSchedule(double, member, { enabled: true }), (error) => error instanceof Response && error.status === 403);
-  assert.deepEqual(await changeDigestSchedule(double, editor, { enabled: true }), { enabled: true, nextRunAt: 1, lastRunAt: null, lastOutcome: null });
-  assert.deepEqual(calls.at(-1)?.input, { workflow: "project-digest", timezone: "UTC", enabled: true, inputs: {} });
+  assert.deepEqual(await changeDigestSchedule(double, editor, { enabled: true }), {cron:"0 3 * * *",timezone:"America/Chicago", enabled: true, nextRunAt: 1, lastRunAt: null, lastOutcome: null });
+  assert.deepEqual(calls.at(-1)?.input, { workflow: "project-digest",cron:"0 3 * * *", timezone: digestTimezone, enabled: true, inputs: {} });
+});
+
+
+test("recurrence selects explicit active state and writes a complete no-change daily note", async () => {
+ const {client,db}=await setup();
+ try {
+  const active=await planning.createProject(db,editor,{...project,name:"Active"});
+  for(const state of ["draft","backlog","completed","archived"] as const) {
+   const other=await planning.createProject(db,editor,{...project,name:state});
+   await db.update(projects).set({state}).where(eq(projects.id,other.id));
+  }
+  await planning.createIssue(db,editor,issue(active.id,"Initial work"),[]);
+  const first=host();
+  assert.equal((await scheduledDigests(db,first.host,editor,"states")).written,1);
+  const second=host();
+  assert.equal((await scheduledDigests(db,second.host,editor,"quiet")).unchanged,1);
+  const writes=second.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate");
+  const generated=writes.filter(call=>call.input.input.query.includes("SaveGeneratedDocument"));
+  assert.equal(generated.length,2,"project note then dependent organization overview");
+  const draft=generated[0].input.input.variables.input;
+  assert.match(draft.generatedBody,/no-observed-changes/);
+  assert.match(draft.generatedBody,/"reads": "complete"/);
+  assert.match(draft.generatedBody,/Conversation transcripts and deployment verification were not read/);
+  assert.equal((await listDigests(db,editor,{projectId:active.id})).length,1);
+ } finally {client.close();}
+});
+
+test("retrying a saved run recovers Wiki export without another digest or inference",async()=>{
+ const {client,db}=await setup();
+ try {
+  const target=await planning.createProject(db,editor,project);
+  await planning.createIssue(db,editor,issue(target.id,"Initial work"),[]);
+  const original=host();
+  const failing={call:async(operation:string,input:never)=>{
+   if(operation==="actions.list")throw new Error("Wiki unavailable");
+   return original.host.call(operation as never,input);
+  }} as WorkflowHost<"schedule">;
+  await assert.rejects(scheduledDigests(db,failing,editor,"retry"),error=>error instanceof Response && error.status===502);
+  assert.equal((await listDigests(db,editor,{projectId:target.id})).length,1);
+  const recovery=host();
+  await scheduledDigests(db,recovery.host,editor,"retry");
+  assert.equal((await listDigests(db,editor,{projectId:target.id})).length,1);
+  assert.equal(recovery.calls.filter(call=>call.operation==="inference.generate").length,0);
+ } finally {client.close();}
+});
+
+test("failed Planning reads never become no-change notes",async()=>{
+ const {client,db}=await setup();
+ try {
+  await planning.createProject(db,editor,project);
+  await client.execute("DROP TABLE planning_issues");
+  const attempt=host();
+  await assert.rejects(scheduledDigests(db,attempt.host,editor,"broken-source"));
+  const generated=[...attempt.documents.values()].map(doc=>doc.generatedBody).join("\n");
+  assert.match(generated,/Planning source reads failed/);
+  assert.match(generated,/project-reports-incomplete/);
+  assert.equal(attempt.calls.at(-1)?.input.complete,false,"a failed source cannot complete the workflow output");
+ } finally {client.close();}
+});
+
+test("repeated runs preserve identical generated reports without creating more revisions",async()=>{
+ const {client,db}=await setup();
+ try {
+  await planning.createProject(db,editor,project);
+  const attempt=host();
+  await scheduledDigests(db,attempt.host,editor,"quiet-1");
+  await scheduledDigests(db,attempt.host,editor,"quiet-2");
+  assert.equal(attempt.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate").length,2);
+ } finally {client.close();}
+});
+
+test("an incomplete Wiki lookup fails without creating a replacement page",async()=>{
+ const {client,db}=await setup();
+ try {
+  await planning.createProject(db,editor,project);
+  const backing=host();
+  const incomplete={call:async(operation:string,input:Record<string,unknown>)=>{
+   if(operation==="actions.call" && input.action==="graph.graphql")return {data:{page:null},extensions:{truncated:true}};
+   return backing.host.call(operation as never,input as never);
+  }} as WorkflowHost<"schedule">;
+  await assert.rejects(scheduledDigests(db,incomplete,editor,"incomplete"),error=>error instanceof Response && error.status===502);
+  assert.equal(backing.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate").length,0);
+ } finally {client.close();}
 });

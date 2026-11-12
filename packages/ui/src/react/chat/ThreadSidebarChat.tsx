@@ -138,7 +138,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
       focus={null}
       scope={{
         intro: "Ask Outfitter anything while you work.",
-        limits: "Outfitter can't see or change this page.",
+        limits: "Ask about your apps, workflows, schedules and recent runs. I can manage schedules you ask for.",
       }}
       conversation={selected ? { id: selected.id, messages, status, error: error ? error.message || "Could not send your message." : undefined, notice } : null}
       openStorageKey={`${chatKey}:open`}

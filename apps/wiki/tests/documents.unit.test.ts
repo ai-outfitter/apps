@@ -10,7 +10,7 @@ import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync,readFileSync } from "node:fs";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
-import { archiveDocument,documentDigest,getDocument,listPages,publishDocument,revisions,saveDocument,savePage } from "../src/documents/store";
+import { saveGeneratedDocument,archiveDocument,documentDigest,getDocument,listPages,publishDocument,revisions,saveDocument,savePage } from "../src/documents/store";
 
 const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:"member"},role:"owner",canEdit:true};
 function fixture(withImportRevision=true) {
@@ -115,5 +115,83 @@ test('the import marker upgrade does not mistake existing Wiki edits for importe
   sqlite.exec("UPDATE graph_nodes SET revision=4,body='Later legacy change' WHERE id='legacy'");
   await assert.rejects(resumeLegacyImport(db),error=>error instanceof Response&&error.status===409);
   assert.equal((await getDocument(db,'legacy')).body,'Keep this draft');
+ }finally{sqlite.close();}
+});
+
+test("nullable page lookup distinguishes absence from a failed document read",async()=>{
+ const {db}=fixture();
+ const contextValue={database:db,identity:who};
+ const missing=await graphql({schema:graphqlSchema,source:'query {page(slug:"missing"){documentId}}',contextValue});
+ assert.equal(missing.errors,undefined);
+ assert.equal(missing.data?.page,null);
+ const broken=await graphql({schema:graphqlSchema,source:'query {page(slug:"missing"){documentId}}',contextValue:{...contextValue,database:{query:async()=>{throw new Error("Source unavailable");}}}});
+ assert.equal(broken.errors?.[0].message,"Source unavailable");
+});
+
+
+test("generated drafts revise changed source while preserving authored body, publication and optimistic revision",async()=>{
+ const {db}=fixture();
+ const created=await saveDocument(db,who,{title:"Daily note",body:"Member authored notes"});
+ await publishDocument(db,who,{id:created.id,revision:1});
+ const generated=await saveGeneratedDocument(db,who,{id:created.id,revision:1,generatedBody:"Captured source A",provenance:{kind:"planning.daily-report",inputDigest:"a"}});
+ assert.equal(generated.body,"Member authored notes");
+ assert.equal(generated.publishedRevision,1);
+ assert.equal(generated.revision,2);
+ const unchanged=await saveGeneratedDocument(db,who,{id:created.id,revision:2,generatedBody:"Captured source A",provenance:{kind:"planning.daily-report",inputDigest:"a"}});
+ assert.equal(unchanged.revision,2);
+ await assert.rejects(saveGeneratedDocument(db,who,{id:created.id,revision:1,generatedBody:"Stale source",provenance:{}}),error=>error instanceof Response && error.status===409);
+ const revised=await saveGeneratedDocument(db,who,{id:created.id,revision:2,generatedBody:"Captured source B",provenance:{kind:"planning.daily-report",inputDigest:"b"}});
+ assert.equal(revised.body,"Member authored notes");
+ assert.equal(revised.publishedRevision,1);
+ assert.equal((await getDocument(db,created.id,1)).generatedBody,"");
+ assert.equal((await getDocument(db,created.id,2)).generatedBody,"Captured source A");
+ await assert.rejects(saveGeneratedDocument(db,{...who,role:"member",canEdit:false},{id:created.id,revision:3,generatedBody:"Unauthorized",provenance:{}}),error=>error instanceof Response && error.status===403);
+});
+
+test("generated draft creation is atomic and duplicate slugs cannot leave an empty document shell",async()=>{
+ const {db}=fixture();
+ const created=await saveGeneratedDocument(db,who,{slug:"atomic-daily",title:"Atomic report",generatedBody:"Captured source",provenance:{kind:"planning.daily-report"}});
+ assert.equal(created.revision,1);assert.equal(created.body,"");assert.equal(created.generatedBody,"Captured source");
+ const before=await db.query({sql:"SELECT count(*) AS count FROM wiki_documents"});
+ await assert.rejects(saveGeneratedDocument(db,who,{slug:"atomic-daily",title:"Duplicate",generatedBody:"Other source",provenance:{}}));
+ assert.deepEqual(await db.query({sql:"SELECT count(*) AS count FROM wiki_documents"}),before);
+ await assert.rejects(saveGeneratedDocument(db,who,{slug:"invalid",title:"Invalid",generatedBody:"x".repeat(200001),provenance:{}}));
+ assert.deepEqual(await db.query({sql:"SELECT count(*) AS count FROM wiki_documents"}),before);
+});
+
+
+test('document navigation reads metadata, includes only real Profile/Notes trees, and bounds cycles',async()=>{
+ const {navigationPages,documentTrees}=await import('../src/documents/navigation');
+ const {sqlite,db}=fixture();try{
+  assert.deepEqual(documentTrees(await navigationPages(db)),[]);
+  const notes=await saveDocument(db,who,{title:'Notes',slug:'notes',body:'PRIVATE BODY'});
+  const child=await saveDocument(db,who,{title:'Notebook child',slug:'notebook-child',body:'PRIVATE CHILD'});
+  const pages=await listPages(db),parent=pages.find(page=>page.documentId===notes.id)!;
+  const childPage=pages.find(page=>page.documentId===child.id)!;
+  await savePage(db,who,{id:childPage.id,revision:childPage.revision,slug:childPage.slug,documentId:child.id,parentId:parent.id});
+  const metadata=await navigationPages(db);
+  assert.ok(!JSON.stringify(metadata).includes('PRIVATE'));
+  assert.deepEqual(documentTrees(metadata).map(page=>[page.title,page.depth]),[['Notes',0],['Notebook child',1]]);
+  await archiveDocument(db,who,{id:child.id,revision:1});
+  assert.deepEqual(documentTrees(await navigationPages(db)).map(page=>page.title),['Notes']);
+  assert.deepEqual(documentTrees([{id:'cycle',slug:'notes',title:'Notes',parentId:'cycle'}]),[]);
+ }finally{sqlite.close();}
+});
+test('recent updates use descending timestamp/id pagination without bodies or archived documents',async()=>{
+ const {recentDocuments,recentCursor,relatedType}=await import('../src/documents/navigation');
+ const {sqlite,db}=fixture();try{
+  for(let n=0;n<52;n++)await saveDocument(db,who,{title:`Note ${n}`,body:'PRIVATE BODY'});
+  sqlite.exec('UPDATE wiki_documents SET updatedAt=100');
+  const first=await recentDocuments(db);assert.equal(first.length,51);
+  assert.ok(!JSON.stringify(first).includes('PRIVATE'));
+  const last=first[49],next=await recentDocuments(db,{updatedAt:last.updatedAt,id:last.id});
+  assert.equal(next.length,3);
+  assert.equal(new Set([...first.slice(0,50),...next].map(doc=>doc.id)).size,53);
+  await archiveDocument(db,who,{id:next[0].id,revision:next[0].revision});
+  assert.ok(!(await recentDocuments(db,{updatedAt:last.updatedAt,id:last.id})).some(doc=>doc.id===next[0].id));
+  assert.deepEqual(recentCursor(new URLSearchParams('before=100&id=test')),{updatedAt:100,id:'test'});
+  assert.throws(()=>recentCursor(new URLSearchParams('before=NaN&id=x')),error=>error instanceof Response&&error.status===400);
+  assert.equal(relatedType('Goal'),'Goal');assert.equal(relatedType(null),undefined);
+  assert.throws(()=>relatedType('Secret'),error=>error instanceof Response&&error.status===400);
  }finally{sqlite.close();}
 });

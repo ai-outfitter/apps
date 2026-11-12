@@ -30,6 +30,8 @@ export async function threadTestHost(options: {
   organizations?: string[];
   /** The platform's own tools, offered when prepare asks for `platformTools` (as the platform adds its MCP tools). */
   platformTools?: ThreadAdapters["platformTools"];
+  /** Authorized revision-pinned source resolver, as in the production thread adapters. */
+  source?: ThreadAdapters["source"];
   /** Platform administrators, who may open the sidebar's debug view. */
   admins?: string[];
 }) {
@@ -64,6 +66,7 @@ export async function threadTestHost(options: {
     },
     retain: (work) => { retained.push(work); },
     ...(options.platformTools ? { platformTools: options.platformTools } : {}),
+    ...(options.source ? { source: options.source } : {}),
     inspector: async (principal) => principal.memberContext && (options.admins ?? []).includes(principal.userId),
   };
   const service = createThreadService(adapters);

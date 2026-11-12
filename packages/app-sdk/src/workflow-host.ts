@@ -418,7 +418,7 @@ const coreOperations = {
   /** Run one platform document as the member, as graph_query (kind query, identifiers
    * included) or graph_mutate does at scope and app "platform"; answers its `data`. With
    * `platform.documents`; an organization's installation is kept to that organization. */
-  "platform.document": operation(["operator", "interactive"], z.strictObject({
+  "platform.document": operation(["operator", "interactive", "schedule"], z.strictObject({
     document: z.string().regex(/^[A-Z][A-Za-z]{1,63}$/), query: z.string().max(8192).optional().describe("Typed Viewer selection only; the host keeps organization installations within their own scope."), kind: z.enum(["query", "mutation"]).default("query"), variables: jsonObject.default({}),
     app: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/).optional(), scopes: z.array(z.string().min(1).max(100)).min(1).max(100).optional(),
   }), json),

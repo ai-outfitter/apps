@@ -1,6 +1,7 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: onPageLoad nests the whole page script, which counts every handler as nested.
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import type { Item } from "../server/schema";
+import { boardOrder } from "./board-order";
 import { appMount } from "./mount";
 
 function element<T>(selector: string): T {
@@ -11,7 +12,10 @@ function element<T>(selector: string): T {
 // Astro hoists component scripts even when the component is not rendered.
 // Compile the API adapter out of the read-only demo package entirely.
 onPageLoad((signal) => {
-	const root = import.meta.env.OUTFITTER_APP_MODE === "operational" ? document.querySelector<HTMLElement>("#manual-board") : null;
+	const root =
+		import.meta.env.OUTFITTER_APP_MODE === "operational"
+			? document.querySelector<HTMLElement>("#manual-board")
+			: null;
 	if (!root) return;
 	const form = element<HTMLFormElement>("#item-form");
 	const editor = element<HTMLElement>("#item-editor");
@@ -40,6 +44,7 @@ onPageLoad((signal) => {
 		target.hidden = !message;
 	}
 	function parents() {
+		if (signal.aborted) return;
 		const previous = parent.value;
 		parent.replaceChildren(
 			new Option("No stone", ""),
@@ -69,6 +74,7 @@ onPageLoad((signal) => {
 		report(error);
 		try {
 			await work();
+			if (signal.aborted) return;
 			await load();
 		} catch (e) {
 			report(
@@ -77,6 +83,7 @@ onPageLoad((signal) => {
 			);
 		} finally {
 			busy = false;
+			if (signal.aborted) return;
 			render();
 			form.querySelectorAll<HTMLButtonElement>("button").forEach((v) => {
 				v.disabled = false;
@@ -140,6 +147,7 @@ onPageLoad((signal) => {
 		return parts.join(" · ");
 	}
 	function render() {
+		if (signal.aborted) return;
 		for (const kind of ["stone", "pebble", "sand"] as const) {
 			const all = records.filter((v) => v.category === kind);
 			const visible = all.filter(
@@ -152,10 +160,15 @@ onPageLoad((signal) => {
 			visible.forEach((item, index) => {
 				const li = document.createElement("li");
 				const card = document.createElement("article");
-				card.className = "forerunner-card";
+				card.className = "forerunner-card board-card";
 				card.dataset.item = item.id;
 				const title = document.createElement("h3");
-				title.textContent = item.title;
+				const link = document.createElement("a");
+				link.href = `${appMount(1)}/items/${encodeURIComponent(item.id)}`;
+				link.textContent = item.title;
+                link.className = "board-card-link";
+                link.setAttribute("aria-describedby", "board-order-help");
+				title.appendChild(link);
 				const meta = document.createElement("small");
 				meta.textContent = metadata(item);
 				card.appendChild(title);
@@ -167,19 +180,67 @@ onPageLoad((signal) => {
 				}
 				const controls = document.createElement("div");
 				controls.className = "manual-actions";
-				const move = (offset: number) =>
-					void action(async () => {
-						const target = visible[index + offset];
-						const next = [...all];
-						const a = next.indexOf(item);
-						const b = next.indexOf(target);
-						[next[a], next[b]] = [next[b], next[a]];
-						await api("/reorder", "POST", {
-							items: next.map(({ id, revision }) => ({ id, revision })),
-						});
-					});
+				const reorder = async (targetId: string) => {
+					const items = boardOrder(records, item.id, targetId);
+					if (!items) return;
+					await action(() => api("/reorder", "POST", { items }));
+					root
+						?.querySelector<HTMLAnchorElement>(
+							`[data-item="${CSS.escape(item.id)}"] .board-card-link`,
+						)
+						?.focus();
+				};
+                let pointerId: number | undefined, startX = 0, startY = 0, dragged = false, suppressClick = false;
+                let targetId: string | undefined;
+                const track = (event: PointerEvent) => {
+                  if (pointerId !== event.pointerId) return;
+                  if (!dragged && Math.hypot(event.clientX - startX, event.clientY - startY) < 6) return;
+                  dragged = true;
+                  event.preventDefault();
+                  if (!card.hasPointerCapture(event.pointerId)) card.setPointerCapture(event.pointerId);
+                  card.dataset.dragging = "true";
+                  const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-item]");
+                  const candidate = records.find(row => row.id === target?.dataset.item);
+                  targetId = candidate?.category === item.category && candidate.id !== item.id ? candidate.id : undefined;
+                  root?.querySelectorAll<HTMLElement>("[data-drop-target]").forEach(node => { delete node.dataset.dropTarget; });
+                  if (targetId && target) target.dataset.dropTarget = "true";
+                };
+                const finish = (event: PointerEvent) => {
+                  if (pointerId !== event.pointerId) return;
+                  if (card.hasPointerCapture(event.pointerId)) card.releasePointerCapture(event.pointerId);
+                  pointerId = undefined;
+                  window.removeEventListener("pointermove", track);
+                  window.removeEventListener("pointerup", finish);
+                  window.removeEventListener("pointercancel", finish);
+                  delete card.dataset.dragging;
+                  root?.querySelectorAll<HTMLElement>("[data-drop-target]").forEach(node => { delete node.dataset.dropTarget; });
+                  if (dragged) {
+                    suppressClick = true;
+                    window.setTimeout(() => { suppressClick = false; }, 0);
+                    if (event.type === "pointerup" && targetId) void reorder(targetId);
+                  }
+                  targetId = undefined;
+                };
+                card.addEventListener("pointerdown", event => {
+                  if (busy || event.button !== 0 || event.ctrlKey || event.metaKey || pointerId !== undefined || (event.target as Element).closest("button,input,select,textarea")) return;
+                  pointerId = event.pointerId; startX = event.clientX; startY = event.clientY; dragged = false;
+                  window.addEventListener("pointermove", track, { passive: false, signal });
+                  window.addEventListener("pointerup", finish, { signal });
+                  window.addEventListener("pointercancel", finish, { signal });
+                });
+                card.addEventListener("dragstart", event => event.preventDefault());
+                card.addEventListener("click", event => {
+                  if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); }
+                }, { capture: true });
+                card.addEventListener("keydown", event => {
+                  if ((event.target as Element).closest("button,input,select,textarea")) return;
+                  const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : 0;
+                  if (!direction || busy) return;
+                  event.preventDefault();
+                  const target = visible[index + direction];
+                  if (target) void reorder(target.id);
+                });
 				const buttons = [
-					button("Edit", () => open(item), busy),
 					button(
 						item.status === "done" ? "Reopen" : "Complete",
 						() =>
@@ -189,22 +250,6 @@ onPageLoad((signal) => {
 									status: item.status === "done" ? "todo" : "done",
 								}),
 							),
-						busy,
-					),
-					button("Move up", () => move(-1), busy || index === 0),
-					button(
-						"Move down",
-						() => move(1),
-						busy || index === visible.length - 1,
-					),
-					button(
-						"Delete",
-						() => {
-							if (window.confirm(`Delete “${item.title}”?`))
-								void action(() =>
-									api(`/${item.id}`, "DELETE", { revision: item.revision }),
-								);
-						},
 						busy,
 					),
 				];
@@ -217,6 +262,7 @@ onPageLoad((signal) => {
 	}
 	async function load() {
 		const result = (await api()) as { items: Item[] };
+		if (signal.aborted) return;
 		records = result.items;
 		render();
 		parents();

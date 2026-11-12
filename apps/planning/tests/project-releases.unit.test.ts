@@ -101,3 +101,15 @@ test("reader checks the canonical project first and propagates Wiki failure with
     ),
   );
 });
+
+
+test("partial project schema supports direct evidence documents without requiring release types", () => {
+  const graph = projectReleasesFixture();
+  graph.types = graph.types.filter((type) => ["Project", "Document", "documents"].includes(type.name));
+  graph.nodes = [graph.nodes[0], graph.nodes[2]];
+  const documentsType = graph.types.find((type) => type.name === "documents")!;
+  graph.edges = [{ ...graph.edges[1], typeId: documentsType.id, fromId: graph.nodes[1].id, toId: graph.nodes[0].id }];
+  const result = projectReleaseRecords(graph, "planning", releaseId(9));
+  assert.deepEqual(result.releases, []);
+  assert.deepEqual(result.documents.map((node) => node.id), [releaseId(3)]);
+});

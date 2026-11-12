@@ -3,6 +3,7 @@ import Layout from "../../components/DocumentLayout.astro";
 import {context,mount,run} from "../../documents/context";
 import {demoDocument,demoPage} from "../../documents/demo";
 import {micromark} from "micromark";
+import {generatedMarkdown} from "../../documents/markdown";
 import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
 import {entityRef} from "@ai-outfitter/app-sdk/entities";
 const demo=import.meta.env.OUTFITTER_APP_MODE==="demo",root=mount(Astro.request);
@@ -30,7 +31,7 @@ const title=doc?.title ?? entity?.title ?? page.slug;
  </div>
  {doc&&<p class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":"Draft"}{doc.publishedRevision&&doc.publishedRevision!==doc.revision&&<> · <a href={`?revision=${doc.publishedRevision}`}>View published revision</a></>}</p>}
  {doc&&<article class="wiki-doc" set:html={micromark(doc.body)}/>}
- {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={micromark(doc.generatedBody)}/></section>}
+ {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={generatedMarkdown(doc.generatedBody)}/></section>}
  {entity&&<section class="wiki-doc"><h2>Current information from Onto</h2><p>{entity.title}</p><p>{String(entity.attributes.summary ?? "")}</p><div set:html={micromark(String(entity.attributes.body ?? ""))}/></section>}
  {entityError&&<p>Linked information is currently unavailable. This page does not grant access to its source.</p>}
  {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a>{doc&&row.revision!==doc.revision&&<> · <a href={`?${requested?`revision=${requested}&`:""}compare=${row.revision}`}>Compare with revision {doc.revision}</a></>}</li>)}</ul></details>}

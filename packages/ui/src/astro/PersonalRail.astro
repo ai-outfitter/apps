@@ -1,0 +1,23 @@
+---
+import Icon from "./Icon.astro";
+interface Props {
+  /** Absolute trusted platform origin. Omit for managed apps, initialized from platform metadata. */
+  rootOrigin?: string;
+  current?: "home" | "apps" | "for-you" | "automations" | "wiki" | "organizations" | "app";
+}
+const { rootOrigin, current } = Astro.props;
+const links = [
+  { path: "/", label: "Home", icon: "home", key: "home" },
+  { path: "/for-you", label: "For you", icon: "spark", key: "for-you" },
+  { path: "/automations", label: "Automations", icon: "workflow", key: "automations" },
+  { path: "/wiki", label: "Wiki", icon: "book", key: "wiki" },
+  { path: "/apps", label: "Apps", icon: "plugins", key: "apps" },
+  { path: "/organizations", label: "Teams / orgs", icon: "organization", key: "organizations" },
+] as const;
+---
+<div class="personal-rail" hidden={!rootOrigin}>
+  <nav aria-label="Personal">
+  {links.map((link) => <a data-personal-destination={link.path} data-personal-key={link.key} href={rootOrigin ? new URL(link.path, rootOrigin).href : undefined} aria-label={link.label} title={link.label} aria-current={current === link.key ? "page" : undefined}><Icon name={link.icon} /></a>)}
+  </nav>
+  <div class="personal-rail-account" data-personal-account><slot name="account" /></div>
+</div>

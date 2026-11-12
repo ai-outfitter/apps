@@ -95,3 +95,8 @@ a.account-option.selected {
 a.account-option[aria-current="page"] {
   font-weight: 600;
 }
+
+/* Identity typography belongs to the menu, including when it lives in the rail. */
+.account-option strong { display: block; font-weight: 600; }
+.account-option small { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.personal-rail-account .account-option { padding: 10px 8px; font-size: 14px; }

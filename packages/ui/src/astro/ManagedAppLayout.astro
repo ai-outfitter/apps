@@ -1,8 +1,10 @@
 ---
 import AppLayout from "./AppLayout.astro";
+import PageHeader from "./PageHeader.astro";
 import { ClientRouter } from "astro:transitions";
 import Navigation from "./Navigation.astro";
 import Icon from "./Icon.astro";
+import PersonalRail from "./PersonalRail.astro";
 import type { NavigationLink } from "./Navigation.astro";
 import AccountMenu from "./AccountMenu.astro";
 import { WORKSPACE_RETURN_ID } from "../workspace-return";
@@ -34,13 +36,15 @@ interface Props {
   sidebarLinks?: { label: string; href: string; active?: boolean }[];
   /** The app's own Settings link, first in the account menu; an app served under a path prefix passes a relative one. */
   settingsHref?: string;
+  /** Open app settings directly instead of showing the app tools menu. */
+  settingsDirect?: boolean;
   /** The app's Settings link text, "<name> settings" by default, so it never reads as Outfitter's own settings. */
   settingsLabel?: string;
   /** More entries the app publishes to the account menu, after its Settings link. */
   accountLinks?: NavigationLink[];
   introVisuallyHidden?: boolean;
 }
-const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
+const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsDirect = false, settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
 // Demo builds are read-only fixtures that call no API, so their account footer shows a fixture member.
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
 const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active === "home" }];
@@ -56,6 +60,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
   </head>
   <body>
     <AppLayout {persistKey} title={headerTitle ?? name} {titleProjectId} {brand} {headerBrand} {badge} desktopOpen desktopSidebar="collapsible" scrollContent sidebarLabel={`${name} sidebar`} toggleLabel="Open navigation" closeLabel="Close navigation">
+      <PersonalRail slot="rail" />
       <slot name="header-actions" slot="header-actions" />
       <Fragment slot="navigation">
         {workspaceReturnStyle === "standard" && <nav class="ui-navigation" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#"><Icon name="back" /> Back to Outfitter</a></nav>}
@@ -65,10 +70,16 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
           { label: "Organization ↗", href: "#", id: "org", active: false },
         ]} />
         {workspaceReturnStyle === "minimal" && <nav class="ui-navigation workspace-return--minimal" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#">Back to Outfitter</a></nav>}
-        <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} appLinks={[{ label: settingsLabel, href: settingsHref, icon: "settings", active: active === "settings" }, ...accountLinks]} />
+        <div class="sidebar-footer app-tools-footer">
+          {settingsDirect ? <a class="account-toggle" href={settingsHref} aria-current={active === "settings" ? "page" : undefined}><Icon name="settings" /> Settings</a> : <>
+          <div id="app-tools-menu" class="account-menu" hidden><nav class="ui-navigation" aria-label="Settings">{[{ label: settingsLabel, href: settingsHref, icon: "settings", active: active === "settings" }, ...accountLinks].map((link) => <a class="account-option" href={link.href} aria-current={link.active ? "page" : undefined}><span>{link.label}</span></a>)}</nav></div>
+          <button class="account-toggle" aria-expanded="false" aria-controls="app-tools-menu" data-disclosure=""><Icon name="settings" /> Settings</button>
+          </>}
+        </div>
+        <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
       </Fragment>
       <div class="ui-content">
-        <div class:list={["intro", { "visually-hidden": introVisuallyHidden }]}><div class="intro-heading"><h1>{title}</h1><slot name="intro-actions" /></div><p>{description}</p></div>
+        <PageHeader {title} {description} visuallyHidden={introVisuallyHidden}><slot name="intro-actions" slot="actions" /></PageHeader>
         <p id="notice" role="status" aria-live="polite"></p>
         <slot />
       </div>
@@ -78,7 +89,8 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
 </html>
 <script>
   import { installWorkspaceReturn } from "../workspace-return";
+  import { onPageLoad } from "../page";
   import { installAppNavigation } from "../scripts/app-navigation";
-  installWorkspaceReturn();
+  onPageLoad(() => installWorkspaceReturn());
   installAppNavigation();
 </script>

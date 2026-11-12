@@ -1,5 +1,30 @@
+type DailyReportSourceConnection {
+  nodes: [DailyReportSource!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DailyReportSource {
+  id: ID!
+  name: String!
+  ownerKind: String!
+  ownerId: String!
+  planningInstallationId: String!
+  organizationSlug: String
+  report: JSON
+}
+
 """Any JSON value."""
 scalar JSON
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
 
 type ProductCard {
   rank: Int
@@ -43,15 +68,6 @@ type ProductPageConnection {
   nodes: [ProductPage!]!
   pageInfo: PageInfo!
   aggregate: Aggregate!
-}
-
-type PageInfo {
-  endCursor: String
-  hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
 }
 
 type OrganizationGoalsConnection {
@@ -263,6 +279,14 @@ type Issue {
   updatedAt: DateTime!
 }
 
+input UseCasesInput {
+  projectId: ID!
+}
+
+input IntakeReleaseOptionsInput {
+  projectId: ID!
+}
+
 type IntakeConnection {
   nodes: [Intake!]!
   pageInfo: PageInfo!
@@ -281,6 +305,15 @@ type Intake {
 
   """Wiki records at the revisions the intake was scoped to."""
   sources: JSON!
+
+  """Caller-provided conversation provenance; grants no transcript access."""
+  originatingMessage: JSON
+
+  """
+  Persisted release disposition, existing Release revision, rationale and backlog status.
+  """
+  releaseFit: JSON
+  releaseFitHistory: JSON!
   routes: [IntakeRoute!]!
 
   """
@@ -353,6 +386,19 @@ input ProjectDeliveryInput {
   projectId: ID!
 }
 
+input DailyReportInput {
+  level: DailyReportInputLevel
+  subject: String
+  date: String!
+  timezone: String
+}
+
+enum DailyReportInputLevel {
+  project
+  organization
+  personal
+}
+
 """What changed in a project since its previous digest."""
 type ProjectDigest {
   id: ID!
@@ -386,9 +432,13 @@ input ProjectDigestsInput {
   first: Int
 }
 
-"""The morning digest of every active project, daily at 13:00 UTC."""
+"""
+The local morning report chain: organization projects at 03:00, personal overview at 04:00 by default.
+"""
 type DigestSchedule {
   enabled: Boolean!
+  cron: String
+  timezone: String
 
   """Epoch milliseconds; null when off."""
   nextRunAt: Float
@@ -415,6 +465,10 @@ input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
   type: String!
   id: String!
   revision: Float!
+}
+
+input GenerateProductReportInput {
+  at: String
 }
 
 input ChangeProductReportScheduleInput {
@@ -696,6 +750,17 @@ enum ReorderPriorityInputKind {
   products
 }
 
+input ReorderPersonalPortfolioInput {
+  kind: ReorderPersonalPortfolioInputKind!
+  items: [String!]!
+  revision: Float!
+}
+
+enum ReorderPersonalPortfolioInputKind {
+  organizations
+  projects
+}
+
 input SetProjectStateInput {
   project: JSON!
   state: SetProjectStateInputState!
@@ -718,14 +783,34 @@ input DeleteProjectInput {
   revision: Float!
 }
 
+input SetIntakeReleaseFitInput {
+  intakeId: ID!
+  revision: Float!
+  requestId: ID!
+  disposition: String!
+  rationale: String!
+  release: SetIntakeReleaseFitInputRelease
+}
+
+input SetIntakeReleaseFitInputRelease {
+  id: ID!
+  revision: Float!
+}
+
 input CreateIntakeInput {
   requestId: ID!
   kind: String!
   title: String!
   description: String!
   projectId: ID
+  originatingMessage: CreateIntakeInputOriginatingMessage
   sourceUrls: [String!]
   sources: [CreateIntakeInputSourcesItem!]
+}
+
+input CreateIntakeInputOriginatingMessage {
+  threadId: ID!
+  messageId: String!
 }
 
 input CreateIntakeInputSourcesItem {
@@ -938,12 +1023,18 @@ input ResetIntakeSubmissionInput {
   revision: Float!
 }
 
+input GenerateDailyReportsInput {
+  timezone: String
+  date: String
+}
+
 input GenerateProjectDigestInput {
   projectId: ID!
 }
 
 input ChangeDigestScheduleInput {
   enabled: Boolean!
+  timezone: String
 }
 
 input LinkProjectChangesInput {
@@ -971,7 +1062,9 @@ input SaveUseCaseInputDocument {
 }
 
 type Query {
+  dailyReports(first: Int = 100, after: String, ids: [ID!], date: String!, timezone: String): DailyReportSourceConnection!
   priorityOrder(kind: String!): JSON!
+  personalPortfolio(kind: String!): JSON!
   productReportRuns: JSON!
   productReportSchedule: JSON!
   products(at: String): [ProductCard!]!
@@ -1001,6 +1094,16 @@ type Query {
   ): IssueConnection!
 
   """
+  Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.
+  """
+  useCases(input: UseCasesInput!): JSON
+
+  """
+  Read the canonical project's existing Wiki Releases with their IDs, revisions and linked evidence before recording intake release fit.
+  """
+  intakeReleaseOptions(input: IntakeReleaseOptionsInput!): JSON
+
+  """
   Customer and competitive intakes with their routed child work, in ID order. Reading routes inspects each intake against Governance, so first defaults to 20.
   """
   intakes(first: Int = 20, after: String, ids: [ID!]): IntakeConnection!
@@ -1014,6 +1117,11 @@ type Query {
   Read a project's delivery handoff as persisted: requirements with revisions, the latest preparation (routes, questions, conflicts, deferred claims, blockers with remediation), every Workshop and Foundry package with its frozen body and digest, Workshop and Foundry read-backs, milestone readiness from evidence and acceptance criteria still unverified. Changes nothing.
   """
   projectDelivery(input: ProjectDeliveryInput!): JSON
+
+  """
+  Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.
+  """
+  dailyReport(input: DailyReportInput!): JSON
 
   """
   A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.
@@ -1068,9 +1176,9 @@ input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
 
 type Mutation {
   """
-  Regenerate the current weekly product report as a registered task. Editors only.
+  Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.
   """
-  generateProductReport(input: JSON!): JSON
+  generateProductReport(input: GenerateProductReportInput!): JSON
 
   """Enable or disable daily roadmap regeneration. Editors only."""
   changeProductReportSchedule(input: ChangeProductReportScheduleInput!): JSON
@@ -1126,6 +1234,11 @@ type Mutation {
   reorderPriority(input: ReorderPriorityInput!): JSON!
 
   """
+  Save your personal organization or cross-organization project order at the revision read. Does not change shared priorities.
+  """
+  reorderPersonalPortfolio(input: ReorderPersonalPortfolioInput!): JSON!
+
+  """
   Set the project lifecycle state at the revision read; archived projects can be restored.
   """
   setProjectState(input: SetProjectStateInput!): Project!
@@ -1139,6 +1252,11 @@ type Mutation {
   Delete a project that has no issues. Name the revision you read; a changed record is refused (409).
   """
   deleteProject(input: DeleteProjectInput!): Deleted!
+
+  """
+  Record current-release, deferred, needs-research or rejected with rationale, an optional existing project Release revision, and history. Current-release requires a Release; deferred without one stays in intake backlog. Optimistic revision and stable requestId required. Does not approve or start delivery. Editors only.
+  """
+  setIntakeReleaseFit(input: SetIntakeReleaseFitInput!): Intake!
 
   """
   Capture a customer or competitive intake under a stable requestId (replaying it returns the saved intake) and route it: the configured model proposes the child work, each route gated by the one active Governance control for its kind. When routing fails the intake is still saved, with routingError; routeIntake runs it later. Editors only.
@@ -1184,6 +1302,11 @@ type Mutation {
   Reset an implementation submission Foundry rejected before creating a delivery record, so a corrected package can be submitted. Name the revision you read; a changed record is refused (409). Editors only.
   """
   resetIntakeSubmission(input: ResetIntakeSubmissionInput!): Intake!
+
+  """
+  Start one durable task that captures every active project's previous local day, then saves this owner's overview from those exact reports.
+  """
+  generateDailyReports(input: GenerateDailyReportsInput!): JSON!
 
   """
   Start the project-digest task for one project: the platform runs it durably and records its run; the digest appears in projectDigests when the run completes. Returns { id, task, created }: id is the run, read with digestRuns or the platform's TaskRuns. Editors only.

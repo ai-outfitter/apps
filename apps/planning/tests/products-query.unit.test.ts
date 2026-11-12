@@ -13,7 +13,7 @@ import {
   weeklyPeriod,
 } from "../src/server/product-page-data";
 import { graphqlSchema } from "../src/server/graphql";
-import { regenerateProductReport } from "../src/server/product-report-workflow";
+import { regenerateProductReport, runProductReport } from "../src/server/product-report-workflow";
 import { productsFocus } from "../src/agent-focus";
 import { claimKey, conversationType, planningConversations, productsContext } from "../src/server/conversations";
 import type { Thread } from "@ai-outfitter/app-sdk/threads";
@@ -172,7 +172,7 @@ function productFixture() {
         operation === "actions.call" &&
         input.input?.query?.includes("WeeklyReportCapture")
       )
-        return { data: { weeklyReportCapture: { test: true } } };
+        return { data: { weeklyReportCapture: { planningDailyReports:{complete:true,errors:[],reports:[]} } } };
       if (operation === "inference.generate")
         throw new Error("Inference unavailable");
       throw new Error(`Unexpected ${operation}`);
@@ -314,4 +314,54 @@ test("product conversations prepare canonical organization evidence and opt into
   const foreign = planningConversations(db, {...identity, organizationId: "foreign"}, undefined, host);
   await assert.rejects(foreign.prepare({thread, submissionId: crypto.randomUUID(), entry: {} as never, retry: false}), error => error instanceof Response && error.status === 409);
   assert.throws(() => provider.scope({...thread, context: {type: productsContext, id: crypto.randomUUID()}}), error => error instanceof Response && error.status === 400);
+});
+
+test("roadmap generation retains incomplete daily dependencies and their captured context", async () => {
+  const {host,identity,calls}=productFixture();
+  const original=host.call;
+  let capturedInput:any, generatedInput:any, saved:any;
+  const daily={complete:false,errors:["Missing previous-day report"],reports:[]};
+  host.call=async(operation:string,input:any)=>{
+    if(operation==="actions.call" && input.input?.query?.includes("WeeklyReportCapture")){capturedInput=input;assert.equal(calls.some(call=>call.operation === "actions.call"),false,"capture precedes product membership read");return {data:{weeklyReportCapture:{planningDailyReports:daily}}};}
+    if(operation==="inference.generate"){generatedInput=input;return {output:{narrative:"Evidence is incomplete",changes:[],proposedPriorities:[],openQuestions:[]}};}
+    if(operation==="actions.call" && input.input?.query?.includes("UpdateWeeklyReport")){saved=input.input.variables.input;return {data:{updateWeeklyReport:{id:"report",revision:1,organizationId:"org-artera",updatedAt:"now"}}};}
+    if(operation==="workflow.collect")return {};
+    return original(operation,input);
+  };
+  await regenerateProductReport(host,identity,"daily-context-run");
+  assert.ok(capturedInput.input.variables.start);
+  assert.ok(capturedInput.input.variables.end);
+  assert.equal(capturedInput.input.variables.timezone,"America/Chicago");
+  assert.deepEqual(generatedInput.data.planningDailyReports,daily);
+  assert.equal(saved.evidenceManifest.complete,false);
+  assert.deepEqual(saved.evidenceManifest.errors,daily.errors);
+  assert.deepEqual(JSON.parse(saved.sourceContext).planningDailyReports,daily);
+});
+
+
+test("historical weekly recovery captures and updates the selected past week after later task creation",async()=>{
+ const {host,identity}=productFixture();
+ const original=host.call;let captured:any,saved:any;
+ host.call=async(operation:string,input:any)=>{
+  if(operation==="workflow.read")return {run:{createdAt:Date.parse("2026-11-16T14:00:00Z")}};
+  if(operation==="actions.call" && input.input?.query?.includes("WeeklyReportCapture")){captured=input.input.variables;return {data:{weeklyReportCapture:{planningDailyReports:{complete:true,errors:[],reports:[]}}}};}
+  if(operation==="inference.generate")return {output:{narrative:"Recovered past week from captured source reports",changes:[],proposedPriorities:[],openQuestions:[]}};
+  if(operation==="actions.call" && input.input?.query?.includes("UpdateWeeklyReport")){saved=input.input.variables.input;return {data:{updateWeeklyReport:{id:"report",revision:4,organizationId:"org-artera",updatedAt:"now"}}};}
+  if(operation==="workflow.collect")return {};
+  return original(operation,input);
+ };
+ await runProductReport(host,identity,{runId:"55555555-5555-4555-8555-555555555555",task:"product-roadmap-summary",inputs:{at:"2026-11-05"}});
+ assert.deepEqual(captured,{start:"2026-11-02",end:"2026-11-09",timezone:"America/Chicago"});
+ assert.equal(saved.periodStart,"2026-11-02");assert.equal(saved.periodEnd,"2026-11-09");
+ assert.equal(saved.evidenceManifest.complete,true);
+ assert.ok(saved.expectedRevision>0,"historical updates retain the read revision guard");
+});
+
+
+test("historical weekly regeneration cannot replace an already sealed report",async()=>{
+ const {host,identity,seals,calls}=productFixture();
+ const original=await readProductPage(host,identity,"2026-11-05");
+ seals.push({ref:{id:await stableGraphId("weekly-report-seal-v1","wiki","report")},attributes:{body:JSON.stringify({kind:"weekly_report_seal",report_id:"report",report:{...original.report,status:"sealed",seal:{report_revision:2,revision:1,cutoff:"2026-11-09T00:00:00Z"}}})}});
+ await assert.rejects(regenerateProductReport(host,identity,"sealed-recovery",new Date("2026-11-05T12:00:00Z")),error=>error instanceof Response && error.status===409);
+ assert.equal(calls.some(call=>call.operation==="inference.generate" || call.operation==="actions.call" && call.input.action==="graph.mutate"),false);
 });

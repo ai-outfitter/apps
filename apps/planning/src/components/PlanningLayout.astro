@@ -8,24 +8,24 @@ import { requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { requestUiPreferences } from "@ai-outfitter/app-sdk/ui-preferences";
 import type { WikiContext } from "../scripts/wiki-context";
 import { wikiPageHref } from "../server/wiki-links";
+import type { AgentFocus } from "@ai-outfitter/app-sdk/agent-context";
 import { intakeFocus } from "../agent-focus";
 
 interface Props {
   title: string;
   description: string;
   wiki?: WikiContext | null;
+  focus?: AgentFocus;
 }
-const { title, description, wiki } = Astro.props;
+const { title, description, wiki, focus } = Astro.props;
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
 const path = Astro.url.pathname;
 const section = (route: string) => path === route || path.startsWith(`${route}/`);
 // Relative links, so a personal /apps/<slug>/ install keeps them inside the app.
 const link = (label: string, route: string, active = section(route)) => ({ label, href: appHref(path, route), active });
 const sidebarLinks = [
-  link("Intake", "/intake"),
-  link("Product", "/", path === "/"),
-  link("Operations", "/operations"),
   link("Projects", "/projects"),
+  link("Intake", "/intake"),
   link("Products", "/products"),
   link("Opportunities", "/opportunities"),
   link("Use cases", "/use-cases"),
@@ -50,7 +50,7 @@ const limits = demo
   {sidebarLinks}
 >
   <slot name="intro-actions" slot="intro-actions" />
-  <button slot="header-actions" data-astro-transition-persist="planning-agent:toggle" class="ui-button ui-button--secondary" type="button" data-agent-sidebar-toggle aria-controls="planning-agent" aria-expanded={agentOpen ? "true" : "false"} disabled>Ask Outfitter</button>
+  <button slot="header-actions" data-astro-transition-persist="planning-agent:toggle" class="ui-button ui-button--secondary" type="button" data-agent-sidebar-toggle aria-controls="planning-agent" aria-expanded={agentOpen ? "true" : "false"} aria-label="Ask Outfitter" title="Ask Outfitter" disabled><span class="agent-label">Ask Outfitter</span><span class="agent-icon" aria-hidden="true">✳</span></button>
   <div class="planning-content"><slot /></div>
   <AppAgentSidebar
     slot="overlays"
@@ -61,9 +61,9 @@ const limits = demo
     pageId="planning"
     endpoint="/api/apps/planning/agent"
     {demo}
-    intro={products ? "Ask about this organization’s products and weekly roadmap." : intake ? "Describe a customer need or competitor. Inspect routes and evidence, then review proposed work." : "Discuss products, projects or the next piece of work. Review proposed changes before saving."}
+    intro={products ? "Ask about this organization’s products and weekly roadmap." : intake ? "Whose problem are we solving, and what outcome would prove it is solved? We can capture the request, choose its project and review release fit." : "Describe an idea or customer need. We can match its project, develop the use case and decide whether it fits a release or needs research."}
     emptyIntro={products ? "Loading product context…" : "Ask about customer and competitive intake."}
-    defaultFocus={intakeFocus}
+    defaultFocus={focus ?? intakeFocus}
     {limits}
     demoReply="This is a scripted, read-only example. In operational Planning, Outfitter can discuss meeting notes and saved project documents, then prepare projects or issues for your review. No inference ran and no records changed."
   />
@@ -73,3 +73,8 @@ const limits = demo
   import { setOrganizationLink } from "../../navigation.js";
   setOrganizationLink("planning");
 </script>
+
+<style>
+.agent-icon { display:none; }
+@media(max-width:600px) { .agent-label { display:none; } .agent-icon { display:inline; font-size:20px; line-height:1; } }
+</style>

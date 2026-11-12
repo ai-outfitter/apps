@@ -61,32 +61,39 @@ export function projectReleaseRecords(
       { status: 409 },
     );
   if (!anchors.length) return { releases: [], documents: [], demonstrations: {} };
+  // A bounded project subgraph carries only types used by its records. A
+  // project with no releases/evidence therefore lacks those relationship types;
+  // absence is an empty result, rather than an unsupported-context error.
+  const hasType = (name: string, category: "node" | "edge") =>
+    graph.types.some((type) => !type.archived && type.category === category && type.name === name);
+  const relationships = [
+    {
+      type: "part_of",
+      direction: "incoming" as const,
+      from_type: "Release",
+      to_type: "Project",
+    },
+    {
+      type: "documents",
+      direction: "incoming" as const,
+      from_type: "Document",
+      to_type: "Project",
+    },
+    {
+      type: "documents",
+      direction: "incoming" as const,
+      from_type: "Document",
+      to_type: "Release",
+    },
+  ].filter((rule) => hasType(rule.type, "edge") && hasType(rule.from_type, "node") && hasType(rule.to_type, "node"));
+  if (!relationships.length) return { releases: [], documents: [], demonstrations: {} };
   const definition = resolveKnowledgeGraph(graph, {
     root_type: "Project",
     root_types: ["Project"],
     max_depth: 2,
     max_nodes: 200,
     stop_at_types: ["Document"],
-    relationships: [
-      {
-        type: "part_of",
-        direction: "incoming",
-        from_type: "Release",
-        to_type: "Project",
-      },
-      {
-        type: "documents",
-        direction: "incoming",
-        from_type: "Document",
-        to_type: "Project",
-      },
-      {
-        type: "documents",
-        direction: "incoming",
-        from_type: "Document",
-        to_type: "Release",
-      },
-    ],
+    relationships,
   });
   const selection = exploreKnowledgeGraph(graph, anchors[0], definition);
   if (selection.truncated)

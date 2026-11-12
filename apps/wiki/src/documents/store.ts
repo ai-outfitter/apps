@@ -115,3 +115,33 @@ export async function publishDocument(db: AgentDatabase, who: AppIdentity, raw: 
  ]);
  return getDocument(db,input.id);
 }
+
+export const generatedInput = z.strictObject({
+ id:id.optional(),revision:z.number().int().positive().optional(),slug:slug.optional(),title:z.string().trim().min(1).max(300).optional(),
+ generatedBody: z.string().max(200000), provenance: z.record(z.string(),z.json()),
+}).superRefine((value,context)=>{
+ if(value.id ? !value.revision || value.slug!==undefined || value.title!==undefined : !value.slug || !value.title || value.revision!==undefined)context.addIssue({code:"custom",message:"Use id/revision to update, or slug/title to create a generated draft"});
+});
+/** Replace only a generated section at the exact draft revision; preserve authored and published content. */
+export async function saveGeneratedDocument(db:AgentDatabase,who:AppIdentity,raw:z.input<typeof generatedInput>):Promise<Document>{
+ requireEditor(who);
+ const input=generatedInput.parse(raw),now=Date.now();
+ if(!input.id){
+  const documentId=crypto.randomUUID();
+  await db.batch([
+   stmt("INSERT INTO wiki_documents(id,revision,createdAt,updatedAt) VALUES(?,1,?,?)",documentId,now,now),
+   stmt("INSERT INTO wiki_document_revisions(documentId,revision,title,summary,body,generatedBody,provenance,editorId,createdAt) VALUES(?,1,?,'','',?,?,?,?)",documentId,input.title,input.generatedBody,JSON.stringify(input.provenance),who.userId,now),
+   stmt("INSERT INTO wiki_pages(id,slug,documentId,updatedAt) VALUES(?,?,?,?)",crypto.randomUUID(),input.slug,documentId,now),
+  ]);
+  return getDocument(db,documentId);
+ }
+ const current=await getDocument(db,input.id);
+ if(current.revision!==input.revision || current.archived)throw conflict();
+ const provenance=JSON.stringify(input.provenance);
+ if(current.generatedBody===input.generatedBody && current.provenance===provenance)return current;
+ await guarded(db,"SELECT count(*)=1 FROM wiki_documents WHERE id=? AND revision=? AND archived=0",[input.id,input.revision],[
+  stmt("INSERT INTO wiki_document_revisions(documentId,revision,title,summary,body,generatedBody,provenance,editorId,createdAt) VALUES(?,?,?,?,?,?,?,?,?)",input.id,current.revision+1,current.title,current.summary,current.body,input.generatedBody,provenance,who.userId,now),
+  stmt("UPDATE wiki_documents SET revision=revision+1,updatedAt=? WHERE id=?",now,input.id),
+ ]);
+ return getDocument(db,input.id);
+}

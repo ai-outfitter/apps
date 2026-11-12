@@ -55,11 +55,13 @@ async function fixture() {
     "entities.types": () => ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "wiki", writable: true })),
     "entities.resolve": () => ({ installationId: "wiki" }),
     "identity.resolve": () => ({ holderId: state.holder }),
+    "entities.list": (input) => [...nodes.values()].slice(Number(input.offset ?? 0), Number(input.offset ?? 0) + Number(input.limit ?? 100)),
     "entities.get": (input) => nodes.get(String(input.id)) ?? refuse("Not found", 404),
     "entities.create": (input) => {
       const attributes = input.attributes as Record<string, unknown>;
-      const node = { ref: { installationId: "wiki", type: "graph-node", id: attributes.id }, revision: 1, title: attributes.title, attributes, references: input.references };
-      nodes.set(String(attributes.id), node);
+      const id = attributes.id ?? crypto.randomUUID();
+      const node = { ref: { installationId: "wiki", type: "graph-node", id }, revision: 1, title: attributes.title, attributes, references: input.references };
+      nodes.set(String(id), node);
       return node;
     },
     "workflow.start": () => refuse("Routing unavailable", 503),
@@ -362,4 +364,48 @@ test("published IssueChanges persists changes, reconciles retries and rejects an
     assert.deepEqual(await change([remove]), deleted);
     assert.deepEqual((await read()).nodes.map(row => row.id), [b.id]);
   } finally { f.close(); }
+});
+
+
+test("published intake release-fit mutation persists backlog decisions and enforces editor and tenant boundaries", async () => {
+  const f = await fixture();
+  try {
+    const editor = f.caller("editor", true), member = f.caller("member", false);
+    const created = field<{id:string;revision:number}>(await run(editor, "CreateIntake", {input:{
+      requestId: crypto.randomUUID(), kind: "customer-problem", title: "Conversation request", description: "Needs discovery",
+      originatingMessage: { threadId: crypto.randomUUID(), messageId: "message-1" },
+    }}), "createIntake");
+    const input = {intakeId:created.id,revision:created.revision,requestId:crypto.randomUUID(),disposition:"deferred",rationale:"Wait for evidence"};
+    refused(await run(member,"SetIntakeReleaseFit",{input}),403);
+    const saved = field<{id:string;revision:number;releaseFit:{backlog:boolean};releaseFitHistory:unknown[]}>(await run(editor,"SetIntakeReleaseFit",{input}),"setIntakeReleaseFit");
+    assert.equal(saved.releaseFit.backlog,true);
+    assert.deepEqual(saved.releaseFitHistory,[]);
+    assert.deepEqual(field(await run(editor,"SetIntakeReleaseFit",{input}),"setIntakeReleaseFit"),saved);
+    refused(await run(editor,"SetIntakeReleaseFit",{input:{...input,rationale:"Other"}}),409);
+    const other = f.caller("editor",true);other.identity={...other.identity,installationId:"foreign"};
+    refused(await run(other,"SetIntakeReleaseFit",{input}),404);
+    const result = field<{nodes:{id:string;releaseFit:unknown;originatingMessage:unknown}[]}>(await run(editor,"Intakes",{}),"intakes");
+    const persisted=result.nodes.find(row=>row.id===created.id);
+    assert.deepEqual(persisted?.releaseFit,saved.releaseFit);
+    assert.ok(persisted?.originatingMessage);
+  } finally { f.close(); }
+});
+
+
+test("published UseCases and SaveUseCase persist complete scenarios with canonical project ownership", async () => {
+  const f = await fixture();
+  try {
+    const editor = f.caller("editor",true);
+    const project = await createProject(f.db,editor.identity,{name:"Scenario project"});
+    const document = { actor:"Traveler",goal:"Book a room",trigger:"A trip is confirmed",steps:"Select dates; compare rooms; confirm booking",alternatives:"No availability: change dates",successCriteria:"A confirmed reservation with the requested dates is readable" };
+    const saved = field<{ref:{id:string};revision:number;attributes:{body:string}}>(await run(editor,"SaveUseCase",{input:{projectId:project.id,title:"Book a room",document}}),"saveUseCase");
+    assert.deepEqual(JSON.parse(saved.attributes.body),document);
+    const read = field<any[]>(await run(f.caller("member",false),"UseCases",{input:{projectId:project.id}}),"useCases");
+    assert.equal(read[0].ref.id,saved.ref.id);
+    assert.equal(JSON.parse(read[0].attributes.body).alternatives,document.alternatives);
+    assert.equal(JSON.parse(read[0].attributes.body).successCriteria,document.successCriteria);
+    const foreign=f.caller("editor",true);foreign.identity={...foreign.identity,installationId:"foreign"};
+    refused(await run(foreign,"UseCases",{input:{projectId:project.id}}),404);
+    refused(await run(f.caller("member",false),"SaveUseCase",{input:{projectId:project.id,title:"No",document}}),403);
+  } finally {f.close();}
 });

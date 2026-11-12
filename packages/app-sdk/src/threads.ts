@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readJSON, respond } from "./server";
+import { entityRef } from "./entities";
 
 /** Shared threads: the public contract between apps and the platform's thread
  * service. The platform stores conversational threads, runs replies and owns
@@ -356,6 +357,11 @@ export const toolDescriptor = z.strictObject({
 });
 /** What a saved entry keeps of a `store: false` tool result. */
 export const omittedToolOutput = { omitted: true } as const;
+/** An authorized entity snapshot reloaded at this exact revision for every reply.
+ * A reference supplies context only; it never claims coverage of thread messages. */
+export const threadContextSource = entityRef.extend({ revision: z.number().int().positive() });
+export type ThreadContextSource = z.infer<typeof threadContextSource>;
+
 export const providerCallbacks = {
   types: { input: z.strictObject({}), output: z.array(threadTypeDescriptor).max(32) },
   prepare: {
@@ -370,7 +376,11 @@ export const providerCallbacks = {
          * this many tokens. Past it, the platform folds the oldest turns into a new checkpoint (down to
          * half), so the prompt only grows at its end between compactions and stays prefix-cacheable.
          * For threads that never end, such as an owner's sidebar thread. */
-        z.strictObject({ budget: z.number().int().min(4_000).max(400_000) }),
+        z.strictObject({ budget: z.number().int().min(4_000).max(400_000),
+          /** Transient, attributed context. Platform reauthorizes and pins revisions every reply;
+           * these sources never replace transcript entries or enter compaction summaries. */
+          sources: z.array(threadContextSource).max(4).optional(),
+        }),
       ]).optional(),
       tools: z.array(toolDescriptor).max(64).default([]),
       maxSteps: z.number().int().min(1).max(16).default(4),

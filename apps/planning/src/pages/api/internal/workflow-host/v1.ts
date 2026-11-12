@@ -26,12 +26,14 @@ export const POST: APIRoute = ({ request, locals }) =>
       const occurrence = scheduleInput.parse(input);
       if (occurrence.schedule.workflowId === productReportWorkflow) {
         await host.call("workflow.start",{workflow:productReportWorkflow,id:occurrence.runId,inputs:{}});
-        await regenerateProductReport(host,requestIdentity(request),occurrence.runId);
+        await regenerateProductReport(host,requestIdentity(request),occurrence.runId,new Date(occurrence.scheduledFor));
         return {outcome:"started"};
       }
       if (occurrence.schedule.workflowId !== digestWorkflow)
         return { outcome: "declined", reason: `Planning does not schedule ${occurrence.schedule.workflowId}` };
-      await scheduledDigests(installationDatabase(), host, requestIdentity(request), occurrence.runId);
+      const saved = (await host.call("schedules", {})).find(row => row.id === occurrence.schedule.id);
+      if (!saved) return { outcome: "declined", reason: "Report schedule no longer exists" };
+      await scheduledDigests(installationDatabase(), host, requestIdentity(request), occurrence.runId, {now:occurrence.scheduledFor,timezone:saved.timezone});
       return { outcome: "started" };
     },
   })(request, locals as never);

@@ -9,6 +9,7 @@ import {
   appCall, foundryReadiness, getPackage, listPackages, packageMarker, type PackageRow, workshopDocuments,
 } from "./delivery-prepare";
 import { IntakeService, type PlanningContext } from "./intake";
+import { intakeQuestions } from "./intake-conversation";
 import { canonicalJSON } from "./work-packages";
 
 export const deliveryInput = z.strictObject({ projectId: z.uuid() });
@@ -101,12 +102,13 @@ export function milestones(input: MilestoneInput): Milestone[] {
 export async function projectDelivery(c: PlanningContext, { projectId }: z.output<typeof deliveryInput>) {
   const [project] = await c.store().query({ sql: "SELECT id,name,revision,githubRepository,pressRelease FROM planning_projects WHERE installationId=? AND id=?", params: [c.identity.installationId, projectId] });
   if (!project) throw new Response("Project not found", { status: 404 });
-  const [requirements, prep, packages] = await Promise.all([loadRequirements(c, projectId), latestPreparation(c, projectId), listPackages(c, projectId)]);
+  const [requirements, prep, packages, intakes] = await Promise.all([loadRequirements(c, projectId), latestPreparation(c, projectId), listPackages(c, projectId), new IntakeService(c).forProject(projectId)]);
   const workshop = latestOf(packages, "workshop"), foundry = latestOf(packages, "foundry");
   const [workshopRead, foundryRead] = await Promise.all([workshopReadback(c, workshop), foundryReadback(c, foundry)]);
   const preparations = await c.store().query({ sql: "SELECT id,projectRevision,state,dispatchError FROM planning_preparations WHERE installationId=? AND projectId=? ORDER BY projectRevision", params: [c.identity.installationId, projectId] });
   return {
     project: { id: String(project.id), name: String(project.name), revision: Number(project.revision) },
+    intakeDecisions: { items: intakes.rows.map(intakeQuestions), truncated: intakes.truncated, coverage: "Latest 100 project-linked intakes in this installation; questions are pending decisions, not delivery evidence." },
     requirements: requirements.map((r) => ({ id: r.id, revision: r.revision, retired: r.retired, ...r.body })),
     preparation: { ...preparationSummary(prep), plan: prep?.plan ?? null },
     preparations,

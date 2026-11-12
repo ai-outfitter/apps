@@ -1923,6 +1923,8 @@ type Person implements Node {
   friendsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
   commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
   commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
+  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
+  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
 
   """as: holder"""
   roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!

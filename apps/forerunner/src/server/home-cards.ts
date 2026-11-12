@@ -31,8 +31,8 @@ const completeInput = z.strictObject({ itemId: z.uuid() });
 
 const clip = (value: string, max: number) =>
 	value.length > max ? `${value.slice(0, max - 1)}…` : value;
-// The board scrolls to and focuses `?item=` once it loads.
-const itemPath = (id: string) => `/board?item=${id}`;
+// Task pages hold the full task and its revision-aware edit/delete actions.
+const itemPath = (id: string) => `/items/${encodeURIComponent(id)}`;
 
 /** Unfinished items in board priority: stones, pebbles, then sand, each in the member's order. */
 export async function openPriorities(db: Database, who: AppIdentity) {

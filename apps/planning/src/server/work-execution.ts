@@ -11,7 +11,7 @@ import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import type { PlanningDatabase } from "./planning";
-import { planningEntities } from "./entities";
+import { planningEntity } from "./entities";
 import { projectWork } from "./work-projection";
 import {
   previewWork,
@@ -490,7 +490,7 @@ export class WorkExecution {
     };
   }
   async submissions(projectId: string) {
-    await planningEntities(this.context.db())[0].get(
+    await planningEntity(this.context.db(), "project").get(
       this.context.identity,
       projectId,
     );

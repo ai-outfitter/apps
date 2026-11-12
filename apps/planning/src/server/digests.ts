@@ -16,14 +16,20 @@ import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import { type OperationInput, type PhaseInput, taskInvocation, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { savePersonalOverview } from "./personal-report";
+import { storedPersonalPriorities } from "./personal-portfolio";
+import { requestedReportPeriod } from "./report-period";
+import { runReportChain } from "./report-chain";
 import type { PlanningDatabase } from "./planning";
 import { projectDocuments } from "./project-page";
 import { digests, issues, projects, workSubmissions, type Digest, type Issue, type Project } from "./schema";
 
 export const digestWorkflow = "project-digest";
 export const digestStep = "summarize";
-/** The workflow's own schedule trigger: every morning, 13:00 UTC. */
-export const digestTimezone = "UTC";
+/** Default local timezone; owner schedules supply an explicit six/eight o'clock cron. */
+export const digestTimezone = "America/Chicago";
+/** Local calendar identity for project daily reports; independent of the existing trigger time. */
+export const digestReportTimezone = "America/Chicago";
 const DAY = 24 * 60 * 60 * 1000;
 /** Items listed per change kind; counts stay exact. */
 const LIST_LIMIT = 20;
@@ -227,7 +233,9 @@ async function narrate(generate: Generate, runId: string, project: Project, sinc
 }
 
 /** Build and save one project's digest under a run. */
-async function writeDigest(db: PlanningDatabase, generate: Generate, actor: { installationId: string; userId: string }, project: Project, runId: string, trigger: Digest["trigger"], { skipUnchanged = false } = {}) {
+async function writeDigest(db: PlanningDatabase, host: WorkflowHost<"interactive" | "schedule">, actor: AppIdentity, project: Project, runId: string, trigger: Digest["trigger"], { skipUnchanged = false } = {}) {
+  const [existing] = await db.select().from(digests).where(and(eq(digests.installationId, actor.installationId), eq(digests.projectId, project.id), eq(digests.runId, runId))).limit(1);
+  if (existing) return existing;
   const previous = await previousDigest(db, actor.installationId, project.id);
   const previousSnapshot = previous ? snapshotSchema.safeParse(JSON.parse(previous.snapshot)) : null;
   const now = Date.now();
@@ -235,7 +243,7 @@ async function writeDigest(db: PlanningDatabase, generate: Generate, actor: { in
   if (skipUnchanged && !hasChanges(changes)) return null;
   const since = previous?.createdAt ?? null;
   const narrative = hasChanges(changes)
-    ? await narrate(generate, runId, project, since, changes)
+    ? await narrate((call) => host.call("inference.generate", call), runId, project, since, changes)
     : { summary: "No changes since the last digest.", summaryError: null };
   const [row] = await db.insert(digests).values({
     id: crypto.randomUUID(),
@@ -283,6 +291,16 @@ async function project(db: PlanningDatabase, installationId: string, id: string)
 }
 
 export const generateDigestInput = z.strictObject({ projectId: z.uuid() });
+export const dailyReportsInput = z.strictObject({timezone:z.string().min(1).max(64).default(digestReportTimezone),date:z.iso.date().optional()});
+const digestTaskInput = z.strictObject({projectId:z.uuid().optional(),timezone:z.string().min(1).max(64).default(digestReportTimezone),date:z.iso.date().optional()});
+/** Start the complete same-owner report chain as one registered durable task. */
+export async function startDailyReports(host:WorkflowHost<"interactive">,identity:AppIdentity,input:unknown){
+ requireEditor(identity);
+ const {timezone,date}=dailyReportsInput.parse(input);
+ new Intl.DateTimeFormat("en-US",{timeZone:timezone}).format();
+ requestedReportPeriod(Date.now(),timezone,date);
+ return host.call("task.start",{task:digestWorkflow,id:crypto.randomUUID(),inputs:{timezone,...(date?{date}:{})}});
+}
 
 /**
  * "Generate digest now" starts the project-digest registered task: the platform
@@ -301,28 +319,41 @@ export async function startDigest(db: PlanningDatabase, host: WorkflowHost<"inte
 export async function runDigestTask(db: PlanningDatabase, host: WorkflowHost<"interactive">, identity: AppIdentity, raw: PhaseInput): Promise<PhaseInput> {
   const invocation = taskInvocation.parse(raw);
   if (invocation.task !== digestWorkflow) throw new Response("Unknown registered task", { status: 404 });
-  const { projectId } = generateDigestInput.parse(invocation.inputs);
+  const { projectId, timezone, date } = digestTaskInput.parse(invocation.inputs);
+  const task = await host.call("workflow.read", {id:invocation.runId});
+  if(!task) throw new Response("Task run was not found",{status:404});
+  requestedReportPeriod(task.run.createdAt,timezone,date);
+  if(!projectId) return scheduledDigests(db,host,identity,invocation.runId,{now:task.run.createdAt,timezone,date,startRun:false});
   const target = await project(db, identity.installationId, projectId);
-  const row = await writeDigest(db, (call) => host.call("inference.generate", call), identity, target, invocation.runId, "manual");
-  if (!row) throw new Response("The digest was not saved", { status: 500 });
-  const result = { written: 1, unchanged: 0, digestIds: [row.id] };
-  await host.call("workflow.collect", { runId: invocation.runId, slot: `${digestStep}.outputs.digests`, value: result });
+  const row = date?null:await writeDigest(db, host, identity, target, invocation.runId, "manual");
+  if (!date && !row) throw new Response("The digest was not saved", { status: 500 });
+  const reports = await runReportChain(db, host, identity, [target], invocation.runId, {now:task.run.createdAt,timezone,date,includeOverview:false});
+  const result = { written: row?1:0, unchanged: 0, digestIds: row?[row.id]:[], reports };
+  await host.call("workflow.collect", { runId: invocation.runId, slot: `${digestStep}.outputs.digests`, value: result, ...(reports.status === "incomplete" ? {complete:false} : {}) });
+  if(reports.status === "incomplete") throw new Response("Project daily report is incomplete",{status:502});
   return result;
 }
 
 /** The `schedule` phase: the platform reserved `runId`; one digest for every active project that changed since its last digest. */
-export async function scheduledDigests(db: PlanningDatabase, host: WorkflowHost<"schedule">, actor: { installationId: string; userId: string }, runId: string) {
-  await host.call("workflow.start", { workflow: digestWorkflow, id: runId, inputs: {} });
-  const active = await db.select().from(projects).where(and(eq(projects.installationId, actor.installationId), eq(projects.archived, false))).orderBy(asc(projects.name));
+export async function scheduledDigests(db: PlanningDatabase, host: WorkflowHost<"interactive"|"schedule">, actor: AppIdentity, runId: string, options: {now?:number;timezone?:string;date?:string;startRun?:boolean} = {}) {
+  if(options.startRun!==false) await host.call("workflow.start", { workflow: digestWorkflow, id: runId, inputs: {} });
+  const active = await db.select().from(projects).where(and(eq(projects.installationId, actor.installationId), eq(projects.archived, false), eq(projects.state, "active"))).orderBy(asc(projects.name));
   const digestIds: string[] = [];
   let unchanged = 0;
-  for (const target of active) {
-    const row = await writeDigest(db, (call) => host.call("inference.generate", call), actor, target, runId, "schedule", { skipUnchanged: true });
+  const failedProjects: string[] = [];
+  // Explicit calendar recovery must not advance the current rolling-digest cursor.
+  if(!options.date) for (const target of active) {
+    try {
+    const row = await writeDigest(db, host, actor, target, runId, "schedule", { skipUnchanged: true });
     if (row) digestIds.push(row.id);
     else unchanged++;
+    } catch { failedProjects.push(target.id); }
   }
-  const result = { written: digestIds.length, unchanged, digestIds };
-  await host.call("workflow.collect", { runId, slot: `${digestStep}.outputs.digests`, value: result });
+  let reports = await runReportChain(db, host, actor, active, runId, {...options,includeOverview:actor.owner.kind!=="user"});
+  if(actor.owner.kind==="user") reports=await savePersonalOverview(host,actor,reports,runId,options.now??Date.now(),await storedPersonalPriorities(db,actor));
+  const result = { written: digestIds.length, unchanged, digestIds, reports, failedProjects };
+  await host.call("workflow.collect", { runId, slot: `${digestStep}.outputs.digests`, value: result, ...(reports.status === "incomplete" || failedProjects.length ? {complete:false} : {}) });
+  if (reports.status === "incomplete" || failedProjects.length) throw new Response("Daily report chain is incomplete; saved source outcomes are retained in Wiki", {status:502});
   return result;
 }
 
@@ -333,23 +364,24 @@ export async function digestRuns(host: WorkflowHost<"interactive">): Promise<Dig
   return items.map(({ id, status, createdAt, updatedAt }) => ({ id, status, createdAt, updatedAt }));
 }
 
-export type DigestSchedule = { enabled: boolean; nextRunAt: number | null; lastRunAt: number | null; lastOutcome: string | null };
-const off: DigestSchedule = { enabled: false, nextRunAt: null, lastRunAt: null, lastOutcome: null };
+export type DigestSchedule = { cron: string | null; timezone: string | null; enabled: boolean; nextRunAt: number | null; lastRunAt: number | null; lastOutcome: string | null };
+const off: DigestSchedule = { cron: null, timezone:null, enabled: false, nextRunAt: null, lastRunAt: null, lastOutcome: null };
 
 /** The installation's daily digest schedule. */
 export async function digestSchedule(host: WorkflowHost<"interactive">): Promise<DigestSchedule> {
   const schedule = (await host.call("schedules", {})).find((item) => item.workflowId === digestWorkflow);
-  return schedule ? { enabled: schedule.enabled, nextRunAt: schedule.enabled ? schedule.nextRunAt : null, lastRunAt: schedule.lastRunAt, lastOutcome: schedule.lastOutcome } : off;
+  return schedule ? { cron:schedule.cron,timezone:schedule.timezone,enabled: schedule.enabled, nextRunAt: schedule.enabled ? schedule.nextRunAt : null, lastRunAt: schedule.lastRunAt, lastOutcome: schedule.lastOutcome } : off;
 }
 
-export const digestScheduleInput = z.strictObject({ enabled: z.boolean() });
+export const digestScheduleInput = z.strictObject({ enabled: z.boolean(), timezone:z.string().min(1).max(64).default(digestReportTimezone) });
 
 /** Turn the morning digest on or off. It runs as the editor who turned it on. */
 export async function changeDigestSchedule(host: WorkflowHost<"interactive">, identity: AppIdentity, input: unknown): Promise<DigestSchedule> {
   requireEditor(identity);
-  const { enabled } = digestScheduleInput.parse(input);
-  const saved = await host.call("schedule.save", { workflow: digestWorkflow, timezone: digestTimezone, enabled, inputs: {} });
-  return { enabled: saved.enabled, nextRunAt: saved.enabled ? saved.nextRunAt : null, lastRunAt: saved.lastRunAt, lastOutcome: saved.lastOutcome };
+  const { enabled, timezone } = digestScheduleInput.parse(input);
+  new Intl.DateTimeFormat("en-US",{timeZone:timezone}).format();
+  const saved = await host.call("schedule.save", { workflow: digestWorkflow, cron:identity.owner.kind === "user" ? "0 4 * * *" : "0 3 * * *", timezone, enabled, inputs: {} });
+  return {cron:saved.cron,timezone:saved.timezone, enabled: saved.enabled, nextRunAt: saved.enabled ? saved.nextRunAt : null, lastRunAt: saved.lastRunAt, lastOutcome: saved.lastOutcome };
 }
 
 /** The read-only demo's synthetic digest. */

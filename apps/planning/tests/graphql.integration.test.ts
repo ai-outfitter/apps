@@ -19,12 +19,11 @@ import { pullRequests } from "../src/server/project-repositories";
 // call the platform's appGraphql makes.
 const member = { userId: "member", organizationId: "org", role: "member" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");
-test("pull request reads use the acting user's authorized repository connection", async () => {
+test("pull request reads use an authorized organization repository connection when no personal one exists", async () => {
   const calls: { name: string; input: Record<string, unknown> }[] = [];
   const host = () => ({ call: async (name: string, input: Record<string, unknown>) => {
     calls.push({ name, input });
     if (name === "snapshot") return { connections: [
-      { id: "personal", provider: "github", owner: "user", operations: ["pulls.list"] },
       { id: "org", provider: "github", owner: "organization", operations: ["pulls.list"] },
     ] };
     if (name === "repository.request") return { id: 42 };
@@ -33,8 +32,8 @@ test("pull request reads use the acting user's authorized repository connection"
   const repo = { nodeId: "repo", title: "web", repository: "acme/web", url: "https://github.com/acme/web", path: null, ref: null };
   const result = await pullRequests({ host, identity: {} } as never, repo, 10, "cursor") as { nodes: { number: number }[] };
   assert.equal(result.nodes[0].number, 7);
-  assert.equal(calls[1].input.connectionId, "personal");
-  assert.deepEqual(calls[2].input, { connectionId: "personal", resource: "42", operation: "pulls.list", input: { first: 10, after: "cursor" } });
+  assert.equal(calls[1].input.connectionId, "org");
+  assert.deepEqual(calls[2].input, { connectionId: "org", resource: "42", operation: "pulls.list", input: { first: 10, after: "cursor" } });
 });
 test("the acting user's repository GraphQL request returns recent pull requests without an App installation", async () => {
   const calls: { name: string; input: Record<string, unknown> }[] = [];

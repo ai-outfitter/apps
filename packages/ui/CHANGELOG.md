@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show managed personal app navigation only with explicit platform metadata. Preserve the rail account footer across client navigation, keep app settings in the app sidebar, and support account menus and navigation on mobile.
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/ui-v0.1.4...ui-v0.1.5) (2026-11-09)
 
 

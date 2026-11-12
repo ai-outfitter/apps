@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Restore document reading navigation with recent updates, scoped goals/projects/people, existing Profile and Notes trees, and All documents in Settings. Sidebar metadata excludes document bodies; document history and editing remain unchanged.
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.3...wiki-map-v0.1.4) (2026-11-10)
 
 

@@ -12,7 +12,7 @@ const json = async (response: Response): Promise<any> => {
 test("project entities write the actual Planning records and preserve omitted fields", async () => {
   const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
-    assert.equal((await json(await app.call(`${base}/types`, owner)))[0].type, "project");
+    assert.ok((await json(await app.call(`${base}/types`, owner))).some((item: { type: string }) => item.type === "project"));
     const created = await json(await app.call(`${base}/create`, owner, { method: "POST", body: { type: "project", attributes: { name: "Artera", goals: "Build a motor" } } }));
     const issue = await json(await app.call(`${base}/create`, owner, { method: "POST", body: { type: "issue", attributes: { title: "Prototype", category: "stone", projectId: created.ref.id }, references: [created.ref] } }));
     assert.equal(issue.attributes.projectId, created.ref.id);

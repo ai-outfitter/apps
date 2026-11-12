@@ -1,4 +1,21 @@
 type Query {
+  """
+  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. No generation starts.
+  """
+  dailyHome(input: DailyHomeInput!): JSON
+
+  """Read the personal daily brief schedule; no scheduling side effects."""
+  dailyBriefSchedule(input: JSON!): JSON
+
+  """
+  Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.
+  """
+  dayReview(input: DayReviewInput!): JSON
+
+  """
+  Read saved canonical need identities and revisions for a private discovery selection; excludes raw source samples and uncommitted proposals.
+  """
+  planningCandidates(input: PlanningCandidatesInput!): JSON
   items(
     first: Int = 100
     after: String
@@ -23,6 +40,23 @@ type Query {
   What the daily runs suggest, newest first: open suggestions unless `status` names others (applied, dismissed). Editors only.
   """
   suggestions(status: [String!]): [Suggestion!]!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+input DailyHomeInput {
+  timezone: String
+  includeHistory: Boolean
+}
+
+input DayReviewInput {
+  date: String
+  timezone: String
+}
+
+input PlanningCandidatesInput {
+  previewId: ID!
 }
 
 type ItemConnection {
@@ -102,6 +136,17 @@ type RoutineTask {
   steps: [String!]!
 }
 
+input CreatePlanningIntakeInput {
+  previewId: ID!
+  entryIndex: Float!
+  expectedId: ID!
+  expectedRevision: Float!
+  planningInstallationId: String!
+  projectId: ID
+  kind: String
+  confirmDestination: Boolean!
+}
+
 input CreateItemInput {
   category: CreateItemInputCategory!
   title: String!
@@ -163,6 +208,15 @@ enum UpdateSuggestionInputStatus {
   dismissed
 }
 
+input SetDailyBriefScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+}
+
+input GenerateDailyBriefInput {
+  timezone: String!
+}
+
 """
 The daily discovery run as Settings shows it; times are epoch milliseconds.
 """
@@ -182,6 +236,11 @@ input SetDailyRunInput {
 }
 
 type Mutation {
+  """
+  Explicitly capture one selected saved discovered need in the same owner's authorized Planning installation. Uses only current canonical Wiki content, honors corrected identity and revision, and retries with a deterministic intake request ID. Never copies private source samples or automatically shares across owners.
+  """
+  createPlanningIntake(input: CreatePlanningIntakeInput!): JSON
+
   """
   Add a stone (a top priority), a pebble (a stone's next action, parentId required) or sand (a small task, optionally under a stone) to the caller's board, last in its category. Status is todo, in-progress or done; dueDate an ISO date. At most 500 items.
   """
@@ -208,6 +267,16 @@ type Mutation {
   updateSuggestion(input: UpdateSuggestionInput!): Suggestion!
 
   """
+  Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.
+  """
+  setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
+
+  """
+  Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.
+  """
+  generateDailyBrief(input: GenerateDailyBriefInput!): JSON
+
+  """
   Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.
   """
   setDailyRun(input: SetDailyRunInput!): DailyRun!
@@ -232,9 +301,6 @@ type ChangeReceipt {
   result: JSON
   error: JSON
 }
-
-"""Any JSON value."""
-scalar JSON
 
 type ChangeInstruction {
   code: String!

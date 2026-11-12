@@ -17,7 +17,8 @@ test("operational agent exposes an owner-scoped private context", async () => {
     const body = await response.json() as { type: string; privateOnly: boolean; actions: unknown[] };
     assert.equal(body.type, "forerunner.conversation");
     assert.equal(body.privateOnly, true);
-    assert.deepEqual(body.actions, []);
+    assert.deepEqual(body.actions.map((action: any) => action.name), ["forerunner_discovery_planning_candidates"]);
+    assert.ok(!body.actions.some((action: any) => action.name === "forerunner_discovery_planning_intake"), "non-editors cannot propose capture");
     const invalid = await app.call("/api/apps/forerunner/agent/context?focus=other", member, { workflowHost });
     assert.equal(invalid.status, 400);
     const anonymous = await app.call(`/api/apps/forerunner/agent/context?focus=${focus}`, undefined, { workflowHost });

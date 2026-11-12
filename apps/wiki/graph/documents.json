@@ -225,6 +225,50 @@
     }
   },
   {
+    "name": "SaveGeneratedDocument",
+    "kind": "mutation",
+    "story": "As an editor, I want report regeneration to revise only its generated section, so that authored notes and published revisions remain intact.",
+    "query": "mutation SaveGeneratedDocument($input: SaveGeneratedDocumentInput!) {\n  saveGeneratedDocument(input: $input) {\n    id\n    revision\n    publishedRevision\n  }\n}",
+    "hash": "f6eec75abd62511a3eea5d569e8ddad3cf933390b92e9bff775ec7500ce15544",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveGeneratedDocumentInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Revise a generated section at its exact draft revision without overwriting authored or published content."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveGeneratedDocument": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "publishedRevision": {
+              "type": "integer",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "SavePage",
     "kind": "mutation",
     "story": "As an editor, I want to configure a page, so that I can link documents and Onto entities.",

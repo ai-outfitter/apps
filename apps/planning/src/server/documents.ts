@@ -12,7 +12,14 @@ import type { PlanningContext } from "./intake";
 
 // Selections are spelled out: gql.tada types a document only from a literal string.
 const legacyDocuments = defineDocuments({
-  GenerateProductReport: {story:"As an editor, I want to regenerate this week's product roadmap in a registered workflow, so that updated graph evidence informs a draft for review.",document:graphql(`mutation GenerateProductReport($input:JSON!) {generateProductReport(input:$input)}`)},
+  PortfolioProjects: {
+    story: "As a personal portfolio owner, I want a small authorized project index without loading every project's graph, so that ordering stays responsive.",
+    document: graphql(`query PortfolioProjects($first:Int=100,$after:String){projects(first:$first,after:$after,archived:false){nodes{id name state archived revision rank} pageInfo{endCursor hasNextPage}}}`),
+  },
+  DailyReports:{story:"As a personal overview workflow, I want one daily report outcome per authorized Planning scope including missing reports, so that dependent reports can wait on exact persisted organization outcomes.",document:graphql(`query DailyReports($date:String!,$timezone:String,$first:Int=20,$after:String){dailyReports(date:$date,timezone:$timezone,first:$first,after:$after){nodes{id name ownerKind ownerId planningInstallationId organizationSlug report}pageInfo{hasNextPage endCursor}}}`)},
+  DailyReport:{story:"As a member or a personal overview workflow, I want this scope's daily report with exact source revisions and coverage, so that an overview depends on persisted source outcomes.",document:graphql(`query DailyReport($input:DailyReportInput!){dailyReport(input:$input)}`)},
+  GenerateDailyReports:{story:"As an editor, I want all active project reports for a selected recovery date or previous local day followed by this owner's overview in one durable run, so that failures remain visible and retries preserve captured reports.",document:graphql(`mutation GenerateDailyReports($input:GenerateDailyReportsInput!){generateDailyReports(input:$input)}`)},
+  GenerateProductReport: {story:"As an editor, I want to regenerate the selected or current week's product roadmap in a registered workflow, so that updated graph evidence informs a draft for review.",document:graphql(`mutation GenerateProductReport($input:GenerateProductReportInput!) {generateProductReport(input:$input)}`)},
   ProductReportRuns: {story:"As a member, I want to see roadmap workflow progress and failures, so that missing reports are visible and retryable.",document:graphql(`query ProductReportRuns {productReportRuns}`)},
   ProductReportSchedule: {story:"As an editor, I want to inspect the daily product roadmap schedule, so that failed or missing updates are visible.",document:graphql(`query ProductReportSchedule {productReportSchedule}`)},
   ChangeProductReportSchedule: {story:"As an editor, I want to enable daily regeneration of the weekly roadmap, so that the working report stays current.",document:graphql(`mutation ChangeProductReportSchedule($input:ChangeProductReportScheduleInput!) {changeProductReportSchedule(input:$input)}`)},
@@ -84,10 +91,10 @@ const legacyDocuments = defineDocuments({
   },
   Intakes: {
     story: "As an agent, I want the intakes with their routed work, each route's blocker and draft, and the active Governance work gates, so that I can find work that is ready, see which routes are gated, and follow review and delivery.",
-    document: graphql(`query Intakes {
+    document: graphql(`query Intakes($first: Int = 20, $after: String) {
       intakeOptions
-      intakes { nodes {
-        id revision projectId kind title description sourceUrls sources routing routingError
+      intakes(first: $first, after: $after) { nodes {
+        id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
         routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
       } pageInfo { endCursor hasNextPage } }
     }`),
@@ -133,6 +140,8 @@ const legacyDocuments = defineDocuments({
     document:graphql(`mutation SubmitDeliveryPackage($input:SubmitDeliveryPackageInput!){submitDeliveryPackage(input:$input)}`),
   },
   PriorityOrder: {story:"As a member, I want to read the organization order, so that I can reorder the current list safely.",document:graphql(`query PriorityOrder($kind:String!){priorityOrder(kind:$kind)}`)},
+  PersonalPortfolio: {story:"As a personal user, I want my authorized organizations and projects in my own order, so that I can focus without changing shared priorities.",document:graphql(`query PersonalPortfolio($kind:String!){personalPortfolio(kind:$kind)}`)},
+  ReorderPersonalPortfolio: {story:"As a personal user, I want to reorder my organizations or cross-organization projects, so that my daily overview follows my priorities.",document:graphql(`mutation ReorderPersonalPortfolio($input:ReorderPersonalPortfolioInput!){reorderPersonalPortfolio(input:$input)}`)},
   ReorderPriority: {story:"As a member, I want to reorder projects or products, so that the organization can communicate its priorities.",document:graphql(`mutation ReorderPriority($input:ReorderPriorityInput!){reorderPriority(input:$input)}`)},
   SetProjectState: {
     story: "As a member, I want to change a project lifecycle state, so that the projects list reflects the work status.",
@@ -146,11 +155,19 @@ const legacyDocuments = defineDocuments({
     story: "As a member, I want to delete an empty project, so that abandoned projects leave the list.",
     document: graphql(`mutation DeleteProject($input: DeleteProjectInput!) { deleteProject(input: $input) { deleted } }`),
   },
+  IntakeReleaseOptions: {
+    story: "As an editor, I want the intake project's existing Releases and their revisions, so that I choose a real Release when recording release fit.",
+    document: graphql(`query IntakeReleaseOptions($input: IntakeReleaseOptionsInput!) { intakeReleaseOptions(input: $input) }`),
+  },
+  SetIntakeReleaseFit: {
+    story: "As an editor, I want to record how a conversational intake fits an existing project Release, or defer it in backlog, so that discovery and delivery use the persisted decision and its rationale.",
+    document: graphql(`mutation SetIntakeReleaseFit($input: SetIntakeReleaseFitInput!) { setIntakeReleaseFit(input: $input) { id revision releaseFit releaseFitHistory } }`),
+  },
   CreateIntake: {
     story: "As an editor, I want to capture a customer or competitive intake from the intake page or an agent and have it routed, so that the right discovery and delivery work starts under Governance.",
     document: graphql(`mutation CreateIntake($input: CreateIntakeInput!) {
       createIntake(input: $input) {
-      id revision projectId kind title description sourceUrls sources routing routingError
+      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -159,7 +176,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to route an intake again, set its routes and decision controls myself, or assign its canonical Planning project, so that unstarted work follows the plan I chose and is delivered against the right project.",
     document: graphql(`mutation RouteIntake($input: RouteIntakeInput!) {
       routeIntake(input: $input) {
-      id revision projectId kind title description sourceUrls sources routing routingError
+      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -168,7 +185,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to approve a changed scope for an intake, so that new routes replace the old ones while previous results stay in history and old decisions cannot authorize the change.",
     document: graphql(`mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {
       reviseIntakeScope(input: $input) {
-      id revision projectId kind title description sourceUrls sources routing routingError
+      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -185,7 +202,7 @@ const legacyDocuments = defineDocuments({
     story: "As an assigned agent or Recommend holder, I want to submit findings or my saved draft under my claim and have Governance asked to review them, or ask again when that request failed or a perform-only worker recorded them, so that dependent work can proceed once they are approved.",
     document: graphql(`mutation RecordResult($input: RecordResultInput!) {
       recordResult(input: $input) {
-      id revision projectId kind title description sourceUrls sources routing routingError
+      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -206,7 +223,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to reset a submission Foundry rejected before any delivery was created, so that I can correct the package and submit again.",
     document: graphql(`mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {
       resetIntakeSubmission(input: $input) {
-      id revision projectId kind title description sourceUrls sources routing routingError
+      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -225,15 +242,19 @@ const legacyDocuments = defineDocuments({
   },
   DigestSchedule: {
     story: "As an editor, I want to see whether the morning digest is on and when it runs next, so that I know the team will get one.",
-    document: graphql(`query DigestSchedule { digestSchedule { enabled nextRunAt lastRunAt lastOutcome } }`),
+    document: graphql(`query DigestSchedule { digestSchedule { cron timezone enabled nextRunAt lastRunAt lastOutcome } }`),
   },
   ChangeDigestSchedule: {
     story: "As an editor, I want to turn the morning digest of every project on or off, so that the team gets a daily summary of what shipped and what is prioritized without anyone clicking.",
-    document: graphql(`mutation ChangeDigestSchedule($input: ChangeDigestScheduleInput!) { changeDigestSchedule(input: $input) { enabled nextRunAt lastRunAt lastOutcome } }`),
+    document: graphql(`mutation ChangeDigestSchedule($input: ChangeDigestScheduleInput!) { changeDigestSchedule(input: $input) { cron timezone enabled nextRunAt lastRunAt lastOutcome } }`),
   },
   LinkProjectChanges: {
     story: "As an editor, I want to link the pull requests merged into my projects' repositories to those projects in the Wiki from the project page or an agent, so that the knowledge graph shows which code changes delivered each project's work, with a reason a member can review.",
     document: graphql(`mutation LinkProjectChanges($input: LinkProjectChangesInput!) { linkProjectChanges(input: $input) }`),
+  },
+  UseCases: {
+    story: "As a member, I want a project's complete existing use-case scenarios and revisions, so that I can author and safely revise their actor, trigger, steps, alternatives and success evidence.",
+    document: graphql(`query UseCases($input: UseCasesInput!) { useCases(input: $input) }`),
   },
   SaveUseCase: {
     story: "As an editor, I want to write or revise a project's use case from the use cases page or an agent, so that it lives in the Wiki linked to the project.",
@@ -242,13 +263,39 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), graphqlSchema, readGroups), {
+  PortfolioProjects: {description: "Read a compact authorized project index for personal portfolio ordering; no linked graph or provider activity is loaded.", collection:true, provenance:"organizationSlug"},
+  UseCases: {description: "Read complete project-linked use-case documents and revisions before authoring scenarios or editing. Names and summaries alone are insufficient for scenario review."},
+  SaveUseCase: {description: "Save a complete use case against an existing project: actor, goal, trigger, steps, alternatives and observable successCriteria. Editors only. Read UseCases first; edits require both ID and revision."},
+  IntakeReleaseOptions: {description: "Read existing project-linked Release records and revisions before deciding release fit. Does not create Releases."},
+  Intakes: {description: "Read persisted conversational intakes, release fit and history, routed discovery, blockers and delivery receipts. Read IDs and revisions before writing."},
+  CreateIntake: {description: "Persist an intake with a stable requestId and optional originatingMessage provenance, then propose governed child work. Retry the identical input with the same requestId."},
+  SetIntakeReleaseFit: {description: "Record an explicit release disposition and rationale at the intake revision. Current-release requires an existing linked Release revision. Deferred without a release stays in backlog. Does not authorize delivery."},
+  RouteIntake: {description: "Assign a project or route unstarted intake work with existing Governance controls; requires current intake revision."},
+  ReviseIntakeScope: {description: "Approve revised intake scope, retaining history and resetting route and release-fit decisions. Submitted delivery remains frozen."},
+  ClaimWork: {description: "Claim assigned research, architecture or prioritization work with a stable requestId; returns the claim token and deterministic context."},
+  SaveResultDraft: {description: "Save incomplete findings under the current assigned claim without requesting review."},
+  RecordResult: {description: "Submit complete research, architecture or prioritization findings under a claim and request the existing Governance review."},
+  PublishResult: {description: "Publish recorded findings as proposed Wiki assertions; does not approve their claims."},
+  IntakeWorkPreview: {description: "Preview ready implementation with current discovery sources and release-fit revision. Changes nothing."},
+  SubmitIntakeWork: {description: "Submit the reviewed implementation package through existing Foundry contracts and Governance checks. Requires the current preview digest and stable requestId."},
+  ResetIntakeSubmission: {description: "Reset a rejected delivery submission at the current intake revision when no delivery record exists."},
+  DailyReports:{description:"Read daily report outcomes across authorized Planning scopes, preserving missing source rows for dependency readiness.",collection:true,provenance:"organizationSlug"},
+  DailyReport:{description:"Read this owner's exact daily report for a local date, with source coverage, project dependencies and pinned Wiki revision."},
+  GenerateDailyReports:{description:"Start the same-owner daily report chain for a completed recovery date or previous local day as one durable registered task; editors only."},
+  ProjectDigests:{description:"Read the preserved Planning digest history for a project."},
+  GenerateProjectDigest:{description:"Start the registered digest task for one project and save its previous-local-day report; editors only."},
+  DigestRuns:{description:"Read daily digest/report run progress and failures."},
+  DigestSchedule:{description:"Read the existing daily owner report chain schedule."},
+  ChangeDigestSchedule:{description:"Enable or disable the existing daily report chain schedule; editors only."},
   Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
   IssueChanges: {description: "Create, replace, delete or reorder project issues. Use stable UUID item keys for safe retries; read Issues with includeIdentifiers:true first for IDs, current revisions and every issue in a category before reordering. Updates replace fields, so preserve values from the read. Any member of the installation may write."},
   ProjectRepositories:{description:"Read project repositories and their recent GitHub pull requests.",collection:true,provenance:"organizationSlug"},
   PriorityOrder:{description:"Read an organization priority order and revision."},
+  PersonalPortfolio:{description:"Read personal organization or cross-organization project order, authorized records and revision. Personal scope only; kind is organizations or projects."},
+  ReorderPersonalPortfolio:{description:"Save the complete personal portfolio order at its revision. Personal scope only; shared organization priorities are unchanged."},
   ReorderPriority:{description:"Save the complete priority order at its current revision."},
   SetProjectState:{description:"Change a project lifecycle state using its current revision, including restoring an archived project."},
-  GenerateProductReport:{description:"Start the registered product roadmap summary workflow for the current week. Editors only."},
+  GenerateProductReport:{description:"Start the registered product roadmap summary workflow for the selected at date or current week. Editors only."},
   ProductReportRuns:{description:"Read the latest roadmap summary workflow runs and their statuses."},
   ProductReportSchedule:{description:"Read daily product roadmap regeneration schedule and last outcome."},
   ChangeProductReportSchedule:{description:"Enable or disable daily roadmap regeneration at 13:00 UTC. Editors only."},

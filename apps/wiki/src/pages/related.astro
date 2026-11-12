@@ -1,21 +1,24 @@
 ---
+import {relatedType} from "../documents/navigation";
 import Layout from "../components/DocumentLayout.astro";
 import {defaultWiki} from "@ai-outfitter/app-sdk/graph-client";
 import {workflowHost} from "@ai-outfitter/app-sdk/workflow-host";
 import {mount} from "../documents/context";
 import type {EntityRecord} from "@ai-outfitter/app-sdk/entities";
 const root=mount(Astro.request),demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
-const offset=Math.max(0,Number(Astro.url.searchParams.get("offset"))||0);
+const type=relatedType(Astro.url.searchParams.get("type"));
+const label=type==="Goal"?"Goals":type==="Project"?"Projects":type==="Person"?"People":"People and projects";
+const offset=Math.max(0,Math.floor(Number(Astro.url.searchParams.get("offset"))||0));
 let records:EntityRecord[]=[],issue:string|undefined;
 if(!demo)try{
  const host=workflowHost<"interactive">(Astro.locals),onto=await defaultWiki(host);
- const types=await host.call("entities.list",{installationId:onto.installationId,type:"graph-type",filter:{names:["Person","Project"]},limit:10});
+ const types=await host.call("entities.list",{installationId:onto.installationId,type:"graph-type",filter:{names:type?[type]:["Person","Project"]},limit:10});
  if(types.length)records=await host.call("entities.list",{installationId:onto.installationId,type:"graph-node",filter:{typeIds:types.map(type=>type.ref.id),archived:false},offset,limit:50});
 }catch{issue="Connected information is unavailable. Your saved documents are still accessible.";}
 ---
-<Layout title="People and projects" description="Live information from Onto. Add a Wiki page when you want notes or a place in your navigation.">
+<Layout title={label} description="Live information from Onto. Add a Wiki page when you want notes or a place in your navigation.">
  {issue&&<p role="status">{issue}</p>}
  <ul class="wiki-list">{records.map(record=><li><a href={`${root}entity/${encodeURIComponent(record.ref.id)}`}>{record.title}</a><p>{String(record.attributes.summary ?? "")}</p></li>)}</ul>
- {!issue&&!records.length&&<p>No people or projects to show yet.</p>}
- {records.length===50&&<a href={`?offset=${offset+50}`}>More people and projects</a>}
+ {!issue&&!records.length&&<p>No {label.toLowerCase()} to show yet.</p>}
+ {records.length===50&&<a href={`?offset=${offset+50}${type?`&type=${type}`:""}`}>More {label.toLowerCase()}</a>}
 </Layout>

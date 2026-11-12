@@ -411,3 +411,27 @@ test("an explicitly mapped local organization can bind its unique older snapshot
     assert.equal(readFileSync(path,"utf8"),contents);
   }finally{await wiki.dispose();rmSync(directory,{recursive:true,force:true});}
 });
+
+test("legacy snapshot contracts reconcile with preserved prior revisions and identical restart receipts",async()=>{
+ const directory=mkdtempSync(join(tmpdir(),"legacy-local-ontology-"));
+ mkdirSync(join(directory,"wiki-snapshots"));
+ const legacy=structuredClone(snapshot);
+ for(const type of legacy.graph.types)if(type.category==="edge")delete (type as {ontology?:unknown}).ontology;
+ const path=join(directory,"wiki-snapshots",`${organizations[0].slug}.json`),original=JSON.stringify(legacy);
+ writeFileSync(path,original);
+ const wiki=await appWorker("onto",appArtifact(new URL("..",import.meta.url),"operational"),"legacy-local-onto");
+ try{
+  const first=await seedLocalInstallation({database:wiki.database,dataDirectory:directory,seed,organization:organizations[0]});
+  assert.match(first.notices.join("\n"),/canonical Wiki migration/);
+  const history=await wiki.database.prepare("SELECT recordId,revision,prior,snapshot FROM graph_revisions WHERE ref='wiki-onto-contract' ORDER BY recordId").all<{recordId:string;revision:number;prior:string;snapshot:string}>();
+  assert.equal(history.results.length,2);
+  assert.equal(JSON.parse(history.results[0].prior).ontology,undefined);
+  assert.equal(JSON.parse(history.results[0].prior).revision,2);
+  assert.equal(JSON.parse(history.results[0].snapshot).revision,3);
+  const before=JSON.stringify(history.results);
+  await seedLocalInstallation({database:wiki.database,dataDirectory:directory,seed,organization:organizations[0]});
+  const repeated=await wiki.database.prepare("SELECT recordId,revision,prior,snapshot FROM graph_revisions WHERE ref='wiki-onto-contract' ORDER BY recordId").all();
+  assert.equal(JSON.stringify(repeated.results),before);
+  assert.equal(readFileSync(path,"utf8"),original);
+ } finally {await wiki.dispose();rmSync(directory,{recursive:true,force:true});}
+});

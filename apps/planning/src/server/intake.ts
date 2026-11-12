@@ -17,6 +17,7 @@ import { requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import { graphDatabase } from "./graph-database";
+import { readProjectReleases, type ProjectReleaseReview } from "./project-releases";
 import { intakeType, findingType, assertionBody } from "./intake-ontology";
 import { submitWorkInput, planningExecutionActions } from "./work-execution";
 import {
@@ -50,6 +51,8 @@ export const intakeInput = z.strictObject({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(16000),
   projectId: z.uuid().optional(),
+  /** Caller-provided provenance only; never grants thread access or copies messages. */
+  originatingMessage: z.strictObject({ threadId: z.uuid(), messageId: z.string().min(1).max(200) }).optional(),
   sourceUrls: z
     .array(z.url({ protocol: /^https?$/ }))
     .max(32)
@@ -130,7 +133,24 @@ type Child = z.infer<typeof routeItem> & {
   gateReceipt?: unknown;
   gateError?: string;
 };
+export const releaseFitInput = z.strictObject({
+  intakeId: z.uuid(),
+  revision: z.number().int().positive(),
+  requestId: z.uuid(),
+  disposition: z.enum(["current-release", "deferred", "needs-research", "rejected"]),
+  rationale: z.string().trim().min(1).max(4000),
+  /** Existing Wiki Release identity and revision, scoped to the intake's project. */
+  release: z.strictObject({ id: z.uuid(), revision: z.number().int().positive() }).optional(),
+});
+type ReleaseFit = z.output<typeof releaseFitInput> & {
+  recordedAt: string;
+  recordedBy: string;
+  /** An unallocated deferred intake stays in Planning's existing intake backlog. */
+  backlog: boolean;
+};
 type Body = {
+  releaseFit?: ReleaseFit;
+  releaseFitHistory?: ReleaseFit[];
   originalInput?: z.infer<typeof intakeInput>;
   scopeReviews?: {
     requestId: string;
@@ -220,6 +240,14 @@ export class IntakeService {
         params: [this.c.identity.installationId, ...(start === null ? [] : [start]), ...(ids ?? []), limit],
       })
     ).map((row) => ({ id: String(row.id), revision: Number(row.revision), body: JSON.parse(String(row.body)) }));
+  }
+  /** Exact canonical project association; bounded with explicit coverage for delivery reads. */
+  async forProject(projectId: string) {
+    const rows = await this.c.store().query({
+      sql: "SELECT id,revision,body FROM planning_intakes WHERE installationId=? AND COALESCE(json_extract(body,'$.projectId'),json_extract(body,'$.input.projectId'))=? ORDER BY createdAt DESC,id LIMIT 101",
+      params: [this.c.identity.installationId, projectId],
+    });
+    return { truncated: rows.length > 100, rows: rows.slice(0, 100).map(row => ({ id: String(row.id), revision: Number(row.revision), body: JSON.parse(String(row.body)) } as Row)) };
   }
   async count(ids?: string[]) {
     const marks = ids?.map(() => "?").join(",");
@@ -590,8 +618,27 @@ export class IntakeService {
       digest: await key(record.attributes),
     };
   }
+  async releaseReview(projectId: string): Promise<ProjectReleaseReview> {
+    return readProjectReleases(this.c.host(), this.c.identity.installationId, projectId);
+  }
+  async validateReleaseFit(row: Row, fit: Pick<ReleaseFit, "release" | "disposition">) {
+    if (fit.disposition === "current-release" && !fit.release)
+      throw conflict("Current release disposition requires an existing Release revision");
+    if (!fit.release) return;
+    const projectId = row.body.projectId ?? row.body.input.projectId;
+    if (!projectId) throw conflict("Assign the intake project before selecting a Release");
+    const review = await this.releaseReview(projectId);
+    const release = review.releases.find((release) => release.id === fit.release!.id);
+    if (!release || release.revision !== fit.release.revision)
+      throw conflict("Release changed or is outside the intake project; review release fit again");
+  }
   async ready(row: Row, child: Child) {
     await this.fresh(row);
+    if ((deliveryKinds as readonly string[]).includes(child.kind) && row.body.releaseFit) {
+      if (row.body.releaseFit.disposition !== "current-release")
+        throw conflict(`Release fit chose ${row.body.releaseFit.disposition}`);
+      await this.validateReleaseFit(row, row.body.releaseFit);
+    }
     await this.policy(child);
     for (const kind of child.dependsOn) {
       const dependency = row.body.routes.find((item) => item.kind === kind);
@@ -1063,6 +1110,8 @@ export async function routeIntake(s: IntakeService, v: z.output<typeof routeInpu
   )
     throw conflict("Implementation has started; its project cannot change");
   if (v.projectId) {
+    if (row.body.releaseFit && v.projectId !== (row.body.projectId ?? row.body.input.projectId))
+      throw conflict("Revise the intake scope before changing its release-fit project");
     await s.c.host().call("entities.get", {
       installationId: s.c.identity.installationId,
       type: "project",
@@ -1235,6 +1284,10 @@ export async function reviseScope(s: IntakeService, v: z.output<typeof reviseSco
     { requestId: v.requestId, input: row.body.input, routes: row.body.routes },
   ];
   row.body.originalInput ??= row.body.input;
+  if (row.body.releaseFit) {
+    row.body.releaseFitHistory = [...(row.body.releaseFitHistory ?? []), row.body.releaseFit];
+    delete row.body.releaseFit;
+  }
   row.body.input = input;
   row.body.lastReview = v.requestId;
   row.body.routes = row.body.routes.map((child) => ({
@@ -1260,7 +1313,33 @@ async function implementation(s: IntakeService, v: z.output<typeof selection>, p
   const supportingSources = row.body.routes
     .filter((item) => discoveryKinds.includes(item.kind))
     .map((item) => ({ ...s.record(row, item).ref, revision: item.revision }));
+  if (row.body.releaseFit) supportingSources.push({
+    installationId: s.c.identity.installationId,
+    type: "intake-release-fit", id: row.id, revision: row.body.releaseFit.revision,
+  });
   return { row, child, supportingSources };
+}
+
+/** Persist an explicit release decision without creating delivery or approving Governance work. */
+export async function setIntakeReleaseFit(s: IntakeService, v: z.output<typeof releaseFitInput>) {
+  requireEditor(s.c.identity);
+  const row = await s.get(v.intakeId);
+  const previous = [row.body.releaseFit, ...(row.body.releaseFitHistory ?? [])].find((fit) => fit?.requestId === v.requestId);
+  if (previous) {
+    const { recordedAt, recordedBy, backlog, ...original } = previous;
+    if (canonicalActionValue(original) !== canonicalActionValue(v))
+      throw conflict("Release-fit request already has different content");
+    return row;
+  }
+  if (row.revision !== v.revision) throw conflict("Intake changed; review release fit again");
+  if (row.body.routes.some((child) => child.receipt || child.submissionIntent))
+    throw conflict("Submitted delivery is frozen; create a linked follow-up intake");
+  await s.fresh(row);
+  await s.validateReleaseFit(row, v);
+  if (row.body.releaseFit) row.body.releaseFitHistory = [...(row.body.releaseFitHistory ?? []), row.body.releaseFit];
+  row.body.releaseFit = { ...v, recordedAt: new Date().toISOString(), recordedBy: s.c.identity.userId,
+    backlog: v.disposition === "deferred" && !v.release };
+  return s.save(row);
 }
 
 /** The intake sidebar's project assignment: RouteIntake with only a project. */
@@ -1379,6 +1458,18 @@ export function intakeEntities(context: () => IntakeContext): EntityProvider[] {
     provenance: z.string(),
   });
   return [
+    defineEntity({
+      type: "intake-release-fit", title: "Planning release fit", description: "Revision-pinned release disposition for delivery packages",
+      schema: z.object({ decision: z.json() }),
+      name: (row: { id: string; title: string; revision: number; decision: unknown }) => row.title,
+      list: async () => [],
+      get: async (_who, id) => {
+        const row = await new IntakeService(context()).get(id);
+        if (!row.body.releaseFit) throw conflict("Release fit changed; preview the delivery package again");
+        return { id, title: row.body.input.title, revision: row.body.releaseFit.revision, decision: row.body.releaseFit };
+      },
+      attributes: row => ({ decision: row.decision }),
+    }),
     defineEntity({
       type: "intake",
       title: "Original Planning submission",

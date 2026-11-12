@@ -119,7 +119,7 @@ test("the catalog declares one read-only projects card for every member", async 
           cardId: "projects",
           title: "Projects",
           description:
-            "Projects in this Planning installation with their open and completed issue counts.",
+            "Organization projects with issue counts, or your authorized personal portfolio in its saved order.",
           sizes: ["small", "medium", "large"],
           defaultSize: "medium",
           actionIds: [],

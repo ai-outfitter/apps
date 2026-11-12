@@ -12,6 +12,7 @@ const { projectId = "", model } = Astro.props;
 const project = model.projects.find(project => project.id === projectId);
 const bootstrap = JSON.stringify({ projects: model.projects, issues: model.issues }).replaceAll("<", "\\u003c");
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const personalOrder=!demo && !projectId && !requestIdentity(Astro.request).organizationId && requestIdentity(Astro.request).canEdit;
 const canOrder = !demo && !!requestIdentity(Astro.request).organizationId && requestIdentity(Astro.request).canEdit;
 const href = (target: string) => appHref(Astro.url.pathname, target);
 const body = model.wikiBody ?? null;
@@ -25,24 +26,23 @@ const sections = project ? [
 ].filter((section) => section.records.length || section.text) : [];
 const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll("<", "\\u003c");
 ---
-  <div id="planning" data-can-order={String(canOrder)} data-project-workspace data-project-id={projectId}>
+  <div id="planning" data-can-order={String(canOrder)} data-personal-order={String(personalOrder)} data-project-workspace data-project-id={projectId}>
     <script is:inline type="application/json" id="project-page-data" set:html={bootstrap} />
     <script is:inline type="application/json" id="organization-goals-data" set:html={goalsBootstrap} />
-    {demo && (
+    {demo && !projectId && (
       <p class="planning-notice">
         Read-only demo · These projects and issues are synthetic.
       </p>
     )}
     <p role="status" id="planning-notice" hidden={!model.error}>{model.error}</p>
     <p role="status" id="directory-notice" hidden></p>
-    {projectId && <p id="project-back"><a href={href("/projects")}>← All projects</a></p>}
     <p id="empty" hidden={!!model.projects.length || !!model.error}>
       No projects yet. Create one to describe the outcome and start planning.
     </p>
     <div id="project-readiness" hidden></div>
     <div id="project-cards" hidden={!!projectId} aria-label="Projects">
       {!projectId && organizationCards(model.cards.map(({ project: item, openIssues }) => ({ ...item, openIssues })), model.organizationGoals ?? {}).map((card) => (
-        <section class="planning-org-card" aria-label={card.label}>
+        <section class="planning-org-card" data-organization-key={card.key} aria-label={card.label}>
           <header class="planning-org-card-header"><h2>{card.label}</h2></header>
           {card.goals.length > 0 && (
             <div class="planning-goal-chart" role="group" aria-label={`${card.label} goals`}>
@@ -188,3 +188,5 @@ const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll(
 </script>
 <script>import "../scripts/code-changes";</script>
 <script>import "../scripts/shipped";</script>
+
+<script>import "../scripts/personal-portfolio";</script>

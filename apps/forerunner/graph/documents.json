@@ -32,6 +32,126 @@
     "hidden": true
   },
   {
+    "name": "CreatePlanningIntake",
+    "kind": "mutation",
+    "story": "As a member, I want to confirm one discovered need into my selected owner-scoped Planning installation, so that existing governed intake takes over with source provenance and safe retries.",
+    "query": "mutation CreatePlanningIntake($input: CreatePlanningIntakeInput!) {\n  createPlanningIntake(input: $input)\n}",
+    "hash": "c50b9842c8c17bd0029ba07de8921a87b0387561c136c181fde86c392a31b95e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CreatePlanningIntakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "After explicit confirmation, capture the selected canonical need using existing Planning CreateIntake in the same owner scope. Read PlanningCandidates first; pass its current expectedId/revision and confirmDestination:true. Does not create a new project, choose release fit, or move personal findings into an organization."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createPlanningIntake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DailyBriefSchedule",
+    "kind": "query",
+    "story": "As a member, I want to see when my personal brief runs, so that I can inspect it without changing its schedule.",
+    "query": "query DailyBriefSchedule($input: JSON!) {\n  dailyBriefSchedule(input: $input)\n}",
+    "hash": "b308ddf0f4549e2ef7a25b6ece9aab732458fbfbf541ba5a7bd62bf9ba4eedc6",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the saved daily brief schedule. Does not create or enable schedules."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyBriefSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DailyHome",
+    "kind": "query",
+    "story": "As a member, I want the saved daily roll-up and last week's actual reports on my homepage, with source gaps and a stable Wiki revision, so that I can review progress without triggering jobs.",
+    "query": "query DailyHome($input: DailyHomeInput!) {\n  dailyHome(input: $input)\n}",
+    "hash": "19955401e2b02e7047368ed74ad6de811b27b574648f447bd445641162ad61aa",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DailyHomeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyHome": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DayReview",
+    "kind": "query",
+    "story": "As a member, I want yesterday’s completed board tasks and saved reports across my organizations, with earlier dates and source coverage, so that I can review progress without starting new work.",
+    "query": "query DayReview($input: DayReviewInput!) {\n  dayReview(input: $input)\n}",
+    "hash": "cb7b00dbcef7755a63737911fd3a43035a7f314d0aea4c82fd7168247e2e4d96",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DayReviewInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a completed day’s board completion events and saved cross-organization daily reports in personal priority order. Optional date defaults to yesterday; timezone defaults to America/Chicago. Missing reports and partial coverage are explicit; no generation starts."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dayReview": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "DeleteItem",
     "kind": "mutation",
     "story": "As a member, I want to delete one of my items at the revision I last saw, so that finished or mistaken work leaves my board.",
@@ -83,6 +203,36 @@
       "required": []
     },
     "hidden": true
+  },
+  {
+    "name": "GenerateDailyBrief",
+    "kind": "mutation",
+    "story": "As a member, I want to explicitly refresh my personal daily Wiki brief from authorized saved sources, so that I can see current priorities and coverage gaps.",
+    "query": "mutation GenerateDailyBrief($input: GenerateDailyBriefInput!) {\n  generateDailyBrief(input: $input)\n}",
+    "hash": "e67e4bb2f3a75130b70136d48fa8a74a68baf28a1dac3e576b1d56d6d40b082e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL GenerateDailyBriefInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Generate today's personal Wiki brief now, recording a workflow run and exact Wiki revision. Idempotent content writes; missing sources remain incomplete."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateDailyBrief": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "ItemChanges",
@@ -442,6 +592,36 @@
     "hidden": true
   },
   {
+    "name": "PlanningCandidates",
+    "kind": "query",
+    "story": "As a member, I want current canonical need identities from my saved discovery, so that I can choose a corrected and reviewed finding for Planning without copying private mail.",
+    "query": "query PlanningCandidates($input: PlanningCandidatesInput!) {\n  planningCandidates(input: $input)\n}",
+    "hash": "38ea0d09667ee6133e241498dacfda7bceb084bd73fdd6a95679300a499faee8",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PlanningCandidatesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read canonical saved needs from a private discovery preview before selecting a Planning handoff. Returns current corrected IDs and revisions, never source email samples."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "planningCandidates": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ReorderItems",
     "kind": "mutation",
     "story": "As a member, I want to rank a whole category of my board in one move, so that the order I work in is saved all at once or not at all.",
@@ -459,6 +639,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "SetDailyBriefSchedule",
+    "kind": "mutation",
+    "story": "As a member, I want one standard daily briefing schedule in my timezone, so that I can enable or disable it explicitly.",
+    "query": "mutation SetDailyBriefSchedule($input: SetDailyBriefScheduleInput!) {\n  setDailyBriefSchedule(input: $input)\n}",
+    "hash": "8945afac9390df9f00907acc45d67676001c484ae37835d65e03551bf40f7713",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetDailyBriefScheduleInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. Existing Planning source reports are read; raw mail and analytics adapters are not enabled."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "setDailyBriefSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "SetDailyRun",

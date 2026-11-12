@@ -247,7 +247,7 @@ export type Digest = typeof digests.$inferSelect;
 
 export const priorityOrder = sqliteTable("planning_priority_order", {
   installationId: text().notNull(),
-  kind: text({ enum: ["projects", "products"] }).notNull(),
+  kind: text({ enum: ["projects", "products", "portfolio-organizations", "portfolio-projects"] }).notNull(),
   items: text().notNull().default("[]"),
   revision: integer().notNull().default(1),
 }, t => [uniqueIndex("planning_priority_order_scope").on(t.installationId, t.kind)]);

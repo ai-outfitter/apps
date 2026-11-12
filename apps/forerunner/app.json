@@ -30,7 +30,8 @@
         "storage.artifacts.write",
         "routines.manage",
         "platform.documents",
-        "platform.records"
+        "platform.records",
+        "workflow.forerunner-daily-brief.start"
       ]
     }
   },
@@ -50,6 +51,10 @@
       {
         "label": "Today",
         "path": ""
+      },
+      {
+        "label": "Yesterday",
+        "path": "yesterday"
       },
       {
         "label": "Life",
@@ -79,8 +84,8 @@
     "presentation": {
       "outcome": "Keep your highest priorities moving with a private board of stones, pebbles and sand.",
       "connectors": [
-        "Gmail · unavailable",
-        "Google Calendar · unavailable"
+        "Gmail \u00b7 unavailable",
+        "Google Calendar \u00b7 unavailable"
       ],
       "steps": [
         [

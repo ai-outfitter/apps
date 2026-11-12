@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import type { ModelDescription, Thread, ThreadActor, ThreadTypeDescriptor } from "@ai-outfitter/app-sdk/threads";
+import type { ModelDescription, Thread, ThreadActor, ThreadTypeDescriptor, ThreadContextSource } from "@ai-outfitter/app-sdk/threads";
 import type { LanguageModel } from "ai";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
@@ -96,6 +96,9 @@ export type ThreadAdapters = {
   deletion?(thread: { id: string; incarnation: string }, when: SQL): unknown[];
   /** Whether this caller may inspect replies' prompts and tools (platform administrators). None by default. */
   inspector?(principal: ThreadPrincipal): Promise<boolean>;
+  /** Resolve authorized, same-owner snapshots at exact revisions on every reply.
+   * Content is transient data, never a transcript checkpoint or trusted instruction. */
+  source?(principal: ThreadPrincipal, source: ThreadContextSource, thread: Thread): Promise<unknown>;
   /** Trusted base instructions placed before the provider's (none by default). */
   baseInstructions?: string;
   /** The platform's own agent tools, for a provider that asks for them (`platformTools` from prepare). */

@@ -55,3 +55,10 @@ export const discoveryRecords = sqliteTable(
     index("forerunner_discovery_owner").on(t.installationId, t.ownerId, t.kind),
   ],
 );
+
+
+// Captured only on a real transition to done; edits, reopening and deletion do not rewrite history.
+export const itemCompletions = sqliteTable("forerunner_item_completions", {
+  id: text().primaryKey(), installationId: text().notNull(), ownerId: text().notNull(), itemId: text().notNull(),
+  title: text().notNull(), category: text().notNull(), revision: integer().notNull(), completedAt: integer().notNull(),
+}, table => [index("forerunner_completions_owner_date").on(table.installationId, table.ownerId, table.completedAt)]);

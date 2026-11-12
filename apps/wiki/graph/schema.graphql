@@ -45,6 +45,11 @@ type WikiPage {
 }
 
 type Mutation {
+  """
+  Revise only the generated draft section while preserving authored and published content.
+  """
+  saveGeneratedDocument(input: SaveGeneratedDocumentInput!): WikiDocument
+
   """Save a revisioned draft without publishing it."""
   saveDocument(input: SaveDocumentInput!): WikiDocument
 
@@ -57,6 +62,18 @@ type Mutation {
   """Archive a document without deleting its history."""
   archiveDocument(input: ArchiveDocumentInput!): WikiDocument
 }
+
+input SaveGeneratedDocumentInput {
+  id: String
+  revision: Float
+  slug: String
+  title: String
+  generatedBody: String!
+  provenance: JSON!
+}
+
+"""Any JSON value."""
+scalar JSON
 
 input SaveDocumentInput {
   id: String

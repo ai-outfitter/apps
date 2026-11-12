@@ -11,6 +11,19 @@ import type { ForerunnerContext } from "./context";
 import { graphqlSchema } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  DailyHome: { story: "As a member, I want the saved daily roll-up and last week's actual reports on my homepage, with source gaps and a stable Wiki revision, so that I can review progress without triggering jobs.", document: graphql(`query DailyHome($input:DailyHomeInput!){dailyHome(input:$input)}`) },
+  DailyBriefSchedule: { story: "As a member, I want to see when my personal brief runs, so that I can inspect it without changing its schedule.", document: graphql(`query DailyBriefSchedule($input:JSON!){dailyBriefSchedule(input:$input)}`) },
+  SetDailyBriefSchedule: { story: "As a member, I want one standard daily briefing schedule in my timezone, so that I can enable or disable it explicitly.", document: graphql(`mutation SetDailyBriefSchedule($input:SetDailyBriefScheduleInput!){setDailyBriefSchedule(input:$input)}`) },
+  GenerateDailyBrief: { story: "As a member, I want to explicitly refresh my personal daily Wiki brief from authorized saved sources, so that I can see current priorities and coverage gaps.", document: graphql(`mutation GenerateDailyBrief($input:GenerateDailyBriefInput!){generateDailyBrief(input:$input)}`) },
+  DayReview: { story: "As a member, I want yesterday’s completed board tasks and saved reports across my organizations, with earlier dates and source coverage, so that I can review progress without starting new work.", document: graphql(`query DayReview($input:DayReviewInput!){dayReview(input:$input)}`) },
+  PlanningCandidates: {
+    story: "As a member, I want current canonical need identities from my saved discovery, so that I can choose a corrected and reviewed finding for Planning without copying private mail.",
+    document: graphql(`query PlanningCandidates($input: PlanningCandidatesInput!) { planningCandidates(input: $input) }`),
+  },
+  CreatePlanningIntake: {
+    story: "As a member, I want to confirm one discovered need into my selected owner-scoped Planning installation, so that existing governed intake takes over with source provenance and safe retries.",
+    document: graphql(`mutation CreatePlanningIntake($input: CreatePlanningIntakeInput!) { createPlanningIntake(input: $input) }`),
+  },
   Board: {
     hidden:true,
     story: "As an agent, I want the member's unfinished board items with their revisions, so that I can add to, complete or reorder their board without overwriting a change they made.",
@@ -63,6 +76,13 @@ const legacyDocuments = defineDocuments({
 // schedules and runs are the platform's documents (Schedules, ScheduleChanges,
 // WorkflowRuns, WorkflowRunChanges), which the Workflows page runs too.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  DailyHome: { description: "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts." },
+  DailyBriefSchedule: { description: "Read the saved daily brief schedule. Does not create or enable schedules." },
+  SetDailyBriefSchedule: { description: "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. Existing Planning source reports are read; raw mail and analytics adapters are not enabled." },
+  GenerateDailyBrief: { description: "Generate today's personal Wiki brief now, recording a workflow run and exact Wiki revision. Idempotent content writes; missing sources remain incomplete." },
+  DayReview: { description: "Read a completed day’s board completion events and saved cross-organization daily reports in personal priority order. Optional date defaults to yesterday; timezone defaults to America/Chicago. Missing reports and partial coverage are explicit; no generation starts." },
+  PlanningCandidates: { description: "Read canonical saved needs from a private discovery preview before selecting a Planning handoff. Returns current corrected IDs and revisions, never source email samples." },
+  CreatePlanningIntake: { description: "After explicit confirmation, capture the selected canonical need using existing Planning CreateIntake in the same owner scope. Read PlanningCandidates first; pass its current expectedId/revision and confirmDestination:true. Does not create a new project, choose release fit, or move personal findings into an organization." },
   Suggestions: { description: "Read the open suggestions from the member's daily Forerunner run: a workflow to turn on, a change to one of their routines (routineId is the routine in platform Schedules), or an app to build." },
   SuggestionChanges: { description: "Act on suggestions from Suggestions with action update and a status: applied turns a workflow on or rewrites the routine it changes, dismissed sets it aside. An app suggestion is built from Apps, so it can only be dismissed here." },
 });

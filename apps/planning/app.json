@@ -69,7 +69,8 @@
   },
   "dependencies": [
     "onto",
-    "governance"
+    "governance",
+    "wiki-map"
   ],
   "initialize": true
 }

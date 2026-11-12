@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Restore personal local graphs through audited legacy endpoint reconciliation, preserving source records and type revision history. Repair the exact shipped commitment-subject contract omission for historical Person subjects; fresh seeds include Person and custom explicit contracts remain enforced.
+
 ## [0.1.6](https://github.com/ai-outfitter/apps/compare/onto-v0.1.5...onto-v0.1.6) (2026-11-10)
 
 

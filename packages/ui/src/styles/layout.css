@@ -80,7 +80,6 @@
 .app-shell > .sidebar .sidebar-footer {
   margin-top: auto;
   padding: 18px 8px 0;
-  border-top: 1px solid var(--border);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -281,7 +280,6 @@ a.chat-link {
 .ui-navigation--utilities {
   margin-top: auto;
   padding-top: 18px;
-  border-top: 1px solid var(--border);
 }
 .ui-content {
   width: 100%;
@@ -360,3 +358,32 @@ a.chat-link {
     animation: none;
   }
 }
+
+.personal-rail:not([hidden]) {
+  width: 64px;
+  flex: 0 0 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 8px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+}
+.personal-rail > nav { display: flex; flex-direction: column; gap: 8px; }
+.personal-rail > nav a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 7px; color: var(--muted); }
+.personal-rail > nav a:hover, .personal-rail > nav a[aria-current="page"] { background: var(--hover); color: var(--text); }
+@media (max-width: 760px) {
+  .personal-rail:not([hidden]) { width: 56px; flex-basis: 56px; padding: calc(8px + env(safe-area-inset-top)) 6px 8px; }
+  .app-shell:has(.personal-rail:not([hidden])) > .sidebar { left: 56px; }
+  .app-shell:has(.personal-rail:not([hidden])) { --sidebar-width: min(320px, calc(100vw - 112px)); }
+}
+@media (max-width: 760px) {
+  .personal-rail:not([hidden]) { position: relative; z-index: 2; }
+}
+
+.personal-rail-account { margin-top: auto; width: 100%; position: relative; }
+.personal-rail-account .sidebar-footer { position: relative; display: flex; justify-content: center; }
+.personal-rail-account .account-toggle { flex: none; margin: 0; }
+.personal-rail-account .account-toggle > span:not(.avatar) { display: none; }
+.personal-rail-account .account-menu { left: calc(100% + 8px); right: auto; width: min(360px, calc(100vw - 80px)); max-height: calc(100dvh - 80px); overflow-y: auto; }

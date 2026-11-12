@@ -177,6 +177,9 @@ test("hardware and firmware prepare independently: Workshop project read back, F
     const done = await f.runTask(result.preparation.id);
     assert.equal(done.state, "prepared");
     const read = await f.delivery(result.id);
+    assert.equal(read.intakeDecisions.truncated, false);
+    assert.ok(read.intakeDecisions.items.length > 0);
+    assert.ok(read.intakeDecisions.items.some((item: any) => item.questions.some((question: string) => question.includes("Release"))));
     const plan = read.preparation.plan;
     assert.deepEqual(plan.routes.map((r: any) => r.kind).sort(), ["hardware", "implementation"]);
     assert.ok(plan.routes.every((r: any) => r.gate?.controlId === undefined || r.gate), "routes carry a gate when Governance has one");

@@ -1,0 +1,45 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import ForerunnerLayout from "../../components/ForerunnerLayout.astro";
+import { forerunnerContext } from "../../server/context";
+import { findItem, listItems } from "../../server/items";
+import type { Item } from "../../server/schema";
+import { rootHref } from "../../root-href";
+let item: Item | undefined, records: Item[] = [], error = "";
+const base = rootHref(Astro.url.pathname, 2);
+if (import.meta.env.OUTFITTER_APP_MODE === "operational") {
+  try {
+    const context = forerunnerContext(Astro.request, Astro.locals);
+    item = await findItem(context.db(), context.identity, Astro.params.id ?? "");
+    if (!item) { Astro.response.status = 404; error = "Task not found. It may have been deleted or belong to another board."; }
+    else records = await listItems(context.db(), context.identity);
+  } catch (cause) {
+    if (cause instanceof Response && [401,403].includes(cause.status)) throw cause;
+    item = undefined; Astro.response.status = 503; error = "This task could not be loaded. Retry from your board.";
+  }
+} else { Astro.response.status = 404; error = "Task details are available on your installed board."; }
+const stones = records.filter(row => row.category === "stone" && row.id !== item?.id);
+const children = records.filter(row => row.parentId === item?.id);
+---
+<ForerunnerLayout title={item?.title ?? "Task unavailable"} description={item ? `Your private ${item.category}. Changes stay on your board.` : error} page="board" routeDepth={2}>
+  <div slot="intro-actions" class="task-page-actions">
+    <Button href={`${base}board`} variant="secondary">Your board</Button>
+    {item && <><Button id="refresh-task" variant="secondary">Load latest revision</Button><Button id="delete-task" variant="secondary">Delete task</Button><Button type="submit" form="task-form">Save changes</Button></>}
+  </div>
+  {item ? <section id="task-detail">
+    <p id="task-message" role="status" aria-live="polite"></p><p id="task-error" role="alert" hidden></p>
+    <p>Saved revision <span id="task-revision">{item.revision}</span></p>
+    <form method="post" id="task-form" class="manual-form" data-task={JSON.stringify(item)}>
+      <div><label for="task-title">Title</label><input id="task-title" name="title" value={item.title} maxlength="160" required /></div>
+      <div><label for="task-description">Description</label><textarea id="task-description" name="description" maxlength="4000" rows="5">{item.description}</textarea></div>
+      <div><label for="task-due">Due date</label><input id="task-due" name="dueDate" type="date" value={item.dueDate ?? ""} /></div>
+      <div><label for="task-status">Status</label><select id="task-status" name="status"><option value="todo" selected={item.status === "todo"}>To do</option><option value="in-progress" selected={item.status === "in-progress"}>In progress</option><option value="done" selected={item.status === "done"}>Done</option></select></div>
+      {item.category !== "stone" && <div><label for="task-parent">Stone</label><select id="task-parent" name="parentId" required={item.category === "pebble"}><option value="">No stone</option>{stones.map(stone => <option value={stone.id} selected={stone.id === item?.parentId}>{stone.title}</option>)}</select></div>}
+    </form>
+    <noscript>Enable JavaScript to save or delete this task. Your saved task remains readable.</noscript>
+    <details id="latest-task" hidden><summary>Current saved version</summary><p id="latest-task-value"></p></details>
+    {children.length > 0 && <section aria-label="Tasks in this stone"><h2>Tasks in this stone</h2><p>Reassign these tasks before deleting their stone.</p><ul>{children.map(child => <li><a href={`${base}items/${encodeURIComponent(child.id)}`}>{child.title}</a> · {child.status.replace("-"," ")}</li>)}</ul></section>}
+  </section> : <p role="alert">{error}</p>}
+</ForerunnerLayout>
+<script>import "../../scripts/task-detail";</script>
+<style>.task-page-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-left:auto} #task-form > div{display:grid;gap:6px} #task-error{color:var(--error)} #latest-task-value{white-space:pre-wrap;overflow-wrap:anywhere}</style>

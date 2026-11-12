@@ -5,7 +5,7 @@ import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { defaultWiki, wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
-import { planningEntities } from "./entities";
+import { planningEntity } from "./entities";
 import type { PlanningDatabase } from "./planning";
 
 export const useCaseTypeId = "ec742645-38b4-4b1e-a25a-77e3757b9f05";
@@ -75,7 +75,7 @@ async function checkProject(
 ) {
   if (!z.uuid().safeParse(id).success)
     throw new Response("Select a valid project", { status: 400 });
-  await planningEntities(db)[0].get(who, id);
+  await planningEntity(db, "project").get(who, id);
 }
 export async function listUseCases(
   db: PlanningDatabase,

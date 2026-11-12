@@ -1,9 +1,14 @@
-import { prepareIntakeAction } from "../src/server/intake-agent";
+import { intakeAgent, intakeAgentFocus, prepareIntakeAction } from "../src/server/intake-agent";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient, type InValue } from "@libsql/client";
 import type { z } from "zod";
 import {
+  releaseFitInput,
+  setIntakeReleaseFit,
+  intakeEntities,
+  submitIntakeWork,
+  submitIntakeInput,
   claimInput,
   claimWork,
   IntakeService,
@@ -785,4 +790,119 @@ test("routing with only a project keeps the routes; discovery work does not free
   } finally {
     f.client.close();
   }
+});
+
+
+test("release fit retains decisions, retries safely and keeps unallocated deferred intake in backlog", async () => {
+  const f = await fixture();
+  try {
+    let row = await f.service.create(input);
+    const first = releaseFitInput.parse({ intakeId: row.id, revision: row.revision,
+      requestId: crypto.randomUUID(), disposition: "deferred", rationale: "Wait for customer evidence" });
+    row = await setIntakeReleaseFit(f.service, first);
+    assert.equal(row.body.releaseFit?.backlog, true);
+    assert.equal((await setIntakeReleaseFit(f.service, first)).revision, row.revision);
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...first, rationale: "different" }), status(409));
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...first, requestId: crypto.randomUUID() }), status(409));
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...first, requestId: crypto.randomUUID(), revision: row.revision,
+      disposition: "current-release" }), status(409));
+    const next = { ...first, requestId: crypto.randomUUID(), revision: row.revision,
+      disposition: "needs-research" as const, rationale: "Compare the existing alternatives" };
+    row = await setIntakeReleaseFit(f.service, next);
+    assert.equal(row.body.releaseFitHistory?.length, 1);
+    assert.equal(row.body.releaseFitHistory?.[0].requestId, first.requestId);
+    assert.equal(row.body.releaseFit?.recordedBy, "member");
+    const implementation = { id: crypto.randomUUID(), revision: 1, kind: "implementation" as const,
+      dependsOn: [], rationale: "Build", gate };
+    await assert.rejects(f.service.ready(row, implementation), status(409));
+    f.context.identity.canEdit = false;
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...next, requestId: crypto.randomUUID(), revision: row.revision }), status(403));
+  } finally { f.client.close(); }
+});
+
+test("release fit binds the canonical project's existing Release revision and freezes submitted delivery", async () => {
+  const f = await fixture();
+  try {
+    const projectId = crypto.randomUUID(), releaseId = crypto.randomUUID();
+    let releaseRevision = 3;
+    f.service.releaseReview = async (id) => {
+      assert.equal(id, projectId);
+      return { project: { title: "Project" }, wiki: null, documents: [], demonstrations: {},
+        releases: [{ id: releaseId, title: "Next release", revision: releaseRevision, body: "{}" }] };
+    };
+    let row = await f.service.create({ ...input, projectId,
+      originatingMessage: { threadId: crypto.randomUUID(), messageId: "message-1" } });
+    const fit = releaseFitInput.parse({ intakeId: row.id, revision: row.revision,
+      requestId: crypto.randomUUID(), disposition: "current-release", rationale: "Addresses the release problem",
+      release: { id: releaseId, revision: 3 } });
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...fit, release: { id: crypto.randomUUID(), revision: 3 } }), status(409));
+    row = await setIntakeReleaseFit(f.service, fit);
+    assert.equal(row.body.releaseFit?.backlog, false);
+    await f.service.validateReleaseFit(row, row.body.releaseFit!);
+    releaseRevision++;
+    await assert.rejects(f.service.validateReleaseFit(row, row.body.releaseFit!), status(409));
+    // Package source identity tracks disposition edits even though the original intake entity stays immutable.
+    const provider = intakeEntities(() => f.context).find((p) => p.type === "intake-release-fit");
+    assert.ok(provider);
+    const pinned = await provider.get(f.context.identity, row.id);
+    assert.equal(pinned.revision, fit.revision);
+    assert.deepEqual(pinned.attributes.decision, row.body.releaseFit);
+    releaseRevision = 3;
+    const childId = crypto.randomUUID();
+    row.body.routes.push({ id: childId, revision: 1, kind: "implementation", dependsOn: [], rationale: "Build", gate });
+    row = await f.service.save(row);
+    const work = { preview: { projectId, supportingSources: [] } } as unknown as z.output<typeof submitIntakeInput>["work"];
+    await assert.rejects(submitIntakeWork(f.service, { intakeId: row.id, childId, work }), status(409));
+    const originalFitRevision = fit.revision;
+    row = await setIntakeReleaseFit(f.service, { ...fit, revision: row.revision, requestId: crypto.randomUUID(), rationale: "Updated fit evidence" });
+    work.preview.supportingSources = [{ installationId: "planning", type: "intake-release-fit", id: row.id, revision: originalFitRevision }];
+    await assert.rejects(submitIntakeWork(f.service, { intakeId: row.id, childId, work }), status(409));
+    row.body.routes[0].receipt = { id: "delivery" };
+    row = await f.service.save(row);
+    await assert.rejects(setIntakeReleaseFit(f.service, { ...fit, revision: row.revision, requestId: crypto.randomUUID(),
+      disposition: "rejected" }), status(409));
+  } finally { f.client.close(); }
+});
+
+test("scope revision archives release fit and original message provenance survives retries", async () => {
+  const f = await fixture();
+  try {
+    const original = { ...input, originatingMessage: { threadId: crypto.randomUUID(), messageId: "message-2" } };
+    let row = await f.service.create(original);
+    assert.equal((await f.service.create(original)).id, row.id);
+    await assert.rejects(f.service.create({ ...original, originatingMessage: { ...original.originatingMessage, messageId: "other" } }), status(409));
+    row = await setIntakeReleaseFit(f.service, releaseFitInput.parse({ intakeId: row.id, revision: row.revision,
+      requestId: crypto.randomUUID(), disposition: "deferred", rationale: "Later" }));
+    row = await reviseScope(f.service, reviseScopeInput.parse({ intakeId: row.id, revision: row.revision,
+      requestId: crypto.randomUUID(), title: "New scope", description: "Changed scope", sources: input.sources }));
+    assert.equal(row.body.releaseFit, undefined);
+    assert.equal(row.body.releaseFitHistory?.length, 1);
+    assert.deepEqual(row.body.input.originatingMessage, original.originatingMessage);
+  } finally { f.client.close(); }
+});
+
+
+test("intake sidebar prepares canonical next questions and release-fit proposals with a stable conversation source", async () => {
+  const f = await fixture();
+  try {
+    await f.service.create(input);
+    const agent = intakeAgent(f.context);
+    const thread = { id: crypto.randomUUID(), installationId: "planning", type: "planning.discovery-conversation",
+      context: { type: "planning.discovery", id: intakeAgentFocus }, visibility: "private", createdBy: "member" };
+    const messageId = crypto.randomUUID();
+    const prepareInput = { thread, entry: { id: messageId }, submissionId: crypto.randomUUID(), retry: false } as Parameters<typeof agent.prepare>[0];
+    const first = await agent.prepare(prepareInput), again = await agent.prepare(prepareInput);
+    const context = first.context as any;
+    assert.equal(context.conversationSource.threadId, thread.id);
+    assert.equal(context.conversationSource.messageId, messageId);
+    assert.deepEqual(context.conversationSource, (again.context as any).conversationSource);
+    assert.ok(context.intake[0].questions.some((question: string) => question.includes("Release")));
+    assert.equal(context.installationId, "planning");
+    assert.deepEqual(context.ownerScope, f.context.identity.owner);
+    assert.ok(first.tools?.some(tool => /release_fit/.test(tool.name)));
+    assert.ok(first.tools?.some(tool => /release_options/.test(tool.name)));
+    assert.ok(first.tools?.some(tool => /projects/.test(tool.name)));
+    assert.match(first.instructions, /successCriteria/);
+    assert.equal(prepareIntakeAction("intake.release-fit", { rationale: "Later" }, "stable-request").requestId, "stable-request");
+  } finally { f.client.close(); }
 });

@@ -156,3 +156,74 @@ test("personal data that does not fit the Wiki is refused before anything is wri
   await assert.rejects(inspect({ edges: [edge(24, uuid(1), uuid(99))] }), /references a missing node/);
   await assert.rejects(inspect({ edges: [...seed.edges, edge(25, uuid(1), uuid(2))] }), /repeats a relationship/);
 });
+
+test("personal legacy contracts reconcile before insertion and preserve authored revision history across restarts", async () => {
+  const legacy = structuredClone(seed);
+  const relationship = legacy.types.find((row) => row.id === core.uses)!;
+  delete (relationship as { ontology?: unknown }).ontology;
+  Object.assign(relationship, { revision: 7, createdBy: "personal-author", updatedBy: "personal-author", createdAt: 1, updatedAt: 2 });
+  const original = JSON.stringify(legacy);
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "personal-legacy-contract");
+  try {
+    const inspected = await inspectPersonalData({ ...context, seed: legacy });
+    assert.match(inspected.notices.join("\n"), /canonical Wiki migration/);
+    const first = await seedPersonalInstallation({ ...context, seed: legacy, database: wiki.database, installationId: "personal-legacy-contract" });
+    assert.match(first.notices.join("\n"), /original definitions retained/);
+    const history = async () => (await wiki.database.prepare("SELECT recordId,revision,prior,snapshot FROM graph_revisions WHERE ref='wiki-onto-contract' ORDER BY recordId").all<{recordId: string; revision: number; prior: string; snapshot: string}>()).results;
+    const receipts = await history();
+    const receipt = receipts.find((row) => row.recordId === core.uses)!;
+    assert.ok(receipt);
+    assert.equal(JSON.parse(receipt.prior).revision, 7);
+    assert.equal(JSON.parse(receipt.prior).ontology, undefined);
+    assert.equal(JSON.parse(receipt.snapshot).revision, 8);
+    assert.equal(JSON.parse(receipt.snapshot).createdBy, "personal-author");
+    const before = JSON.stringify(receipts);
+    await seedPersonalInstallation({ ...context, seed: legacy, database: wiki.database, installationId: "personal-legacy-contract" });
+    assert.equal(JSON.stringify(await history()), before);
+    const graph = await snapshot(wiki);
+    for (const record of [...legacy.nodes, ...legacy.projects]) assert.ok(graph.nodes.some((row) => row.id === record.id));
+    for (const record of legacy.edges) assert.ok(graph.edges.some((row) => row.id === record.id));
+    assert.equal(JSON.stringify(legacy), original, "saved source stays unchanged");
+  } finally {
+    await wiki.dispose();
+  }
+});
+
+test("only the known shipped personal commitment subject omission is repaired with an audit receipt", async () => {
+  const subjectId = "86cd3b21-71e2-5dfa-9bd0-000000000015";
+  const commitmentId = "86cd3b21-71e2-5dfa-9bd0-000000000003";
+  const current = packageType(subjectId);
+  assert.ok(current.ontology?.endpoints?.to !== "any" && current.ontology?.endpoints?.to.includes(core.person), "fresh package supports person subjects");
+  const saved = structuredClone(seed);
+  saved.types.push({ ...structuredClone(current), ontology: { version: 2, endpoints: {
+    from: [commitmentId], to: ["86cd3b21-71e2-5dfa-9bd0-000000000001", core.organization, core.product],
+  } }, revision: 12, createdBy: "personal-author", createdAt: 1 } as typeof saved.types[number]);
+  saved.nodes.push(node(uuid(70), commitmentId, "Personal commitment"), node(uuid(71), core.person, "Personal subject"));
+  saved.edges.push(edge(72, uuid(70), uuid(71), { typeId: subjectId }));
+  const original = JSON.stringify(saved);
+  const unknown = structuredClone(saved);
+  unknown.types.find((type) => type.id === subjectId)!.ontology!.endpoints!.to = [core.organization];
+  await assert.rejects(inspectPersonalData({ ...context, seed: unknown }), /endpoint types disallowed by commitment_subject/);
+  const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "personal-person-subject");
+  try {
+    await seedPersonalInstallation({ ...context, seed: saved, database: wiki.database, installationId: "personal-person-subject" });
+    const receipt = async () => (await wiki.database.prepare("SELECT prior,snapshot,approval FROM graph_revisions WHERE recordId=? AND revision=13").bind(subjectId).all<{prior: string; snapshot: string; approval: string}>()).results;
+    const first = await receipt();
+    assert.equal(first.length, 1);
+    assert.equal(JSON.parse(first[0].prior).revision, 12);
+    assert.equal(JSON.parse(first[0].snapshot).revision, 13);
+    assert.ok(JSON.parse(first[0].snapshot).ontology.endpoints.to.includes(core.person));
+    assert.match(JSON.parse(first[0].approval).reason, /omitted Person target/);
+    const graph = await snapshot(wiki);
+    assert.equal(graph.edges.filter((row) => row.id === uuid(72)).length, 1);
+    const before = JSON.stringify(first);
+    await seedPersonalInstallation({ ...context, seed: saved, database: wiki.database, installationId: "personal-person-subject" });
+    assert.equal(JSON.stringify(await receipt()), before);
+    const replay = await snapshot(wiki);
+    assert.equal(replay.nodes.length, graph.nodes.length);
+    assert.equal(replay.edges.length, graph.edges.length);
+    assert.equal(JSON.stringify(saved), original);
+  } finally {
+    await wiki.dispose();
+  }
+});

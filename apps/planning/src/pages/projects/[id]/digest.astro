@@ -44,9 +44,9 @@ const when = (ms: number) => new Date(ms).toLocaleString("en-US", { dateStyle: "
       </div>
       <p class="muted" id="digest-schedule-status">
         {schedule?.enabled
-          ? `Morning digest is on: every active project with changes gets one daily at 13:00 UTC${schedule.nextRunAt ? `, next ${when(schedule.nextRunAt)}` : ""}.`
-          : demo ? "The morning digest runs daily at 13:00 UTC once an editor turns it on."
-          : canEdit ? "Morning digest is off. Turn it on to get one for every active project daily at 13:00 UTC."
+          ? `Morning digest is on: every active project with changes gets one daily on its configured morning schedule${schedule.nextRunAt ? `, next ${when(schedule.nextRunAt)}` : ""}.`
+          : demo ? "The morning digest runs daily on its configured morning schedule once an editor turns it on."
+          : canEdit ? "Morning digest is off. Turn it on to get one for every active project daily on its configured morning schedule."
           : "Morning digest is off. An editor can turn it on."}
         {schedule?.lastOutcome && ` Last run: ${schedule.lastOutcome}.`}
       </p>
