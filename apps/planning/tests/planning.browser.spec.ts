@@ -235,6 +235,7 @@ for (const width of [1440, 390]) {
         "href",
         `/products/${ids.product}/revisions/${ids.revision}`,
       );
+      await page.locator("details.project-actions > summary").click();
       await page
         .getByRole("link", { name: "All projects", exact: true })
         .click();

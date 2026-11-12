@@ -191,6 +191,7 @@ for (const [width, mount] of [[1440, ""], [390, "/o/org/planning"]] as const)
       // Open the project at its canonical address (the platform keeps the mount for app links).
       await page.goto(`${origin}${mount}/projects/${project.id}`);
       await expect(page.locator("#project-name")).toHaveText("Launch");
+      await page.locator("details.planning-project-details > summary").click();
       await page.getByRole("button", { name: "Edit", exact: true }).click();
       await page.locator("#project-editor").getByLabel("Goals", { exact: true }).fill("Private draft");
       await page.getByRole("button", { name: "Ask Outfitter", exact: true }).click();

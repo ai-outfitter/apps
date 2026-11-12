@@ -100,7 +100,7 @@ for (const width of [1440, 390])
     const releases = `${project}/releases`;
     try {
       await page.goto(origin + project);
-      await page.getByRole("link", { name: "Evidence", exact: true }).click();
+      await page.getByRole("link", { name: "Review evidence", exact: true }).click();
       await expect(page).toHaveURL(origin + evidence);
       await expect(
         page.getByRole("heading", { name: "Evidence inventory" }),
@@ -123,6 +123,7 @@ for (const width of [1440, 390])
         fullPage: true,
       });
       await page.goto(origin + project);
+      await page.locator("details.planning-project-details > summary").click();
       await page
         .getByRole("link", { name: "Press release", exact: true })
         .click();
