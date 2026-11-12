@@ -120,3 +120,15 @@ test("external and resident executor bindings reference opaque string run inputs
   assert.equal(Workflow.safeParse({ ...definition, steps: [{ ...definition.steps[0], inputs: { executor: { schema: { type: "string" }, default: "binding" } } }] }).success, false);
   assert.equal(Workflow.safeParse({ ...definition, steps: [{ ...definition.steps[0], inputs: { executor: { schema: { type: "object" } } } }] }).success, false);
 });
+
+test("schedule connection mappings require declared unbound string inputs", () => {
+  const source = { version: "beta", id: "source-report", summary: "Read an account", actors: {},
+    triggers: [{ on: "schedule", cron: "0 5 * * *", connection: { providers: ["gmail"], inputs: { provider: "read.inputs.provider", label: "read.inputs.label" } } }],
+    steps: [{ id: "read", inputs: { provider: { schema: { type: "string" }, default: "gmail" }, label: { schema: { type: "string" }, default: "" } }, outputs: { result: { connector: "database", record: "report.result", schema: { type: "object" } } } }],
+  };
+  assert.doesNotThrow(() => Workflow.parse(source));
+  for (const provider of ["read.inputs.missing", "read.outputs.result", "read.inputs.provider.field"]) {
+    const invalid = structuredClone(source); invalid.triggers[0].connection.inputs.provider = provider;
+    assert.equal(Workflow.safeParse(invalid).success, false);
+  }
+});

@@ -1,4 +1,5 @@
 ---
+import { platformHref } from "../platform-href";
 import AgentSidebarToggle from "@ai-outfitter/ui/astro/AgentSidebarToggle.astro";
 import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
 import { agentScopes } from "../fixtures";
@@ -25,12 +26,10 @@ const sidebarLinks = [
   link("Body", "body", "body"),
   link("Progress", "progress", "progress"),
   link("Knowledge graph", "graph", "graph"),
-  link("Sources", "sources", "sources"),
-  link("Workflows", "workflows", "workflows"),
   link("History", "history", "history"),
 ];
 ---
-<AppLayout name="Forerunner" title={title} description={description} active={page === "settings" ? "settings" : "home"} homeLabel="Today" settingsHref={`${rootHref}settings`} sidebarLinks={sidebarLinks} introVisuallyHidden={introHidden}>
+<AppLayout name="Forerunner" title={title} description={description} active={page === "settings" ? "settings" : "home"} homeLabel="Today" settingsHref={platformHref(Astro.request, "/automations?view=schedules")} sidebarLinks={sidebarLinks} introVisuallyHidden={introHidden}>
   {(agent || operational) ? <AgentSidebarToggle slot="header-actions" controls={panel} label="Ask Forerunner" /> : null}
   <slot name="intro-actions" slot="intro-actions" />
   <div class="forerunner-content">

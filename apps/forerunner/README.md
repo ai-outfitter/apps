@@ -5,11 +5,10 @@ Both use the shared Outfitter shell and three card rows: stones, pebbles and san
 
 ## Manual discovery
 
-Daily discovery reads the member's Gmail (else Calendar) every morning and is on
-by default once Google is connected. Settings is one flat page: the daily run, the
-connected accounts and the sources still to connect. Sources reruns one account at a
-time. See [manual discovery](docs/manual-discovery.md) for the run, the schedule,
-real-data local testing and the agent sample format.
+Discovery remains an app-owned workflow. Its accounts and schedules are managed
+on the platform Connections and Automations pages, in the current personal or
+organization workspace. The former Settings, Sources and Workflows URLs lead
+there. Agent and app GraphQL operations remain supported; page reads do not enable schedules.
 
 ## Manual board
 
@@ -45,7 +44,7 @@ items filtered by `category` and `status` and records by `kind`. A discovery
 record's `data` is not served. Writes go through `graph.mutate` and the documents
 in `src/server/documents.ts` (written to `graph/documents.json`, listed to agents by
 `graph_documents` and run by `graph_mutate`): the board routes above and the
-Settings daily-run toggle run the same CreateItem, UpdateItem, DeleteItem,
+legacy daily-run API run the same CreateItem, UpdateItem, DeleteItem,
 ReorderItems and SetDailyRun documents in process, so the UI and agents share one
 path. Every member writes their own board; SetDailyRun requires an editor.
 

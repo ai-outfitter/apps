@@ -1,4 +1,5 @@
 ---
+import { platformHref } from "../platform-href";
 import ForerunnerLayout from "../components/ForerunnerLayout.astro";
 import today from "../../fixtures/forerunner-today.json" with { type: "json" };
 import { rootHref } from "../root-href";
@@ -20,7 +21,7 @@ const root = rootHref(Astro.url.pathname, 0);
     ? <script id="today-data" type="application/json" set:html={JSON.stringify({ blocks: today.blocks })} />
     : <section id="today-empty" class="paper today-empty" hidden>
         <h3>Nothing on the timeline yet</h3>
-        <p>Add your first stone on the <a href={`${root}board`}>board</a>, or connect Google in <a href={`${root}settings`}>Settings</a> so discovery can fill in your day.</p>
+        <p>Add your first stone on the <a href={`${root}board`}>board</a>, or manage accounts in <a href={platformHref(Astro.request, "/connections")}>Connections</a> and scheduled work in <a href={platformHref(Astro.request, "/automations")}>Automations</a>.</p>
       </section>}
 </ForerunnerLayout>
 <script>import "../scripts/today";</script>

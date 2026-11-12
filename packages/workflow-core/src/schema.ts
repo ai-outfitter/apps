@@ -78,6 +78,11 @@ const Trigger = z.discriminatedUnion("on", [
   z
     .object({
       on: z.literal("schedule"),
+      /** A required account and the unbound inputs populated from that account. */
+      connection: z.object({
+        providers: z.array(z.string().regex(/^[a-z][a-z0-9-]*$/)).min(1).max(20),
+        inputs: z.object({ provider: Reference.optional(), label: Reference.optional() }).strict().optional(),
+      }).strict().optional(),
       cron: z
         .string()
         .regex(/^\S+( \S+){4}$/, "must be a five-field cron")
@@ -626,6 +631,17 @@ const Display = z
   })
   .strict();
 
+function checkScheduleConnections(wf: Definition & { triggers?: z.infer<typeof Trigger>[] }, ctx: z.RefinementCtx) {
+    for (const [index, trigger] of (wf.triggers ?? []).entries()) {
+      if (trigger.on !== "schedule" || !trigger.connection) continue;
+      for (const [field, path] of Object.entries(trigger.connection.inputs ?? {})) {
+        const slot = slotIndex(wf).get(path);
+        if (!path.includes(".inputs.") || !slot || slot.bound || slot.schema?.type !== "string")
+          ctx.addIssue({ code: "custom", path: ["triggers", index, "connection", "inputs", field], message: "Connection mappings must name unbound string inputs" });
+      }
+    }
+}
+
 export const Workflow = z
   .object({
     version: z.literal("beta"),
@@ -651,6 +667,7 @@ export const Workflow = z
   })
   .strict()
   .superRefine((wf, ctx) => {
+    checkScheduleConnections(wf, ctx);
     if (wf.task) {
       const input = slotIndex(wf).get(wf.task.input);
       const output = slotIndex(wf).get(wf.task.output);
