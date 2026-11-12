@@ -57,6 +57,10 @@ type ChangeBatch {
   policy: JSON!
   summary: JSON
   reviewBy: DateTime
+
+  """
+  The review page, relative to this installation (the platform returns it as a full link).
+  """
   reviewUrl: String
 
   """

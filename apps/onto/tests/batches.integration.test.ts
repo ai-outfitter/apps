@@ -325,8 +325,8 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const send=async(items:object[],identity:object=agent)=>(await call("ChangeBatchChanges",{items},identity)).data.changeBatchChanges;
   const first=await send([{key:uuid(900),action:"stage",input:{title:"Batch contract",proposals:[{operation:person("$first",901,"First"),evidence:cite("first")}]}}]);
   const id=first.items[0].result.id;
-  assert.equal(first.items[0].result.reviewUrl, batchReviewUrl({ owner: { kind: "organization", id: "org" } }, id));
-  const expectedReviewUrl = batchReviewUrl({ owner: { kind: "organization", id: "org" } }, first.items[0].result.id);
+  assert.equal(first.items[0].result.reviewUrl, batchReviewUrl(id));
+  const expectedReviewUrl = `changes/${first.items[0].result.id}`;
   assert.equal(first.items[0].status,"pending");assert.equal(first.instructions[0].code,"SUBMIT_CHANGES");
   assert.equal(first.instructions[0].url, expectedReviewUrl);
   const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
@@ -341,7 +341,7 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const personalIdentity = { ...agent, owner: { kind: "user" as const, id: "personal-owner" } };
   const personalStage = await send([{ key: uuid(907), action: "stage", input: { title: "Personal batch", proposals: [{ operation: person("$personal", 908, "Personal"), evidence: cite("personal") }] } }], personalIdentity);
   const personalId = personalStage.items[0].result.id;
-  const personalUrl = `/apps/onto/changes/${personalId}`;
+  const personalUrl = `changes/${personalId}`;
   assert.equal(personalStage.items[0].result.reviewUrl, personalUrl);
   assert.equal(personalStage.instructions[0].url, personalUrl);
   const denied=await send([{key:uuid(905),action:"review",input:{batchId:id,verdict:"approve"}}]);
@@ -433,7 +433,7 @@ test("member amendments replace and add proposals without committing; invalid or
   ] };
   const revised = await run(f, "ReviseBatch", { input: amendment }, connection);
   assert.equal(revised.errors, undefined);
-  assert.equal(revised.data.reviseBatch.reviewUrl, batchReviewUrl({ owner: { kind: "organization", id: "org" } }, batchId));
+  assert.equal(revised.data.reviseBatch.reviewUrl, batchReviewUrl(batchId));
   assert.deepEqual([revised.data.reviseBatch.state, revised.data.reviseBatch.counts], ["awaiting_review", { awaiting_review: 4 }]);
   const after = await json(await f.action("batch.get", { batchId }));
   assert.deepEqual(after.batch.policy, before.batch.policy); assert.equal(after.batch.reviewBy, before.batch.reviewBy);
