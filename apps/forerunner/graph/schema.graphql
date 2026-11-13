@@ -8,6 +8,11 @@ type Query {
   dailyBriefSchedule(input: JSON!): JSON
 
   """
+  Read the saved research reports and their schedule; no scheduling side effects.
+  """
+  researchReportSchedule(input: JSON!): JSON
+
+  """
   Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.
   """
   dayReview(input: DayReviewInput!): JSON
@@ -217,6 +222,21 @@ input GenerateDailyBriefInput {
   timezone: String!
 }
 
+input SetResearchReportScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  hour: Int
+  reports: [SetResearchReportScheduleInputReportsItem!]!
+}
+
+input SetResearchReportScheduleInputReportsItem {
+  slug: String!
+  title: String!
+  subject: String
+  location: String!
+  topics: [String!]!
+}
+
 """
 The daily discovery run as Settings shows it; times are epoch milliseconds.
 """
@@ -275,6 +295,16 @@ type Mutation {
   Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.
   """
   generateDailyBrief(input: GenerateDailyBriefInput!): JSON
+
+  """
+  Save the personal research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
+  """
+  setResearchReportSchedule(input: SetResearchReportScheduleInput!): JSON
+
+  """
+  Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.
+  """
+  generateResearchReports(input: JSON!): JSON
 
   """
   Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.

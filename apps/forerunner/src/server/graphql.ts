@@ -1,3 +1,4 @@
+import { generateResearchReports, generateResearchReportsInput, researchReportSchedule, researchReportScheduleInput, setResearchReportSchedule } from "./research-report";
 import { dailyBriefSchedule, dailyBriefScheduleInput, setDailyBriefSchedule, generateDailyBrief, generateDailyBriefInput } from "./daily-brief";
 import { dailyHomeInput, readDailyHome } from "./daily-home";
 import { createPlanningIntake, planningCandidates, planningCandidatesInput, planningIntakeInput } from "./planning-intake";
@@ -107,6 +108,8 @@ const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
     }),
     setDailyBriefSchedule: mutationField({ name: "SetDailyBriefSchedule", description: "Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.", input: dailyBriefScheduleInput, run: (context: ForerunnerContext, input) => setDailyBriefSchedule(context.host(), context.identity, input) }),
     generateDailyBrief: mutationField({ name: "GenerateDailyBrief", description: "Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.", input: generateDailyBriefInput, run: (context: ForerunnerContext, input) => generateDailyBrief(context.db(), context.identity, context.host(), input) }),
+    setResearchReportSchedule: mutationField({ name: "SetResearchReportSchedule", description: "Save the personal research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.", input: researchReportScheduleInput, run: (context: ForerunnerContext, input) => setResearchReportSchedule(context.host(), context.identity, input) }),
+    generateResearchReports: mutationField({ name: "GenerateResearchReports", description: "Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.", input: generateResearchReportsInput, run: (context: ForerunnerContext) => generateResearchReports(context.identity, context.host()) }),
     setDailyRun: mutationField<typeof scheduleChange, ForerunnerContext>({
       name: "SetDailyRun",
       description: "Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.",
@@ -126,6 +129,7 @@ const baseGraphqlSchema = new GraphQLSchema({
     fields: {
       dailyHome: mutationField({ name: "DailyHome", description: "Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. No generation starts.", input: dailyHomeInput, run: (context: ForerunnerContext, input) => readDailyHome(context.db(), context.identity, context.host(), input) }),
       dailyBriefSchedule: mutationField({ name: "DailyBriefSchedule", description: "Read the personal daily brief schedule; no scheduling side effects.", input: z.strictObject({}), run: (context: ForerunnerContext) => dailyBriefSchedule(context.host(), context.identity) }),
+      researchReportSchedule: mutationField({ name: "ResearchReportSchedule", description: "Read the saved research reports and their schedule; no scheduling side effects.", input: z.strictObject({}), run: (context: ForerunnerContext) => researchReportSchedule(context.host(), context.identity) }),
       dayReview: mutationField({ name: "DayReview", description: "Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.", input: reviewInput, run: (context: ForerunnerContext, input) => readDayReview(context.db(), context.identity, context.host(), input) }),
       planningCandidates: mutationField({ name: "PlanningCandidates", description: "Read saved canonical need identities and revisions for a private discovery selection; excludes raw source samples and uncommitted proposals.", input: planningCandidatesInput, run: (context: ForerunnerContext, input) => planningCandidates(context.db(), context.identity, context.host(), input) }),
       ...board,

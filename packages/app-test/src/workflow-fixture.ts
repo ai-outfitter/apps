@@ -204,6 +204,8 @@ const phases = workflowPhaseHandler({
       })),
       // An app-owned image prompt; the host renders it with the platform's image model and meters the run.
       imaged: await outcome(() => host.call("inference.image", { runId, prompt: "A fixture concept render." })),
+      // The fixture declares no web.search capability, so the search is refused.
+      searched: await outcome(() => host.call("web.search", { runId, query: "fixture search" })),
       // The fixture workflow declares no schedule trigger, so saving one is refused.
       scheduled: await outcome(() => host.call("schedule.save", { workflow: "fixture-flow", inputs: {} })),
       schedules: await outcome(() => host.call("schedules", {})),

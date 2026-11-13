@@ -235,6 +235,36 @@
     }
   },
   {
+    "name": "GenerateResearchReports",
+    "kind": "mutation",
+    "story": "As a member, I want to run my saved research reports now, so that I can read today's report without waiting for the morning run.",
+    "query": "mutation GenerateResearchReports($input: JSON!) {\n  generateResearchReports(input: $input)\n}",
+    "hash": "fb467e3b93f2dfe04e61cd1b892c96ff3ceca658f345fc9b4223376466a43965",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Run the saved research reports now for today, recording a workflow run and each report's Wiki page, document and revision. Save the reports first."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateResearchReports": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ItemChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply item changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -641,6 +671,36 @@
     "hidden": true
   },
   {
+    "name": "ResearchReportSchedule",
+    "kind": "query",
+    "story": "As a member, I want to see which research reports run each morning and when, so that I can inspect them without changing anything.",
+    "query": "query ResearchReportSchedule($input: JSON!) {\n  researchReportSchedule(input: $input)\n}",
+    "hash": "cbf7f1e78da03cc23fbfe4c8e522430103a5c7bb087af15c591226dd5b67dd98",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the saved research reports (title, subject, place, topics) and their daily schedule. Does not create or enable schedules."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "researchReportSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "SetDailyBriefSchedule",
     "kind": "mutation",
     "story": "As a member, I want one standard daily briefing schedule in my timezone, so that I can enable or disable it explicitly.",
@@ -688,6 +748,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "SetResearchReportSchedule",
+    "kind": "mutation",
+    "story": "As a member, I want a daily report on topics near a place I name, such as local artist events, residencies and volunteer opportunities, saved to my Wiki, so that I see new opportunities without searching for them.",
+    "query": "mutation SetResearchReportSchedule($input: SetResearchReportScheduleInput!) {\n  setResearchReportSchedule(input: $input)\n}",
+    "hash": "d6c0e3a23b33072a22bda7da6136fc25b9d27e67ff3e839a77b5d70e5f646928",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetResearchReportScheduleInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save up to three daily research reports and their schedule: each has a slug, title, optional subject, a place and up to six topics; hour (default 7) and timezone set when it runs; enabled turns it on or off. Each run searches the public web per topic and saves a dated, sourced document per report to the personal Wiki. Saving replaces the earlier reports. Personal installation only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "setResearchReportSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "SuggestionChanges",
