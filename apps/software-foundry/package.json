@@ -36,6 +36,7 @@
     "@ai-outfitter/workflow-issue-to-triage-resident": "0.1.0",
     "@ai-outfitter/workflow-issue-triage-observation": "0.1.0",
     "@ai-outfitter/workflow-sdlc-setup": "0.1.0",
+    "@ai-outfitter/workflow-ui-review": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/react": "^7.0.0",
     "astro": "^7.3.5",
