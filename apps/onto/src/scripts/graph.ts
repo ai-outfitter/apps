@@ -414,7 +414,7 @@ function entityCard(g: Graph, node: GraphNode) {
   const subtext = node.typeId === core.project
     ? projectOrganizations(g, node).map((organization) => organization.title).join(", ") || "No organization linked"
     : typeName(g, node.typeId);
-  return el("li", { class: "wiki-card" }, link(node.title, node.id), el("small", {}, subtext), node.summary ? el("p", {}, node.summary) : null);
+  return el("li", { class: "entity-list-row" }, link(node.title, node.id), el("small", {}, subtext), node.summary ? el("p", {}, node.summary) : null);
 }
 function matchesCollection(node: GraphNode, collection: TypeDefinition | undefined, title: string) {
   return collection ? node.typeId === collection.id : group(node) === title;
@@ -461,7 +461,7 @@ function home(root: HTMLElement, g: Graph, collection?: TypeDefinition) {
       if (title === "Other context" && !nodes.length) continue;
       const items = el(
         "ul",
-        { class: "wiki-cards" },
+        { class: "entity-list" },
         ...nodes.map((node) => entityCard(g, node)),
       );
       lists.appendChild(

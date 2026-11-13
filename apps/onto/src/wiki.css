@@ -40,6 +40,30 @@
   background: var(--canvas);
 }
 
+.entity-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entity-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 16px;
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.entity-list-row:first-child { padding-top: 0; }
+.entity-list-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.entity-list-row > a { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.entity-list-row > small { color: var(--muted); text-align: right; }
+.entity-list-row > p { grid-column: 1 / -1; overflow-wrap: anywhere; }
+
 .graph-actions {
   display: flex;
   flex-wrap: wrap;
