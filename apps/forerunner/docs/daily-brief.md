@@ -38,6 +38,14 @@ Validation: unit tests with a real in-memory board database, a fake Wiki and a s
 
 Timezone selection: new schedules require an explicit valid IANA timezone. The platform schedule editor detects the device timezone for first setup; a saved timezone stays authoritative until the user saves a change. The editor displays the device timezone alongside the saved value. This supports travel without letting a server timezone or a silent Chicago fallback change the user's calendar. Automatic account-wide timezone tracking is not implemented. The app schedule operation defaults to `0 5 * * *`; the platform editor allows a different saved cadence. Yesterday remains the previous complete local calendar day, including DST boundaries.
 
+## Default schedule
+
+The daily brief is on by default for a personal installation. `SetDailyBriefSchedule` with `ifUnset: true` (and `enabled: true`) saves the standard 05:00 schedule in the given time zone only when no `forerunner-daily-brief` schedule exists at all. Any saved schedule is the member's choice and is returned untouched: one that was turned off stays off, and a custom time or time zone is kept. Repeating the call saves nothing.
+
+It is an explicit request by the member, never part of a read or a page GET. Two callers send it with the device's time zone: the platform's Today page, and Forerunner's own `POST /api/apps/forerunner/schedule`, which Settings and Sources already call to default daily discovery. Without a time zone nothing is created, so the brief never runs on a guessed day; there is no UTC fallback for it. The default attaches no connection, enables no discovery schedule and is refused for organization installations and readers.
+
+Existing members without a schedule get it on their next visit to Today, Settings or Sources. A member who opens none of them gets no schedule. The time zone is corrected on the automation page, and the saved zone then stays authoritative. Creating the schedule at install time is not done: the initializer can run as the platform with no member device, so it has no time zone to use and would save the schedule under the platform's identity.
+
 ## Reading the saved brief (snapshot first)
 
 `DailyHome` accepts `sections` so a page can read its parts independently: `digest`, `priorities`, `review` (yesterday's reports) and `history` (last week). Without `sections` it answers as before, in one combined result.

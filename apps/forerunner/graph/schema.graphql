@@ -224,6 +224,7 @@ enum UpdateSuggestionInputStatus {
 input SetDailyBriefScheduleInput {
   enabled: Boolean!
   timezone: String!
+  ifUnset: Boolean
 }
 
 input GenerateDailyBriefInput {
@@ -295,7 +296,7 @@ type Mutation {
   updateSuggestion(input: UpdateSuggestionInput!): Suggestion!
 
   """
-  Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.
+  Enable or disable the personal daily brief at 05:00 in a saved timezone. `ifUnset` saves the default only when no daily brief schedule exists. No connection is auto-authorized.
   """
   setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
 

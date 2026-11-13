@@ -12,15 +12,35 @@ import { latestOpenSuggestions, roleSnapshot, saveRoleSnapshot } from "./suggest
 
 export const dailyBriefWorkflow = "forerunner-daily-brief";
 const timezone = z.string().min(1).max(64).refine(value => { try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; } }, "Choose a valid time zone");
-export const dailyBriefScheduleInput = z.strictObject({ enabled: z.boolean(), timezone: timezone });
+export const dailyBriefScheduleInput = z.strictObject({
+  enabled: z.boolean(), timezone: timezone,
+  /** Save only when no daily brief schedule exists at all. A saved one, enabled, disabled or customized, is returned untouched. */
+  ifUnset: z.boolean().optional(),
+}).refine(input => !input.ifUnset || input.enabled, "ifUnset only turns the default schedule on");
 function personal(who: AppIdentity) {
   requireEditor(who);
   if (who.owner.kind !== "user" || who.owner.id !== who.userId) throw new Response("Daily brief requires your personal installation", { status: 403 });
 }
+const briefSchedule = (timezone: string, enabled: boolean) => ({ workflow: dailyBriefWorkflow, cron: "0 5 * * *", timezone, enabled, inputs: {} });
 export async function setDailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, raw: z.input<typeof dailyBriefScheduleInput>) {
   personal(who);
   const input = dailyBriefScheduleInput.parse(raw);
-  return host.call("schedule.save", { workflow: dailyBriefWorkflow, cron: "0 5 * * *", timezone: input.timezone, enabled: input.enabled, inputs: {} });
+  if (input.ifUnset) return defaultDailyBriefSchedule(host, who, input.timezone);
+  return host.call("schedule.save", briefSchedule(input.timezone, input.enabled));
+}
+/**
+ * The daily brief is on by default for a personal installation. With no saved
+ * forerunner-daily-brief schedule at all, this saves the standard 05:00 one in
+ * `zone`, the time zone the member's own device reported on this request. Any
+ * saved schedule is the member's choice and is returned as it is: one they
+ * turned off stays off, and a custom time or time zone is kept. It attaches no
+ * connection and touches no other workflow's schedule. Returns null for an
+ * installation that is not the caller's own personal one.
+ */
+export async function defaultDailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, zone: string) {
+  if (!who.canEdit || who.owner.kind !== "user" || who.owner.id !== who.userId) return null;
+  const existing = (await host.call("schedules", {})).find(row => row.workflowId === dailyBriefWorkflow);
+  return existing ?? host.call("schedule.save", briefSchedule(timezone.parse(zone), true));
 }
 export async function dailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity) {
   personal(who);

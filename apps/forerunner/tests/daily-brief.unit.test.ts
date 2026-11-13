@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dailyBriefSchedule, setDailyBriefSchedule } from "../src/server/daily-brief";
+import { dailyBriefSchedule, defaultDailyBriefSchedule, setDailyBriefSchedule } from "../src/server/daily-brief";
 import { answerSchema, type BriefAnswer, type BriefInputs, evidenceBytes, evidenceDigest, gatherEvidence, modelData, renderBrief } from "../src/server/daily-brief-synthesis";
 import type { DayReview, ReportSource } from "../src/server/day-review";
 
@@ -13,6 +13,42 @@ test("schedule reads never enable it; explicit saves preserve enabled=false and 
   assert.deepEqual(calls, [["schedules", {}], ["schedule.save", { workflow: "forerunner-daily-brief", cron: "0 5 * * *", enabled: false, timezone: "America/Chicago", inputs: {} }]]);
   await assert.rejects(() => setDailyBriefSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, { enabled: true, timezone: "America/Chicago" }), /./);
   await assert.rejects(() => setDailyBriefSchedule(host, who, { enabled: true, timezone: "invalid/zone" }));
+});
+
+test("the default daily brief schedule is saved once and never overrides a saved choice", async () => {
+  const hostWith = (schedules: Record<string, unknown>[]) => {
+    const saved: unknown[] = [];
+    const host = { call: async (op: string, input: Record<string, unknown>) => {
+      if (op === "schedules") return schedules;
+      if (op !== "schedule.save") throw new Error(op);
+      saved.push(input);
+      const row = { workflowId: input.workflow, cron: input.cron, timezone: input.timezone, enabled: input.enabled };
+      schedules.push(row);
+      return row;
+    } } as never;
+    return { host, saved };
+  };
+  // No schedule at all: one enabled 05:00 schedule in the device's time zone, with no connection.
+  const fresh = hostWith([{ workflowId: "forerunner-discovery", cron: "0 6 * * *", timezone: "UTC", enabled: true }]);
+  const first = await setDailyBriefSchedule(fresh.host, who, { enabled: true, timezone: "America/Chicago", ifUnset: true });
+  assert.deepEqual(fresh.saved, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: true, inputs: {} }]);
+  assert.equal((first as { enabled: boolean }).enabled, true);
+  // Repeating it, from another device in another zone, saves nothing more.
+  await defaultDailyBriefSchedule(fresh.host, who, "Europe/London");
+  assert.equal(fresh.saved.length, 1);
+  // A schedule the member turned off, or moved to another time and zone, is returned as it is.
+  for (const kept of [{ workflowId: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: false }, { workflowId: "forerunner-daily-brief", cron: "30 7 * * 1-5", timezone: "Asia/Tokyo", enabled: true }]) {
+    const { host, saved } = hostWith([kept]);
+    assert.deepEqual(await setDailyBriefSchedule(host, who, { enabled: true, timezone: "America/Chicago", ifUnset: true }), kept);
+    assert.deepEqual(saved, []);
+  }
+  // Not for organizations or readers, never with an invalid zone, and ifUnset cannot be used to disable.
+  const none = hostWith([]);
+  assert.equal(await defaultDailyBriefSchedule(none.host, { ...who, owner: { kind: "organization", id: "org" } } as never, "America/Chicago"), null);
+  assert.equal(await defaultDailyBriefSchedule(none.host, { ...who, canEdit: false } as never, "America/Chicago"), null);
+  await assert.rejects(() => defaultDailyBriefSchedule(none.host, who, "Mars/Olympus"));
+  await assert.rejects(() => setDailyBriefSchedule(none.host, who, { enabled: false, timezone: "America/Chicago", ifUnset: true }));
+  assert.deepEqual(none.saved, []);
 });
 
 const now = Date.parse("2026-11-11T15:00:00Z");
