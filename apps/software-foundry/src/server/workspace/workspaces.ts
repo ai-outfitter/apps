@@ -107,7 +107,7 @@ export function roleTarget(repository: string, resource: string, settings: z.inp
     resource,
     repository,
     // A repository job files issues but never changes code.
-    agentPermissions: { contents: write, pull_requests: write, issues: policy.role === "analyze" ? "write" : write, ...workspaceAgentPermissions(policy.role) },
+    agentPermissions: { contents: write, pull_requests: write, issues: policy.role === "file-issues" ? "write" : write, ...workspaceAgentPermissions(policy.role) },
     coordinatorPermissions: workspaceCoordinatorPermissions(policy),
     // Read-only linkage queries when publishing evidence; ready/enqueue mutations when finalizing.
     graphql: ["publish", "finalize"] as ("publish" | "finalize")[],
@@ -208,7 +208,7 @@ async function jobInputs(host: Editor, job: FoundryJob, repository: string, mode
     workflowId: job,
     actor: foundryJobs[job],
     label: "Workspace analyze",
-    workspace: roleTarget(metadata.full_name, String(metadata.id), { role: "analyze", checks: foundryChecks(metadata.full_name), ci: "actions", reviewer: "vega" }),
+    workspace: roleTarget(metadata.full_name, String(metadata.id), { role: "file-issues", checks: foundryChecks(metadata.full_name), ci: "actions", reviewer: "vega" }),
     context: { model, profile: { id: "foundry-analyze", digest: await sha256Hex(prompt), systemPrompt: prompt }, capabilities: [] },
   });
   return { repository: metadata.full_name, inputs: { "analyze.inputs.repository": metadata.full_name, [jobBindingInput(job)]: binding.id } };

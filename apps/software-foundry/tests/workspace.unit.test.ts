@@ -180,7 +180,7 @@ test("a repository job runs and schedules under its approved read-only analyze b
   assert.equal(started.repository, "acme/app");
   const [binding] = bindings;
   assert.equal(`${binding.workflowId}/${binding.actor}`, "architecture-reanalysis/architect");
-  assert.equal(binding.workspace.settings.role, "analyze");
+  assert.equal(binding.workspace.settings.role, "file-issues");
   assert.deepEqual([binding.workspace.agentPermissions.contents, binding.workspace.agentPermissions.pull_requests, binding.workspace.agentPermissions.issues], ["read", "read", "write"]);
   const start = calls.find((call) => call.operation === "workflow.start");
   assert.deepEqual(start?.input, { workflow: "architecture-reanalysis", id: started.run, inputs: { "analyze.inputs.repository": "acme/app", "analyze.inputs.architectBinding": binding.id } });
