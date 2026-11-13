@@ -14,10 +14,13 @@ In Onto:
 - **Time.** *Validity* is when something was true. *Revisions* are when Onto
   recorded it, kept with their history.
 - **Change batches.** Agents stage proposals, a person reviews them, and every
-  write records its evidence. A batch can name anchors, such as
-  `anchors: ["Organization:sunny"]`. Submitting it is then refused until every
-  node it creates reaches an anchor along any path of existing or staged
-  edges, in either direction.
+  write records its evidence. A batch a member reviews is anchored to the
+  graph's root by default: the Organization bound to an organization's Onto,
+  or the owner's Person (linked from their OutfitterUser) in a personal Onto.
+  Submitting it is then refused until every node it creates reaches an anchor
+  along any path of existing or staged edges, in either direction. A batch may
+  name its own anchors instead, such as `anchors: ["Organization:sunny"]`, and
+  `anchors: []` removes the requirement. An Onto with no root has no default.
 - **Assertions**: claims about a node or an edge, never confirmed truth.
 - **Shares.** What this graph shows one other organization: a saved
   KnowledgeGraph walked from roots, minus hidden nodes ([sharing](graph-sharing.md)).

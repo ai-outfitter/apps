@@ -45,7 +45,7 @@ export const batchOpenInput = z.strictObject({
   source: batchSource.optional(),
   policy: batchPolicy.default({ kind: "member" }),
   anchors: z.array(z.string().min(1).max(300)).max(20).optional()
-    .describe("Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise."),
+    .describe("Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise. Omit for a member-reviewed batch to anchor to the root: the organization's Organization node, or the owner's Person in a personal graph. An empty list removes the requirement."),
 });
 const proposal = z.strictObject({
   operation,

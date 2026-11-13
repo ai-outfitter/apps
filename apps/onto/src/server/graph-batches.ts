@@ -18,6 +18,8 @@ import {
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
+import { resolveIdentity } from "./identity";
+import { wikiHome } from "./wiki-home";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -92,7 +94,10 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
-  const anchors = input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
+  // A batch a member reviews is anchored to the root unless it names its own anchors;
+  // an empty list asks for no connectivity requirement. Policy batches (apps) name theirs.
+  const root = input.anchors === undefined && input.policy.kind === "member" ? await rootNode(db, who) : null;
+  const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
   await db.insert(graphBatches).values({
@@ -101,6 +106,15 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
     createdAt: now, updatedAt: now, expiresAt: now + batchExpiryMs,
   });
   return getBatch(db, who, { batchId: id });
+}
+
+/** The node this Onto belongs to: the Organization bound to an organization's Onto, or the
+ * owner's Person (through its OutfitterUser account) in a personal Onto. Null when none or
+ * more than one matches; an unbound Onto then has no default anchor. */
+export async function rootNode(db: Database, who: AppIdentity) {
+  if (who.owner.kind === "user")
+    return (await resolveIdentity(db, { principalId: who.owner.id }).catch(() => null))?.holderId ?? null;
+  return wikiHome(await readGraph(db, who), who).organizationId ?? null;
 }
 
 /** The saved nodes a batch's anchors name. */

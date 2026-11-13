@@ -15,6 +15,7 @@ import { core, type Graph } from "../lib/graph";
 import { readGraph } from "./graph";
 import { type Database, live, loadOperations, batchContentDigest } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
+import { wikiHome } from "./wiki-home";
 
 export const reviewWorkflow = "batch-review";
 export const reviewStep = "review";
@@ -85,11 +86,10 @@ type Row = { ref: string; operation: Op; confidence: number | null; reason: stri
 /** Structural types the steward exempts from the owner and isolation checks. */
 const structural = new Set(["KnowledgeGraph", "GraphContextTemplate", "DecisionControlTemplate", "DecisionType", "MetricDefinition"]);
 
-/** The owner's node: the Organization bound to this Wiki's organization. */
+/** The owner's node: the Organization this Wiki's home resolves to (its root). */
 function ownerOf(graph: Graph, who: AppIdentity) {
-  if (!who.organizationId) return null;
-  const owners = graph.nodes.filter((node) => !node.archived && node.typeId === core.organization && node.properties.organization_id === who.organizationId);
-  return owners.length === 1 ? owners[0] : null;
+  const id = wikiHome(graph, who).organizationId;
+  return id ? graph.nodes.find((node) => node.id === id) ?? null : null;
 }
 
 /** The batch's operations and the existing records they touch, as the steward reads them. */
