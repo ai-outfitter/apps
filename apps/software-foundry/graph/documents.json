@@ -45,6 +45,218 @@
     "hidden": true
   },
   {
+    "name": "JobChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to run or schedule Foundry's repository jobs, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation JobChanges($input: JobChangesInput!) {\n  jobChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "f7882aafa2da39b8038c11bb3802f51eced3630aad8533726486264239625052",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JobChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Owners and admins only; use a new item key each time."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "run"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "job": {
+                            "type": "string",
+                            "enum": [
+                              "dependency-review",
+                              "architecture-reanalysis",
+                              "ui-review"
+                            ],
+                            "description": "dependency-review, architecture-reanalysis or ui-review."
+                          },
+                          "repository": {
+                            "type": "string",
+                            "maxLength": 140,
+                            "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$",
+                            "description": "owner/name, reachable through this organization's GitHub connection."
+                          }
+                        },
+                        "required": [
+                          "job",
+                          "repository"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "schedule"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "job": {
+                            "type": "string",
+                            "enum": [
+                              "dependency-review",
+                              "architecture-reanalysis",
+                              "ui-review"
+                            ],
+                            "description": "dependency-review, architecture-reanalysis or ui-review."
+                          },
+                          "repository": {
+                            "type": "string",
+                            "maxLength": 140,
+                            "pattern": "^[A-Za-z0-9-]+\\/[A-Za-z0-9._-]+$",
+                            "description": "owner/name, reachable through this organization's GitHub connection."
+                          },
+                          "enabled": {
+                            "default": true,
+                            "description": "false pauses the job's schedule.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "job",
+                          "repository"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "jobChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ProjectChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply project changes using explicit actions, so that each change has a durable receipt and explicit next steps.",

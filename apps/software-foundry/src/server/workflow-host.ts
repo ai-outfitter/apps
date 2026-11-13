@@ -16,6 +16,9 @@ import { inspectFoundryWorkspace } from "./workspace/inspection";
 import { publishFoundryEvidence } from "./workspace/publication";
 import {
   configureFoundryWorkspaces,
+  type FoundryJob,
+  foundryJobs,
+  jobBindingInput,
   issueToMergeWorkflows,
   launchFoundryMergeChecks,
   launchFoundryWorkspaceIssue,
@@ -54,13 +57,14 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
     : { outcome: "started" };
 }
 
-/** Repository jobs that run on a schedule: each occurrence starts the reserved run with the saved inputs. */
-export const scheduledFoundryWorkflows = ["dependency-review", "architecture-reanalysis", "ui-review"];
-
+/** A repository job's schedule occurrence starts the reserved run with the
+ * schedule's saved inputs, which carry the job's approved binding. */
 async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z.input<typeof scheduleResult>> {
   const { runId, schedule } = scheduleInput.parse(raw);
-  if (!scheduledFoundryWorkflows.includes(schedule.workflowId))
+  if (!Object.hasOwn(foundryJobs, schedule.workflowId))
     return { outcome: "declined", reason: `Foundry does not schedule ${schedule.workflowId}` };
+  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as FoundryJob)] !== "string")
+    return { outcome: "declined", reason: "Save this schedule again with Foundry's JobChanges schedule action, so it carries the job's approved agent" };
   await host.call("workflow.start", { workflow: schedule.workflowId, id: runId, inputs: schedule.inputs });
   return { outcome: "started" };
 }

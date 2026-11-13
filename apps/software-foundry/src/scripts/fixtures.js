@@ -246,7 +246,7 @@ export function fixtureResponse(path, options = {}) {
     return governance(url.searchParams.get("repository"));
   if (
     url.pathname === "/api/workflow-runs" ||
-    url.pathname === "/api/workflow-schedules"
+    url.pathname === "/api/apps/software-foundry/jobs"
   )
     return { items: [] };
   if (url.pathname === "/api/apps/software-foundry/milestones")

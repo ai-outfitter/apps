@@ -40,7 +40,7 @@ const jobs = [
       <button slot="actions" class="secondary" data-job={job.id} disabled>Run now</button>
       <button slot="actions" class="secondary" data-schedule={job.id} disabled>Schedule</button>
       <p>{job.summary}</p>
-      <p>Scheduled runs start {job.cadence} as the person who owns the schedule. If they leave or can no longer run it, it pauses with the reason until an admin reassigns it to someone who can.</p>
+      <p>Scheduled runs start {job.cadence} as the person who saved the schedule. If they can no longer run it, it pauses with the reason until an admin saves it again.</p>
       <ul id={`job-schedules-${job.id}`} class="job-schedules"></ul>
       <Table id={`job-runs-${job.id}`} label={`${job.title} runs`} columns={["Started", "Repository", "Status", "Issues filed"]} />
       <p id={`job-empty-${job.id}`} role="status">No runs yet.</p>
