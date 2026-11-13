@@ -8,8 +8,12 @@ import {fileURLToPath} from 'node:url';
 import {checkApp} from './apps.mjs';
 import {catalogMetadata,catalogContract,catalogContractModule} from '../packages/app-build/src/catalog-metadata.mjs';
 
+/** Repositories whose checked apps publish the platform catalog. The platform
+ * separately accepts only registrations it reviewed for each repository. */
+export const catalogRepositories=['ai-outfitter/apps','ai-outfitter/apps-private'];
+
 export async function catalogPublication(appPath,{root=process.cwd(),env=process.env}={}) {
-  assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps','Only official apps publish the platform catalog');
+  assert.ok(catalogRepositories.includes(env.GITHUB_REPOSITORY),'Only official apps publish the platform catalog');
   assert.match(env.GITHUB_SHA || '',/^[a-f0-9]{40}$/,'Expected immutable source SHA');
   assert.match(env.GITHUB_RUN_ID || '',/^\d+$/,'Expected workflow run identity');
   const selected=checkApp(appPath,root);
@@ -41,7 +45,7 @@ export async function catalogPublication(appPath,{root=process.cwd(),env=process
 }
 
 function publicationContext(bundle,env) {
-  assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps');
+  assert.ok(catalogRepositories.includes(env.GITHUB_REPOSITORY),'Only official apps publish the platform catalog');
   assert.equal(env.GITHUB_REF,`refs/heads/${env.DEPLOY_BRANCH || 'main'}`);
   assert.ok(['push','workflow_dispatch'].includes(env.GITHUB_EVENT_NAME));
   assert.equal(bundle.sourceCommit,env.GITHUB_SHA);

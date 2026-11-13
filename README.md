@@ -187,8 +187,8 @@ they are not customer installations or authenticated platform integration tests.
 A thin caller invokes the shared workflow on same-repository PR opened,
 synchronize, reopened and closed events, passing `pull-request` and the explicit
 `CLOUDFLARE_API_TOKEN` secret. Keep that secret in the caller's `preview-publish`
-environment and configure `OUTFITTER_PREVIEW_ACCOUNT_ID`. The current provider is
-Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
+environment. The current provider is Cloudflare Workers (`workers.dev`) in the
+Unsupervised account, hard-coded in the shared workflow; SaaS/self-hosted
 installation destinations remain the separate main-branch deploy workflow.
 Fork code is not imported automatically.
 
