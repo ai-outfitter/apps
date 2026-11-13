@@ -14,6 +14,7 @@ export default defineConfig({
       directives: [
         "default-src 'none'",
         "img-src 'self' blob: https: http:",
+        "media-src 'self'",
         "font-src 'self'",
         "connect-src 'self'",
         "base-uri 'none'",
