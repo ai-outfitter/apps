@@ -85,7 +85,7 @@ function answer(operation, input, props) {
     const prior = state.runs.find((run) => run.id === input.id);
     const request = JSON.stringify([input.workflow, input.inputs]);
     if (prior) return prior.request === request && prior.createdBy === props.user ? { id: input.id, workflow: input.workflow, created: false } : denied(409, "Run ID already claimed with different inputs");
-    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"].issue.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
+    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"]?.issue?.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
     return { id: input.id, workflow: input.workflow, created: true };
   }
   return undefined;
@@ -657,5 +657,24 @@ test("RequestChanges files a bug as one issue and starts the workflow through gr
     const { bug: _bug, ...noDetails } = request;
     assert.match(await mutate("22222222-aaaa-4aaa-8aaa-222222222222", { ...noDetails, requestId: "dddddddd-2222-4222-8222-222222222222" }), /bug requests need bug details/);
     assert.equal(writes(await f.calls()), 0);
+  } finally { await f.worker.dispose(); }
+});
+
+test("a repository job schedule occurrence starts the reserved run with the saved inputs", async () => {
+  const f = await installed();
+  const occurrence = (workflowId: string, runId: string) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
+    runId, scheduledFor: 1,
+    schedule: { id: "schedule-1", workflowId, inputs: { "analyze.inputs.repository": "acme/app" }, connectionId: null, resource: null },
+  } } });
+  try {
+    const runId = "cccccccc-1111-4111-8111-111111111111";
+    const started = await occurrence("dependency-review", runId);
+    assert.equal(started.status, 200, await started.clone().text());
+    assert.deepEqual(await started.json(), { outcome: "started" });
+    const [start] = (await f.calls()).filter((call) => call.operation === "workflow.start");
+    assert.deepEqual(start?.input, { workflow: "dependency-review", id: runId, inputs: { "analyze.inputs.repository": "acme/app" } });
+    const declined = await occurrence("issue-to-merge-actions-ci", "dddddddd-1111-4111-8111-111111111111");
+    assert.equal(((await declined.json()) as { outcome: string }).outcome, "declined");
+    assert.equal(starts(await f.calls()), 0);
   } finally { await f.worker.dispose(); }
 });
