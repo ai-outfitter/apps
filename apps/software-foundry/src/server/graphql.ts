@@ -140,7 +140,7 @@ const enabledRepository = new GraphQLObjectType({ name: "EnabledRepository", des
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
-    submitReleaseEvidence:mutationField<typeof submitReleaseEvidenceInput,FoundryContext>({name:"SubmitReleaseEvidence",description:"Reserve expiring authenticated PUT links for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.",input:submitReleaseEvidenceInput,run:submitReleaseEvidence}),
+    submitReleaseEvidence:mutationField<typeof submitReleaseEvidenceInput,FoundryContext>({name:"SubmitReleaseEvidence",description:"Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.",input:submitReleaseEvidenceInput,run:submitReleaseEvidence}),
     submitRequest: mutationField<typeof requestInput, FoundryContext>({
       name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
       run: submitRequest,
