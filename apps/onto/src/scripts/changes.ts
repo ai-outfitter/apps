@@ -244,27 +244,13 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
     }));
 }
 
-function anchorSection(graph: Graph, detail: BatchDetail, draw: (next: BatchDetail) => void) {
-  const selected = new Set(detail.batch.anchors ?? []);
-  const nodes = graph.nodes.filter(node => !node.archived && node.slug).sort((a, b) => a.title.localeCompare(b.title));
-  const editable = detail.canReview && (detail.batch.state === "open" || detail.batch.state === "awaiting_review" && detail.batch.policy.kind === "member" && !detail.counts.committed && !detail.counts.rejected);
-  const choices = el("div", { class: "change-anchor-options" }, ...nodes.map(node => {
-    const address = nodeAddress(graph.types.find(type => type.id === node.typeId)?.name ?? node.typeId, node.slug!);
-    const check = el("input", { type: "checkbox", value: address, checked: selected.has(node.id), disabled: !editable });
-    return el("label", {}, check, node.title, el("span", { class: "change-meta" }, address));
-  }));
-  const form = el("form", { class: "change-anchors" },
-    el("p", {}, "New nodes must connect to an anchor through saved or proposed relationships. No anchors means no connectivity requirement."),
-    choices, editable ? el("button", { type: "submit" }, "Save anchors") : el("p", { class: "change-meta" }, "Anchors are fixed after review decisions."));
-  form.onsubmit = async event => {
-    event.preventDefault();
-    const button = form.querySelector("button")!;
-    button.disabled = true;
-    try {
-      draw(await call<BatchDetail>("batches/configure", { batchId: detail.batch.id, anchors: [...choices.querySelectorAll<HTMLInputElement>("input:checked")].map(input => input.value) }));
-    } catch (error) { button.disabled = false; form.appendChild(el("p", { role: "alert" }, String(error))); }
-  };
-  return el("details", { class: "node-section" }, el("summary", {}, `Anchor nodes (${selected.size})`), form);
+/** What new records must connect to. Members ask an agent to change it. */
+function anchorLine(graph: Graph, detail: BatchDetail) {
+  const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+  const anchors = (detail.batch.anchors ?? []).flatMap(id => nodes.get(id) ?? []);
+  return el("p", { class: "change-anchor change-meta" }, ...(anchors.length
+    ? ["New records connect to ", ...anchors.flatMap((node, i) => [i ? ", " : "", el("a", { href: entityUrl(node.id, node.typeId) }, node.title)])]
+    : ["New records need not connect to anything."]));
 }
 
 async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSignal) {
@@ -310,7 +296,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       proposals: el("div", { id: "batch-proposals" }, ...groups.map(([state, ops]) => el("div", { class: "change-proposal-group" },
         el("h2", {}, `${opLabels[state] ?? state} (${ops.length})`),
         el("ul", { class: "change-operations" }, ...ops.map(op => operationRow(current, op, names, types, draw)))))),
-      review: el("div", { id: "batch-review" }, anchorSection(graph, current, draw), reviewSection(current, draw)),
+      review: el("div", { id: "batch-review" }, reviewSection(current, draw)),
     };
     const buttons = new Map<string, HTMLButtonElement>();
     const choose = (key: string) => {
@@ -319,7 +305,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       for (const [name, button] of buttons) button.setAttribute("aria-pressed", String(name === key));
     };
     const tabs = el("nav", { class: "change-views", "aria-label": "Change batch views" }, ...[
-      ["graph", `Graph (${view.nodes.length})`], ["proposals", `Proposals (${operations.length})`], ["review", "Review & anchors"],
+      ["graph", `Graph (${view.nodes.length})`], ["proposals", `Proposals (${operations.length})`], ["review", "Review"],
     ].map(([key, label]) => {
       const button = el("button", { type: "button", "aria-controls": `batch-${key}`, onclick: () => choose(key) }, label);
       buttons.set(key, button); return button;
@@ -339,6 +325,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
       bulk,
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
+      anchorLine(graph, current),
       tabs, ...Object.values(panels),
     );
   };

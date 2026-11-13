@@ -323,7 +323,7 @@
                             "additionalProperties": false
                           },
                           "anchors": {
-                            "description": "Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise.",
+                            "description": "Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise. Omit to anchor to the root: the organization's Organization node, or the owner's Person in a personal graph. In a batch that commits by policy, records that reach no anchor wait for a member instead. An empty list removes the requirement.",
                             "maxItems": 20,
                             "type": "array",
                             "items": {

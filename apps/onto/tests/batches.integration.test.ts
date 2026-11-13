@@ -409,7 +409,6 @@ test("agents repair one draft by ref and get anchor and ontology validation in m
   const readOnly = await json(await f.app.call(`/api/apps/onto/batches/get?id=${batchId}`, viewer));
   assert.equal(readOnly.validation.valid, true);
   assert.equal(readOnly.canReview, false);
-  assert.equal((await f.app.call("/api/apps/onto/batches/configure", viewer, { method: "POST", body: { batchId, anchors: [] } })).status, 403);
   await send("submit", { batchId });
   const frozen = await send("stage", { batchId, replace: true, proposals: [{ operation: person("$child", 951, "Too late") }] });
   assert.equal(frozen.result, null);
@@ -521,4 +520,48 @@ test("amendment anchor checks use the projected graph after a saved edge is arch
   assert.match(amended.errors[0].message, /anchor/i);
   assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 2);
   assert.equal(await f.exists(uuid(234)), false);
+});
+
+test("a member-reviewed batch anchors to the organization's root unless it names its own anchors", async t => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "root", operations: [
+    create("$org", "graph-node", { id: uuid(960), typeId: core.organization, title: "Acme", slug: "acme", properties: { organization_id: "org" } }),
+    person("$known", 961, "Known"),
+  ] }));
+  const stage = async (input: object) => (await run(f, "StageChanges", { input }, agent)).data.stageChanges;
+  const loose = await stage({ title: "Loose", proposals: [{ operation: person("$loose", 962, "Loose") }] });
+  assert.deepEqual(loose.anchors, ["Organization:acme"]);
+  assert.match(loose.validation.error, /anchor/);
+  // Named anchors replace the root; an empty list asks for none.
+  assert.deepEqual((await stage({ title: "Narrow", anchors: ["Person:known"], proposals: [{ operation: person("$other", 963, "Other") }] })).anchors, ["Person:known"]);
+  const free = await stage({ title: "Free", anchors: [], proposals: [{ operation: person("$free", 964, "Free") }] });
+  assert.deepEqual(free.anchors, []);
+  assert.equal(free.validation.valid, true);
+  // A scheduled app batch anchors to the root too: what is confident and traceable commits,
+  // what reaches no anchor waits for a member with what depends on it.
+  const { batch } = await json(await f.action("batch.open", { title: "Discovery", source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent));
+  assert.deepEqual(batch.anchors, [uuid(960)]);
+  const narrow = (await json(await f.action("batch.open", { title: "Discovery", anchors: ["Person:known"], source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent))).batch;
+  await json(await f.action("batch.add", { batchId: narrow.id, proposals: [
+    { operation: person("$linked", 965, "Linked"), evidence: cite("r1"), confidence: 0.99 },
+    { operation: friends("$link", 966, 965, 961), evidence: cite("r1"), confidence: 0.99 },
+    { operation: person("$stray", 967, "Stray"), evidence: cite("r2"), confidence: 0.99 },
+    { operation: person("$strayer", 968, "Strayer"), evidence: cite("r2"), confidence: 0.99 },
+    { operation: friends("$strays", 970, 967, 968), evidence: cite("r2"), confidence: 0.99 },
+  ] }, agent));
+  const submitted = await json(await f.action("batch.submit", { batchId: narrow.id }, agent));
+  assert.equal(submitted.batch.state, "awaiting_review");
+  assert.equal(await f.exists(uuid(965)), true);
+  assert.equal(await f.exists(uuid(967)), false);
+  assert.equal(submitted.counts.awaiting_review, 3);
+});
+
+test("a personal Onto anchors a new batch to its owner's Person", async t => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  const me = { userId: "owner", organizationId: "", role: "owner", owner: { kind: "user", id: "owner" } };
+  const ada = await json(await f.app.call("/api/internal/entities/v1/create", me as typeof owner, { method: "POST", body: { type: "graph-node", attributes: { typeId: core.person, title: "Ada", slug: "ada" } } }));
+  await json(await f.app.call("/api/internal/identity/v1/link", me as typeof owner, { method: "POST", body: { holderId: ada.ref.id, principalId: "owner", kind: "human" } }));
+  const staged = (await run(f, "StageChanges", { input: { title: "Mine", proposals: [{ operation: person("$friend", 970, "Friend") }] } }, me)).data.stageChanges;
+  assert.deepEqual(staged.anchors, ["Person:ada"]);
+  assert.match(staged.validation.error, /anchor/);
 });
