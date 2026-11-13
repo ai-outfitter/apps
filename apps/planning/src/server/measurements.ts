@@ -2,7 +2,7 @@
 //
 // A Measure says how to compute one MetricDefinition from a connector
 // operation; a Measurement is one observed value for one window. Planning reads
-// every Measure, runs its connector operation for the current window, and
+// every Measure, runs its connector operation for the last completed window, and
 // stages the Measurements in one change batch that commits by policy.
 import { graphMutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
@@ -33,9 +33,9 @@ export const measurementGraph = wikiGraph.parse({
     { id: measureType, category: "node", name: "Measure", title: "Measures",
       body: "## Measures\n\nHow to compute one metric from a connector: the connector, its read-only operation, the resource it reads, the operation input (JSON, where `{{windowStart}}` and `{{windowEnd}}` become the window's ISO times), the dot path to the number in the result, its unit and interval. Link the MetricDefinition it computes with `computes`.\n\n## For agents\n\nPlanning's RecordMeasurements runs every Measure and records a Measurement per window. A Measure is a recipe, not an observed value.",
       properties: [
-        text("connector", "Connector provider, for example posthog or github."),
+        text("connector", "Connector provider, for example posthog, grafana or github."),
         text("operation", "Read-only connector operation, for example query.run or repositories.read."),
-        text("resource", "What the connection reads: a PostHog project (us.posthog.com/projects/4242) or a GitHub repository (owner/name)."),
+        text("resource", "What the connection reads: a PostHog project (us.posthog.com/projects/4242), a Grafana organization (acme.grafana.net/orgs/1) or a GitHub repository (owner/name)."),
         text("input", "Operation input as JSON; {{windowStart}} and {{windowEnd}} are replaced with the window's ISO times."),
         text("value", "Dot path to the number in the result, for example rows.0.visitors or stars."),
         text("unit", "Unit of the value, for example people or stars."),
@@ -92,6 +92,11 @@ export function measurementWindow(interval: MeasureDefinition["interval"], at: n
   const day = Math.floor(at / DAY) * DAY;
   const start = interval === "daily" ? day : day - ((new Date(day).getUTCDay() + 6) % 7) * DAY;
   return { start: new Date(start).toISOString(), end: new Date(start + (interval === "daily" ? 1 : 7) * DAY).toISOString() };
+}
+
+/** The last window that has ended by `at`: a run reads last week (or yesterday), never a week still under way. */
+export function completedWindow(interval: MeasureDefinition["interval"], at: number) {
+  return measurementWindow(interval, Date.parse(measurementWindow(interval, at).start) - 1);
 }
 
 /** The operation input with the window's times filled in. */
@@ -210,7 +215,7 @@ export const recordMeasurementsInput = z.strictObject({
 });
 export type RecordResult = { runId: string; batchId: string | null; state: string | null; measures: number; recorded: number; skipped: number; unread: Unread[] };
 
-/** Read every Measure for its current window and stage the new Measurements as one batch. Editors only;
+/** Read every Measure for its last completed window and stage the new Measurements as one batch. Editors only;
  * a schedule runs as the editor who saved it, in the run the platform started (`runId`). */
 export async function recordMeasurements(host: Host, identity: AppIdentity, input: unknown,
   { readGraph = readWikiGraph as (host: Host) => Promise<Graph>, now = Date.now(), runId }: { readGraph?: (host: Host) => Promise<Graph>; now?: number; runId?: string } = {}): Promise<RecordResult> {
@@ -229,7 +234,7 @@ export async function recordMeasurements(host: Host, identity: AppIdentity, inpu
   const observed: Observed[] = [];
   let skipped = 0;
   for (const measure of found) {
-    const window = measurementWindow(measure.definition.interval, now);
+    const window = completedWindow(measure.definition.interval, now);
     if (done.has(`${measure.node.ref.id}@${window.start}`)) { skipped++; continue; }
     const connection = snapshot.connections.find((item) => item.provider === measure.definition.connector && item.owner === "organization" && item.operations.includes(measure.definition.operation));
     if (!connection) { unread.push({ measureId: measure.node.ref.id, measure: measure.node.title, reason: `Connect the organization's ${measure.definition.connector} with ${measure.definition.operation} to record this.` }); continue; }
@@ -246,7 +251,7 @@ export async function recordMeasurements(host: Host, identity: AppIdentity, inpu
   if (proposals.length) {
     const opened = (await call("actions.call", { installationId: graph.wiki.installationId, action: "batch.open", input: {
       title: `Measurements ${capturedAt.slice(0, 10)}`,
-      purpose: "KPI values read from connectors for the current window, one per Measure.",
+      purpose: "KPI values read from connectors for the last completed window, one per Measure.",
       source: { kind: "agent-task", ref: run.id, label: "Planning measurements" },
       policy: { kind: "confidence", threshold: 1, version: POLICY_VERSION },
     } })) as { batch: { id: string } };

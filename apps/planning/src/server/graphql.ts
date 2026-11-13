@@ -602,7 +602,7 @@ const mutation = new GraphQLObjectType<unknown, Context>({
     }),
     recordMeasurements: mutationField<typeof recordMeasurementsInput, Context>({
       name: "RecordMeasurements",
-      description: "Record every Measure in the Wiki for its current window (weekly from Monday 00:00 UTC, or daily): run its connector operation (for example PostHog query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.",
+      description: "Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.",
       input: recordMeasurementsInput,
       run: (context, input) => recordMeasurements(context.host(), context.identity, input),
     }),

@@ -7,7 +7,8 @@ until an organization moves) so a connector can record a KPI every week and
 anyone, person or agent, can read this week's value, last week's and the change.
 
 Examples: GitHub stars of `ai-outfitter/webapp` this week and growth since last
-week; people who reached `/checkout` in PostHog over the last 7 days.
+week; people who reached `/checkout` in PostHog over the last 7 days; a
+Prometheus series in Grafana (Cloud or self-hosted) over the week.
 
 ## Entities
 
@@ -20,11 +21,11 @@ definition can have several Measures (one per repository, say).
 
 | Property | Example | Meaning |
 | --- | --- | --- |
-| `connector` | `posthog`, `github` | Provider of an organization connection |
+| `connector` | `posthog`, `grafana`, `github` | Provider of an organization connection |
 | `operation` | `query.run`, `repositories.read` | Read-only connector operation |
-| `resource` | `us.posthog.com/projects/4242`, `ai-outfitter/webapp` | What the connection reads; a GitHub repository by `owner/name` |
+| `resource` | `us.posthog.com/projects/4242`, `acme.grafana.net/orgs/1`, `ai-outfitter/webapp` | What the connection reads; a GitHub repository by `owner/name` |
 | `input` | `{"query":"select count(distinct person_id) as visitors from events where properties.$pathname = '/checkout' and timestamp >= toDateTime('{{windowStart}}') and timestamp < toDateTime('{{windowEnd}}')"}` | Operation input as JSON. `{{windowStart}}` and `{{windowEnd}}` become the window's ISO times |
-| `value` | `rows.0.visitors`, `stars` | Dot path to the number in the result |
+| `value` | `rows.0.visitors`, `frames.0.last.Value`, `stars` | Dot path to the number in the result |
 | `unit` | `people`, `stars` | Unit of the value |
 | `interval` | `weekly` | `weekly` (Monday 00:00 UTC to the next Monday) or `daily` |
 
@@ -45,7 +46,7 @@ Edges `measurement_of`: Measurement → MetricDefinition, and `captured_with`:
 Measurement → Measure. The batch that recorded it keeps the evidence (connector,
 operation, resource, run).
 
-A level metric such as stars is the count at capture time; a flow metric such
+A level metric such as stars is the count at capture time, shortly after its window ends; a flow metric such
 as checkout visitors counts events inside the window. Both are stored the same
 way. Growth is never stored: it is the latest value minus the previous one, so a
 correction to either week changes it.
@@ -58,13 +59,18 @@ and is reported on the run, never written as zero.
 `RecordMeasurements` (MCP mutation, editors) and the `record-measurements`
 workflow (manual, and weekly once an editor turns its schedule on) read every
 active Measure, find the organization connection for its connector that may
-run its operation, run it for the current window through `connector.execute`,
+run its operation, run it for the last completed window (last week on the
+Monday run, so a flow metric covers a whole week) through `connector.execute`,
 read the value at `value`, and stage the Measurements with both edges in one
 change batch. Each proposal has confidence 1 (a connector read, not a model
 guess), so the batch commits by policy. A window already recorded is skipped.
 
-Planning's manifest declares `connector.posthog.query.run` and
-`connector.github.repositories.read`; a new connector needs one more declared
+A Grafana Measure passes the window as the query range, for example
+`{"datasourceUid":"prom","query":{"expr":"sum(increase(checkout_total[1w]))","instant":true},"from":"{{windowStart}}","to":"{{windowEnd}}"}`
+with value `frames.0.last.Value`.
+
+Planning's manifest declares `connector.posthog.query.run`,
+`connector.grafana.query.run` and `connector.github.repositories.read`; a new connector needs one more declared
 operation, nothing else.
 
 ## Reading

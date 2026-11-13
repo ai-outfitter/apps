@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { OrganizationIdentity } from "@ai-outfitter/app-sdk/server";
 import {
-  capturedWithType, measuredValue, measureInput, measurementOfType, measurementType, measurementWindow, metricMeasurements, recordMeasurements,
+  capturedWithType, completedWindow, measuredValue, measureInput, measurementOfType, measurementType, measurementWindow, metricMeasurements, recordMeasurements,
 } from "../src/server/measurements";
 
 const editor: OrganizationIdentity = { userId: "bob", organizationId: "org", owner: { kind: "organization", id: "org" }, installationId: "planning", role: "owner", canEdit: true };
@@ -63,6 +63,9 @@ test("windows are half-open UTC weeks from Monday or days", () => {
   assert.deepEqual(measurementWindow("weekly", Date.parse("2026-11-09T00:00:00Z")), { start: "2026-11-09T00:00:00.000Z", end: "2026-11-16T00:00:00.000Z" });
   assert.deepEqual(measurementWindow("weekly", Date.parse("2026-11-15T23:59:59Z")).start, "2026-11-09T00:00:00.000Z");
   assert.deepEqual(measurementWindow("daily", NOW), { start: "2026-11-12T00:00:00.000Z", end: "2026-11-13T00:00:00.000Z" });
+  assert.deepEqual(completedWindow("weekly", NOW), { start: "2026-11-02T00:00:00.000Z", end: "2026-11-09T00:00:00.000Z" });
+  assert.deepEqual(completedWindow("weekly", Date.parse("2026-11-09T06:00:00Z")).start, "2026-11-02T00:00:00.000Z");
+  assert.deepEqual(completedWindow("daily", NOW).start, "2026-11-11T00:00:00.000Z");
 });
 
 test("inputs get the window's times and values come from a dot path", () => {
@@ -85,15 +88,15 @@ test("every Measure is read for its window and staged as one batch that commits 
 
   const executed = calls.filter((call) => call.operation === "connector.execute").map((call) => call.input);
   assert.deepEqual(executed.map((input) => [input.connectionId, input.resource, input.operation]), [["gh", "30", "repositories.read"], ["ph", "us.posthog.com/projects/4242", "query.run"]]);
-  assert.match(String(executed[1].input.query), /2026-11-09T00:00:00.000Z/);
+  assert.match(String(executed[1].input.query), /2026-11-02T00:00:00.000Z.*2026-11-09T00:00:00.000Z/);
 
   const opened = calls.find((call) => call.input.action === "batch.open")!.input.input;
   assert.deepEqual(opened.policy, { kind: "confidence", threshold: 1, version: "planning-measurements-1" });
   const proposals = calls.filter((call) => call.input.input?.operationName === "StageChanges").flatMap((call) => call.input.input.variables.input.proposals);
   const nodes = proposals.filter((p: Input) => p.operation.type === "graph-node").map((p: Input) => p.operation.attributes);
   assert.deepEqual(nodes.map((node: Input) => [node.typeId, node.slug, node.properties.value, node.properties.window_start]), [
-    [measurementType, "webapp-stars-2026-11-09", 128, "2026-11-09T00:00:00.000Z"],
-    [measurementType, "checkout-visitors-2026-11-09", 318, "2026-11-09T00:00:00.000Z"],
+    [measurementType, "webapp-stars-2026-11-02", 128, "2026-11-02T00:00:00.000Z"],
+    [measurementType, "checkout-visitors-2026-11-02", 318, "2026-11-02T00:00:00.000Z"],
   ]);
   const edges = proposals.filter((p: Input) => p.operation.type === "graph-edge").map((p: Input) => [p.operation.attributes.typeId, p.operation.attributes.toId]);
   assert.deepEqual(edges, [[capturedWithType, STARS], [measurementOfType, "metric-stars"], [capturedWithType, CHECKOUT], [measurementOfType, "metric-checkout"]]);
@@ -102,7 +105,7 @@ test("every Measure is read for its window and staged as one batch that commits 
 
 test("a recorded window is skipped, a missing connection or failed read records nothing, members cannot record", async () => {
   const done = graph({
-    nodes: [record("m1", { typeId: "t-Measurement", properties: { value: 120, window_start: "2026-11-09T00:00:00.000Z" } })],
+    nodes: [record("m1", { typeId: "t-Measurement", properties: { value: 120, window_start: "2026-11-02T00:00:00.000Z" } })],
     edges: [record("w1", { typeId: "t-captured_with", fromId: "m1", toId: STARS })],
   });
   const { calls, host: double } = host([]);

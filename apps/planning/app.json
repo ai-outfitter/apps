@@ -30,6 +30,7 @@
         "connector.github.pulls.list",
         "connector.github.repositories.read",
         "connector.posthog.query.run",
+        "connector.grafana.query.run",
         "workflow.record-measurements.start",
         "entities.write.delegated",
         "platform.documents",
