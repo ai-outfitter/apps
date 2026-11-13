@@ -999,7 +999,7 @@ export function typeAdministration(root: HTMLElement, g: Graph) {
         "div",
         {},
         el("strong", {}, type.title),
-        el("p", {}, type.body),
+        el("a", { href: appUrl(`types/${typeSegment(type.name)}`) }, "Read type guide"),
         ...(g.canEdit ? [button("Edit", () => edit(type))] : []),
       ),
     );
