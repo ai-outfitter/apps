@@ -252,6 +252,14 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to link the pull requests merged into my projects' repositories to those projects in the Wiki from the project page or an agent, so that the knowledge graph shows which code changes delivered each project's work, with a reason a member can review.",
     document: graphql(`mutation LinkProjectChanges($input: LinkProjectChangesInput!) { linkProjectChanges(input: $input) }`),
   },
+  RecordMeasurements: {
+    story: "As an editor, I want to record this week's KPI values from our connectors (PostHog, GitHub) from Planning or an agent, so that each metric has an observed value per week instead of a definition alone.",
+    document: graphql(`mutation RecordMeasurements($input: RecordMeasurementsInput!) { recordMeasurements(input: $input) }`),
+  },
+  MetricMeasurements: {
+    story: "As a member, I want each metric's latest and previous recorded values and the change between them, so that I and agents can see this week's KPI and its growth since last week.",
+    document: graphql(`query MetricMeasurements($input: MetricMeasurementsInput!) { metricMeasurements(input: $input) }`),
+  },
   UseCases: {
     story: "As a member, I want a project's complete existing use-case scenarios and revisions, so that I can author and safely revise their actor, trigger, steps, alternatives and success evidence.",
     document: graphql(`query UseCases($input: UseCasesInput!) { useCases(input: $input) }`),

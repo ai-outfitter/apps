@@ -29,7 +29,15 @@ SemLang concepts -> Malloy queries. An adapter would preserve canonical app
 references and expose typed source populations, rather than ask Malloy to query
 arbitrary graph JSON directly. Current audit timestamps are not business
 occurrence or validity times. A MetricDefinition page describes a metric; actual
-measures need observations, calculation rules, units and a defined row grain.
+values are Measurements (below), with units and a defined row grain.
+
+Measurements now exist as records: Planning defines `Measure` (how a
+connector computes a MetricDefinition) and `Measurement` (an `event` with one
+value per half-open window, linked `measurement_of` its MetricDefinition), see
+[Planning measurements](../../planning/docs/measurements.md). In SemLang terms a
+Measurement is an event concept with occurrence time `captured_at`, valid time
+`[window_start, window_end)` and grain measure × window; growth is a lag over
+window start, not a stored value.
 
 A practical first experiment could export a versioned DuckDB snapshot and
 validate real compiler diagnostics and join results. SemLang generation,

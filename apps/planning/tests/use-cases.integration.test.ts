@@ -192,8 +192,8 @@ test("Planning stores use cases in Wiki, preserves edits on setup, and enforces 
     assert.equal(again.status, 200);
     assert.deepEqual(
       hostCalls,
-      // One discovery (Onto, then the legacy Wiki template), then UseCase, the intake ontology's two types, then the code-change definitions (CodeChange, delivers, merged_into).
-      ["entities.types", "entities.types", ...Array(6).fill("entities.get")],
+      // One discovery (Onto, then the legacy Wiki template), then UseCase, the intake ontology's two types, then the code-change definitions (CodeChange, delivers, merged_into), then the measurement definitions (Measure, Measurement, computes, measurement_of, captured_with).
+      ["entities.types", "entities.types", ...Array(11).fill("entities.get")],
       "navigation checks add-only setup without rediscovering Wiki",
     );
     assert.equal((await call("/use-cases/setup", {})).status, 404);

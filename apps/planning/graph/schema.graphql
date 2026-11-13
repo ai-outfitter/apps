@@ -279,6 +279,10 @@ type Issue {
   updatedAt: DateTime!
 }
 
+input MetricMeasurementsInput {
+  metricIds: [ID!]
+}
+
 input UseCasesInput {
   projectId: ID!
 }
@@ -1042,6 +1046,10 @@ input LinkProjectChangesInput {
   days: Int
 }
 
+input RecordMeasurementsInput {
+  measureId: ID
+}
+
 input SaveUseCaseInput {
   projectId: ID!
   title: String!
@@ -1092,6 +1100,11 @@ type Query {
     status: [String!]
     category: [String!]
   ): IssueConnection!
+
+  """
+  Every MetricDefinition in the Wiki with its latest and previous recorded Measurement ({ value, unit, windowStart, windowEnd, capturedAt }) and the change between them, for KPIs such as this week's GitHub stars and growth since last week. latest is null until a Measure records one.
+  """
+  metricMeasurements(input: MetricMeasurementsInput!): JSON
 
   """
   Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.
@@ -1322,6 +1335,11 @@ type Mutation {
   Link the pull requests merged into each project's repositories (its Wiki node's source_in edges) over the last days (default 7) to the project in the Wiki: one change batch of CodeChange records with merged_into and delivers relationships, each with its evidence and reason. Confident links commit by policy; the rest wait for review on the Wiki's Changes page. Returns { runId, batchId, state, pullRequests, proposals, skipped, unread }. Editors only.
   """
   linkProjectChanges(input: LinkProjectChangesInput!): JSON
+
+  """
+  Record every Measure in the Wiki for its current window (weekly from Monday 00:00 UTC, or daily): run its connector operation (for example PostHog query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.
+  """
+  recordMeasurements(input: RecordMeasurementsInput!): JSON
 
   """
   Create a use case in the Wiki for a project, or with id and revision replace one's title, summary, document and archived flag, and return the Wiki record. Editors only.

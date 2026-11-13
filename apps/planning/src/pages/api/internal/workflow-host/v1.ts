@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { planningContext } from "../../../../server/context";
 import { runPreparation } from "../../../../server/delivery-prepare";
 import { digestWorkflow, runDigestTask, scheduledDigests } from "../../../../server/digests";
+import { measurementsWorkflow, recordMeasurements } from "../../../../server/measurements";
 
 import { productReportWorkflow, runProductReport, regenerateProductReport } from "../../../../server/product-report-workflow";
 
@@ -28,6 +29,10 @@ export const POST: APIRoute = ({ request, locals }) =>
         await host.call("workflow.start",{workflow:productReportWorkflow,id:occurrence.runId,inputs:{}});
         await regenerateProductReport(host,requestIdentity(request),occurrence.runId,new Date(occurrence.scheduledFor));
         return {outcome:"started"};
+      }
+      if (occurrence.schedule.workflowId === measurementsWorkflow) {
+        await recordMeasurements(host, requestIdentity(request), {}, { runId: occurrence.runId, now: occurrence.scheduledFor });
+        return { outcome: "started" };
       }
       if (occurrence.schedule.workflowId !== digestWorkflow)
         return { outcome: "declined", reason: `Planning does not schedule ${occurrence.schedule.workflowId}` };

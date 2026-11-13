@@ -26,6 +26,7 @@
     "@ai-outfitter/workflow-planning-router": "0.1.0",
     "@ai-outfitter/workflow-product-roadmap-summary": "0.1.0",
     "@ai-outfitter/workflow-project-changes": "0.1.0",
+    "@ai-outfitter/workflow-record-measurements": "0.1.0",
     "@ai-outfitter/workflow-project-digest": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/react": "^7.0.0",
