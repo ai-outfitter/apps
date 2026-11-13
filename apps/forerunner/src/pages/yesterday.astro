@@ -16,7 +16,7 @@ let validPeriod = false;
 try {
   if (demo) {
     const period = reviewPeriod(input);
-    model = { period, latestDate: period.date, previousDate: shiftDate(period.date, -1), nextDate: null, previousWeek: shiftDate(period.date, -7), nextWeek: null, completions: [], organizations: [], overview: null, warnings: ["This is a read-only example. No private reports or completion history are loaded."] };
+    model = { period, latestDate: period.date, previousDate: shiftDate(period.date, -1), nextDate: null, previousWeek: shiftDate(period.date, -7), nextWeek: null, completions: [], organizations: [], overview: null, goals: [], goalCoverage: "unavailable", warnings: ["This is a read-only example. No private reports or completion history are loaded."] };
   } else {
     reviewPeriod(input);
     validPeriod = true;

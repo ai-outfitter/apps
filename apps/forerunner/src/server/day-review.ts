@@ -15,7 +15,20 @@ export type DayReview = {
   period: ReviewPeriod; latestDate: string; previousDate: string; nextDate: string | null; previousWeek: string; nextWeek: string | null;
   completions: { id: string; itemId: string; title: string; category: string; completedAt: number; available: boolean }[];
   organizations: ReportSource[]; overview: ReportSource | null; warnings: string[];
+  /** The member's current personal goals as the saved personal report captured them: titles and exact graph revisions, never progress. */
+  goals: GoalReference[]; goalCoverage: "complete" | "incomplete" | "unavailable";
 };
+export type GoalReference = { title: string; id: string; revision: number };
+/** Goal titles and revisions from a saved personal report's bounded goal context. */
+export function reportGoals(raw: unknown): Pick<DayReview, "goals" | "goalCoverage"> {
+  const context = record(record(raw).goalContext);
+  if (!Array.isArray(context.goals)) return { goals: [], goalCoverage: "unavailable" };
+  const goals = rows(context.goals).flatMap(goal => {
+    const ref = record(goal.ref), revision = Number(ref.revision);
+    return text(goal.title) && text(ref.id) && Number.isInteger(revision) && revision > 0 ? [{ title: text(goal.title).slice(0, 200), id: text(ref.id), revision }] : [];
+  }).slice(0, 20);
+  return { goals, goalCoverage: context.complete === true ? "complete" : "incomplete" };
+}
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const rows = (value: unknown) => Array.isArray(value) ? value.map(record) : [];
 const text = (value: unknown) => typeof value === "string" ? value : "";
@@ -115,21 +128,21 @@ async function ownOverview(host: Host, identity: AppIdentity, period: ReviewPeri
       if (current.length !== 1) throw new Error("Organization scope is ambiguous");
       scope = current[0].slug;
     }
-    return reportSource(result.data.dailyReport, scope, "Daily overview", period);
-  } catch { return source("personal", "Daily overview", "unavailable", "Your saved daily overview could not be read."); }
+    return { source: reportSource(result.data.dailyReport, scope, "Daily overview", period), ...reportGoals(result.data.dailyReport) };
+  } catch { return { source: source("personal", "Daily overview", "unavailable", "Your saved daily overview could not be read."), goals: [] as GoalReference[], goalCoverage: "unavailable" as const }; }
 }
 export async function readDayReview(db: Database, identity: AppIdentity, host: Host, raw: z.input<typeof reviewInput>, now = Date.now()): Promise<DayReview> {
   const period = reviewPeriod(raw, now), latestDate = shiftDate(localDate(now, period.timezone), -1);
-  const [completed, current, overview, organizations] = await Promise.all([
+  const [completed, current, personal, organizations] = await Promise.all([
     db.select().from(itemCompletions).where(and(eq(itemCompletions.installationId, identity.installationId), eq(itemCompletions.ownerId, identity.userId), gte(itemCompletions.completedAt, period.start), lt(itemCompletions.completedAt, period.end))).orderBy(asc(itemCompletions.completedAt)).limit(101),
     listItems(db, identity),
     ownOverview(host, identity, period),
     identity.organizationId ? Promise.resolve({ sources: [] as ReportSource[], warnings: [] as string[] }) : organizationReports(host, period).catch(() => ({ sources: [] as ReportSource[], warnings: ["Organization report sources could not be loaded. This is not evidence of no activity."] })),
   ]);
-  const existing = new Set(current.map(item => item.id));
+  const existing = new Set(current.map(item => item.id)), overview = personal.source;
   return { period, latestDate, previousDate: shiftDate(period.date, -1), nextDate: period.date < latestDate ? shiftDate(period.date, 1) : null,
     previousWeek: shiftDate(period.date, -7), nextWeek: shiftDate(period.date, 7) <= latestDate ? shiftDate(period.date, 7) : null,
     completions: completed.slice(0, 100).map(row => ({ id: row.id, itemId: row.itemId, title: row.title, category: row.category, completedAt: row.completedAt, available: existing.has(row.itemId) })),
-    overview, organizations: identity.organizationId ? [overview] : organizations.sources, warnings: [...organizations.warnings, ...(completed.length > 100 ? ["Only the first 100 board completions are shown for this day."] : [])],
+    overview, organizations: identity.organizationId ? [overview] : organizations.sources, goals: personal.goals, goalCoverage: personal.goalCoverage, warnings: [...organizations.warnings, ...(completed.length > 100 ? ["Only the first 100 board completions are shown for this day."] : [])],
   };
 }

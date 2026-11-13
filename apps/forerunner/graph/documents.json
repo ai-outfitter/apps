@@ -222,7 +222,7 @@
       ]
     },
     "mcp": {
-      "description": "Generate today's personal Wiki brief now, recording a workflow run and exact Wiki revision. Idempotent content writes; missing sources remain incomplete."
+      "description": "Write today's personal Wiki brief now: one model answer over saved, authorized evidence (reports, priorities, goals, role, saved discovery suggestions), each statement citing its source. Records a workflow run and the exact Wiki revision. Unchanged evidence reuses the saved revision; a failed or invalid answer returns status failed with a reason and leaves the saved brief untouched. Missing sources are listed, never inferred."
     },
     "outputSchema": {
       "type": "object",
@@ -718,7 +718,7 @@
       ]
     },
     "mcp": {
-      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. Existing Planning source reports are read; raw mail and analytics adapters are not enabled."
+      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. The run reads saved Planning reports, the board, saved goals, the saved role and saved discovery suggestions; raw mail and analytics adapters are not enabled."
     },
     "outputSchema": {
       "type": "object",

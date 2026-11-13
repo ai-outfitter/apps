@@ -300,7 +300,7 @@ type Mutation {
   setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
 
   """
-  Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.
+  Write today's personal brief from saved reports, priorities, goals and role with one cited model answer. A failed answer saves nothing and returns status failed; missing sources stay listed as not known.
   """
   generateDailyBrief(input: GenerateDailyBriefInput!): JSON
 
