@@ -15,7 +15,7 @@ import { readChanges } from "./github/changes";
 import type { IntakeContext } from "./intake";
 import { requireAvailable, userGithub } from "./pages";
 import { createProject, createProjectInput } from "./projects";
-import { enableRepository, enableRepositoryInput } from "./repositories";
+import { enableRepository, enableRepositoryInput, jobInput, runJob, scheduleJob, scheduleJobInput } from "./repositories";
 import { foundryProjects, workSubmissions } from "./schema";
 
 type Caller = TableContext & ActionContext & { host: () => WorkflowHost<"interactive">; repositories?: Promise<string[]>; readable?: string[] };
@@ -134,6 +134,11 @@ const enabledRepository = new GraphQLObjectType({ name: "EnabledRepository", des
   repository: { type: nonNull(GraphQLString) }, subscriptionId: { type: nonNull(GraphQLID) }, workflow: { type: nonNull(GraphQLString) },
 } });
 
+const jobResult = new GraphQLObjectType({ name: "FoundryJobResult", description: "A repository job's started run or saved schedule.", fields: {
+  job: { type: nonNull(GraphQLString) }, repository: { type: nonNull(GraphQLString) },
+  run: { type: GraphQLID }, schedule: { type: GraphQLID }, enabled: { type: GraphQLBoolean },
+} });
+
 // Foundry's writes. graph.mutate admits editors (mutateAction's default). Variables travel
 // within the SDK's 32 KiB limit: Planning sends larger submissions (a frozen work package)
 // to the work.submit action.
@@ -156,6 +161,18 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
       description: "Turn Foundry execution on for a repository this organization's GitHub connection reaches: approve its role agents and subscribe to its issues, so requests filed there start Foundry's issue-to-merge workflow. Repeat after a Foundry change to refresh. Owners and admins only.",
       input: enableRepositoryInput, output: nonNull(enabledRepository),
       run: enableRepository,
+    }),
+    runJob: mutationField<typeof jobInput, FoundryContext>({
+      name: "RunJob",
+      description: "Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.",
+      input: jobInput, output: nonNull(jobResult),
+      run: runJob,
+    }),
+    scheduleJob: mutationField<typeof scheduleJobInput, FoundryContext>({
+      name: "ScheduleJob",
+      description: "Save a repository job's one schedule on its declared cadence for a repository, with its approved workspace agent; enabled false pauses it. Owners and admins only.",
+      input: scheduleJobInput, output: nonNull(jobResult),
+      run: scheduleJob,
     }),
     createProject: mutationField<typeof createProjectInput, FoundryContext>({
       name: "CreateProject",

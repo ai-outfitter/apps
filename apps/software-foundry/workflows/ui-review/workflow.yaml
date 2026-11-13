@@ -2,7 +2,9 @@ version: beta
 id: ui-review
 summary: Review a product's pages at phone and desktop size against Outfitter's UI standards and file one remediation issue per fix; on an enabled repository each issue becomes a pull request whose Demo is its before-and-after evidence.
 actors:
-  reviewer: {kind: resident}
+  reviewer:
+    kind: external
+    binding: analyze.inputs.reviewerBinding
 triggers:
   - on: manual
   - on: schedule
@@ -18,8 +20,9 @@ $defs:
 steps:
   - id: analyze
     actor: reviewer
-    uses: [git-forge]
     inputs:
+      reviewerBinding:
+        schema: {type: string, minLength: 1}
       repository:
         schema: {type: string, pattern: "^[A-Za-z0-9-]+/[A-Za-z0-9_.-]+$"}
     instructions: |-
@@ -50,10 +53,6 @@ steps:
       In your final message list every page you looked at with the viewports you captured, the pages you could not open and why, and the findings you saw but did not file.
     outputs:
       issues:
-        connector: git-forge
-        record: issue-batch.created
-        match:
-          repository: analyze.inputs.repository
         schema:
           type: object
           required: [repository, issues]

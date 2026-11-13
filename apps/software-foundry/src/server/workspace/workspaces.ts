@@ -106,7 +106,8 @@ export function roleTarget(repository: string, resource: string, settings: z.inp
   return {
     resource,
     repository,
-    agentPermissions: { contents: write, pull_requests: write, issues: write, ...workspaceAgentPermissions(policy.role) },
+    // A repository job files issues but never changes code.
+    agentPermissions: { contents: write, pull_requests: write, issues: policy.role === "analyze" ? "write" : write, ...workspaceAgentPermissions(policy.role) },
     coordinatorPermissions: workspaceCoordinatorPermissions(policy),
     // Read-only linkage queries when publishing evidence; ready/enqueue mutations when finalizing.
     graphql: ["publish", "finalize"] as ("publish" | "finalize")[],
@@ -185,6 +186,47 @@ export async function configureFoundryWorkspaces(
   // One subscription per repository: this replaces a historical workspace-CI subscription.
   const subscription = await host.call("subscription.save", { connectionId: connection.id, resource, workflowId: foundryWorkspaceWorkflow, inputs, enabled: true });
   return { subscriptionId: subscription.id, repository: metadata.full_name, resource, workflow: foundryWorkspaceWorkflow };
+}
+
+/** Foundry's repository jobs, each with the one actor that reads the repository
+ * and files issues. They run in a workspace with an approved binding, like every
+ * other Foundry role, so the binding ID travels in the run's inputs. */
+export const foundryJobs = {
+  "dependency-review": "reviewer",
+  "architecture-reanalysis": "architect",
+  "ui-review": "reviewer",
+} as const;
+export type FoundryJob = keyof typeof foundryJobs;
+export const jobBindingInput = (job: FoundryJob) => `analyze.inputs.${foundryJobs[job]}Binding`;
+
+/** Approve (or reuse) the job's workspace binding on one repository: the run
+ * inputs a manual start or a saved schedule needs. */
+async function jobInputs(host: Editor, job: FoundryJob, repository: string, model = "gpt-6-luna") {
+  const { metadata } = await approvedRepository(host, await host.call("snapshot", {}), repository);
+  const prompt = "You are the analyze agent for an Outfitter Software Foundry repository job. Read the repository, file only the issues your instructions call for, and never change code.";
+  const binding = await host.call("binding.approve", {
+    workflowId: job,
+    actor: foundryJobs[job],
+    label: "Workspace analyze",
+    workspace: roleTarget(metadata.full_name, String(metadata.id), { role: "analyze", checks: foundryChecks(metadata.full_name), ci: "actions", reviewer: "vega" }),
+    context: { model, profile: { id: "foundry-analyze", digest: await sha256Hex(prompt), systemPrompt: prompt }, capabilities: [] },
+  });
+  return { repository: metadata.full_name, inputs: { "analyze.inputs.repository": metadata.full_name, [jobBindingInput(job)]: binding.id } };
+}
+
+/** Start a repository job now. */
+export async function runFoundryJob(host: Editor, job: FoundryJob, repository: string) {
+  const { repository: name, inputs } = await jobInputs(host, job, repository);
+  const run = crypto.randomUUID();
+  await host.call("workflow.start", { workflow: job, id: run, inputs });
+  return { job, repository: name, run };
+}
+
+/** Save the job's schedule (one per job) on a repository, on its declared cadence. */
+export async function scheduleFoundryJob(host: Editor, job: FoundryJob, repository: string, enabled = true) {
+  const { repository: name, inputs } = await jobInputs(host, job, repository);
+  const schedule = await host.call("schedule.save", { workflow: job, inputs, enabled, timezone: "UTC" });
+  return { job, repository: name, schedule: schedule.id, enabled: schedule.enabled };
 }
 
 /** The current approved binding of `workflowId`/`actor` for one repository. */

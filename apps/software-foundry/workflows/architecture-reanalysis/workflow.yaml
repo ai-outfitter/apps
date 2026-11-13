@@ -2,7 +2,9 @@ version: beta
 id: architecture-reanalysis
 summary: Architecture reanalysis and refactor (ARR) — reread a repository as it is now and file ranked refactor issues for the debt fast shipping left behind.
 actors:
-  architect: {kind: resident}
+  architect:
+    kind: external
+    binding: analyze.inputs.architectBinding
 triggers:
   - on: manual
   - on: schedule
@@ -18,8 +20,9 @@ $defs:
 steps:
   - id: analyze
     actor: architect
-    uses: [git-forge]
     inputs:
+      architectBinding:
+        schema: {type: string, minLength: 1}
       repository:
         schema: {type: string, pattern: "^[A-Za-z0-9-]+/[A-Za-z0-9_.-]+$"}
     instructions: |-
@@ -30,10 +33,6 @@ steps:
       Do not file style preferences or anything you cannot back with evidence from the repository. Filing no issues is a valid result; say what you checked in your final message.
     outputs:
       issues:
-        connector: git-forge
-        record: issue-batch.created
-        match:
-          repository: analyze.inputs.repository
         schema:
           type: object
           required: [repository, issues]

@@ -213,6 +213,26 @@ input EnableRepositoryInput {
   reviewer: String
 }
 
+"""A repository job's started run or saved schedule."""
+type FoundryJobResult {
+  job: String!
+  repository: String!
+  run: ID
+  schedule: ID
+  enabled: Boolean
+}
+
+input RunJobInput {
+  job: String!
+  repository: String!
+}
+
+input ScheduleJobInput {
+  job: String!
+  repository: String!
+  enabled: Boolean
+}
+
 input CreateProjectInput {
   name: String!
   repositories: [String!]
@@ -276,6 +296,16 @@ type Mutation {
   enableRepository(input: EnableRepositoryInput!): EnabledRepository!
 
   """
+  Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.
+  """
+  runJob(input: RunJobInput!): FoundryJobResult!
+
+  """
+  Save a repository job's one schedule on its declared cadence for a repository, with its approved workspace agent; enabled false pauses it. Owners and admins only.
+  """
+  scheduleJob(input: ScheduleJobInput!): FoundryJobResult!
+
+  """
   Add a Foundry project: a named group of repositories work can be routed to, at the lowest priority. Names are upper case and unique; repositories lower case, once each. Owners and admins only.
   """
   createProject(input: CreateProjectInput!): FoundryProject!
@@ -287,6 +317,9 @@ type Mutation {
 
   """Turn Foundry execution on for a repository"""
   repositoryChanges(input: RepositoryChangesInput!): ChangeResults
+
+  """Run or schedule Foundry's repository jobs"""
+  jobChanges(input: JobChangesInput!): ChangeResults
 
   """Apply project changes using explicit actions"""
   projectChanges(input: ProjectChangesInput!): ChangeResults
@@ -342,6 +375,21 @@ input RepositoryChangesInputItemsItem {
 
 enum RepositoryChangesInputItemsItemAction {
   enable
+}
+
+input JobChangesInput {
+  items: [JobChangesInputItemsItem!]!
+}
+
+input JobChangesInputItemsItem {
+  key: String!
+  action: JobChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum JobChangesInputItemsItemAction {
+  run
+  schedule
 }
 
 input ProjectChangesInput {

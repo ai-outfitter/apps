@@ -660,11 +660,12 @@ test("RequestChanges files a bug as one issue and starts the workflow through gr
   } finally { await f.worker.dispose(); }
 });
 
-test("a repository job schedule occurrence starts the reserved run with the saved inputs", async () => {
+test("a repository job schedule occurrence starts the reserved run with its saved binding", async () => {
   const f = await installed();
-  const occurrence = (workflowId: string, runId: string) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
+  const scheduled: Record<string, string> = { "analyze.inputs.repository": "acme/app", "analyze.inputs.reviewerBinding": "b-job" };
+  const occurrence = (workflowId: string, runId: string, inputs: Record<string, string> = scheduled) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
     runId, scheduledFor: 1,
-    schedule: { id: "schedule-1", workflowId, inputs: { "analyze.inputs.repository": "acme/app" }, connectionId: null, resource: null },
+    schedule: { id: "schedule-1", workflowId, inputs, connectionId: null, resource: null },
   } } });
   try {
     const runId = "cccccccc-1111-4111-8111-111111111111";
@@ -672,7 +673,9 @@ test("a repository job schedule occurrence starts the reserved run with the save
     assert.equal(started.status, 200, await started.clone().text());
     assert.deepEqual(await started.json(), { outcome: "started" });
     const [start] = (await f.calls()).filter((call) => call.operation === "workflow.start");
-    assert.deepEqual(start?.input, { workflow: "dependency-review", id: runId, inputs: { "analyze.inputs.repository": "acme/app" } });
+    assert.deepEqual(start?.input, { workflow: "dependency-review", id: runId, inputs: scheduled });
+    const unbound = await occurrence("dependency-review", "eeeeeeee-1111-4111-8111-111111111111", { "analyze.inputs.repository": "acme/app" });
+    assert.match(((await unbound.json()) as { reason: string }).reason, /JobChanges schedule/);
     const declined = await occurrence("issue-to-merge-actions-ci", "dddddddd-1111-4111-8111-111111111111");
     assert.equal(((await declined.json()) as { outcome: string }).outcome, "declined");
     assert.equal(starts(await f.calls()), 0);

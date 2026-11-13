@@ -10,6 +10,8 @@ import {
   launchFoundryWorkspaceIssue,
   startExistingFoundryIssue,
   resolveFoundryRepository,
+  runFoundryJob,
+  scheduleFoundryJob,
 } from "../src/server/workspace/workspaces";
 
 type Call = { operation: string; input: any };
@@ -54,6 +56,8 @@ function platform(provider = "github") {
     // This installation's run by ID; none exist in this double.
     "workflow.read": () => null,
     "workflow.start": (input) => ({ id: input.id, workflow: input.workflow, created: true }),
+    "schedule.save": (input) => ({ id: "schedule", workflowId: input.workflow, cron: "0 14 * * 1", timezone: input.timezone, inputs: input.inputs,
+      connectionId: null, resource: null, createdBy: "owner", enabled: input.enabled, nextRunAt: null, lastRunAt: null, lastRunId: null, lastOutcome: null }),
   };
   const host = {
     async call(operation: string, input: any) {
@@ -168,4 +172,22 @@ test("an owner or admin turns a repository on from Foundry itself, within intera
   assert.equal(subscriptions.length, 1);
   assert.ok(calls.every((call) => operationAllowed(call.operation, "interactive")), "no operator-only operation is needed");
   await assert.rejects(enableRepository(context(false), { repository: "acme/app", reviewer: "vega" }));
+});
+
+test("a repository job runs and schedules under its approved read-only analyze binding", async () => {
+  const { host, bindings, calls } = platform();
+  const started = await runFoundryJob(host as never, "architecture-reanalysis", "Acme/App");
+  assert.equal(started.repository, "acme/app");
+  const [binding] = bindings;
+  assert.equal(`${binding.workflowId}/${binding.actor}`, "architecture-reanalysis/architect");
+  assert.equal(binding.workspace.settings.role, "analyze");
+  assert.deepEqual([binding.workspace.agentPermissions.contents, binding.workspace.agentPermissions.pull_requests, binding.workspace.agentPermissions.issues], ["read", "read", "write"]);
+  const start = calls.find((call) => call.operation === "workflow.start");
+  assert.deepEqual(start?.input, { workflow: "architecture-reanalysis", id: started.run, inputs: { "analyze.inputs.repository": "acme/app", "analyze.inputs.architectBinding": binding.id } });
+  const saved = await scheduleFoundryJob(host as never, "ui-review", "acme/app", false);
+  assert.deepEqual(saved, { job: "ui-review", repository: "acme/app", schedule: "schedule", enabled: false });
+  const save = calls.find((call) => call.operation === "schedule.save");
+  assert.equal(save?.input.inputs["analyze.inputs.reviewerBinding"], bindings.at(-1).id);
+  assert.equal(save?.input.cron, undefined, "the job's declared cadence");
+  assert.ok(!calls.some((call) => !Object.hasOwn(operations, call.operation)), "only operations the host defines");
 });

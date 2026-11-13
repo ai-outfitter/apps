@@ -31,6 +31,7 @@ const id = z.string().min(1).max(128);
 export const workspaceTarget = z
   .object({
     role: z.enum([
+      "analyze",
       "triage",
       "implement",
       "validate",
@@ -106,6 +107,10 @@ const implementing = [
   "The triage plan in previous.summary names the files and checks: start there instead of re-exploring the repository. Read a file once and edit it in place; do not re-print files after each edit.",
   "Write new tests by copying the closest existing test in the same file and changing only what the plan needs. Iterate on that one test file. If a test fails twice the same way, read the code path it exercises before changing the test again.",
 ];
+/** Repository jobs read a repository and file issues; they never change code. */
+const analyzing = [
+  "This is a repository job: read and run the repository in your workspace, but never commit, push, open pull requests or change repository settings. File each issue yourself with gh issue create in this repository, then report exactly the issues you created (number, url, title) in the issues output; the coordinator re-reads each one from GitHub.",
+];
 const reviewing = [
   "Review and validation nodes must not push code or publish reviews; the coordinator publishes their verified results.",
 ];
@@ -118,6 +123,7 @@ export function workspaceGuidance(repository: string, role = "implement") {
     ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly. Reviewers have read-only Actions access; inspect current-commit CI logs independently. For protected previews import installPreview from /opt/workspace/preview.mjs and call it with the Playwright context and previous.previews.verifiedUrl before page.goto; it uses the trusted gateway and assertReadOnly checks. Do not add service credentials to the browser; never try a person's login. Block only same-origin /cdn-cgi/rum telemetry during read-only fixture checks, and fail on every other product write. Report missing preview access explicitly rather than treating an Access login page as successful acceptance."] : []),
   ];
   if (role === "triage") return [];
+  if (role === "analyze") return analyzing;
   return [
     ...implementing, ...publishScreenshots,
     ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly."] : []),
@@ -159,6 +165,7 @@ export async function finalizeWorkspaceNode(
   { node, inputs, outputs, coordinator, session, settings }: z.infer<typeof finalizeInput>,
 ) {
   const target = workspaceTarget.parse(settings);
+  if (target.role === "analyze") return { outputs: await finalizeAnalysis(host, outputs) };
   if (coordinator)
     return { outputs: await finalizeWorkspaceOutputs(host, files, node, inputs, target, { result: {
       ready: true, summary: "Coordinated GitHub Actions workflow step",
@@ -169,6 +176,23 @@ export async function finalizeWorkspaceNode(
   result.sessionArtifact = session.artifact;
   if (session.outputRecovery) result.outputRecovery = session.outputRecovery;
   return { outputs: finalized };
+}
+
+/** A repository job's issues, each re-read from the bound repository, so only
+ * issues that exist there are reported. */
+async function finalizeAnalysis(host: Finalize, outputs: Json): Promise<Json> {
+  const produced = z.object({
+    issues: z.array(z.object({ number: z.number().int().positive() }).passthrough()).max(10),
+    summary: z.string().max(32000).optional(),
+  }).passthrough().parse(outputs.issues);
+  const repo = await host.call("repository.read", {});
+  const forge = foundryForge(hostAPI((request) => host.call("repository.request", request)), repo);
+  const issues = [];
+  for (const { number } of produced.issues) {
+    const issue = await forge.issue(number);
+    issues.push({ number: issue.number, url: issue.url, title: issue.title });
+  }
+  return { issues: { repository: repo.name, issues, ...(produced.summary ? { summary: produced.summary } : {}) } };
 }
 
 /** Publication scopes are separate from the read-only validation/review checkout. */
