@@ -1,3 +1,6 @@
+"""Any JSON value."""
+scalar JSON
+
 """
 A design partner's feature or bug request, filed from its own organization.
 """
@@ -48,9 +51,6 @@ enum PartnerRequestStatus {
   accepted
   rejected
 }
-
-"""Any JSON value."""
-scalar JSON
 
 type DailyReportSourceConnection {
   nodes: [DailyReportSource!]!
@@ -519,6 +519,137 @@ input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
   installationId: String!
   type: String!
   id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInput {
+  id: ID!
+  revision: Float!
+  packet: SaveVideoProductionInputPacket!
+}
+
+input SaveVideoProductionInputPacket {
+  product: SaveVideoProductionInputPacketProduct!
+  productRevision: SaveVideoProductionInputPacketProductRevision
+  title: String!
+  audience: String!
+  message: String!
+  channel: SaveVideoProductionInputPacketChannel!
+  style: String!
+  concept: Boolean!
+  shots: [SaveVideoProductionInputPacketShotsItem!]!
+}
+
+input SaveVideoProductionInputPacketProduct {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketProductRevision {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+enum SaveVideoProductionInputPacketChannel {
+  instagram
+  facebook
+  x
+  tiktok
+  internal
+}
+
+input SaveVideoProductionInputPacketShotsItem {
+  id: ID!
+  title: String!
+  duration: Int!
+  narration: String
+  prompt: String!
+  source: SaveVideoProductionInputPacketShotsItemSource
+}
+
+input SaveVideoProductionInputPacketShotsItemSource {
+  kind: String!
+  label: String!
+  artifact: SaveVideoProductionInputPacketShotsItemSourceArtifact!
+  record: SaveVideoProductionInputPacketShotsItemSourceRecord
+  assetId: ID
+}
+
+input SaveVideoProductionInputPacketShotsItemSourceArtifact {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+}
+
+input SaveVideoProductionInputPacketShotsItemSourceRecord {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input PrepareVideoTakeInput {
+  id: ID!
+  productionId: ID!
+  revision: Float!
+  shotId: ID!
+  seed: Int
+}
+
+input UpdateVideoTakeInput {
+  id: ID!
+  revision: Float!
+  state: UpdateVideoTakeInputState!
+  providerRequestId: String
+  error: String
+  assetId: ID
+}
+
+enum UpdateVideoTakeInputState {
+  submitting
+  submitted
+  completed
+  failed
+  uncertain
+}
+
+input ReserveVideoAssetInput {
+  transport: ReserveVideoAssetInputTransport
+  productionId: ID!
+  id: ID!
+  kind: ReserveVideoAssetInputKind!
+  filename: String!
+  contentType: String!
+  size: Float!
+  sha256: String!
+  productionRevision: Float!
+}
+
+enum ReserveVideoAssetInputTransport {
+  direct
+  http
+}
+
+enum ReserveVideoAssetInputKind {
+  frame
+  take
+  final
+  manifest
+}
+
+input CommitVideoAssetInput {
+  productionId: ID!
+  id: ID!
+}
+
+input PublishVideoProductionInput {
+  id: ID!
   revision: Float!
 }
 
@@ -1174,6 +1305,9 @@ input SaveUseCaseInputDocument {
 }
 
 type Query {
+  videoSourceEvidence(productId: ID!, cursor: String): JSON
+  videoProductions(id: ID, productId: ID, revision: Int, after: String, limit: Int): JSON
+
   """
   Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.
   """
@@ -1296,6 +1430,34 @@ input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
 }
 
 type Mutation {
+  """
+  Save a storyboard at its current revision; zero creates a stable production ID. Editors only.
+  """
+  saveVideoProduction(input: SaveVideoProductionInput!): JSON
+
+  """
+  Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.
+  """
+  prepareVideoTake(input: PrepareVideoTakeInput!): JSON
+
+  """
+  Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.
+  """
+  updateVideoTake(input: UpdateVideoTakeInput!): JSON
+
+  """
+  Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it.
+  """
+  reserveVideoAsset(input: ReserveVideoAssetInput!): JSON
+
+  """Verify uploaded bytes and attach them to the production. Editors only."""
+  commitVideoAsset(input: CommitVideoAssetInput!): JSON
+
+  """
+  Publish the current production packet as an organization graph Document referencing its product and revision.
+  """
+  publishVideoProduction(input: PublishVideoProductionInput!): JSON
+
   """
   Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.
   """

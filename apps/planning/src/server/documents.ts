@@ -12,6 +12,14 @@ import type { PlanningContext } from "./intake";
 
 // Selections are spelled out: gql.tada types a document only from a literal string.
 const legacyDocuments = defineDocuments({
+  VideoSourceEvidence:{story:"As a video agent, I want the product revisions and evidence bundles with their original records and citations, so that shots use verified product sources.",document:graphql(`query VideoSourceEvidence($productId:ID!,$cursor:String){videoSourceEvidence(productId:$productId,cursor:$cursor)}`)},
+  VideoProductions:{story:"As a product owner, I want to inspect saved storyboards, source citations, takes and finished videos, so that I can review what the agent built.",document:graphql(`query VideoProductions($id:ID,$productId:ID,$revision:Int,$after:String,$limit:Int=20){videoProductions(id:$id,productId:$productId,revision:$revision,after:$after,limit:$limit)}`)},
+  SaveVideoProduction:{story:"As a product editor, I want to save a storyboard at its current revision; zero creates a stable production ID. Editors only, so that production work is reviewable and recoverable.",document:graphql(`mutation SaveVideoProduction($input:SaveVideoProductionInput!){saveVideoProduction(input:$input)}`)},
+  PrepareVideoTake:{story:"As a product editor, I want to freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request, so that production work is reviewable and recoverable.",document:graphql(`mutation PrepareVideoTake($input:PrepareVideoTakeInput!){prepareVideoTake(input:$input)}`)},
+  UpdateVideoTake:{story:"As a product editor, I want to claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests, so that production work is reviewable and recoverable.",document:graphql(`mutation UpdateVideoTake($input:UpdateVideoTakeInput!){updateVideoTake(input:$input)}`)},
+  ReserveVideoAsset:{story:"As a product editor, I want to reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it, so that production work is reviewable and recoverable.",document:graphql(`mutation ReserveVideoAsset($input:ReserveVideoAssetInput!){reserveVideoAsset(input:$input)}`)},
+  CommitVideoAsset:{story:"As a product editor, I want to verify uploaded bytes and attach them to the production. Editors only, so that production work is reviewable and recoverable.",document:graphql(`mutation CommitVideoAsset($input:CommitVideoAssetInput!){commitVideoAsset(input:$input)}`)},
+  PublishVideoProduction:{story:"As a product editor, I want to publish the current production packet as an organization graph Document referencing its product and revision, so that production work is reviewable and recoverable.",document:graphql(`mutation PublishVideoProduction($input:PublishVideoProductionInput!){publishVideoProduction(input:$input)}`)},
   PortfolioProjects: {
     story: "As a personal portfolio owner, I want a small authorized project index without loading every project's graph, so that ordering stays responsive.",
     document: graphql(`query PortfolioProjects($first:Int=100,$after:String){projects(first:$first,after:$after,archived:false){nodes{id name state archived revision rank} pageInfo{endCursor hasNextPage}}}`),
@@ -299,6 +307,14 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), graphqlSchema, readGroups), {
+  VideoSourceEvidence:{description:"Read a bounded product neighborhood including revisions, evidence bundles and members. Preserve returned cursor and omitted/truncation indicators; missing evidence is not product proof."},
+  VideoProductions:{description:"Read versioned productions with shots, evidence, takes and private uploaded assets; follow next even when product filtering returns no items."},
+  SaveVideoProduction:{description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only."},
+  PrepareVideoTake:{description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request."},
+  UpdateVideoTake:{description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests."},
+  ReserveVideoAsset:{description:"Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it."},
+  CommitVideoAsset:{description:"Verify uploaded bytes and attach them to the production. Editors only."},
+  PublishVideoProduction:{description:"Publish the current production packet as an organization graph Document referencing its product and revision."},
   PortfolioProjects: {description: "Read a compact authorized project index for personal portfolio ordering; no linked graph or provider activity is loaded.", collection:true, provenance:"organizationSlug"},
   UseCases: {description: "Read complete project-linked use-case documents and revisions before authoring scenarios or editing. Names and summaries alone are insufficient for scenario review."},
   SaveUseCase: {description: "Save a complete use case against an existing project: actor, goal, trigger, steps, alternatives and observable successCriteria. Editors only. Read UseCases first; edits require both ID and revision."},
