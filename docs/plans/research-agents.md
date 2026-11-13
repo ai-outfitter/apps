@@ -26,31 +26,22 @@ that can actually read the web.
 | Research work items | Planning `RouteIntake` (kind `research`), `ClaimWork`, `RecordResult` | A claim token, a result with `sources[{url, observedAt, excerpt}]`, `gaps`, `wikiRefs`, and Governance review |
 | Research gate | Governance `work_gate` control, `evidence_requirements.researchCitations` | An organization can require citations before research counts as done |
 | Explorations | Onto `/explore`, `MutateExploration` | A member and an agent walk paths (`offerings`, `competitors`, `projects`); empty steps show where nothing is known |
-| Sharing | Onto `Share` | What one organization's research may show another (Artera → Sunny supply) |
 | Records from outside | `graph_nodes.externalKey` (`<host>/<table>:<id>`) | One stable key per outside thing, so two runs don't create it twice |
 
-What does **not** exist:
+Missing: a list of gaps (the audit finds rule breaks, not "Sunny has three
+competitors with no products"), and a hosted runner that can read the web.
 
-- **No hosted runner can read the web.** App inference
-  (`webapp src/lib/workflow-app-inference.ts`) is a plain generate call with no
-  tools and a 64 KB step cap. There is no web search or fetch connector in
-  `packages/connector-*`. Forerunner reads only the member's own connected
-  accounts.
-- **No list of gaps.** The audit finds rule breaks, not "Sunny has three
-  competitors with no products recorded".
+## Prior art
 
-## Prior art outside Outfitter
-
-| Prior art | What to borrow |
-| --- | --- |
-| Wikidata bots and the bot approval process | A bot is a named account with a declared task, a rate limit, an edit summary on every change and a reference on every claim. Our version: a research run is a named batch `source`, a per-run proposal budget, a `reason` and evidence per proposal |
-| Wikidata Recoin ("relative completeness") | Compare an item with others of the same type and list the properties and relations most of its peers have and it lacks. This is the gap finder below, with no model call |
-| Wikidata `reference URL` + `retrieved` | Every outside claim carries the URL and when it was read, so it can be re-checked later. Planning's `sources[].observedAt` already has this |
-| Deep research agents (Anthropic, OpenAI, Stanford STORM) | Plan questions first, read many sources, then write once with citations. The run writes one batch at the end, not as it goes |
-| Active learning | Ask people only where the agent is unsure. Maps to the confidence policy: sure claims land, unsure ones wait or become batch questions |
-| PROV-O / nanopublications | A claim, its source and the activity that produced it are kept together. Batch evidence + batch source + run id already form this triple |
-
-Nothing here needs a new store or a new graph format.
+- **Wikidata bots**: a named account with a declared task, a rate limit, a
+  summary on every edit and a reference on every claim. Here: a named batch
+  `source`, a proposal budget, a `reason` and evidence per proposal.
+- **Wikidata Recoin**: list what most peers of the same type have and this
+  item lacks. This is the gap finder, with no model call.
+- **Wikidata `reference URL` + `retrieved`**: every claim keeps its URL and
+  read time so it can be re-checked (Planning's `sources[].observedAt`).
+- **Deep research agents**: plan, read widely, write once with citations.
+  A run writes one batch at the end.
 
 ## The loop
 
@@ -67,9 +58,8 @@ Each gap is a short line with the node, what is missing and why it matters.
 | `evidence.stale` | A `customer_of` edge cites a page read 200 days ago | Oldest `observedAt` past an age per edge type |
 | `organization.unrelated` | Already a steward check | Reused as a gap: research the relationship |
 
-Gaps are bounded to the owner's neighbourhood (within 2 hops of the root by
-default), so research grows outward from what the organization cares about
-and never wanders across the open web.
+Gaps stay within 2 hops of the root, so research grows outward from what the
+organization cares about.
 
 ### 2. Gaps become Planning research work
 
@@ -77,9 +67,7 @@ Agents decide what to do from Planning, so a gap does not trigger research
 directly. The audit files the top gaps (at most 5 a day per organization) as
 Planning research items through `RouteIntake` with kind `research`, in the
 standing records-upkeep project [agent-questions.md](agent-questions.md)
-already proposes. A member can also file one by hand ("find Sunny's
-competitors' prices"). Either way the queue is visible, assignable and
-can be closed without anyone opening Onto.
+already proposes. A member can also file one by hand.
 
 ### 3. A research agent claims and reads
 
@@ -94,8 +82,7 @@ under its claim. Run limits, fixed in the agent's instructions:
   `observedAt`;
 - outside things get an `externalKey` from a stable public id where one
   exists (see decision 4), so the same company is not created twice;
-- read the types first; prefer an existing type, propose a new one only per
-  missing-types.md.
+- prefer an existing type; propose a new one only per missing-types.md.
 
 ### 4. Stage one batch, record the result
 
@@ -131,7 +118,7 @@ Hosted search MCP servers checked on 2026-11-13:
 | **Parallel Search** `https://search.parallel.ai/mcp` | Yes, by Parallel | None (a key raises rate limits) | `web_search` + `web_fetch`, results ~25k chars per call. Tried from a cloud session with no key: initialize and a search both worked. In the Claude connector directory |
 | Brave Search (`brave/brave-search-mcp-server`) | No first-party host; stdio or self-hosted HTTP. Smithery hosts a copy at `server.smithery.ai/brave/mcp` | Brave Search API key, plus a Smithery secret for the hosted copy | Official from Brave |
 | DuckDuckGo | No. DuckDuckGo ships no server; community ones (`nickclyde/duckduckgo-mcp-server`) scrape the HTML results | None | Self-host only; DuckDuckGo throttles by IP and the scrape breaks when markup changes |
-| Exa, Tavily, Firecrawl | Yes | Provider key | Paid tiers; Firecrawl and Tavily also crawl |
+| Exa, Tavily, Firecrawl | Yes | Provider key | Paid tiers |
 | Local Chrome MCP on the workstation | n/a | None | Uses his signed-in browser; only works while the machine is on and only for his agent. Fine for one-off reads, wrong for unattended runs |
 
 Runners, cheapest first:
@@ -149,10 +136,9 @@ to the platform is the fallback.
 
 ## First pilot
 
-Sunny's competitors. The research already done by hand
-(`/mnt/project-files/hardware-workshop/research/sunny-competitive-research.md`)
-is the reference answer: run the loop on a copy of Sunny's graph without
-it, and compare what the agent finds.
+Sunny's competitors. The competitor research already done by hand is the
+reference answer: run the loop on a copy of Sunny's graph without it and
+compare.
 
 ## Evals
 
