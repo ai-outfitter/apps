@@ -4,7 +4,7 @@ import { z } from "zod";
 import { foundryLandingWorkflow, landingContinuation } from "./landing-recovery";
 import { workspaceAgentPermissions, workspaceCoordinatorPermissions, workspaceTarget } from "./execution";
 
-type Unattended = WorkflowHost<"operator" | "interactive" | "event">;
+type Unattended = WorkflowHost<"operator" | "interactive" | "event" | "finalize">;
 type Editor = WorkflowHost<"operator" | "interactive">;
 type Snapshot = OperationOutput<"snapshot">;
 type Resume = { runId: string; requestId: string };
@@ -205,8 +205,9 @@ export const jobBindingInput = (job: FoundryJob) => `analyze.inputs.${foundryJob
 async function jobInputs(host: Editor, job: FoundryJob, repository: string, model = "gpt-6-luna") {
   const snapshot = await host.call("snapshot", {});
   const { metadata } = await approvedRepository(host, snapshot, repository);
-  if (!snapshot.subscriptions.some((subscription) => subscription.enabled && subscription.workflowId === foundryWorkspaceWorkflow &&
-    subscription.resource === String(metadata.id)))
+  const subscription = snapshot.subscriptions.find((candidate) => candidate.enabled && candidate.workflowId === foundryWorkspaceWorkflow &&
+    candidate.resource === String(metadata.id));
+  if (!subscription)
     throw new Response(`Turn Foundry on for ${metadata.full_name} first (RepositoryChanges enable), so the job's issues are fixed and merged`, { status: 409 });
   const prompt = "You are the analyze agent for an Outfitter Software Foundry repository job. Read the repository, file only the issues your instructions call for, and never change code.";
   const binding = await host.call("binding.approve", {
@@ -216,7 +217,25 @@ async function jobInputs(host: Editor, job: FoundryJob, repository: string, mode
     workspace: roleTarget(metadata.full_name, String(metadata.id), { role: "file-issues", checks: foundryChecks(metadata.full_name), ci: "actions", reviewer: "vega" }),
     context: { model, profile: { id: "foundry-analyze", digest: await sha256Hex(prompt), systemPrompt: prompt }, capabilities: [] },
   });
-  return { repository: metadata.full_name, inputs: { "analyze.inputs.repository": metadata.full_name, [jobBindingInput(job)]: binding.id } };
+  // The job's finalize starts issue-to-merge for each issue it filed, with the
+  // repository's approved issue-to-merge bindings.
+  const fix: JobFix = { installation: snapshot.installation.id, resource: subscription.resource, inputs: subscription.inputs as Record<string, string> };
+  return { repository: metadata.full_name, inputs: {
+    "analyze.inputs.repository": metadata.full_name, [jobBindingInput(job)]: binding.id, "analyze.inputs.fix": fix } };
+}
+
+/** Where a repository job's issues go to be fixed: issue-to-merge on the job's repository. */
+export type JobFix = { installation: string; resource: string; inputs: Record<string, string> };
+
+/** Start issue-to-merge for one issue a repository job filed, under the
+ * issue's deterministic run id, so a retried finalize or an issue webhook
+ * reuses the same run. */
+export async function startJobFix(host: Unattended, fix: JobFix, repository: { id: number; name: string },
+  issue: { number: number; title: string; body: string; url: string }) {
+  const id = await foundryIssueRunId(fix.installation, fix.resource, issue.number);
+  return launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
+    { action: "opened", repository: { id: repository.id, full_name: repository.name },
+      issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" } }, id);
 }
 
 /** Start a repository job now. */

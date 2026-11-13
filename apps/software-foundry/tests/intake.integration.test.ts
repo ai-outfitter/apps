@@ -662,8 +662,9 @@ test("RequestChanges files a bug as one issue and starts the workflow through gr
 
 test("a repository job schedule occurrence starts the reserved run with its saved binding", async () => {
   const f = await installed();
-  const scheduled: Record<string, string> = { "analyze.inputs.repository": "acme/app", "analyze.inputs.reviewerBinding": "b-job" };
-  const occurrence = (workflowId: string, runId: string, inputs: Record<string, string> = scheduled) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
+  const scheduled: Record<string, unknown> = { "analyze.inputs.repository": "acme/app", "analyze.inputs.reviewerBinding": "b-job",
+    "analyze.inputs.fix": { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } } };
+  const occurrence = (workflowId: string, runId: string, inputs: Record<string, unknown> = scheduled) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
     runId, scheduledFor: 1,
     schedule: { id: "schedule-1", workflowId, inputs, connectionId: null, resource: null },
   } } });

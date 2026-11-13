@@ -19,6 +19,7 @@ import { actionsChecks, actionsPreview, githubActionsAppId } from "./actions-ci"
 import { verifyFoundryDemo } from "./demo-handoff";
 import { gatewayPreviewRequest } from "./preview-health";
 import { z } from "zod";
+import { startJobFix } from "./workspaces";
 
 type Prepare = WorkflowHost<"prepare">;
 type Finalize = WorkflowHost<"finalize">;
@@ -166,7 +167,7 @@ export async function finalizeWorkspaceNode(
   { node, inputs, outputs, coordinator, session, settings }: z.infer<typeof finalizeInput>,
 ) {
   const target = workspaceTarget.parse(settings);
-  if (target.role === "file-issues") return { outputs: await finalizeAnalysis(host, outputs) };
+  if (target.role === "file-issues") return { outputs: await finalizeAnalysis(host, inputs, outputs) };
   if (coordinator)
     return { outputs: await finalizeWorkspaceOutputs(host, files, node, inputs, target, { result: {
       ready: true, summary: "Coordinated GitHub Actions workflow step",
@@ -179,19 +180,24 @@ export async function finalizeWorkspaceNode(
   return { outputs: finalized };
 }
 
+const jobFix = z.object({ installation: z.string().min(1), resource: z.string().min(1), inputs: z.record(z.string(), z.string()) });
+
 /** A repository job's issues, each re-read from the bound repository, so only
- * issues that exist there are reported. */
-async function finalizeAnalysis(host: Finalize, outputs: Json): Promise<Json> {
+ * issues that exist there are reported, and each started on issue-to-merge. */
+async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Promise<Json> {
   const produced = z.object({
     issues: z.array(z.object({ number: z.number().int().positive() }).passthrough()).max(10),
     summary: z.string().max(32000).optional(),
   }).passthrough().parse(outputs.issues);
+  const fix = jobFix.optional().parse(inputs.fix);
   const repo = await host.call("repository.read", {});
   const forge = foundryForge(hostAPI((request) => host.call("repository.request", request)), repo);
   const issues = [];
   for (const { number } of produced.issues) {
     const issue = await forge.issue(number);
-    issues.push({ number: issue.number, url: issue.url, title: issue.title });
+    // Each issue goes straight to issue-to-merge, which opens the PR and merges it once checks pass.
+    const started = fix ? await startJobFix(host, fix, { id: repo.repositoryId, name: repo.name }, issue) : undefined;
+    issues.push({ number: issue.number, url: issue.url, title: issue.title, ...(started ? { fixRun: started.id } : {}) });
   }
   return { issues: { repository: repo.name, issues, ...(produced.summary ? { summary: produced.summary } : {}) } };
 }

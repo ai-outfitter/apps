@@ -10,7 +10,7 @@ import {
   launchFoundryWorkspaceIssue,
   startExistingFoundryIssue,
   resolveFoundryRepository,
-  runFoundryJob,
+  runFoundryJob, startJobFix,
   scheduleFoundryJob,
 } from "../src/server/workspace/workspaces";
 
@@ -188,11 +188,25 @@ test("a repository job runs and schedules under its approved read-only analyze b
   assert.equal(binding.workspace.settings.role, "file-issues");
   assert.deepEqual([binding.workspace.agentPermissions.contents, binding.workspace.agentPermissions.pull_requests, binding.workspace.agentPermissions.issues], ["read", "read", "write"]);
   const start = calls.find((call) => call.operation === "workflow.start");
-  assert.deepEqual(start?.input, { workflow: "architecture-reanalysis", id: started.run, inputs: { "analyze.inputs.repository": "acme/app", "analyze.inputs.architectBinding": binding.id } });
+  const fix = start?.input.inputs["analyze.inputs.fix"];
+  assert.deepEqual(start?.input, { workflow: "architecture-reanalysis", id: started.run, inputs: { "analyze.inputs.repository": "acme/app", "analyze.inputs.architectBinding": binding.id, "analyze.inputs.fix": fix } });
+  assert.equal(fix.resource, "77");
+  assert.equal(typeof fix.inputs["triage.inputs.triagerBinding"], "string", "the repository's issue-to-merge bindings");
   const saved = await scheduleFoundryJob(host as never, "ui-review", "acme/app", false);
   assert.deepEqual(saved, { job: "ui-review", repository: "acme/app", schedule: "schedule", enabled: false });
   const save = calls.find((call) => call.operation === "schedule.save");
   assert.equal(save?.input.inputs["analyze.inputs.reviewerBinding"], bindings.at(-1).id);
   assert.equal(save?.input.cron, undefined, "the job's declared cadence");
   assert.ok(!calls.some((call) => !Object.hasOwn(operations, call.operation)), "only operations the host defines");
+});
+
+test("a repository job's issue starts issue-to-merge once, under the issue's run id", async () => {
+  const { host, calls } = platform();
+  const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
+  const issue = { number: 12, title: "Update packages", body: "Plan", url: "https://github.com/acme/app/issues/12" };
+  const started = await startJobFix(host as never, fix, { id: 77, name: "acme/app" }, issue);
+  const start = calls.find((call) => call.operation === "workflow.start");
+  assert.equal(started.id, await foundryIssueRunId("foundry", "77", 12));
+  assert.equal(start?.input.inputs["triage.inputs.triagerBinding"], "b-triage");
+  assert.equal(start?.input.inputs["triage.inputs.event"].issue.number, 12);
 });
