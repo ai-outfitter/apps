@@ -49,7 +49,7 @@ jobs:
           node .release-tooling/scripts/official-app-artifact.mjs prepare "$APP" "$OUTPUT"
           echo "artifact=official-app-release-${APP#apps/}" >> "$GITHUB_OUTPUT"
           echo "commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package.outputs.artifact }}
           path: ${{ runner.temp }}/release/

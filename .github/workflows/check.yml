@@ -139,7 +139,7 @@ jobs:
           tooling=scripts
           [ -f .outfitter-sdk/scripts/catalog-publication.mjs ] && tooling=.outfitter-sdk/scripts
           node "$tooling/catalog-publication.mjs" prepare "$APP" "$RUNNER_TEMP/catalog/bundle.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: contains(fromJSON(inputs.catalog-apps), matrix.app) && contains(fromJSON('["ai-outfitter/apps","ai-outfitter/apps-private"]'), github.repository) && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: catalog-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -154,7 +154,7 @@ jobs:
         run: |
           node --input-type=module -e 'import{writeFileSync}from"node:fs";writeFileSync("outfitter-provenance.json",JSON.stringify({app:process.env.APP,validation:process.env.VALIDATION,sourceRepository:process.env.GITHUB_REPOSITORY,sourceSha:process.env.GITHUB_SHA,toolingSha:process.env.TOOLING_SHA,runId:process.env.GITHUB_RUN_ID},null,2))'
           echo "App: $APP. Validation: $VALIDATION. Metadata checks do not certify app runtime, tests or builds." >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-validation-${{ inputs.app-set }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: outfitter-provenance.json
