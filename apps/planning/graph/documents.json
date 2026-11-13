@@ -1,5 +1,24 @@
 [
   {
+    "name": "AcceptPartnerRequest",
+    "kind": "mutation",
+    "story": "As an editor, I want to accept a design partner's request for a repository or Foundry project, so that Software Foundry files it as an issue with the partner and its product named.",
+    "query": "mutation AcceptPartnerRequest($input: AcceptPartnerRequestInput!) {\n  acceptPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    productId\n    partner\n    foundryRequest\n    updatedAt\n  }\n}",
+    "hash": "17ec58d172d04e553520d1dce7aa4ede19fd8943145acb6ea7934a13a5dbf1cc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AcceptPartnerRequestInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "ArchiveProject",
     "kind": "mutation",
     "story": "As a member, I want to archive a project without deleting its issues or documents, so that its history stays available.",
@@ -3364,6 +3383,23 @@
     }
   },
   {
+    "name": "PartnerRequests",
+    "kind": "query",
+    "story": "As an editor, I want the requests our design partners filed, with their status, so that I accept or reject each one.",
+    "query": "query PartnerRequests($status: PartnerRequestStatus) {\n  partnerRequests(status: $status) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    problem\n    acceptanceCriteria\n    bug\n    productId\n    partner\n    reason\n    foundryRequest\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "cd2a7f3504071c88d53a9b0324a56fab9a6d94a5f15862ffe712b4438c8e7699",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "description": "GraphQL PartnerRequestStatus"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
     "name": "PatchProject",
     "kind": "mutation",
     "story": "As a member, I want to apply only my project's edited fields, so that omitted documents remain unchanged.",
@@ -5218,6 +5254,44 @@
     }
   },
   {
+    "name": "RefreshDesignPartners",
+    "kind": "mutation",
+    "story": "As an editor, I want to refresh our design partners from our graph after flagging a customer, so that the new partner can submit requests and a removed one no longer can.",
+    "query": "mutation RefreshDesignPartners($input: JSON!) {\n  refreshDesignPartners(input: $input) {\n    designPartners {\n      organizationId\n      name\n    }\n  }\n}",
+    "hash": "ddba215d2d64111d30e57b8f57d4d4f256e49379dde4568ecc78b40ed397d489",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "RejectPartnerRequest",
+    "kind": "mutation",
+    "story": "As an editor, I want to reject a design partner's request with a reason, so that the partner knows why and nothing is filed.",
+    "query": "mutation RejectPartnerRequest($input: RejectPartnerRequestInput!) {\n  rejectPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    title\n    partner\n    reason\n    updatedAt\n  }\n}",
+    "hash": "0c1e7f38991bcd8d5fc357dd14390c32c5646db02c52024241a67cb45ad20cbf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RejectPartnerRequestInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "ReorderIssues",
     "kind": "mutation",
     "story": "As a member, I want to move an issue up or down within its category, so that the order reflects the team's priority.",
@@ -6496,6 +6570,25 @@
         }
       }
     }
+  },
+  {
+    "name": "SubmitPartnerRequest",
+    "kind": "mutation",
+    "story": "As a design partner's agent, I want to file a feature or bug request for my provider's product from my own organization, so that the provider's team reviews it and files it with Software Foundry, and I can read back whether it was accepted.",
+    "query": "mutation SubmitPartnerRequest($input: SubmitPartnerRequestInput!) {\n  submitPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    problem\n    acceptanceCriteria\n    bug\n    productId\n    partner\n    reason\n    foundryRequest\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "6623bb64f2e517a519fa7b3ffc285a0b6ff1453e95723f35a2a75f87a0d642cc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitPartnerRequestInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   },
   {
     "name": "UpdateIssue",

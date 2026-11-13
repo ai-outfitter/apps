@@ -721,6 +721,12 @@
     "type": "string",
     "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
     "required": false
+   },
+   {
+    "name": "design_partner",
+    "type": "boolean",
+    "description": "The customer is a design partner of the provider: it builds the provider's product with it and may file requests with the provider's Planning from its own organization.",
+    "required": false
    }
   ],
   "ontology": {

@@ -2,12 +2,12 @@ import { dailyReportReadInput, readDailyReport } from "./digest-wiki";
 import { dailyReportsInput, startDailyReports } from "./digests";
 import { readOrder, saveOrder, orderInput, sortByOrder } from "./priority-order";
 import { personalPortfolio, portfolioOrderInput, reorderPersonalPortfolio } from "./personal-portfolio";
-import { connectionType, idList, mutationField, type PageArgs, page, pageArgs, pageStart, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
+import { connectionType, fieldError, idList, mutationField, type PageArgs, page, pageArgs, pageStart, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import { batchSchema, readBatchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import { and, asc, count, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import {
-  GraphQLError, GraphQLBoolean, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
+  GraphQLError, GraphQLBoolean, GraphQLEnumType, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
   GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
 import { z } from "zod";
@@ -28,6 +28,10 @@ import {
 import { type OrganizationGoals, readOrganizationGoals } from "./organization-goals";
 import { archiveProject, archiveProjectInput, projectStateInput, setProjectState, createIssue, deleteIssue, deleteProject, patchProjectInput, reorderInput, reorderIssues, revisionField, updateIssue, updateProject, patchProject as patchProjectRecord } from "./planning";
 import { projectContext, projectReadiness, projectSlug } from "./project-context";
+import {
+  acceptPartnerRequest, acceptPartnerRequestInput, listPartnerRequests, partnerRequestInput, refreshDesignPartners, refreshPartnersInput,
+  rejectPartnerRequest, rejectPartnerRequestInput, submitPartnerRequest,
+} from "./partner-requests";
 import { issues, projects } from "./schema";
 import { listUseCases, saveUseCase, useCaseInput } from "./use-cases";
 import { repositories, pullRequests } from "./project-repositories";
@@ -242,9 +246,34 @@ async function productsPage(context: Context, at?: string | null) {
   }catch(error){if(error instanceof Response)throw new GraphQLError(await error.text());throw error;}
 }
 const dailyReportSource=new GraphQLObjectType({name:"DailyReportSource",fields:{id:{type:nonNull(GraphQLID)},name:text,ownerKind:text,ownerId:text,planningInstallationId:text,organizationSlug:{type:GraphQLString},report:{type:JSONScalar}}});
+const partnerRequestStatus = new GraphQLEnumType({ name: "PartnerRequestStatus", values: { proposed: { value: "proposed" }, accepted: { value: "accepted" }, rejected: { value: "rejected" } } });
+const partnerRequest = new GraphQLObjectType({ name: "PartnerRequest", description: "A design partner's feature or bug request, filed from its own organization.", fields: {
+  id: { type: nonNull(GraphQLID) }, requestId: { type: nonNull(GraphQLID), description: "The partner's own ID for it." }, revision: { type: nonNull(GraphQLInt) },
+  status: { type: nonNull(partnerRequestStatus), description: "proposed until an editor accepts (Software Foundry files it as an issue) or rejects it." },
+  kind: { ...text, description: "feature or bug." }, title: text, problem: text,
+  acceptanceCriteria: { type: nonNull(JSONScalar), description: "[{ id, text }]" },
+  bug: { type: JSONScalar, description: "Bugs only: { stepsToReproduce, expected, actual, environment? }." },
+  productId: { type: GraphQLID, description: "The provider's product record, by the ID both graphs share." },
+  partner: { type: nonNull(JSONScalar), description: "{ organizationId, userId, role: \"design partner\" }" },
+  reason: { type: GraphQLString, description: "Why it was rejected." },
+  foundryRequest: { type: JSONScalar, description: "Once accepted: Foundry's request { requestId, kind, issue { number, url }, run }." },
+  createdAt: { type: nonNull(GraphQLFloat), description: "Epoch milliseconds." }, updatedAt: { type: nonNull(GraphQLFloat) },
+} });
+const designPartner = new GraphQLObjectType({ name: "DesignPartner", fields: { organizationId: { type: nonNull(GraphQLID) }, name: text } });
+const designPartnerList = new GraphQLObjectType({ name: "DesignPartners", fields: { designPartners: { type: nonNull(new GraphQLList(nonNull(designPartner))) } } });
+
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    partnerRequests: {
+      type: nonNull(new GraphQLList(nonNull(partnerRequest))),
+      description: "Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.",
+      args: { status: { type: partnerRequestStatus } },
+      resolve: async (_source, args: { status?: "proposed" | "accepted" | "rejected" | null }, context) => {
+        try { return await listPartnerRequests(context, args.status ?? undefined); }
+        catch (error) { throw await fieldError(error); }
+      },
+    },
     dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
       const {first,start}=pageStart(args),id=context.identity.installationId;
       if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start);
@@ -605,6 +634,30 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       description: "Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.",
       input: recordMeasurementsInput,
       run: (context, input) => recordMeasurements(context.host(), context.identity, input),
+    }),
+    submitPartnerRequest: mutationField<typeof partnerRequestInput, Context>({
+      name: "SubmitPartnerRequest",
+      description: "File a feature or bug request with this organization as one of its design partners, from your own organization (graph_mutate with scope set to this organization and fromScope to yours). It waits as proposed until an editor here accepts or rejects it; replay the same requestId to read its status. Design partners only: other customers file an issue on the public repository.",
+      input: partnerRequestInput, output: nonNull(partnerRequest), external: true,
+      run: submitPartnerRequest,
+    }),
+    refreshDesignPartners: mutationField<typeof refreshPartnersInput, Context>({
+      name: "RefreshDesignPartners",
+      description: "Re-read this organization's design partners from its graph: customers whose customer_of link to it has design_partner set, each bound to a platform organization by organization_id. Only they can submit partner requests. Editors only.",
+      input: refreshPartnersInput, output: nonNull(designPartnerList),
+      run: context => refreshDesignPartners(context),
+    }),
+    acceptPartnerRequest: mutationField<typeof acceptPartnerRequestInput, Context>({
+      name: "AcceptPartnerRequest",
+      description: `Accept a design partner's proposed request: if the graph still flags the partner, Software Foundry's RequestChanges files it as an issue in the repository or project you name, attributed to you, with the partner named in the problem and its product in the context. ${revisionRule} A refusal keeps it proposed. Editors only.`,
+      input: acceptPartnerRequestInput, output: nonNull(partnerRequest),
+      run: acceptPartnerRequest,
+    }),
+    rejectPartnerRequest: mutationField<typeof rejectPartnerRequestInput, Context>({
+      name: "RejectPartnerRequest",
+      description: `Reject a design partner's proposed request with a reason the partner reads back. Nothing is filed. ${revisionRule} Editors only.`,
+      input: rejectPartnerRequestInput, output: nonNull(partnerRequest),
+      run: rejectPartnerRequest,
     }),
     saveUseCase: mutationField<typeof useCaseInput, Context>({
       name: "SaveUseCase",
