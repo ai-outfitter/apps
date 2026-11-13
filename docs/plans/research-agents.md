@@ -131,7 +131,10 @@ Runners:
 | **D. A hosted workflow with a `web-search` connector** on Parallel's MCP | Plain workflow, no pod | Workflow inference must be allowed to call connector tools (today it is a plain generate) |
 
 Chrome DevTools MCP reads and clicks pages but has no search of its own.
-Driving a search engine's page from a headless browser hits captchas, so the
+Driving a search engine's page from a headless browser is blocked. Checked
+2026-11-13 from a cloud session with stock headless Chromium: Google 429
+"unusual traffic" captcha, Brave Search 429 slider "not a bot" check,
+DuckDuckGo 403 (HTML) and a 418 error page, Bing 200 with no results. So the
 workspace pairs Chrome (read the page, including ones that need JavaScript)
 with Parallel's search MCP (find the pages).
 
