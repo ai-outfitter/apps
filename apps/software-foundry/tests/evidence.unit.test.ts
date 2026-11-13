@@ -85,8 +85,8 @@ test("SubmitReleaseEvidence tickets verify bytes, preserve immutable paths, expi
  const reserved=await submitReleaseEvidence(context,input);
  assert.equal(reserved.items[0].status,"pending");assert.equal(reserved.instructions[0].code,"UPLOAD_RELEASE_ASSET");
  const ticket=reserved.items[0].result as any;
- const token=new URL(ticket.uploadUrl).pathname.split("/").at(-1)!;
- const request=(body="{}",type="application/json")=>new Request(ticket.uploadUrl,{method:"PUT",headers:{"content-type":type},body});
+ const token=new URL(ticket.authenticatedUploadUrl).pathname.split("/").at(-1)!;
+ const request=(body="{}",type="application/json")=>new Request(ticket.authenticatedUploadUrl,{method:"PUT",headers:{"content-type":type},body});
  await assert.rejects(uploadReleaseEvidence({...context,identity:{...host.identity,userId:"other"}} as never,token,request()),status(404));
  await assert.rejects(uploadReleaseEvidence({...context,identity:{...host.identity,installationId:"foreign"}} as never,token,request()),status(404));
  await assert.rejects(uploadReleaseEvidence({...context,identity:{...host.identity,canEdit:false}} as never,token,request()),status(403));
@@ -101,7 +101,7 @@ test("SubmitReleaseEvidence tickets verify bytes, preserve immutable paths, expi
  assert.equal(changed.items[0].error?.code,"EVIDENCE_CONFLICT");
  const second={...input,assets:[{...input.assets[0],key:crypto.randomUUID(),path:"receipt.json"}]};
  const expiry=await submitReleaseEvidence(context,second);
- const expiryToken=new URL((expiry.items[0].result as any).uploadUrl).pathname.split("/").at(-1)!;
+ const expiryToken=new URL((expiry.items[0].result as any).authenticatedUploadUrl).pathname.split("/").at(-1)!;
  await host.appDb.update(releaseEvidenceUploads).set({expiresAt:Date.now()-1}).where(eq(releaseEvidenceUploads.key,second.assets[0].key));
  await assert.rejects(uploadReleaseEvidence(context,expiryToken,request()),status(404));
  const renewed=await submitReleaseEvidence(context,second);

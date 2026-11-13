@@ -31,6 +31,11 @@ test('retains checked bytes for both modes with same-run source and metadata',as
   assert.equal(bundle.metadata.graph,undefined);
   assert.equal(bundle.packages.operational.manifest.mode,'operational');
 });
+test('the private official apps repository publishes the same checked bundle',async t=>{
+  const root=await fixture(t);
+  const bundle=await catalogPublication('apps/test',{root,env:{...env,GITHUB_REPOSITORY:'ai-outfitter/apps-private'}});
+  assert.equal(bundle.slug,'test');
+});
 test('does not accept missing or mismatched build outputs or foreign repository',async t=>{
   const root=await fixture(t);
   await assert.rejects(catalogPublication('apps/test',{root,env:{...env,GITHUB_REPOSITORY:'other/apps'}}),/official/);

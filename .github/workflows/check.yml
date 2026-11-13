@@ -131,12 +131,16 @@ jobs:
           app: ${{ matrix.app }}
           config-path: ${{ inputs.config-path }}
       - name: Retain checked catalog inputs
-        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && github.repository == 'ai-outfitter/apps' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && contains(fromJSON('["ai-outfitter/apps","ai-outfitter/apps-private"]'), github.repository) && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           APP: ${{ matrix.app }}
-        run: node scripts/catalog-publication.mjs prepare "$APP" "$RUNNER_TEMP/catalog/bundle.json"
+        # Callers run the tooling from their pinned public SDK checkout.
+        run: |
+          tooling=scripts
+          [ -f .outfitter-sdk/scripts/catalog-publication.mjs ] && tooling=.outfitter-sdk/scripts
+          node "$tooling/catalog-publication.mjs" prepare "$APP" "$RUNNER_TEMP/catalog/bundle.json"
       - uses: actions/upload-artifact@v4
-        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && github.repository == 'ai-outfitter/apps' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && contains(fromJSON('["ai-outfitter/apps","ai-outfitter/apps-private"]'), github.repository) && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: catalog-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/catalog/bundle.json

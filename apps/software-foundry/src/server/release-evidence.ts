@@ -4,7 +4,7 @@ import { storage } from "@ai-outfitter/app-sdk/storage";
 import type { BatchResult, ChangeReceipt } from "@ai-outfitter/app-sdk/batch-documents";
 import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
-import { evidenceActions, evidencePublishInput } from "./evidence";
+import { evidenceActions, evidencePublishInput, evidencePublishOutput } from "./evidence";
 import type { IntakeContext } from "./intake";
 import { releaseEvidenceUploads } from "./schema";
 
@@ -47,12 +47,26 @@ async function issue(context:IntakeContext,bundle:string,asset:z.output<typeof m
     if(existing.sha256!==value.sha256 || existing.size!==value.size || existing.contentType!==value.contentType || existing.visibility!==value.visibility)throw conflict("Published evidence differs; use a new bundle");
     return {key,status:"complete" as const,result:{bundle,path:value.path,url:new URL(files.url(existing),context.origin).href,sha256:existing.sha256,size:existing.size}};
   }
+  // Bytes the caller PUT straight into the bucket: verify, publish, then drop the staged copy.
+  const target={space:"evidence",key:`${bundle}/${value.path}`};
+  const file={contentType:value.contentType,size:value.size,sha256:value.sha256};
+  const staged=await files.takeUpload(target,file);
+  if(staged){
+    const {size:_size,...input}=value;
+    const published=evidencePublishOutput.parse(await evidenceActions["evidence.publish"].invoke(context,{...input,bundle,base64:Buffer.from(staged).toString("base64")}));
+    await files.discardUpload(target,file);
+    return {key,status:"complete" as const,result:{bundle,path:value.path,url:published.url,sha256:published.sha256,size:published.size}};
+  }
   if(row.expiresAt<=Date.now()){
     await context.db().update(releaseEvidenceUploads).set({expiresAt:Date.now()+lifetime,token:uploadToken()}).where(and(eq(releaseEvidenceUploads.key,key),eq(releaseEvidenceUploads.token,row.token),lte(releaseEvidenceUploads.expiresAt,Date.now())));
     row=await find();
     checkReservation(row,context,fingerprint);
   }
-  return {key,status:"pending" as const,result:{uploadUrl:new URL(`/api/evidence/uploads/${row.token}`,context.origin).href,method:"PUT",authenticationRequired:true,expiresAt:row.expiresAt,headers:{"Content-Type":value.contentType,"Content-Length":String(value.size)}}};
+  // A presigned R2 PUT once the platform signs it (MCP does, before the result leaves it).
+  const ticket=files.uploadTicket(target,file);
+  return {key,status:"pending" as const,result:{uploadUrl:ticket.url,method:ticket.method,authenticationRequired:false,expiresAt:Date.now()+ticket.expiresInSeconds*1000,headers:ticket.headers,
+    // The earlier route, for a signed-in member's own browser.
+    authenticatedUploadUrl:new URL(`/api/evidence/uploads/${row.token}`,context.origin).href}};
 }
 
 /** This reserves uploads, never submits a recommendation or grants release approval. */
@@ -63,7 +77,7 @@ export async function submitReleaseEvidence(context:IntakeContext,input:z.output
   for(const asset of input.assets){
     try{
       const receipt=await issue(context,input.bundle,asset);items.push(receipt);
-      if(receipt.status==="pending")instructions.push({code:"UPLOAD_RELEASE_ASSET",itemKey:asset.key,actor:"caller",required:true,message:"PUT the declared bytes to the upload URL using the same authenticated account, then repeat this document to read the verified receipt.",url:receipt.result.uploadUrl});
+      if(receipt.status==="pending")instructions.push({code:"UPLOAD_RELEASE_ASSET",itemKey:asset.key,actor:"caller",required:true,message:"PUT the declared bytes to uploadUrl, a presigned R2 URL needing no sign-in, with exactly the listed headers before it expires; then repeat this document with the same keys to verify and publish them. An expired URL is re-issued by repeating the document.",url:receipt.result.uploadUrl});
     }catch(error){
       if(!(error instanceof Response))throw error;
       items.push({key:asset.key,status:"failed",error:{code:error.status===409?"EVIDENCE_CONFLICT":"UPLOAD_REFUSED",message:await error.text()}});
