@@ -14,7 +14,7 @@ import {
   type WorkflowHost,
 } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { intakeFocus, productsFocus } from "../agent-focus";
+import { intakeFocus, productsFocus, videosFocus } from "../agent-focus";
 import { actions, intakeActions } from "./agent";
 import {
   conversationType,
@@ -22,6 +22,7 @@ import {
   planningConversations,
   projectContext,
   productsContext,
+  videosContext,
 } from "./conversations";
 
 /** The live member directory, or undefined while it is unavailable (assignments then fail closed). */
@@ -154,6 +155,7 @@ export function agentRoute(
           .min(1)
           .max(200)
           .parse(url.searchParams.get("focus"));
+        if(focus===videosFocus.id)return {cacheKey,type:conversationType,context:{type:videosContext,id:videosFocus.id,label:videosFocus.label},privateOnly:true,actions:[]};
         if (focus === productsFocus.id)
           return { cacheKey, type: conversationType, context: { type: productsContext, id: productsFocus.id, label: productsFocus.label }, privateOnly: true, actions: [] };
         if (focus === intakeFocus.id)
