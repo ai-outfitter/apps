@@ -298,3 +298,10 @@ legacy `githubRepository` fallback is cleared only after successful publication;
 that cleanup may advance the project revision again. Always use the revision
 returned by the mutation. Existing readers continue to merge Wiki links with the
 legacy fallback, and GitHub pull requests are fetched only when selected.
+
+## Marketing videos
+
+[Agent-driven video production](VIDEO-PRODUCTION.md) connects product revision
+evidence to versioned storyboards, recoverable hosted takes and private MP4
+playback/download. Agents author through published Planning documents; `/videos`
+displays their saved work.

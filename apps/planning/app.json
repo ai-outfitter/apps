@@ -34,7 +34,8 @@
         "workflow.record-measurements.start",
         "entities.write.delegated",
         "platform.documents",
-        "workflow.product-roadmap-summary.start"
+        "workflow.product-roadmap-summary.start",
+        "storage.buckets"
       ]
     }
   },
@@ -76,5 +77,18 @@
     "governance",
     "wiki-map"
   ],
-  "initialize": true
+  "initialize": true,
+  "storage": {
+    "buckets": {
+      "video": {
+        "spaces": {
+          "productions": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
+          }
+        }
+      }
+    }
+  }
 }
