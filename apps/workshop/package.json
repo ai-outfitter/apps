@@ -37,7 +37,10 @@
     "replicad-threejs-helper": "1.0.0",
     "three": "0.185.0",
     "zod": "^4.6.5",
-    "@ai-outfitter/workflow-workshop-workspace": "0.1.0"
+    "@ai-outfitter/workflow-workshop-workspace": "0.1.0",
+    "@astrojs/react": "^7.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",
@@ -49,7 +52,9 @@
     "@types/three": "0.185.0",
     "@types/w3c-web-serial": "^1.0.8",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
   },
   "outfitter": {
     "kind": "app",

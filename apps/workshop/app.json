@@ -39,7 +39,9 @@
         "workflow.workshop-workspace.start",
         "storage.artifacts.read",
         "storage.artifacts.write",
-        "connector.forgejo.issues.read"
+        "connector.forgejo.issues.read",
+        "threads.use",
+        "threads.provide"
       ]
     }
   },

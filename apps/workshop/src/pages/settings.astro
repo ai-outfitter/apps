@@ -1,7 +1,7 @@
 ---
 import Section from "@ai-outfitter/ui/astro/Section.astro";
 import SettingsRow from "@ai-outfitter/ui/astro/SettingsRow.astro";
-import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import AppLayout from "../components/WorkshopLayout.astro";
 ---
 <AppLayout headerStyle="app" showOrganizationLink={false} name="Workshop" title="Workshop settings" description="Project access, evidence and optional bench tools." active="settings" sidebarSections={[{label:"Workspace",links:[{label:"All projects",href:"/",active:false},{label:"New model",href:"/new",active:false}]}]}>
 <Section id="access-heading" title="Project access">

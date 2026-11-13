@@ -4,6 +4,14 @@ Workshop is an Outfitter app for physical product projects: the record, the CAD 
 
 Run `npm run check --workspace apps/workshop`, `npm run test --workspace apps/workshop`, and `npm run build --workspace apps/workshop` from the repository root. Browser tests require Playwright Chromium. Packages are written to `.outfitter/packages/` for the shared release tooling.
 
+## Sidebar assistant
+
+Ask Workshop opens the shared private conversation sidebar on every page, including
+New model. It reads up to 20 saved projects with assembly items and current build
+evaluations (vision tier 2 inspection). It cannot modify models or start builds;
+the existing creation and workspace flows perform those actions. Conversations use
+the platform thread service and the installation-scoped agent tables. Demo replies
+are scripted. Operational installations need `threads.use` and `threads.provide`.
 ## Workspace assemblies
 
 Model source belongs to a project repository. Workshop reads immutable component
