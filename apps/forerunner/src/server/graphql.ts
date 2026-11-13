@@ -106,7 +106,7 @@ const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
       run: (context, input) => updateSuggestion(context.db(), context.identity, context.host(), input),
     }),
     setDailyBriefSchedule: mutationField({ name: "SetDailyBriefSchedule", description: "Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.", input: dailyBriefScheduleInput, run: (context: ForerunnerContext, input) => setDailyBriefSchedule(context.host(), context.identity, input) }),
-    generateDailyBrief: mutationField({ name: "GenerateDailyBrief", description: "Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.", input: generateDailyBriefInput, run: (context: ForerunnerContext, input) => generateDailyBrief(context.db(), context.identity, context.host(), input) }),
+    generateDailyBrief: mutationField({ name: "GenerateDailyBrief", description: "Write today's personal brief from saved reports, priorities, goals and role with one cited model answer. A failed answer saves nothing and returns status failed; missing sources stay listed as not known.", input: generateDailyBriefInput, run: (context: ForerunnerContext, input) => generateDailyBrief(context.db(), context.identity, context.host(), input) }),
     setDailyRun: mutationField<typeof scheduleChange, ForerunnerContext>({
       name: "SetDailyRun",
       description: "Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.",
