@@ -65,7 +65,7 @@ test("export.ts builds the model with Workshop's geometry, and the driver's docu
   assert.equal(DesignResult.parse(result).status, "designed");
   assert.equal(result.screenshots?.[0]?.path, `screenshots/${request.requestId}/1-design.png`);
   assert.equal(screenshotName(2, "follow-up 1"), "2-follow-up-1.png");
-  assert.equal(workbenchPath(project), `/projects/${project.id.slice(-12)}/design`);
+  assert.equal(workbenchPath(project), `/projects/${project.id.slice(-12)}/assembly`);
   const failed = designResult({ request, model, error: new Error("The design agent answered 502"), startedAt: result.startedAt, finishedAt: result.finishedAt });
   assert.equal(DesignResult.parse(failed).reason, "The design agent answered 502");
   const bundle = evidenceBundle({ tag: "v0.1.0", version: "0.1.0", commitSha: "a".repeat(40), model, designed: [{ request, result }], artifacts: [],

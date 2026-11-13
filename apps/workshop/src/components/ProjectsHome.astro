@@ -1,29 +1,14 @@
 ---
-import Examples from "./Examples.astro";
 import "../styles/workshop.css";
 ---
 <div class="workshop workshop-home">
+  <div class="actions"><a id="new-model-link" href="./new">New model</a></div>
   <div class="projects" role="region" aria-labelledby="projects-heading">
     <h2 id="projects-heading" class="visually-hidden">Projects</h2>
     <ul id="project-list" class="project-list" aria-busy="true"></ul>
-    <p id="projects-empty" class="muted" hidden>No projects yet. Describe one to Spark or start from an example below.</p>
+    <p id="projects-empty" class="muted" hidden>No models yet. Select New model to get started.</p>
   </div>
 
-  <form id="agent-form" class="card form-card agent-card">
-    <div class="eyebrow">NEW PROJECT WITH SPARK</div>
-    <label for="agent-message">What should we make?</label>
-    <textarea id="agent-message" name="message" rows="2" maxlength="500" required placeholder="Make a solid cube 40 mm on each side"></textarea>
-    <div class="actions">
-      <button id="agent-submit" type="submit" class="primary">Create model</button>
-    </div>
-    <p id="agent-status" class="muted" role="status" aria-live="polite">Spark makes a design study. Check dimensions and physical fit before fabrication.</p>
-  </form>
-
-  <div class="examples" role="region" aria-labelledby="examples-heading">
-    <h2 id="examples-heading">Start from an example</h2>
-    <p class="muted">Each creates your own editable project. No physical test results are prefilled.</p>
-    <div class="example-grid"><Examples /></div>
-  </div>
   <script>
     import "../client/home";
     import {setOrganizationLink} from "../../navigation.js";

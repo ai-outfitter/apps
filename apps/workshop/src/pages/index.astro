@@ -3,6 +3,6 @@ import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
 import "../styles/workshop.css";
 import ProjectsHome from "../components/ProjectsHome.astro";
 ---
-<AppLayout name="Workshop" title="Workshop" description="Research, design and record what works on your bench." active="home" homeLabel="Projects">
+<AppLayout headerStyle="app" showOrganizationLink={false} introVisuallyHidden name="Workshop" title="Workshop" description="" active="home" sidebarSections={[{label:"Workspace",links:[{label:"All projects",href:"/",active:true},{label:"New model",href:"/new",active:false}]}]}>
   <ProjectsHome />
 </AppLayout>
