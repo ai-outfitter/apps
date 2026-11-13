@@ -264,3 +264,8 @@ test("authenticated HTTP upload enforces editor access and the reserved digest",
     await app.dispose();
   }
 });
+
+test("read-only demo health does not require private operational media storage", async () => {
+ const app=await appWorker("planning",appArtifact(new URL("..",import.meta.url),"demo"),"video-demo-health");
+ try {const response=await app.call("/__health");assert.equal(response.status,200);assert.equal((await response.json() as {status:string}).status,"ok");}finally{await app.dispose()}
+});
