@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar.astro";
 
 interface Props {
   title: string;
+  headerStyle?: "breadcrumb" | "app";
   titleProjectId?: string;
   brand?: string;
   /** The header's shorter brand; the sidebar brand by default. */
@@ -21,7 +22,7 @@ interface Props {
   closeLabel?: string;
 }
 const {
-  title, titleProjectId, brand = "Outfitter", headerBrand = brand, homeHref = "/", badge = "ALPHA",
+  title, headerStyle, titleProjectId, brand = "Outfitter", headerBrand = brand, homeHref = "/", badge = "ALPHA",
   sidebarLabel = "Workspace sidebar", desktopOpen = false,
   desktopSidebar = "persistent", scrollContent = false, className = "", persistKey,
   toggleLabel, closeLabel,
@@ -34,7 +35,7 @@ const {
   </Sidebar>
   <main class="app-main">
     <button class="sidebar-dismiss" type="button" aria-label="Close sidebar" tabindex="-1" hidden></button>
-    <NavBar title={title} titleProjectId={titleProjectId} brand={headerBrand} homeHref={homeHref} toggleLabel={toggleLabel} closeLabel={closeLabel}><slot name="header-actions" /></NavBar>
+    <NavBar {headerStyle} title={title} titleProjectId={titleProjectId} brand={headerBrand} homeHref={homeHref} toggleLabel={toggleLabel} closeLabel={closeLabel}><slot name="header-actions" /></NavBar>
     {scrollContent ? <div class="app-shell-content"><slot /></div> : <slot />}
   </main>
   <slot name="overlays" />

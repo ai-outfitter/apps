@@ -11,6 +11,9 @@ import { WORKSPACE_RETURN_ID } from "../workspace-return";
 
 interface Props {
   name: string;
+  headerStyle?: "breadcrumb" | "app";
+  showOrganizationLink?: boolean;
+  sidebarSections?: { label: string; links: NavigationLink[] }[];
   workspaceReturnStyle?: "standard" | "minimal";
   /**
    * Client-side navigation, on by default: links swap the page and keep the sidebar.
@@ -44,7 +47,7 @@ interface Props {
   accountLinks?: NavigationLink[];
   introVisuallyHidden?: boolean;
 }
-const { workspaceReturnStyle = "standard", navigation = true, name, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsDirect = false, settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
+const { workspaceReturnStyle = "standard", navigation = true, name, headerStyle, showOrganizationLink = true, sidebarSections, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsDirect = false, settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
 // Demo builds are read-only fixtures that call no API, so their account footer shows a fixture member.
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
 const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active === "home" }];
@@ -59,16 +62,17 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
     <title>{title} — {name}</title>
   </head>
   <body>
-    <AppLayout {persistKey} title={headerTitle ?? name} {titleProjectId} {brand} {headerBrand} {badge} desktopOpen desktopSidebar="collapsible" scrollContent sidebarLabel={`${name} sidebar`} toggleLabel="Open navigation" closeLabel="Close navigation">
+    <AppLayout {headerStyle} {persistKey} title={headerTitle ?? name} {titleProjectId} {brand} {headerBrand} {badge} desktopOpen desktopSidebar="collapsible" scrollContent sidebarLabel={`${name} sidebar`} toggleLabel="Open navigation" closeLabel="Close navigation">
       <PersonalRail slot="rail" />
       <slot name="header-actions" slot="header-actions" />
       <Fragment slot="navigation">
         {workspaceReturnStyle === "standard" && <nav class="ui-navigation" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#"><Icon name="back" /> Back to Outfitter</a></nav>}
         <slot name="sidebar" />
-        <Navigation links={links} />
-        <Navigation label="App utilities" utilities links={[
+        {sidebarSections ? sidebarSections.map(group => <Navigation label={group.label} heading links={group.links} />) : <Navigation links={links} />}
+        <div class="ui-sidebar-bottom">
+        {showOrganizationLink && <Navigation label="App utilities" utilities links={[
           { label: "Organization ↗", href: "#", id: "org", active: false },
-        ]} />
+        ]} />}
         {workspaceReturnStyle === "minimal" && <nav class="ui-navigation workspace-return--minimal" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#">Back to Outfitter</a></nav>}
         <div class="sidebar-footer app-tools-footer">
           {settingsDirect ? <a class="account-toggle" href={settingsHref} aria-current={active === "settings" ? "page" : undefined}><Icon name="settings" /> Settings</a> : <>
@@ -77,6 +81,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
           </>}
         </div>
         <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
+        </div>
       </Fragment>
       <div class="ui-content">
         <PageHeader {title} {description} visuallyHidden={introVisuallyHidden}><slot name="intro-actions" slot="actions" /></PageHeader>

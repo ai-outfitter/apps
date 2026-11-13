@@ -387,3 +387,14 @@ a.chat-link {
 .personal-rail-account .account-toggle { flex: none; margin: 0; }
 .personal-rail-account .account-toggle > span:not(.avatar) { display: none; }
 .personal-rail-account .account-menu { left: calc(100% + 8px); right: auto; width: min(360px, calc(100vw - 80px)); max-height: calc(100dvh - 80px); overflow-y: auto; }
+/* Shared compact app identity and grouped navigation. */
+.ui-app-label,
+.ui-navigation-heading {
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.ui-navigation-heading { margin: 20px 12px 6px; color: var(--muted); }
+.app-shell > .sidebar .ui-sidebar-bottom { margin-top: auto; padding-top: 20px; }
+.app-shell > .sidebar .ui-sidebar-bottom ~ .sidebar-footer { margin-top: 0; }
