@@ -4,7 +4,16 @@
 .knowledge-graph-stage .graph-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+.knowledge-graph-stage .graph-actions button {
+  min-height: 40px;
+}
+@media (max-width: 480px) {
+  .knowledge-graph-stage .graph-actions {
+    gap: 0.375rem;
+  }
 }
 .knowledge-graph-viewport {
   overflow: hidden;
