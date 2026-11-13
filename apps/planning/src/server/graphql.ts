@@ -15,6 +15,7 @@ import { productReportRuns, productReportSchedule, productReportScheduleInput, c
 import { readProductPage, productPageMarkdown } from "./product-page-data";
 import { batchGroups, readGroups } from "./batch-groups";
 import { linkChangesInput, linkProjectChanges } from "./code-changes";
+import { metricMeasurementsInput, readMetricMeasurements, recordMeasurements, recordMeasurementsInput } from "./measurements";
 import { createWithRequirements, deliveryResult, latestPreparation, loadRequirements, preparationSummary, prepareInput, prepareProject, saveProjectChange } from "./delivery";
 import { deliveryInput, projectDelivery, submitDeliveryPackage, submitPackageInput } from "./delivery-read";
 import { changeDigestSchedule, digestListInput, digestRuns, digestSchedule, digestScheduleInput, generateDigestInput, listDigests, startDigest } from "./digests";
@@ -294,6 +295,12 @@ const query = new GraphQLObjectType<unknown, Context>({
       },
     },
     ...issueFields,
+    metricMeasurements: mutationField<typeof metricMeasurementsInput, Context>({
+      name: "MetricMeasurements",
+      description: "Every MetricDefinition in the Wiki with its latest and previous recorded Measurement ({ value, unit, windowStart, windowEnd, capturedAt }) and the change between them, for KPIs such as this week's GitHub stars and growth since last week. latest is null until a Measure records one.",
+      input: metricMeasurementsInput,
+      run: (context, input) => readMetricMeasurements(context.host(), input),
+    }),
     useCases: mutationField({
       name: "UseCases", description: "Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.",
       input: z.strictObject({ projectId: z.uuid() }),
@@ -592,6 +599,12 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       description: "Link the pull requests merged into each project's repositories (its Wiki node's source_in edges) over the last days (default 7) to the project in the Wiki: one change batch of CodeChange records with merged_into and delivers relationships, each with its evidence and reason. Confident links commit by policy; the rest wait for review on the Wiki's Changes page. Returns { runId, batchId, state, pullRequests, proposals, skipped, unread }. Editors only.",
       input: linkChangesInput,
       run: (context, input) => linkProjectChanges(context.db(), context.host(), context.identity, input),
+    }),
+    recordMeasurements: mutationField<typeof recordMeasurementsInput, Context>({
+      name: "RecordMeasurements",
+      description: "Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.",
+      input: recordMeasurementsInput,
+      run: (context, input) => recordMeasurements(context.host(), context.identity, input),
     }),
     saveUseCase: mutationField<typeof useCaseInput, Context>({
       name: "SaveUseCase",

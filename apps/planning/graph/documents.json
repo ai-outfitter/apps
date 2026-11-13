@@ -2284,6 +2284,25 @@
     "hidden": true
   },
   {
+    "name": "MetricMeasurements",
+    "kind": "query",
+    "story": "As a member, I want each metric's latest and previous recorded values and the change between them, so that I and agents can see this week's KPI and its growth since last week.",
+    "query": "query MetricMeasurements($input: MetricMeasurementsInput!) {\n  metricMeasurements(input: $input)\n}",
+    "hash": "d81e7a0ed70bdb45362108e905a5dbde1d1336e93436c53baec29366dbd1e0cf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MetricMeasurementsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "MutateProject",
     "kind": "mutation",
     "story": "As an authorized caller, I want to create, edit with a field mask (including requirements, repository links and the Onto Project node link), archive projects, or retry their delivery preparation, so that each change has a durable receipt and explicit next steps.",
@@ -5014,6 +5033,25 @@
         }
       }
     }
+  },
+  {
+    "name": "RecordMeasurements",
+    "kind": "mutation",
+    "story": "As an editor, I want to record this week's KPI values from our connectors (PostHog, GitHub) from Planning or an agent, so that each metric has an observed value per week instead of a definition alone.",
+    "query": "mutation RecordMeasurements($input: RecordMeasurementsInput!) {\n  recordMeasurements(input: $input)\n}",
+    "hash": "a2e247443744579660ce0f7dcfc146c1d7d34a2fb36194080beb6b823851ea44",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordMeasurementsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   },
   {
     "name": "RecordResult",
