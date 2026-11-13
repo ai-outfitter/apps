@@ -74,6 +74,12 @@ test("release assets PUT straight into the bucket through the presigned ticket, 
   const stored=await bucket.get("evidence/synthetic-direct/images/story/001-desktop.png");
   assert.deepEqual(Buffer.from(await stored!.arrayBuffer()),png);
   assert.equal(await bucket.get(reference.key),null);
+  // The published URL serves the image: evidence keys are four segments deep.
+  const memberHeaders=new Headers(identityHeaderValues({...who,installationId:app.installationId}));
+  const served=await app.fetch(done.items[0].result.url,{headers:memberHeaders});
+  assert.equal(served.status,200,await served.clone().text());
+  assert.equal(served.headers.get("content-type"),"image/png");
+  assert.deepEqual(Buffer.from(await served.arrayBuffer()),png);
   const again=await reserve();assert.equal(again.items[0].status,"complete");
  }finally{await app.dispose();}
 });
