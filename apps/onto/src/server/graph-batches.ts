@@ -94,9 +94,9 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
-  // A batch a member reviews is anchored to the root unless it names its own anchors;
-  // an empty list asks for no connectivity requirement. Policy batches (apps) name theirs.
-  const root = input.anchors === undefined && input.policy.kind === "member" ? await rootNode(db, who) : null;
+  // Every batch is anchored to the root unless it names its own anchors; an empty list
+  // asks for no connectivity requirement.
+  const root = input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
@@ -131,6 +131,10 @@ async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
 /** Every node the batch creates must reach an anchor along saved or staged edges, in
  * either direction and through any number of nodes. Returns the titles that do not. */
 function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
+  return looseRows(graph, rows, anchors).map((row) => String((row.operation as { attributes?: Record<string, unknown> }).attributes?.title ?? row.ref));
+}
+/** The created-node rows that reach no anchor. */
+function looseRows(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
   const index = addressIndex(graph);
   const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; id?: string; attributes?: Record<string, unknown> };
   const idOf = (row: OperationRow) => {
@@ -157,8 +161,19 @@ function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: Operatio
   for (const edge of edges.values()) if (!edge.archived && !archived.has(edge.fromId) && !archived.has(edge.toId)) link(edge.fromId, edge.toId);
   const reached = new Set(anchors), queue = [...anchors];
   while (queue.length) for (const next of links.get(queue.pop()!) ?? []) if (!reached.has(next)) { reached.add(next); queue.push(next); }
-  return rows.filter((row) => ["pending", "awaiting_review"].includes(row.state) && op(row).type === "graph-node" && op(row).operation === "create" && !op(row).attributes?.archived && !reached.has(idOf(row)))
-    .map((row) => String(op(row).attributes?.title ?? row.ref));
+  return rows.filter((row) => ["pending", "awaiting_review"].includes(row.state) && op(row).type === "graph-node" && op(row).operation === "create" && !op(row).attributes?.archived && !reached.has(idOf(row)));
+}
+
+/** A policy commits only what stays traceable: a created node reaches an anchor through
+ * what is saved or commits with it, or it waits for a member with what depends on it. */
+function anchoredSelection(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], selected: Set<string>, anchors: string[] | null) {
+  if (!anchors?.length) return selected;
+  for (;;) {
+    const loose = looseRows(graph, rows.filter((row) => row.state === "committed" || selected.has(row.ref)), anchors);
+    if (!loose.length) return selected;
+    for (const row of loose) selected.delete(row.ref);
+    closeSelection(rows, selected);
+  }
 }
 
 /** First-run acceptance applies only before any policy batch of that source has committed;
@@ -401,7 +416,8 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   if (rows.length) {
     const validation = await validateBatch(db, who, { batchId: batch.id });
     if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
-    const loose = batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
+    // A member batch must connect before submit; a policy batch leaves what does not for a member.
+    const loose = policy.kind === "member" && batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
     if (loose.length) fail(`Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}`, 409);
   }
   const now = Date.now();
@@ -418,10 +434,10 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run")
-    await commitByPolicy(db, who, submitted, waiting, new Set(waiting.map((row) => row.ref)), policyApproval(policy, "first-run"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"));
   else if (policy.kind === "confidence") {
     const confident = new Set(waiting.filter((row) => (row.confidence ?? 0) >= policy.threshold).map((row) => row.ref));
-    await commitByPolicy(db, who, submitted, waiting, closeSelection(waiting, confident), policyApproval(policy, "confidence"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
@@ -452,7 +468,8 @@ async function validateRows(db: Database, who: AppIdentity, batch: BatchRow, row
     // The whole batch at once, so refs from earlier add calls resolve. Validation
     // writes nothing, so the 100-operation limit of a single apply does not apply.
     await inspectGraphChanges(db, who, { requestKey: `validate:${batch.id}`, operations });
-    const loose = batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
+    // Policy batches may hold loose records: they wait for a member instead of committing.
+    const loose = batchPolicy.parse(batch.policy).kind === "member" && batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
     return { valid: loose.length === 0, error: loose.length ? `Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}` : null, operations: operations.length };
   } catch (error) {
     if (!(error instanceof Response) || error.status >= 500) throw error;

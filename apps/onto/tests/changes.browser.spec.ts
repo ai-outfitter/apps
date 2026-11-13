@@ -114,9 +114,7 @@ test("read a proposed document from Changes before approving its saved entity", 
       await page.getByRole("button", { name: "Fit graph", exact: true }).click();
       await page.keyboard.press("Escape");
       await expect(page.locator(".knowledge-graph-expanded")).toHaveCount(0);
-      await page.getByRole("button", { name: "Review & anchors", exact: true }).click();
-      await page.getByText("Anchor nodes (0)", { exact: true }).click();
-      await page.getByRole("button", { name: "Save anchors", exact: true }).click();
+      await expect(page.locator(".change-anchor")).toContainText("New records need not connect to anything.");
       await expect(page.locator(".change-validation")).toContainText("Passing");
       await page.getByRole("button", { name: "Graph (1)", exact: true }).click();
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();

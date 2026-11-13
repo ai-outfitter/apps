@@ -89,15 +89,15 @@ async function externalProjectBatch(f: Awaited<ReturnType<typeof fixture>>) {
   return batch.id as string;
 }
 
-test("a batch adding an external Project gets an error finding, and its policy commits exactly as before", async (t) => {
+test("a batch adding an external Project gets an error finding, and nothing that misses Artera commits by policy", async (t) => {
   const f = await fixture();
   t.after(() => f.app.dispose());
   const batchId = await externalProjectBatch(f);
   const submitted = await json(await f.action("batch.submit", { batchId, summary: "Space crop research" }, forerunner));
 
-  // Commit behavior is unchanged: the confident operations commit by policy, the rest wait for a member.
+  // The batch anchors to Artera: confident records that do not reach it wait for a member like the rest.
   assert.deepEqual(submitted.operations.map((op: Json) => [op.ref, op.state]),
-    [["$nasa", "committed"], ["$veg", "committed"], ["$veg-nasa", "committed"], ["$tomato", "awaiting_review"]]);
+    [["$nasa", "awaiting_review"], ["$veg", "awaiting_review"], ["$veg-nasa", "awaiting_review"], ["$tomato", "awaiting_review"]]);
   assert.equal(submitted.batch.state, "awaiting_review");
   // Submitting does not wait for the review; it is saved in the background.
   assert.equal(submitted.batch.review, null);
@@ -180,7 +180,7 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   const batchId = await externalProjectBatch(f);
   await json(await f.action("batch.submit", { batchId }, forerunner));
   const submitted = await f.reviewed(batchId);
-  assert.equal(submitted.counts.committed, 3);
+  assert.equal(submitted.counts.committed, undefined);
   assert.equal(submitted.batch.review.state, "failed");
   const retry = await f.app.database.prepare("SELECT state, attempts, nextAttemptAt FROM onto_review_jobs WHERE batchId = ?").bind(batchId).first();
   assert.equal(retry?.state, "pending");
@@ -195,8 +195,8 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.notEqual(again.batch.review.runId, submitted.batch.review.runId);
   assert.equal(f.calls.filter((call) => call.operation === "workflow.start").length, 2);
   // Decisions are untouched by either review.
-  assert.equal(again.counts.committed, 3);
-  assert.equal(again.counts.awaiting_review, 1);
+  assert.equal(again.counts.committed, undefined);
+  assert.equal(again.counts.awaiting_review, 4);
   // Only an editor can ask for a review, and an open batch is not reviewed.
   assert.equal((await f.app.call("/api/apps/onto/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
   const open = await json(await f.action("batch.open", { title: "Still open" }));

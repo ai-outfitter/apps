@@ -538,9 +538,23 @@ test("a member-reviewed batch anchors to the organization's root unless it names
   const free = await stage({ title: "Free", anchors: [], proposals: [{ operation: person("$free", 964, "Free") }] });
   assert.deepEqual(free.anchors, []);
   assert.equal(free.validation.valid, true);
-  // Policy batches (an app's) name their own anchors.
+  // A scheduled app batch anchors to the root too: what is confident and traceable commits,
+  // what reaches no anchor waits for a member with what depends on it.
   const { batch } = await json(await f.action("batch.open", { title: "Discovery", source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent));
-  assert.equal(batch.anchors, null);
+  assert.deepEqual(batch.anchors, [uuid(960)]);
+  const narrow = (await json(await f.action("batch.open", { title: "Discovery", anchors: ["Person:known"], source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent))).batch;
+  await json(await f.action("batch.add", { batchId: narrow.id, proposals: [
+    { operation: person("$linked", 965, "Linked"), evidence: cite("r1"), confidence: 0.99 },
+    { operation: friends("$link", 966, 965, 961), evidence: cite("r1"), confidence: 0.99 },
+    { operation: person("$stray", 967, "Stray"), evidence: cite("r2"), confidence: 0.99 },
+    { operation: person("$strayer", 968, "Strayer"), evidence: cite("r2"), confidence: 0.99 },
+    { operation: friends("$strays", 970, 967, 968), evidence: cite("r2"), confidence: 0.99 },
+  ] }, agent));
+  const submitted = await json(await f.action("batch.submit", { batchId: narrow.id }, agent));
+  assert.equal(submitted.batch.state, "awaiting_review");
+  assert.equal(await f.exists(uuid(965)), true);
+  assert.equal(await f.exists(uuid(967)), false);
+  assert.equal(submitted.counts.awaiting_review, 3);
 });
 
 test("a personal Onto anchors a new batch to its owner's Person", async t => {
