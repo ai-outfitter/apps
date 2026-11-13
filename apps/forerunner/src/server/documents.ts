@@ -79,7 +79,7 @@ const legacyDocuments = defineDocuments({
 // schedules and runs are the platform's documents (Schedules, ScheduleChanges,
 // WorkflowRuns, WorkflowRunChanges), which the Workflows page runs too.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
-  DailyHome: { description: "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts." },
+  DailyHome: { description: "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Pass sections (digest, priorities, review, history) to read only those: digest alone returns today's saved brief, its Wiki revision and briefState (saved, missing or unavailable) with latestBrief as the last dated snapshot when today's is missing, without waiting on reports. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts." },
   DailyBriefSchedule: { description: "Read the saved daily brief schedule. Does not create or enable schedules." },
   SetDailyBriefSchedule: { description: "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. Existing Planning source reports are read; raw mail and analytics adapters are not enabled." },
   GenerateDailyBrief: { description: "Generate today's personal Wiki brief now, recording a workflow run and exact Wiki revision. Idempotent content writes; missing sources remain incomplete." },

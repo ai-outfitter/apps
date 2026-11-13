@@ -109,7 +109,7 @@
       ]
     },
     "mcp": {
-      "description": "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts."
+      "description": "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Pass sections (digest, priorities, review, history) to read only those: digest alone returns today's saved brief, its Wiki revision and briefState (saved, missing or unavailable) with latestBrief as the last dated snapshot when today's is missing, without waiting on reports. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts."
     },
     "outputSchema": {
       "type": "object",
