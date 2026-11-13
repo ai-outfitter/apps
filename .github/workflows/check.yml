@@ -47,7 +47,7 @@ jobs:
       catalog_apps: ${{ steps.catalog.outputs.apps }}
       non_catalog_apps: ${{ steps.catalog.outputs.other }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -102,7 +102,7 @@ jobs:
       matrix:
         app: ${{ fromJSON(needs.plan.outputs.apps) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Validate public SDK pin
@@ -110,7 +110,7 @@ jobs:
         env:
           SDK_SHA: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
         run: '[[ "$SDK_SHA" =~ ^[a-f0-9]{40}$ ]]'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: inputs.sdk-sha != '' || needs.plan.outputs.sdk_sha != ''
         with:
           repository: ai-outfitter/apps
