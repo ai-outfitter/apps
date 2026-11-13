@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { requestDatabase, withDatabaseSession } from "./database-session";
 import { drizzle } from "drizzle-orm/d1";
 
 /**
@@ -7,26 +8,32 @@ import { drizzle } from "drizzle-orm/d1";
  */
 const binding = () => (env as unknown as { DB?: D1Database }).DB;
 
+/** One session for the complete app request; no cross-request bookmark transport. */
+export function withInstallationDatabaseRequest<T>(work: () => T): T {
+  return withDatabaseSession(binding(), work);
+}
+
 /** `ok` once the bound database answers; demo packages have none. */
 export async function databaseHealth() {
-  const database = binding();
+  const database = requestDatabase(binding());
   if (!database) return "none";
   await database.prepare("SELECT 1").first();
   return "ok";
 }
 
 export function installationDatabase() {
-  const database = binding();
+  const database = requestDatabase(binding());
   if (!database)
     throw new Response("This installation has no database. Redeploy it.", {
       status: 503,
     });
-  return drizzle(database);
+  // Drizzle uses prepare/batch, both supported by D1DatabaseSession.
+  return drizzle(database as D1Database);
 }
 
 /** Prepared batch adapter: atomic on D1, compatible with libSQL test executors. */
 export function agentDatabase(): import("../agent-store").AgentDatabase {
-  const db = binding();
+  const db = requestDatabase(binding());
   if (!db)
     throw new Response("Installation database unavailable", { status: 503 });
   const prepare = (s: import("../agent-store").AgentStatement) =>
