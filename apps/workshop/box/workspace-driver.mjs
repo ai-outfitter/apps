@@ -3,6 +3,7 @@
 import { readFileSync,writeFileSync,readdirSync,existsSync,mkdirSync,cpSync } from 'node:fs';
 import { join,dirname } from 'node:path';
 import { createClient } from '@libsql/client';
+import { capturePreviews } from './capture-previews.mjs';
 import { platformRequest,signIn } from './driver.mjs';
 import { sessionFiles,readSession,mergedTranscript } from '../../../box/sessions.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -76,15 +77,18 @@ export async function runWorkspace(box){
    project=await api(`/api/apps/workshop/projects/${project.id}/builds`,'POST',{id:project.id,revision:project.revision,repository:box.repository,sourceDir:request.workspace.sourceDir,sourceCommit:request.workspace.sourceCommit,instructions:request.message,parameters:request.workspace.parameters??{},runner:'workspace-box'});
    await execute(project,project.workspace.requests.at(-1));
   }
+  await capturePreviews({origin:`http://outfitter.localhost:${box.port}`,cookie,output:join(box.out,"visual-evidence"),log:box.log}).catch(error=>box.log(`Preview capture failed: ${error.message}`));
   await box.finish(initialFailure);
   // The inspection box stays useful: UI/MCP parameter requests are consumed by
   // the same coordinator. An eval with BOX_EXIT_WHEN_DONE exits above.
+  let lastCapture=0;
   while(!box.env.BOX_EXIT_WHEN_DONE){
    for(const row of await api('/api/apps/workshop/projects')){
     const project=await api(`/api/apps/workshop/projects/${row.id}`);
     if(project.workspace?.repository!==box.repository)continue;
     const queued=project.workspace.requests.find(r=>['queued','running'].includes(r.status));if(queued)await execute(project,queued);
    }
+   if(Date.now()-lastCapture>30000){lastCapture=Date.now();await capturePreviews({origin:`http://outfitter.localhost:${box.port}`,cookie,output:join(box.out,"visual-evidence"),log:box.log}).catch(error=>box.log(`Preview capture failed: ${error.message}`));}
    await pause(3000);
   }
  }finally{db.close();}

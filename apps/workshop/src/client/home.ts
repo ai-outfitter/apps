@@ -29,12 +29,23 @@ function projectRow(p: Summary, base: string) {
   row.dataset.project = p.id;
   const link = document.createElement("a");
   link.href = `${base}${projectPath(projectSlug(p))}`;
+  const thumb = document.createElement("img");
+  thumb.className = "thumb";
+  thumb.alt = "";
+  thumb.width = 120;
+  thumb.height = 75;
+  thumb.loading = "lazy";
+  thumb.decoding = "async";
+  if (!readOnly) thumb.src = `${base}/api/apps/workshop/projects/${p.id}/preview?revision=${p.revision}`;
+  thumb.addEventListener("load", () => { row.dataset.thumbnail = "ready"; });
+  thumb.addEventListener("error", () => { thumb.hidden = true; row.dataset.thumbnail = "pending"; });
+  if (readOnly) thumb.hidden = true;
   const name = document.createElement("strong");
   name.textContent = p.name;
   const text = document.createElement("span");
   text.className = "project-text";
   text.append(name);
-  link.append(text);
+  link.append(text, thumb);
   row.append(link);
   return row;
 }

@@ -69,7 +69,7 @@ test("the driver designs each request, commits it, and releases it with evidence
   const done = new Promise<unknown>((resolve) => (finished = resolve));
   try {
     await run({
-      env: {}, log: () => {}, out: join(work, "out"), port: (server.address() as AddressInfo).port, image: "outfitter/workshop-box:dev",
+      env: { BOX_EXIT_WHEN_DONE: "1" }, log: () => {}, out: join(work, "out"), port: (server.address() as AddressInfo).port, image: "outfitter/workshop-box:dev",
       requests: join(work, "requests"), repository: "box/repo", defaultBranch: "main", remote: join(work, "remote.git"),
       model: { provider: "spark", id: "GLM-5.3-Flash-EXL3" },
       forgejo: async (method: string, path: string, body: any) => {

@@ -194,7 +194,12 @@ export async function run(box) {
     box.log(`${name}: ${result.status}${commitSha ? ` at ${commitSha.slice(0, 8)}` : ` (${result.reason})`}`);
   }
   await workbench?.close().catch(() => undefined);
+  const {capturePreviews}=await import('./capture-previews.mjs');
+  await capturePreviews({origin:`http://outfitter.localhost:${box.port}`,cookie,output:join(box.out,'visual-evidence'),log:box.log}).catch(error=>box.log(`Preview capture failed: ${error.message}`));
   release(box, finished).then(() => box.finish(), (failure) => box.finish(failure));
+  if(!box.env.BOX_EXIT_WHEN_DONE) void (async()=>{
+    while(true){await new Promise(resolve=>setTimeout(resolve,30000));await capturePreviews({origin:`http://outfitter.localhost:${box.port}`,cookie,output:join(box.out,'visual-evidence'),log:box.log}).catch(error=>box.log(`Preview capture failed: ${error.message}`));}
+  })();
 }
 
 /** Releases the designs that asked for one. */

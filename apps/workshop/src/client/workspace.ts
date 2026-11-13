@@ -37,6 +37,19 @@ function showBuild(run?:BuildRequest){
  for(const artifact of manifest?.artifacts??[]){const url=run!.result!.artifactBase+artifact.path;const a=element("a",artifact.path.split('/').at(-1)!) as HTMLAnchorElement;a.href=url;a.download=artifact.path.split('/').at(-1)!;$("source-files").append(a);if(/\.(scad|json|md|py)$/.test(artifact.path)){const b=element("button",`Read ${a.textContent}`);b.onclick=async()=>{$("source-preview").textContent=await (await fetch(url,{signal})).text();};$("source-files").append(b);}}
  const evidence=$("revision-evidence");evidence.replaceChildren(element("h3",run?`Build ${run.id.slice(0,8)}`:"No workspace build yet"));
 
+ if(import.meta.env.OUTFITTER_APP_MODE !== "demo" && (!run || run.id===project.workspace?.currentBuildId)) {
+  const captureUrl=`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&evidence=1`;
+  void fetch(captureUrl).then(async response=>{
+   if(!response.ok)return;
+   const capture=await response.json();
+   if(build?.id!==run?.id)return;
+   const section=element("div","");section.append(element("h3","Visual evidence"));
+   const record=element("a","Capture record") as HTMLAnchorElement;record.href=captureUrl;section.append(record);
+   for(const artifact of capture.artifacts){const a=element("a",` ${artifact.kind} screenshot`) as HTMLAnchorElement;a.href=`/files/main/builds/${artifact.key}`;a.target="_blank";a.rel="noopener";section.append(a);}
+   section.append(element("p",capture.limitations));evidence.append(section);
+  }).catch(()=>{});
+ }
+
  if(manifest){const download=element("a","Download revision bundle") as HTMLAnchorElement;download.href=`/api/apps/workshop/projects/${project.id}/bundle?build=${run!.id}`;evidence.append(download);evidence.append(element("p",`${manifest.runner} · ${manifest.compiler}`),element("p",`Source commit: ${manifest.sourceCommit}`),element("p",manifest.notes));for(const t of manifest.tests)evidence.append(element("p",`${t.status.toUpperCase()} · ${t.name}: ${t.detail}`));}
  if(run?.result?.error)evidence.append(element("p",run.result.error));renderBom();
 }
