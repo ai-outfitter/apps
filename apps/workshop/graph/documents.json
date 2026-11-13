@@ -16,7 +16,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Replace a project's product structure: assemblies, parts, boards and firmware with quantities and placements. Read WorkshopProjectHandoff first and send its revision; the whole assembly is replaced."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -546,6 +548,74 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "assemblyChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
@@ -584,7 +654,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Publish a project's concept mockups to its product revision in the Wiki, or remove one mockup, at the project's current revision."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -704,6 +776,74 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "conceptChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
@@ -837,7 +977,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Name the Wiki product revision a project builds, at the project's current revision."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -942,6 +1084,74 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "productRevisionChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
@@ -961,7 +1171,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Create a project from a starter example, write its brief, requirements and stage, or delete it. Edits and deletes need the id and revision from WorkshopProjects; stable item keys make retries safe."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1165,6 +1377,74 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
@@ -1279,7 +1559,9 @@
         "input"
       ]
     },
-    "hidden": true,
+    "mcp": {
+      "description": "Record, update or delete physical units by MAC address or serial. Updates and deletes need the id and revision from WorkshopUnits."
+    },
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1538,6 +1820,74 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "unitChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
     }
   },
   {
@@ -1576,7 +1926,17 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read one project as persisted: brief, requirements, stage, product revision and its whole assembly with usage lines. Changes nothing."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjectHandoff": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "WorkshopProjects",
@@ -1614,7 +1974,56 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Find hardware projects by name, product revision or creator. Use includeIdentifiers:true for IDs and revisions before changes.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "workshopProjects",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "WorkshopUnits",
@@ -1660,6 +2069,55 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Find physical units (boards, parts) by part number, MAC, status or project.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "workshopUnits",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopUnits": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 ]

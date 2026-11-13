@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "standalone": "OUTFITTER_STANDALONE=1 astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration",

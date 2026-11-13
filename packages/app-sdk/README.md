@@ -11,6 +11,11 @@ Public source entry points for the existing authenticated app host contract:
   `src/middleware.ts`. The CSP applies to built responses without a policy of their
   own; `astro dev` sends none, because Vite serves dev CSS and scripts inline.
 - `@ai-outfitter/app-sdk/cloudflare/middleware`: the middleware it registers.
+- `@ai-outfitter/app-sdk/cloudflare/standalone`, `./standalone-auth`, `./standalone-host`: standalone
+  mode, where the app signs people in (Google, or a form under `astro dev`), migrates its
+  own database and answers its own workflow host calls, with no platform in front of it.
+  `outfitterApp()` registers it when `OUTFITTER_STANDALONE=1`. See
+  [Standalone apps](../../docs/standalone-apps.md).
 - `@ai-outfitter/app-sdk/storage`: per-installation buckets, spaces, visibility and
   TTL (`storage()`, `storageRoutes()`, `storageMaintenance()`).
 - `@ai-outfitter/app-sdk/cloudflare/storage`: the storage host over `STORAGE_<BUCKET>` bindings.
