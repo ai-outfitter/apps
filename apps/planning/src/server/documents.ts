@@ -264,6 +264,34 @@ const legacyDocuments = defineDocuments({
     story: "As a member, I want a project's complete existing use-case scenarios and revisions, so that I can author and safely revise their actor, trigger, steps, alternatives and success evidence.",
     document: graphql(`query UseCases($input: UseCasesInput!) { useCases(input: $input) }`),
   },
+  SubmitPartnerRequest: {
+    story: "As a design partner's agent, I want to file a feature or bug request for my provider's product from my own organization, so that the provider's team reviews it and files it with Software Foundry, and I can read back whether it was accepted.",
+    document: graphql(`mutation SubmitPartnerRequest($input: SubmitPartnerRequestInput!) {
+      submitPartnerRequest(input: $input) { id requestId revision status kind title problem acceptanceCriteria bug productId partner reason foundryRequest createdAt updatedAt }
+    }`),
+  },
+  PartnerRequests: {
+    story: "As an editor, I want the requests our design partners filed, with their status, so that I accept or reject each one.",
+    document: graphql(`query PartnerRequests($status: PartnerRequestStatus) {
+      partnerRequests(status: $status) { id requestId revision status kind title problem acceptanceCriteria bug productId partner reason foundryRequest createdAt updatedAt }
+    }`),
+  },
+  RefreshDesignPartners: {
+    story: "As an editor, I want to refresh our design partners from our graph after flagging a customer, so that the new partner can submit requests and a removed one no longer can.",
+    document: graphql(`mutation RefreshDesignPartners($input: JSON!) { refreshDesignPartners(input: $input) { designPartners { organizationId name } } }`),
+  },
+  AcceptPartnerRequest: {
+    story: "As an editor, I want to accept a design partner's request for a repository or Foundry project, so that Software Foundry files it as an issue with the partner and its product named.",
+    document: graphql(`mutation AcceptPartnerRequest($input: AcceptPartnerRequestInput!) {
+      acceptPartnerRequest(input: $input) { id requestId revision status kind title productId partner foundryRequest updatedAt }
+    }`),
+  },
+  RejectPartnerRequest: {
+    story: "As an editor, I want to reject a design partner's request with a reason, so that the partner knows why and nothing is filed.",
+    document: graphql(`mutation RejectPartnerRequest($input: RejectPartnerRequestInput!) {
+      rejectPartnerRequest(input: $input) { id requestId revision status title partner reason updatedAt }
+    }`),
+  },
   SaveUseCase: {
     story: "As an editor, I want to write or revise a project's use case from the use cases page or an agent, so that it lives in the Wiki linked to the project.",
     document: graphql(`mutation SaveUseCase($input: SaveUseCaseInput!) { saveUseCase(input: $input) }`),

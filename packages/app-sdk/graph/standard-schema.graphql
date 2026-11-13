@@ -450,6 +450,7 @@ type CustomerOf implements Edge {
   validUntil: DateTime
   status: String
   evidence: String
+  design_partner: Boolean
 }
 
 """in segment"""

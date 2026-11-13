@@ -1,3 +1,57 @@
+"""
+A design partner's feature or bug request, filed from its own organization.
+"""
+type PartnerRequest {
+  id: ID!
+
+  """The partner's own ID for it."""
+  requestId: ID!
+  revision: Int!
+
+  """
+  proposed until an editor accepts (Software Foundry files it as an issue) or rejects it.
+  """
+  status: PartnerRequestStatus!
+
+  """feature or bug."""
+  kind: String!
+  title: String!
+  problem: String!
+
+  """[{ id, text }]"""
+  acceptanceCriteria: JSON!
+
+  """Bugs only: { stepsToReproduce, expected, actual, environment? }."""
+  bug: JSON
+
+  """The provider's product record, by the ID both graphs share."""
+  productId: ID
+
+  """{ organizationId, userId, role: "design partner" }"""
+  partner: JSON!
+
+  """Why it was rejected."""
+  reason: String
+
+  """
+  Once accepted: Foundry's request { requestId, kind, issue { number, url }, run }.
+  """
+  foundryRequest: JSON
+
+  """Epoch milliseconds."""
+  createdAt: Float!
+  updatedAt: Float!
+}
+
+enum PartnerRequestStatus {
+  proposed
+  accepted
+  rejected
+}
+
+"""Any JSON value."""
+scalar JSON
+
 type DailyReportSourceConnection {
   nodes: [DailyReportSource!]!
   pageInfo: PageInfo!
@@ -13,9 +67,6 @@ type DailyReportSource {
   organizationSlug: String
   report: JSON
 }
-
-"""Any JSON value."""
-scalar JSON
 
 type PageInfo {
   endCursor: String
@@ -1050,6 +1101,59 @@ input RecordMeasurementsInput {
   measureId: ID
 }
 
+input SubmitPartnerRequestInput {
+  requestId: ID!
+  kind: SubmitPartnerRequestInputKind!
+  title: String!
+  problem: String!
+  acceptanceCriteria: [SubmitPartnerRequestInputAcceptanceCriteriaItem!]!
+  bug: SubmitPartnerRequestInputBug
+  productId: String
+}
+
+enum SubmitPartnerRequestInputKind {
+  feature
+  bug
+}
+
+input SubmitPartnerRequestInputAcceptanceCriteriaItem {
+  id: String!
+  text: String!
+}
+
+input SubmitPartnerRequestInputBug {
+  stepsToReproduce: [String!]!
+  expected: String!
+  actual: String!
+  environment: String
+}
+
+type DesignPartners {
+  designPartners: [DesignPartner!]!
+}
+
+type DesignPartner {
+  organizationId: ID!
+  name: String!
+}
+
+input AcceptPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  target: AcceptPartnerRequestInputTarget!
+}
+
+input AcceptPartnerRequestInputTarget {
+  repository: String
+  project: String
+}
+
+input RejectPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  reason: String!
+}
+
 input SaveUseCaseInput {
   projectId: ID!
   title: String!
@@ -1070,6 +1174,10 @@ input SaveUseCaseInputDocument {
 }
 
 type Query {
+  """
+  Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.
+  """
+  partnerRequests(status: PartnerRequestStatus): [PartnerRequest!]!
   dailyReports(first: Int = 100, after: String, ids: [ID!], date: String!, timezone: String): DailyReportSourceConnection!
   priorityOrder(kind: String!): JSON!
   personalPortfolio(kind: String!): JSON!
@@ -1340,6 +1448,26 @@ type Mutation {
   Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.
   """
   recordMeasurements(input: RecordMeasurementsInput!): JSON
+
+  """
+  File a feature or bug request with this organization as one of its design partners, from your own organization (graph_mutate with scope set to this organization and fromScope to yours). It waits as proposed until an editor here accepts or rejects it; replay the same requestId to read its status. Design partners only: other customers file an issue on the public repository.
+  """
+  submitPartnerRequest(input: SubmitPartnerRequestInput!): PartnerRequest!
+
+  """
+  Re-read this organization's design partners from its graph: customers whose customer_of link to it has design_partner set, each bound to a platform organization by organization_id. Only they can submit partner requests. Editors only.
+  """
+  refreshDesignPartners(input: JSON!): DesignPartners!
+
+  """
+  Accept a design partner's proposed request: if the graph still flags the partner, Software Foundry's RequestChanges files it as an issue in the repository or project you name, attributed to you, with the partner named in the problem and its product in the context. Name the revision you read; a changed record is refused (409). A refusal keeps it proposed. Editors only.
+  """
+  acceptPartnerRequest(input: AcceptPartnerRequestInput!): PartnerRequest!
+
+  """
+  Reject a design partner's proposed request with a reason the partner reads back. Nothing is filed. Name the revision you read; a changed record is refused (409). Editors only.
+  """
+  rejectPartnerRequest(input: RejectPartnerRequestInput!): PartnerRequest!
 
   """
   Create a use case in the Wiki for a project, or with id and revision replace one's title, summary, document and archived flag, and return the Wiki record. Editors only.

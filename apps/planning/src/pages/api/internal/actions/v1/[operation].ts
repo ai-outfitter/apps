@@ -8,8 +8,9 @@ import { workActions } from "../../../../../server/intake";
 
 // graph.mutate runs the mutation documents Planning publishes (src/server/documents.ts) for
 // every member, as its pages do: members share projects and issues, and an assigned agent
-// need not be an editor to claim or record work. Each field checks its own policy.
-const graph = { "graph.graphql": graphqlAction(graphqlSchema), "graph.mutate": mutateAction(graphqlSchema, { canInvoke: () => true }) };
+// need not be an editor to claim or record work. Each field checks its own policy. A design
+// partner's member calling from its own organization reaches only SubmitPartnerRequest.
+const graph = { "graph.graphql": graphqlAction(graphqlSchema), "graph.mutate": mutateAction(graphqlSchema, { canInvoke: () => true, external: true }) };
 
 export const ALL: APIRoute = ({ request, params, locals }) =>
   respond(async () => {

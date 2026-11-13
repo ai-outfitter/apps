@@ -738,7 +738,7 @@
     "category": "edge",
     "name": "customer_of",
     "title": "customer of",
-    "body": "The source person, organization or customer segment is a customer or prospective customer of the target provider organization or project.\n\n## For agents\n\nDirection is customer to provider. Use proposed status for target customers or hypotheses; never infer contracts, purchases or endorsements from this relationship.",
+    "body": "The source person, organization or customer segment is a customer or prospective customer of the target provider organization or project.\n\nA design partner is a customer with `design_partner` set: it builds the provider's product with the provider and files requests with the provider's Planning from its own organization. Other customers file issues on the provider's public repository.\n\n## For agents\n\nDirection is customer to provider. Use proposed status for target customers or hypotheses; never infer contracts, purchases or endorsements from this relationship. Set `design_partner` only when the provider has said so.",
     "properties": [
       {
         "name": "status",
@@ -750,6 +750,12 @@
         "name": "evidence",
         "type": "string",
         "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      },
+      {
+        "name": "design_partner",
+        "type": "boolean",
+        "description": "The customer is a design partner of the provider: it builds the provider's product with it and may file requests with the provider's Planning from its own organization.",
         "required": false
       }
     ],
