@@ -1,6 +1,6 @@
 type Query {
   """
-  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. No generation starts.
+  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. `sections` reads only the named sections (digest, priorities, review, history), so the saved brief never waits on reports. No generation, schedule write or connector read starts.
   """
   dailyHome(input: DailyHomeInput!): JSON
 
@@ -48,6 +48,14 @@ scalar JSON
 input DailyHomeInput {
   timezone: String
   includeHistory: Boolean
+  sections: [DailyHomeInputSectionsItem!]
+}
+
+enum DailyHomeInputSectionsItem {
+  digest
+  priorities
+  review
+  history
 }
 
 input DayReviewInput {

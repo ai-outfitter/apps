@@ -13,3 +13,18 @@ The root daily-conversation UI is still a separate local design preview. The gen
 Validation: focused schedule/owner/timezone tests; real in-memory board database with fake Wiki checks unchanged retries and archived refusal; local app GraphQL schedule and generated-document readback. A manual generation is not evidence of a cron tick; deployed activation remains separate.
 
 Timezone selection: new schedules require an explicit valid IANA timezone. The platform schedule editor detects the device timezone for first setup; a saved timezone stays authoritative until the user saves a change. The editor displays the device timezone alongside the saved value. This supports travel without letting a server timezone or a silent Chicago fallback change the user's calendar. Automatic account-wide timezone tracking is not implemented. The app schedule operation defaults to `0 5 * * *`; the platform editor allows a different saved cadence. Yesterday remains the previous complete local calendar day, including DST boundaries.
+
+## Reading the saved brief (snapshot first)
+
+`DailyHome` accepts `sections` so a page can read its parts independently: `digest`, `priorities`, `review` (yesterday's reports) and `history` (last week). Without `sections` it answers as before, in one combined result.
+
+The `digest` section is the minimal current-brief read. It reads the saved schedule (for the time zone), resolves the owner's document Wiki once, looks up the pages for today and the six days before it in one request, and reads the documents it needs in a second request. It never reads Planning reports, organization memberships or the board. It returns:
+
+- `brief`: today's saved document with `markdown`, `revision`, `href` (the exact Wiki revision), `date` and `savedAt`.
+- `briefState`: `saved`, `missing` (no document, or it is archived) or `unavailable` (the Wiki or the document could not be read; this is not evidence that no brief exists).
+- `latestBrief`: only when today's is missing, the newest earlier brief within the seven-day lookback, with its own `date`. A page shows it as that day's snapshot, never as today's.
+- `previousBrief`: yesterday's reference (revision and link, no body), which keeps first-time setup detection without reading a second document body. The combined read still returns its body for older callers.
+
+Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `wikiProvider`, `briefLookup`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
+
+No section starts source collection, a model request, a workflow, a connector read or a schedule write.
