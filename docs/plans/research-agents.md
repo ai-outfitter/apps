@@ -118,17 +118,34 @@ the new source as evidence. Nothing is deleted.
 
 ## Who runs the agent
 
-The hosted platform cannot browse, so today the researcher is an outside
-agent with web search and the Outfitter MCP. Three ways, cheapest first:
+App inference cannot browse today. But the platform already reaches a
+provider's hosted MCP server through a connector (`ConnectorMcp` in
+`webapp packages/connector-core/src/mcp.ts`, used by GitHub): the connector
+names the server URL and the allowed tools, and the platform runs every call.
+So a hosted search MCP is a connector, not a new subsystem.
+
+Hosted search MCP servers checked on 2026-11-13:
+
+| Server | Hosted? | Key | Notes |
+| --- | --- | --- | --- |
+| **Parallel Search** `https://search.parallel.ai/mcp` | Yes, by Parallel | None (a key raises rate limits) | `web_search` + `web_fetch`, results ~25k chars per call. Tried from a cloud session with no key: initialize and a search both worked. In the Claude connector directory |
+| Brave Search (`brave/brave-search-mcp-server`) | No first-party host; stdio or self-hosted HTTP. Smithery hosts a copy at `server.smithery.ai/brave/mcp` | Brave Search API key, plus a Smithery secret for the hosted copy | Official from Brave |
+| DuckDuckGo | No. DuckDuckGo ships no server; community ones (`nickclyde/duckduckgo-mcp-server`) scrape the HTML results | None | Self-host only; DuckDuckGo throttles by IP and the scrape breaks when markup changes |
+| Exa, Tavily, Firecrawl | Yes | Provider key | Paid tiers; Firecrawl and Tavily also crawl |
+| Local Chrome MCP on the workstation | n/a | None | Uses his signed-in browser; only works while the machine is on and only for his agent. Fine for one-off reads, wrong for unattended runs |
+
+Runners, cheapest first:
 
 | Runner | Good | Bad |
 | --- | --- | --- |
-| **A. A scheduled cloud agent session** (Claude Code on the web trigger, in the environment that already allows ai-outfitter.com) | Exists today; has web search and the MCP; runs as Nicholas's agent connection; no platform change | Tied to one person's account and token; not visible as an Outfitter workflow run |
-| **B. The member's own agent, on demand** | Exists today; how the hardware-workshop research was done | Not automatic |
-| **C. A hosted research workflow** with a new web search/fetch connector | Runs as an Outfitter workflow with runs, schedules and Pause; works for any member | A new connector, provider key and inference with tool calls; the most work |
+| **A. A scheduled cloud agent session** (Claude Code on the web trigger, environment already allows ai-outfitter.com) | Exists today; built-in web search plus the Outfitter MCP; no platform change | Tied to one person's account; not an Outfitter workflow run |
+| **B. The member's own agent, on demand** (including the local Chrome MCP) | Exists today; how the hardware-workshop research was done | Not automatic |
+| **C. A hosted research workflow** with a `web-search` connector pointing at Parallel's hosted MCP | Runs as an Outfitter workflow with runs, schedules and Pause, for any member; no key to start; same `ConnectorMcp` path as GitHub | Workflow inference must be allowed to call connector tools (today it is a plain generate); a free service's limits and terms |
 
-Recommended: **A now, C only if A proves the loop is worth it.** A needs no
-new app actions, only the gap checks and the agent instructions.
+Recommended: **A to prove the loop on the Sunny pilot, then C with
+Parallel.** Skip DuckDuckGo (no host, scraping) and Brave (needs a key and a
+third-party host) unless Parallel's free limits bite; Brave self-hosted next
+to the platform is the fallback.
 
 ## First pilot
 
@@ -157,8 +174,8 @@ Sources are served from fixtures so the evals do not depend on the live web.
 
 1. Work queue: gaps become Planning research items (recommended), or the
    agent reads gaps straight from Onto?
-2. Runner: a scheduled cloud agent session now (recommended), or build the
-   hosted web connector first?
+2. Runner: a scheduled cloud agent session now, then a hosted connector on
+   Parallel's free search MCP (recommended), or Brave self-hosted instead?
 3. Approval: outside the pilot orgs, research batches use the 0.95 policy with
    an end-of-day window, like Forerunner discovery?
 4. Outside identity: use Wikidata ids as `externalKey` for organizations and
