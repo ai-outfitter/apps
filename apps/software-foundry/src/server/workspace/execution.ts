@@ -31,7 +31,8 @@ const id = z.string().min(1).max(128);
 export const workspaceTarget = z
   .object({
     role: z.enum([
-      "analyze",
+      // Not "analyze": the workspace runtime keeps gh off PATH for that legacy stage.
+      "file-issues",
       "triage",
       "implement",
       "validate",
@@ -123,7 +124,7 @@ export function workspaceGuidance(repository: string, role = "implement") {
     ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly. Reviewers have read-only Actions access; inspect current-commit CI logs independently. For protected previews import installPreview from /opt/workspace/preview.mjs and call it with the Playwright context and previous.previews.verifiedUrl before page.goto; it uses the trusted gateway and assertReadOnly checks. Do not add service credentials to the browser; never try a person's login. Block only same-origin /cdn-cgi/rum telemetry during read-only fixture checks, and fail on every other product write. Report missing preview access explicitly rather than treating an Access login page as successful acceptance."] : []),
   ];
   if (role === "triage") return [];
-  if (role === "analyze") return analyzing;
+  if (role === "file-issues") return analyzing;
   return [
     ...implementing, ...publishScreenshots,
     ...(webapp ? ["For this webapp, build with npm run build:node before invoking tests/anonymous-onboarding.integration.mjs directly."] : []),
@@ -165,7 +166,7 @@ export async function finalizeWorkspaceNode(
   { node, inputs, outputs, coordinator, session, settings }: z.infer<typeof finalizeInput>,
 ) {
   const target = workspaceTarget.parse(settings);
-  if (target.role === "analyze") return { outputs: await finalizeAnalysis(host, outputs) };
+  if (target.role === "file-issues") return { outputs: await finalizeAnalysis(host, outputs) };
   if (coordinator)
     return { outputs: await finalizeWorkspaceOutputs(host, files, node, inputs, target, { result: {
       ready: true, summary: "Coordinated GitHub Actions workflow step",
