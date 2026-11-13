@@ -1,6 +1,6 @@
 version: beta
 id: dependency-review
-summary: Review a repository's dependencies — out of date, unneeded, or with a better option — and file one issue per proposed change.
+summary: Review a repository's dependencies — out of date, unneeded, or with a better option — and file one combined issue, plus one per major upgrade.
 actors:
   reviewer:
     kind: external
@@ -29,7 +29,11 @@ steps:
       Review this repository's dependencies the way a careful maintainer would, not the way Dependabot does.
       Read every manifest and lockfile in a shallow checkout (package.json workspaces, requirements, go.mod, Nix inputs, Dockerfiles, GitHub Actions). Run the ecosystem's own checks where they exist, such as `npm outdated --json` and `npm audit --json`; to make them work you may install into the scratch checkout with lifecycle scripts disabled (`npm ci --ignore-scripts`), but never upgrade, commit or push anything.
       For each dependency decide one of: keep, update (name the target version and read its changelog for breaking changes), remove (show by searching the code that nothing uses it, or that the platform now provides it), or replace (name the better option and why it is better here).
-      File at most 10 issues, one per proposed change, most valuable first, and group trivial patch updates into one issue. Each issue states the evidence (command output, usages found), the risk, and a plan a separate implementation agent can follow, with the checks that prove it worked.
+      Each issue you file starts an agent that opens one pull request and merges it once checks pass, so file as few issues as the work allows:
+      - One combined issue for every minor and patch update, security fix and removal together, to land as a single pull request.
+      - One separate issue per major version upgrade or replacement only, at most 3, most valuable first.
+      Before filing, read this repository's open issues. When an open issue already covers a change, leave it alone and do not file it again.
+      Each issue states the evidence (command output, usages found), the risk, and a plan a separate implementation agent can follow in one pull request, with the checks that prove it worked.
       Skip anything you cannot verify and say so in your final message rather than guessing. Filing no issues is a valid result.
     outputs:
       issues:
@@ -38,7 +42,7 @@ steps:
           required: [repository, issues]
           properties:
             repository: {type: string}
-            issues: {type: array, maxItems: 10, items: {$ref: "#/$defs/createdIssue"}}
+            issues: {type: array, maxItems: 4, items: {$ref: "#/$defs/createdIssue"}}
             summary: {type: string}
 outputs:
   issues: analyze.outputs.issues

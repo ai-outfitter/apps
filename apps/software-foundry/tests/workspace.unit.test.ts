@@ -176,6 +176,11 @@ test("an owner or admin turns a repository on from Foundry itself, within intera
 
 test("a repository job runs and schedules under its approved read-only analyze binding", async () => {
   const { host, bindings, calls } = platform();
+  await assert.rejects(runFoundryJob(host as never, "dependency-review", "acme/app"),
+    (error: Response) => error.status === 409, "a job's issues need Foundry on to be fixed");
+  await configureFoundryWorkspaces(host as never, "acme/app", "vega");
+  bindings.length = 0;
+  calls.length = 0;
   const started = await runFoundryJob(host as never, "architecture-reanalysis", "Acme/App");
   assert.equal(started.repository, "acme/app");
   const [binding] = bindings;

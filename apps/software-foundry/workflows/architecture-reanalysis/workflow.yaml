@@ -29,7 +29,7 @@ steps:
       Reread this repository as it is today. Agents and people have shipped a lot of it quickly to get demos and feedback; your job is to find the structure that no longer fits, not to restyle code.
       Work from a shallow checkout: read the README, docs, AGENTS.md or CLAUDE.md, the build and deploy configuration, CI, the database schema and migrations, and the largest and most-changed modules (use git log). You may run read-only commands such as listing files, `git log`, and the project's own lint or type checks; never install, change or commit anything.
       Look for: components that should be separate but share one store or deployment; data or artifacts kept in the wrong place (for example large bundles in memory or the database instead of object storage); duplicated mechanisms solving the same problem; tooling that is configured but unreliable or bypassed (flaky tests, disabled lint rules); layers that exist only for one caller; and docs that contradict the code.
-      File at most 10 issues, ranked by value for the effort. Each names the current structure with file paths, why it now costs something (concrete incidents, duplication, or risk), the target structure, an incremental migration plan a separate implementation agent can follow in reviewable steps, and the checks that prove each step.
+      Each issue you file starts an agent that opens one pull request and merges it once checks pass, so file at most 3 issues, ranked by value for the effort, each small enough for one pull request. Before filing, read this repository's open issues and do not file a change one already covers. Each names the current structure with file paths, why it now costs something (concrete incidents, duplication, or risk), the target structure, a plan a separate implementation agent can follow in one pull request, and the checks that prove each step.
       Do not file style preferences or anything you cannot back with evidence from the repository. Filing no issues is a valid result; say what you checked in your final message.
     outputs:
       issues:
@@ -38,7 +38,7 @@ steps:
           required: [repository, issues]
           properties:
             repository: {type: string}
-            issues: {type: array, maxItems: 10, items: {$ref: "#/$defs/createdIssue"}}
+            issues: {type: array, maxItems: 3, items: {$ref: "#/$defs/createdIssue"}}
             summary: {type: string}
 outputs:
   issues: analyze.outputs.issues

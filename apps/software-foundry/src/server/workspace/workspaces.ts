@@ -200,9 +200,14 @@ export type FoundryJob = keyof typeof foundryJobs;
 export const jobBindingInput = (job: FoundryJob) => `analyze.inputs.${foundryJobs[job]}Binding`;
 
 /** Approve (or reuse) the job's workspace binding on one repository: the run
- * inputs a manual start or a saved schedule needs. */
+ * inputs a manual start or a saved schedule needs. A job's issues are fixed by
+ * issue-to-merge, so the repository must have Foundry turned on first. */
 async function jobInputs(host: Editor, job: FoundryJob, repository: string, model = "gpt-6-luna") {
-  const { metadata } = await approvedRepository(host, await host.call("snapshot", {}), repository);
+  const snapshot = await host.call("snapshot", {});
+  const { metadata } = await approvedRepository(host, snapshot, repository);
+  if (!snapshot.subscriptions.some((subscription) => subscription.enabled && subscription.workflowId === foundryWorkspaceWorkflow &&
+    subscription.resource === String(metadata.id)))
+    throw new Response(`Turn Foundry on for ${metadata.full_name} first (RepositoryChanges enable), so the job's issues are fixed and merged`, { status: 409 });
   const prompt = "You are the analyze agent for an Outfitter Software Foundry repository job. Read the repository, file only the issues your instructions call for, and never change code.";
   const binding = await host.call("binding.approve", {
     workflowId: job,

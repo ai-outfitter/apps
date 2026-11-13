@@ -181,7 +181,7 @@ async function initialize(signal) {
     return;
   }
   notice.textContent =
-    "Each run files at most 10 ranked issues. Send the ones worth doing through issue to review.";
+    "Each run files a few issues, and Foundry fixes and merges each one.";
   select.disabled = false;
   for (const button of buttons) {
     button.disabled = false;
