@@ -4,7 +4,8 @@ import AppLayout from "../components/FoundryLayout.astro";
 import Section from "@ai-outfitter/ui/astro/Section.astro";
 import Table from "@ai-outfitter/ui/astro/Table.astro";
 // Repository jobs: an agent reads a repository and files ranked issues. They never
-// change code; send the issues worth doing through issue to review.
+// change code; on a repository Foundry is enabled for, each filed issue starts
+// issue to merge, which opens the pull request.
 const jobs = [
   {
     id: "dependency-review",
@@ -19,6 +20,13 @@ const jobs = [
     summary:
       "Rereads the repository as it is now and files ranked refactor issues for the structure fast shipping left behind, each with evidence and an incremental plan.",
     cadence: "on the 1st of each month at 14:00 UTC",
+  },
+  {
+    id: "ui-review",
+    title: "UI review",
+    summary:
+      "Opens every page at phone and desktop size, checks it against the UI standards and files one fix per issue. Each fix's pull request shows before and after screenshots in its Demo.",
+    cadence: "every Wednesday at 14:00 UTC",
   },
 ];
 ---

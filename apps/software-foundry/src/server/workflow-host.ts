@@ -55,7 +55,7 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
 }
 
 /** Repository jobs that run on a schedule: each occurrence starts the reserved run with the saved inputs. */
-export const scheduledFoundryWorkflows = ["dependency-review", "architecture-reanalysis"];
+export const scheduledFoundryWorkflows = ["dependency-review", "architecture-reanalysis", "ui-review"];
 
 async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z.input<typeof scheduleResult>> {
   const { runId, schedule } = scheduleInput.parse(raw);

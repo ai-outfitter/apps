@@ -35,6 +35,7 @@
         "workflow.sdlc-setup.start",
         "workflow.dependency-review.start",
         "workflow.architecture-reanalysis.start",
+        "workflow.ui-review.start",
         "features.read",
         "graph.serve",
         "workflow.issue-to-triage-resident.start",
