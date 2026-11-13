@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createClient, type InValue } from "@libsql/client";
 import { mutateAction, graphqlAction } from "@ai-outfitter/app-sdk/app-graphql";
@@ -11,7 +12,8 @@ import { documents } from "../src/server/documents";
 import { graphqlSchema } from "../src/server/graphql";
 import type { PlanningContext } from "../src/server/intake";
 import { designPartnerQuery, designPartnersIn, requestChangesDocument } from "../src/server/partner-requests";
-import foundryDocuments from "../../software-foundry/graph/documents.json" with { type: "json" };
+// Read the published discovery artifact as a contract fixture, not app implementation.
+const foundryDocuments = JSON.parse(readFileSync(new URL("../../software-foundry/graph/documents.json", import.meta.url), "utf8"));
 
 // Design partners are customers with a flag in this organization's graph. A partner's member
 // runs SubmitPartnerRequest from its own organization (role external, no workflow host); editors
