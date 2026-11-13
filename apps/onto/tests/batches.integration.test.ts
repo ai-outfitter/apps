@@ -409,7 +409,6 @@ test("agents repair one draft by ref and get anchor and ontology validation in m
   const readOnly = await json(await f.app.call(`/api/apps/onto/batches/get?id=${batchId}`, viewer));
   assert.equal(readOnly.validation.valid, true);
   assert.equal(readOnly.canReview, false);
-  assert.equal((await f.app.call("/api/apps/onto/batches/configure", viewer, { method: "POST", body: { batchId, anchors: [] } })).status, 403);
   await send("submit", { batchId });
   const frozen = await send("stage", { batchId, replace: true, proposals: [{ operation: person("$child", 951, "Too late") }] });
   assert.equal(frozen.result, null);

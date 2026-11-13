@@ -331,11 +331,7 @@
 
 /* Let graph workspaces use the available shell width. */
 .ui-content:has(#changes, #graph-explorer, #exploration) { max-width: none; width: 100%; }
-.change-anchor > p { margin: 8px 0; }
-.change-anchor-edit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 8px 0; }
-.change-anchor-edit p { margin: 0; flex-basis: 100%; }
-.change-anchor-edit input { width: min(100%, 320px); }
-.change-link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+.change-anchor { margin: 8px 0; }
 .change-validation { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 
 .changes { gap: 12px; }

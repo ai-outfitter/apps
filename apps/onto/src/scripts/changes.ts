@@ -244,33 +244,13 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
     }));
 }
 
-/** One line naming what new records must connect to; editors change it in place. */
-function anchorLine(graph: Graph, detail: BatchDetail, draw: (next: BatchDetail) => void) {
+/** What new records must connect to. Members ask an agent to change it. */
+function anchorLine(graph: Graph, detail: BatchDetail) {
   const nodes = new Map(graph.nodes.map(node => [node.id, node]));
-  const typeName = (node: GraphNode) => graph.types.find(type => type.id === node.typeId)?.name ?? node.typeId;
-  const addressOf = (node: GraphNode) => node.slug ? nodeAddress(typeName(node), node.slug) : node.id;
   const anchors = (detail.batch.anchors ?? []).flatMap(id => nodes.get(id) ?? []);
-  const editable = detail.canReview && (detail.batch.state === "open" || detail.batch.state === "awaiting_review" && detail.batch.policy.kind === "member" && !detail.counts.committed && !detail.counts.rejected);
-  const named = anchors.length
+  return el("p", { class: "change-anchor change-meta" }, ...(anchors.length
     ? ["New records connect to ", ...anchors.flatMap((node, i) => [i ? ", " : "", el("a", { href: entityUrl(node.id, node.typeId) }, node.title)])]
-    : ["New records need not connect to anything."];
-  if (!editable) return el("p", { class: "change-anchor change-meta" }, ...named);
-  const chosen = new Set(anchors.map(addressOf));
-  const save = async (next: string[], form: HTMLElement) => {
-    try { draw(await call<BatchDetail>("batches/configure", { batchId: detail.batch.id, anchors: next })); }
-    catch (error) { form.appendChild(el("p", { role: "alert" }, String(error))); }
-  };
-  const list = el("datalist", { id: "anchor-choices" }, ...graph.nodes.filter(node => !node.archived && node.slug)
-    .map(node => el("option", { value: addressOf(node) }, node.title)));
-  const input = el("input", { name: "anchor", placeholder: "Add an anchor, such as Organization:acme", "aria-label": "Anchor address" }) as HTMLInputElement;
-  input.setAttribute("list", "anchor-choices");
-  const form = el("form", { class: "change-anchor-edit" },
-    ...anchors.map(node => el("p", {}, node.title, " ", el("a", { href: "#", onclick: (event: Event) => { event.preventDefault(); chosen.delete(addressOf(node)); save([...chosen], form); } }, "Remove"))),
-    input, list, el("button", { type: "submit", class: "change-link" }, "Add"));
-  form.onsubmit = event => { event.preventDefault(); if (input.value.trim()) save([...chosen, input.value.trim()], form); };
-  form.hidden = true;
-  const toggle = el("a", { href: "#", onclick: (event: Event) => { event.preventDefault(); form.hidden = !form.hidden; } }, "Change");
-  return el("div", { class: "change-anchor" }, el("p", { class: "change-meta" }, ...named, " · ", toggle), form);
+    : ["New records need not connect to anything."]));
 }
 
 async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSignal) {
@@ -345,7 +325,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
       bulk,
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
-      anchorLine(graph, current, draw),
+      anchorLine(graph, current),
       tabs, ...Object.values(panels),
     );
   };
