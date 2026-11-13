@@ -711,7 +711,7 @@
   {
     "name": "SubmitReleaseEvidence",
     "kind": "mutation",
-    "story": "As an authorized editor, I want expiring upload links for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
+    "story": "As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     "query": "mutation SubmitReleaseEvidence($input: SubmitReleaseEvidenceInput!) {\n  submitReleaseEvidence(input: $input)\n}",
     "hash": "53eab62fd7bebc359b7c25b63c6e2e6ac7e76ed66b6e824d00cd8da4b8b99d4a",
     "variables": {
@@ -726,7 +726,7 @@
       ]
     },
     "mcp": {
-      "description": "Get expiring PUT links for PNG/JSON release evidence. Supply stable asset keys, size and SHA-256; upload with the same authenticated account, then repeat to read verified receipts. No approval or deployment."
+      "description": "Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."
     },
     "outputSchema": {
       "type": "object",

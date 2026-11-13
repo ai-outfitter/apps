@@ -9,7 +9,8 @@ import { type AppIdentity, requestIdentity, sha256Hex } from "./server";
 // bytes live in the bucket under `<space>/<key>`.
 
 const contentType = z.string().min(1).max(100).regex(/^[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]*\/[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]*$/);
-const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
+const sha256Pattern = /^[a-f0-9]{64}$/;
+const sha256 = z.string().regex(sha256Pattern);
 
 /**
  * Legacy platform artifact upload (`/api/platform/artifacts`), kept until its
@@ -221,6 +222,60 @@ function bound(storageHost: StorageHost, bucket: string) {
   return objects;
 }
 
+// --- Direct uploads -----------------------------------------------------------
+
+/**
+ * Callers PUT large files straight into the installation's bucket. The app
+ * returns `uploadTicket()`'s `url`, a `outfitter-upload:` reference naming a
+ * staging key, a type and a size; the platform, which holds the bucket's S3
+ * credentials, replaces it with a presigned R2 PUT before the result leaves
+ * MCP. The app never holds those credentials and the caller never needs a
+ * session. Staged bytes live under `_uploads/` (never a declared space, so
+ * never served) until `takeUpload()` verifies them; the platform's lifecycle
+ * rule removes abandoned ones after a day.
+ */
+export const directUploadScheme = "outfitter-upload:";
+export const directUploadPrefix = "_uploads/";
+export const directUploadSeconds = 600;
+export type DirectUploadFile = { contentType: string; size: number; sha256: string };
+export type DirectUploadTicket = {
+  /** Presigned by the platform; until then an `outfitter-upload:` reference. */
+  url: string;
+  method: "PUT";
+  headers: { "Content-Type": string; "Content-Length": string };
+  expiresInSeconds: number;
+};
+export const directUploadReference = z.object({
+  bucket: bucketName,
+  key: z.string().max(1024).regex(/^_uploads\/[a-f0-9]{64}\/[a-z][a-z0-9-]*\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/)
+    .refine((key) => key.split("/").every((part) => part !== "." && part !== "..")),
+  contentType,
+  size: z.number().int().min(1).max(maxObjectBytes),
+});
+export type DirectUploadReference = z.infer<typeof directUploadReference>;
+
+/** `outfitter-upload:<bucket>/<key>?contentType=…&size=…`. */
+export function formatDirectUpload(reference: DirectUploadReference) {
+  const parsed = directUploadReference.parse(reference);
+  return `${directUploadScheme}${parsed.bucket}/${parsed.key}?${new URLSearchParams({ contentType: parsed.contentType, size: String(parsed.size) })}`;
+}
+
+/** The reference a string names, or null when it is not one (or is malformed). */
+export function parseDirectUpload(value: string): DirectUploadReference | null {
+  if (!value.startsWith(directUploadScheme)) return null;
+  const rest = value.slice(directUploadScheme.length);
+  const query = rest.indexOf("?");
+  if (query < 0) return null;
+  const path = rest.slice(0, query);
+  const slash = path.indexOf("/");
+  const params = new URLSearchParams(rest.slice(query + 1));
+  const parsed = directUploadReference.safeParse({
+    bucket: path.slice(0, slash), key: path.slice(slash + 1),
+    contentType: params.get("contentType"), size: Number(params.get("size")),
+  });
+  return slash > 0 && parsed.success ? parsed.data : null;
+}
+
 /** Files in one of this installation's buckets. */
 export function storage(locals: StorageLocals, bucket?: string) {
   const storageHost = host(locals);
@@ -239,6 +294,14 @@ export function storage(locals: StorageLocals, bucket?: string) {
     if (!objectKey.safeParse(target.key).success) throw invalid("Invalid storage key");
     return { space: target.space, key: target.key };
   };
+  function stagedReference(target: Address, file: DirectUploadFile): DirectUploadReference {
+    const { space: at, key } = address(target);
+    if (!sha256Pattern.test(file.sha256)) throw invalid("Invalid sha256");
+    if (!Number.isInteger(file.size) || file.size < 1 || file.size > maxObjectBytes)
+      throw new Response("File too large", { status: 413 });
+    return directUploadReference.parse({ bucket: name, key: `${directUploadPrefix}${file.sha256}/${at}/${key}`,
+      contentType: file.contentType, size: file.size });
+  }
   async function row(target: Address) {
     const { space: at, key } = address(target);
     const [found] = await db().query({
@@ -340,6 +403,43 @@ export function storage(locals: StorageLocals, bucket?: string) {
         params: [name, at, prefix.length, prefix, options.after ?? "", now(), limit],
       });
       return rows.map(refFrom);
+    },
+
+    /**
+     * A ticket for the caller to PUT exactly `file` straight into this bucket,
+     * staged for `space/key`. The same file always stages at the same key, so
+     * repeating a reservation re-issues the same destination.
+     */
+    uploadTicket(target: Address, file: DirectUploadFile): DirectUploadTicket {
+      const reference = stagedReference(target, file);
+      return {
+        url: formatDirectUpload(reference),
+        method: "PUT",
+        headers: { "Content-Type": file.contentType, "Content-Length": String(file.size) },
+        expiresInSeconds: directUploadSeconds,
+      };
+    },
+
+    /**
+     * The uploaded bytes once they match `file` exactly, or null while nothing
+     * is staged. Mismatched bytes are discarded and refused (422), so the
+     * caller can upload again. The staged copy stays until `discardUpload()`.
+     */
+    async takeUpload(target: Address, file: DirectUploadFile): Promise<Uint8Array | null> {
+      const { key } = stagedReference(target, file);
+      const object = await objects().get(key);
+      if (!object) return null;
+      const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
+      if (bytes.byteLength !== file.size || (await sha256Hex(bytes)) !== file.sha256) {
+        await objects().delete(key);
+        throw new Response("Uploaded bytes do not match the declared size and sha256; upload again", { status: 422 });
+      }
+      return bytes;
+    },
+
+    /** Removes a staged upload; a failed delete is left to the lifecycle rule. */
+    async discardUpload(target: Address, file: DirectUploadFile) {
+      await objects().delete(stagedReference(target, file).key);
     },
 
     /** Removes the row, then the bytes; a failed byte delete is left to the lifecycle rule. */

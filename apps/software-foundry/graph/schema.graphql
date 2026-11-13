@@ -256,7 +256,7 @@ input RequestsInput {
 
 type Mutation {
   """
-  Reserve expiring authenticated PUT links for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
+  Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
   """
   submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
 
