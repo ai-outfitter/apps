@@ -1,22 +1,24 @@
 ---
 import "../styles.css";
 import AppLayout from "../components/FoundryLayout.astro";
-import Section from "@ai-outfitter/ui/astro/Section.astro";
 ---
 <AppLayout title="Workflows" description="Manage this Foundry's workflows and inspect each run, node and evidence here." active="home" workflowPage>
   <p id="workflow-notice" role="status" aria-live="polite">Loading workflows…</p>
-  <Section id="managed-workflows" title="Managed workflows">
+  <section class="workflow-section" aria-labelledby="managed-workflows">
+    <div class="section-heading"><h2 id="managed-workflows">Managed workflows</h2></div>
     <label for="workflow-definition">Workflow</label>
     <select id="workflow-definition" disabled><option>Loading…</option></select>
     <p id="workflow-summary"></p>
     <ol id="workflow-nodes" aria-label="Workflow nodes"></ol>
-  </Section>
-  <Section id="approved-executors" title="Approved executors">
+  </section>
+  <section class="workflow-section" aria-labelledby="approved-executors">
+    <div class="section-heading"><h2 id="approved-executors">Approved executors</h2></div>
     <p>Bindings are approved by an organization administrator. Valid configuration does not prove repository access, CI and evidence access, or a completed review.</p>
     <ul id="workflow-bindings"></ul>
     <p id="workflow-binding-limit" role="status"></p>
-  </Section>
-  <Section id="issue-subscriptions" title="Issue subscriptions">
+  </section>
+  <section class="workflow-section" aria-labelledby="issue-subscriptions">
+    <div class="section-heading"><h2 id="issue-subscriptions">Issue subscriptions</h2></div>
     <p>Creating an issue starts the subscribed workflow without opening this app. It uses the repository’s GitHub App installation. The editor who enabled the workflow is recorded separately from the execution identity.</p>
     <p id="workflow-integration">Create a subscription with approved issue triager, managed engineer and resident reviewer bindings. This does not certify repository access or a successful run; the reviewer must inspect the actual evidence. Existing subscriptions cannot be overwritten here.</p>
     <form id="workflow-subscription">
@@ -25,14 +27,16 @@ import Section from "@ai-outfitter/ui/astro/Section.astro";
       <button id="workflow-save" type="submit" disabled>Create issue subscription</button>
     </form>
     <ul id="workflow-subscriptions"></ul>
-  </Section>
-  <Section id="workflow-history" title="Runs">
-    <button id="workflow-refresh" class="secondary" slot="actions">Refresh</button>
+  </section>
+  <section class="workflow-section" aria-labelledby="workflow-history">
+    <div class="section-heading"><h2 id="workflow-history">Runs</h2><button id="workflow-refresh" class="secondary">Refresh</button></div>
     <ul id="workflow-runs"></ul>
     <div id="workflow-run" aria-live="polite"></div>
-  </Section>
+  </section>
 </AppLayout>
 <style>
+  .workflow-section { padding-block: 1.5rem; }
+  .workflow-section + .workflow-section { border-top: 1px solid var(--border); }
   #workflow-subscription { display: grid; gap: 0.75rem; max-width: 48rem; }
   #workflow-inputs { width: 100%; font-family: monospace; }
   #workflow-nodes { display: flex; flex-wrap: wrap; gap: 2rem; padding-inline-start: 1.5rem; }
