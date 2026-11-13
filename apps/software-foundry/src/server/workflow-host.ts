@@ -63,7 +63,7 @@ async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z
   const { runId, schedule } = scheduleInput.parse(raw);
   if (!Object.hasOwn(foundryJobs, schedule.workflowId))
     return { outcome: "declined", reason: `Foundry does not schedule ${schedule.workflowId}` };
-  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as FoundryJob)] !== "string")
+  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as FoundryJob)] !== "string" || !schedule.inputs["analyze.inputs.fix"])
     return { outcome: "declined", reason: "Save this schedule again with Foundry's JobChanges schedule action, so it carries the job's approved agent" };
   await host.call("workflow.start", { workflow: schedule.workflowId, id: runId, inputs: schedule.inputs });
   return { outcome: "started" };

@@ -301,7 +301,8 @@ const coreOperations = {
   /** Start an approved workflow with a caller-chosen id. Replaying identical inputs succeeds; any other conflict is an error. Editors only. */
   /** Start this app's registered task using the existing durable dispatch outbox. */
   "task.start": operation(["interactive", "operator"], z.strictObject({task:id,id:runId,inputs:jsonObject}), z.object({id:runId,task:id,created:z.boolean()})),
-  "workflow.start": operation(running, z.strictObject({ workflow: id, id: runId, inputs: jsonObject }),
+  // finalize may start follow-up runs (a repository job's issues into issue-to-merge).
+  "workflow.start": operation([...running, "finalize"], z.strictObject({ workflow: id, id: runId, inputs: jsonObject }),
     z.object({ id, workflow: id, created: z.boolean() })),
   /** Running runs of this installation with the requested input slots, from one slot query. */
   "workflow.active": operation(running, z.strictObject({ slots: z.array(slot).min(1).max(8), workflows: z.array(id).max(16).optional() }),
