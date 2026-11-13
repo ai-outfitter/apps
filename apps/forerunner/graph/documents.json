@@ -658,7 +658,7 @@
       ]
     },
     "mcp": {
-      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. The run reads saved Planning reports, the board, saved goals, the saved role and saved discovery suggestions; raw mail and analytics adapters are not enabled."
+      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. The run reads saved Planning reports, the board, saved goals, the saved role and saved discovery suggestions; raw mail and analytics adapters are not enabled. With ifUnset:true (and enabled:true) it saves the default only when no daily brief schedule exists and otherwise returns the saved one untouched, so a schedule that was turned off or customized is never changed."
     },
     "outputSchema": {
       "type": "object",
