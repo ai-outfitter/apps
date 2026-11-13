@@ -23,7 +23,7 @@ async function storageApp() {
     format: "esm",
     platform: "browser",
     conditions: ["workerd", "worker"],
-    external: ["cloudflare:workers"],
+    external: ["cloudflare:workers", "node:async_hooks"],
     write: false,
     logLevel: "silent",
   });

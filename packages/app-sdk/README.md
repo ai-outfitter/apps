@@ -92,3 +92,15 @@ attributed untrusted context, never a transcript checkpoint or privileged
 instruction. Unavailable access or revisions fail the reply visibly. Sources do
 not claim thread coverage or permit dropping messages; the combined context is
 bounded to 64 KiB. See the `threadContextSource` and `prepare.history` contracts.
+
+### D1 read sessions
+
+Operational app middleware shares one `withSession("first-primary")` session
+across installation database and prepared-batch calls in that request. The
+first query reads the primary; later reads may use replicas with sequential
+consistency. The platform must enable replication on each database, and apps
+must be rebuilt against this SDK before they use the session adapter.
+
+Read-only demos do not create sessions. Database calls outside middleware use
+the primary binding; asynchronous work started inside a request inherits its
+context. Bookmarks are not transported between requests or installations.
