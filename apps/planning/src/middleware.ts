@@ -6,5 +6,5 @@ import { dataAppMiddleware } from "@ai-outfitter/app-sdk/cloudflare/middleware";
 export const onRequest = dataAppMiddleware(
   "planning",
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; media-src 'self'; img-src 'self' blob: https: http:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
-  {storage:storageManifest.parse(app.storage)},
+  import.meta.env.OUTFITTER_APP_MODE === "operational" ? {storage:storageManifest.parse(app.storage)} : {},
 );
