@@ -28,10 +28,11 @@ steps:
     instructions: |-
       Review the user interface this repository ships, page by page, the way a demanding product designer would, and file the fixes worth making.
 
-      Find the pages. Work from a checkout in persistent workspace files. Read the README, AGENTS.md or CLAUDE.md and the app manifests to learn which apps or products the repository contains and how each runs locally; list every route (for example `src/pages` in Astro apps) and every sidebar or navigation link. Review every app the repository contains, not only the first one.
-      Show each page with realistic data. Prefer the product's own demo or seeded data: for an Outfitter app, build its demo package and serve it the way the app's demo browser test does (`appWorker`, `appArtifact(<app dir>, "demo")` and `routeReadOnly` from `@ai-outfitter/app-test`), not the operational dev server, which has no platform and shows Unauthorized. Otherwise use the repository's documented demo build or test server, or its read-only demo or preview URL, never signing in with real credentials or changing data. A page showing Unauthorized, an error or an empty shell is not reviewable: switch to demo data, and list it as unreviewed if you cannot. You may install dependencies into the checkout, but never commit, push or change anything in the repository.
+      Review ONE app per run, thoroughly, rather than skimming many. Work from a checkout in persistent workspace files and read the README and AGENTS.md. List the repository's apps (for Outfitter repositories, each directory under `apps/` with an `app.json` and pages under `src/pages`), sorted by name, and pick the one at index (ISO week number from `date +%V`) modulo the number of apps. If the repository has a single product, review that. Say which app you picked and why in your final message.
 
-      Look at every page. With Playwright Chromium, open each page at desktop 1440x1000 and phone 390x844, light and dark where the product supports both, and with the phone navigation drawer open once. Capture the whole page, including content that scrolls inside the app shell. Look at each screenshot yourself; also check the phone page for sideways scrolling, text overflow and tap targets under 40px.
+      Show every page of that app with demo data, never the operational dev server (it has no platform and shows Unauthorized). For an Outfitter app: run `npm ci` and `npm run build:sdk` at the root, run the app's `pretest:e2e` script (or `node --import tsx scripts/prepare-tests.ts` in its directory) to build its demo package, then copy the app's existing navigation or demo browser spec into a new spec file in the app's `tests/` directory (it uses `appWorker`, `appArtifact(new URL("..", import.meta.url), "demo")` and `routeReadOnly` from `@ai-outfitter/app-test`). In that one spec, loop over every route of the app (fill dynamic segments such as `[id]` from links on the list pages) and save a full-page PNG of each at 1440x1000 and at 390x844, plus one phone shot with the navigation drawer open, into /workspace/files/ui-review. Run it with `npx playwright test <spec> --workers 1` from the app directory, fix the spec until every route is captured, and delete the spec afterwards. Other products: use their documented demo build, test server or read-only preview URL, never real credentials. You may install dependencies, but never commit, push or change the repository.
+
+      Open and look at every screenshot you saved before judging; a finding must come from a screenshot, not only from reading CSS. In the same spec, also record for each phone page whether `document.documentElement.scrollWidth` exceeds the viewport and which tap targets are under 40px. A page that still shows Unauthorized, an error or an empty shell is unreviewable: list it, do not judge it.
 
       Judge against these standards, in this order:
       1. Phone layout works: no horizontal scroll, nothing clipped or overlapping, the navigation reachable, primary content in the first screen.
@@ -43,7 +44,7 @@ steps:
       7. No backlink breadcrumbs ("Back to ...") and no demo or preview banners.
       8. Consistency: the same thing looks and is named the same on every page, using the shared UI kit and app shell rather than local one-off styles.
 
-      File at most 5 issues, most valuable first. Each issue is one fix that one engineer can finish in a single small pull request: one page, or one shared component or style when the same problem repeats across pages (say so, and list the pages). Group trivial copy cuts on one page into one issue. Each issue body states:
+      Each issue you file starts an agent that opens one pull request and merges it once checks pass, so file at most 3 issues, most valuable first, titled `UI: <app>: <problem>`. Each issue is one fix that one engineer can finish in a single small pull request: one page, or one shared component or style when the same problem repeats across pages (say so, and list the pages). Group trivial copy cuts on one page into one issue. Each issue body states:
       - the pages (route) and viewports affected and what is wrong, specifically;
       - the cause, with file paths and the CSS rule or markup responsible;
       - the fix, and the standard it applies;
@@ -51,7 +52,7 @@ steps:
       - acceptance criteria, including this one verbatim: "Evidence: the pull request's Demo shows a before (main) and after (this branch) screenshot of every affected page at 1440x1000 and 390x844, captured the same way, and the reviewer requests changes if any pair is missing."
       Do not file an issue that duplicates an open issue in the repository, a matter of taste you cannot tie to a standard above, or anything you could not see in a screenshot. Filing no issues is a valid result.
 
-      In your final message list every page you looked at with the viewports you captured, the pages you could not open and why, and the findings you saw but did not file.
+      In your final message name the app you reviewed and list every page you looked at with the viewports you captured, the pages you could not open and why, and the findings you saw but did not file.
     outputs:
       issues:
         schema:
@@ -59,7 +60,7 @@ steps:
           required: [repository, issues]
           properties:
             repository: {type: string}
-            issues: {type: array, maxItems: 5, items: {$ref: "#/$defs/createdIssue"}}
+            issues: {type: array, maxItems: 3, items: {$ref: "#/$defs/createdIssue"}}
             summary: {type: string}
 outputs:
   issues: analyze.outputs.issues
