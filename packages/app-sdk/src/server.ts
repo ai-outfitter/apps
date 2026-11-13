@@ -95,6 +95,10 @@ export const rolesAppAccess = (role: string) => highestAppAccess(role.split(",")
 /** Who an installation belongs to: an organization, or a single user. */
 export type AppOwner = { kind: "organization" | "user"; id: string };
 
+/** Who is calling, by id only. Pages are routed by organization and app slug, which
+ * apps never receive, so a page link built from these ids is broken: return links
+ * relative to the installation (such as `changes/<id>`, no leading slash) under
+ * `url` or `*Url` keys, and the platform resolves them to the real page. */
 export type AppIdentity = {
   userId: string;
   /** Set on an organization-owned installation; absent on a user's app. */
