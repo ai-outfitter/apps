@@ -121,18 +121,30 @@ Hosted search MCP servers checked on 2026-11-13:
 | Exa, Tavily, Firecrawl | Yes | Provider key | Paid tiers |
 | Local Chrome MCP on the workstation | n/a | None | Uses his signed-in browser; only works while the machine is on and only for his agent. Fine for one-off reads, wrong for unattended runs |
 
-Runners, cheapest first:
+Runners:
 
 | Runner | Good | Bad |
 | --- | --- | --- |
-| **A. A scheduled cloud agent session** (Claude Code on the web trigger, environment already allows ai-outfitter.com) | Exists today; built-in web search plus the Outfitter MCP; no platform change | Tied to one person's account; not an Outfitter workflow run |
-| **B. The member's own agent, on demand** (including the local Chrome MCP) | Exists today; how the hardware-workshop research was done | Not automatic |
-| **C. A hosted research workflow** with a `web-search` connector pointing at Parallel's hosted MCP | Runs as an Outfitter workflow with runs, schedules and Pause, for any member; no key to start; same `ConnectorMcp` path as GitHub | Workflow inference must be allowed to call connector tools (today it is a plain generate); a free service's limits and terms |
+| **A. A scheduled cloud agent session** (Claude Code on the web trigger) | Exists today; built-in web search plus the Outfitter MCP; no platform change | Tied to one person's account; not an Outfitter workflow run |
+| **B. The member's own agent, on demand** | Exists today; how the hardware-workshop research was done | Not automatic |
+| **C. An Outfitter workspace with Chrome MCP** (Nicholas, 2026-11-13) | Already proven: the workspace runtime ships Chrome and Chrome DevTools MCP, verified with a real model in AWS nonprod (webapp `docs/workspace-browser.md`, `docs/workspace-browser-poc.md`). A Kubernetes pod per task, isolated browser profile, run history and artifacts on the platform | Nonprod network policy allows only localhost, DNS and the gateway, so public egress must be opened; the Pi built-in MCP change is not redeployed; app workflows can't dispatch a browser step yet |
+| **D. A hosted workflow with a `web-search` connector** on Parallel's MCP | Plain workflow, no pod | Workflow inference must be allowed to call connector tools (today it is a plain generate) |
 
-Recommended: **A to prove the loop on the Sunny pilot, then C with
-Parallel.** Skip DuckDuckGo (no host, scraping) and Brave (needs a key and a
-third-party host) unless Parallel's free limits bite; Brave self-hosted next
-to the platform is the fallback.
+Chrome DevTools MCP reads and clicks pages but has no search of its own.
+Driving a search engine's page from a headless browser is blocked. Checked
+2026-11-13 from a cloud session with stock headless Chromium: Google 429
+"unusual traffic" captcha, Brave Search 429 slider "not a bot" check,
+DuckDuckGo 403 (HTML) and a 418 error page, Bing 200 with no results. So the
+workspace pairs Chrome (read the page, including ones that need JavaScript)
+with Parallel's search MCP (find the pages).
+
+Recommended: **C.** It reuses the workspace runtime instead of a new
+connector, and a research item becomes an ordinary workspace task. Steps, in
+the order `workspace-browser.md` already lists: redeploy the runtime with Pi's
+built-in MCP; open public HTTPS egress for research workspaces only; add
+Parallel's MCP to the workspace MCP config; give the task the Outfitter MCP
+so it can `ClaimWork`, stage the batch and `RecordResult`. Until then, A runs
+the Sunny pilot.
 
 ## First pilot
 
@@ -160,8 +172,9 @@ Sources are served from fixtures so the evals do not depend on the live web.
 
 1. Work queue: gaps become Planning research items (recommended), or the
    agent reads gaps straight from Onto?
-2. Runner: a scheduled cloud agent session now, then a hosted connector on
-   Parallel's free search MCP (recommended), or Brave self-hosted instead?
+2. Runner: an Outfitter workspace with Chrome MCP plus Parallel search
+   (recommended), with a scheduled cloud session for the pilot meanwhile?
+   Public egress for research workspaces is the change that needs a go.
 3. Approval: outside the pilot orgs, research batches use the 0.95 policy with
    an end-of-day window, like Forerunner discovery?
 4. Outside identity: use Wikidata ids as `externalKey` for organizations and
@@ -176,4 +189,5 @@ Sources are served from fixtures so the evals do not depend on the live web.
    One PR.
 3. Research agent instructions (a prompt file next to `ontology-steward.md`)
    and the scheduled session. One PR plus the trigger.
-4. Run the Sunny pilot, compare with the hand research, then decide on C.
+4. Run the Sunny pilot, compare with the hand research.
+5. Workspace runner: redeploy, research egress, Parallel MCP in the workspace config.
