@@ -32,7 +32,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5",
-    "@ai-outfitter/workflow-forerunner-daily-brief": "0.1.0"
+    "@ai-outfitter/workflow-forerunner-daily-brief": "0.1.0",
+    "@ai-outfitter/workflow-forerunner-research-report": "0.1.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

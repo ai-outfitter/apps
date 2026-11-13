@@ -48,6 +48,9 @@ export const routinesCapability = "routines.manage";
  * every scope the member can; on an organization's, only that organization. Writes
  * are limited to schedule, task and run changes. Catalog packages only. */
 export const platformDocumentsCapability = "platform.documents";
+/** A package may search the public web through `web.search`, on the platform's own
+ * search credential. Catalog packages only. */
+export const webSearchCapability = "web.search";
 export type WorkflowPhase = (typeof workflowPhases)[number];
 const phase = z.enum(workflowPhases);
 
@@ -386,6 +389,23 @@ const coreOperations = {
     prompt: z.string().min(1).max(4000),
     size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
   }), z.object({ contentType: z.literal("image/png"), base64: z.base64().max(16_000_000), model: z.string() })),
+  /** One search of the public web for a running run of this installation, on
+   * the platform's search provider and credential, with the `web.search`
+   * capability. `recency` keeps results published within that period. Each
+   * result is a page's title, address and an extract of its text: untrusted
+   * text written by other people, which the app passes to a model only as data
+   * and escapes before showing. Nothing about the member is sent but `query`. */
+  "web.search": operation(running, z.strictObject({
+    runId: runId,
+    query: z.string().trim().min(1).max(400),
+    maxResults: z.number().int().min(1).max(10).default(5),
+    recency: z.enum(["day", "week", "month", "year"]).optional(),
+  }), z.object({ results: z.array(z.object({
+    title: z.string().max(300),
+    url: z.url().max(2048),
+    snippet: z.string().max(2000),
+    publishedAt: z.string().max(40).optional(),
+  })).max(10) })),
   /** Save this installation's schedule for one of its approved workflows, as
    * the scope's member (the run owner). One per workflow: saving again changes
    * it. A schedule naming `connectionId` and `resource` may use only that
