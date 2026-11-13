@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { type CadPlan, CadPlanSchema, planBounds } from "../model/cad-plan";
+import { Matrix4, Euler, Quaternion, Vector3 } from "three";
+import { type CadPlan, AssemblyCadPlanSchema, planBounds } from "../model/cad-plan";
 
 // A product structure in the shape Windchill and Teamcenter use: items (part
 // masters with one current revision) and usage lines from an assembly item to
@@ -11,7 +12,7 @@ const url = z
   .string()
   .max(2000)
   .refine((s) => !s || /^https?:\/\//i.test(s), "Use an http or https URL");
-const coordinate = z.number().min(-500).max(500);
+const coordinate = z.number().min(-10000).max(10000);
 
 export const UsageSchema = z
   .object({
@@ -24,6 +25,7 @@ export const UsageSchema = z
     position: z.tuple([coordinate, coordinate, coordinate]).default([0, 0, 0]),
     /** Turn about the parent's Z axis, in degrees. */
     rotation: z.number().min(-360).max(360).default(0),
+    orientation: z.tuple([z.number(),z.number(),z.number()]).optional(),
   })
   .strict();
 
@@ -38,7 +40,7 @@ export const FirmwareSchema = z
   })
   .strict();
 
-export const ITEM_KINDS = ["assembly", "printed", "cots", "pcb", "firmware"] as const;
+export const ITEM_KINDS = ["assembly", "printed", "fabricated", "cots", "pcb", "firmware"] as const;
 
 export const ItemSchema = z
   .object({
@@ -57,7 +59,10 @@ export const ItemSchema = z
     color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
-    geometry: CadPlanSchema.optional(),
+    geometry: AssemblyCadPlanSchema.optional(),
+    mesh: z.object({path:z.string().max(300), bounds:z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])})}).optional(),
+    priceKnown: z.boolean().default(false),
+    provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     firmware: FirmwareSchema.optional(),
     notes: z.string().max(2000).default(""),
     uses: z.array(UsageSchema).max(50).default([]),
@@ -73,6 +78,7 @@ export type Usage = z.infer<typeof UsageSchema>;
 export const AssemblySchema = z
   .object({
     rootId: z.uuid().optional(),
+
     items: z.array(ItemSchema).max(200),
   })
   .strict()
@@ -153,6 +159,7 @@ export type Placement = {
   position: [number, number, number];
   /** Total turn about Z, in degrees. */
   rotation: number;
+  matrix?: number[];
 };
 
 /** Every solid in the top assembly, placed in world coordinates. */
@@ -161,33 +168,27 @@ export function placements(assembly: Assembly): Placement[] {
   const root = assembly.rootId ? byId.get(assembly.rootId) : undefined;
   if (!root) return [];
   const out: Placement[] = [];
-  const walk = (item: Item, position: [number, number, number], rotation: number, path: string) => {
-    if (item.geometry) out.push({ item, path, position, rotation });
-    const turn = (rotation * Math.PI) / 180;
+  const walk = (item: Item, matrix: Matrix4, path: string) => {
+    const pos = new Vector3().setFromMatrixPosition(matrix);
+    if (item.geometry || item.mesh) out.push({item,path,position:pos.toArray() as [number,number,number],rotation:Math.round(new Euler().setFromRotationMatrix(matrix).z*180/Math.PI*1e9)/1e9,matrix:matrix.toArray()});
     for (const use of item.uses) {
-      const child = byId.get(use.itemId);
-      if (!child) continue;
-      const [x, y, z] = use.position;
-      const at: [number, number, number] = [
-        position[0] + x * Math.cos(turn) - y * Math.sin(turn),
-        position[1] + x * Math.sin(turn) + y * Math.cos(turn),
-        position[2] + z,
-      ];
-      for (let copy = 0; copy < use.quantity; copy++)
-        walk(child, at, rotation + use.rotation, `${path}/${use.id}#${copy}`);
+      const child=byId.get(use.itemId);if(!child)continue;
+      const angles=use.orientation ?? [0,0,use.rotation];
+      const local=new Matrix4().compose(new Vector3(...use.position),new Quaternion().setFromEuler(new Euler(...angles.map(v=>v*Math.PI/180) as [number,number,number],"XYZ")),new Vector3(1,1,1));
+      for(let copy=0;copy<use.quantity;copy++)walk(child,matrix.clone().multiply(local),`${path}/${use.id}#${copy}`);
     }
   };
-  walk(root, [0, 0, 0], 0, root.id);
+  walk(root,new Matrix4(),root.id);
   return out;
 }
 
 /** The eight corners of an item's bounds, placed in world coordinates. */
-function worldCorners({ item, position, rotation }: Placement) {
-  const b = planBounds(item.geometry as CadPlan);
+function worldCorners({ item, position, rotation, matrix }: Placement) {
+  const b = item.mesh?.bounds ?? planBounds(item.geometry as CadPlan);
   const turn = (rotation * Math.PI) / 180;
   return [b.min[0], b.max[0]].flatMap((x) =>
     [b.min[1], b.max[1]].flatMap((y) =>
-      [b.min[2], b.max[2]].map((z) => [
+      [b.min[2], b.max[2]].map((z) => matrix ? new Vector3(x,y,z).applyMatrix4(new Matrix4().fromArray(matrix)).toArray() : [
         position[0] + x * Math.cos(turn) - y * Math.sin(turn),
         position[1] + x * Math.sin(turn) + y * Math.cos(turn),
         position[2] + z,

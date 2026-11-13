@@ -11,6 +11,11 @@
             "visibility": "public",
             "ttl": null,
             "maxTtl": null
+          },
+          "builds": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
           }
         }
       }
@@ -30,7 +35,11 @@
         "entities.write",
         "actions.invoke",
         "workflow.workshop-design.start",
-        "workflow.workshop-concept.start"
+        "workflow.workshop-concept.start",
+        "workflow.workshop-workspace.start",
+        "storage.artifacts.read",
+        "storage.artifacts.write",
+        "connector.forgejo.issues.read"
       ]
     }
   },

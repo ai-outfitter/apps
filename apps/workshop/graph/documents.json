@@ -93,6 +93,7 @@
                                       "enum": [
                                         "assembly",
                                         "printed",
+                                        "fabricated",
                                         "cots",
                                         "pcb",
                                         "firmware"
@@ -168,18 +169,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -192,17 +193,17 @@
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 300
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 300
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 300
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -237,18 +238,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -300,
-                                                        "maximum": 300
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -258,12 +259,12 @@
                                                   "radius": {
                                                     "type": "number",
                                                     "minimum": 0.1,
-                                                    "maximum": 300
+                                                    "maximum": 5000
                                                   },
                                                   "height": {
                                                     "type": "number",
                                                     "minimum": 1,
-                                                    "maximum": 300
+                                                    "maximum": 5000
                                                   },
                                                   "axis": {
                                                     "type": "string",
@@ -294,6 +295,87 @@
                                         "features"
                                       ],
                                       "additionalProperties": false
+                                    },
+                                    "mesh": {
+                                      "type": "object",
+                                      "properties": {
+                                        "path": {
+                                          "type": "string",
+                                          "maxLength": 300
+                                        },
+                                        "bounds": {
+                                          "type": "object",
+                                          "properties": {
+                                            "min": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                }
+                                              ],
+                                              "items": false,
+                                              "minItems": 3,
+                                              "maxItems": 3
+                                            },
+                                            "max": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                }
+                                              ],
+                                              "items": false,
+                                              "minItems": 3,
+                                              "maxItems": 3
+                                            }
+                                          },
+                                          "required": [
+                                            "min",
+                                            "max"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "path",
+                                        "bounds"
+                                      ]
+                                    },
+                                    "priceKnown": {
+                                      "default": false,
+                                      "type": "boolean"
+                                    },
+                                    "provenance": {
+                                      "default": "provisional",
+                                      "type": "string",
+                                      "enum": [
+                                        "provisional",
+                                        "manufacturer",
+                                        "measured"
+                                      ]
                                     },
                                     "firmware": {
                                       "type": "object",
@@ -367,18 +449,18 @@
                                             "prefixItems": [
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               },
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               },
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               }
                                             ],
                                             "items": false,
@@ -390,6 +472,23 @@
                                             "type": "number",
                                             "minimum": -360,
                                             "maximum": 360
+                                          },
+                                          "orientation": {
+                                            "type": "array",
+                                            "prefixItems": [
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "number"
+                                              }
+                                            ],
+                                            "items": false,
+                                            "minItems": 3,
+                                            "maxItems": 3
                                           }
                                         },
                                         "required": [
@@ -448,6 +547,25 @@
       ],
       "additionalProperties": false
     }
+  },
+  {
+    "name": "ClaimWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a workspace runner, I want to claim a queued build at its observed revision, so that concurrent runners cannot execute the same request.",
+    "query": "mutation ClaimWorkshopBuild($input: ClaimWorkshopBuildInput!) {\n  claimWorkshopBuild(input: $input)\n}",
+    "hash": "bec87407da88f0ac8d19c4f1df75cb357daa0b7c368d1e00a614f9dca9f2562a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ClaimWorkshopBuildInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   },
   {
     "name": "ConceptChanges",
@@ -656,6 +774,25 @@
       "properties": {
         "input": {
           "description": "GraphQL DescribeWorkshopProjectInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "FinishWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a workspace runner, I want to attach verified artifacts and tests, so that members can inspect a revision without replacing newer work.",
+    "query": "mutation FinishWorkshopBuild($input: FinishWorkshopBuildInput!) {\n  finishWorkshopBuild(input: $input)\n}",
+    "hash": "0b355d24478a2d678c5e93c748eab4afb3e26e9db28f052c0317b9e338dbf756",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FinishWorkshopBuildInput!"
         }
       },
       "required": [
@@ -1079,6 +1216,25 @@
       "properties": {
         "input": {
           "description": "GraphQL RemoveWorkshopConceptInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "RequestWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",
+    "query": "mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) {\n  requestWorkshopBuild(input: $input)\n}",
+    "hash": "8ecc45675c8a6ecde77f491539ac59cbde73f65105ca6555b4354c8ccfc1c355",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RequestWorkshopBuildInput!"
         }
       },
       "required": [

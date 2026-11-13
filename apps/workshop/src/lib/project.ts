@@ -3,6 +3,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { CadPlanSchema, planBounds } from "../model/cad-plan";
 import { AssemblySchema } from "./assembly";
+import { WorkspaceSchema } from "./workspace";
 import { sensorNodeAssembly } from "./sensor-node";
 export const ParamsSchema = z
   .object({
@@ -91,6 +92,7 @@ export const ProjectSchema = z
       .strict()
       .optional(),
     cadPlan: CadPlanSchema.optional(),
+    workspace: WorkspaceSchema.optional(),
     measurementNotes: text,
     circuitNotes: text,
     research: z

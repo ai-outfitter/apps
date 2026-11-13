@@ -90,6 +90,147 @@ input WorkshopProjectHandoffInput {
   id: ID!
 }
 
+input RequestWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  repository: String!
+  sourceDir: String
+  sourceCommit: String!
+  instructions: String!
+  parameters: JSON
+  runner: String!
+}
+
+input ClaimWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  buildId: ID!
+  workflowRunId: ID!
+}
+
+input FinishWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  buildId: ID!
+  manifest: FinishWorkshopBuildInputManifest
+  error: String
+}
+
+input FinishWorkshopBuildInputManifest {
+  version: Float!
+  units: String!
+  sourceCommit: String!
+  sourceHash: String!
+  compiler: String!
+  runner: String!
+  parameters: JSON!
+  assembly: FinishWorkshopBuildInputManifestAssembly!
+  artifacts: [FinishWorkshopBuildInputManifestArtifactsItem!]!
+  tests: [FinishWorkshopBuildInputManifestTestsItem!]!
+  notes: String!
+  startedAt: String!
+  finishedAt: String!
+}
+
+input FinishWorkshopBuildInputManifestAssembly {
+  rootId: ID
+  items: [FinishWorkshopBuildInputManifestAssemblyItemsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItem {
+  id: ID!
+  number: String!
+  revision: String!
+  name: String!
+  kind: FinishWorkshopBuildInputManifestAssemblyItemsItemKind!
+  manufacturer: String
+  mpn: String
+  source: String
+  unitCost: Float
+  trackBy: FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy
+  color: String
+  geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
+  mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
+  priceKnown: Boolean
+  provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
+  firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
+  notes: String
+  uses: [FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem!]
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemKind {
+  assembly
+  printed
+  fabricated
+  cots
+  pcb
+  firmware
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy {
+  none
+  mac
+  serial
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry {
+  version: Float!
+  units: String!
+  features: [JSON!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemMesh {
+  path: String!
+  bounds: FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
+  repository: String!
+  path: String
+  ref: String!
+  target: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
+  id: ID!
+  itemId: ID!
+  quantity: Int!
+  refdes: String
+  position: [JSON!]
+  rotation: Float
+  orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestArtifactsItem {
+  path: String!
+  sha256: String!
+  bytes: Float!
+  contentType: String!
+}
+
+input FinishWorkshopBuildInputManifestTestsItem {
+  name: String!
+  status: FinishWorkshopBuildInputManifestTestsItemStatus!
+  detail: String!
+}
+
+enum FinishWorkshopBuildInputManifestTestsItemStatus {
+  pass
+  fail
+  unverified
+}
+
 input CreateWorkshopProjectInput {
   example: CreateWorkshopProjectInputExample!
   name: String
@@ -165,6 +306,9 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
   color: String
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
+  mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
+  priceKnown: Boolean
+  provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
   notes: String
   uses: [SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem!]
@@ -173,6 +317,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
 enum SaveWorkshopAssemblyInputAssemblyItemsItemKind {
   assembly
   printed
+  fabricated
   cots
   pcb
   firmware
@@ -190,6 +335,22 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemGeometry {
   features: [JSON!]!
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemMesh {
+  path: String!
+  bounds: SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
   repository: String!
   path: String
@@ -204,6 +365,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   refdes: String
   position: [JSON!]
   rotation: Float
+  orientation: [JSON!]
 }
 
 input DeleteWorkshopProjectInput {
@@ -259,6 +421,15 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """Request a project workspace build and preserve revision provenance."""
+  requestWorkshopBuild(input: RequestWorkshopBuildInput!): JSON
+
+  """Claim a project workspace build and preserve revision provenance."""
+  claimWorkshopBuild(input: ClaimWorkshopBuildInput!): JSON
+
+  """Finish a project workspace build and preserve revision provenance."""
+  finishWorkshopBuild(input: FinishWorkshopBuildInput!): JSON
+
   """
   Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.
   """

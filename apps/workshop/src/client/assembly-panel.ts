@@ -204,7 +204,7 @@ export function createAssemblyPanel(notice: (message: string) => void) {
           $("#assembly-status").textContent = message;
         });
         viewer.select(selected);
-        void viewer.render(p.assembly);
+        void viewer.render(p.assembly, p.workspace?.requests.find(r => r.id === p.workspace?.currentBuildId)?.result?.artifactBase ?? "");
       } catch (e) {
         $("#assembly-status").textContent = (e as Error).message;
       }

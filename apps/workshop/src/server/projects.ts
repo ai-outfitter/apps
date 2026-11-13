@@ -97,7 +97,7 @@ export async function workshopProjectRow(db: WorkshopDatabase, id: string) {
 }
 
 export async function getWorkshopProject(db: WorkshopDatabase, id: string) {
-  return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db, id)).data));
+  return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db,id)).data));
 }
 
 /** Stores `project` as its first revision, within the installation's cap. */
@@ -106,6 +106,7 @@ export async function createWorkshopProject(
   identity: AppIdentity,
   input: Project,
 ) {
+  if (input.workspace) throw new Response("Import model source, not workspace execution records", {status:400});
   const project: Project = { ...input, revision: 1 };
   const exists = async () =>
     (
@@ -133,10 +134,15 @@ export async function updateWorkshopProject(
   identity: AppIdentity,
   input: Project,
   id: string,
+  workspaceWrite = false,
 ) {
   const previous = await workshopProjectRow(db, id);
   if (input.id !== id)
     throw new Response("Project ID mismatch", { status: 400 });
+  if (!workspaceWrite) {
+    const stored = await getWorkshopProject(db,id);
+    if (JSON.stringify(stored.workspace) !== JSON.stringify(input.workspace)) throw new Response("Use workspace build operations to change revision records", {status:400});
+  }
   const parsed = ProjectSchema.safeParse({
     ...input,
     createdAt: previous.createdAt,

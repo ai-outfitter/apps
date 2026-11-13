@@ -1,3 +1,4 @@
+import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, claimBuild, finishBuild } from "./workspace";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
@@ -56,6 +57,9 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    requestWorkshopBuild: mutationField<typeof requestBuildInput, WorkshopContext>({name:"RequestWorkshopBuild",description:"Request a project workspace build and preserve revision provenance.",input:requestBuildInput,run:requestBuild}),
+    claimWorkshopBuild: mutationField<typeof claimBuildInput, WorkshopContext>({name:"ClaimWorkshopBuild",description:"Claim a project workspace build and preserve revision provenance.",input:claimBuildInput,run:claimBuild}),
+    finishWorkshopBuild: mutationField<typeof finishBuildInput, WorkshopContext>({name:"FinishWorkshopBuild",description:"Finish a project workspace build and preserve revision provenance.",input:finishBuildInput,run:finishBuild}),
     createWorkshopProject: mutationField<typeof exampleInput, WorkshopContext>({
       name: "CreateWorkshopProject",
       description: "Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.",
@@ -135,7 +139,7 @@ const handoff = mutationField<typeof handoffInput, WorkshopContext>({
     const project = await getWorkshopProject(context.db(), id);
     return { id, name: row.name, revision: row.revision, phase: project.phase, brief: project.brief, requirements: project.requirements,
       productRevision: row.productRevisionId ? { id: row.productRevisionId, title: row.productRevisionTitle, wikiInstallationId: row.wikiInstallationId } : null,
-      assembly: project.assembly, updatedAt: row.updatedAt };
+      assembly: project.assembly, workspace: project.workspace ?? null, updatedAt: row.updatedAt };
   },
 });
 const baseGraphqlSchema = new GraphQLSchema({

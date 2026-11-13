@@ -50,7 +50,9 @@ export function createThumbnailer(width = 480, height = 300) {
   }
 
   async function build(p: Project) {
-    const list = placements(p.assembly);
+    const placementsForProject = placements(p.assembly);
+    if (placementsForProject.some(({item}) => item.mesh)) return;
+    const list = placementsForProject;
     if (list.length) {
       const items = [...new Map(list.map(({ item }) => [item.id, item])).values()];
       const replies = new Map(await Promise.all(items.map(async (item) => [item.id, await mesh({ plan: item.geometry })] as const)));

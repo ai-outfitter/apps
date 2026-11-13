@@ -46,6 +46,8 @@ export function sensorNodeAssembly(): Assembly {
   const id = () => crypto.randomUUID();
   const item = (fields: Partial<Item> & Pick<Item, "number" | "name" | "kind">): Item => ({
     id: id(),
+    priceKnown: false,
+    provenance: "provisional",
     revision: "A",
     manufacturer: "",
     mpn: "",

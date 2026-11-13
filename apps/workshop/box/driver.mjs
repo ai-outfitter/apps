@@ -33,7 +33,7 @@ const AUTHOR = { name: "Outfitter Workshop", email: "outfitter@box.local" };
 const MEMBER = { email: "local@example.test", password: "local-orgs-only" };
 
 /** A request to the platform on loopback, addressed to one of its hostnames. */
-function platformRequest(box, host, path, { method = "GET", body, cookie } = {}) {
+export function platformRequest(box, host, path, { method = "GET", body, cookie } = {}) {
   const origin = `http://${host}:${box.port}`;
   const payload = body === undefined ? undefined : Buffer.from(JSON.stringify(body));
   return new Promise((resolve, reject) => {
@@ -55,7 +55,7 @@ function platformRequest(box, host, path, { method = "GET", body, cookie } = {})
 }
 
 /** Signs in as the local member and returns the session cookie. */
-async function signIn(box) {
+export async function signIn(box) {
   const response = await platformRequest(box, "outfitter.localhost", "/api/auth/sign-in/email", { method: "POST", body: MEMBER });
   if (response.status !== 200) throw new Error(`Signing in failed (${response.status}): ${response.text.slice(0, 300)}`);
   const cookie = [response.headers["set-cookie"] ?? []].flat().map((value) => value.split(";")[0]).join("; ");
@@ -129,6 +129,10 @@ async function screenshot(box, workbench, request, shots, step, project) {
 
 /** @param {any} box the supervisor's driver context */
 export async function run(box) {
+  if(box.env?.BOX_WORKSPACE === "1") {
+    void (await import("./workspace-driver.mjs")).runWorkspace(box).catch(error=>box.finish(error));
+    return;
+  }
   const requests = readRequests(box.requests);
   const work = mkdtempSync(join(tmpdir(), "workshop-box-"));
   const repo = join(work, "repo");
