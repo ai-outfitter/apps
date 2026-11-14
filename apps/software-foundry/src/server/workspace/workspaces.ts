@@ -244,18 +244,23 @@ export const jobFixAttempts = 3;
 /** Most fixes one job run restarts, so a backlog drains over several runs. */
 const jobRetriesPerRun = 5;
 
-/** Every job run also finishes earlier work: each open issue Foundry opened on
- * the repository whose fix failed (or never started) starts again on the same
- * branch, and one that has failed `jobFixAttempts` times is closed with its runs. */
+/** Every job run also finishes earlier work: each open issue whose last Foundry
+ * fix failed starts again on the same branch, as does an issue Foundry opened
+ * whose fix never started; one that has failed `jobFixAttempts` times is closed with its runs. */
 export async function retryJobFixes(host: Unattended, fix: JobFix, repository: { id: number; name: string },
-  forge: { openedIssues(): Promise<IssueReceipt[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
+  forge: { openIssues(): Promise<(IssueReceipt & { byFoundry: boolean })[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
   skip: ReadonlySet<number>) {
   const retried = [];
   const closed = [];
-  for (const issue of await forge.openedIssues()) {
-    if (skip.has(issue.number) || retried.length >= jobRetriesPerRun) continue;
-    const runs = [...await issueRuns(host, fix.resource, issue.number)].sort((a, b) => b.updatedAt - a.updatedAt);
-    if (runs.length && runs[0].status !== "failed") continue;
+  const issues = (await forge.openIssues()).filter((issue) => !skip.has(issue.number));
+  const runsOf = new Map<number, Awaited<ReturnType<typeof issueRuns>>>();
+  if (issues.length)
+    for (const run of await issueRuns(host, fix.resource, issues.map((issue) => issue.number)))
+      runsOf.set(Number(run.subject), [...runsOf.get(Number(run.subject)) ?? [], run]);
+  for (const issue of issues) {
+    if (retried.length >= jobRetriesPerRun) break;
+    const runs = (runsOf.get(issue.number) ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (runs.length ? runs[0].status !== "failed" : !issue.byFoundry) continue;
     const failures = runs.filter((run) => run.status === "failed");
     if (failures.length >= jobFixAttempts) {
       await forge.close(issue.number, `Foundry could not fix this in ${failures.length} attempts (runs ${
@@ -322,14 +327,14 @@ export async function foundryIssueRunId(
 }
 
 /** Runs of one repository's issue across Foundry's issue workflows, newest first. */
-export function issueRuns(host: Unattended, resource: string, issue: number) {
+export function issueRuns(host: Unattended, resource: string, issue: number | number[]) {
   return host.call("workflow.references", {
     selectors: [
       { slot: "triage.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
       { slot: "land.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
     ],
     key: resource,
-    subjects: [issue],
+    subjects: Array.isArray(issue) ? issue : [issue],
     workflows: issueWorkflows,
     limitPerSubject: 10,
   });

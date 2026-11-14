@@ -213,25 +213,25 @@ test("a repository job's issue starts issue-to-merge once, under the issue's run
 
 test("a job run retries Foundry's failed fixes and closes ones that keep failing", async () => {
   const runs: Record<number, any[]> = {
-    // 20: failed once, retried on the failed run's branch.
+    // 20: failed once, retried on the failed run's branch, though a member opened it.
     20: [{ id: "f20", status: "failed", updatedAt: 2 }],
-    // 21: still running; 22: merged; 23: failed three times; 24: never started.
+    // 21: still running; 22: merged; 23: failed three times; 24: Foundry's, never started; 25: a member's, never started.
     21: [{ id: "r21", status: "running", updatedAt: 1 }],
     22: [{ id: "c22", status: "complete", updatedAt: 1 }],
     23: [1, 2, 3].map((n) => ({ id: `f23-${n}`, status: "failed", updatedAt: n })),
-    24: [],
   };
   const calls: Call[] = [];
   const host = { async call(operation: string, input: any) {
     calls.push({ operation, input });
-    if (operation === "workflow.references") return runs[input.subjects[0]];
+    if (operation === "workflow.references") return input.subjects.flatMap((subject: number) => (runs[subject] ?? []).map((run) => ({ ...run, subject })));
     if (operation === "workflow.read") return { run: { id: input.id }, inputs: { "triage.inputs.event": { sourceRunId: reserved } } };
     if (operation === "workflow.start") return { id: input.id, workflow: input.workflow, created: true };
     throw new Response(`Unexpected ${operation}`, { status: 403 });
   } };
   const closed: number[] = [];
-  const issue = (number: number) => ({ number, repository: "acme/app", url: `https://github.com/acme/app/issues/${number}`, title: `#${number}`, body: "", state: "open" as const });
-  const forge = { openedIssues: async () => [19, 20, 21, 22, 23, 24].map(issue), close: async (number: number) => { closed.push(number); } };
+  const issue = (number: number) => ({ number, repository: "acme/app", url: `https://github.com/acme/app/issues/${number}`, title: `#${number}`, body: "",
+    state: "open" as const, byFoundry: number !== 20 && number !== 25 });
+  const forge = { openIssues: async () => [19, 20, 21, 22, 23, 24, 25].map(issue), close: async (number: number) => { closed.push(number); } };
   const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
   const swept = await retryJobFixes(host as never, fix, { id: 77, name: "acme/app" }, forge, new Set([19]));
   assert.deepEqual(swept.retried.map((item) => item.number), [20, 24]);
@@ -241,5 +241,7 @@ test("a job run retries Foundry's failed fixes and closes ones that keep failing
   assert.equal(starts[0].input.id, await foundryIssueRunId("foundry", "77", 20, "retry-1"));
   assert.deepEqual([starts[0].input.inputs["triage.inputs.event"].previousRunId, starts[0].input.inputs["triage.inputs.event"].sourceRunId], ["f20", reserved]);
   assert.equal(starts[1].input.inputs["triage.inputs.event"].previousRunId, undefined, "a fix that never started starts fresh");
-  assert.ok(!calls.some((call) => call.operation === "workflow.references" && call.input.subjects[0] === 19), "the run's own new issues are skipped");
+  const lookups = calls.filter((call) => call.operation === "workflow.references");
+  assert.equal(lookups.length, 1, "one run lookup for every issue");
+  assert.ok(!lookups[0].input.subjects.includes(19), "the run's own new issues are skipped");
 });
