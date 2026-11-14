@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-test",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": false,
   "type": "module",
   "exports": {
@@ -14,10 +14,10 @@
     "./stories": "./src/stories.ts"
   },
   "dependencies": {
-    "@ai-outfitter/app-sdk": "0.1.4",
+    "@ai-outfitter/app-sdk": "0.1.5",
     "miniflare": "5.20260926.0-alpha",
     "@ai-outfitter/server": "0.1.2",
-    "@ai-outfitter/threads": "0.1.4",
+    "@ai-outfitter/threads": "0.1.5",
     "@libsql/client": "^0.18.0",
     "ai": "^7.0.122",
     "drizzle-kit": "^0.31.11",

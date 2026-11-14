@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/threads-v0.1.4...threads-v0.1.5) (2026-11-14)
+
+
+### Features
+
+* deliver personal portfolio and daily reports ([c1a2c03](https://github.com/ai-outfitter/apps/commit/c1a2c03de78105602cc6a17e9aced640f16b33a1))
+* move Planning and Forerunner into the apps repo ([#80](https://github.com/ai-outfitter/apps/issues/80)) ([144beef](https://github.com/ai-outfitter/apps/commit/144beef23843642cd506d98ad86e00bb3eb3078a))
+* show user-facing MCP resource links in sidebar ([#149](https://github.com/ai-outfitter/apps/issues/149)) ([5d35b6d](https://github.com/ai-outfitter/apps/commit/5d35b6d785ef3b38aaa99d0ad5f8ca6958517675))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.4 to 0.1.5
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/threads-v0.1.3...threads-v0.1.4) (2026-11-09)
 
 
