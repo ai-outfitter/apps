@@ -135,7 +135,8 @@ export function graphEntities(
     schema: typeInput,
     outputAttributes: provenance,
     filterSchema: typeFilter,
-    name: (row) => row.title,
+    // A type is named by the name addresses use (Person, supplied_by), not its display title (People).
+    name: (row) => row.name || row.title,
     list: async (_who, offset, limit, filter, order) => {
       const f = filter ?? {};
       return (

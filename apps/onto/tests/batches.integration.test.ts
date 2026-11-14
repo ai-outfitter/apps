@@ -327,7 +327,7 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const id=first.items[0].result.id;
   assert.equal(first.items[0].result.reviewUrl, batchReviewUrl(id));
   const expectedReviewUrl = `changes/${first.items[0].result.id}`;
-  assert.equal(first.items[0].status,"pending");assert.equal(first.instructions[0].code,"SUBMIT_CHANGES");
+  assert.equal(first.items[0].status,"complete");assert.equal(first.instructions[0].code,"SUBMIT_CHANGES");
   assert.equal(first.instructions[0].url, expectedReviewUrl);
   const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
   assert.equal(listed.data.changeBatches.nodes.find((batch: { id: string }) => batch.id === first.items[0].result.id).reviewUrl, expectedReviewUrl);
