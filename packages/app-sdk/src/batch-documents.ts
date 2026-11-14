@@ -31,7 +31,7 @@ export function resultInstructions(key: string, value: unknown, url?: string): I
   const instructions: Instruction[] = Array.isArray(result.instructions) ? result.instructions.map((instruction:Instruction)=>({...instruction,itemKey:key})) : [];
   if((result.preview === true || result.phase === "preview") && result.previewToken)instructions.push({code:"CONFIRM_INSTALL",itemKey:key,actor:"caller",required:true,message:"Review the installation preview, then confirm its previewToken using a new request key."});
   if (result.state === "open" && result.validation?.valid === false) instructions.push({ code: "REPAIR_CHANGES", itemKey: key, actor: "caller", required: true, message: `Repair the draft before submitting: ${String(result.validation.error ?? "Graph validation failed")}`, ...(url ? { url } : {}) });
-  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: true, message: "Append remaining changes, then submit the batch.", ...(url ? { url } : {}) });
+  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: false, message: "Staged. The batch stays open: add more changes to it, or submit it when it is complete; a member can also review it from its page.", ...(url ? { url } : {}) });
   if ((result.state === "awaiting_review" || result.status === "awaiting_review") && !instructions.length) instructions.push({ code: "AWAIT_REVIEW", itemKey: key, actor: "human", required: true, message: "Wait for an authorized reviewer; submission does not grant approval.", ...(url ? { url } : {}) });
   instructions.push(...workInstructions(key, result));
   return instructions;
