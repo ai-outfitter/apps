@@ -6,6 +6,22 @@
 
 - Keep project detail available when bounded Wiki context has no release/evidence types, while retaining supported evidence paths and project scope checks.
 
+## [0.1.2](https://github.com/ai-outfitter/apps/compare/planning-v0.1.1...planning-v0.1.2) (2026-11-14)
+
+
+### Features
+
+* deliver personal portfolio and daily reports ([c1a2c03](https://github.com/ai-outfitter/apps/commit/c1a2c03de78105602cc6a17e9aced640f16b33a1))
+* **planning:** design partners file feature and bug requests from their own organization ([#168](https://github.com/ai-outfitter/apps/issues/168)) ([68c1923](https://github.com/ai-outfitter/apps/commit/68c1923d3b6fba463469fcd3976ebcba3518b171))
+* **planning:** link a project to its Onto Project node without a repository ([#141](https://github.com/ai-outfitter/apps/issues/141)) ([5bbee85](https://github.com/ai-outfitter/apps/commit/5bbee855565d9b9e2f178088b484968cd6f9d6d6))
+* **planning:** record KPI measurements from connectors ([#158](https://github.com/ai-outfitter/apps/issues/158)) ([9c269ec](https://github.com/ai-outfitter/apps/commit/9c269ec6e1c3cfbc9e331ac8abcae790ab7fdb1f))
+
+
+### Bug Fixes
+
+* **planning:** read published discovery as a contract fixture ([328855a](https://github.com/ai-outfitter/apps/commit/328855acdf171fe39be5d65fe71b6d66ac40be65))
+* save scheduled daily reports before digest inference ([5e4fa61](https://github.com/ai-outfitter/apps/commit/5e4fa618d7c8b61a328bc08613b38340521ece3d))
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/planning-v0.1.0...planning-v0.1.1) (2026-11-10)
 
 
