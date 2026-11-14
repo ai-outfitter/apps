@@ -7,6 +7,11 @@ Neither the platform protocol nor provider discovery requires Wiki tables,
 Onto's ontology model, or a particular package name.
 
 `@ai-outfitter/app-sdk/graph-provider` discovers declared contracts and capabilities.
+`discoverGraphProviders(host, { template })` and `documentWiki(host, { template })`
+accept a package name as a lookup hint: the host lists only that package's
+installations, so one provider is described instead of every installed app. The
+hint grants nothing and the declared contract still decides; `documentWiki` asks
+every provider when the hinted package offers no compatible Wiki.
 Bind an installation explicitly when more than one provider matches. Unknown
 contracts/versions, missing bindings and ambiguous matches fail closed. The host
 checks ownership, installation access and phase authority on every source call.

@@ -46,7 +46,8 @@ export const routinesCapability = "routines.manage";
  * Schedules, WorkflowRuns, ScheduleChanges and WorkflowRunChanges) as its member, through
  * the same MCP tools their MCP client uses. On a user's own installation it reads
  * every scope the member can; on an organization's, only that organization. Writes
- * are limited to schedule, task and run changes. Catalog packages only. */
+ * are limited to schedule, task and run changes. With `app`, it reads a published
+ * collection document of that app, its own or another's, the same way. Catalog packages only. */
 export const platformDocumentsCapability = "platform.documents";
 /** A package may search the public web through `web.search`, on the platform's own
  * search credential. Catalog packages only. */

@@ -82,7 +82,8 @@ export function reportSource(raw: unknown, scope: string, name: string, period: 
   }).filter(project => project.name), ...observedWork(report, period, scope) };
 }
 const memberships = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), name: z.string().nullable(), appSlugs: z.array(z.string()) })) }) });
-const reports = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), dailyReports: z.object({ nodes: z.array(z.object({ report: z.unknown() })), pageInfo: z.object({ hasNextPage: z.boolean() }) }) })) }) });
+// Planning's published DailyReports collection: one saved outcome per scope, `report` null when none was saved.
+const reports = z.object({ data: z.object({ dailyReports: z.array(z.object({ organizationSlug: z.string().nullable().optional(), report: z.unknown() })) }), next: z.string().optional() });
 async function savedOrder(host: Host) {
   try {
     const planning = await appDataContext(host).apps.database("planning");
@@ -103,13 +104,13 @@ async function organizationReports(host: Host, period: ReviewPeriod): Promise<{ 
   const sources = await Promise.all(available.slice(0, 20).map(async org => {
     const name = org.name ?? org.slug;
     try {
+      // One read per organization, so an organization that fails is unavailable without hiding the others.
       const result = reports.parse(await host.call("platform.document", {
-        document: "Viewer", variables: { slugs: [org.slug], date: period.date, timezone: period.timezone },
-        query: "query DayReports($slugs:[String!],$date:String!,$timezone:String){viewer{orgs(slugs:$slugs){slug dailyReports(first:1,date:$date,timezone:$timezone){nodes{report} pageInfo{hasNextPage}}}}}",
+        app: "planning", document: "DailyReports", kind: "query", scopes: [org.slug], variables: { date: period.date, timezone: period.timezone },
       }));
-      const connection = result.viewer.orgs.find(row => row.slug === org.slug)?.dailyReports;
-      if (!connection || connection.nodes.length !== 1 || connection.pageInfo.hasNextPage) throw new Error("Incomplete report read");
-      return reportSource(connection.nodes[0].report, org.slug, name, period);
+      const rows = result.data.dailyReports.filter(row => row.organizationSlug === org.slug);
+      if (rows.length !== 1 || result.next) throw new Error("Incomplete report read");
+      return reportSource(rows[0].report, org.slug, name, period);
     } catch { return source(org.slug, name, "unavailable", "This organization's saved report could not be read."); }
   }));
   return { sources, warnings: available.length > 20 ? ["Only the first 20 organizations in your priority order are shown."] : [] };
