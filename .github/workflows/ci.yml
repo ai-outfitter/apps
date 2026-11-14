@@ -63,14 +63,14 @@ jobs:
     with:
       config-path: .outfitter/apps.json
       app-set: catalog
-      catalog-apps: '["apps/forerunner","apps/hr","apps/html-starter","apps/onto","apps/planning","apps/software-foundry","apps/wiki","apps/workshop"]'
+      catalog-apps: '["apps/creative-team","apps/forerunner","apps/hr","apps/html-starter","apps/onto","apps/planning","apps/software-foundry","apps/wiki","apps/workshop"]'
   source-apps:
     name: Source apps
     uses: ./.github/workflows/check.yml
     with:
       config-path: .outfitter/apps.json
       app-set: source
-      catalog-apps: '["apps/forerunner","apps/hr","apps/html-starter","apps/onto","apps/planning","apps/software-foundry","apps/wiki","apps/workshop"]'
+      catalog-apps: '["apps/creative-team","apps/forerunner","apps/hr","apps/html-starter","apps/onto","apps/planning","apps/software-foundry","apps/wiki","apps/workshop"]'
   # Publish the exact checked bytes once; the platform registry reconciles
   # catalog/demo targets and eligible installations without a webapp release.
   deploy:
