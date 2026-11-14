@@ -1,0 +1,90 @@
+[
+  {
+    "name": "CreativeRecords",
+    "kind": "query",
+    "story": "As a member, I want to read shared creative records, so that I can reuse descriptions and selections across apps.",
+    "query": "query CreativeRecords($after: String) {\n  creativeRecords(after: $after)\n}",
+    "hash": "c2a566c7b6c845440fbe0d7397c42a034d1897cbae42c61eb158aac250cf3ccb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "As a member, I want to read shared creative records, so that I can reuse descriptions and selections across apps."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "creativeRecords": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PresentationArtifacts",
+    "kind": "query",
+    "story": "As a member, I want to review rendered decks and illustrations, so that I can download the agent-created results.",
+    "query": "query PresentationArtifacts($after: String) {\n  presentationArtifacts(after: $after)\n}",
+    "hash": "b02494c8ba03427e5820d08cd5aebcec449bf2946533a1597fddceedd884818b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "As a member, I want to review rendered decks and illustrations, so that I can download the agent-created results."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "presentationArtifacts": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ReservePresentationArtifact",
+    "kind": "mutation",
+    "story": "As an agent, I want to upload a rendered deck or illustration privately, so that members can review and download it.",
+    "query": "mutation ReservePresentationArtifact($input: ReservePresentationArtifactInput!) {\n  reservePresentationArtifact(input: $input)\n}",
+    "hash": "c9ea46fa3757208100f4859a90906ff6f09f697df3ec55b10a4c7e1496e7276b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReservePresentationArtifactInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to upload a rendered deck or illustration privately, so that members can review and download it."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reservePresentationArtifact": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  }
+]

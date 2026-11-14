@@ -1543,6 +1543,24 @@ type HasIssue implements Edge {
   validUntil: DateTime
 }
 
+"""creative work for"""
+type CreativeFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
 """targets requirement"""
 type TargetsRequirement implements Edge {
   id: ID!
@@ -3224,6 +3242,181 @@ type SourceIssueEpisode implements Node {
   responseObligations(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
 }
 
+"""CreativeBrief"""
+type CreativeBrief implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""PromptFragment"""
+type PromptFragment implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""Storyboard"""
+type Storyboard implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""GenerationSnapshot"""
+type GenerationSnapshot implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""CreativeCandidate"""
+type CreativeCandidate implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""CreativeSelection"""
+type CreativeSelection implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""CreativeFeedback"""
+type CreativeFeedback implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """Edges of any type touching this node, each with from and to."""
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): [Edge!]!
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
 type ArtifactDefinitionConnection {
   nodes: [ArtifactDefinition!]!
   pageInfo: PageInfo!
@@ -3511,6 +3704,48 @@ type ResponseObligationConnection {
 
 type SourceIssueEpisodeConnection {
   nodes: [SourceIssueEpisode!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CreativeBriefConnection {
+  nodes: [CreativeBrief!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PromptFragmentConnection {
+  nodes: [PromptFragment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type StoryboardConnection {
+  nodes: [Storyboard!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type GenerationSnapshotConnection {
+  nodes: [GenerationSnapshot!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CreativeCandidateConnection {
+  nodes: [CreativeCandidate!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CreativeSelectionConnection {
+  nodes: [CreativeSelection!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CreativeFeedbackConnection {
+  nodes: [CreativeFeedback!]!
   pageInfo: PageInfo!
   aggregate: Aggregate!
 }
@@ -4442,6 +4677,139 @@ type Query {
     text: String
     at: DateTime
   ): SourceIssueEpisodeConnection!
+  creativeBrief(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): CreativeBrief
+  creativeBriefs(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): CreativeBriefConnection!
+  promptFragment(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): PromptFragment
+  promptFragments(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): PromptFragmentConnection!
+  storyboard(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Storyboard
+  storyboards(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): StoryboardConnection!
+  generationSnapshot(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): GenerationSnapshot
+  generationSnapshots(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): GenerationSnapshotConnection!
+  creativeCandidate(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): CreativeCandidate
+  creativeCandidates(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): CreativeCandidateConnection!
+  creativeSelection(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): CreativeSelection
+  creativeSelections(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): CreativeSelectionConnection!
+  creativeFeedback(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): CreativeFeedback
+  creativeFeedbacks(
+    first: Int = 100
+    after: String
+    archived: Archived = EXCLUDE
+    ids: [ID!]
+
+    """Exact slugs."""
+    slugs: [String!]
+    text: String
+    at: DateTime
+  ): CreativeFeedbackConnection!
 }
 
 type SearchConnection {

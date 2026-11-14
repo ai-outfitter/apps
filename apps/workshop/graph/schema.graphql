@@ -90,6 +90,44 @@ input WorkshopProjectHandoffInput {
   id: ID!
 }
 
+input AcceptCreativeHandoffInput {
+  projectId: ID!
+  revision: Float!
+  id: ID!
+  request: AcceptCreativeHandoffInputRequest!
+}
+
+input AcceptCreativeHandoffInputRequest {
+  selection: AcceptCreativeHandoffInputRequestSelection!
+  purpose: String!
+  dimensions: String
+  materials: String
+  interfaces: String
+  questions: [String!]
+  acceptance: [String!]!
+}
+
+input AcceptCreativeHandoffInputRequestSelection {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input AttachCreativeResultInput {
+  projectId: ID!
+  revision: Float!
+  handoffId: ID!
+  candidate: AttachCreativeResultInputCandidate!
+}
+
+input AttachCreativeResultInputCandidate {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
 input RequestWorkshopBuildInput {
   id: ID!
   revision: Float!
@@ -421,6 +459,16 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """
+  Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.
+  """
+  acceptCreativeHandoff(input: AcceptCreativeHandoffInput!): JSON
+
+  """
+  Link a reviewed result candidate back to its design request; no manufacturing approval is implied.
+  """
+  attachCreativeResult(input: AttachCreativeResultInput!): JSON
+
   """Request a project workspace build and preserve revision provenance."""
   requestWorkshopBuild(input: RequestWorkshopBuildInput!): JSON
 

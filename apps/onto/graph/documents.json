@@ -971,6 +971,43 @@
     }
   },
   {
+    "name": "CreativeRecords",
+    "kind": "query",
+    "story": "As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",
+    "query": "query CreativeRecords($kind: String, $after: String, $limit: Int) {\n  creativeRecordViews(kind: $kind, after: $after, limit: $limit)\n}",
+    "hash": "b50fd116946904c372f1eed84751a38764329513b63364c97f7856f4a6e148f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read shared briefs, fragments, storyboards, snapshots, candidates and selections."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "creativeRecordViews": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "Exploration",
     "kind": "query",
     "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
@@ -1130,6 +1167,36 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "name": "FreezeCreativeInputs",
+    "kind": "mutation",
+    "story": "As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",
+    "query": "mutation FreezeCreativeInputs($input: FreezeCreativeInputsAtAddressInput!) {\n  freezeCreativeInputsAtAddress(input: $input)\n}",
+    "hash": "79abd2ad7ecb1c98f1a1a05b162d8348d77f3b954688108d1f361cadc03300a4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FreezeCreativeInputsAtAddressInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Freeze committed prompt dependencies into a snapshot proposal; does not generate."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "freezeCreativeInputsAtAddress": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }
@@ -1581,6 +1648,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "StageCreativeRecord",
+    "kind": "mutation",
+    "story": "As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",
+    "query": "mutation StageCreativeRecord($input: StageCreativeRecordAtAddressInput!) {\n  stageCreativeRecordAtAddress(input: $input)\n}",
+    "hash": "4030d04b4ed3f295196fff697239051d2f9f804dc45393340dc3ff4070136d29",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageCreativeRecordAtAddressInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Stage a typed creative record for graph review; does not generate or approve."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "stageCreativeRecordAtAddress": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "SubmitBatch",

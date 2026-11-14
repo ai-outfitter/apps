@@ -1,0 +1,7 @@
+---
+import AppLayout from '@ai-outfitter/ui/astro/ManagedAppLayout.astro';
+import {appHref} from '../app-href';
+const {title,description='Review work created by your agent.'}=Astro.props;
+const links=[{label:'Creative records',href:appHref(Astro.url.pathname,'/creative'),active:Astro.url.pathname.startsWith('/creative')},{label:'Videos',href:appHref(Astro.url.pathname,'/videos'),active:Astro.url.pathname.startsWith('/videos')}];
+---
+<AppLayout name="Marketing" active="home" {title} {description} sidebarLinks={links}><slot name="intro-actions" slot="intro-actions"/><slot/></AppLayout>

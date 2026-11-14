@@ -1,0 +1,21 @@
+type Query {
+  presentationArtifacts(after: String): JSON
+  creativeRecords(after: String): JSON
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type Mutation {
+  """Reserve a hash-verified private deck or illustration upload."""
+  reservePresentationArtifact(input: ReservePresentationArtifactInput!): JSON
+}
+
+input ReservePresentationArtifactInput {
+  id: ID!
+  subjectId: ID!
+  filename: String!
+  contentType: String!
+  size: Float!
+  sha256: String!
+}

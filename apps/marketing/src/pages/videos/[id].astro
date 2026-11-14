@@ -1,0 +1,34 @@
+---
+import Layout from "../../components/Layout.astro";
+import { context } from "../../server/context";
+import { documents, runDocument } from "../../server/documents";
+import { appHref } from "../../app-href";
+if(import.meta.env.OUTFITTER_APP_MODE!=="operational")return new Response("Not found",{status:404});
+let item:any;
+try{const result=await runDocument(documents.VideoProductions.document,{id:Astro.params.id!,...(Astro.url.searchParams.has("revision")?{revision:Number(Astro.url.searchParams.get("revision"))}:{})},context(Astro.request,Astro.locals));item=(result.videoProductions as any).items[0];}catch(error){if(error instanceof Response)return error;throw error;}
+const packet=item.packet,assets=item.assets;
+const safeSourceUrl=(value:unknown)=>typeof value==="string"&&/^https?:\/\//i.test(value)?value:undefined;
+const href=(id:string)=>appHref(Astro.url.pathname,`/api/apps/marketing/video-assets/${id}`);
+const finals=assets.filter((a:any)=>a.kind==="final").sort((a:any,b:any)=>b.productionRevision-a.productionRevision);
+const preview=finals.find((a:any)=>a.productionRevision<=item.revision);
+---
+<Layout title={packet.title} description={packet.message}>
+ <div slot="intro-actions">{preview && <a class="ui-button" href={`${href(preview.id)}?download`}>Download MP4</a>}</div>
+ <div data-video-production data-endpoint={appHref(Astro.url.pathname,`/api/apps/marketing/videos?id=${item.id}${Astro.url.searchParams.has("revision")?`&revision=${item.revision}`:""}`)} data-stamp={JSON.stringify([item.revision,item.takes.map((t:any)=>[t.id,t.revision]),item.assets.map((a:any)=>a.id)])}></div>
+ {packet.product&&<p>Product reference: {packet.product.id} · revision {packet.product.revision}</p>}
+ <p>{packet.concept?"Concept preview · Generated scenes and illustrative interfaces may appear.":"Product demo"} · Version {item.revision} · {packet.channel}</p>
+ {preview && <section aria-label="Finished video"><video controls preload="metadata" src={href(preview.id)}></video>{preview.productionRevision!==item.revision&&<p>This film uses storyboard version {preview.productionRevision}. The current storyboard has changed.</p>}</section>}
+ <nav aria-label="Storyboard versions">{item.versions.map((revision:number)=><a href={`?revision=${revision}`} aria-current={revision===item.revision?"page":undefined}>Version {revision} </a>)}</nav>
+ <section><h2>Creative brief</h2><p><strong>Audience:</strong> {packet.audience}</p><p>{packet.style}</p></section>
+ <section><h2>Storyboard</h2><ol class="shots">{packet.shots.map((shot:any,index:number)=>{
+ const source=shot.source;const takes=item.takes.filter((t:any)=>t.input.shotId===shot.id);
+ return <li><h3>{index+1}. {shot.title} <small>{shot.duration}s</small></h3>
+ {source?.assetId && <img src={href(source.assetId)} alt={source.label} loading="lazy"/>}
+ <p>{shot.narration}</p><details><summary>Direction and source</summary><p>{shot.prompt}</p>{source?<p>{source.kind} · {source.label} · {source.artifact.provider} / {source.artifact.recordId}{source.artifact.version&&` · ${source.artifact.version}`}</p>:<p>Generated from text.</p>}{safeSourceUrl(source?.artifact.uri)&&<a href={safeSourceUrl(source?.artifact.uri)} rel="noreferrer">Source evidence ↗</a>}</details>
+ {takes.map((take:any)=><details><summary>Take {take.id.slice(0,8)} · {take.state} · storyboard v{take.input.revision}</summary>{take.assetId&&<><video controls preload="none" src={href(take.assetId)}></video><a href={`${href(take.assetId)}?download`}>Download take</a></>}<p>{take.error}</p><p>Estimated generation: ${take.estimatedUsd.toFixed(2)} · Receipt: {take.providerRequestId??"Awaiting submission"}</p></details>)}
+ </li>})}</ol></section>
+ {finals.length>1&&<section><h2>Other edits</h2>{finals.filter((a:any)=>a.id!==preview?.id).map((a:any)=><p><a href={`${href(a.id)}?download`}>{a.filename} · storyboard v{a.productionRevision}</a></p>)}</section>}
+</Layout>
+<style>video{width:100%;max-height:65vh;background:#111;border-radius:10px}section{margin-block:2rem}.shots{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:1.5rem}.shots li{padding:1.2rem;border:1px solid #8885;border-radius:12px}.shots img{width:100%;max-height:300px;object-fit:contain}.shots video{max-height:320px}small{font-weight:400}details{margin-block:1rem;overflow-wrap:anywhere}summary{cursor:pointer}</style>
+
+<script>import "../../scripts/videos";</script>

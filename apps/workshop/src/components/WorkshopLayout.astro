@@ -3,10 +3,12 @@ import type { ComponentProps } from "astro/types";
 import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
 import AgentSidebarToggle from "@ai-outfitter/ui/astro/AgentSidebarToggle.astro";
 import AppActionSidebar from "@ai-outfitter/ui/astro/AppActionSidebar.astro";
+import {appHref} from "../app-href";
 type Props = ComponentProps<typeof AppLayout>;
 ---
 <AppLayout {...Astro.props}>
   <AgentSidebarToggle slot="header-actions" controls="workshop-agent" label="Ask Workshop" />
+  <p><a href={appHref(Astro.url.pathname,"/creative")}>Shared design references</a></p>
   <slot />
   <AppActionSidebar slot="overlays" app="workshop" label="Workshop" intro="Ask about your models, assemblies, parts and build results." limits="Reads saved Workshop records. Use New model to create a model; this chat cannot change models or run builds." focusId="ed000000-0000-4000-8000-000000000001" />
 </AppLayout>

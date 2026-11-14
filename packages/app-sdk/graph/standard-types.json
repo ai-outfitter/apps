@@ -1585,6 +1585,97 @@
   }
  },
  {
+  "id": "bce00000-0000-4000-8000-000000000001",
+  "category": "node",
+  "name": "CreativeBrief",
+  "title": "CreativeBrief",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000002",
+  "category": "node",
+  "name": "PromptFragment",
+  "title": "PromptFragment",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000003",
+  "category": "node",
+  "name": "Storyboard",
+  "title": "Storyboard",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000004",
+  "category": "node",
+  "name": "GenerationSnapshot",
+  "title": "GenerationSnapshot",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "immutable": true
+  }
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000005",
+  "category": "node",
+  "name": "CreativeCandidate",
+  "title": "CreativeCandidate",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "immutable": true
+  }
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000006",
+  "category": "node",
+  "name": "CreativeSelection",
+  "title": "CreativeSelection",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000007",
+  "category": "edge",
+  "name": "creative_for",
+  "title": "creative work for",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "bce00000-0000-4000-8000-000000000001",
+     "bce00000-0000-4000-8000-000000000002",
+     "bce00000-0000-4000-8000-000000000003",
+     "bce00000-0000-4000-8000-000000000004",
+     "bce00000-0000-4000-8000-000000000005",
+     "bce00000-0000-4000-8000-000000000006",
+     "bce00000-0000-4000-8000-000000000008"
+    ],
+    "to": "any"
+   }
+  }
+ },
+ {
+  "id": "bce00000-0000-4000-8000-000000000008",
+  "category": "node",
+  "name": "CreativeFeedback",
+  "title": "CreativeFeedback",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "immutable": true
+  }
+ },
+ {
   "id": "86cd3b21-71e2-5dfa-9bd0-000000000001",
   "category": "node",
   "name": "Friendship",

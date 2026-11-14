@@ -11,5 +11,6 @@
   "packages/workflow-core": "0.1.2",
   "packages/workflow-email-profile-onboarding": "0.1.2",
   "packages/workflow-recurring-task": "0.1.2",
-  "packages/connector-github": "0.1.1"
+  "packages/connector-github": "0.1.1",
+  "packages/creative-workflow": "0.1.0"
 }

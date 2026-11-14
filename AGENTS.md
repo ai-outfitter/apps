@@ -33,3 +33,11 @@ the destination and runner reachability, not the repository identity contract.
 Graph interoperability follows [graph providers](docs/graph-providers.md). Onto is an app, never a package: apps reach it through the platform. Graph schemas come from `@ai-outfitter/app-sdk/graph-contracts`, the graph client (`defaultWiki`, `wikiAdapter`, `readWikiGraph`, `queryWikiGraph`, `selectWikiGraph`, `stableGraphId`, `typeSegment`) from `@ai-outfitter/app-sdk/graph-client`, and snapshot-to-record conversion from `@ai-outfitter/app-sdk/graph-records`. A source reference or declared capability grants no access. Stable graph ID salts, routes and stored identities are unchanged.
 
 Portable archives are not signed installation restores. For Onto, every new authority or runtime-state table must be registered in `apps/onto/src/server/archive-authorities.ts` before import is exposed. Confirmations, receipts and review jobs require their authorized APIs; generic imports cannot recreate their authority. Backup exports retain these rows, and normal in-place database migrations preserve existing history.
+
+Creative work keeps Marketing, Presentations and Workshop as separate apps. Shared
+briefs, prompt dependencies, storyboards, snapshots, candidates, feedback and
+selections live in Onto; artifact bytes and execution remain with the producing
+app. Reuse `packages/creative-workflow` and the existing graph review, host and
+private storage contracts. Snapshots/candidates/feedback use immutable ontology
+records; a selection never grants manufacturing approval or extra file access.
+See `docs/creative-workflow/README.md` for import and video migration rules.

@@ -1,3 +1,4 @@
+import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { and, asc, eq, inArray, like, sql, gt } from "drizzle-orm";
 import { graphBatches, graphBatchOperations } from "./schema";
 import { connectionType, pageArgs } from "@ai-outfitter/app-sdk/app-graphql";
@@ -149,6 +150,8 @@ export const stageInput = z.strictObject({
 }).refine(input => input.batchId || input.title, { message: "Pass batchId, or a title to open a batch", path: ["title"] });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
+  ...creativeQueries,
+  ...creativeAddressQueries,
   changeBatches: {
     type: nonNull(connectionType(ChangeBatch)), description: "Search saved change batches; operations and evidence are selected explicitly.",
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},
@@ -219,6 +222,8 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     }),
     reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
+    ...creativeMutations,
+    ...creativeAddressMutations,
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
       description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.",
@@ -263,6 +268,6 @@ export const externalSchema = new GraphQLSchema({ query: new GraphQLObjectType<u
     resolve: async (_root, args, context) => (await sharesFor(context.db(), context.identity, shareSlug.parse(args.slug)))[0] ?? null },
 } }) });
 
-const baseGraphqlSchema = new GraphQLSchema({ query: new GraphQLObjectType({ name: "Query", fields: changeQueries }), mutation: Mutation });
+const baseGraphqlSchema = new GraphQLSchema({ query: new GraphQLObjectType({ name: "Query", fields: {...changeQueries,...creativeQueries} }), mutation: Mutation });
 
 export const graphqlSchema = batchSchema(baseGraphqlSchema, batchGroups);
