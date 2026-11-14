@@ -1397,22 +1397,6 @@
     "archived": false
   },
   {
-    "id": "71000000-0000-4000-8000-000000000104",
-    "category": "node",
-    "name": "Question",
-    "title": "Questions",
-    "body": "## Questions\n\nAn individually identifiable unresolved question about an entity or relationship. Explain what is unknown, why the answer matters, and the evidence that raised it. It applies to personal and organizational knowledge.\n\n## For agents\n\nLink subjects with about. Keep questions separate from facts, goals and problems: asking about cost does not establish excessive cost. User answers can support new claims; retain the original evidence and do not silently overwrite authored knowledge.",
-    "properties": [
-      {
-        "name": "status",
-        "type": "string",
-        "description": "Question lifecycle: open, answered or dismissed.",
-        "required": false
-      }
-    ],
-    "archived": false
-  },
-  {
     "id": "71000000-0000-4000-8000-000000000105",
     "category": "edge",
     "name": "participates_in",
@@ -1578,37 +1562,6 @@
         "to": [
           "71000000-0000-4000-8000-000000000005"
         ]
-      }
-    }
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000110",
-    "category": "edge",
-    "name": "about",
-    "title": "about",
-    "body": "A Question concerns the target entity.\n\n## For agents\n\nThis links the subject of an unresolved question. It does not assert the question's premise as fact or grant permission to act.",
-    "properties": [
-      {
-        "name": "status",
-        "type": "string",
-        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
-        "required": false
-      },
-      {
-        "name": "evidence",
-        "type": "string",
-        "description": "Supporting source references and limits on the claim.",
-        "required": false
-      }
-    ],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000104"
-        ],
-        "to": "any"
       }
     }
   },

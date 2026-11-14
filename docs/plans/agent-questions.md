@@ -1,6 +1,6 @@
 # Where agent questions go
 
-Status: proposal, nothing built. Asks for a decision before any code.
+Status: accepted. Built in Onto: batch questions (`ask`, answers on the Changes page, Home card count, `ReviseBatch` citation), `Question` and `about` removed from the standard types, steward and `ChangeBatchChanges` instructions updated. Left: the one line in webapp's MCP server instructions.
 
 ## What happened
 

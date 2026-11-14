@@ -1338,21 +1338,6 @@
   "properties": []
  },
  {
-  "id": "71000000-0000-4000-8000-000000000104",
-  "category": "node",
-  "name": "Question",
-  "title": "Questions",
-  "archived": false,
-  "properties": [
-   {
-    "name": "status",
-    "type": "string",
-    "description": "Question lifecycle: open, answered or dismissed.",
-    "required": false
-   }
-  ]
- },
- {
   "id": "71000000-0000-4000-8000-000000000105",
   "category": "edge",
   "name": "participates_in",
@@ -1513,36 +1498,6 @@
     "to": [
      "71000000-0000-4000-8000-000000000005"
     ]
-   }
-  }
- },
- {
-  "id": "71000000-0000-4000-8000-000000000110",
-  "category": "edge",
-  "name": "about",
-  "title": "about",
-  "archived": false,
-  "properties": [
-   {
-    "name": "status",
-    "type": "string",
-    "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
-    "required": false
-   },
-   {
-    "name": "evidence",
-    "type": "string",
-    "description": "Supporting source references and limits on the claim.",
-    "required": false
-   }
-  ],
-  "ontology": {
-   "version": 2,
-   "endpoints": {
-    "from": [
-     "71000000-0000-4000-8000-000000000104"
-    ],
-    "to": "any"
    }
   }
  },

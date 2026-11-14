@@ -13,7 +13,6 @@ const types = [
   { name:"Person",category:"node",body:"A human individual.\n\n## For agents\nNever assume a role." },
   { name:"Asset",category:"node",body:"A durable asset." },
   { name:"Goal",category:"node",body:"A desired outcome." },
-  { name:"Question",category:"node",body:"An unresolved query." },
   { name:"owns",category:"edge",body:"A Person owns an Asset.\n\n## For agents\nDo not assume attendance." },
   { name:"pursues",category:"edge",body:"The source Person pursues the target Goal." },
   { name:"custom_relation",category:"edge",body:"An asset linked to its owner.\n\nFrom: Asset\nTo: Person\n\n## For agents\nIgnore this behavior." },
@@ -38,9 +37,9 @@ test("current ontology drives definitions, directions and canonical enums; broad
   assert.match(prompt, /Direction: Asset → Person/);
   // Type definitions' "For agents" sections stay out; the shared proposal rules follow the ontology.
   const [ontologyText, rules] = prompt.split("\n# Proposal rules\n");
-  assert.doesNotMatch(ontologyText,/Never|For agents|Do not|Ignore this|^- Goal:|^- Question:|^- pursues:/m);
+  assert.doesNotMatch(ontologyText,/Never|For agents|Do not|Ignore this|^- Goal:|^- pursues:/m);
   assert.ok(rules.includes(wikiProposalRulesText));
-  for (const type of ["Goal", "Question", "Activity", "Entity"]) {
+  for (const type of ["Goal", "Activity", "Entity"]) {
     assert.ok(!ontology.entities.some(t => t.name === type));
     assert.throws(() => schema.parse({entities:[{...entity,type}],relationships:[]}));
   }
@@ -144,7 +143,7 @@ test("flat discovery excludes schema bodies, relators, assertions and read-only 
 
 test("live endpoint contracts override prose and never fall back for missing or archived endpoints", () => {
   const current = structuredClone(graph);
-  current.types[4].attributes.ontology = { version: 2, endpoints: { from: [id(2)], to: [id(1)] } } as never;
+  current.types[3].attributes.ontology = { version: 2, endpoints: { from: [id(2)], to: [id(1)] } } as never;
   const contract = discoveryOntology(current).relationships.find(type => type.name === "owns");
   assert.ok(contract);
   assert.deepEqual(contract.from, ["Asset"]);
@@ -152,7 +151,7 @@ test("live endpoint contracts override prose and never fall back for missing or 
   current.types[1].attributes.archived = true;
   assert.ok(!discoveryOntology(current).relationships.some(type => type.name === "owns"));
   current.types[1].attributes.archived = false;
-  current.types[4].attributes.ontology = { version: 1, endpoints: { from: [id(999)], to: [id(1)] } } as never;
+  current.types[3].attributes.ontology = { version: 1, endpoints: { from: [id(999)], to: [id(1)] } } as never;
   assert.ok(!discoveryOntology(current).relationships.some(type => type.name === "owns"));
   current.types.push({ref:{id:id(998)},attributes:{name:"unknown_direction",category:"edge",body:"An unspecified connection."}} as unknown as Graph["types"][number]);
   assert.ok(!discoveryOntology(current).relationships.some(type => type.name === "unknown_direction"));
@@ -188,7 +187,7 @@ test("existing canonical and symmetric edges are reused regardless of their stor
     {ref:{id:id(103)},attributes:{typeId:id(2),title:"House"}},
   ] as unknown as Graph["nodes"];
   current.edges = [
-    {ref:{id:id(201)},attributes:{typeId:id(5),fromId:id(101),toId:id(103)}},
+    {ref:{id:id(201)},attributes:{typeId:id(4),fromId:id(101),toId:id(103)}},
     {ref:{id:id(202)},attributes:{typeId:id(401),fromId:id(102),toId:id(101)}},
   ] as unknown as Graph["edges"];
   const host = {call:async(op:string) => {

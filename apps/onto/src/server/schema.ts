@@ -13,6 +13,7 @@ import {
 import { sql } from "drizzle-orm";
 import type { StoredTypeMetadata } from "../lib/type-metadata";
 import type { BatchReview } from "./batch-review";
+import type { BatchQuestion } from "./batch-questions";
 
 export const graphTypes = sqliteTable("graph_types", {
   id: text().primaryKey(),
@@ -178,6 +179,8 @@ export const graphBatches = sqliteTable("graph_batches", {
   reviewJobId: text(),
   /** Node ids every created node must connect to before the batch can be submitted. */
   anchors: text({ mode: "json" }).$type<string[]>(),
+  /** Questions an agent asks a member about this batch, with their answers. */
+  questions: text({ mode: "json" }).$type<BatchQuestion[]>(),
 });
 
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {

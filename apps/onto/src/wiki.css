@@ -332,6 +332,14 @@
 /* Let graph workspaces use the available shell width. */
 .ui-content:has(#changes, #graph-explorer, #exploration) { max-width: none; width: 100%; }
 .change-anchor { margin: 8px 0; }
+.change-questions { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+.change-questions > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.change-questions h2 { margin: 0 0 4px; font-size: 15px; }
+.change-question { border-left: 2px solid var(--border); padding-left: 10px; display: grid; gap: 4px; }
+.change-question p { margin: 0; }
+.change-answer-form { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.change-answer-form input { flex: 1 1 200px; min-width: 0; font-size: 14px; padding: 4px 8px; }
+.ui-content .change-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .change-validation { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 
 .changes { gap: 12px; }

@@ -19,6 +19,7 @@ import { actionAPI, defineAction } from "@ai-outfitter/app-sdk/actions";
 import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import { agentDatabase, installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { reviewInBackground } from "../../../../../server/batch-review";
+import { askBatch, batchAskInput } from "../../../../../server/batch-questions";
 import { applyGraphChanges, graphChangeInput, graphChangeReceipt } from "../../../../../server/graph-changes";
 import { graphqlSchema } from "../../../../../server/graphql";
 import { artifactActions } from "../../../../../server/artifact-preview";
@@ -54,6 +55,11 @@ export const wikiActions = {
     description: "Add up to 100 proposals to an open batch. Each proposal is one graph.apply operation (create or update of graph-node, graph-edge or graph-type, with $ref temporary references that persist across calls) plus evidence citations (@ai-outfitter/app-sdk/evidence: provider, recordId, version, uri, quote, observedAt, contentHash; at most 32), the producing agent's confidence (0-1) and a short reason. Re-adding an identical proposal is a no-op. Nothing becomes visible.",
     access: "write", canInvoke: writer, input: batchAddInput, output: batchResult,
     run: ({ identity, actor }, input) => addToBatch(installationDatabase(), identity, actor, input),
+  }),
+  "batch.ask": defineAction({
+    description: "Ask a member about proposals in an open batch, or one awaiting member review: questions [{key, ask, refs, options?}], where refs name the proposals that depend on the answer. The same key replaces a question; remove takes questions back. Members answer on the Changes page; batch.get returns the answers. Answering approves nothing and an unanswered question blocks nothing.",
+    access: "write", canInvoke: writer, input: batchAskInput, output: batchResult,
+    run: ({ identity, actor }, input) => askBatch(installationDatabase(), identity, actor, input),
   }),
   "batch.submit": defineAction({
     description: "Freeze an open batch and apply its policy: confidence or first-run commits what it may now; the rest waits for review. Refused while validation fails. Optional summary text for the person reviewing. The ontology steward then reviews it in the background and attaches advisory findings (batch.review, null until it finishes); they change no decision.",

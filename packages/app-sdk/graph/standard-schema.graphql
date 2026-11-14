@@ -908,26 +908,6 @@ type InteractsWith implements Edge {
   evidence: String
 }
 
-"""about"""
-type About implements Edge {
-  id: ID!
-  typeId: ID!
-  revision: Int!
-  title: String!
-  body: String
-  archived: Boolean!
-  updatedAt: DateTime
-  properties: JSON
-  fromId: ID!
-  toId: ID!
-  from: Node
-  to: Node
-  validFrom: DateTime
-  validUntil: DateTime
-  status: String
-  evidence: String
-}
-
 """account of"""
 type AccountOf implements Edge {
   id: ID!
@@ -2679,32 +2659,6 @@ type FinancialObligation implements Node {
   securedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SecuredBy!]!
 }
 
-"""Questions"""
-type Question implements Node {
-  id: ID!
-  typeId: ID!
-  revision: Int!
-  title: String!
-  body: String
-  archived: Boolean!
-  updatedAt: DateTime
-  properties: JSON
-  summary: String
-  slug: String
-
-  """Edges of any type touching this node, each with from and to."""
-  edges(
-    """Edge type names or IDs."""
-    types: [String!]
-    direction: Direction = BOTH
-    at: DateTime
-    archived: Archived = EXCLUDE
-  ): [Edge!]!
-  validFrom: DateTime
-  validUntil: DateTime
-  status: String
-}
-
 """Outfitter users"""
 type OutfitterUser implements Node {
   id: ID!
@@ -3413,12 +3367,6 @@ type FinancialObligationConnection {
   aggregate: Aggregate!
 }
 
-type QuestionConnection {
-  nodes: [Question!]!
-  pageInfo: PageInfo!
-  aggregate: Aggregate!
-}
-
 type OutfitterUserConnection {
   nodes: [OutfitterUser!]!
   pageInfo: PageInfo!
@@ -4119,25 +4067,6 @@ type Query {
     text: String
     at: DateTime
   ): FinancialObligationConnection!
-  question(
-    """The node's address, such as Organization:sunny."""
-    id: ID
-
-    """The node's slug, unique within its type; pass id or slug."""
-    slug: String
-    archived: Archived = EXCLUDE
-  ): Question
-  questions(
-    first: Int = 100
-    after: String
-    archived: Archived = EXCLUDE
-    ids: [ID!]
-
-    """Exact slugs."""
-    slugs: [String!]
-    text: String
-    at: DateTime
-  ): QuestionConnection!
   outfitterUser(
     """The node's address, such as Organization:sunny."""
     id: ID

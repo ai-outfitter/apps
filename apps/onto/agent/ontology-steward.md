@@ -85,7 +85,12 @@ Then list the findings, the most consequential first. For each one, give:
 
 Group findings that share a single cause. For example, one research import that created many foreign projects is one root cause with a list of affected records, and needs one decision.
 
-Finally, open one change batch (`batch.open`, then `batch.add`) holding only the `confident` operations, with each operation citing its finding as evidence. Leave it for review; never call `batch.submit`. Put the `needs decision` items as questions in your report, not in the batch.
+Finally, open one change batch (`batch.open`, then `batch.add`) holding only the `confident` operations, with each operation citing its finding as evidence. Leave it for review; never call `batch.submit`.
+
+Never stage a question as a record. Each `needs decision` item goes to one of two places:
+
+- If a proposal depends on it, stage that proposal and ask on the batch with `batch.ask`: `{key, ask, refs, options?}`, where `refs` names the proposals that wait on the answer. A member answers on the Changes page.
+- If nothing in the batch depends on it, it is a follow-up for a person: a Planning issue in the project it belongs to, naming graph records by address (`Organization:sunny`).
 
 ## Boundaries
 
