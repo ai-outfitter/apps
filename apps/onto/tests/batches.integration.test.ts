@@ -586,3 +586,15 @@ test("a personal Onto anchors a new batch to its owner's Person", async t => {
   assert.deepEqual(staged.anchors, ["Person:ada"]);
   assert.match(staged.validation.error, /anchor/);
 });
+
+test("one Ontology read names every type, each relationship's ends, and how to stage", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const { ontology } = (await json(await f.action("graph.graphql", { query: documents.Ontology.document }))).data;
+  assert.ok(ontology.nodeTypes.some((type: { name: string }) => type.name === "Person"));
+  const spouse = ontology.relationshipTypes.find((type: { name: string }) => type.name === "test_spouse");
+  assert.deepEqual([spouse.from, spouse.to], [["TestMarriage"], ["Person"]]);
+  // A projection is derived, so it is not offered for writing.
+  assert.equal(ontology.relationshipTypes.some((type: { name: string }) => type.name === "test_spouse_of"), false);
+  assert.match(ontology.staging, /ChangeBatchChanges/);
+});

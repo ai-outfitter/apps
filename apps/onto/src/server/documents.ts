@@ -27,6 +27,10 @@ const changeDocuments = defineDocuments({
   SubmitBatch: {...wikiChangeDocuments.SubmitBatch, document: `mutation SubmitBatch($input: SubmitBatchInput!) {
       submitBatch(input: $input) { id state reviewBy counts reviewRun instructions { code itemKey actor required message taskId url } operations { ref state } }
     }`},
+  Ontology: {
+    story: "As an agent, I want every type name, which types each relationship connects and how to stage a change in one read, so that I can write to this graph without searching for its types.",
+    document: `query Ontology { ontology { root nodeTypes { name description } relationshipTypes { name description from to } staging } }`,
+  },
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
@@ -110,6 +114,9 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
   },
   "MutateShare": {
     "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
+  },
+  "Ontology": {
+    "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
   },
   "ChangeBatchChanges": {
     "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
