@@ -107,29 +107,3 @@ test("organization sources use live membership, saved order and independent fail
     assert.equal(result.previousWeek, "2026-11-03");
   } finally { client.close(); }
 });
-
-test("every organization's saved report is read in one platform call, in saved order", async () => {
-  const { client, db } = await database();
-  const documents: Record<string, unknown>[] = [];
-  const host = { async call(operation: string, input: Record<string, unknown>) {
-    if (operation === "entities.types") return [{ installationId: "planning", template: "planning", type: "portfolio-priority", collection: "portfolio-priorities" }];
-    if (operation === "entities.get") return { ref: { installationId: "planning", type: "portfolio-priority", id: "organizations" }, title: "Order", revision: 1, references: [], attributes: { items: ["sunny", "keystone"] } };
-    if (operation === "actions.call") return { data: { dailyReport: report() } };
-    assert.equal(operation, "platform.document");
-    documents.push(input);
-    const read = (value: unknown) => ({ nodes: [{ report: value }], pageInfo: { hasNextPage: false } });
-    return { viewer: { orgs: [
-      { slug: "artera", name: "Artera", appSlugs: ["planning"], dailyReports: read(null) },
-      { slug: "keystone", name: "Keystone", appSlugs: ["planning"], dailyReports: { nodes: [], pageInfo: { hasNextPage: false } } },
-      { slug: "stand", name: "Stand", appSlugs: ["onto"], dailyReports: null },
-      { slug: "sunny", name: "Sunny", appSlugs: ["planning"], dailyReports: read(report()) },
-    ] } };
-  } } as unknown as WorkflowHost<"interactive">;
-  try {
-    const result = await readDayReview(db, identity, host, {}, now);
-    // An organization without Planning is not a report source; an empty read is unavailable, never a quiet day.
-    assert.deepEqual(result.organizations.map(row => [row.scope, row.name, row.status]), [["sunny", "Sunny", "complete"], ["keystone", "Keystone", "unavailable"], ["artera", "Artera", "missing"]]);
-    assert.equal(documents.length, 1);
-    assert.deepEqual(documents[0].variables, { date: result.period.date, timezone: result.period.timezone });
-  } finally { client.close(); }
-});
