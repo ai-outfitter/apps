@@ -1,6 +1,6 @@
 # When an agent brings a new kind of thing
 
-Status: proposal, nothing built. Companion to [Where agent questions go](agent-questions.md).
+Status: partly built. Batch items read as pages (each proposal opens on its record's page with `?batch=`; the Changes batch page is the index); the video types live in `apps/video-production`. Companion to [Where agent questions go](agent-questions.md).
 
 ## What happened
 

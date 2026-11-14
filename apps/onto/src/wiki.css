@@ -289,16 +289,9 @@
 .change-summary { font-size: 16px; margin: 0; }
 .change-meta { color: var(--muted); font-size: 13px; }
 .change-deadline { margin: 0; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
-.change-batches, .change-operations, .change-evidence, .change-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.change-batch, .change-operation { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
-.change-batch p, .change-operation p { margin: 0; }
-.change-proposal-group { display: grid; gap: 12px; margin: 16px 0; min-width: 0; }
-.change-operation { background: var(--surface); }
-.change-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
-.change-heading-main { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
-.change-heading .change-actions { flex-wrap: nowrap; }
-.ui-content .change-heading .change-actions button { padding: 6px 10px; font-size: 13px; }
-.change-operation > .change-state { justify-self: end; text-align: right; }
+.change-batches, .change-evidence, .change-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.change-batch { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.change-batch p { margin: 0; }
 .change-kind { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .change-state { margin-left: auto; font-size: 13px; color: var(--muted); }
 .change-rejected { opacity: 0.6; }
@@ -349,3 +342,33 @@
 .ui-content .change-views button[aria-pressed="true"] { border-color: var(--text); color: var(--text); }
 .changes .change-graph .knowledge-graph-stage:not(.knowledge-graph-expanded) .knowledge-graph-viewport { height: max(420px, calc(100dvh - 460px)); }
 .change-description > p { margin-top: 12px; }
+/* A batch's index: one hairline row per proposal, relationships under their node. */
+.change-lines, .change-line-edges { list-style: none; margin: 0; padding: 0; }
+.change-line { display: grid; grid-template-columns: 9rem minmax(0, auto) minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.change-line > a { overflow-wrap: anywhere; }
+.change-line .change-kind, .change-line-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.change-line-summary { color: var(--muted); font-size: 14px; }
+.change-line-flag { font-size: 13px; color: var(--warning); }
+.change-line-flag.change-line-error { color: var(--error); }
+.change-line > .change-line-edges { grid-column: 2 / -1; }
+.change-line-edges > li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14px; padding: 2px 0; }
+.change-line-edges > li > .change-state { margin-left: auto; }
+@media (max-width: 720px) {
+  .change-line { grid-template-columns: minmax(0, 1fr) auto; }
+  .change-line .change-kind { grid-column: 1 / -1; }
+  .change-line > a { grid-column: 1; }
+  .change-line > .change-state { grid-column: 2; grid-row: 2; }
+  .change-line-summary, .change-line-flag, .change-line > .change-line-edges { grid-column: 1 / -1; }
+}
+/* A record read from a batch. */
+.batch-proposed-line { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.node-proposed { margin-left: 6px; font-size: 12px; color: var(--muted); font-style: italic; }
+.batch-item { display: grid; gap: 10px; padding: 0 0 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.batch-item p, .batch-item h2 { margin: 0; }
+.batch-item h2 { font-size: 15px; }
+.batch-item-decision { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.batch-item-decision .change-state { margin-left: 0; }
+.ui-content .batch-item .change-actions button { padding: 4px 10px; font-size: 13px; }
+.batch-item-edges { display: grid; gap: 4px; }
+.batch-item-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; font-size: 14px; }
+.batch-changes .batch-proposed { font-weight: 600; }

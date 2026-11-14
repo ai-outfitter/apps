@@ -2,7 +2,7 @@ import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "./fixtures/initialized-worker";
 import { expect, type Page, test } from "@playwright/test";
-import { create } from "./fixtures/relators";
+import { create, update } from "./fixtures/relators";
 import { core } from "../src/lib/graph";
 
 const origin = "https://wiki.outfitter.example";
@@ -81,7 +81,10 @@ test("read a proposed document from Changes before approving its saved entity", 
       });
       expect(widths.batch).toBeGreaterThan(960);
       expect(Math.abs(widths.batch - widths.available)).toBeLessThan(2);
-      await expect(page.getByRole("button", { name: "Graph (1)", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByRole("button", { name: "Proposals (1)", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator(".change-line").getByRole("link", { name: "First hardware and firmware milestone", exact: true }))
+        .toHaveAttribute("href", `/documents/${documentId}?batch=${batch.id}`);
+      await page.getByRole("button", { name: "Graph (1)", exact: true }).click();
       await page.getByRole("button", { name: "Expand graph", exact: true }).click();
       const viewport = page.locator(".knowledge-graph-viewport");
       await expect(page.locator(".knowledge-graph-expanded")).toBeVisible();
@@ -131,10 +134,12 @@ test("read a proposed document from Changes before approving its saved entity", 
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.getByRole("button", { name: "Close Onto chat", exact: true }).click();
       const proposedLink = page.locator(".knowledge-graph-viewport svg a").filter({ hasText: "First hardware and firmware milestone" });
-      await expect(proposedLink).toHaveAttribute("href", /^#/);
+      await expect(proposedLink).toHaveAttribute("href", `/documents/${documentId}?batch=${batch.id}`);
       await proposedLink.click();
-      expect(new URL(page.url()).pathname).toBe(`/changes/${batch.id}`);
-      const proposal = page.locator(".change-operation").filter({ hasText: "First hardware and firmware milestone" });
+      await expect(page).toHaveURL(`${origin}/documents/${documentId}?batch=${batch.id}`);
+      await expect(page.getByRole("heading", { level: 1, name: "First hardware and firmware milestone", exact: true })).toBeVisible();
+      await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Hardware milestone research, not saved");
+      const proposal = page.locator(".node-reader");
       await expect(proposal.getByRole("heading", { name: "Proposed acceptance checks", exact: true })).toBeVisible();
       await expect(proposal.locator("strong").filter({ hasText: "printed enclosure" })).toBeVisible();
       await expect(proposal.getByRole("listitem").filter({ hasText: "Record bench evidence" })).toBeVisible();
@@ -144,11 +149,11 @@ test("read a proposed document from Changes before approving its saved entity", 
         await page.screenshot({ path: `${process.env.WIKI_SCREENSHOTS}/hardware-mcp-wiki-preview.png`, fullPage: true });
     });
     await test.step("approve explicitly and open the saved entity", async () => {
-      await page.getByRole("button", { name: "Approve all 1", exact: true }).click();
-      const savedLink = page.locator(".change-operation").getByRole("link", { name: "First hardware and firmware milestone", exact: true });
-      await expect(savedLink).toHaveAttribute("href", `/documents/${documentId}`);
-      await expect(page.locator(".knowledge-graph-viewport svg a").filter({ hasText: "First hardware and firmware milestone" })).toHaveAttribute("href", `/documents/${documentId}`);
-      await savedLink.click();
+      await page.locator(".batch-item-decision").getByRole("button", { name: "Approve", exact: true }).click();
+      await expect(page.locator(".batch-proposed-line")).toHaveText("Saved from Hardware milestone research");
+      await page.locator(".batch-proposed-line").getByRole("link").click();
+      await expect(page.locator(".change-line")).toContainText("Approved by a member");
+      await page.goto(`${origin}/documents/${documentId}`);
       await expect(page.getByRole("heading", { level: 1, name: "First hardware and firmware milestone", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Proposed acceptance checks", exact: true })).toBeVisible();
     });
@@ -177,11 +182,81 @@ test("records of a type proposed in the same batch show that type in the batch g
     await action("batch.submit", { batchId: batch.id });
     await proxyTo(page, app);
     await page.goto(`${origin}/changes/${batch.id}`);
+    await page.getByRole("button", { name: /^Graph/ }).click();
     const graph = page.locator(".knowledge-graph-viewport svg");
     await expect(graph.locator("a").filter({ hasText: "Choose a place" })).toContainText("Shots");
     await expect(graph.locator("a").filter({ hasText: "Find your spot" })).toContainText("Storyboards");
     await expect(graph).toContainText("shot_of");
     await expect(graph).not.toContainText("Entity");
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});
+
+test("walk a batch page by page: open a proposed node, approve it there, go to the next", async ({ page }) => {
+  const { app, action } = await openApp();
+  const storyboardType = "7b0e0000-0000-4000-8000-0000000000b1";
+  const shotType = "7b0e0000-0000-4000-8000-0000000000b2";
+  const shotOf = "7b0e0000-0000-4000-8000-0000000000b3";
+  const property = (name: string) => ({ name, type: "number", description: name, required: false });
+  const proposal = (ref: string, type: string, attributes: object, extra: object = {}) => ({ operation: create(ref, type, attributes), ...extra });
+  try {
+    const plan = "7b0e0000-0000-4000-8000-0000000000b4";
+    await action("graph.apply", { requestKey: "plan", operations: [create("$plan", "graph-node", { id: plan, typeId: core.document, title: "Launch plan", summary: "Three videos." })] });
+    const { batch } = await action("batch.open", { title: "Launch videos", source: { kind: "agent-task", ref: "changes-browser-walk" } });
+    await action("batch.add", { batchId: batch.id, proposals: [
+      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "Storyboard", title: "Storyboards", body: "The plan for one video.", properties: [] }),
+      proposal("$t-shot", "graph-type", { id: shotType, category: "node", name: "Shot", title: "Shots", body: "One beat of a storyboard.", properties: [property("duration_seconds")] }),
+      proposal("$t-shot-of", "graph-type", { id: shotOf, category: "edge", name: "shot_of", title: "shot of", body: "A type.", properties: [], ontology: { version: 2, endpoints: { from: [shotType], to: [storyboardType] } } }),
+      proposal("$board", "graph-node", { typeId: "$t-storyboard", title: "Find your spot" }),
+      proposal("$shot", "graph-node", { typeId: "$t-shot", title: "Choose a place", properties: { duration_seconds: 4 } },
+        { reason: "The launch plan opens on this shot.", confidence: 0.8, evidence: [{ provider: "web", recordId: "plan", quote: "Open on the balcony." }] }),
+      proposal("$shot-2", "graph-node", { typeId: "$t-shot", title: "Read the light" }),
+      proposal("$edge", "graph-edge", { typeId: "$t-shot-of", fromId: "$shot", toId: "$board" }),
+      { operation: update("$plan", "graph-node", plan, 1, { summary: "Four videos." }) },
+    ] });
+    await action("batch.submit", { batchId: batch.id });
+    await proxyTo(page, app);
+    await page.goto(`${origin}/changes/${batch.id}`);
+    const lines = page.locator(".change-line");
+    await expect(lines).toHaveCount(7);
+    await expect(lines.nth(0)).toContainText("Storyboards");
+    await expect(lines.filter({ hasText: "Choose a place" })).toContainText("Choose a place → shot of → Find your spot");
+    await lines.getByRole("link", { name: "Storyboards", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Storyboards", exact: true })).toBeVisible();
+    await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Launch videos, not saved");
+    await expect(page.getByRole("link", { name: "Next: Shots →", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "All proposals", exact: true }).click();
+    await lines.getByRole("link", { name: "Choose a place", exact: true }).click();
+    await expect(page).toHaveURL(`${origin}/shots/%24shot?batch=${batch.id}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Choose a place", exact: true })).toBeVisible();
+    await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Launch videos, not saved");
+    await expect(page.locator(".node-facts")).toContainText("Duration seconds");
+    await expect(page.locator(".node-facts")).toContainText("4");
+    await expect(page.locator(".batch-item")).toContainText("The launch plan opens on this shot.");
+    await expect(page.locator(".batch-item")).toContainText("80% confident");
+    await expect(page.locator(".batch-item-edges")).toContainText("Choose a place → shot of → Find your spot");
+    const related = page.locator(".node-relationships");
+    await expect(related.locator("dt")).toContainText("proposed");
+    await expect(related.getByRole("link", { name: "Find your spot", exact: true })).toHaveAttribute("href", `/storyboards/%24board?batch=${batch.id}`);
+    await page.locator(".batch-item-decision").getByRole("button", { name: "Approve", exact: true }).click();
+    await expect(page.locator(".batch-proposed-line")).toHaveText("Saved from Launch videos");
+    await expect(page.locator(".batch-item-decision")).toContainText("Approved by a member");
+    await page.getByRole("link", { name: "Next: Read the light →", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Read the light", exact: true })).toBeVisible();
+    await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Launch videos, not saved");
+    await page.getByRole("link", { name: "← Previous: Choose a place", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Choose a place", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "All proposals", exact: true }).click();
+    await expect(lines.filter({ hasText: "Choose a place" }).locator("> .change-state")).toHaveText("Approved by a member");
+    await lines.getByRole("link", { name: "Launch plan", exact: true }).click();
+    await expect(page.locator(".batch-proposed-line")).toHaveText("Changes proposed in Launch videos, not saved");
+    await expect(page.locator(".node-summary")).toHaveText("Three videos.");
+    await expect(page.locator(".batch-changes tbody tr")).toHaveText(["summaryThree videos.Four videos."]);
+    await page.getByRole("link", { name: "All proposals", exact: true }).click();
+    await page.getByRole("button", { name: "Approve all 6", exact: true }).click();
+    await expect(lines.filter({ hasText: "Read the light" }).locator("> .change-state")).toHaveText("Approved by a member");
   } finally {
     await page.unrouteAll({ behavior: "wait" });
     await app.dispose();
