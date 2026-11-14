@@ -121,3 +121,14 @@ test("concurrent evidence publishers pin one immutable digest per bundle path",a
  const refused=attempts.find(result=>result.status==="rejected") as PromiseRejectedResult;
  assert.ok(refused.reason instanceof Response);assert.equal(refused.reason.status,409);
 });
+
+test("a bundle keeps screenshots at the root or under images/<step>/; XCUITest's screenshots/ folder is refused", () => {
+  const input = (path: string) => ({ bundle: "ios-run", path, contentType: "image/png", sha256: "a".repeat(64), base64: png.toString("base64") });
+  for (const path of ["D440BE6A-85EE-4A4A-9521-6EB29C3B79AC.png", "images/office/001.png", "manifest.json"])
+    assert.ok(evidencePublishInput.safeParse(input(path)).success, path);
+  for (const path of ["screenshots/D440BE6A.png", "images/office/nested/001.png", "../manifest.json", "index.html"])
+    assert.equal(evidencePublishInput.safeParse(input(path)).success, false, path);
+  // Upload declarations default to organization-only; the publish action defaults to public.
+  assert.equal(submitReleaseEvidenceInput.parse({ bundle: "ios-run", assets: [{ key: crypto.randomUUID(), path: "a.png", contentType: "image/png", sha256: "a".repeat(64), size: 1 }] }).assets[0].visibility, "organization");
+  assert.equal(evidencePublishInput.parse(input("a.png")).visibility, "public");
+});

@@ -29,6 +29,7 @@
     "./proposal-store": "./src/proposal-store.ts",
     "./proposal-tables": "./src/proposal-tables.ts",
     "./evidence": "./src/evidence.ts",
+    "./evidence-bundle": "./src/evidence-bundle.ts",
     "./knowledge-graph": "./src/knowledge-graph.ts",
     "./graph-markdown": "./src/graph-markdown.ts",
     "./graph-selection": "./src/graph-selection.ts",

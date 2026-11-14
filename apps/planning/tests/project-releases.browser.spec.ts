@@ -9,6 +9,13 @@ import {
   releaseId,
   releaseProviders,
 } from "./fixtures/project-releases";
+import {
+  approve as evidenceApprove,
+  baseGraph as evidenceGraph,
+  bundle as evidenceBundle,
+  standardTypes as evidenceStandardTypes,
+  steps as evidenceSteps,
+} from "./fixtures/evidence-bundle";
 
 const origin = "https://planning.example";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
@@ -229,3 +236,52 @@ test("read-only Planning demo exposes a synthetic release review without an owne
     await app.dispose();
   }
 });
+
+// A test-evidence bundle built by evidenceBundleOperations(), once approved,
+// is reachable from the project page and readable on a phone.
+for (const width of [1440, 390])
+  test(`find an approved test-evidence bundle from the project page at ${width}px`, async ({ browser }, info) => {
+    const graph = evidenceGraph(evidenceStandardTypes);
+    evidenceApprove(graph, await evidenceBundle(graph));
+    const snapshot = () => ({ version: 1, installationId: "wiki", ...graph, selection: null, truncated: false, missingTypes: [] });
+    const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "operational"), "planning", {
+      workflowHost: () => ({
+        async call(operation, raw) {
+          const input = raw as { installationId: string; id: string; action: string; input?: unknown };
+          if (operation === "entities.types") return { ok: true, value: releaseProviders() };
+          if (operation === "entities.get") return projectResult(input);
+          if (operation === "entities.list") return { ok: true, value: [] };
+          if (input.action === "graph.query") return { ok: true as const, value: await queryGraph(snapshot() as never, input.input as never) };
+          return { ok: true as const, value: snapshot() };
+        },
+      }),
+    });
+    const context = await browser.newContext({ viewport: { width, height: 1050 }, javaScriptEnabled: false });
+    const page = await context.newPage();
+    const screenshot = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
+    const loaded: string[] = [];
+    await page.route("https://software-foundry.org.example/**", (route) => {
+      loaded.push(route.request().url());
+      return route.fulfill({ contentType: "image/png", body: screenshot });
+    });
+    await page.route(`${origin}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      return fulfillFrom(route, await app.call(url.pathname + url.search, owner, {
+        workflowHost: { ...owner, installationId: "planning", packageHash: "fixture", phase: "interactive", expiresAt: Date.now() + 3600000 },
+      }));
+    });
+    try {
+      await page.goto(`${origin}/projects/${releaseId(9)}`);
+      await page.getByRole("link", { name: "Review evidence", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "iOS plant confirmation happy path" })).toBeVisible();
+      for (const [i, step] of evidenceSteps.entries())
+        await expect(page.getByRole("heading", { name: `${i + 1}. ${step.title}` })).toBeVisible();
+      await expect(page.locator(".planning-evidence-grid img")).toHaveCount(4);
+      expect(loaded.sort()).toEqual(evidenceSteps.map((step) => step.url).sort());
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`test-evidence-${width}.png`), fullPage: true });
+    } finally {
+      await context.close();
+      await app.dispose();
+    }
+  });
