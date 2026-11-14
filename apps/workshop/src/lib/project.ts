@@ -1,3 +1,5 @@
+import {handoff,pinned} from '@ai-outfitter/creative-workflow';
+import {artifactRef} from '@ai-outfitter/app-sdk/evidence';
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
@@ -69,6 +71,7 @@ const PHASE_IDS = PHASES.map((p) => p.id) as [Phase, ...Phase[]];
 export const ProjectSchema = z
   .object({
     schemaVersion: z.literal(1),
+    creativeHandoffs:z.array(z.object({id:z.uuid(),request:handoff,candidate:pinned,artifact:artifactRef,state:z.enum(["requested","result-recorded"]),result:pinned.optional()}).strict()).max(100).optional(),
     id: z.uuid(),
     revision: z.number().int().nonnegative(),
     createdAt: z.iso.datetime(),

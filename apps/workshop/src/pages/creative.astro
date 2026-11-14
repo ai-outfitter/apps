@@ -1,0 +1,13 @@
+---
+import Layout from '../components/WorkshopLayout.astro';
+import Review from '@ai-outfitter/creative-workflow/Review.astro';
+import {creativeQuery} from '@ai-outfitter/creative-workflow/graph';
+import {getWorkshopProject,listWorkshopProjects} from '../server/projects';
+import {workshopContext} from '../server/context';
+const result:any=import.meta.env.OUTFITTER_APP_MODE==='demo'?{data:{creativeRecords:{items:[],next:null}}}:await creativeQuery(workshopContext(Astro.request,Astro.locals).host(),`query($after:String){creativeRecords(after:$after,limit:50)}`,Astro.url.searchParams.get('after')?{after:Astro.url.searchParams.get('after')}:{ });
+if(result.errors?.length)return new Response('Creative graph unavailable',{status:502});
+const records=result.data.creativeRecords;
+const db=import.meta.env.OUTFITTER_APP_MODE==='demo'?null:workshopContext(Astro.request,Astro.locals).db();
+const projects=db?await Promise.all((await listWorkshopProjects(db)).map(p=>getWorkshopProject(db,p.id))):[];
+---
+<Layout name="Workshop" active="home" title="Design references" description="Selected mockups, generation history, and returned design evidence."><section><h2>Design requests</h2>{projects.map(p=>(p.creativeHandoffs??[]).map(h=><article><h3>{p.name}: {h.request.purpose}</h3><p>{h.state} · project revision {p.revision}</p><p>Dimensions: {h.request.dimensions}. Materials: {h.request.materials}. Interfaces: {h.request.interfaces}.</p><h4>Acceptance criteria</h4><ul>{h.request.acceptance.map(a=><li>{a}</li>)}</ul><h4>Open questions</h4><ul>{h.request.questions.map(a=><li>{a}</li>)}</ul>{h.result&&<p>Result candidate: {h.result.id} · revision {h.result.revision}</p>}</article>))}</section><Review records={records.items}/>{records.next&&<a href={`?after=${encodeURIComponent(records.next)}`}>More references</a>}</Layout>

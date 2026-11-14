@@ -1,0 +1,14 @@
+---
+import Layout from "../../components/Layout.astro";
+import { context } from "../../server/context";
+import { documents, runDocument } from "../../server/documents";
+import { appHref } from "../../app-href";
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
+const result=demo?{items:[],next:null}:(await runDocument(documents.VideoProductions.document,{...(Astro.url.searchParams.has("after")?{after:Astro.url.searchParams.get("after")!}:{}),limit:20},context(Astro.request,Astro.locals))).videoProductions as any;
+---
+<Layout title="Videos" description="Storyboards and films built with your agent, grounded in product evidence.">
+  {result.items.length===0 && <p>No productions yet. Ask your agent to build a storyboard from a product or release.</p>}
+  <div class="video-grid">{result.items.map((item:any)=><a class="video-card" href={appHref(Astro.url.pathname,`/videos/${item.id}`)}><h2>{item.packet.title}</h2><p>{item.packet.message}</p><p>{item.packet.shots.length} shots · Version {item.revision} · {item.packet.concept?"Concept preview":"Product demo"}</p></a>)}</div>
+  {result.next && <a href={`?after=${encodeURIComponent(result.next)}`}>More productions</a>}
+</Layout>
+<style>.video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem}.video-card{padding:1.5rem;border:1px solid #8885;border-radius:12px;color:inherit;text-decoration:none}.video-card:hover{border-color:currentColor}</style>

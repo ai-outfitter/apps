@@ -522,6 +522,22 @@ input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
   revision: Float!
 }
 
+input BeginVideoTransferInput {
+  id: ID!
+  revision: Float!
+  targetInstallationId: String!
+}
+
+input ImportVideoTransferInput {
+  id: ID!
+  sourceInstallationId: String!
+}
+
+input FinishVideoTransferInput {
+  id: ID!
+  revision: Float!
+}
+
 input SaveVideoProductionInput {
   id: ID!
   revision: Float!
@@ -531,6 +547,8 @@ input SaveVideoProductionInput {
 input SaveVideoProductionInputPacket {
   product: SaveVideoProductionInputPacketProduct!
   productRevision: SaveVideoProductionInputPacketProductRevision
+  brief: SaveVideoProductionInputPacketBrief
+  storyboard: SaveVideoProductionInputPacketStoryboard
   title: String!
   audience: String!
   message: String!
@@ -554,6 +572,20 @@ input SaveVideoProductionInputPacketProductRevision {
   revision: Float!
 }
 
+input SaveVideoProductionInputPacketBrief {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketStoryboard {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
 enum SaveVideoProductionInputPacketChannel {
   instagram
   facebook
@@ -569,6 +601,7 @@ input SaveVideoProductionInputPacketShotsItem {
   narration: String
   prompt: String!
   source: SaveVideoProductionInputPacketShotsItemSource
+  snapshot: SaveVideoProductionInputPacketShotsItemSnapshot
 }
 
 input SaveVideoProductionInputPacketShotsItemSource {
@@ -588,6 +621,13 @@ input SaveVideoProductionInputPacketShotsItemSourceArtifact {
 }
 
 input SaveVideoProductionInputPacketShotsItemSourceRecord {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketShotsItemSnapshot {
   installationId: String!
   type: String!
   id: String!
@@ -1306,6 +1346,8 @@ input SaveUseCaseInputDocument {
 
 type Query {
   videoSourceEvidence(productId: ID!, cursor: String): JSON
+  videoTransfer(id: ID): JSON
+  videoTransferReceipt(id: ID): JSON
   videoProductions(id: ID, productId: ID, revision: Int, after: String, limit: Int): JSON
 
   """
@@ -1430,6 +1472,19 @@ input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
 }
 
 type Mutation {
+  """
+  Seal a production for a verified transfer; blocks further source writes.
+  """
+  beginVideoTransfer(input: BeginVideoTransferInput!): JSON
+
+  """
+  Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.
+  """
+  importVideoTransfer(input: ImportVideoTransferInput!): JSON
+
+  """Verify destination metadata and media before recording completion."""
+  finishVideoTransfer(input: FinishVideoTransferInput!): JSON
+
   """
   Save a storyboard at its current revision; zero creates a stable production ID. Editors only.
   """

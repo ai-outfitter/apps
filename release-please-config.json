@@ -62,6 +62,10 @@
     "packages/connector-github": {
       "release-type": "node",
       "component": "connector-github"
+    },
+    "packages/creative-workflow": {
+      "release-type": "node",
+      "component": "creative-workflow"
     }
   }
 }

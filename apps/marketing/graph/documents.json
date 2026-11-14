@@ -1,0 +1,404 @@
+[
+  {
+    "name": "BeginVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",
+    "query": "mutation BeginVideoTransfer($input: BeginVideoTransferInput!) {\n  beginVideoTransfer(input: $input)\n}",
+    "hash": "4475f02e0e3a41c1773cb05491a37eec8aec2e1135a482b02cee7c9949bb570d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL BeginVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "beginVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "CommitVideoAsset",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation CommitVideoAsset($input: CommitVideoAssetInput!) {\n  commitVideoAsset(input: $input)\n}",
+    "hash": "fa2e0ea632e29b14589b15775fe5de4ce3ce000b904e9a7ca829b870e054e865",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CommitVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "commitVideoAsset": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "CreativeRecords",
+    "kind": "query",
+    "story": "As a member, I want to read shared creative records, so that I can reuse descriptions and selections across apps.",
+    "query": "query CreativeRecords($after: String) {\n  creativeRecords(after: $after)\n}",
+    "hash": "c2a566c7b6c845440fbe0d7397c42a034d1897cbae42c61eb158aac250cf3ccb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "As a member, I want to read shared creative records, so that I can reuse descriptions and selections across apps."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "creativeRecords": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "FinishVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",
+    "query": "mutation FinishVideoTransfer($input: FinishVideoTransferInput!) {\n  finishVideoTransfer(input: $input)\n}",
+    "hash": "a5c4e6d50602470ce3226fb0ec14df1691fc099faf71166c2398da200db1196c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FinishVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "finishVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ImportVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",
+    "query": "mutation ImportVideoTransfer($input: ImportVideoTransferInput!) {\n  importVideoTransfer(input: $input)\n}",
+    "hash": "a709f6f72aa6103da05f35ba4fff4382afcf9880f7a44bb3666d9cc75c8e1fed",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ImportVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an editor, I want to import sealed production records, so that revisions and receipts survive migration."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "importVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PrepareVideoTake",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation PrepareVideoTake($input: PrepareVideoTakeInput!) {\n  prepareVideoTake(input: $input)\n}",
+    "hash": "d336c9e891f8992c6524c24bd37ad6a9e289d523d0d3cefcbcf0abb32e9d1ae4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PrepareVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "prepareVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PublishVideoProduction",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation PublishVideoProduction($input: PublishVideoProductionInput!) {\n  publishVideoProduction(input: $input)\n}",
+    "hash": "543f201e9a75eb09f70ea2449c5ab9f86f55d27918795c2e479821d05594a994",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ReserveVideoAsset",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation ReserveVideoAsset($input: ReserveVideoAssetInput!) {\n  reserveVideoAsset(input: $input)\n}",
+    "hash": "26e7aeafe8d1b99f88451730ecaa69d345b1a0cb864d105d51a24135069b7c97",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReserveVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reserveVideoAsset": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SaveVideoProduction",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation SaveVideoProduction($input: SaveVideoProductionInput!) {\n  saveVideoProduction(input: $input)\n}",
+    "hash": "d001f330d8e88f33a60032c62f5301181b54fa5541c3ca84ecad6f358d32557a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "UpdateVideoTake",
+    "kind": "mutation",
+    "story": "As an agent, I want to manage revision-checked video production, so that members can review verified private media.",
+    "query": "mutation UpdateVideoTake($input: UpdateVideoTakeInput!) {\n  updateVideoTake(input: $input)\n}",
+    "hash": "7421089cea01ed2dd2efbeebab3fd00a808c4f77817a16a9cd50fc11bd874409",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to manage revision-checked video production, so that members can review verified private media."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "updateVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoProductions",
+    "kind": "query",
+    "story": "As a member, I want to review saved films and storyboards, so that I can choose and download a finished edit.",
+    "query": "query VideoProductions($id: ID, $revision: Int, $after: String, $limit: Int) {\n  videoProductions(id: $id, revision: $revision, after: $after, limit: $limit)\n}",
+    "hash": "d0dbbfdc8342bbca1b35ba75eee1045b4df98f9161041262e34a43cf61f6edc3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "As a member, I want to review saved films and storyboards, so that I can choose and download a finished edit."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoProductions": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransfer",
+    "kind": "query",
+    "story": "As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",
+    "query": "query VideoTransfer($id: ID!) {\n  videoTransfer(id: $id)\n}",
+    "hash": "039eb9563ec5cedaf069e7979b199e80dfff2b7950410a0c6a951f1243a55645",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to read a sealed transfer, so that migration preserves exact metadata."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransferReceipt",
+    "kind": "query",
+    "story": "As an agent, I want to verify imported media, so that source links switch only after validation.",
+    "query": "query VideoTransferReceipt($id: ID!) {\n  videoTransferReceipt(id: $id)\n}",
+    "hash": "e19a1ddcffad719feee556e08d84b09d1a08e0c8ef7ecc3646333c237a1ed9f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "As an agent, I want to verify imported media, so that source links switch only after validation."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransferReceipt": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  }
+]

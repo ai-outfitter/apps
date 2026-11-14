@@ -1,3 +1,4 @@
+import {creativeHandoffInput,resultInput,acceptCreativeHandoff,attachCreativeResult} from './creative';
 import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, claimBuild, finishBuild } from "./workspace";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
@@ -57,6 +58,8 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    acceptCreativeHandoff:mutationField<typeof creativeHandoffInput,WorkshopContext>({name:'AcceptCreativeHandoff',description:'Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.',input:creativeHandoffInput,run:acceptCreativeHandoff}),
+    attachCreativeResult:mutationField<typeof resultInput,WorkshopContext>({name:'AttachCreativeResult',description:'Link a reviewed result candidate back to its design request; no manufacturing approval is implied.',input:resultInput,run:attachCreativeResult}),
     requestWorkshopBuild: mutationField<typeof requestBuildInput, WorkshopContext>({name:"RequestWorkshopBuild",description:"Request a project workspace build and preserve revision provenance.",input:requestBuildInput,run:requestBuild}),
     claimWorkshopBuild: mutationField<typeof claimBuildInput, WorkshopContext>({name:"ClaimWorkshopBuild",description:"Claim a project workspace build and preserve revision provenance.",input:claimBuildInput,run:claimBuild}),
     finishWorkshopBuild: mutationField<typeof finishBuildInput, WorkshopContext>({name:"FinishWorkshopBuild",description:"Finish a project workspace build and preserve revision provenance.",input:finishBuildInput,run:finishBuild}),

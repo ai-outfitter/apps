@@ -1,4 +1,7 @@
 type Query {
+  creativeRecords(kind: String, after: String, limit: Int): JSON
+  creativeRecordViews(kind: String, after: String, limit: Int): JSON
+
   """
   Search saved change batches; operations and evidence are selected explicitly.
   """
@@ -27,6 +30,9 @@ type Query {
   """
   changeBatch(id: ID!): ChangeBatch
 }
+
+"""Any JSON value."""
+scalar JSON
 
 type ChangeBatchConnection {
   nodes: [ChangeBatch!]!
@@ -80,9 +86,6 @@ type ChangeBatch {
     refs: [String!]
   ): [StagedChange!]!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -306,6 +309,83 @@ enum ReviewBatchInputVerdict {
   reject
 }
 
+input StageCreativeRecordInput {
+  id: ID!
+  revision: Float!
+  kind: StageCreativeRecordInputKind!
+  title: String!
+  body: JSON!
+  subjectId: ID!
+  batchId: ID
+  slug: String
+}
+
+enum StageCreativeRecordInputKind {
+  CreativeBrief
+  PromptFragment
+  Storyboard
+  GenerationSnapshot
+  CreativeCandidate
+  CreativeSelection
+  CreativeFeedback
+}
+
+input FreezeCreativeInputsInput {
+  id: ID!
+  rootId: ID!
+  subjectId: ID!
+  title: String!
+  inputs: [FreezeCreativeInputsInputInputsItem!]
+  settings: JSON
+  batchId: ID
+}
+
+input FreezeCreativeInputsInputInputsItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String!
+}
+
+input StageCreativeRecordAtAddressInput {
+  address: String!
+  revision: Float!
+  kind: StageCreativeRecordAtAddressInputKind!
+  title: String!
+  body: JSON!
+  subject: String!
+  batchId: ID
+}
+
+enum StageCreativeRecordAtAddressInputKind {
+  CreativeBrief
+  PromptFragment
+  Storyboard
+  GenerationSnapshot
+  CreativeCandidate
+  CreativeSelection
+  CreativeFeedback
+}
+
+input FreezeCreativeInputsAtAddressInput {
+  address: String!
+  root: String!
+  subject: String!
+  title: String!
+  inputs: [FreezeCreativeInputsAtAddressInputInputsItem!]
+  settings: JSON
+  batchId: ID
+}
+
+input FreezeCreativeInputsAtAddressInputInputsItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String!
+}
+
 input StageChangesInput {
   batchId: ID
   title: String
@@ -374,6 +454,22 @@ type Mutation {
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
+
+  """
+  Stage a typed creative record for ordinary graph review. No generation or approval occurs.
+  """
+  stageCreativeRecord(input: StageCreativeRecordInput!): JSON
+
+  """
+  Resolve committed prompt fragments and stage an immutable snapshot for review. Does not generate media.
+  """
+  freezeCreativeInputs(input: FreezeCreativeInputsInput!): JSON
+
+  """Stage a typed creative record named by Type:slug through graph review."""
+  stageCreativeRecordAtAddress(input: StageCreativeRecordAtAddressInput!): JSON
+
+  """Resolve a named committed prompt and stage a new immutable snapshot."""
+  freezeCreativeInputsAtAddress(input: FreezeCreativeInputsAtAddressInput!): JSON
 
   """
   Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.

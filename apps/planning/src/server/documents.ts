@@ -12,6 +12,12 @@ import type { PlanningContext } from "./intake";
 
 // Selections are spelled out: gql.tada types a document only from a literal string.
 const legacyDocuments = defineDocuments({
+ VideoTransfer:{story:"As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",document:graphql(`query VideoTransfer($id:ID!){videoTransfer(id:$id)}`)},
+ VideoTransferReceipt:{story:"As an agent, I want to verify imported media, so that source links switch only after validation.",document:graphql(`query VideoTransferReceipt($id:ID!){videoTransferReceipt(id:$id)}`)},
+ BeginVideoTransfer:{story:"As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",document:graphql(`mutation BeginVideoTransfer($input:BeginVideoTransferInput!){beginVideoTransfer(input:$input)}`)},
+ ImportVideoTransfer:{story:"As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",document:graphql(`mutation ImportVideoTransfer($input:ImportVideoTransferInput!){importVideoTransfer(input:$input)}`)},
+ FinishVideoTransfer:{story:"As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",document:graphql(`mutation FinishVideoTransfer($input:FinishVideoTransferInput!){finishVideoTransfer(input:$input)}`)},
+
   VideoSourceEvidence:{story:"As a video agent, I want the product revisions and evidence bundles with their original records and citations, so that shots use verified product sources.",document:graphql(`query VideoSourceEvidence($productId:ID!,$cursor:String){videoSourceEvidence(productId:$productId,cursor:$cursor)}`)},
   VideoProductions:{story:"As a product owner, I want to inspect saved storyboards, source citations, takes and finished videos, so that I can review what the agent built.",document:graphql(`query VideoProductions($id:ID,$productId:ID,$revision:Int,$after:String,$limit:Int=20){videoProductions(id:$id,productId:$productId,revision:$revision,after:$after,limit:$limit)}`)},
   SaveVideoProduction:{story:"As a product editor, I want to save a storyboard at its current revision; zero creates a stable production ID. Editors only, so that production work is reviewable and recoverable.",document:graphql(`mutation SaveVideoProduction($input:SaveVideoProductionInput!){saveVideoProduction(input:$input)}`)},
@@ -307,6 +313,11 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), graphqlSchema, readGroups), {
+ VideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ VideoTransferReceipt:{description:"Transfer video records with sealing and media verification."},
+ BeginVideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ ImportVideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ FinishVideoTransfer:{description:"Transfer video records with sealing and media verification."},
   VideoSourceEvidence:{description:"Read a bounded product neighborhood including revisions, evidence bundles and members. Preserve returned cursor and omitted/truncation indicators; missing evidence is not product proof."},
   VideoProductions:{description:"Read versioned productions with shots, evidence, takes and private uploaded assets; follow next even when product filtering returns no items."},
   SaveVideoProduction:{description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only."},
