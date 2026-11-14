@@ -1,6 +1,6 @@
 # Research reports
 
-`forerunner-research-report` saves a dated report to the member's personal Wiki each morning from public web searches. It is a standard app workflow, separate from discovery and the daily brief, and only runs on a personal installation.
+`forerunner-research-report` saves a dated report each morning from public web searches to the Wiki of the scope Forerunner is installed in: a member's personal Wiki, or an organization's Wiki when an organization editor saves the reports there. It is a standard app workflow, separate from discovery and the daily brief.
 
 ## What a member saves
 

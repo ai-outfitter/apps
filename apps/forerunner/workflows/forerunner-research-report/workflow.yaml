@@ -16,7 +16,12 @@ steps:
   # the result as that day's Wiki document.
   - id: research
     inference: {maxOutputTokens: 3000, timeoutMs: 90000}
-    inputs: {}
+    inputs:
+      # The saved reports. The schedule carries them; a run started without
+      # them reads the schedule's.
+      reports:
+        schema: {type: array, maxItems: 3, items: {type: object}}
+        default: []
     outputs:
       reports:
         connector: database

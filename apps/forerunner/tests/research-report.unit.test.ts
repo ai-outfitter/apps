@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
 import { captureResearchReport, generateResearchReports, reportMarkdown, researchReportSchedule, scheduledResearchReports, setResearchReportSchedule, sourcedSections } from "../src/server/research-report";
 
 const who = { owner: { kind: "user", id: "alice" }, userId: "alice", installationId: "f", canEdit: true, role: "owner" } as const;
@@ -7,14 +9,20 @@ const report = { slug: "local-arts", title: "Local arts", subject: "Example Stud
 const run = { date: "2026-11-14", timezone: "America/Chicago", runId: "11111111-1111-4111-8111-111111111111" };
 const page = (name: string) => ({ title: `${name} title`, url: `https://example.org/${name}`, snippet: `${name} text`, topic: "artist events" });
 
-test("the schedule saves the reports as its inputs, at the chosen hour, for a personal installation only", async () => {
+test("the schedule saves the reports as its inputs, at the chosen hour, for an editor of the installation's owner", async () => {
   const calls: unknown[] = [];
   const host = { call: async (op: string, input: unknown) => { calls.push([op, input]); return op === "schedules" ? [] : input; } } as never;
   assert.equal(await researchReportSchedule(host, who), null);
   await setResearchReportSchedule(host, who, { enabled: true, timezone: "America/Chicago", reports: [report] });
-  assert.deepEqual(calls, [["schedules", {}], ["schedule.save", { workflow: "forerunner-research-report", cron: "0 7 * * *", timezone: "America/Chicago", enabled: true, inputs: { reports: [report] } }]]);
+  assert.deepEqual(calls, [["schedules", {}], ["schedule.save", { workflow: "forerunner-research-report", cron: "0 7 * * *", timezone: "America/Chicago", enabled: true, inputs: { "research.inputs.reports": [report] } }]]);
+  // The platform refuses a schedule input the workflow does not declare as a run input.
+  const workflow = parse(readFileSync(new URL("../workflows/forerunner-research-report/workflow.yaml", import.meta.url), "utf8"));
+  assert.deepEqual(workflow.steps.find((row: { id: string }) => row.id === "research").inputs.reports.default, []);
   const input = { enabled: true, timezone: "America/Chicago", hour: 6, reports: [report] };
-  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, input), /./);
+  // An organization editor saves the organization's reports; a reader, or another member's personal installation, may not.
+  await setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, input);
+  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" }, canEdit: false, role: "member" } as never, input));
+  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "user", id: "bob" } }, input), (error: unknown) => error instanceof Response && error.status === 403);
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, timezone: "invalid/zone" }));
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, reports: [report, report] }));
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, reports: [{ ...report, topics: [] }] }));
@@ -47,7 +55,7 @@ function fakeHost(options: { search?: (query: string) => unknown; written?: unkn
   const calls: [string, any][] = [];
   const host = { call: async (op: string, args: any) => {
     calls.push([op, args]);
-    if (op === "schedules") return [{ id: "schedule", workflowId: "forerunner-research-report", timezone: "America/Chicago", inputs: { reports: [report] } }];
+    if (op === "schedules") return [{ id: "schedule", workflowId: "forerunner-research-report", timezone: "America/Chicago", inputs: { "research.inputs.reports": [report] } }];
     if (op === "workflow.start" || op === "workflow.collect") return {};
     if (op === "web.search") {
       const results = (options.search ?? (() => [page("open-studio")]))(args.query);
@@ -103,7 +111,7 @@ test("unavailable search saves nothing; empty results save a document that says 
 
 test("the schedule starts its reserved run and collects every report's receipt, even a failed one", async () => {
   const { host, calls, ops } = fakeHost({ written: { summary: 42 } });
-  const occurrence = { runId: run.runId, scheduledFor: Date.parse("2026-11-14T13:00:00Z"), schedule: { id: "schedule", workflowId: "forerunner-research-report", inputs: { reports: [report] }, connectionId: null, resource: null } };
+  const occurrence = { runId: run.runId, scheduledFor: Date.parse("2026-11-14T13:00:00Z"), schedule: { id: "schedule", workflowId: "forerunner-research-report", inputs: { "research.inputs.reports": [report] }, connectionId: null, resource: null } };
   assert.deepEqual(await scheduledResearchReports(who, occurrence, host), { outcome: "started" });
   assert.deepEqual([ops()[0], ops()[1], ops().at(-1)], ["schedules", "workflow.start", "workflow.collect"]);
   const [, collected] = calls.at(-1)!;

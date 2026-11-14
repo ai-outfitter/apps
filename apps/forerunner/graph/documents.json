@@ -767,7 +767,7 @@
       ]
     },
     "mcp": {
-      "description": "Save up to three daily research reports and their schedule: each has a slug, title, optional subject, a place and up to six topics; hour (default 7) and timezone set when it runs; enabled turns it on or off. Each run searches the public web per topic and saves a dated, sourced document per report to the personal Wiki. Saving replaces the earlier reports. Personal installation only."
+      "description": "Save up to three daily research reports and their schedule: each has a slug, title, optional subject, a place and up to six topics; hour (default 7) and timezone set when it runs; enabled turns it on or off. Each run searches the public web per topic and saves a dated, sourced document per report to the Wiki of the scope it runs in (personal or the organization). Saving replaces the earlier reports. Needs an editor of that scope."
     },
     "outputSchema": {
       "type": "object",
