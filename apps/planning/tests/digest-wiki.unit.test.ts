@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {previousReportPeriod} from "../src/server/report-period";
-import { digestPeriod } from "../src/server/digest-wiki";
+import { digestPeriod, readDailyReport } from "../src/server/digest-wiki";
 
 test("daily periods follow local midnight across DST transitions", () => {
  const local = (value:string) => digestPeriod(Date.parse(value),"America/Chicago");
@@ -20,4 +20,15 @@ test("previous-day windows remain bound to scheduled occurrence through DST and 
  const fall=previousReportPeriod(Date.parse("2026-11-02T14:00:00Z"));
  assert.equal(fall.end-fall.start,25*3600000);
  assert.equal(fall.date,"2026-11-01");
+});
+
+test("a saved report read asks for the Wiki package before every provider",async()=>{
+ const listed:unknown[]=[];
+ const host={call:async(operation:string,input:unknown)=>{
+  if(operation==="actions.list")listed.push(input);
+  throw new Error("unavailable");
+ }};
+ await assert.rejects(readDailyReport(host as never,{installationId:"planning",owner:{kind:"organization",id:"org"}} as never,{date:"2026-11-13",timezone:"America/Chicago"}));
+ assert.equal((listed[0] as {template?:string}).template,"wiki-map");
+ assert.equal(listed.length,2);
 });
