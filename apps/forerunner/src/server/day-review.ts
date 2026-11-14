@@ -82,7 +82,16 @@ export function reportSource(raw: unknown, scope: string, name: string, period: 
   }).filter(project => project.name), ...observedWork(report, period, scope) };
 }
 const memberships = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), name: z.string().nullable(), appSlugs: z.array(z.string()) })) }) });
-const reports = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), dailyReports: z.object({ nodes: z.array(z.object({ report: z.unknown() })), pageInfo: z.object({ hasNextPage: z.boolean() }) }) })) }) });
+const connection = z.object({ nodes: z.array(z.object({ report: z.unknown() })), pageInfo: z.object({ hasNextPage: z.boolean() }) });
+const reports = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), dailyReports: connection.nullable() })) }) });
+const everyReport = z.object({ viewer: z.object({ orgs: z.array(z.object({ slug: z.string(), name: z.string().nullable(), appSlugs: z.array(z.string()), dailyReports: connection.nullable().optional() })) }) });
+type Membership = z.infer<typeof memberships>["viewer"]["orgs"][number];
+const unreadable = (org: Membership) => source(org.slug, org.name ?? org.slug, "unavailable", "This organization's saved report could not be read.");
+/** Exactly one saved outcome per organization: anything else is an incomplete read, never an empty day. */
+function savedReport(org: Membership, read: z.infer<typeof connection> | null | undefined, period: ReviewPeriod) {
+  if (!read || read.nodes.length !== 1 || read.pageInfo.hasNextPage) return unreadable(org);
+  return reportSource(read.nodes[0].report, org.slug, org.name ?? org.slug, period);
+}
 async function savedOrder(host: Host) {
   try {
     const planning = await appDataContext(host).apps.database("planning");
@@ -93,26 +102,46 @@ async function savedOrder(host: Host) {
     throw error;
   }
 }
-async function organizationReports(host: Host, period: ReviewPeriod): Promise<{ sources: ReportSource[]; warnings: string[] }> {
-  const [current, order] = await Promise.all([
-    host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" }).then(value => memberships.parse(value).viewer.orgs),
-    savedOrder(host),
-  ]);
+const planned = (orgs: Membership[], order: string[]) => {
   const rank = new Map(order.map((slug, index) => [slug, index]));
-  const available = current.filter(org => org.appSlugs.includes("planning")).sort((a, b) => (rank.get(a.slug) ?? order.length) - (rank.get(b.slug) ?? order.length));
-  const sources = await Promise.all(available.slice(0, 20).map(async org => {
-    const name = org.name ?? org.slug;
-    try {
-      const result = reports.parse(await host.call("platform.document", {
-        document: "Viewer", variables: { slugs: [org.slug], date: period.date, timezone: period.timezone },
-        query: "query DayReports($slugs:[String!],$date:String!,$timezone:String){viewer{orgs(slugs:$slugs){slug dailyReports(first:1,date:$date,timezone:$timezone){nodes{report} pageInfo{hasNextPage}}}}}",
-      }));
-      const connection = result.viewer.orgs.find(row => row.slug === org.slug)?.dailyReports;
-      if (!connection || connection.nodes.length !== 1 || connection.pageInfo.hasNextPage) throw new Error("Incomplete report read");
-      return reportSource(connection.nodes[0].report, org.slug, name, period);
-    } catch { return source(org.slug, name, "unavailable", "This organization's saved report could not be read."); }
-  }));
-  return { sources, warnings: available.length > 20 ? ["Only the first 20 organizations in your priority order are shown."] : [] };
+  return orgs.filter(org => org.appSlugs.includes("planning")).sort((a, b) => (rank.get(a.slug) ?? order.length) - (rank.get(b.slug) ?? order.length));
+};
+/**
+ * Every organization's saved report in one platform read: memberships and each
+ * report resolve together, so the platform authorizes the member once instead
+ * of once per organization. The platform refuses the whole answer when it is
+ * too large, when any organization's read fails, or when the report field is
+ * not offered; this then returns null and each organization is read on its own,
+ * so one failing organization never hides the others.
+ */
+async function reportsTogether(host: Host, period: ReviewPeriod) {
+  try {
+    return everyReport.parse(await host.call("platform.document", {
+      document: "Viewer", variables: { date: period.date, timezone: period.timezone },
+      query: "query DayReports($date:String!,$timezone:String){viewer{orgs{slug name appSlugs dailyReports(first:1,date:$date,timezone:$timezone){nodes{report} pageInfo{hasNextPage}}}}}",
+    })).viewer.orgs;
+  } catch { return null; }
+}
+async function reportAlone(host: Host, org: Membership, period: ReviewPeriod) {
+  try {
+    const result = reports.parse(await host.call("platform.document", {
+      document: "Viewer", variables: { slugs: [org.slug], date: period.date, timezone: period.timezone },
+      query: "query DayReports($slugs:[String!],$date:String!,$timezone:String){viewer{orgs(slugs:$slugs){slug dailyReports(first:1,date:$date,timezone:$timezone){nodes{report} pageInfo{hasNextPage}}}}}",
+    }));
+    return savedReport(org, result.viewer.orgs.find(row => row.slug === org.slug)?.dailyReports, period);
+  } catch { return unreadable(org); }
+}
+const limit = 20;
+async function organizationReports(host: Host, period: ReviewPeriod): Promise<{ sources: ReportSource[]; warnings: string[] }> {
+  const [together, order] = await Promise.all([reportsTogether(host, period), savedOrder(host)]);
+  const warnings = (count: number) => count > limit ? [`Only the first ${limit} organizations in your priority order are shown.`] : [];
+  if (together) {
+    const available = planned(together, order);
+    return { sources: available.slice(0, limit).map(org => savedReport(org, together.find(row => row.slug === org.slug)?.dailyReports, period)), warnings: warnings(available.length) };
+  }
+  const current = await host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" }).then(value => memberships.parse(value).viewer.orgs);
+  const available = planned(current, order);
+  return { sources: await Promise.all(available.slice(0, limit).map(org => reportAlone(host, org, period))), warnings: warnings(available.length) };
 }
 async function ownOverview(host: Host, identity: AppIdentity, period: ReviewPeriod) {
   try {

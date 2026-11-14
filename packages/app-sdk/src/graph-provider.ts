@@ -58,20 +58,38 @@ export const compatibleGraphProvider = (
     provider.capabilities.includes(capability),
   );
 
-/** Discovery stays within the host's ordinary owner/actor authorization. No cross-request cache. */
+/**
+ * Discovery stays within the host's ordinary owner/actor authorization. No cross-request cache.
+ * A `template` narrows the host's listing to installations of that package, so
+ * only those are asked to describe themselves; it is a lookup hint and grants
+ * nothing. Callers that cannot name a package omit it and every provider is asked.
+ */
 export async function discoverGraphProviders(
   host: Host,
-  binding?: { installationId: string },
+  binding?: { installationId?: string; template?: string },
 ) {
   const selected =
     binding &&
     z
-      .strictObject({ installationId: z.string().min(1).max(200) })
+      .strictObject({
+        installationId: z.string().min(1).max(200).optional(),
+        template: z
+          .string()
+          .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+          .max(128)
+          .optional(),
+      })
       .parse(binding);
-  const installations = await host.call("actions.list", selected ?? {});
+  const installations = await host.call("actions.list", {
+    ...(selected?.installationId
+      ? { installationId: selected.installationId }
+      : {}),
+    ...(selected?.template ? { template: selected.template } : {}),
+  });
   const candidates = installations.filter(
     (item) =>
-      (!selected || item.installationId === selected.installationId) &&
+      (!selected?.installationId ||
+        item.installationId === selected.installationId) &&
       item.actions.some(
         (action) =>
           action.name === graphDescribeAction &&

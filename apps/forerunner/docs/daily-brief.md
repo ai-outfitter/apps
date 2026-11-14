@@ -57,6 +57,10 @@ The `digest` section is the minimal current-brief read. It reads the saved sched
 - `latestBrief`: only when today's is missing, the newest earlier brief within the seven-day lookback, with its own `date`. A page shows it as that day's snapshot, never as today's.
 - `previousBrief`: yesterday's reference (revision and link, no body), which keeps first-time setup detection without reading a second document body. The combined read still returns its body for older callers.
 
+The digest does not wait on the schedule to begin: the Wiki is resolved while the schedule loads. Discovery names the Wiki package (`wiki-map`), so the platform lists and describes that one installation instead of every installed app; the `outfitter.wiki-documents` contract still decides, and a Wiki under another package name is found by asking every provider as before.
+
+The `review` and `history` sections read every organization's saved report for a day in one platform `Viewer` read (memberships and each organization's `dailyReports` together), so the member is authorized once per day instead of once per organization. When the platform refuses that combined answer (too large, one organization failing, or the report field not offered), each organization is read on its own, so one failing organization is reported as unavailable without hiding the others.
+
 Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `wikiProvider`, `briefLookup`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
 
 No section starts source collection, a model request, a workflow, a connector read or a schedule write.

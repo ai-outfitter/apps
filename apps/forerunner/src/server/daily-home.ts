@@ -24,6 +24,10 @@ const briefDocument = z.object({ id: z.string(), revision: z.number().int().posi
 // owner-scoped page slug pins the period; the current brief workflow always
 // records incomplete coverage while provider adapters remain unavailable.
 const briefProvenance = z.object({ kind: z.literal("forerunner.daily-brief") });
+/** The package that holds briefs. Naming it lets discovery ask one installation instead of every installed app; the contract still decides. */
+const wikiPackage = "wiki-map";
+/** The owner's document Wiki, resolved once per read. */
+export const briefWiki = (host: Host) => documentWiki(host, { template: wikiPackage });
 /** Today and the six days before it: how far back a missing brief looks for the last saved one. */
 const lookbackDays = 7;
 
@@ -51,9 +55,10 @@ const timed = async <T>(timings: Timings, name: string, work: () => Promise<T>) 
  * newest earlier brief with its body, read only when today's is missing, so a
  * page can show the last dated snapshot without calling it today's.
  */
-export async function savedBriefs(host: Host, owner: AppIdentity, date: string, zone: string, options: { previousBody?: boolean; timings?: Timings } = {}) {
+export async function savedBriefs(host: Host, owner: AppIdentity, date: string, zone: string, options: { previousBody?: boolean; timings?: Timings; wiki?: ReturnType<typeof briefWiki> } = {}) {
   const timings = options.timings ?? {};
-  const wiki = await timed(timings, "wikiProvider", () => documentWiki(host));
+  // A caller may have started resolving the Wiki already, beside other reads the slugs wait on.
+  const wiki = await (options.wiki ?? timed(timings, "wikiProvider", () => briefWiki(host)));
   const query = async (query: string, variables: Record<string, unknown>) => {
     const result = graphGraphqlResult.parse(await host.call("actions.call", {
       installationId: wiki.installationId, action: "graph.graphql", readOnly: true,
@@ -108,13 +113,17 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
   const combined = !input.sections;
   const sections = new Set<DailyHomeSection>(input.sections ?? ["digest", "priorities", "review", ...(input.includeHistory ? ["history" as const] : [])]);
   const timings: Timings = {};
+  // Nothing below waits on the time zone to begin: the Wiki is resolved and the board is read while the schedule loads.
+  const started = <T>(work: Promise<T>) => { work.catch(() => undefined); return work; };
+  const wiki = sections.has("digest") ? started(timed(timings, "wikiProvider", () => briefWiki(host))) : undefined;
+  const board = sections.has("priorities") ? started(timed(timings, "priorities", () => listItems(db, identity))) : null;
   // The schedule names the member's time zone; a caller that already knows it skips the read outside the digest.
   const schedule = sections.has("digest") || !input.timezone ? await timed(timings, "schedule", () => dailyBriefSchedule(host, identity)) : undefined;
   const zone = timezone.parse(input.timezone ?? schedule?.timezone ?? "UTC");
   const { date, yesterday, weekStart, weekEnd, weekDates } = dailyHomeDates(now, zone);
   const warnings: string[] = [];
   const digest = async () => {
-    try { return { ...await savedBriefs(host, identity, date, zone, { previousBody: combined, timings }), briefState: "read" as const }; }
+    try { return { ...await savedBriefs(host, identity, date, zone, { previousBody: combined, timings, wiki }), briefState: "read" as const }; }
     catch {
       warnings.push(`The saved daily brief for ${date} could not be read.`);
       return { current: null, previous: null, latest: null, briefState: "unavailable" as const };
@@ -122,7 +131,7 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
   };
   const [briefs, priorities, priorDay, weekDays] = await Promise.all([
     sections.has("digest") ? digest() : null,
-    sections.has("priorities") ? timed(timings, "priorities", () => listItems(db, identity)) : null,
+    board,
     sections.has("review") ? timed(timings, "review", () => readDayReview(db, identity, host, { date: yesterday, timezone: zone }, now)) : null,
     sections.has("history") ? timed(timings, "history", () => Promise.all(weekDates.map(day => readDayReview(db, identity, host, { date: day, timezone: zone }, now)))) : null,
   ]);
