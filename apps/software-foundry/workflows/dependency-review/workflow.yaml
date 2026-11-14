@@ -52,6 +52,8 @@ steps:
           properties:
             repository: {type: string}
             issues: {type: array, maxItems: 4, items: {$ref: "#/$defs/createdIssue"}}
+            retried: {type: array, items: {$ref: "#/$defs/createdIssue"}}
+            closed: {type: array, items: {$ref: "#/$defs/createdIssue"}}
             summary: {type: string}
 outputs:
   issues: analyze.outputs.issues

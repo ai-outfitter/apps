@@ -70,6 +70,19 @@ export class GithubFoundryForge {
     return { number, repository: this.repository, url: issue.html_url,
       title: issue.title, body: typeof issue.body === "string" ? issue.body : "", state: issue.state };
   }
+  /** Open issues this app opened (the first 100), newest first. */
+  async openedIssues(): Promise<IssueReceipt[]> {
+    const issues = await this.api(this.path("/issues?state=open&sort=created&direction=desc&per_page=100"));
+    return (Array.isArray(issues) ? issues : []).filter((issue: any) =>
+      !issue.pull_request && issue.performed_via_github_app?.id === this.appId).map((issue: any) => ({
+      number: issue.number, repository: this.repository, url: issue.html_url, title: issue.title,
+      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const }));
+  }
+  /** Close an issue with a closing comment. */
+  async close(number: number, comment: string, reason: "completed" | "not_planned") {
+    await this.api(this.path(`/issues/${number}/comments`), { body: comment });
+    await this.api(this.path(`/issues/${number}`), { state: "closed", state_reason: reason }, "PATCH");
+  }
   async ready(candidate: ChangeReceipt) {
     const path = this.path(`/pulls/${candidate.number}`);
     const pull = await this.api(path);

@@ -10,7 +10,7 @@ import {
   launchFoundryWorkspaceIssue,
   startExistingFoundryIssue,
   resolveFoundryRepository,
-  runFoundryJob, startJobFix,
+  retryJobFixes, runFoundryJob, startJobFix,
   scheduleFoundryJob,
 } from "../src/server/workspace/workspaces";
 
@@ -209,4 +209,37 @@ test("a repository job's issue starts issue-to-merge once, under the issue's run
   assert.equal(started.id, await foundryIssueRunId("foundry", "77", 12));
   assert.equal(start?.input.inputs["triage.inputs.triagerBinding"], "b-triage");
   assert.equal(start?.input.inputs["triage.inputs.event"].issue.number, 12);
+});
+
+test("a job run retries Foundry's failed fixes and closes ones that keep failing", async () => {
+  const runs: Record<number, any[]> = {
+    // 20: failed once, retried on the failed run's branch.
+    20: [{ id: "f20", status: "failed", updatedAt: 2 }],
+    // 21: still running; 22: merged; 23: failed three times; 24: never started.
+    21: [{ id: "r21", status: "running", updatedAt: 1 }],
+    22: [{ id: "c22", status: "complete", updatedAt: 1 }],
+    23: [1, 2, 3].map((n) => ({ id: `f23-${n}`, status: "failed", updatedAt: n })),
+    24: [],
+  };
+  const calls: Call[] = [];
+  const host = { async call(operation: string, input: any) {
+    calls.push({ operation, input });
+    if (operation === "workflow.references") return runs[input.subjects[0]];
+    if (operation === "workflow.read") return { run: { id: input.id }, inputs: { "triage.inputs.event": { sourceRunId: reserved } } };
+    if (operation === "workflow.start") return { id: input.id, workflow: input.workflow, created: true };
+    throw new Response(`Unexpected ${operation}`, { status: 403 });
+  } };
+  const closed: number[] = [];
+  const issue = (number: number) => ({ number, repository: "acme/app", url: `https://github.com/acme/app/issues/${number}`, title: `#${number}`, body: "", state: "open" as const });
+  const forge = { openedIssues: async () => [19, 20, 21, 22, 23, 24].map(issue), close: async (number: number) => { closed.push(number); } };
+  const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
+  const swept = await retryJobFixes(host as never, fix, { id: 77, name: "acme/app" }, forge, new Set([19]));
+  assert.deepEqual(swept.retried.map((item) => item.number), [20, 24]);
+  assert.deepEqual(swept.closed.map((item) => item.number), [23]);
+  assert.deepEqual(closed, [23]);
+  const starts = calls.filter((call) => call.operation === "workflow.start");
+  assert.equal(starts[0].input.id, await foundryIssueRunId("foundry", "77", 20, "retry-1"));
+  assert.deepEqual([starts[0].input.inputs["triage.inputs.event"].previousRunId, starts[0].input.inputs["triage.inputs.event"].sourceRunId], ["f20", reserved]);
+  assert.equal(starts[1].input.inputs["triage.inputs.event"].previousRunId, undefined, "a fix that never started starts fresh");
+  assert.ok(!calls.some((call) => call.operation === "workflow.references" && call.input.subjects[0] === 19), "the run's own new issues are skipped");
 });

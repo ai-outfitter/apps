@@ -1,6 +1,7 @@
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
+import type { IssueReceipt } from "./forge";
 import { foundryLandingWorkflow, landingContinuation } from "./landing-recovery";
 import { workspaceAgentPermissions, workspaceCoordinatorPermissions, workspaceTarget } from "./execution";
 
@@ -236,6 +237,44 @@ export async function startJobFix(host: Unattended, fix: JobFix, repository: { i
   return launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
     { action: "opened", repository: { id: repository.id, full_name: repository.name },
       issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" } }, id);
+}
+
+/** Failed fix runs an issue gets before its job closes it as not fixable. */
+export const jobFixAttempts = 3;
+/** Most fixes one job run restarts, so a backlog drains over several runs. */
+const jobRetriesPerRun = 5;
+
+/** Every job run also finishes earlier work: each open issue Foundry opened on
+ * the repository whose fix failed (or never started) starts again on the same
+ * branch, and one that has failed `jobFixAttempts` times is closed with its runs. */
+export async function retryJobFixes(host: Unattended, fix: JobFix, repository: { id: number; name: string },
+  forge: { openedIssues(): Promise<IssueReceipt[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
+  skip: ReadonlySet<number>) {
+  const retried = [];
+  const closed = [];
+  for (const issue of await forge.openedIssues()) {
+    if (skip.has(issue.number) || retried.length >= jobRetriesPerRun) continue;
+    const runs = [...await issueRuns(host, fix.resource, issue.number)].sort((a, b) => b.updatedAt - a.updatedAt);
+    if (runs.length && runs[0].status !== "failed") continue;
+    const failures = runs.filter((run) => run.status === "failed");
+    if (failures.length >= jobFixAttempts) {
+      await forge.close(issue.number, `Foundry could not fix this in ${failures.length} attempts (runs ${
+        failures.map((run) => run.id).join(", ")}), so it is closed. A later job run files it again if it still applies.`, "not_planned");
+      closed.push({ number: issue.number, url: issue.url, title: issue.title });
+      continue;
+    }
+    // The retry keeps the failed run's branch, so its open pull request carries on.
+    const prior = runs[0] && await host.call("workflow.read", { id: runs[0].id });
+    const event = prior?.inputs["triage.inputs.event"] as { sourceRunId?: string } | undefined;
+    const id = await foundryIssueRunId(fix.installation, fix.resource, issue.number, `retry-${failures.length}`);
+    const started = await launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
+      { action: "opened", repository: { id: repository.id, full_name: repository.name },
+        issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" },
+        ...(runs[0] ? { previousRunId: runs[0].id, sourceRunId: z.uuid().parse(event?.sourceRunId ?? runs[0].id) } : {}) },
+      id, undefined, runs);
+    retried.push({ number: issue.number, url: issue.url, title: issue.title, fixRun: started.id });
+  }
+  return { retried, closed };
 }
 
 /** Start a repository job now. */
