@@ -18,7 +18,7 @@ import { graphqlGraphRecords } from "../../../../../server/graph-graphql";
 import { actionAPI, defineAction } from "@ai-outfitter/app-sdk/actions";
 import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import { agentDatabase, installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import { reviewInBackground } from "../../../../../server/batch-review";
+import { reviewDraftInBackground, reviewInBackground } from "../../../../../server/batch-review";
 import { askBatch, batchAskInput } from "../../../../../server/batch-questions";
 import { applyGraphChanges, graphChangeInput, graphChangeReceipt } from "../../../../../server/graph-changes";
 import { graphqlSchema } from "../../../../../server/graphql";
@@ -124,5 +124,6 @@ export const ALL: APIRoute = ({ request, params, locals }) => {
     db: () => installationDatabase(),
     host: () => workflowHost<"interactive">(locals),
     afterSubmit: (batchId: string) => reviewInBackground(locals, installationDatabase(), identity, batchId),
+    afterStage: (batchId: string) => reviewDraftInBackground(locals, installationDatabase(), identity, batchId),
   }));
 };
