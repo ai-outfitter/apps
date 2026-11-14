@@ -16,7 +16,7 @@ if (out.startsWith(repo + "/"))
 if (!deck.startsWith(repo + "/")) throw Error("Deck escapes repository");
 const files = {},
   images = {};
-async function load(path, active = []) {
+async function load(path) {
   const absolute = await realpath(resolve(repo, path));
   if (!absolute.startsWith(repo + "/"))
     throw Error("Reference escapes repository");
@@ -24,10 +24,7 @@ async function load(path, active = []) {
   const text = await readFile(absolute, "utf8");
   files[path] = text;
   for (const m of text.matchAll(/@([\w./-]+\.md)/g))
-    await load(relative(repo, resolve(dirname(absolute), m[1])), [
-      ...active,
-      path,
-    ]);
+    await load(relative(repo, resolve(dirname(absolute), m[1])));
   for (const m of text.matchAll(
     /@(wiki\/sources\/[\w./-]+\.(?:jpg|jpeg|png))/g,
   )) {

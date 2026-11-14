@@ -62,7 +62,7 @@ export async function acceptCreativeHandoff(
     c.db(),
     c.identity,
     { id: input.projectId, revision: input.revision },
-    () => ({ creativeHandoffs: [...(project.creativeHandoffs ?? []), entry] }),
+    (current) => ({ creativeHandoffs: [...(current.creativeHandoffs ?? []), entry] }),
   );
   return entry;
 }
@@ -109,7 +109,7 @@ export async function attachCreativeResult(
     throw new Response("Result must trace back to the handed-off candidate", {
       status: 400,
     });
-  if (resultBody.ownerRevision !== input.revision)
+  if (!Number.isInteger(resultBody.ownerRevision) || resultBody.ownerRevision < 1 || resultBody.ownerRevision > input.revision)
     throw new Response(
       "Result must pin the Workshop project revision used to produce it",
       { status: 409 },
@@ -118,8 +118,8 @@ export async function attachCreativeResult(
     c.db(),
     c.identity,
     { id: input.projectId, revision: input.revision },
-    () => ({
-      creativeHandoffs: (project.creativeHandoffs ?? []).map((h) =>
+    (current) => ({
+      creativeHandoffs: (current.creativeHandoffs ?? []).map((h) =>
         h.id === input.handoffId
           ? { ...h, result: input.candidate, state: "result-recorded" as const }
           : h,

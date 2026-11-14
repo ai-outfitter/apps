@@ -38,12 +38,10 @@ const packet = {
 };
 async function fixture() {
   const client = createClient({ url: ":memory:" });
-  const sql = await readFile(
-    new URL("../migrations/0013_video_productions.sql", import.meta.url),
-    "utf8",
-  );
-  for (const part of sql.split("--> statement-breakpoint"))
-    await client.execute(part);
+  for (const name of ["0013_video_productions.sql", "0014_video_transfer.sql"]) {
+    const sql = await readFile(new URL(`../migrations/${name}`, import.meta.url), "utf8");
+    for (const part of sql.split("--> statement-breakpoint")) await client.execute(part);
+  }
   const store = {
     query: async (s: any) =>
       (await client.execute({ sql: s.sql, args: s.params ?? [] })).rows,

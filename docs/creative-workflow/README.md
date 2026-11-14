@@ -69,7 +69,7 @@ Artera's legacy resolver intentionally visits cyclic references once, matching t
 5. Call `FinishVideoTransfer` on Planning. It verifies the destination's current normalized metadata and every ready file's size/hash before recording completion. Metadata changed during transfer fails acceptance.
 6. Update new production links only after that receipt. Existing Planning URLs continue serving the retained source, including downloads. The code does not delete source data or perform an automatic live cutover.
 
-Retries do not resubmit provider requests. A seal is deliberately durable; operators must choose the destination correctly and retain both installations during migration. Do not start destination generation until acceptance. No cross-application database copy or generic archive import may manufacture execution receipts.
+Retries do not resubmit provider requests. A seal is deliberately durable; operators must choose the destination correctly and retain both installations during migration. Destination edits and new generation are blocked until the source reports verified completion; uploads of reserved transferred files remain available. No cross-application database copy or generic archive import may manufacture execution receipts.
 
 ## Acceptance and rollout
 

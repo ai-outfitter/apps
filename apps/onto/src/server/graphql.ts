@@ -275,6 +275,6 @@ export const externalSchema = new GraphQLSchema({ query: new GraphQLObjectType<u
     resolve: async (_root, args, context) => (await sharesFor(context.db(), context.identity, shareSlug.parse(args.slug)))[0] ?? null },
 } }) });
 
-const baseGraphqlSchema = new GraphQLSchema({ query: new GraphQLObjectType({ name: "Query", fields: {...changeQueries,...creativeQueries} }), mutation: Mutation });
+const baseGraphqlSchema = new GraphQLSchema({ query: new GraphQLObjectType({ name: "Query", fields: changeQueries }), mutation: Mutation });
 
 export const graphqlSchema = batchSchema(baseGraphqlSchema, batchGroups);

@@ -27,6 +27,12 @@ import { openBatch, addToBatch, getBatch } from "./graph-batches";
 import type { ChangeContext } from "./graphql";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 type Context = ChangeContext & ActionContext;
+function committedFragments(graph: Awaited<ReturnType<typeof readGraph>>, installationId: string) {
+  return graph.nodes.filter(n => n.typeId === typeIds.PromptFragment).map(n => ({
+    ...fragment.parse(JSON.parse(n.body || "{}")), id: n.id, revision: n.revision,
+    record: {installationId, type: "graph-node", id: n.id, revision: n.revision},
+  }));
+}
 export const creativeSchemas = {
   CreativeBrief: brief,
   PromptFragment: fragment,
@@ -76,15 +82,8 @@ async function stage(c: Context, input: z.infer<typeof creativeInput>) {
       throw new Response("Record kind cannot change", { status: 409 });
     if (existing.revision !== input.revision)
       throw new Response("Record changed; reload", { status: 409 });
-    if (input.kind === "CreativeCandidate")
-      throw new Response(
-        "Candidates are immutable; register another candidate or a CreativeFeedback record",
-        { status: 409 },
-      );
-    if (input.kind === "GenerationSnapshot")
-      throw new Response("Snapshots are immutable; create a new snapshot", {
-        status: 409,
-      });
+    if (["CreativeCandidate", "GenerationSnapshot", "CreativeFeedback"].includes(input.kind))
+      throw new Response("Creative provenance records are immutable; create another record", { status: 409 });
   } else if (input.revision !== 0)
     throw new Response("Record not found", { status: 404 });
 
@@ -118,19 +117,7 @@ async function stage(c: Context, input: z.infer<typeof creativeInput>) {
     )
       throw new Response("Snapshot hash mismatch", { status: 400 });
     if (manifest.resolver === "creative-workflow/1") {
-      const fragments = graph.nodes
-        .filter((n) => n.typeId === typeIds.PromptFragment)
-        .map((n) => ({
-          ...fragment.parse(JSON.parse(n.body || "{}")),
-          id: n.id,
-          revision: n.revision,
-          record: {
-            installationId: c.identity.installationId,
-            type: "graph-node",
-            id: n.id,
-            revision: n.revision,
-          },
-        }));
+      const fragments = committedFragments(graph, c.identity.installationId);
       const expected = await freeze({
         root: manifest.root,
         fragments,
@@ -273,19 +260,7 @@ export const creativeQueries = {
                   );
                 const current = await freeze({
                   root: saved.root,
-                  fragments: graph.nodes
-                    .filter((f) => f.typeId === typeIds.PromptFragment)
-                    .map((f) => ({
-                      ...fragment.parse(JSON.parse(f.body || "{}")),
-                      id: f.id,
-                      revision: f.revision,
-                      record: {
-                        installationId: c.identity.installationId,
-                        type: "graph-node",
-                        id: f.id,
-                        revision: f.revision,
-                      },
-                    })),
+                  fragments: committedFragments(graph, c.identity.installationId),
                   inputs: saved.inputs,
                   settings: saved.settings,
                 });
@@ -330,19 +305,7 @@ export const creativeMutations = {
       "Resolve committed prompt fragments and stage an immutable snapshot for review. Does not generate media.",
     run: async (c, input) => {
       const graph = await readGraph(c.db(), c.identity);
-      const fragments = graph.nodes
-        .filter((n) => n.typeId === typeIds.PromptFragment)
-        .map((n) => ({
-          ...fragment.parse(JSON.parse(n.body || "{}")),
-          id: n.id,
-          revision: n.revision,
-          record: {
-            installationId: c.identity.installationId,
-            type: "graph-node",
-            id: n.id,
-            revision: n.revision,
-          },
-        }));
+      const fragments = committedFragments(graph, c.identity.installationId);
       const snapshot = await freeze({
         root: input.rootId,
         fragments,
@@ -451,19 +414,7 @@ export const creativeAddressMutations = {
       run: async (c, input) => {
         const graph = await readGraph(c.db(), c.identity),
           index = addressIndex(graph);
-        const fragments = graph.nodes
-          .filter((n) => n.typeId === typeIds.PromptFragment)
-          .map((n) => ({
-            ...fragment.parse(JSON.parse(n.body || "{}")),
-            id: n.id,
-            revision: n.revision,
-            record: {
-              installationId: c.identity.installationId,
-              type: "graph-node",
-              id: n.id,
-              revision: n.revision,
-            },
-          }));
+        const fragments = committedFragments(graph, c.identity.installationId);
         const snapshot = await freeze({
           root: resolveAddress(index, "graph-node", input.root),
           fragments,

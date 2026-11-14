@@ -9,7 +9,8 @@ import {
   finishTransfer,
   transferReceipt,
 } from "../src/video-transfer.ts";
-import { digest } from "../src/index.ts";
+import { requireTransferAccepted } from "../src/video-store.ts";
+import { digest, canonical } from "../src/index.ts";
 const id = (n: number) =>
   `abc00000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 async function fixture(installationId: string) {
@@ -60,14 +61,16 @@ test("transfer preserves IDs, versions, receipts and media; source sealed and ac
   });
   const bytes = new TextEncoder().encode("fixture bytes"),
     sha256 = await digest(bytes),
-    asset = { id: id(2), productionId: id(1), size: bytes.length, sha256 };
+    asset = { id: id(2), productionId: id(1), size: bytes.length, sha256, kind: "final", filename: "artera.mp4", contentType: "video/mp4", productionRevision: 2, transport: "http" };
+  const packet = { product: {installationId: "onto", type: "graph-node", id: id(9), revision: 1}, title: "Artera", audience: "Investors", message: "Food", channel: "internal", style: "Photorealistic", concept: true, shots: [{id: id(4), title: "Orbit", duration: 3, narration: "", prompt: "Food in orbit"}] };
+  const takeInput = {id:id(3), productionId:id(1), revision:2, shotId:id(4), seed:1};
   await source.db.execute({
     sql: "INSERT INTO planning_video_productions VALUES (?,?,2,?,1,2)",
-    args: [id(1), "planning", '{"title":"Artera"}'],
+    args: [id(1), "planning", JSON.stringify(packet)],
   });
   await source.db.execute({
     sql: "INSERT INTO planning_video_versions VALUES (?,?,1,?)",
-    args: [id(1), "planning", '{"title":"Earlier"}'],
+    args: [id(1), "planning", JSON.stringify({...packet,title:"Earlier"})],
   });
   await source.db.execute({
     sql: "INSERT INTO planning_video_takes VALUES (?,?,?,?,?)",
@@ -77,6 +80,7 @@ test("transfer preserves IDs, versions, receipts and media; source sealed and ac
       id(1),
       4,
       JSON.stringify({
+        input: takeInput,
         state: "completed",
         providerRequestId: "preserve-receipt",
       }),
@@ -105,10 +109,19 @@ test("transfer preserves IDs, versions, receipts and media; source sealed and ac
     revision: 2,
     targetInstallationId: "marketing",
   });
+  const goodHost = target.c.host;
+  const malformed = await exportTransfer(source.c,id(1));
+  malformed.data.assets[0].body = JSON.stringify({...asset,id:id(8)});
+  malformed.hash = await digest(canonical(malformed.data));
+  target.c.host = () => ({call:async()=>({data:{videoTransfer:malformed}})});
+  await assert.rejects(() => importTransfer(target.c,{id:id(1),sourceInstallationId:"planning"}), (e:any)=>e.status===409);
+  assert.equal((await target.db.execute("SELECT COUNT(*) AS n FROM planning_video_productions")).rows[0].n,0);
+  target.c.host = goodHost;
   const first = await importTransfer(target.c, {
     id: id(1),
     sourceInstallationId: "planning",
   });
+  await assert.rejects(() => requireTransferAccepted(target.c, id(1)), (e: any) => e.status === 409);
   assert.equal(
     (
       await importTransfer(target.c, {
@@ -136,12 +149,14 @@ test("transfer preserves IDs, versions, receipts and media; source sealed and ac
     args: [id(2)],
   });
   assert.equal((await finishTransfer(source.c, id(1))).state, "complete");
+  await requireTransferAccepted(target.c, id(1));
   assert.equal((await finishTransfer(source.c, id(1))).state, "complete");
   assert.equal(
     (await target.db.execute("SELECT body FROM planning_video_takes")).rows[0]
       .body,
     JSON.stringify({
-      state: "completed",
+      input: takeInput,
+        state: "completed",
       providerRequestId: "preserve-receipt",
     }),
   );

@@ -211,6 +211,8 @@ test("shared graph freezes dependencies, reviews writes, reports stale candidate
     text: "Keep the selected shape",
   });
   await commit(feedbackRecord.batchId);
+  const feedbackRewrite = await graph("mutation($input:StageCreativeRecordInput!){stageCreativeRecord(input:$input)}", {input:{id:id(8),revision:1,kind:"CreativeFeedback",title:"Rewrite",subjectId:id(1),body:{candidate:pin(4),at:"2026-11-14T00:00:00Z",author:"reviewer",text:"Changed"}}});
+  assert.ok(feedbackRewrite.errors?.some((e:any)=>e.message.includes("immutable")),JSON.stringify(feedbackRewrite));
   const bypass = await app.call("/api/internal/actions/v1/call", owner, {
     method: "POST",
     body: {

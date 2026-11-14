@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createClient } from "@libsql/client";
+import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { freeze, typeIds } from "../src/index.ts";
 import { prepareTake, publishProduction } from "../src/video-store.ts";
 const id = (n: number) =>
@@ -9,15 +10,10 @@ const id = (n: number) =>
 test("Marketing uses exact frozen text and refuses incomplete settings before execution; publishing only stages graph review", async (t) => {
   const db = createClient({ url: ":memory:" });
   t.after(() => db.close());
-  const sql = await readFile(
-    new URL(
-      "../../../apps/marketing/migrations/0000_video_productions.sql",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  for (const part of sql.split("--> statement-breakpoint"))
-    await db.execute(part);
+  for (const name of ["0000_video_productions.sql", "0001_video_transfer.sql"]) {
+    const sql = await readFile(new URL(`../../../apps/marketing/migrations/${name}`, import.meta.url), "utf8");
+    for (const part of sql.split("--> statement-breakpoint")) await db.execute(part);
+  }
   const settings = {
     model: "alibaba/wan-3.0/text-to-video",
     duration: 3,
@@ -150,4 +146,7 @@ test("Marketing uses exact frozen text and refuses incomplete settings before ex
   const publication = await publishProduction(c, { id: id(1), revision: 1 });
   assert.equal(publication.state, "draft");
   assert.deepEqual(mutations, ["batch.open", "batch.add"]);
+  await db.execute({sql:"INSERT INTO planning_video_imports VALUES (?,?,?,?)",args:[c.identity.installationId,id(1),"original-planning","a".repeat(64)]});
+  const migrated = await publishProduction(c,{id:id(1),revision:1});
+  assert.equal(migrated.ref.id,await stableGraphId(`planning-video:original-planning:${id(1)}`));
 });

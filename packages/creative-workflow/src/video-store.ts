@@ -41,6 +41,22 @@ const body = (row: Record<string, unknown>) => ({
   revision: Number(row.revision),
   ...JSON.parse(String(row.body)),
 });
+async function importedProduction(c: VideoContext, id: string) {
+  const [imported] = await query(c, "SELECT * FROM planning_video_imports WHERE installationId=? AND productionId=?", [scope(c), id]);
+  return imported;
+}
+/** The source's durable completion state releases destination writes only after verification. */
+export async function requireTransferAccepted(c: VideoContext, id: string) {
+  const imported = await importedProduction(c, id);
+  if (!imported) return;
+  const result: any = await c.host().call("actions.call", {
+    installationId: String(imported.sourceInstallationId), action: "graph.graphql", readOnly: true,
+    input: {query: "query($id:ID!){videoTransfer(id:$id)}", variables: {id}},
+  });
+  const transfer = result.data?.videoTransfer;
+  if (result.errors?.length || transfer?.state !== "complete" || transfer.targetInstallationId !== scope(c) || transfer.hash !== imported.hash)
+    fail("Finish and verify the source transfer before editing this production");
+}
 export async function readProduction(c: VideoContext, id: string) {
   const [row] = await query(
     c,
@@ -82,6 +98,7 @@ async function checkReferences(c: VideoContext, packet: VideoPacket) {
 export async function saveProduction(c: VideoContext, raw: unknown) {
   requireEditor(c.identity);
   const input = saveVideoInput.parse(raw);
+  await requireTransferAccepted(c, input.id);
   const existing = await query(
     c,
     "SELECT * FROM planning_video_productions WHERE installationId=? AND id=?",
@@ -184,6 +201,7 @@ export async function readVideos(c: VideoContext, raw: unknown) {
 export async function prepareTake(c: VideoContext, raw: unknown) {
   requireEditor(c.identity);
   const input = videoTakeInput.parse(raw);
+  await requireTransferAccepted(c, input.productionId);
   const prior = await query(
     c,
     "SELECT * FROM planning_video_takes WHERE installationId=? AND id=?",
@@ -301,6 +319,7 @@ export async function updateTake(c: VideoContext, raw: unknown) {
     [scope(c), input.id],
   );
   if (!row) fail("Take not found", 404);
+  await requireTransferAccepted(c, String(row.productionId));
   const take = body(row);
   const previous = take.lastUpdate;
   if (same(previous, input)) return { ...take, claimed: false };
@@ -369,6 +388,8 @@ function files(c: VideoContext) {
 export async function reserveAsset(c: VideoContext, raw: unknown) {
   requireEditor(c.identity);
   const input = videoAssetInput.parse(raw);
+  const existing = await query(c, "SELECT id FROM planning_video_assets WHERE installationId=? AND id=?", [scope(c), input.id]);
+  if (!existing.length) await requireTransferAccepted(c, input.productionId);
   const production = await readProduction(c, input.productionId);
   if (input.productionRevision > production.revision)
     fail("Unknown production revision");
@@ -446,7 +467,8 @@ export async function publishProduction(c: VideoContext, raw: unknown) {
   if (production.revision !== input.revision)
     fail("Production changed; read again");
   const wiki = await defaultWiki(c.host());
-  const id = await stableGraphId(`planning-video:${scope(c)}:${input.id}`);
+  const imported = await importedProduction(c, input.id);
+  const id = await stableGraphId(`planning-video:${imported?.sourceInstallationId ?? scope(c)}:${input.id}`);
   const ref = { installationId: wiki.installationId, type: "graph-node", id };
   const attributes = {
     id,

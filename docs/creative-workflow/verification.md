@@ -45,3 +45,9 @@ Local review artifact: `/home/ncrmro/repos/ai-outfitter/.local-data/creative-wor
 ## Release boundary
 
 No production installation was upgraded, no existing film was deleted, no real graph batch was auto-approved and no paid generation was submitted. The release operator must deploy the app packages and run the documented, hash-verified migration against each organization's authorized installations before advertising live cutover.
+
+## Read-only Opus review, November 14
+
+Claude Opus 5.5 reviewed the implementation using only Read/Glob/Grep, with shell, edit and MCP tools disabled. The review identified missing app release components and a Workshop revision equality check that prevented attaching earlier results after later project edits. Both were corrected, with regression coverage for multiple handoffs and an intervening rename. Additional fixes reject feedback rewrites at staging, retain a transferred production's graph Document identity, validate transferred row identities, and block destination edits until the source records verified acceptance. Repeated fragment mapping and redundant query composition were simplified.
+
+The Artera importer still requires the same pinned subject across reviewed import passes; changing that pin fails rather than reassigning historical provenance. A legacy filename collision between candidates and surviving public renders remains a follow-up import edge case; automatic historical data import is not part of this activation. Source transfer seals remain durable, so confirm the target installation before beginning. These limitations do not authorize automatic regeneration or manufacturing approval.

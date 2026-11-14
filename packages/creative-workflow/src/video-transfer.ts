@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { videoPacket, videoAssetInput, videoTakeInput } from "./video-model.ts";
 import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import { canonical, digest } from "./index.ts";
 import { readProduction, type VideoContext } from "./video-store.ts";
@@ -85,6 +86,7 @@ export async function exportTransfer(c: VideoContext, id: string) {
   const data = { production, versions, takes, assets };
   return {
     targetInstallationId: transfer.targetInstallationId,
+    state: transfer.state,
     data,
     hash: await digest(canonical(data)),
   };
@@ -147,6 +149,23 @@ export async function importTransfer(
   const p = bundle.data.production;
   if (p.id !== input.id || p.installationId !== input.sourceInstallationId)
     throw new Response("Source identity mismatch", { status: 409 });
+  // Validate without rewriting the source bytes used by the receipt digest.
+  videoPacket.parse(JSON.parse(p.packet));
+  for (const v of bundle.data.versions) {
+    if (v.id !== p.id || v.installationId !== input.sourceInstallationId || !Number.isInteger(v.revision) || v.revision < 1 || v.revision > p.revision)
+      throw new Response("Version identity mismatch", {status: 409});
+    videoPacket.parse(JSON.parse(v.packet));
+  }
+  for (const t of bundle.data.takes) {
+    const take = videoTakeInput.parse(JSON.parse(t.body).input);
+    if (t.installationId !== input.sourceInstallationId || t.productionId !== p.id || take.id !== t.id || take.productionId !== p.id || take.revision > p.revision)
+      throw new Response("Take identity mismatch", {status: 409});
+  }
+  for (const a of bundle.data.assets) {
+    const asset = videoAssetInput.parse(JSON.parse(a.body));
+    if (a.installationId !== input.sourceInstallationId || a.productionId !== p.id || asset.id !== a.id || asset.productionId !== p.id || asset.productionRevision > p.revision || a.ready !== 1)
+      throw new Response("Asset identity mismatch", {status: 409});
+  }
   const statements: any[] = [
     {
       sql: "INSERT INTO planning_video_productions VALUES (?,?,?,?,?,?)",

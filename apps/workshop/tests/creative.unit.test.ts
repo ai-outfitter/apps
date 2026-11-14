@@ -8,6 +8,7 @@ import {
   createWorkshopProject,
   projectFrom,
   getWorkshopProject,
+  patchWorkshopProject,
 } from "../src/server/projects";
 import {
   acceptCreativeHandoff,
@@ -123,19 +124,24 @@ test("selected concept creates an idempotent design request and links a Workshop
   assert.equal(after.creativeHandoffs?.length, 1);
   assert.deepEqual(after.params, project.params);
   assert.equal(after.workspace, project.workspace);
+  // Two results produced at revision 3 remain attachable after an unrelated rename.
+  await acceptCreativeHandoff(c, {...input, id:id(6), revision:2});
+  records[id(3)].attributes.body = JSON.stringify({...JSON.parse(records[id(3)].attributes.body),ownerRevision:3});
+  await patchWorkshopProject(db, identity, {id:project.id, revision:3}, () => ({name:"Renamed spacecraft"}));
   await attachCreativeResult(c, {
     projectId: project.id,
-    revision: 2,
+    revision: 4,
     handoffId: id(4),
     candidate: pin(3),
   });
   await attachCreativeResult(c, {
     projectId: project.id,
-    revision: 2,
+    revision: 4,
     handoffId: id(4),
     candidate: pin(3),
   });
-  assert.equal((await getWorkshopProject(db, project.id)).revision, 3);
+  await attachCreativeResult(c, {projectId:project.id, revision:5, handoffId:id(6),candidate:pin(3)});
+  assert.equal((await getWorkshopProject(db, project.id)).revision, 6);
   await assert.rejects(
     () => acceptCreativeHandoff(c, { ...input, id: id(5) }),
     (e: any) => e.status === 409,

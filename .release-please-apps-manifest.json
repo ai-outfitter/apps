@@ -8,5 +8,7 @@
   "apps/wiki": "0.1.4",
   "apps/planning": "0.1.1",
   "apps/forerunner": "0.1.1",
-  "apps/video-production": "0.1.0"
+  "apps/video-production": "0.1.0",
+  "apps/marketing": "0.1.0",
+  "apps/presentations": "0.1.0"
 }
