@@ -11,6 +11,9 @@ import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-doc
 import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
+  CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
+  StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
+  FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
   ReviseBatch: {
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
     document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
@@ -66,6 +69,9 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+ CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
+ StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
+ FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
   ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",

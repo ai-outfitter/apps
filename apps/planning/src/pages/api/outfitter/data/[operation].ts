@@ -4,4 +4,4 @@ import type { APIRoute } from "astro";
 import app from "../../../../../app.json";
 
 // Standard installation archive (docs/plans/app-data-export.md).
-export const ALL: APIRoute = dataTransferRoutes(agentDatabase, { app: app.id, exclude: ["planning_video_takes", "planning_video_assets"] });
+export const ALL: APIRoute = dataTransferRoutes(agentDatabase, { app: app.id, exclude: ["planning_video_takes", "planning_video_assets", "planning_video_transfers", "planning_video_imports"] });

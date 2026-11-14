@@ -11,6 +11,8 @@ import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+ AcceptCreativeHandoff:{story:"As a member, I want to hand a selected mockup to Workshop with constraints, so that design work starts from a pinned reference.",document:graphql(`mutation AcceptCreativeHandoff($input:AcceptCreativeHandoffInput!){acceptCreativeHandoff(input:$input)}`)},
+ AttachCreativeResult:{story:"As a member, I want to link a result candidate to the original mockup request, so that presentations and marketing can reuse its evidence.",document:graphql(`mutation AttachCreativeResult($input:AttachCreativeResultInput!){attachCreativeResult(input:$input)}`)},
   RequestWorkshopBuild: {story:"As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",document:graphql(`mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) { requestWorkshopBuild(input:$input) }`)},
   ClaimWorkshopBuild: {story:"As a workspace runner, I want to claim a queued build at its observed revision, so that concurrent runners cannot execute the same request.",document:graphql(`mutation ClaimWorkshopBuild($input: ClaimWorkshopBuildInput!) { claimWorkshopBuild(input:$input) }`)},
   FinishWorkshopBuild: {story:"As a workspace runner, I want to attach verified artifacts and tests, so that members can inspect a revision without replacing newer work.",document:graphql(`mutation FinishWorkshopBuild($input: FinishWorkshopBuildInput!) { finishWorkshopBuild(input:$input) }`)},
@@ -82,11 +84,13 @@ const legacyDocuments = defineDocuments({
   },
 });
 
-// What an MCP client finds for Workshop (graph_documents): starting design work and following its run.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
   WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
+  AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },
+  AttachCreativeResult: { description: "Link a committed result candidate back to its design request." },
 });
+
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */
 export const runDocument = documentRunner<WorkshopContext>(() => graphqlSchema);

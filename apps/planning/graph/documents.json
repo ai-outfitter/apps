@@ -38,6 +38,36 @@
     "hidden": true
   },
   {
+    "name": "BeginVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",
+    "query": "mutation BeginVideoTransfer($input: BeginVideoTransferInput!) {\n  beginVideoTransfer(input: $input)\n}",
+    "hash": "4475f02e0e3a41c1773cb05491a37eec8aec2e1135a482b02cee7c9949bb570d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL BeginVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "beginVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ChangeDigestSchedule",
     "kind": "mutation",
     "story": "As an editor, I want to turn the morning digest of every project on or off, so that the team gets a daily summary of what shipped and what is prioritized without anyone clicking.",
@@ -624,6 +654,36 @@
     }
   },
   {
+    "name": "FinishVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",
+    "query": "mutation FinishVideoTransfer($input: FinishVideoTransferInput!) {\n  finishVideoTransfer(input: $input)\n}",
+    "hash": "a5c4e6d50602470ce3226fb0ec14df1691fc099faf71166c2398da200db1196c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FinishVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "finishVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "GenerateDailyReports",
     "kind": "mutation",
     "story": "As an editor, I want all active project reports for a selected recovery date or previous local day followed by this owner's overview in one durable run, so that failures remain visible and retries preserve captured reports.",
@@ -706,6 +766,36 @@
       "type": "object",
       "properties": {
         "generateProjectDigest": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ImportVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",
+    "query": "mutation ImportVideoTransfer($input: ImportVideoTransferInput!) {\n  importVideoTransfer(input: $input)\n}",
+    "hash": "a709f6f72aa6103da05f35ba4fff4382afcf9880f7a44bb3666d9cc75c8e1fed",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ImportVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "importVideoTransfer": {
           "description": "JSON",
           "nullable": true
         }
@@ -7063,6 +7153,68 @@
       "type": "object",
       "properties": {
         "videoSourceEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransfer",
+    "kind": "query",
+    "story": "As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",
+    "query": "query VideoTransfer($id: ID!) {\n  videoTransfer(id: $id)\n}",
+    "hash": "039eb9563ec5cedaf069e7979b199e80dfff2b7950410a0c6a951f1243a55645",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransferReceipt",
+    "kind": "query",
+    "story": "As an agent, I want to verify imported media, so that source links switch only after validation.",
+    "query": "query VideoTransferReceipt($id: ID!) {\n  videoTransferReceipt(id: $id)\n}",
+    "hash": "e19a1ddcffad719feee556e08d84b09d1a08e0c8ef7ecc3646333c237a1ed9f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransferReceipt": {
           "description": "JSON",
           "nullable": true
         }
