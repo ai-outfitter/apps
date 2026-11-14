@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.5...app-test-v0.1.6) (2026-11-14)
+
+
+### Features
+
+* deliver personal portfolio and daily reports ([c1a2c03](https://github.com/ai-outfitter/apps/commit/c1a2c03de78105602cc6a17e9aced640f16b33a1))
+* **forerunner:** daily research reports from web search, saved to the Wiki ([#185](https://github.com/ai-outfitter/apps/issues/185)) ([fd8df68](https://github.com/ai-outfitter/apps/commit/fd8df68801476040f4ebca03744f878af02b651b))
+* move Planning and Forerunner into the apps repo ([#80](https://github.com/ai-outfitter/apps/issues/80)) ([144beef](https://github.com/ai-outfitter/apps/commit/144beef23843642cd506d98ad86e00bb3eb3078a))
+* **workshop:** vision, assembly and case examples, case evals, and an app-owned design agent ([#57](https://github.com/ai-outfitter/apps/issues/57)) ([48b2791](https://github.com/ai-outfitter/apps/commit/48b2791df975fadf9e33e9afac6652434e5ca032))
+
+
+### Bug Fixes
+
+* **test:** prepare cross-app artifacts and open settings menu ([5cacaad](https://github.com/ai-outfitter/apps/commit/5cacaad4f1554f05cf69d502be3b650278e54ff4))
+
+
+### Performance Improvements
+
+* **app-sdk:** share first-primary D1 sessions per request ([#180](https://github.com/ai-outfitter/apps/issues/180)) ([a85a8f5](https://github.com/ai-outfitter/apps/commit/a85a8f5574f927308840d5911e0f2f79defe2587))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.4 to 0.1.5
+    * @ai-outfitter/threads bumped from 0.1.4 to 0.1.5
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.4...app-test-v0.1.5) (2026-11-09)
 
 
