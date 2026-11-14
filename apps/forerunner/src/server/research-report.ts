@@ -15,6 +15,7 @@ import { localDate } from "./review-period";
 
 export const researchReportWorkflow = "forerunner-research-report";
 const step = "research";
+const reportsSlot = `${step}.inputs.reports`;
 const timezone = z.string().min(1).max(64).refine(value => { try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; } }, "Choose a valid time zone");
 const line = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\r\n]*$/, "Use one line");
 const report = z.strictObject({
@@ -39,7 +40,7 @@ function personal(who: AppIdentity) {
 export async function setResearchReportSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, raw: z.input<typeof researchReportScheduleInput>) {
   personal(who);
   const input = researchReportScheduleInput.parse(raw);
-  return host.call("schedule.save", { workflow: researchReportWorkflow, cron: `0 ${input.hour} * * *`, timezone: input.timezone, enabled: input.enabled, inputs: { reports: input.reports } });
+  return host.call("schedule.save", { workflow: researchReportWorkflow, cron: `0 ${input.hour} * * *`, timezone: input.timezone, enabled: input.enabled, inputs: { [reportsSlot]: input.reports } });
 }
 export async function researchReportSchedule(host: WorkflowHost<"interactive">, who: AppIdentity) {
   personal(who);
@@ -184,7 +185,7 @@ export async function scheduledResearchReports(who: AppIdentity, raw: PhaseInput
   if (occurrence.schedule.workflowId !== researchReportWorkflow) return { outcome: "declined", reason: "Not a research report schedule" };
   const saved = (await host.call("schedules", {})).find(row => row.id === occurrence.schedule.id);
   if (!saved) return { outcome: "declined", reason: "Research report schedule no longer exists" };
-  const rows = reports.safeParse(occurrence.schedule.inputs.reports);
+  const rows = reports.safeParse(occurrence.schedule.inputs[reportsSlot]);
   if (!rows.success) return { outcome: "declined", reason: "The schedule has no valid reports; save it again" };
   await host.call("workflow.start", { workflow: researchReportWorkflow, id: occurrence.runId, inputs: {} });
   await captureAll(who, host as unknown as WorkflowHost<"interactive">, rows.data, { date: localDate(occurrence.scheduledFor, saved.timezone), timezone: saved.timezone, runId: occurrence.runId });
@@ -194,7 +195,7 @@ export async function scheduledResearchReports(who: AppIdentity, raw: PhaseInput
 export async function generateResearchReports(who: AppIdentity, host: WorkflowHost<"interactive">) {
   personal(who);
   const saved = await researchReportSchedule(host, who);
-  const rows = reports.safeParse(saved?.inputs.reports);
+  const rows = reports.safeParse(saved?.inputs[reportsSlot]);
   if (!saved || !rows.success) throw new Response("Save the research reports first", { status: 409 });
   const runId = crypto.randomUUID();
   await host.call("workflow.start", { workflow: researchReportWorkflow, id: runId, inputs: {} });
