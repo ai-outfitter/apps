@@ -19,7 +19,7 @@ import { actionsChecks, actionsPreview, githubActionsAppId } from "./actions-ci"
 import { verifyFoundryDemo } from "./demo-handoff";
 import { gatewayPreviewRequest } from "./preview-health";
 import { z } from "zod";
-import { startJobFix } from "./workspaces";
+import { retryJobFixes, startJobFix } from "./workspaces";
 
 type Prepare = WorkflowHost<"prepare">;
 type Finalize = WorkflowHost<"finalize">;
@@ -183,7 +183,8 @@ export async function finalizeWorkspaceNode(
 const jobFix = z.object({ installation: z.string().min(1), resource: z.string().min(1), inputs: z.record(z.string(), z.string()) });
 
 /** A repository job's issues, each re-read from the bound repository, so only
- * issues that exist there are reported, and each started on issue-to-merge. */
+ * issues that exist there are reported, and each started on issue-to-merge.
+ * The run then retries earlier fixes that failed (retryJobFixes). */
 async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Promise<Json> {
   const produced = z.object({
     issues: z.array(z.object({ number: z.number().int().positive() }).passthrough()).max(10),
@@ -199,7 +200,9 @@ async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Pr
     const started = fix ? await startJobFix(host, fix, { id: repo.repositoryId, name: repo.name }, issue) : undefined;
     issues.push({ number: issue.number, url: issue.url, title: issue.title, ...(started ? { fixRun: started.id } : {}) });
   }
-  return { issues: { repository: repo.name, issues, ...(produced.summary ? { summary: produced.summary } : {}) } };
+  const sweep = fix ? await retryJobFixes(host, fix, { id: repo.repositoryId, name: repo.name }, forge,
+    new Set(issues.map((issue) => issue.number))) : { retried: [], closed: [] };
+  return { issues: { repository: repo.name, issues, ...sweep, ...(produced.summary ? { summary: produced.summary } : {}) } };
 }
 
 /** Publication scopes are separate from the read-only validation/review checkout. */

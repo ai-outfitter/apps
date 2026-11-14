@@ -324,3 +324,32 @@ test("malformed provider data is unavailable rather than complete empty data", a
   assert.equal(result.state, "unavailable");
   assert.equal(result.result, null);
 });
+
+test("a template narrows the listing so only that package is described, and grants nothing", async () => {
+  const { host, calls } = fixture(["wiki", "onto", "planning"]);
+  const listed = host.call.bind(host) as (
+    operation: string,
+    input: Record<string, unknown>,
+  ) => Promise<unknown>;
+  const narrowing = {
+    call: async (operation: string, input: Record<string, unknown>) => {
+      const answer = await listed(operation, input);
+      return operation === "actions.list" && input.template
+        ? (answer as { installationId: string }[]).filter(
+            (row) => row.installationId === "wiki",
+          )
+        : answer;
+    },
+  } as unknown as WorkflowHost<"interactive">;
+  const found = await discoverGraphProviders(narrowing, { template: "wiki" });
+  assert.deepEqual(
+    found.map((row) => row.installationId),
+    ["wiki"],
+  );
+  assert.deepEqual(
+    calls.filter((call) => call.action === "graph.describe").length,
+    1,
+  );
+  assert.equal(calls[0].template, "wiki");
+  await assert.rejects(discoverGraphProviders(host, { template: "Not A Slug" }));
+});

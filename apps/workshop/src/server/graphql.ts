@@ -8,6 +8,7 @@ import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import { z } from "zod";
 import { type GraphQLFieldConfig, GraphQLID, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, getNamedType } from "graphql";
+import { designRun, designRunInput, startDesign, startDesignInput } from "./design-start";
 import { publishConcepts, publishInput, removeConcept, removeInput } from "./concepts";
 import {
   assemblyInput, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
@@ -52,7 +53,8 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 
 // Workshop's writes that fit a document: every member starts, describes, links and deletes
 // projects, saves the product structure, removes and publishes design concepts and keeps the
-// inventory, as on the page. Saving a whole project document (up to 1.5 MB) and uploading a
+// inventory, as on the page; starting design work (startWorkshopDesign) is the design form's
+// turn as a durable task. Saving a whole project document (up to 1.5 MB) and uploading a
 // concept image stay the routes' own.
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
@@ -60,6 +62,12 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
     requestWorkshopBuild: mutationField<typeof requestBuildInput, WorkshopContext>({name:"RequestWorkshopBuild",description:"Request a project workspace build and preserve revision provenance.",input:requestBuildInput,run:requestBuild}),
     claimWorkshopBuild: mutationField<typeof claimBuildInput, WorkshopContext>({name:"ClaimWorkshopBuild",description:"Claim a project workspace build and preserve revision provenance.",input:claimBuildInput,run:claimBuild}),
     finishWorkshopBuild: mutationField<typeof finishBuildInput, WorkshopContext>({name:"FinishWorkshopBuild",description:"Finish a project workspace build and preserve revision provenance.",input:finishBuildInput,run:finishBuild}),
+    startWorkshopDesign: mutationField<typeof startDesignInput, WorkshopContext>({
+      name: "StartWorkshopDesign",
+      description: "Start Workshop's design agent on a part or project request without waiting for the model: a new project from `message`, or a follow-up to `projectId` at the `revision` the caller saw (a stale revision is refused before anything starts). The work runs as a workshop-design task run; an organization owner or admin may start it. Answers the run { id, status, design, created }: read WorkshopDesignRun with that id until status is complete (design names the saved projectId and revision) or failed. Pass `id` to make a retry start nothing twice.",
+      input: startDesignInput,
+      run: (context, input) => startDesign(context, input),
+    }),
     createWorkshopProject: mutationField<typeof exampleInput, WorkshopContext>({
       name: "CreateWorkshopProject",
       description: "Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.",
@@ -142,8 +150,15 @@ const handoff = mutationField<typeof handoffInput, WorkshopContext>({
       assembly: project.assembly, workspace: project.workspace ?? null, updatedAt: row.updatedAt };
   },
 });
+/** One design run a caller started (StartWorkshopDesign or the platform's StartTasks), read from the workflow host. */
+const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
+  name: "WorkshopDesignRun",
+  description: "Read one design run by the id StartWorkshopDesign answered: status (running, complete or failed) and, once complete, design { projectId, revision, name, features, size [x, y, z] mm, prompt }. A failed run saved nothing; the platform's TaskRuns holds its reason. Changes nothing.",
+  input: designRunInput, output: new GraphQLNonNull(JSONScalar),
+  run: (context, input) => designRun(context, input),
+});
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopProjectHandoff: handoff } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

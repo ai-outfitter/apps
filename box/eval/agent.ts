@@ -37,6 +37,8 @@ export type BoxOptions = {
   screenshotsDir?: string;
   /** One box run's limit in ms, counted from when it starts rather than while it waits its turn. */
   runTimeoutMs?: number;
+  /** The experiment being run, for an app that prepares its requests by experiment. */
+  experiment?: string;
 };
 
 function git(directory: string, ...args: string[]) {
@@ -60,13 +62,18 @@ export type BoxApp = {
   requestFromPrompt(prompt: string): { requestId: string } & Record<string, unknown>;
   /** Whether the run-result the box wrote is a finished, successful run. */
   succeeded(result: any): boolean;
+  /** The experiment whose `.env.<name>` holds this experiment's model settings, for experiments
+   * that share a model and differ in how they reach the agent (default: the experiment itself). */
+  modelEnv?(experiment: string): string;
+  /** The request as this experiment sends it, for an experiment that reaches the same agent another way. */
+  prepareRequest?<T extends { requestId: string } & Record<string, unknown>>(request: T, experiment: string): T;
 };
 
 /** The fixture's request.json, or one the app makes from PROMPT.md. */
-export function fixtureRequest(app: BoxApp, fixture: string, prompt: string) {
+export function fixtureRequest(app: BoxApp, fixture: string, prompt: string, experiment?: string) {
   const file = join(fixture, "request.json");
-  if (existsSync(file)) return JSON.parse(readFileSync(file, "utf8"));
-  return app.requestFromPrompt(prompt);
+  const request = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : app.requestFromPrompt(prompt);
+  return experiment && app.prepareRequest ? app.prepareRequest(request, experiment) : request;
 }
 
 /** Runs the box to completion, streaming its log, within the eval's timeout. */
@@ -192,7 +199,7 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         git(work, "init", "--quiet", "--initial-branch=main", "repo");
         git(repo, "add", "-A");
         git(repo, "commit", "--quiet", "-m", "Eval fixture");
-        const request = fixtureRequest(app, fixturePath, options.prompt);
+        const request = fixtureRequest(app, fixturePath, options.prompt, box.experiment);
         mkdirSync(join(work, "requests"));
         writeFileSync(join(work, "requests", "request.json"), JSON.stringify(request, null, 2));
         mkdirSync(join(work, "out"));
@@ -257,7 +264,7 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const [experiment, ...selected] = process.argv.slice(2);
   const experiments = readdirSync(join(project, "experiments")).filter((file) => file.endsWith(".ts")).map((file) => file.slice(0, -3));
   if (!experiment || !experiments.includes(experiment)) throw new Error(`Name an experiment first: ${experiments.join(", ")}`);
-  const modelEnv = join(project, `.env.${experiment}`);
+  const modelEnv = join(project, `.env.${app.modelEnv?.(experiment) ?? experiment}`);
   if (!existsSync(modelEnv)) throw new Error(`${modelEnv} is missing: copy .env.example and fill in the ${experiment} model settings`);
   const port = Number(env.BOX_PORT || 8787);
   const runs: RunMetrics[] = [];
@@ -266,7 +273,7 @@ export async function runBoxEvals(project: string, box: { name: string; displayN
   const screenshotsDir = join(resultsDir, experiment, "screenshots");
   // Agent Eval checks an experiment's agent when it loads it, so the agent is registered first;
   // its per-run limit is set from the experiment once loaded.
-  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir, screenshotsDir };
+  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir, screenshotsDir, experiment };
   registerAgent(boxAgent(options, app, runs));
   const resolved = await loadConfig(join(project, "experiments", `${experiment}.ts`));
   options.runTimeoutMs = resolved.timeout * 1000;

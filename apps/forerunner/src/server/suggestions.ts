@@ -81,7 +81,8 @@ export async function saveRoleSnapshot(db: Database, who: AppIdentity, host: Wor
   if (existing) await db.update(discoveryRecords).set({ data, createdAt: Date.now() }).where(eq(discoveryRecords.id, existing.id));
   else await db.insert(discoveryRecords).values({ id: crypto.randomUUID(), installationId: who.installationId, ownerId: who.userId, kind: "role-snapshot", data, createdAt: Date.now() });
 }
-async function roleSnapshot(db: Database, who: AppIdentity) {
+/** The role saved for unattended runs: the member's work role as their profile last stated it, or why none is known. */
+export async function roleSnapshot(db: Database, who: AppIdentity) {
   const [row] = await db.select().from(discoveryRecords).where(and(eq(discoveryRecords.installationId, who.installationId), eq(discoveryRecords.ownerId, who.userId), eq(discoveryRecords.kind, "role-snapshot"))).orderBy(desc(discoveryRecords.createdAt)).limit(1);
   return row ? JSON.parse(row.data) as { role: { title: string | null; confidence: string; reasoning: string } | null; status: string } : { role: null, status: "unavailable" };
 }
@@ -150,6 +151,12 @@ export async function latestSuggestionStatus(db: Database, who: AppIdentity) {
 /** Settles the run's `suggestions` step without suggesting anything: a manual run, a preview or a failed run. */
 export async function skipSuggestions(host: WorkflowHost<"interactive">, runId: string, status: "skipped" | "failed" = "skipped") {
   await host.call("workflow.collect", { runId, slot: "suggestions.outputs.result", value: { status, suggestions: 0 } }).catch(() => undefined);
+}
+
+/** The newest saved daily-run suggestions that are still open, with when that run saved them. Reads only; null when no run has saved any. */
+export async function latestOpenSuggestions(db: Database, who: AppIdentity) {
+  const [latest] = await records(db, who);
+  return latest ? { savedAt: latest.createdAt, suggestions: latest.suggestions.filter((suggestion) => suggestion.status === "open").map((suggestion) => ({ title: suggestion.title, why: suggestion.why, kind: suggestion.kind })) } : null;
 }
 
 /** The member's open suggestions, newest first. Editors only. */

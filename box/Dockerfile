@@ -40,6 +40,12 @@ COPY --from=webapp . .
 RUN npm run --silent workflow-schema:check && npm run --silent apps:build
 COPY --from=app /package/ /tmp/package/
 RUN cp "/tmp/package/${BOX_APP}.operational.json" "src/generated/apps/${BOX_APP}.operational.json"
+# The platform lists and runs an app's documents from the metadata it generated at
+# apps:build, which is the released app's. Replace the box app's GraphQL schema and
+# documents with this checkout's too, so a document this checkout adds (graph_documents,
+# graph_query, graph_mutate) is served as its package serves it.
+COPY --from=app /apps/apps/${BOX_APP}/graph /tmp/graph
+RUN node -e 'const fs=require("fs");const app=process.env.BOX_APP;for(const [file,source,parse] of [["graph-schemas.json","schema.graphql",false],["graph-documents.json","documents.json",true]]){const from="/tmp/graph/"+source;if(!fs.existsSync(from))continue;const path="src/generated/apps/"+file;const all=JSON.parse(fs.readFileSync(path,"utf8"));const text=fs.readFileSync(from,"utf8");all[app]=parse?JSON.parse(text):text;fs.writeFileSync(path,JSON.stringify(all,null,2));}'
 RUN cd workspace/runtime && npm ci --omit=dev --no-audit --no-fund
 # The box harness and the box app (its driver and the sources it uses), laid
 # out as in this repository, inside the checkout so they resolve its modules.

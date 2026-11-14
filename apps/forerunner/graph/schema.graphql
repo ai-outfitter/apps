@@ -1,11 +1,16 @@
 type Query {
   """
-  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. No generation starts.
+  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. `sections` reads only the named sections (digest, priorities, review, history), so the saved brief never waits on reports. No generation, schedule write or connector read starts.
   """
   dailyHome(input: DailyHomeInput!): JSON
 
   """Read the personal daily brief schedule; no scheduling side effects."""
   dailyBriefSchedule(input: JSON!): JSON
+
+  """
+  Read the saved research reports and their schedule; no scheduling side effects.
+  """
+  researchReportSchedule(input: JSON!): JSON
 
   """
   Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.
@@ -48,6 +53,14 @@ scalar JSON
 input DailyHomeInput {
   timezone: String
   includeHistory: Boolean
+  sections: [DailyHomeInputSectionsItem!]
+}
+
+enum DailyHomeInputSectionsItem {
+  digest
+  priorities
+  review
+  history
 }
 
 input DayReviewInput {
@@ -211,10 +224,26 @@ enum UpdateSuggestionInputStatus {
 input SetDailyBriefScheduleInput {
   enabled: Boolean!
   timezone: String!
+  ifUnset: Boolean
 }
 
 input GenerateDailyBriefInput {
   timezone: String!
+}
+
+input SetResearchReportScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  hour: Int
+  reports: [SetResearchReportScheduleInputReportsItem!]!
+}
+
+input SetResearchReportScheduleInputReportsItem {
+  slug: String!
+  title: String!
+  subject: String
+  location: String!
+  topics: [String!]!
 }
 
 """
@@ -267,14 +296,24 @@ type Mutation {
   updateSuggestion(input: UpdateSuggestionInput!): Suggestion!
 
   """
-  Enable or disable the personal daily brief at 05:00 in a saved timezone. No connection is auto-authorized.
+  Enable or disable the personal daily brief at 05:00 in a saved timezone. `ifUnset` saves the default only when no daily brief schedule exists. No connection is auto-authorized.
   """
   setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
 
   """
-  Explicitly capture today's personal brief from saved reports and current priorities. Missing provider adapters remain incomplete.
+  Write today's personal brief from saved reports, priorities, goals and role with one cited model answer. A failed answer saves nothing and returns status failed; missing sources stay listed as not known.
   """
   generateDailyBrief(input: GenerateDailyBriefInput!): JSON
+
+  """
+  Save this scope's research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
+  """
+  setResearchReportSchedule(input: SetResearchReportScheduleInput!): JSON
+
+  """
+  Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.
+  """
+  generateResearchReports(input: JSON!): JSON
 
   """
   Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.

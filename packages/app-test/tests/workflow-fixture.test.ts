@@ -56,6 +56,7 @@ const answers: Record<string, unknown> = {
   "subscription.save": { id: "subscription" },
   "inference.generate": { output: { label: "bug" } },
   "inference.image": { contentType: "image/png", base64: "iVBORw0KGgo=", model: "image-model" },
+  "web.search": { results: [{ title: "Fixture page", url: "https://example.org/fixture", snippet: "A fixture extract." }] },
   "schedule.save": { id: "schedule", workflowId: "flow", cron: "0 9 * * 1-5", timezone: "UTC", inputs: {}, connectionId: null, resource: null, createdBy: "owner",
     enabled: true, nextRunAt: 1, lastRunAt: null, lastRunId: null, lastOutcome: null },
   schedules: [],

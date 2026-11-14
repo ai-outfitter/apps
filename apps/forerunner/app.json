@@ -31,7 +31,9 @@
         "routines.manage",
         "platform.documents",
         "platform.records",
-        "workflow.forerunner-daily-brief.start"
+        "workflow.forerunner-daily-brief.start",
+        "workflow.forerunner-research-report.start",
+        "web.search"
       ]
     }
   },

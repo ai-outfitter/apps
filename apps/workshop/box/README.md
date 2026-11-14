@@ -72,6 +72,35 @@ BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark cable-cl
 BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark case-board case-psu case-cooler case-base case-top case-shell
 ```
 
+### Starting design work through the graph API
+
+Design work also starts with one GraphQL mutation, `StartWorkshopDesign`
+(`src/server/design-start.ts`), which Workshop publishes to MCP clients with
+`WorkshopDesignRun`. The mutation checks the request as a design turn does,
+starts a `workshop-design` task run through the workflow host's `task.start`
+and answers at once; the platform then dispatches the task to Workshop, which
+runs the same design turn on that run. The platform's own `StartTasks` starts
+the same task. An organization owner or admin may start it.
+
+A request with `"via": "graphql"` sends every turn that way: the driver calls
+`graph_mutate` on the platform's MCP dispatch as the signed-in member (the
+local session adapter at `/debug/mcp/rpc`, the same dispatch `/mcp` serves an
+OAuth client), reads `WorkshopDesignRun` until the run is complete, and reads
+the project it saved. Everything after the turn is unchanged, so a fixture's
+`EVAL.ts` grades both paths with the same geometry scores. The experiments
+`luna-graphql` and `spark-graphql` run every fixture this way on the same
+model settings (`.env.luna`, `.env.spark`), into `results/<experiment>/`:
+
+```sh
+BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark-graphql cable-clip
+BOX_CLI=podman node --import tsx apps/workshop/agent-evals/run.ts spark-graphql case-board case-psu case-cooler case-base case-top case-shell
+```
+
+These are the tier 0 parts and the tier 2 case parts of `../docs/vision.md`
+again, reached the way an agent outside Workshop reaches them. A failure here
+that the design-route experiment passes is in the mutation, the task dispatch
+or the graph API, not the design agent.
+
 ## Repository-owned assemblies (tier 2)
 
 Set `BOX_WORKSPACE=1` to use the same sealed platform, gateway and workspace

@@ -1,6 +1,7 @@
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
+import type { IssueReceipt } from "./forge";
 import { foundryLandingWorkflow, landingContinuation } from "./landing-recovery";
 import { workspaceAgentPermissions, workspaceCoordinatorPermissions, workspaceTarget } from "./execution";
 
@@ -238,6 +239,49 @@ export async function startJobFix(host: Unattended, fix: JobFix, repository: { i
       issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" } }, id);
 }
 
+/** Failed fix runs an issue gets before its job closes it as not fixable. */
+export const jobFixAttempts = 3;
+/** Most fixes one job run restarts, so a backlog drains over several runs. */
+const jobRetriesPerRun = 5;
+
+/** Every job run also finishes earlier work: each open issue whose last Foundry
+ * fix failed starts again on the same branch, as does an issue Foundry opened
+ * whose fix never started; one that has failed `jobFixAttempts` times is closed with its runs. */
+export async function retryJobFixes(host: Unattended, fix: JobFix, repository: { id: number; name: string },
+  forge: { openIssues(): Promise<(IssueReceipt & { byFoundry: boolean })[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
+  skip: ReadonlySet<number>) {
+  const retried = [];
+  const closed = [];
+  const issues = (await forge.openIssues()).filter((issue) => !skip.has(issue.number));
+  const runsOf = new Map<number, Awaited<ReturnType<typeof issueRuns>>>();
+  if (issues.length)
+    for (const run of await issueRuns(host, fix.resource, issues.map((issue) => issue.number)))
+      runsOf.set(Number(run.subject), [...runsOf.get(Number(run.subject)) ?? [], run]);
+  for (const issue of issues) {
+    if (retried.length >= jobRetriesPerRun) break;
+    const runs = (runsOf.get(issue.number) ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (runs.length ? runs[0].status !== "failed" : !issue.byFoundry) continue;
+    const failures = runs.filter((run) => run.status === "failed");
+    if (failures.length >= jobFixAttempts) {
+      await forge.close(issue.number, `Foundry could not fix this in ${failures.length} attempts (runs ${
+        failures.map((run) => run.id).join(", ")}), so it is closed. A later job run files it again if it still applies.`, "not_planned");
+      closed.push({ number: issue.number, url: issue.url, title: issue.title });
+      continue;
+    }
+    // The retry keeps the failed run's branch, so its open pull request carries on.
+    const prior = runs[0] && await host.call("workflow.read", { id: runs[0].id });
+    const event = prior?.inputs["triage.inputs.event"] as { sourceRunId?: string } | undefined;
+    const id = await foundryIssueRunId(fix.installation, fix.resource, issue.number, `retry-${failures.length}`);
+    const started = await launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
+      { action: "opened", repository: { id: repository.id, full_name: repository.name },
+        issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" },
+        ...(runs[0] ? { previousRunId: runs[0].id, sourceRunId: z.uuid().parse(event?.sourceRunId ?? runs[0].id) } : {}) },
+      id, undefined, runs);
+    retried.push({ number: issue.number, url: issue.url, title: issue.title, fixRun: started.id });
+  }
+  return { retried, closed };
+}
+
 /** Start a repository job now. */
 export async function runFoundryJob(host: Editor, job: FoundryJob, repository: string) {
   const { repository: name, inputs } = await jobInputs(host, job, repository);
@@ -283,14 +327,14 @@ export async function foundryIssueRunId(
 }
 
 /** Runs of one repository's issue across Foundry's issue workflows, newest first. */
-export function issueRuns(host: Unattended, resource: string, issue: number) {
+export function issueRuns(host: Unattended, resource: string, issue: number | number[]) {
   return host.call("workflow.references", {
     selectors: [
       { slot: "triage.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
       { slot: "land.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
     ],
     key: resource,
-    subjects: [issue],
+    subjects: Array.isArray(issue) ? issue : [issue],
     workflows: issueWorkflows,
     limitPerSubject: 10,
   });

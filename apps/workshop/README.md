@@ -39,3 +39,10 @@ the existing creation and workspace flows perform those actions. Conversations u
 the platform thread service and the installation-scoped agent tables. Demo replies
 are scripted. Operational installations need `threads.use` and `threads.provide`.
 
+## Starting design work from outside the page
+
+`StartWorkshopDesign` starts the design agent on a part or project request with
+one GraphQL mutation and answers the run at once; `WorkshopDesignRun` reads it
+until the project revision is saved. Both are published to MCP clients, and
+the platform's `StartTasks` starts the same `workshop-design` task. See
+[box/README.md](box/README.md) for the evals that drive this path.
