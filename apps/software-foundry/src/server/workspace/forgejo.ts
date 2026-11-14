@@ -73,6 +73,19 @@ export class ForgejoFoundryForge {
     return { number: pull.number, headSha: pull.head.sha, branch: pull.head.ref, url: pull.html_url };
   }
 
+  /** Open issues the bot opened (the newest page). */
+  async openedIssues(): Promise<IssueReceipt[]> {
+    const issues = await this.api(this.path(`/issues?state=open&type=issues&limit=${page}`));
+    return (Array.isArray(issues) ? issues : []).filter((issue: any) => issue.user?.id === this.botUserId).map((issue: any) => ({
+      number: issue.number, repository: this.repository, url: issue.html_url, title: issue.title,
+      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const }));
+  }
+
+  async close(number: number, comment: string) {
+    await this.api(this.path(`/issues/${number}/comments`), { body: comment });
+    await this.api(this.path(`/issues/${number}`), { state: "closed" }, "PATCH");
+  }
+
   async comment(issue: number, attemptId: string, summary: string) {
     const marker = `<!-- outfitter:workspace-triage:${attemptId} -->`;
     const comments = await this.api(this.path(`/issues/${issue}/comments?limit=${page}`));

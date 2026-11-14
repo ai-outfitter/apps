@@ -181,7 +181,7 @@ async function initialize(signal) {
     return;
   }
   notice.textContent =
-    "Each run files a few issues, and Foundry fixes and merges each one.";
+    "Each run files a few issues, and Foundry fixes and merges each one. The next run retries a fix that stopped, and closes an issue after three failed attempts.";
   select.disabled = false;
   for (const button of buttons) {
     button.disabled = false;
