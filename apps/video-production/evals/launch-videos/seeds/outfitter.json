@@ -1,0 +1,101 @@
+{
+  "organization": {
+    "name": "Outfitter",
+    "slug": "outfitter"
+  },
+  "operations": [
+    {
+      "operation": "create",
+      "ref": "$org",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Organization",
+        "title": "Outfitter",
+        "summary": "Apps and agents that help people and organizations run on their own data.",
+        "properties": {
+          "organization_id": "eval-org"
+        }
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$onto",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "Onto",
+        "summary": "A typed graph of what an organization knows, changed through reviewed batches."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$plan",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "Planning",
+        "summary": "Projects, issues and priorities tied to goals."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$foundry",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "Software Foundry",
+        "summary": "Turns planned work into reviewed pull requests."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$seg",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "CustomerSegment",
+        "title": "Small hardware teams",
+        "summary": "Teams of two to ten building a physical product."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e1",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$onto",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e2",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$plan",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e3",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$foundry",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e4",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$seg",
+        "toId": "$org"
+      }
+    }
+  ]
+}

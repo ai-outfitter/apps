@@ -1,0 +1,230 @@
+type Query {
+  """
+  Creative briefs with their storyboards, each storyboard's shots in sequence order and the references each shot needs, from the organization's Onto.
+  """
+  storyboards: Storyboards!
+}
+
+type Storyboards {
+  briefs: [CreativeBrief!]!
+
+  """Storyboards that follow no brief."""
+  unbriefed: [Storyboard!]!
+}
+
+type CreativeBrief {
+  id: ID!
+
+  """Slug, or ID when the record has none."""
+  address: String!
+  title: String!
+  summary: String!
+  audience: String!
+  singleMessage: String!
+  claimBoundary: String!
+  callToAction: String!
+  successMetric: String!
+  status: String!
+
+  """Products or offerings it is for."""
+  promotes: [OntoLink!]!
+  storyboards: [Storyboard!]!
+}
+
+type OntoLink {
+  id: ID!
+
+  """Slug, or ID when the record has none."""
+  address: String!
+  title: String!
+}
+
+"""The plan for one video. A plan, not evidence that the video exists."""
+type Storyboard {
+  id: ID!
+
+  """Slug, or ID when the record has none."""
+  address: String!
+  title: String!
+  summary: String!
+  aspectRatio: String!
+  variant: String!
+  opening: String!
+  status: String!
+  durationSeconds: Float
+  brief: OntoLink
+
+  """The longer storyboard this is a cut of."""
+  cutFrom: OntoLink
+  shots: [Shot!]!
+}
+
+"""One beat of a storyboard, in sequence order."""
+type Shot {
+  id: ID!
+
+  """Slug, or ID when the record has none."""
+  address: String!
+  title: String!
+  sequence: Int
+  startSeconds: Float
+  durationSeconds: Float
+  beat: String!
+  action: String!
+  camera: String!
+  voiceover: String!
+  overlay: String!
+  sound: String!
+  transition: String!
+  sourceRoute: String!
+  claimStatus: String!
+  status: String!
+  references: [VisualReference!]!
+}
+
+"""
+Something a shot must match. hasFile false means it is a requirement still to be made.
+"""
+type VisualReference {
+  id: ID!
+
+  """Slug, or ID when the record has none."""
+  address: String!
+  title: String!
+  status: String!
+  requirements: String!
+  fileUri: String!
+  version: String!
+  hasFile: Boolean!
+}
+
+"""The Onto change batch a storyboard was staged in."""
+type StagedStoryboard {
+  """Null when the Onto already had everything."""
+  batchId: ID
+
+  """awaiting_review until a member decides it in Onto."""
+  state: String
+  proposals: Int!
+  storyboardId: ID!
+
+  """The Onto's address; its review page is changes/<batchId> there."""
+  ontoPath: String!
+}
+
+input StageStoryboardInput {
+  brief: StageStoryboardInputBrief!
+  storyboard: StageStoryboardInputStoryboard!
+  references: [StageStoryboardInputReferencesItem!]
+  shots: [StageStoryboardInputShotsItem!]
+}
+
+input StageStoryboardInputBrief {
+  key: String!
+  existingId: ID
+  title: String
+  summary: String
+  audience: String
+  single_message: String
+  claim_boundary: String
+  call_to_action: String
+  success_metric: String
+  status: String
+  promotes: [ID!]
+}
+
+input StageStoryboardInputStoryboard {
+  key: String!
+  existingId: ID
+  title: String
+  summary: String
+  duration_seconds: Float
+  aspect_ratio: String
+  variant: String
+  opening: String
+  status: String
+  cutFrom: ID
+}
+
+input StageStoryboardInputReferencesItem {
+  key: String!
+  existingId: ID
+  title: String
+  summary: String
+  status: String
+  requirements: String
+  file_uri: String
+  version: String
+}
+
+input StageStoryboardInputShotsItem {
+  key: String!
+  title: String!
+  summary: String
+  sequence: Int!
+  start_seconds: Float
+  duration_seconds: Float
+  beat: String
+  action: String
+  camera: String
+  voiceover: String
+  overlay: String
+  sound: String
+  transition: String
+  source_route: String
+  claim_status: String
+  status: String
+  references: [String!]
+}
+
+type Mutation {
+  """
+  Stage a creative brief, one storyboard, its shots and their visual references in the organization's Onto as one change batch and submit it for review. Reuse records by existingId; records and links the Onto has are not proposed again, and existing records are not changed. Shot order and timing go in sequence, start_seconds and duration_seconds, never in titles. Editors only.
+  """
+  stageStoryboard(input: StageStoryboardInput!): StagedStoryboard!
+
+  """
+  Stage a creative brief, a storyboard, its shots and their visual references in the organization's Onto as one change batch for review
+  """
+  storyboardChanges(input: StoryboardChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input StoryboardChangesInput {
+  items: [StoryboardChangesInputItemsItem!]!
+}
+
+input StoryboardChangesInputItemsItem {
+  key: String!
+  action: StoryboardChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum StoryboardChangesInputItemsItemAction {
+  stageStoryboard
+}

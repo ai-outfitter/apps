@@ -1,0 +1,63 @@
+{
+  "id": "outfitter/video-production",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "managing-outfitter-instance",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "api.serve",
+        "graph.serve",
+        "workflow.host",
+        "entities.read",
+        "entities.write",
+        "actions.invoke"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "operational": {
+      "slug": "video-production",
+      "name": "Video production",
+      "description": "Creative briefs, storyboards and shots in your organization's Onto, linked to your products."
+    },
+    "demo": {
+      "slug": "video-production",
+      "name": "Video production",
+      "description": "Explore a sample brief, storyboard and shots. Nothing is saved."
+    },
+    "sections": [
+      {
+        "label": "Storyboards",
+        "path": ""
+      }
+    ],
+    "presentation": {
+      "outcome": "Turn a creative brief into storyboards and shots linked to your products, and see which shots still wait on a visual reference.",
+      "connectors": [],
+      "steps": [
+        [
+          "Brief",
+          "Write who a video is for, the one message, what it may claim and the call to action, and link it to the products it promotes."
+        ],
+        [
+          "Storyboards",
+          "Plan each video as a storyboard of shots in order, with timing, voiceover, overlay and sound."
+        ],
+        [
+          "References",
+          "Name the visual references each shot must match. A reference with no file yet shows as a requirement."
+        ]
+      ],
+      "access": "Briefs, storyboards, shots and references live in your organization's Onto. The app adds its record types there once, and every change is a change batch you review in Onto. It does not generate video. Demo data is synthetic and read-only."
+    },
+    "cover": "catalog/cover.svg"
+  },
+  "dependencies": [
+    "onto"
+  ]
+}
