@@ -1,6 +1,6 @@
 # Onto types read by their address names; a staged batch is not unfinished work
 
-Onto's type records now take their entity title from the type's name, the
+Onto node and edge entity records now carry their `address` (`Product:fernlight-soil-stake`) as an attribute, and type records take their entity title from the type's name, the
 form addresses use (`Person`, `supplied_by`), instead of the display title
 (`People`). Agents searching for a type see the name they write in an
 address. The display title still shows on Onto's own pages.
