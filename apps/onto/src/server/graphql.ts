@@ -24,6 +24,7 @@ import { explorationArgs, pictureProviders, listExplorations, mutateExploration,
 import { readGraph, withRecordAddresses } from "./graph";
 import { listShares, mutateShareInput, mutateShare, readShare, shareSlug, sharesFor } from "./graph-shares";
 import { recordAddress } from "../lib/addresses";
+import { askBatch, batchAskInput } from "./batch-questions";
 import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
@@ -76,6 +77,7 @@ const ChangeBatch = new GraphQLObjectType({
     review: { type: JSONScalar, description: "The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
+    questions: { ...json, description: "Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: \"onto\", recordId: \"batch:<id>#<key>\"} when you revise those proposals.", resolve: (batch) => batch.questions ?? [] },
     instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context) }, batchReviewUrl(batch.id)) },
     operations: {
       type: nonNull(new GraphQLList(nonNull(StagedChange))),
@@ -201,6 +203,11 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
         if (revised.batch.state === "awaiting_review") context.afterSubmit?.(input.batchId);
         return view(revised);
       },
+    }),
+    askBatch: mutationField({
+      name: "AskBatch", output: nonNull(ChangeBatch), input: batchAskInput,
+      description: "Ask a member about proposals in an open batch, or one awaiting member review: [{key, ask, refs, options?}]. refs name the proposals that depend on the answer; options are choices the member can pick. The same key replaces a question; a reworded one loses its answer. remove takes questions back. Members answer on the Changes page; answering approves nothing, an unanswered question blocks nothing, and questions close with the batch.",
+      run: async (context: MutationContext, input) => view(await askBatch(context.db(), context.identity, context.actor, input)),
     }),
     mutateExploration: mutationField({
       name: "MutateExploration", output: nonNull(Exploration),

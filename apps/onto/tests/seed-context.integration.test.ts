@@ -48,7 +48,6 @@ test("fresh installations expose the shared type pages to readers and agents", a
       "Activity",
       "Asset",
       "FinancialObligation",
-      "Question",
       "Friendship",
       "ControlDefinition",
       "ControlCommitment",

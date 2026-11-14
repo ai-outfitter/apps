@@ -20,6 +20,7 @@ import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } fr
 import { guardedGraphBatch } from "./graph-batch";
 import { resolveIdentity } from "./identity";
 import { wikiHome } from "./wiki-home";
+import { requireAnsweredCitations } from "./batch-questions";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -58,7 +59,7 @@ export const memberDecision = (who: AppIdentity, actor: AppActor, rest: Record<s
   kind: "member", by: who.userId, via: actorRef(actor), ...(actor.label ? { viaLabel: actor.label } : {}), ...rest,
 });
 
-async function loadBatch(db: Database, id: string) {
+export async function loadBatch(db: Database, id: string) {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, id));
   if (!batch) fail("Batch not found", 404);
   return batch;
@@ -190,7 +191,7 @@ async function requireFirstRun(db: Database, kind: string | undefined) {
  * changes only from the app that opened it, never from an agent or a member's session. The
  * platform verifies the actor; an app calling another app's actions is {kind:"app"} and carries
  * no entity writer unless it holds entities.write.delegated, which Forerunner does not. */
-function requireOpen(batch: BatchRow, actor: AppActor) {
+export function requireOpen(batch: BatchRow, actor: AppActor) {
   if (batch.state !== "open") fail("The batch is no longer open", 409);
   if (batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
   if ((batch.policy as { kind?: string }).kind !== "member" && (actor.kind !== "app" || batch.openedVia !== actorRef(actor)))
@@ -224,6 +225,7 @@ export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor
   if (input.proposals.some((item) => item.operation.type === "graph-type")) requireEditor(who);
   const batch = await loadBatch(db, input.batchId);
   requireOpen(batch, actor);
+  await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
   const added = newRows(batch.id, existing, input.proposals, input.replace);
   const liveRefs = new Set(live(existing).map((row) => row.ref));
@@ -492,6 +494,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   if (batch.policy.kind !== "member" || !["open", "awaiting_review"].includes(batch.state))
     fail("Only an open or submitted member-review batch can be amended", 409);
   if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
+  await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
   const byRef = new Map(existing.map(row => [row.ref, row]));
   const undecided = (row: OperationRow) => ["pending", "awaiting_review", "removed"].includes(row.state);
@@ -635,7 +638,7 @@ function batchView(batch: BatchRow) {
     state: batch.state, summary: batch.summary ? JSON.parse(batch.summary) : null,
     openedBy: batch.openedBy, openedVia: batch.openedVia, reviewBy: batch.reviewBy,
     createdAt: batch.createdAt, updatedAt: batch.updatedAt, expiresAt: batch.expiresAt, closedAt: batch.closedAt,
-    review: batch.review ?? null, anchors: batch.anchors ?? null,
+    review: batch.review ?? null, anchors: batch.anchors ?? null, questions: batch.questions ?? [],
   };
 }
 

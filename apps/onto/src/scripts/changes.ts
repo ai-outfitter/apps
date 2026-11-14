@@ -25,7 +25,9 @@ type Batch = {
   counts?: Record<string, number>;
   anchors?: string[] | null;
   review: Review | null;
+  questions?: Question[];
 };
+type Question = { key: string; ask: string; refs: string[]; options?: string[]; answer?: { option?: string; text?: string; by: string; at: number } };
 type Finding = { ref: string | null; rule: string; severity: "error" | "warning" | "note"; message: string; fix: string | null };
 type Review = {
   state: "complete" | "failed"; runId: string | null; prompt: { path: string; digest: string };
@@ -72,8 +74,9 @@ const label = (op: BatchOperation) => String(op.operation.attributes.title ?? op
 
 function citation(item: Citation) {
   const source = `${item.provider} · ${item.recordId}${item.version ? ` (version ${item.version})` : ""}`;
+  const answer = item.provider === "onto" ? /^batch:([0-9a-f-]{36})#/i.exec(item.recordId)?.[1] : undefined;
   return el("li", {},
-    item.uri ? el("a", { href: item.uri, rel: "noreferrer noopener", target: "_blank" }, source) : el("span", {}, source),
+    answer ? el("a", { href: `${batchUrl(answer)}#questions` }, source) : item.uri ? el("a", { href: item.uri, rel: "noreferrer noopener", target: "_blank" }, source) : el("span", {}, source),
     item.observedAt ? el("span", { class: "change-meta" }, ` · ${time(Date.parse(item.observedAt))}`) : null,
     item.quote ? el("blockquote", {}, item.quote) : null,
   );
@@ -210,6 +213,7 @@ function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string
       actions,
     ),
     op.reason ? el("p", {}, op.reason) : null,
+    proposalQuestions(detail, op, rerender),
     findingList(detail.batch.review?.findings.filter((item) => item.ref === op.ref) ?? []),
     documentPreview(op),
     op.evidence.length
@@ -217,6 +221,54 @@ function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string
       : el("p", { class: "change-meta" }, "No evidence cited."),
     el("span", { class: "change-state" }, how),
   );
+}
+
+/** An agent's questions about the batch. Answering approves nothing; questions close with the batch. */
+function questionSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
+  const questions = detail.batch.questions ?? [];
+  if (!questions.length) return null;
+  return el("section", { id: "questions", class: "change-questions" },
+    el("h2", {}, "Questions"),
+    el("ul", {}, ...questions.map(question => questionItem(detail, question, draw, true))));
+}
+
+/** The questions a proposal waits on, beside it. */
+function proposalQuestions(detail: BatchDetail, op: BatchOperation, draw: (next: BatchDetail) => void) {
+  const questions = (detail.batch.questions ?? []).filter(question => question.refs.includes(op.ref));
+  return questions.length ? el("ul", { class: "change-questions" }, ...questions.map(question => questionItem(detail, question, draw, false))) : null;
+}
+
+function questionItem(detail: BatchDetail, question: Question, draw: (next: BatchDetail) => void, withRefs: boolean) {
+  const open = detail.canReview && ["open", "awaiting_review"].includes(detail.batch.state);
+  const refs = withRefs ? detail.operations.filter(op => question.refs.includes(op.ref)) : [];
+  const answer = question.answer ? question.answer.option ?? question.answer.text : null;
+  const form = open ? answerForm(detail, question, draw) : null;
+  if (form && answer) form.hidden = true;
+  const change = form && answer ? el("button", { type: "button", class: "change-link", onclick: () => { form.hidden = false; change!.remove(); } }, "Change") : null;
+  const item = el("li", { class: "change-question" },
+    el("p", {}, question.ask),
+    refs.length ? el("p", { class: "change-meta" }, "About ", ...refs.flatMap((op, i) => [i ? ", " : "", el("a", { href: `#${proposalAnchor(op)}` }, label(op))])) : null,
+    answer ? el("p", { class: "change-answer" }, el("span", { class: "change-meta" }, "Answer: "), answer, change ? " " : null, change) : open ? null : el("p", { class: "change-meta" }, "Not answered."),
+    form);
+  item.dataset.question = question.key;
+  return item;
+}
+
+function answerForm(detail: BatchDetail, question: Question, draw: (next: BatchDetail) => void) {
+  const send = async (body: { option?: string; text?: string }) => {
+    for (const control of form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) control.disabled = true;
+    try { draw(await call<BatchDetail>("batches/answer", { batchId: detail.batch.id, key: question.key, ...body })); }
+    catch (error) {
+      for (const control of form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) control.disabled = false;
+      form.appendChild(el("p", { role: "alert" }, String(error)));
+    }
+  };
+  const input = el("input", { type: "text", name: "answer", maxLength: 500, placeholder: question.options ? "Or type an answer" : "Type an answer", "aria-label": `Answer: ${question.ask}` });
+  const form = el("form", { class: "change-answer-form" },
+    ...(question.options ?? []).map(option => el("button", { type: "button", class: "change-link", onclick: () => send({ option }) }, option)),
+    input);
+  form.onsubmit = (event) => { event.preventDefault(); if (input.value.trim()) send({ text: input.value.trim() }); };
+  return form;
 }
 
 /** Titles for records and refs, so relationships read as names. */
@@ -277,7 +329,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     agentPage("onto").describe({
       title: batch.title,
       summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
-      state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
+      state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref), questions: (batch.questions ?? []).map(question => ({ key: question.key, answered: !!question.answer })) },
     });
     const view = proposedView(graph, operations);
     const types = new Map(view.types.map((type) => [type.id, type.title]));
@@ -324,6 +376,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
         batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
       bulk,
+      questionSection(current, draw),
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
       anchorLine(graph, current),
       tabs, ...Object.values(panels),

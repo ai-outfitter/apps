@@ -26,7 +26,7 @@ The manual board remains independent. Demo mode remains synthetic and read-only.
 2. Each run resolves the operating user's current name and email through the
    trusted `identity.current` host API. Neither browser input nor messages choose
    that identity. The request-scoped Wiki adapter resolves the same owner and
-   reads every page of active types. Goal, Question, Activity, generic Entity, participates_in, participant,
+   reads every page of active types. Goal, Activity, generic Entity, participates_in, participant,
    interacts_with and customer_of are excluded for now. Discovery retains named
    contacts without creating generic interaction edges or inferring commercial
    relationships from notifications. Relationships
