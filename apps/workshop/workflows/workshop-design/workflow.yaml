@@ -2,21 +2,34 @@ version: beta
 id: workshop-design
 summary: Workshop's design agent turns one design request, or a follow-up to the current model, into a CAD plan and saves it as the project's next revision.
 actors: {}
+# A registered task: the platform's StartTasks and Workshop's own
+# StartWorkshopDesign mutation start a run from this request, and the platform
+# then has Workshop carry out the same design turn the project page runs.
+task:
+  input: design.inputs.request
+  output: design.outputs.design
+  schema:
+    type: object
+    properties:
+      message: {type: string, minLength: 1, maxLength: 500, description: The design request or follow-up}
+      projectId: {type: string, format: uuid, description: The project a follow-up changes; leave out for a new project}
+      revision: {type: integer, minimum: 0, description: That project's revision as the caller saw it; required with projectId}
+    required: [message]
+    additionalProperties: false
 triggers:
   - on: manual
 steps:
   # No actor fills this step: Workshop does, through the workflow host, when a
-  # member sends a design request from a project page. It sends the design
+  # member sends a design request from a project page, or when the platform
+  # dispatches a started task. It sends the design
   # agent prompt (agent/design-agent.md) with the request and the current
   # model as data, validates the answer against the CAD plan contract, saves
   # the project and records the revision here. A turn is one run.
   - id: design
     inference: {maxOutputTokens: 16000, timeoutMs: 840000}
     inputs:
-      message:
-        schema: {type: string, minLength: 1, maxLength: 500, description: The member's design request or follow-up}
-      projectId:
-        schema: {type: [string, "null"], description: The project a follow-up changes; null for a new project}
+      request:
+        schema: {type: object, description: "The design request: message, and projectId with revision for a follow-up"}
     outputs:
       design:
         connector: database

@@ -26,6 +26,11 @@ type Query {
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
   """
   workshopProjectHandoff(input: WorkshopProjectHandoffInput!): JSON!
+
+  """
+  Read one design run by the id StartWorkshopDesign answered: status (running, complete or failed) and, once complete, design { projectId, revision, name, features, size [x, y, z] mm, prompt }. A failed run saved nothing; the platform's TaskRuns holds its reason. Changes nothing.
+  """
+  workshopDesignRun(input: WorkshopDesignRunInput!): JSON!
 }
 
 type WorkshopProjectConnection {
@@ -87,6 +92,10 @@ type WorkshopUnit {
 scalar JSON
 
 input WorkshopProjectHandoffInput {
+  id: ID!
+}
+
+input WorkshopDesignRunInput {
   id: ID!
 }
 
@@ -229,6 +238,13 @@ enum FinishWorkshopBuildInputManifestTestsItemStatus {
   pass
   fail
   unverified
+}
+
+input StartWorkshopDesignInput {
+  id: ID
+  message: String!
+  projectId: ID
+  revision: Float
 }
 
 input CreateWorkshopProjectInput {
@@ -429,6 +445,11 @@ type Mutation {
 
   """Finish a project workspace build and preserve revision provenance."""
   finishWorkshopBuild(input: FinishWorkshopBuildInput!): JSON
+
+  """
+  Start Workshop's design agent on a part or project request without waiting for the model: a new project from `message`, or a follow-up to `projectId` at the `revision` the caller saw (a stale revision is refused before anything starts). The work runs as a workshop-design task run; an organization owner or admin may start it. Answers the run { id, status, design, created }: read WorkshopDesignRun with that id until status is complete (design names the saved projectId and revision) or failed. Pass `id` to make a retry start nothing twice.
+  """
+  startWorkshopDesign(input: StartWorkshopDesignInput!): JSON
 
   """
   Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.
