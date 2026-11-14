@@ -23,7 +23,7 @@ import {
 } from "@ai-outfitter/creative-workflow";
 import { readGraph } from "./graph";
 import { addressIndex, resolveAddress, recordAddress } from "../lib/addresses";
-import { openBatch, addToBatch, getBatch } from "./graph-batches";
+import { openBatch, addToBatch, getBatch, batchAddInput } from "./graph-batches";
 import type { ChangeContext } from "./graphql";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 type Context = ChangeContext & ActionContext;
@@ -201,7 +201,7 @@ async function stage(c: Context, input: z.infer<typeof creativeInput>) {
         policy: { kind: "member" },
       })
     ).batch.id;
-  await addToBatch(c.db(), c.identity, c.actor, { batchId, proposals });
+  await addToBatch(c.db(), c.identity, c.actor, batchAddInput.parse({ batchId, proposals }));
   return {
     batchId,
     state: (await getBatch(c.db(), c.identity, { batchId })).batch.state,
