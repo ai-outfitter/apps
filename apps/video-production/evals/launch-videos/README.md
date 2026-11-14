@@ -36,9 +36,15 @@ run file (`lib/run.ts` reads it). This directory mirrors the runner's layout
 (`evals/`, `seeds/`, `profiles/`, `experiments/`). Luna acts and judges
 (`OPENAI_API_KEY`).
 
-Not run from here yet: the runner still reads seeds and profiles from its own
-`evals/outfitter/` directory, so it must first accept a suite directory (resolve
-`seeds/` and `profiles/` beside the fixture's `evals/`). Until then the checks type-check (`npx tsc --noEmit -p apps/video-production`)
+From a webapp checkout beside this one (`npm ci` in both, apps built as the
+webapp's `evals/outfitter/README.md` says):
+
+```sh
+npm run evals:outfitter -- --project ../apps/apps/video-production/evals/launch-videos luna
+```
+
+`--dry` lists the fixtures without running them. Results land in `results/`
+here. The checks also type-check (`npx tsc --noEmit -p apps/video-production`),
 and the grader's unit tests run with the app's tests. The last baseline, from the
 platform before the move (webapp#904, 2026-11-10, Luna, older checks): 0 of 3
 runs passed on each Onto, and no run proposed a type.
