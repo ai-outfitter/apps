@@ -117,7 +117,7 @@ async function addressed(db: Database, nodes: GraphNode[]) {
   const names = new Map(types.map((type) => [type.id, type.name]));
   return nodes.map((node): GraphNode & Named => ({ ...node, address: names.has(node.typeId) ? `${names.get(node.typeId)}:${node.slug}` : undefined }));
 }
-const withAddress = (row: object) => ({ ...provenance(row as Parameters<typeof provenance>[0]), ...((row as Named).address ? { address: (row as Named).address as string } : {}) });
+const withAddress = (row: Parameters<typeof provenance>[0] & Named) => ({ ...provenance(row), ...(row.address ? { address: row.address } : {}) });
 
 /** Published audit fields come from the same row as the record. */
 function provenance(row: { createdBy: string | null; updatedBy: string | null; createdAt: number; updatedAt: number; seedVersion?: number | null }) {
