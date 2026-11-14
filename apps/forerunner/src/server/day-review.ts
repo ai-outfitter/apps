@@ -94,17 +94,29 @@ async function savedOrder(host: Host) {
     throw error;
   }
 }
-async function organizationReports(host: Host, period: ReviewPeriod): Promise<{ sources: ReportSource[]; warnings: string[] }> {
-  const [current, order] = await Promise.all([
-    host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" }).then(value => memberships.parse(value).viewer.orgs),
-    savedOrder(host),
-  ]);
+type Membership = z.infer<typeof memberships>["viewer"]["orgs"][number];
+const currentMemberships = async (host: Host) => memberships.parse(await host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" })).viewer.orgs;
+/**
+ * The saved personal overview already holds each organization's report as Planning captured it,
+ * in the member's priority order, so the page shows that snapshot and reads no organization.
+ */
+function capturedOrganizations(overview: unknown, current: Membership[], period: ReviewPeriod): ReportSource[] | null {
+  const captured = record(overview).organizations;
+  if (!Array.isArray(captured)) return null;
+  const names = new Map(current.map(org => [org.slug, org.name ?? org.slug]));
+  return rows(captured).filter(row => text(row.organizationSlug)).slice(0, 20).map(row => {
+    const slug = text(row.organizationSlug), name = names.get(slug) ?? slug;
+    return row.period ? reportSource(row, slug, name, period) : source(slug, name, "missing", "No daily report was saved for this date.");
+  });
+}
+/** Only when no personal overview was saved for the day: one read per organization, so one that fails does not hide the others. */
+async function organizationReports(host: Host, period: ReviewPeriod, current: Membership[]): Promise<{ sources: ReportSource[]; warnings: string[] }> {
+  const order = await savedOrder(host);
   const rank = new Map(order.map((slug, index) => [slug, index]));
   const available = current.filter(org => org.appSlugs.includes("planning")).sort((a, b) => (rank.get(a.slug) ?? order.length) - (rank.get(b.slug) ?? order.length));
   const sources = await Promise.all(available.slice(0, 20).map(async org => {
     const name = org.name ?? org.slug;
     try {
-      // One read per organization, so an organization that fails is unavailable without hiding the others.
       const result = reports.parse(await host.call("platform.document", {
         app: "planning", document: "DailyReports", kind: "query", scopes: [org.slug], variables: { date: period.date, timezone: period.timezone },
       }));
@@ -125,21 +137,27 @@ async function ownOverview(host: Host, identity: AppIdentity, period: ReviewPeri
     if (result.errors?.length || result.extensions?.truncated || !result.data) throw new Error("Incomplete overview read");
     let scope = "personal";
     if (identity.organizationId) {
-      const current = memberships.parse(await host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" })).viewer.orgs;
+      const current = await currentMemberships(host);
       if (current.length !== 1) throw new Error("Organization scope is ambiguous");
       scope = current[0].slug;
     }
-    return { source: reportSource(result.data.dailyReport, scope, "Daily overview", period), ...reportGoals(result.data.dailyReport) };
-  } catch { return { source: source("personal", "Daily overview", "unavailable", "Your saved daily overview could not be read."), goals: [] as GoalReference[], goalCoverage: "unavailable" as const }; }
+    return { raw: result.data.dailyReport as unknown, source: reportSource(result.data.dailyReport, scope, "Daily overview", period), ...reportGoals(result.data.dailyReport) };
+  } catch { return { raw: null as unknown, source: source("personal", "Daily overview", "unavailable", "Your saved daily overview could not be read."), goals: [] as GoalReference[], goalCoverage: "unavailable" as const }; }
 }
 export async function readDayReview(db: Database, identity: AppIdentity, host: Host, raw: z.input<typeof reviewInput>, now = Date.now()): Promise<DayReview> {
   const period = reviewPeriod(raw, now), latestDate = shiftDate(localDate(now, period.timezone), -1);
-  const [completed, current, personal, organizations] = await Promise.all([
+  const none = { sources: [] as ReportSource[], warnings: [] as string[] };
+  const [completed, current, personal, orgs] = await Promise.all([
     db.select().from(itemCompletions).where(and(eq(itemCompletions.installationId, identity.installationId), eq(itemCompletions.ownerId, identity.userId), gte(itemCompletions.completedAt, period.start), lt(itemCompletions.completedAt, period.end))).orderBy(asc(itemCompletions.completedAt)).limit(101),
     listItems(db, identity),
     ownOverview(host, identity, period),
-    identity.organizationId ? Promise.resolve({ sources: [] as ReportSource[], warnings: [] as string[] }) : organizationReports(host, period).catch(() => ({ sources: [] as ReportSource[], warnings: ["Organization report sources could not be loaded. This is not evidence of no activity."] })),
+    identity.organizationId ? Promise.resolve([] as Membership[]) : currentMemberships(host).catch(() => null),
   ]);
+  // The saved overview is the snapshot. Organizations are read one by one only on a day without one.
+  const captured = orgs && personal.source.status !== "unavailable" ? capturedOrganizations(personal.raw, orgs, period) : null;
+  const unloaded = { ...none, warnings: ["Organization report sources could not be loaded. This is not evidence of no activity."] };
+  const organizations = identity.organizationId ? none : captured ? { ...none, sources: captured }
+    : orgs ? await organizationReports(host, period, orgs).catch(() => unloaded) : unloaded;
   const existing = new Set(current.map(item => item.id)), overview = personal.source;
   return { period, latestDate, previousDate: shiftDate(period.date, -1), nextDate: period.date < latestDate ? shiftDate(period.date, 1) : null,
     previousWeek: shiftDate(period.date, -7), nextWeek: shiftDate(period.date, 7) <= latestDate ? shiftDate(period.date, 7) : null,

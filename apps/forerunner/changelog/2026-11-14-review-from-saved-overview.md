@@ -1,0 +1,1 @@
+Yesterday's review on Today now takes each organization's report from the member's saved personal overview, the snapshot Planning already captured, instead of reading every organization at page load. Reading five organizations took about 10 seconds in production. A day with no readable personal overview still falls back to one read per organization. See `docs/daily-brief.md`.

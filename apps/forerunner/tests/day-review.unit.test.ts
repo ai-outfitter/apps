@@ -110,3 +110,21 @@ test("organization sources use live membership, saved order and independent fail
     assert.equal(result.previousWeek, "2026-11-03");
   } finally { client.close(); }
 });
+
+test("a saved personal overview supplies the organization reports without reading any organization", async () => {
+  const { client, db } = await database();
+  const calls: Record<string, unknown>[] = [];
+  const host = { async call(operation: string, input: Record<string, unknown>) {
+    if (operation === "entities.types") return [{ installationId: "planning", template: "planning", type: "portfolio-priority", collection: "portfolio-priorities" }];
+    if (operation === "actions.call") return { data: { dailyReport: { ...report(), organizations: [{ organizationSlug: "sunny", ...report() }, { organizationSlug: "artera", status: "incomplete", reason: "missing" }] } } };
+    assert.equal(operation, "platform.document");
+    calls.push(input);
+    return { viewer: { orgs: [{ slug: "sunny", name: "Sunny", appSlugs: ["planning"] }, { slug: "artera", name: null, appSlugs: ["planning"] }] } };
+  } } as unknown as WorkflowHost<"interactive">;
+  try {
+    const result = await readDayReview(db, identity, host, {}, now);
+    assert.deepEqual(result.organizations.map(row => [row.scope, row.name, row.status]), [["sunny", "Sunny", "complete"], ["artera", "artera", "missing"]]);
+    assert.equal(result.organizations[0].work.length, 1);
+    assert.deepEqual(calls.map(call => call.document), ["Viewer"]);
+  } finally { client.close(); }
+});
