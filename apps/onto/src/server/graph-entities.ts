@@ -110,6 +110,15 @@ async function named(db: Database, edges: GraphEdge[]) {
   return edges.map((edge): GraphEdge & Named => ({ ...edge, address: address("graph-edge", edge.id) ?? undefined }));
 }
 
+/** Nodes with their address, such as Person:ada, so a reader can write about them without ids. */
+async function addressed(db: Database, nodes: GraphNode[]) {
+  if (!nodes.length) return nodes;
+  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, [...new Set(nodes.map((node) => node.typeId))]));
+  const names = new Map(types.map((type) => [type.id, type.name]));
+  return nodes.map((node): GraphNode & Named => ({ ...node, address: names.has(node.typeId) ? `${names.get(node.typeId)}:${node.slug}` : undefined }));
+}
+const withAddress = (row: object) => ({ ...provenance(row as Parameters<typeof provenance>[0]), ...((row as Named).address ? { address: (row as Named).address as string } : {}) });
+
 /** Published audit fields come from the same row as the record. */
 function provenance(row: { createdBy: string | null; updatedBy: string | null; createdAt: number; updatedAt: number; seedVersion?: number | null }) {
   return { provenance: { createdBy: row.createdBy, updatedBy: row.updatedBy, createdAt: row.createdAt, updatedAt: row.updatedAt },
@@ -178,13 +187,13 @@ export function graphEntities(
     description:
       "Typed node documenting an identifiable thing or relator. Create a complete relator with its participation links in graph.apply. Assertion nodes use the SDK assertionBody schema; authenticated confirmation is a separate receipt. Discover graph-type for permitted properties and the optional body jsonSchema. Structured bodies are JSON serialized into the body string. Projects may document external work without an app reference; optionally link a canonical Planning project. Read-only provenance records writers; no private contact fields or external identifiers are exposed. When updating a sourced node, include its current canonical reference. archived:true reversibly removes a node from active views.",
     schema: nodeInput,
-    outputAttributes: provenance,
+    outputAttributes: withAddress,
     filterSchema: nodeFilter,
     name: (row) => row.title,
     references: (row) => (row.source ? [row.source] : []),
     list: async (_who, offset, limit, filter, order) => {
       const f = filter ?? {};
-      return (
+      return addressed(db, (
         await db
           .select()
           .from(graphNodes)
@@ -203,9 +212,9 @@ export function graphEntities(
           .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "title" ? graphNodes.title : graphNodes.id) : asc(graphNodes.id), asc(graphNodes.id))
           .offset(offset)
           .limit(limit)
-      ).map(nodeView);
+      ).map(nodeView));
     },
-    get: (_who, id) => getNode(db, id),
+    get: async (_who, id) => { const node = await getNode(db, id); return node ? (await addressed(db, [node]))[0] : node; },
     create: (who, input, references) =>
       saveNode(db, who, context, input, references),
     update: (who, current, input, revision, references) =>
@@ -220,7 +229,7 @@ export function graphEntities(
     description:
       "Stored relationship with its own identity, revision, properties, narrative and read-only provenance. Use graph.relationships for direction-independent symmetric lookup and read-only derived views. Discover graph-type for meaning and property definitions. archived:true reversibly deletes a relationship.",
     schema: edgeInput,
-    outputAttributes: provenance,
+    outputAttributes: withAddress,
     filterSchema: edgeFilter,
     // An untitled edge is named by its address, never its UUID.
     name: (row) => row.title || (row as Named).address || row.id,
