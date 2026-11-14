@@ -33,3 +33,15 @@ test("the box agent runs one box at a time", async () => {
   await Promise.all([agent.run(fixture, options), agent.run(fixture, options)]);
   assert.deepEqual(readFileSync(join(dir, "log"), "utf8").trim().split("\n"), ["start", "end", "start", "end"]);
 });
+
+test("an experiment may prepare a fixture's request", async () => {
+  const { fixtureRequest } = await import("../eval/agent.ts");
+  const dir = mkdtempSync(join(tmpdir(), "request-"));
+  const app = {
+    requestFromPrompt: (prompt: string) => ({ requestId: "r", message: prompt }), succeeded: () => true,
+    prepareRequest: <T extends Record<string, unknown>>(request: T, experiment: string) => (experiment.endsWith("-graphql") ? { ...request, via: "graphql" } : request),
+  };
+  assert.deepEqual(fixtureRequest(app, dir, "A bracket", "luna-graphql"), { requestId: "r", message: "A bracket", via: "graphql" });
+  assert.deepEqual(fixtureRequest(app, dir, "A bracket", "luna"), { requestId: "r", message: "A bracket" });
+  assert.deepEqual(fixtureRequest(app, dir, "A bracket"), { requestId: "r", message: "A bracket" });
+});

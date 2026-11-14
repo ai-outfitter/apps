@@ -6,6 +6,9 @@
 // commit the design revision to the default branch under designs/<slug>/,
 // write its design-result, and release the designs that asked for one. After
 // each design turn it screenshots the project's workbench (screenshots.mjs).
+// A request with `via: "graphql"` reaches the same design agent another way:
+// each turn is started with the StartWorkshopDesign mutation through the
+// platform's graph API (MCP graph_mutate) and its run is followed to the end.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
@@ -33,14 +36,14 @@ const AUTHOR = { name: "Outfitter Workshop", email: "outfitter@box.local" };
 const MEMBER = { email: "local@example.test", password: "local-orgs-only" };
 
 /** A request to the platform on loopback, addressed to one of its hostnames. */
-export function platformRequest(box, host, path, { method = "GET", body, cookie } = {}) {
+export function platformRequest(box, host, path, { method = "GET", body, cookie, headers = {} } = {}) {
   const origin = `http://${host}:${box.port}`;
   const payload = body === undefined ? undefined : Buffer.from(JSON.stringify(body));
   return new Promise((resolve, reject) => {
     const request = http.request({
       host: "127.0.0.1", port: box.port, path, method,
       headers: { Host: `${host}:${box.port}`, Origin: origin, ...(payload ? { "Content-Type": "application/json", "Content-Length": payload.length } : {}),
-        ...(cookie ? { Cookie: cookie } : {}) },
+        ...(cookie ? { Cookie: cookie } : {}), ...headers },
       // A design turn on a slow local model can take up to the step's 14-minute inference limit.
       timeout: 900_000,
     }, (response) => {
@@ -69,6 +72,76 @@ async function designTurn(box, cookie, body) {
   if (response.status !== 200) throw new Error(`The design agent answered ${response.status}: ${response.text.slice(0, 500)}`);
   const { project, rationale } = JSON.parse(response.text);
   return { project, rationale };
+}
+
+/** The box organization's slug: the scope its apps answer under in the graph API. */
+const SCOPE = "box";
+/** How long a started design run is followed: the design step's 14-minute inference limit, and a minute. */
+const RUN_TIMEOUT_MS = 900_000;
+
+/** One tool call on the platform's MCP dispatch, signed in as the member: the local session adapter serves the
+ * same graph_documents, graph_query and graph_mutate that /mcp serves an OAuth client. Answers the tool's JSON. */
+export async function graphTool(box, cookie, name, args) {
+  const response = await platformRequest(box, "outfitter.localhost", "/debug/mcp/rpc", { method: "POST", cookie,
+    headers: { Accept: "application/json, text/event-stream", "Mcp-Protocol-Version": "2025-06-18" },
+    body: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } } });
+  if (response.status !== 200) throw new Error(`${name} answered ${response.status}: ${response.text.slice(0, 500)}`);
+  // A JSON body, or one event of an event stream.
+  const json = response.text.trimStart().startsWith("{") ? response.text
+    : response.text.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+  const reply = JSON.parse(json);
+  if (reply.error) throw new Error(`${name}: ${reply.error.message}`);
+  const text = reply.result?.content?.find((part) => part.type === "text")?.text ?? "";
+  if (reply.result?.isError) throw new Error(`${args.document ?? name} was refused: ${text.slice(0, 500)}`);
+  const answer = JSON.parse(text);
+  if (answer?.errors?.length) throw new Error(`${args.document ?? name}: ${String(answer.errors[0].message).slice(0, 500)}`);
+  return answer;
+}
+
+/** The first value under `key` anywhere in a tool's answer: a mutation answers data.<field>, a query one entry per installation. */
+function answered(value, key) {
+  if (!value || typeof value !== "object") return undefined;
+  if (!Array.isArray(value) && key in value) return value[key];
+  for (const child of Object.values(value)) {
+    const found = answered(child, key);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+/** Why a started run failed, from the platform's TaskRuns; the run itself only says that it did. */
+async function runFailure(box, cookie, id) {
+  try {
+    const runs = await graphTool(box, cookie, "graph_query", { scope: "platform", app: "platform", document: "TaskRuns",
+      variables: { target: { scope: SCOPE, app }, ids: [id] }, includeIdentifiers: true });
+    const error = answered(runs, "error");
+    return typeof error === "string" && error ? error : "The design run failed";
+  } catch {
+    return "The design run failed";
+  }
+}
+
+/** One turn started through the graph API: the StartWorkshopDesign mutation, then its run read until it
+ * finishes, then the project it saved. Answers what the design route answers. */
+async function designRun(box, cookie, body) {
+  const id = crypto.randomUUID();
+  const started = answered(await graphTool(box, cookie, "graph_mutate", { scope: SCOPE, app, document: "StartWorkshopDesign", variables: { input: { id, ...body } } }), "startWorkshopDesign");
+  if (started?.id !== id) throw new Error("StartWorkshopDesign did not answer the run it started");
+  const deadline = Date.now() + RUN_TIMEOUT_MS;
+  let run = started;
+  while (run.status === "running") {
+    if (Date.now() > deadline) throw new Error(`Design run ${id} was still running after ${RUN_TIMEOUT_MS / 60_000} minutes`);
+    await new Promise((resolve) => setTimeout(resolve, box.pollMs ?? 2000));
+    // Identifiers are asked for: the run's design carries the project id and revision.
+    run = answered(await graphTool(box, cookie, "graph_query", { scope: SCOPE, app, document: "WorkshopDesignRun", variables: { input: { id } }, includeIdentifiers: true }), "workshopDesignRun");
+    if (!run) throw new Error(`WorkshopDesignRun did not answer run ${id}`);
+  }
+  if (run.status !== "complete" || !run.design?.projectId) throw new Error(await runFailure(box, cookie, id));
+  const response = await platformRequest(box, "workshop.box.outfitter.localhost", `/api/apps/workshop/projects/${run.design.projectId}`, { cookie });
+  if (response.status !== 200) throw new Error(`Reading the designed project answered ${response.status}: ${response.text.slice(0, 300)}`);
+  const project = JSON.parse(response.text);
+  if (project.revision !== run.design.revision) throw new Error(`The project is at revision ${project.revision}, not the run's ${run.design.revision}`);
+  return { project, rationale: project.iterations?.at(-1)?.rationale ?? "" };
 }
 
 /** The design agent's model calls between two times, from the platform's usage records for
@@ -146,11 +219,13 @@ export async function run(box) {
     let project, exported, bom = [], files = [], shots = [], commitSha, error;
     const trace = { steps: [], turns: [], platform };
     try {
-      ({ project } = await timed(trace, "design", () => designTurn(box, cookie, { message: request.message }), request.message));
+      // The same turns either way: posted to the design route, or started through the graph API.
+      const turn = request.via === "graphql" ? designRun : designTurn;
+      ({ project } = await timed(trace, "design", () => turn(box, cookie, { message: request.message }), request.message));
       await screenshot(box, workbench, request, shots, "design", project);
       for (const [index, message] of request.followUps.entries()) {
         ({ project } = await timed(trace, `follow-up ${index + 1}`,
-          () => designTurn(box, cookie, { message, projectId: project.id, revision: project.revision }), message));
+          () => turn(box, cookie, { message, projectId: project.id, revision: project.revision }), message));
         await screenshot(box, workbench, request, shots, `follow-up ${index + 1}`, project);
       }
       const folder = join(repo, "designs", request.slug);

@@ -1263,6 +1263,36 @@
     "hidden": true
   },
   {
+    "name": "StartWorkshopDesign",
+    "kind": "mutation",
+    "story": "As a member or an agent working for one, I want to start Workshop's design agent on a part or project request with one mutation, so that design work begins from wherever I am without opening the project page or waiting on the model.",
+    "query": "mutation StartWorkshopDesign($input: StartWorkshopDesignInput!) {\n  startWorkshopDesign(input: $input)\n}",
+    "hash": "b90de2e63c48d129e777d6029b4298a2d080750b825f7bab6ecc42bf7f44d405",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StartWorkshopDesignInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "startWorkshopDesign": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "UnitChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply unit changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -1558,6 +1588,35 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WorkshopDesignRun",
+    "kind": "query",
+    "story": "As a member or an agent working for one, I want to read a design run I started, so that I know when the project revision it saved is ready and which project to open.",
+    "query": "query WorkshopDesignRun($input: WorkshopDesignRunInput!) {\n  workshopDesignRun(input: $input)\n}",
+    "hash": "65dfb32e1b2a7ebf0ade2abc591f1173ceeb0b61a2edeac7bf276a6b7aa4c283",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopDesignRunInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopDesignRun": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "WorkshopProjectHandoff",

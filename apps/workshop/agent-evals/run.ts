@@ -5,7 +5,11 @@
 //   node --import tsx apps/workshop/agent-evals/run.ts <experiment> [eval ...]
 //
 // <experiment> is a file in experiments/ (luna, spark): one per model, with the
-// model settings in .env.<experiment> (.env.example).
+// model settings in .env.<experiment> (.env.example). luna-graphql and
+// spark-graphql run the same fixtures on the same models (.env.luna,
+// .env.spark) with every design turn started through the platform's graph API
+// (the StartWorkshopDesign mutation) instead of posted to the design route, and
+// are graded by the same EVAL.ts.
 //
 // Settings: see runBoxEvals in box/eval/agent.ts.
 import { fileURLToPath } from "node:url";
@@ -25,4 +29,7 @@ await runBoxEvals(fileURLToPath(new URL(".", import.meta.url)), {
     };
   },
   succeeded: (result) => result.status === "designed",
+  // `<model>-graphql` shares the model's settings and starts each turn with the mutation.
+  modelEnv: (experiment) => experiment.replace(/-graphql$/, ""),
+  prepareRequest: (request, experiment) => (experiment.endsWith("-graphql") ? { ...request, via: "graphql" } : request),
 });

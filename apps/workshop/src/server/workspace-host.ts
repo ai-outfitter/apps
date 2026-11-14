@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
-import { workflowPhaseHandler, prepareInput, finalizeInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { workflowPhaseHandler, prepareInput, finalizeInput, type WorkflowHost, type WorkflowPhaseHandlers } from "@ai-outfitter/app-sdk/workflow-host";
 const workflow="workshop-workspace";
 const repository=z.string().regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/);
 const sourceDir=z.string().regex(/^[A-Za-z0-9_./-]+$/).refine(s=>!s.startsWith("/")&&!s.split('/').includes('..'));
@@ -29,7 +29,9 @@ async function operator(raw:unknown,host:WorkflowHost<"operator">){
  }
  return host.call("workflow.start",{workflow,id:input.workflowRunId,inputs:{"design.inputs.designerBinding":ids.designer,"design.inputs.validatorBinding":ids.validator,"design.inputs.request":JSON.parse(JSON.stringify(input))}});
 }
-export const workspacePhases=()=>workflowPhaseHandler({
+/** The workspace phases, with the phases the caller adds (the design task's interactive phase). */
+export const workspacePhases=(extra:WorkflowPhaseHandlers={})=>workflowPhaseHandler({
+ ...extra,
  operator:(input,host)=>operator(input,host),
  prepare:async raw=>{
   const {settings,inputs}=prepareInput.parse(raw);const policy=z.object({role:z.enum(["design","validate"]),sourceDir}).parse(settings);
