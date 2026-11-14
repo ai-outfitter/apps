@@ -36,7 +36,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5",
-    "@ai-outfitter/connector-github": "*"
+    "@ai-outfitter/connector-github": "*",
+    "@ai-outfitter/creative-workflow": "*"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

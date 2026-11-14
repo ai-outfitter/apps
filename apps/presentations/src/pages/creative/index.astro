@@ -1,0 +1,8 @@
+---
+import Layout from '../../components/Layout.astro';
+import Review from '@ai-outfitter/creative-workflow/Review.astro';
+import {context} from '../../server/context';
+import {documents,runDocument} from '../../server/graphql';
+const result=import.meta.env.OUTFITTER_APP_MODE==='demo'?{items:[],next:null}:(await runDocument(documents.CreativeRecords.document,{...(Astro.url.searchParams.get('after')?{after:Astro.url.searchParams.get('after')!}:{})},context(Astro.request,Astro.locals))).creativeRecords as any;
+---
+<Layout title="Creative work"><Review records={result.items} /><p>Ask your agent to revise prompts, record feedback, or select a candidate for a specific slide, shot, or design reference. Shared changes use graph review.</p>{result.next&&<a href={`?after=${encodeURIComponent(result.next)}`}>More records</a>}</Layout>

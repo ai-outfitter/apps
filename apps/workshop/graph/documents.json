@@ -1,5 +1,35 @@
 [
   {
+    "name": "AcceptCreativeHandoff",
+    "kind": "mutation",
+    "story": "As a member, I want to hand a selected mockup to Workshop with constraints, so that design work starts from a pinned reference.",
+    "query": "mutation AcceptCreativeHandoff($input: AcceptCreativeHandoffInput!) {\n  acceptCreativeHandoff(input: $input)\n}",
+    "hash": "48e00957e2aa64fe0d61ec90b0117b7b76dab9a5c30bc03517fa243f2ed643f3",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AcceptCreativeHandoffInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Attach a selected mockup as a design request without modifying CAD."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "acceptCreativeHandoff": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "AssemblyChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply assembly changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -546,6 +576,36 @@
         "input"
       ],
       "additionalProperties": false
+    }
+  },
+  {
+    "name": "AttachCreativeResult",
+    "kind": "mutation",
+    "story": "As a member, I want to link a result candidate to the original mockup request, so that presentations and marketing can reuse its evidence.",
+    "query": "mutation AttachCreativeResult($input: AttachCreativeResultInput!) {\n  attachCreativeResult(input: $input)\n}",
+    "hash": "6ab1a3dbe5349087ad9fe7462c8a724bd8a2f8f9054beb411339db3285ee4279",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AttachCreativeResultInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Link a committed result candidate back to its design request."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "attachCreativeResult": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
     }
   },
   {

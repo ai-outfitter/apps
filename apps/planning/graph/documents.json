@@ -38,6 +38,36 @@
     "hidden": true
   },
   {
+    "name": "BeginVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",
+    "query": "mutation BeginVideoTransfer($input: BeginVideoTransferInput!) {\n  beginVideoTransfer(input: $input)\n}",
+    "hash": "4475f02e0e3a41c1773cb05491a37eec8aec2e1135a482b02cee7c9949bb570d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL BeginVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "beginVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ChangeDigestSchedule",
     "kind": "mutation",
     "story": "As an editor, I want to turn the morning digest of every project on or off, so that the team gets a daily summary of what shipped and what is prioritized without anyone clicking.",
@@ -154,6 +184,36 @@
               "description": "JSON"
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "name": "CommitVideoAsset",
+    "kind": "mutation",
+    "story": "As a product editor, I want to verify uploaded bytes and attach them to the production. Editors only, so that production work is reviewable and recoverable.",
+    "query": "mutation CommitVideoAsset($input: CommitVideoAssetInput!) {\n  commitVideoAsset(input: $input)\n}",
+    "hash": "fa2e0ea632e29b14589b15775fe5de4ce3ce000b904e9a7ca829b870e054e865",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CommitVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Verify uploaded bytes and attach them to the production. Editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "commitVideoAsset": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }
@@ -594,6 +654,36 @@
     }
   },
   {
+    "name": "FinishVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",
+    "query": "mutation FinishVideoTransfer($input: FinishVideoTransferInput!) {\n  finishVideoTransfer(input: $input)\n}",
+    "hash": "a5c4e6d50602470ce3226fb0ec14df1691fc099faf71166c2398da200db1196c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FinishVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "finishVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "GenerateDailyReports",
     "kind": "mutation",
     "story": "As an editor, I want all active project reports for a selected recovery date or previous local day followed by this owner's overview in one durable run, so that failures remain visible and retries preserve captured reports.",
@@ -676,6 +766,36 @@
       "type": "object",
       "properties": {
         "generateProjectDigest": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ImportVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",
+    "query": "mutation ImportVideoTransfer($input: ImportVideoTransferInput!) {\n  importVideoTransfer(input: $input)\n}",
+    "hash": "a709f6f72aa6103da05f35ba4fff4382afcf9880f7a44bb3666d9cc75c8e1fed",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ImportVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "importVideoTransfer": {
           "description": "JSON",
           "nullable": true
         }
@@ -3548,6 +3668,36 @@
     "hidden": true
   },
   {
+    "name": "PrepareVideoTake",
+    "kind": "mutation",
+    "story": "As a product editor, I want to freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request, so that production work is reviewable and recoverable.",
+    "query": "mutation PrepareVideoTake($input: PrepareVideoTakeInput!) {\n  prepareVideoTake(input: $input)\n}",
+    "hash": "d336c9e891f8992c6524c24bd37ad6a9e289d523d0d3cefcbcf0abb32e9d1ae4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PrepareVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "prepareVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "PriorityOrder",
     "kind": "query",
     "story": "As a member, I want to read the organization order, so that I can reorder the current list safely.",
@@ -5071,6 +5221,36 @@
     }
   },
   {
+    "name": "PublishVideoProduction",
+    "kind": "mutation",
+    "story": "As a product editor, I want to publish the current production packet as an organization graph Document referencing its product and revision, so that production work is reviewable and recoverable.",
+    "query": "mutation PublishVideoProduction($input: PublishVideoProductionInput!) {\n  publishVideoProduction(input: $input)\n}",
+    "hash": "543f201e9a75eb09f70ea2449c5ab9f86f55d27918795c2e479821d05594a994",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Publish the current production packet as an organization graph Document referencing its product and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "RecordMeasurements",
     "kind": "mutation",
     "story": "As an editor, I want to record this week's KPI values from our connectors (PostHog, GitHub) from Planning or an agent, so that each metric has an observed value per week instead of a definition alone.",
@@ -5364,6 +5544,36 @@
       "properties": {
         "reorderPriority": {
           "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "ReserveVideoAsset",
+    "kind": "mutation",
+    "story": "As a product editor, I want to reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it, so that production work is reviewable and recoverable.",
+    "query": "mutation ReserveVideoAsset($input: ReserveVideoAssetInput!) {\n  reserveVideoAsset(input: $input)\n}",
+    "hash": "26e7aeafe8d1b99f88451730ecaa69d345b1a0cb864d105d51a24135069b7c97",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReserveVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reserveVideoAsset": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }
@@ -6433,6 +6643,36 @@
     }
   },
   {
+    "name": "SaveVideoProduction",
+    "kind": "mutation",
+    "story": "As a product editor, I want to save a storyboard at its current revision; zero creates a stable production ID. Editors only, so that production work is reviewable and recoverable.",
+    "query": "mutation SaveVideoProduction($input: SaveVideoProductionInput!) {\n  saveVideoProduction(input: $input)\n}",
+    "hash": "d001f330d8e88f33a60032c62f5301181b54fa5541c3ca84ecad6f358d32557a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save a storyboard at its current revision; zero creates a stable production ID. Editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "SetIntakeReleaseFit",
     "kind": "mutation",
     "story": "As an editor, I want to record how a conversational intake fits an existing project Release, or defer it in backlog, so that discovery and delivery use the persisted decision and its rationale.",
@@ -6629,6 +6869,36 @@
     "hidden": true
   },
   {
+    "name": "UpdateVideoTake",
+    "kind": "mutation",
+    "story": "As a product editor, I want to claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests, so that production work is reviewable and recoverable.",
+    "query": "mutation UpdateVideoTake($input: UpdateVideoTakeInput!) {\n  updateVideoTake(input: $input)\n}",
+    "hash": "7421089cea01ed2dd2efbeebab3fd00a808c4f77817a16a9cd50fc11bd874409",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "updateVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "UseCaseChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply usecase changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -6803,6 +7073,148 @@
       "type": "object",
       "properties": {
         "useCases": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoProductions",
+    "kind": "query",
+    "story": "As a product owner, I want to inspect saved storyboards, source citations, takes and finished videos, so that I can review what the agent built.",
+    "query": "query VideoProductions($id: ID, $productId: ID, $revision: Int, $after: String, $limit: Int = 20) {\n  videoProductions(\n    id: $id\n    productId: $productId\n    revision: $revision\n    after: $after\n    limit: $limit\n  )\n}",
+    "hash": "e1f4f4ae55abc9c89ce4b3da6d1dd141e413dfb15dc5175a7d1619d8a52a04d1",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "productId": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read versioned productions with shots, evidence, takes and private uploaded assets; follow next even when product filtering returns no items."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoProductions": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoSourceEvidence",
+    "kind": "query",
+    "story": "As a video agent, I want the product revisions and evidence bundles with their original records and citations, so that shots use verified product sources.",
+    "query": "query VideoSourceEvidence($productId: ID!, $cursor: String) {\n  videoSourceEvidence(productId: $productId, cursor: $cursor)\n}",
+    "hash": "917b41eedf0398806497ad71fc347f244cdc30cd76163e1e075c667cd2141af5",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "cursor": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "productId"
+      ]
+    },
+    "mcp": {
+      "description": "Read a bounded product neighborhood including revisions, evidence bundles and members. Preserve returned cursor and omitted/truncation indicators; missing evidence is not product proof."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoSourceEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransfer",
+    "kind": "query",
+    "story": "As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",
+    "query": "query VideoTransfer($id: ID!) {\n  videoTransfer(id: $id)\n}",
+    "hash": "039eb9563ec5cedaf069e7979b199e80dfff2b7950410a0c6a951f1243a55645",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransferReceipt",
+    "kind": "query",
+    "story": "As an agent, I want to verify imported media, so that source links switch only after validation.",
+    "query": "query VideoTransferReceipt($id: ID!) {\n  videoTransferReceipt(id: $id)\n}",
+    "hash": "e19a1ddcffad719feee556e08d84b09d1a08e0c8ef7ecc3646333c237a1ed9f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransferReceipt": {
           "description": "JSON",
           "nullable": true
         }

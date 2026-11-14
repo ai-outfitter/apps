@@ -9,7 +9,7 @@ import { requestUiPreferences } from "@ai-outfitter/app-sdk/ui-preferences";
 import type { WikiContext } from "../scripts/wiki-context";
 import { wikiPageHref } from "../server/wiki-links";
 import type { AgentFocus } from "@ai-outfitter/app-sdk/agent-context";
-import { intakeFocus } from "../agent-focus";
+import { intakeFocus, videosFocus } from "../agent-focus";
 
 interface Props {
   title: string;
@@ -27,11 +27,13 @@ const sidebarLinks = [
   link("Projects", "/projects"),
   link("Intake", "/intake"),
   link("Products", "/products"),
+  link("Videos", "/videos"),
   link("Opportunities", "/opportunities"),
   link("Use cases", "/use-cases"),
   link("Customer segments", "/customer-segments"),
   ...(wiki === null ? [] : [{ label: "Wiki ↗", href: wiki ? wikiPageHref(wiki, requestPageURL(Astro.request)) : "#", id: wiki === undefined ? "planning-wiki-link" : "planning-wiki-link-resolved", active: false }]),
 ];
+const videos=Astro.url.pathname.startsWith("/videos");
 const intake = Astro.url.pathname.startsWith("/intake");
 const products = Astro.url.pathname === "/products" || Astro.url.pathname.startsWith("/products/");
 // The sidebar arrives open when the member left it open (the outfitter-ui cookie).
@@ -61,9 +63,9 @@ const limits = demo
     pageId="planning"
     endpoint="/api/apps/planning/agent"
     {demo}
-    intro={products ? "Ask about this organization’s products and weekly roadmap." : intake ? "Whose problem are we solving, and what outcome would prove it is solved? We can capture the request, choose its project and review release fit." : "Describe an idea or customer need. We can match its project, develop the use case and decide whether it fits a release or needs research."}
+    intro={videos ? "Ask me to draft a storyboard, use product evidence, or revise this video." : products ? "Ask about this organization’s products and weekly roadmap." : intake ? "Whose problem are we solving, and what outcome would prove it is solved? We can capture the request, choose its project and review release fit." : "Describe an idea or customer need. We can match its project, develop the use case and decide whether it fits a release or needs research."}
     emptyIntro={products ? "Loading product context…" : "Ask about customer and competitive intake."}
-    defaultFocus={focus ?? intakeFocus}
+    defaultFocus={focus ?? (videos?videosFocus:intakeFocus)}
     {limits}
     demoReply="This is a scripted, read-only example. In operational Planning, Outfitter can discuss meeting notes and saved project documents, then prepare projects or issues for your review. No inference ran and no records changed."
   />

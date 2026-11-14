@@ -1,3 +1,6 @@
+import {transferInput,importTransferInput,beginTransfer,exportTransfer,importTransfer,transferReceipt,finishTransfer} from '@ai-outfitter/creative-workflow/video-transfer';
+import { videoReadInput, saveVideoInput, videoTakeInput, takeUpdateInput, videoAssetInput, assetCommitInput, publishVideoInput } from "../lib/video-production";
+import { videoSourceEvidence, readVideos, saveProduction, prepareTake, updateTake, reserveAsset, commitAsset, publishProduction } from "./video-production";
 import { dailyReportReadInput, readDailyReport } from "./digest-wiki";
 import { dailyReportsInput, startDailyReports } from "./digests";
 import { readOrder, saveOrder, orderInput, sortByOrder } from "./priority-order";
@@ -265,6 +268,8 @@ const designPartnerList = new GraphQLObjectType({ name: "DesignPartners", fields
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    videoSourceEvidence:{type:JSONScalar,args:{productId:{type:nonNull(GraphQLID)},cursor:{type:GraphQLString}},resolve:(_source,args,context)=>videoSourceEvidence(context,args.productId,args.cursor)},
+    videoTransfer:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>exportTransfer(c,args.id)},videoTransferReceipt:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>transferReceipt(c,args.id)},videoProductions: {type: JSONScalar,args:{id:{type:GraphQLID},productId:{type:GraphQLID},revision:{type:GraphQLInt},after:{type:GraphQLString},limit:{type:GraphQLInt}},resolve:(_source,args,context)=>readVideos(context,videoReadInput.parse(args))},
     partnerRequests: {
       type: nonNull(new GraphQLList(nonNull(partnerRequest))),
       description: "Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.",
@@ -424,6 +429,12 @@ const revisionRule = "Name the revision you read; a changed record is refused (4
 const mutation = new GraphQLObjectType<unknown, Context>({
   name: "Mutation",
   fields: {
+    beginVideoTransfer:mutationField<typeof transferInput,Context>({name:'BeginVideoTransfer',description:'Seal a production for a verified transfer; blocks further source writes.',input:transferInput,run:beginTransfer}),importVideoTransfer:mutationField<typeof importTransferInput,Context>({name:'ImportVideoTransfer',description:'Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.',input:importTransferInput,run:importTransfer}),finishVideoTransfer:mutationField<typeof publishVideoInput,Context>({name:'FinishVideoTransfer',description:'Verify destination metadata and media before recording completion.',input:publishVideoInput,run:(c,input)=>finishTransfer(c,input.id)}),saveVideoProduction: mutationField<typeof saveVideoInput,Context>({name:"SaveVideoProduction",description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only.",input:saveVideoInput,run:(context,input)=>saveProduction(context,input)}),
+    prepareVideoTake: mutationField<typeof videoTakeInput,Context>({name:"PrepareVideoTake",description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.",input:videoTakeInput,run:(context,input)=>prepareTake(context,input)}),
+    updateVideoTake: mutationField<typeof takeUpdateInput,Context>({name:"UpdateVideoTake",description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.",input:takeUpdateInput,run:(context,input)=>updateTake(context,input)}),
+    reserveVideoAsset: mutationField<typeof videoAssetInput,Context>({name:"ReserveVideoAsset",description:"Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it.",input:videoAssetInput,run:(context,input)=>reserveAsset(context,input)}),
+    commitVideoAsset: mutationField<typeof assetCommitInput,Context>({name:"CommitVideoAsset",description:"Verify uploaded bytes and attach them to the production. Editors only.",input:assetCommitInput,run:(context,input)=>commitAsset(context,input)}),
+    publishVideoProduction: mutationField<typeof publishVideoInput,Context>({name:"PublishVideoProduction",description:"Publish the current production packet as an organization graph Document referencing its product and revision.",input:publishVideoInput,run:(context,input)=>publishProduction(context,input)}),
     generateProductReport: mutationField<typeof productReportInput,Context>({name:"GenerateProductReport",description:"Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.",input:productReportInput,run:(context,input)=>startProductReport(context.host(),context.identity,input)}),
     changeProductReportSchedule: mutationField<typeof productReportScheduleInput,Context>({name:"ChangeProductReportSchedule",description:"Enable or disable daily roadmap regeneration. Editors only.",input:productReportScheduleInput,run:(context,input)=>changeProductReportSchedule(context.host(),context.identity,input)}),
 
