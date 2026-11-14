@@ -63,16 +63,18 @@ test("answer an agent's question on the Changes page without approving anything"
       await shot(page, "batch-questions-before");
     });
 
-    await test.step("questions show at the top and beside the proposals they block", async () => {
+    await test.step("questions show at the top of the batch and on the page of each proposal they name", async () => {
       await page.goto(`${origin}/changes/${asked}`);
       const top = page.locator("#questions");
       await expect(top.getByRole("heading", { name: "Questions" })).toBeVisible();
       await expect(top.locator(".change-question")).toHaveCount(2);
       await expect(top.locator('[data-question="sign-off"]')).toContainText("About Shen Ge");
-      await page.getByRole("button", { name: /^Proposals/ }).click();
-      const shen = page.locator(".change-operation").filter({ hasText: "flight hardware lead" });
-      await expect(shen.locator('[data-question="sign-off"]')).toContainText("Who signs off flight hardware?");
       await shot(page, "batch-questions-asked");
+      await top.getByRole("link", { name: "Shen Ge", exact: true }).click();
+      await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Artera board questions, not saved");
+      await expect(page.locator('.batch-item [data-question="sign-off"]')).toContainText("Who signs off flight hardware?");
+      await expect(page.locator(".batch-item [data-question]")).toHaveCount(1);
+      await page.getByRole("link", { name: "All proposals", exact: true }).click();
     });
 
     await test.step("a member picks an option and types an answer; nothing is approved", async () => {
@@ -82,9 +84,10 @@ test("answer an agent's question on the Changes page without approving anything"
       await typed.fill("Yes, until March");
       await typed.press("Enter");
       await expect(page.locator('#questions [data-question="lu-role"]')).toContainText("Answer: Yes, until March");
-      const shen = page.locator(".change-operation").filter({ hasText: "flight hardware lead" });
+      await page.locator("#questions").getByRole("link", { name: "Shen Ge", exact: true }).click();
+      const shen = page.locator(".batch-item");
       await expect(shen).toContainText("Answer: Both directors");
-      await expect(shen).toContainText("Waiting");
+      await expect(shen.locator(".batch-item-decision")).toContainText("Waiting");
       const detail = await action("batch.get", { batchId: asked });
       expect(detail.counts).toEqual({ awaiting_review: 2 });
       expect(detail.batch.questions.map((item: { answer?: { option?: string; text?: string } }) => item.answer?.option ?? item.answer?.text)).toEqual(["Both directors", "Yes, until March"]);
