@@ -12,7 +12,7 @@ Verified locally on 2026-11-14. These checks use built application packages and 
 
 ## Built applications and browser checks
 
-- Onto: 111 unit and 115 integration tests passed.
+- Onto: 112 unit and 115 integration tests passed.
 - Planning: 128 unit and 115 integration tests passed, including the retained video compatibility routes.
 - Workshop: 35 unit tests passed, including the CAD kernel checks and handoff test.
 - Marketing: four private-media integration checks passed; Presentations: private-media/download integration passed. Their published GraphQL documents validate against their schemas.
