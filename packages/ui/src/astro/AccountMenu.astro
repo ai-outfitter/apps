@@ -2,10 +2,7 @@
 import Icon from "./Icon.astro";
 import type { IconName } from "../icons";
 
-// Every app's sidebar footer: who is signed in, the browser's other signed-in
-// accounts, the links the app publishes (its own settings first), then
-// Outfitter's settings and sign out. Accounts belong to the platform, so the
-// account and Outfitter entries go to the platform, never into the app.
+// The platform account menu, shared by managed apps and their personal rail.
 // Without `user`, the script reads the signed-in account from `/api/whoami`.
 interface Props {
   user?: { id: string; name: string; email: string };
@@ -13,28 +10,30 @@ interface Props {
   platformOrigin?: string;
   /** False lists no other accounts (a demo's fixture member has none). */
   accounts?: boolean;
-  /** The app's own entries, such as its settings, listed above Outfitter's. */
+  /** Optional app entries retained for existing consumers; managed layouts show these in their settings menu. */
   appLinks?: { label: string; href: string; icon?: IconName; active?: boolean }[];
 }
 const { user, platformOrigin, accounts = true, appLinks = [] } = Astro.props;
 const label = user ? user.name || user.email : "";
 const initial = label.slice(0, 1).toUpperCase() || "O";
 ---
-<div class="sidebar-footer" data-account-footer data-user-id={user?.id ?? ""} data-platform-origin={platformOrigin} data-accounts={String(accounts)} hidden={!user}>
+<div class="sidebar-footer" data-account-footer data-user-id={user?.id ?? ""} data-provided-user={String(Boolean(user))} data-platform-origin={platformOrigin} data-accounts={String(accounts)} hidden={!user}>
   <div id="account-menu" class="account-menu" hidden>
     <div class="account-option current" aria-current="true"><span class="avatar" data-account-initial>{initial}</span><span><strong data-account-name>{label}</strong><small data-account-email>{user?.email}</small></span><Icon name="check" size={16} /></div>
-    {accounts && <div data-account-choices><p class="account-option" role="status">Loading other accounts…</p></div>}
-    <form method="post" action="/accounts/add" data-account-route="/accounts/add" data-account-add hidden data-astro-reload><button class="account-option"><span class="avatar"><Icon name="plus" size={16} /></span><span>Add another account</span></button></form>
+    {accounts && <a class="account-option" href="/accounts" data-account-link="/accounts" data-astro-reload>Manage accounts</a>}
     <hr class="account-divider" />
     {appLinks.length > 0 && <>
-      {/* A navigation list, so a kept app sidebar marks the current page as its other lists do. */}
       <nav class="ui-navigation account-app-links" aria-label="App account links">
         {appLinks.map((link) => <a class="account-option" href={link.href} aria-current={link.active ? "page" : undefined}><span class="avatar"><Icon name={link.icon ?? "settings"} size={16} /></span><span>{link.label}</span></a>)}
       </nav>
       <hr class="account-divider" />
     </>}
-    <a class="account-option" href="/settings" data-account-link="/settings" data-astro-reload><span class="avatar"><Icon name="spark" size={16} /></span><span>Outfitter settings</span></a>
-    <form method="post" action="/logout" data-account-route="/logout" data-astro-reload><button class="account-option" title="Sign out of all accounts"><span class="avatar"><Icon name="logout" size={16} /></span><span>Sign out</span></button></form>
+    <a class="account-option" href="/profile" data-account-link="/profile" data-astro-reload><span class="avatar"><Icon name="compass" size={16} /></span><span>Profile</span></a>
+    <a class="account-option" href="/settings" data-account-link="/settings" data-astro-reload><span class="avatar"><Icon name="spark" size={16} /></span><span>Settings</span></a>
+    <a class="account-option" href="/organizations" data-account-link="/organizations" data-astro-reload><span class="avatar"><Icon name="organization" size={16} /></span><span>Teams</span></a>
+    <a class="account-option" href="/install" data-account-link="/install" data-astro-reload><span class="avatar"><Icon name="plus" size={16} /></span><span>Install Apps</span></a>
+    <a class="account-option" href="/help" data-account-link="/help" data-astro-reload><span class="avatar"><Icon name="spark" size={16} /></span><span>Help</span></a>
+
   </div>
   <button class="account-toggle" aria-expanded="false" aria-controls="account-menu" aria-label="Accounts" data-disclosure="">
     <span class="avatar" data-account-initial>{initial}</span><span><strong data-account-name>{label}</strong><small data-account-email>{user?.email}</small></span>

@@ -1,17 +1,19 @@
 import type { ElkLabel } from "elkjs/lib/elk-api";
+import type { KnowledgeGraphLayout } from "./layout";
 import type {
   KnowledgeGraphData as Graph,
   KnowledgeGraphNode as GraphNode,
   KnowledgeGraphSlice as View,
 } from "./model";
-import type { KnowledgeGraphLayout } from "./layout";
 import "../styles/knowledge-graph.css";
+
 export type {
   KnowledgeGraphData,
-  KnowledgeGraphNode,
   KnowledgeGraphEdge,
+  KnowledgeGraphNode,
   KnowledgeGraphSlice,
 } from "./model";
+
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: Record<string, unknown> = {},
@@ -35,6 +37,7 @@ export function disposeKnowledgeGraphViewers(
     disposers.get(stage)?.();
 }
 const ns = "http://www.w3.org/2000/svg";
+let graphSequence = 0;
 // appendChild avoids the Cloudflare HTMLRewriter Element.append overload in the root typecheck.
 function append(parent: Node, ...children: Node[]) {
   for (const child of children) parent.appendChild(child);
@@ -140,6 +143,8 @@ function renderNodes(
   graph: Graph,
   result: KnowledgeGraphLayout,
   nodeHref: (id: string) => string,
+  highlight: ReadonlySet<string>,
+  proposed: ReadonlySet<string>,
 ) {
   for (const node of result.layout.children ?? []) {
     const x = node.x ?? 0,
@@ -178,7 +183,7 @@ function renderNodes(
       width: String(width),
       height: String(height),
       rx: "10",
-      class: "kg-node",
+      class: ["kg-node", highlight.has(record.id) ? "kg-node-highlight" : "", proposed.has(record.id) ? "kg-node-proposed" : ""].filter(Boolean).join(" "),
     });
     const lines = titleLines(record.title);
     lines.forEach((text, index) => {
@@ -205,6 +210,10 @@ export function createKnowledgeGraphViewer(
     direction?: "RIGHT" | "DOWN";
     initialScale?: number;
     nodeHref: (id: string) => string;
+    /** Node IDs to outline, such as the ones an agent just added. */
+    highlight?: Iterable<string>;
+    /** Node IDs drawn dashed: staged records a member has not committed yet. */
+    proposed?: Iterable<string>;
     onError?: (error: unknown) => void;
   },
 ) {
@@ -217,7 +226,8 @@ export function createKnowledgeGraphViewer(
     {
       class: "knowledge-graph-viewport",
       tabIndex: 0,
-      "aria-label": "Scrollable knowledge graph",
+      "aria-label": "Interactive knowledge graph",
+      "aria-description": "Drag in any direction or use arrow keys to pan. Scroll to zoom in or out.",
     },
     loading,
     svg,
@@ -229,7 +239,7 @@ export function createKnowledgeGraphViewer(
     autoFit = options.initialScale === undefined,
     ready = false;
   const resize = (next: number) => {
-    scale = Math.max(0.1, next);
+    scale = Math.max(0.1, Math.min(16, next));
     svg.setAttribute("width", String(width * scale));
     svg.setAttribute("height", String(height * scale));
   };
@@ -260,9 +270,63 @@ export function createKnowledgeGraphViewer(
       },
       title,
     );
-  const zoom = (factor: number) => {
+  const zoom = (factor: number, pointer?: { x: number; y: number }) => {
+    if (!ready) return;
     autoFit = false;
+    const bounds = viewport.getBoundingClientRect();
+    const x = pointer?.x ?? bounds.left + viewport.clientLeft + viewport.clientWidth / 2;
+    const y = pointer?.y ?? bounds.top + viewport.clientTop + viewport.clientHeight / 2;
+    const before = svg.getBoundingClientRect();
+    const graphX = (x - before.left) / scale;
+    const graphY = (y - before.top) / scale;
     resize(scale * factor);
+    // Account for the SVG's centered margins and viewport padding as well as
+    // its scroll position, so the point under the pointer stays in place.
+    const after = svg.getBoundingClientRect();
+    viewport.scrollLeft += after.left + graphX * scale - x;
+    viewport.scrollTop += after.top + graphY * scale - y;
+  };
+  viewport.addEventListener("wheel", event => {
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
+    const delta = Math.max(-300, Math.min(300, (event.deltaY || event.deltaX) * unit));
+    zoom(Math.exp(-delta * 0.002), { x: event.clientX, y: event.clientY });
+  }, { passive: false });
+  // Pointer dragging pans both axes, without activating a card at drag end.
+  viewport.dataset.noPullRefresh = "";
+  let pan: { id: number; x: number; y: number; left: number; top: number } | undefined;
+  let dragged = false;
+  viewport.onpointerdown = event => {
+    if (event.button !== 0) return;
+    pan = { id: event.pointerId, x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+    dragged = false;
+  };
+  viewport.onpointermove = event => {
+    if (!pan || pan.id !== event.pointerId) return;
+    if (!dragged) {
+      if (Math.hypot(event.clientX - pan.x, event.clientY - pan.y) < 5) return;
+      dragged = true;
+      autoFit = false;
+      viewport.setPointerCapture(event.pointerId);
+      viewport.classList.add("knowledge-graph-panning");
+    }
+    viewport.scrollLeft = pan.left - (event.clientX - pan.x);
+    viewport.scrollTop = pan.top - (event.clientY - pan.y);
+  };
+  const endPan = () => { pan = undefined; viewport.classList.remove("knowledge-graph-panning"); };
+  viewport.onpointerup = endPan;
+  viewport.onpointercancel = endPan;
+  viewport.addEventListener("click", event => {
+    if (dragged) { event.preventDefault(); event.stopPropagation(); dragged = false; }
+  }, true);
+  viewport.ondragstart = event => event.preventDefault();
+  // overflow: hidden drops native keyboard scrolling, so arrow keys pan instead.
+  const arrows: Record<string, [number, number]> = { ArrowLeft: [-48, 0], ArrowRight: [48, 0], ArrowUp: [0, -48], ArrowDown: [0, 48] };
+  viewport.onkeydown = event => {
+    const step = event.target === viewport ? arrows[event.key] : undefined;
+    if (!step) return;
+    event.preventDefault();
+    viewport.scrollBy(...step);
   };
   void import("./layout")
     .then(({ layoutKnowledgeGraph }) => layoutKnowledgeGraph(graph, view, { direction: options.direction }))
@@ -271,7 +335,10 @@ export function createKnowledgeGraphViewer(
       width = result.layout.width ?? 1;
       height = result.layout.height ?? 1;
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      const markerId = `kg-arrow-${crypto.randomUUID()}`;
+      // SVG marker IDs need uniqueness, not Web Crypto (which is unavailable
+      // on an ordinary HTTP LAN/Tailscale development hostname).
+      let markerId = `kg-arrow-${++graphSequence}`;
+      while (document.getElementById(markerId)) markerId = `kg-arrow-${++graphSequence}`;
       const defs = draw(svg, "defs", {});
       const marker = draw(defs, "marker", {
         id: markerId,
@@ -287,13 +354,14 @@ export function createKnowledgeGraphViewer(
         fill: "currentColor",
       });
       renderEdges(svg, result, markerId);
-      renderNodes(svg, graph, result, options.nodeHref);
+      renderNodes(svg, graph, result, options.nodeHref, new Set(options.highlight ?? []), new Set(options.proposed ?? []));
       loading.remove();
       ready = true;
       if (options.initialScale !== undefined) {
         resize(options.initialScale);
         const position = result.layout.children?.find(node => node.id === anchor.id);
         viewport.scrollLeft = Math.max(0, ((position?.x ?? 0) + (position?.width ?? 0) / 2) * scale - viewport.clientWidth / 2);
+        viewport.scrollTop = Math.max(0, ((position?.y ?? 0) + (position?.height ?? 0) / 2) * scale - viewport.clientHeight / 2);
       } else if (viewport.clientWidth >= 650) fitGraph();
       else resize(1);
     })
@@ -306,7 +374,6 @@ export function createKnowledgeGraphViewer(
   const expand = control("Expand graph", () => {
     const expanded = stage.classList.toggle("knowledge-graph-expanded");
     expand.textContent = expanded ? "Close expanded graph" : "Expand graph";
-    autoFit = true;
     if (expanded) stage.focus();
   });
   stage.onkeydown = (event) => {

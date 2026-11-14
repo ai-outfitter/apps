@@ -1,0 +1,40 @@
+---
+interface Props { projectId: string; }
+const { projectId } = Astro.props;
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+---
+<section id="planning-execution" data-project-id={projectId} data-demo={String(demo)} aria-labelledby="execution-title">
+  <h2 id="execution-title">Work packages</h2>
+  <p>Review the scope and criteria before submitting. Foundry manages implementation and review; acceptance is recorded against the agreed criteria and governance decision.</p>
+  <p id="execution-status" role="status">Loading project work…</p>
+  <form id="execution-form" hidden>
+    <div class="planning-fields">
+      <label>Planned issue<select name="issueId" required></select></label>
+      <label>Work package template<select name="definitionId" required></select></label>
+      <label>Foundry project<select name="destination"></select></label>
+      <label>Acceptance policy<select name="policy"></select></label>
+    </div>
+    <button class="ui-button ui-button--secondary" type="submit">Preview submission</button>
+  </form>
+  <section id="execution-preview" hidden aria-labelledby="execution-preview-title">
+    <h3 id="execution-preview-title">Review work package</h3>
+    <pre id="execution-preview-body" class="work-description"></pre>
+    <ul id="execution-preview-criteria"></ul>
+    <p id="execution-preview-gaps" role="status"></p>
+    <label class="planning-check"><input id="execution-confirm" type="checkbox" /> I approve this scope and its acceptance criteria for submission.</label>
+    <button id="execution-submit" class="ui-button" type="button" disabled>Submit to Foundry</button>
+  </section>
+  <section aria-labelledby="execution-saved-title">
+    <h3 id="execution-saved-title">Submitted work</h3>
+    <label>Work package<select id="execution-saved"><option value="">Choose submitted work</option></select></label>
+    <button id="execution-refresh" class="ui-button ui-button--secondary" type="button">Refresh evidence</button>
+    <div id="execution-result" aria-live="polite"></div>
+  </section>
+</section>
+<style>
+  :global(#planning-execution #execution-result) { overflow-wrap: anywhere; }
+  :global(#planning-execution .work-description) { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30rem; overflow-y: auto; font: inherit; }
+  section { margin-block: 1.5rem; }
+  input, select { max-width: 100%; }
+</style>
+<script>import "../scripts/work-execution";</script>

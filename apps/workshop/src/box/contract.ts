@@ -13,6 +13,7 @@ const objectUri = z.string().regex(/^s3:\/\/[a-z0-9.-]+\/.+$/, "s3://bucket/key"
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "lowercase slug");
 const millimetres = z.number().positive().max(1000);
 const message = z.string().trim().min(1).max(500);
+const via = z.enum(["agent", "graphql"]).optional();
 
 /** One design handed to the box: a first message, then follow-ups to the same project. */
 export const DesignRequest = z.strictObject({
@@ -25,6 +26,9 @@ export const DesignRequest = z.strictObject({
   followUps: z.array(message).max(8).default([]),
   /** Where the design is committed: `designs/<slug>/`. Defaults to one made from the title. */
   slug: slug.optional(),
+  /** How each turn reaches the design agent: `agent` posts to Workshop's design route as the project page does (the default);
+   * `graphql` starts it with the StartWorkshopDesign mutation through the platform's graph API (MCP graph_mutate) and follows the run. */
+  via,
   release: z
     .strictObject({ trigger: z.boolean(), bump: z.enum(["major", "minor", "patch"]).default("patch") })
     .optional(),
@@ -94,6 +98,19 @@ export const Sessions = z.strictObject({
   files: z.array(z.strictObject({ agent: z.string().min(1), path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.int().nonnegative() })),
 });
 
+/** The project's workbench after a design step (box/screenshots.mjs): a PNG under /out and in RustFS. */
+export const Screenshot = z.strictObject({
+  step: z.string().min(1),
+  revision: z.number().int().positive(),
+  /** Relative to /out: screenshots/<requestId>/<n>-<step>.png. */
+  path: z.string().regex(/^screenshots\/[^/]+\/[a-z0-9-]+\.png$/),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  bytes: z.int().nonnegative(),
+  uri: z.string().regex(/^s3:\/\/[a-z0-9.-]+\/.+$/),
+  /** Whether the 3D view had drawn the model when the screenshot was taken. */
+  ready: z.boolean(),
+});
+
 /** What happened to one design request (`/out/results/<requestId>.json`). */
 export const DesignResult = z
   .strictObject({
@@ -102,6 +119,8 @@ export const DesignResult = z
     status: z.enum(["designed", "failed"]),
     reason: z.string().max(4000).optional(),
     path: z.string().regex(/^designs\/[a-z0-9][a-z0-9-]{0,63}$/),
+    /** How the turns reached the design agent, when the request named it. */
+    via,
     project: z.strictObject({ id: z.string().min(1), revision: z.number().int().positive(), name: z.string().min(1) }).optional(),
     iterations: z.array(DesignIteration),
     geometry: z
@@ -109,6 +128,7 @@ export const DesignResult = z
       .optional(),
     bom: z.array(BomLine),
     files: z.array(DesignFile),
+    screenshots: z.array(Screenshot).optional(),
     commitSha: sha.optional(),
     model: Model,
     release: Release.optional(),

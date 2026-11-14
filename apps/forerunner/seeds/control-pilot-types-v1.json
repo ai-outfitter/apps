@@ -1,0 +1,1225 @@
+[
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000001",
+    "name": "Friendship",
+    "title": "Friendship",
+    "category": "node",
+    "body": "A friendship is an independently identified personal relationship between two distinct people.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "relator",
+      "validity": "interval",
+      "participation": {
+        "slots": [
+          {
+            "name": "friend",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000011",
+            "participantTypes": [
+              "71000000-0000-4000-8000-000000000005"
+            ],
+            "min": 2,
+            "max": 2
+          }
+        ],
+        "uniqueBy": [
+          "friend"
+        ],
+        "distinct": [
+          [
+            "friend"
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000002",
+    "name": "ControlDefinition",
+    "title": "ControlDefinition",
+    "category": "node",
+    "body": "A control definition describes a versioned measurable rule, its evidence and its success criterion.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [
+      {
+        "name": "state",
+        "type": "string",
+        "description": "State",
+        "required": false
+      },
+      {
+        "name": "policy_version",
+        "type": "string",
+        "description": "Policy version",
+        "required": false
+      },
+      {
+        "name": "threshold",
+        "type": "number",
+        "description": "Threshold",
+        "required": false
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "description": "Unit",
+        "required": false
+      },
+      {
+        "name": "window",
+        "type": "string",
+        "description": "Window",
+        "required": false
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "description": "Timezone",
+        "required": false
+      },
+      {
+        "name": "success_criterion",
+        "type": "string",
+        "description": "Success criterion",
+        "required": false
+      },
+      {
+        "name": "formula_language",
+        "type": "string",
+        "description": "Language and execution boundary for the formula",
+        "required": false
+      },
+      {
+        "name": "measurement_formula",
+        "type": "string",
+        "description": "Expression that calculates the measured value",
+        "required": false
+      },
+      {
+        "name": "deadline_formula",
+        "type": "string",
+        "description": "Expression that determines the deadline",
+        "required": false
+      },
+      {
+        "name": "formula",
+        "type": "string",
+        "description": "Decision expression that determines the control result",
+        "required": false
+      },
+      {
+        "name": "source_requirements",
+        "type": "string",
+        "description": "Required input fields, evidence, normalization and exclusions",
+        "required": false
+      },
+      {
+        "name": "aggregation_formula",
+        "type": "string",
+        "description": "Expression for aggregate reporting, when applicable",
+        "required": false
+      },
+      {
+        "name": "aggregation",
+        "type": "string",
+        "description": "Reporting grain and interpretation",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind",
+      "measures": [
+        {
+          "name": "measurement",
+          "title": "Control measurement",
+          "expression": {
+            "op": "formula",
+            "language": "control-v1",
+            "fields": {
+              "measurement": "measurement_formula",
+              "aggregation": "aggregation",
+              "window": "window",
+              "threshold": "threshold",
+              "unit": "unit"
+            }
+          }
+        },
+        {
+          "name": "commitments",
+          "title": "Commitments",
+          "expression": {
+            "op": "count",
+            "of": "control"
+          }
+        }
+      ]
+    },
+    "jsonSchema": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "grain": {
+          "type": "object",
+          "properties": {
+            "type_id": {
+              "type": "string",
+              "format": "uuid",
+              "x-wiki-reference": "node-type"
+            },
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "maxLength": 80
+              },
+              "minItems": 1,
+              "maxItems": 128
+            }
+          },
+          "required": [
+            "type_id",
+            "keys"
+          ],
+          "additionalProperties": false
+        },
+        "window": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "elapsed",
+                "calendar"
+              ]
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "enum": [
+                "hour",
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          "required": [
+            "kind",
+            "amount",
+            "unit",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        "graph_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "min_matches": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "path": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "edge_type_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "x-wiki-reference": "edge-type"
+                    },
+                    "direction": {
+                      "enum": [
+                        "incoming",
+                        "outgoing"
+                      ]
+                    },
+                    "target_type_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "x-wiki-reference": "node-type"
+                      },
+                      "minItems": 1,
+                      "maxItems": 128
+                    }
+                  },
+                  "required": [
+                    "edge_type_id",
+                    "direction",
+                    "target_type_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 128
+              }
+            },
+            "required": [
+              "name",
+              "min_matches",
+              "path"
+            ],
+            "additionalProperties": false,
+            "x-wiki-graph-path": true
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "maxLength": 80
+              },
+              "relation": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Null means no executable source relation is bound. A service node is not a working connector.",
+                "x-wiki-source-binding": true,
+                "title": "Source relation"
+              },
+              "key_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "maxLength": 80
+                },
+                "minItems": 1,
+                "maxItems": 128
+              },
+              "required_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "maxLength": 80
+                },
+                "minItems": 1,
+                "maxItems": 128
+              }
+            },
+            "required": [
+              "name",
+              "relation",
+              "key_fields",
+              "required_fields"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "maxLength": 80
+              },
+              "data_type": {
+                "enum": [
+                  "number",
+                  "nullable_number",
+                  "string",
+                  "boolean"
+                ]
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "origin": {
+                "enum": [
+                  "source",
+                  "runtime",
+                  "parameter",
+                  "measurement",
+                  "evaluation"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "data_type",
+              "unit",
+              "origin"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "number",
+              "string",
+              "boolean"
+            ]
+          }
+        },
+        "programs": {
+          "type": "object",
+          "properties": {
+            "measurement": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "maxLength": 80
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "identity",
+                      "add",
+                      "subtract",
+                      "multiply",
+                      "divide",
+                      "eq",
+                      "lt",
+                      "lte",
+                      "gte",
+                      "and",
+                      "or",
+                      "is_null",
+                      "is_not_null",
+                      "case",
+                      "count_distinct",
+                      "sum",
+                      "null_if"
+                    ]
+                  },
+                  "arguments": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "input": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "input"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "step": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "operator",
+                  "arguments"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 128
+            },
+            "deadline": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "maxLength": 80
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "identity",
+                      "add",
+                      "subtract",
+                      "multiply",
+                      "divide",
+                      "eq",
+                      "lt",
+                      "lte",
+                      "gte",
+                      "and",
+                      "or",
+                      "is_null",
+                      "is_not_null",
+                      "case",
+                      "count_distinct",
+                      "sum",
+                      "null_if"
+                    ]
+                  },
+                  "arguments": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "input": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "input"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "step": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "operator",
+                  "arguments"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 128
+            },
+            "decision": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "maxLength": 80
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "identity",
+                      "add",
+                      "subtract",
+                      "multiply",
+                      "divide",
+                      "eq",
+                      "lt",
+                      "lte",
+                      "gte",
+                      "and",
+                      "or",
+                      "is_null",
+                      "is_not_null",
+                      "case",
+                      "count_distinct",
+                      "sum",
+                      "null_if"
+                    ]
+                  },
+                  "arguments": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "input": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "input"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "step": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "operator",
+                  "arguments"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 128
+            },
+            "aggregation": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "maxLength": 80
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "identity",
+                      "add",
+                      "subtract",
+                      "multiply",
+                      "divide",
+                      "eq",
+                      "lt",
+                      "lte",
+                      "gte",
+                      "and",
+                      "or",
+                      "is_null",
+                      "is_not_null",
+                      "case",
+                      "count_distinct",
+                      "sum",
+                      "null_if"
+                    ]
+                  },
+                  "arguments": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "input": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "input"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "step": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "maxLength": 80
+                            }
+                          },
+                          "required": [
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "operator",
+                  "arguments"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 128
+            }
+          },
+          "required": [
+            "measurement",
+            "deadline",
+            "decision"
+          ],
+          "additionalProperties": false
+        },
+        "evidence_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "reporting": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "version",
+        "description",
+        "grain",
+        "window",
+        "graph_requirements",
+        "sources",
+        "inputs",
+        "parameters",
+        "programs",
+        "evidence_rules",
+        "reporting"
+      ],
+      "additionalProperties": false,
+      "title": "Structured control measurement v1",
+      "description": "Portable measurement operators and typed inputs. Graph requirements are checked against this Wiki; null source relations remain explicitly unbound. This document does not activate a control."
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000003",
+    "name": "ControlCommitment",
+    "title": "ControlCommitment",
+    "category": "node",
+    "body": "A control commitment assigns an accountable person or role to a control definition and a specific subject.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [
+      {
+        "name": "state",
+        "type": "string",
+        "description": "State",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "relator",
+      "validity": "interval",
+      "participation": {
+        "slots": [
+          {
+            "name": "owner",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000013",
+            "participantTypes": [
+              "71000000-0000-4000-8000-000000000005",
+              "71000000-0000-4000-8000-000000000018"
+            ],
+            "min": 1,
+            "max": 1
+          },
+          {
+            "name": "control",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "participantTypes": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000002"
+            ],
+            "min": 1,
+            "max": 1
+          },
+          {
+            "name": "subject",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+            "participantTypes": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000001",
+              "71000000-0000-4000-8000-000000000001",
+              "71000000-0000-4000-8000-000000000015"
+            ],
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "uniqueBy": [
+          "owner",
+          "control",
+          "subject"
+        ]
+      },
+      "measures": [
+        {
+          "name": "openObligations",
+          "title": "Open response obligations",
+          "expression": {
+            "op": "count",
+            "of": "commitment",
+            "where": {
+              "property": "state",
+              "equals": "open"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000004",
+    "name": "ResponseObligation",
+    "title": "ResponseObligation",
+    "category": "node",
+    "body": "A response obligation connects one source issue episode with the control commitment governing its response.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [
+      {
+        "name": "state",
+        "type": "string",
+        "description": "State",
+        "required": false
+      },
+      {
+        "name": "triggered_at",
+        "type": "string",
+        "description": "Triggered at",
+        "required": false
+      },
+      {
+        "name": "due_at",
+        "type": "string",
+        "description": "Due at",
+        "required": false
+      },
+      {
+        "name": "synthetic",
+        "type": "boolean",
+        "description": "Synthetic",
+        "required": false
+      },
+      {
+        "name": "addressed_at",
+        "type": "string",
+        "description": "ISO instant of the qualifying response",
+        "required": false
+      },
+      {
+        "name": "evidence_complete",
+        "type": "boolean",
+        "description": "Whether the response evidence is complete",
+        "required": false
+      },
+      {
+        "name": "waived",
+        "type": "boolean",
+        "description": "Whether the obligation was waived",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "relator",
+      "validity": "interval",
+      "participation": {
+        "slots": [
+          {
+            "name": "commitment",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000016",
+            "participantTypes": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+            ],
+            "min": 1,
+            "max": 1
+          },
+          {
+            "name": "issue",
+            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000017",
+            "participantTypes": [
+              "86cd3b21-71e2-5dfa-9bd0-000000000005"
+            ],
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "uniqueBy": [
+          "commitment",
+          "issue"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000005",
+    "name": "SourceIssueEpisode",
+    "title": "SourceIssueEpisode",
+    "category": "node",
+    "body": "A source issue episode identifies one opening or reopening of a tracked issue.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [
+      {
+        "name": "source",
+        "type": "string",
+        "description": "Source",
+        "required": false
+      },
+      {
+        "name": "source_id",
+        "type": "string",
+        "description": "Source id",
+        "required": false
+      },
+      {
+        "name": "synthetic",
+        "type": "boolean",
+        "description": "Synthetic",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind"
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000011",
+    "name": "friend",
+    "title": "friend",
+    "category": "edge",
+    "body": "The source Friendship includes the target Person.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000012",
+    "name": "friends_with",
+    "title": "friends with",
+    "category": "edge",
+    "body": "Two people are friends through a Friendship relator.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "projection": {
+        "relatorTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000001",
+        "fromSlot": "friend",
+        "toSlot": "friend",
+        "symmetric": true
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000013",
+    "name": "commitment_owner",
+    "title": "commitment owner",
+    "category": "edge",
+    "body": "The source ControlCommitment is accountable to the target Person or Role.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000018"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+    "name": "implements_control",
+    "title": "implements control",
+    "category": "edge",
+    "body": "The source ControlCommitment implements the target ControlDefinition.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+        ],
+        "to": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+    "name": "commitment_subject",
+    "title": "commitment subject",
+    "category": "edge",
+    "body": "The source ControlCommitment concerns the target subject.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+        ],
+        "to": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000001",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000016",
+    "name": "obligation_commitment",
+    "title": "obligation commitment",
+    "category": "edge",
+    "body": "The source ResponseObligation is governed by the target ControlCommitment.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000004"
+        ],
+        "to": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000017",
+    "name": "obligation_subject",
+    "title": "obligation subject",
+    "category": "edge",
+    "body": "The source ResponseObligation concerns the target SourceIssueEpisode.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000004"
+        ],
+        "to": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000018",
+    "name": "control_goal",
+    "title": "control goal",
+    "category": "edge",
+    "body": "The source ControlDefinition measures the target Goal.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000010"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000019",
+    "name": "issue_source",
+    "title": "issue source",
+    "category": "edge",
+    "body": "The source SourceIssueEpisode originates in the target Product.\n\n## For agents\n\nPreserve scope and evidence. A proposed control is not an active automation or a confirmed claim.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000005"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
+  },
+  {
+    "id": "86cd3b21-71e2-5dfa-9bd0-000000000020",
+    "name": "control_source",
+    "title": "control source",
+    "category": "edge",
+    "body": "The source ControlDefinition identifies the target Product as its source service. This does not assert that a connector or executable source relation is configured.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
+  }
+]

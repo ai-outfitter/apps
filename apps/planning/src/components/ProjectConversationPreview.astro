@@ -1,0 +1,65 @@
+---
+import type { ProjectConversationPreview } from "../server/project-conversation-preview";
+interface Props { preview: ProjectConversationPreview }
+const { preview } = Astro.props;
+---
+<div class="project-conversation" data-project-conversation-preview>
+  <div class="milestone"><span>Current milestone</span><h2>{preview.milestone}</h2><small>Proposed goals · local design preview</small></div>
+  <div class="goal-meters" aria-label="Measurable project goals">
+    {preview.goals.map((goal, index) => <article class="goal-meter">
+      <div class="goal-label"><span>{goal.kind === "checkpoint" ? "First prove it works" : "Then prove it helps customers"}</span><small>0{index + 1}</small></div>
+      <h3>{goal.title}</h3>
+      <div class="measurement"><strong>Not measured</strong><span>Target: {goal.target} {goal.unit}</span></div>
+      <div class="unknown-track" aria-hidden="true"></div>
+      <p>{goal.evidence}</p>
+    </article>)}
+  </div>
+  <p class="measurement-note">No analytics observations are connected to this preview. Unknown is not zero; test activity can verify a checkpoint but cannot count as customer adoption.</p>
+  <div class="day-heading"><h2>Today</h2><span>{preview.date}</span></div>
+  <article class="day-message"><p>{preview.today}</p><div class="decision"><h3>Needs your decision</h3><p>{preview.question}</p><button type="button" data-discuss-goal>Think this through ↗</button></div></article>
+  <div data-project-preview-replies aria-live="polite"></div>
+  <form data-project-preview-composer><label for="project-thought">What should we focus on?</label><textarea id="project-thought" rows="2" maxlength="2000" placeholder="Answer the question, narrow the milestone, or add context…" required></textarea><div><small>Preview draft · not sent or saved</small><button type="submit">Add to conversation ↑</button></div></form>
+  <div class="past-day"><h2>Yesterday</h2><p>{preview.yesterday}</p></div>
+  <div class="past-day"><h2>Last week</h2><p>{preview.lastWeek}</p></div>
+</div>
+<script>
+  const root = document.querySelector<HTMLElement>('[data-project-conversation-preview]');
+  if (root) {
+    const input = root.querySelector<HTMLTextAreaElement>('textarea');
+    root.querySelector('[data-discuss-goal]')?.addEventListener('click', () => {
+      if (!input) return;
+      input.value = root.querySelector('.decision p')?.textContent ?? '';
+      input.focus();
+    });
+    root.querySelector('form')?.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!input?.value.trim()) return;
+      const reply = document.createElement('p'); reply.className = 'draft-reply';
+      reply.textContent = input.value.trim();
+      root.querySelector('[data-project-preview-replies]')?.append(reply);
+      input.value = '';
+    });
+  }
+</script>
+<style>
+  .project-conversation { max-width:1000px; margin:auto; }
+  .milestone { margin-bottom:20px; } .milestone>span { font-size:11px; color:#77806c; text-transform:uppercase; letter-spacing:.08em; }
+  .milestone h2 { font-size:22px; margin:6px 0; font-weight:500; } .milestone small { color:#969a8c; font-size:11px; }
+  .goal-meters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .goal-meter { border:0; border-top:1px solid #dfe4d6; border-radius:0; padding:16px 0; background:transparent; }
+  .goal-label { display:flex; justify-content:space-between; gap:10px; font-size:10px; color:#7c896d; }
+  h3 { font-size:14px; margin:14px 0; font-weight:600; }
+  .measurement { display:flex; flex-direction:column; gap:5px; margin:16px 0 12px; } .measurement strong { font-size:20px; font-weight:500; } .measurement span { font-size:11px; color:#7a826e; }
+  .unknown-track { height:7px; border-radius:6px; background:repeating-linear-gradient(120deg,#e2e7d8,#e2e7d8 5px,#f0f3eb 5px,#f0f3eb 10px); }
+  .goal-meter p { font-size:12px; line-height:1.6; color:#717a65; margin:14px 0 0; }
+  .measurement-note { font-size:11px; line-height:1.6; color:#89917e; margin:14px 0 28px; }
+  .day-heading { display:flex; align-items:baseline; gap:14px; margin-bottom:14px; } h2 { font-size:20px; font-weight:500; margin:0; } .day-heading span { font-size:12px; color:#8b9281; }
+  .day-message { padding:0; border:0; background:transparent; } .day-message>p { margin-top:0; }
+  p { font-size:14px; line-height:1.7; } .decision { border-top:1px solid #e3e7db; margin-top:20px; padding-top:6px; } .decision button { border:0; background:none; color:#6e8058; padding:0; cursor:pointer; font:inherit; font-size:12px; }
+  form { border:1px solid #dfe4d6; padding:18px; border-radius:13px; margin:20px 0 28px; } label { font-size:13px; font-weight:500; }
+  textarea { box-sizing:border-box; width:100%; display:block; border:0; background:transparent; resize:vertical; padding:12px 0; font:inherit; font-size:13px; }
+  form>div { display:flex; align-items:center; justify-content:space-between; gap:12px; } form small { font-size:10px; color:#959c89; } form button { border:0; border-radius:18px; padding:8px 12px; background:#748762; color:white; cursor:pointer; font:inherit; font-size:11px; }
+  .past-day { border-top:1px solid #e3e7db; padding-top:20px; margin-top:20px; } .past-day h2 { font-size:15px; } .past-day p { color:#7e8771; font-size:13px; }
+  .project-conversation :global(.draft-reply) { margin:18px 0 0 30px; background:#edf1e5; border-radius:16px 4px 16px 16px; padding:18px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  @media(max-width:750px) { .goal-meters { grid-template-columns:1fr; } .measurement { margin-top:14px; } .day-heading { flex-wrap:wrap; } }
+</style>

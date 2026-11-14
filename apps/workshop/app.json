@@ -1,6 +1,6 @@
 {
   "id": "outfitter/workshop",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
@@ -11,6 +11,11 @@
             "visibility": "public",
             "ttl": null,
             "maxTtl": null
+          },
+          "builds": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
           }
         }
       }
@@ -24,13 +29,19 @@
       "capabilities": [
         "data.export",
         "graph.serve",
-        "organization.workshop.projects",
-        "organization.workshop.agent",
         "storage.buckets",
         "workflow.host",
         "entities.read",
         "entities.write",
-        "actions.invoke"
+        "actions.invoke",
+        "workflow.workshop-design.start",
+        "workflow.workshop-concept.start",
+        "workflow.workshop-workspace.start",
+        "storage.artifacts.read",
+        "storage.artifacts.write",
+        "connector.forgejo.issues.read",
+        "threads.use",
+        "threads.provide"
       ]
     }
   },
@@ -48,7 +59,7 @@
     }
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ],
   "initialize": true
 }

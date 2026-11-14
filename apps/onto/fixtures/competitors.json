@@ -1,0 +1,228 @@
+{
+  "format": "outfitter-graph-entities-v1",
+  "nodes": [
+    {
+      "id": "7a000000-0000-4000-8000-000000000001",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "slug": "synthetic-northwind-models",
+      "title": "Northwind Models (synthetic)",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Fictional model hosting company used to demonstrate the competitive landscape.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000002",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "slug": "synthetic-northwind-model-gateway",
+      "title": "Northwind Model Gateway",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Pay-per-token access to many hosted models behind one API.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000003",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "slug": "synthetic-northwind-fine-tuning",
+      "title": "Northwind Fine-tuning",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Managed fine-tuning of open models on customer data.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000004",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "slug": "synthetic-northwind-gateway",
+      "title": "Northwind Gateway",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "The routing API behind Northwind Model Gateway.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000005",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "slug": "synthetic-northwind-eval-studio",
+      "title": "Northwind Eval Studio",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "A hosted evaluation tool for prompts and models.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000006",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "slug": "synthetic-harbor-agents",
+      "title": "Harbor Agents (synthetic)",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Fictional agent platform company used to demonstrate the competitive landscape.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000007",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "slug": "synthetic-harbor-agent-seats",
+      "title": "Harbor Agent Seats",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Per-seat AI agents that work inside a team's tools.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000008",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "slug": "synthetic-harbor-workflow-builder",
+      "title": "Harbor Workflow Builder",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "A no-code builder for multi-step agent workflows.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000009",
+      "typeId": "71000000-0000-4000-8000-000000000056",
+      "slug": "synthetic-harbor-support-desk",
+      "title": "Harbor Support Desk",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "An AI-first customer support inbox.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000010",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "slug": "synthetic-harbor-agent-runtime",
+      "title": "Harbor Agent Runtime",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "The hosted runtime that runs Harbor agents.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000011",
+      "typeId": "71000000-0000-4000-8000-000000000001",
+      "slug": "synthetic-lumen-labs",
+      "title": "Lumen Labs (synthetic)",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "Fictional tuning tools company. It competes with Northwind, not with this organization, so the landscape leaves it out.",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000012",
+      "typeId": "71000000-0000-4000-8000-000000000015",
+      "slug": "synthetic-lumen-tuner",
+      "title": "Lumen Tuner",
+      "summary": "Synthetic competitor example for the competitive landscape demo.",
+      "body": "A desktop app for fine-tuning small models.",
+      "properties": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "7a000000-0000-4000-8000-000000001001",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "7a000000-0000-4000-8000-000000000002",
+      "toId": "7a000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001002",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "7a000000-0000-4000-8000-000000000003",
+      "toId": "7a000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001003",
+      "typeId": "71000000-0000-4000-8000-000000000057",
+      "fromId": "7a000000-0000-4000-8000-000000000002",
+      "toId": "7a000000-0000-4000-8000-000000000004",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001004",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "7a000000-0000-4000-8000-000000000004",
+      "toId": "7a000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001005",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "7a000000-0000-4000-8000-000000000005",
+      "toId": "7a000000-0000-4000-8000-000000000001",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001006",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "7a000000-0000-4000-8000-000000000007",
+      "toId": "7a000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001007",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "7a000000-0000-4000-8000-000000000008",
+      "toId": "7a000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001008",
+      "typeId": "71000000-0000-4000-8000-000000000058",
+      "fromId": "7a000000-0000-4000-8000-000000000009",
+      "toId": "7a000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001009",
+      "typeId": "71000000-0000-4000-8000-000000000057",
+      "fromId": "7a000000-0000-4000-8000-000000000007",
+      "toId": "7a000000-0000-4000-8000-000000000010",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001010",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "7a000000-0000-4000-8000-000000000010",
+      "toId": "7a000000-0000-4000-8000-000000000006",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001011",
+      "typeId": "71000000-0000-4000-8000-000000000025",
+      "fromId": "7a000000-0000-4000-8000-000000000012",
+      "toId": "7a000000-0000-4000-8000-000000000011",
+      "properties": {}
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001012",
+      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
+      "fromId": "7a000000-0000-4000-8000-000000000002",
+      "toId": "43f950db-67b4-5b90-a1c8-09e79bbad23e",
+      "properties": {
+        "status": "proposed",
+        "evidence": "Synthetic example.",
+        "how": "Sells metered access to hosted models through one API.",
+        "difference": "Outfitter bills inference inside the apps and agents a team already uses."
+      }
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001013",
+      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
+      "fromId": "7a000000-0000-4000-8000-000000000007",
+      "toId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "properties": {
+        "status": "proposed",
+        "evidence": "Synthetic example.",
+        "how": "Prices agents per seat and runs them in a hosted runtime.",
+        "difference": "Outfitter prices resident agents by role and can run them self-hosted."
+      }
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000001014",
+      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
+      "fromId": "7a000000-0000-4000-8000-000000000012",
+      "toId": "7a000000-0000-4000-8000-000000000003",
+      "properties": {
+        "status": "proposed",
+        "evidence": "Synthetic example.",
+        "how": "Fine-tunes small models on a desktop.",
+        "difference": "Local tool rather than a managed service."
+      }
+    }
+  ]
+}

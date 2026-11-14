@@ -1,0 +1,20 @@
+[
+  {
+    "operation": "CompetitiveLandscape",
+    "name": "CompetitiveLandscapes",
+    "description": "Read recorded competitors, offerings and the use cases they serve.",
+    "slug": "competitive-landscape"
+  },
+  {
+    "operation": "ProductChain",
+    "name": "ProductChains",
+    "description": "Read releases, product revisions, products, offerings and customer segments linked in the Wiki.",
+    "slug": "product-chain"
+  },
+  {
+    "operation": "ReleaseScope",
+    "name": "ReleaseScopes",
+    "description": "Read a release\u2019s recorded scope, acceptance criteria and supporting context.",
+    "slug": "release-scope"
+  }
+]

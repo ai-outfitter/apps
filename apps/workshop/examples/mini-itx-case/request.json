@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "requestId": "4b7e2d10-6c3a-4f9e-9a1d-2e5c8b7f0a31",
+  "title": "Mini-ITX case",
+  "message": "A printed case for a Mini-ITX board with a low-profile cooler and a Flex ATX power supply standing beside it. Three printed parts, 3 mm walls, standoffs at the board's four mounting holes, the I/O shield and power inlet open at the back, vents at the front and left, and nothing touching when assembled.",
+  "followUps": ["Move the power supply 10 mm to the right and keep the clearances."],
+  "release": { "trigger": false }
+}

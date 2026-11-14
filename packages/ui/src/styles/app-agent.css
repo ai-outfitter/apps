@@ -54,10 +54,15 @@
   overflow: auto;
 }
 
-.agent-thread-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 1rem 0.5rem; color: var(--muted); font-size: 0.75rem; }
-.agent-thread-summary details { text-align: end; }
-.agent-thread-summary summary { cursor: pointer; }
+.agent-thread-summary { margin: 0; padding: 0 1rem 0.5rem; color: var(--muted); font-size: 0.75rem; }
 
 @media (max-width: 760px) {
   .agent-fields textarea, .agent-fields select, .agent-fields input[type="number"] { font-size: 16px; }
 }
+
+.agent-resource-link {
+  margin: 0.25rem 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.agent-resource-link a { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; }

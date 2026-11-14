@@ -1,0 +1,1604 @@
+[
+  {
+    "name": "ChangeBatch",
+    "kind": "query",
+    "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "79d6777cfc2cd673b3eca131eb850f197114d731047339319ef2f57b5573ce86",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "refs": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "ChangeBatchChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to apply changebatch changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation ChangeBatchChanges($input: ChangeBatchChangesInput!) {\n  changeBatchChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "739f38ac2ec880d3a4851db50db2ab4e07fe8e4ebecba1c357ad8356c6718f90",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ChangeBatchChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "amend"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "proposals": {
+                            "default": [],
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operation": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "create"
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "update"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 300
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation",
+                                        "id",
+                                        "revision"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                "evidence": {
+                                  "default": [],
+                                  "maxItems": 32,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "provider": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 100
+                                      },
+                                      "recordId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "uri": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "contentHash": {
+                                        "type": "string",
+                                        "pattern": "^[a-f0-9]{64}$"
+                                      },
+                                      "quote": {
+                                        "type": "string",
+                                        "maxLength": 2000
+                                      },
+                                      "observedAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                      }
+                                    },
+                                    "required": [
+                                      "provider",
+                                      "recordId"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "confidence": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "maxLength": 1000
+                                }
+                              },
+                              "required": [
+                                "operation"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "remove": {
+                            "default": [],
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "stage"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "description": "Add to this open batch; omit to open one.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "title": {
+                            "description": "Names the batch a new one opens with.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          "source": {
+                            "description": "Where the proposals came from, for a new batch: {kind: \"agent-task\" | \"meeting\" | \"import\" | \"work-package\", ref, label?}, e.g. a chat or meeting ID and its title.",
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "discovery-run",
+                                  "work-package",
+                                  "import",
+                                  "agent-task",
+                                  "meeting"
+                                ]
+                              },
+                              "ref": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "anchors": {
+                            "description": "Node addresses, such as Organization:sunny, every node the batch creates must connect to, along any path of saved or staged edges; submit is refused otherwise. Omit to anchor to the root: the organization's Organization node, or the owner's Person in a personal graph. In a batch that commits by policy, records that reach no anchor wait for a member instead. An empty list removes the requirement.",
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            }
+                          },
+                          "proposals": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operation": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "create"
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "ref": {
+                                          "type": "string",
+                                          "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                        },
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "graph-type",
+                                            "graph-node",
+                                            "graph-edge"
+                                          ]
+                                        },
+                                        "attributes": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                          }
+                                        },
+                                        "operation": {
+                                          "type": "string",
+                                          "const": "update"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 300
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "ref",
+                                        "type",
+                                        "attributes",
+                                        "operation",
+                                        "id",
+                                        "revision"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                "evidence": {
+                                  "default": [],
+                                  "maxItems": 32,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "provider": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 100
+                                      },
+                                      "recordId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "uri": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "contentHash": {
+                                        "type": "string",
+                                        "pattern": "^[a-f0-9]{64}$"
+                                      },
+                                      "quote": {
+                                        "type": "string",
+                                        "maxLength": 2000
+                                      },
+                                      "observedAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                      }
+                                    },
+                                    "required": [
+                                      "provider",
+                                      "recordId"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "confidence": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "maxLength": 1000
+                                }
+                              },
+                              "required": [
+                                "operation"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "replace": {
+                            "description": "Replace proposals with matching refs in this open batch, including evidence, confidence and reason. Other proposals stay unchanged.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "proposals"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "configure"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "anchors": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "anchors"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "remove"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "refs": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "refs"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "submit"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "summary": {
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "batchId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "review"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "refs": {
+                            "minItems": 1,
+                            "maxItems": 2000,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                            }
+                          },
+                          "verdict": {
+                            "type": "string",
+                            "enum": [
+                              "approve",
+                              "reject"
+                            ]
+                          },
+                          "comment": {
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "batchId",
+                          "verdict"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false,
+          "$defs": {
+            "__schema0": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "changeBatchChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ChangeBatches",
+    "kind": "query",
+    "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "dd8614fcd5c6845a7dd00d5bb6b4c5fc593cc349025b5df6a64644eb09eb64e4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "description": "GraphQL [ID!]"
+        },
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "state": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "details": {
+          "type": "boolean",
+          "description": "GraphQL Boolean"
+        },
+        "refs": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "changeBatches",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "changeBatches": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "counts": {
+                    "description": "JSON"
+                  },
+                  "reviewBy": {
+                    "description": "DateTime",
+                    "nullable": true
+                  },
+                  "reviewUrl": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "instructions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "itemKey": {
+                          "type": "string"
+                        },
+                        "actor": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "operations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "ref": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string"
+                        },
+                        "operation": {
+                          "description": "JSON"
+                        },
+                        "evidence": {
+                          "description": "JSON"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "reason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "decision": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "record": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "recordRevision": {
+                          "type": "integer",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "hasNextPage": {
+                  "type": "boolean"
+                },
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "Exploration",
+    "kind": "query",
+    "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
+    "query": "query Exploration($slug: String!) {\n  exploration(slug: $slug) {\n    slug\n    title\n    revision\n    state\n    lastChange\n    picture {\n      nodes {\n        key\n        type\n        title\n        step\n        url\n        proposedIn\n      }\n      edges {\n        from\n        to\n        label\n      }\n      steps {\n        key\n        count\n        truncated\n        error\n      }\n      truncated\n    }\n  }\n}",
+    "hash": "4392875d23db84ec679a21bfd4a3a506b02a500da5735a346042ae7006b5bbae",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Read an exploration's picture (nodes by key, relationships, what each step reached) and its revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "exploration": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "state": {
+              "description": "JSON"
+            },
+            "lastChange": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "picture": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "step": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "proposedIn": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      },
+                      "truncated": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Explorations",
+    "kind": "query",
+    "story": "As a member or agent, I want to list the saved explorations of this Wiki, so that I can open one instead of rebuilding a view.",
+    "query": "query Explorations {\n  explorations {\n    slug\n    title\n    revision\n    start\n  }\n}",
+    "hash": "2d008c58bdba966bcef4e5745673b1ff44fd5bbfc1685818333f99cf782e98f8",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "List saved graph explorations: views of this Wiki that members and agents share."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "explorations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "start": {
+                "description": "JSON"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "MutateExploration",
+    "kind": "mutation",
+    "story": "As an agent or member, I want to open, close and hide parts of an exploration with one merge patch, so that the page and every agent see the same view change at once.",
+    "query": "mutation MutateExploration($input: MutateExplorationInput!) {\n  mutateExploration(input: $input) {\n    slug\n    title\n    revision\n    lastChange\n    picture {\n      nodes {\n        key\n        type\n        title\n        step\n        url\n        proposedIn\n      }\n      edges {\n        from\n        to\n        label\n      }\n      steps {\n        key\n        count\n        truncated\n        error\n      }\n      truncated\n    }\n  }\n}",
+    "hash": "859ba0c01cb9840253d8177b35a4aaedd84ee00270270b97c9e595a697a51ccc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MutateExplorationInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Open paths (offerings, products, projects, competitors, issues, repositories, open pullRequests or any edge type), hide nodes or start an exploration with a merge patch; the explore page updates live. Writes no records."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "mutateExploration": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "lastChange": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "picture": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "step": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "proposedIn": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      },
+                      "truncated": {
+                        "type": "boolean"
+                      },
+                      "error": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "MutateShare",
+    "kind": "mutation",
+    "story": "As an editor, I want to show another organization part of this graph with one merge patch, so that they read current records without a copy.",
+    "query": "mutation MutateShare($input: MutateShareInput!) {\n  mutateShare(input: $input) {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n    view {\n      nodes {\n        address\n        title\n        summary\n      }\n      edges {\n        address\n      }\n      incomplete\n    }\n  }\n}",
+    "hash": "967795eef7f7fb7731f018aa813e8fdaa3fe20584aae90e6512fe88909a9d451",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MutateShareInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "mutateShare": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "archived": {
+              "type": "boolean"
+            },
+            "organization": {
+              "type": "string"
+            },
+            "graph": {
+              "type": "string"
+            },
+            "roots": {
+              "description": "JSON"
+            },
+            "hidden": {
+              "description": "JSON"
+            },
+            "view": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "incomplete": {
+                  "type": "boolean"
+                }
+              },
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "RemoveStagedChanges",
+    "kind": "mutation",
+    "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
+    "query": "mutation RemoveStagedChanges($input: RemoveStagedChangesInput!) {\n  removeStagedChanges(input: $input) {\n    id\n    state\n    counts\n    anchors\n    validation\n  }\n}",
+    "hash": "467c4615faaa9a6e73b8198a118ed6244b7b7d0a215e3272e896dab8047cce96",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RemoveStagedChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "ReviseBatch",
+    "kind": "mutation",
+    "story": "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
+    "query": "mutation ReviseBatch($input: ReviseBatchInput!) {\n  reviseBatch(input: $input) {\n    id\n    title\n    state\n    counts\n    reviewBy\n    reviewUrl\n  }\n}",
+    "hash": "cfec203c61f8438a303177e7791f5831c7fdef3e88d3ea8b28c5c0e13f880368",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReviseBatchInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reviseBatch": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "counts": {
+              "description": "JSON"
+            },
+            "reviewBy": {
+              "description": "DateTime",
+              "nullable": true
+            },
+            "reviewUrl": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "Share",
+    "kind": "query",
+    "story": "As a member or agent, I want to see exactly what another organization reads through a share, so that nothing is exposed by surprise.",
+    "query": "query Share($slug: String!) {\n  share(slug: $slug) {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n    view {\n      nodes {\n        address\n        title\n        summary\n      }\n      edges {\n        address\n      }\n      incomplete\n    }\n  }\n}",
+    "hash": "57d0d846e4cea87f70473a491ba37a6e62652a476e6945365b71278b3792cea6",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Preview exactly what another organization reads through a share, as node and edge addresses."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "share": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "archived": {
+              "type": "boolean"
+            },
+            "organization": {
+              "type": "string"
+            },
+            "graph": {
+              "type": "string"
+            },
+            "roots": {
+              "description": "JSON"
+            },
+            "hidden": {
+              "description": "JSON"
+            },
+            "view": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "incomplete": {
+                  "type": "boolean"
+                }
+              },
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Shares",
+    "kind": "query",
+    "story": "As an editor or agent, I want to list what this graph shows other organizations, so that I can review or change a share.",
+    "query": "query Shares {\n  shares {\n    slug\n    title\n    revision\n    archived\n    organization\n    graph\n    roots\n    hidden\n  }\n}",
+    "hash": "296c081cf1ba1936e0a6da4ccab8bd0ee8dba47051dedc56652303fabfd1c725",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "List what this graph shows other organizations: each share's KnowledgeGraph, roots and hidden nodes."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "organization": {
+                "type": "string"
+              },
+              "graph": {
+                "type": "string"
+              },
+              "roots": {
+                "description": "JSON"
+              },
+              "hidden": {
+                "description": "JSON"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "StageChanges",
+    "kind": "mutation",
+    "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n  }\n}",
+    "hash": "a49ec65b0b65794a30bce244d0f8df755b705d76fe0343b5a31c153ce5a34244",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "SubmitBatch",
+    "kind": "mutation",
+    "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitBatchInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  }
+]

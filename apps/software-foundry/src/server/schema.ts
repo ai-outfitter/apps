@@ -10,7 +10,7 @@ import {
 export const foundryRequests = sqliteTable("foundry_requests", {
   id: text().primaryKey(), createdBy: text("created_by").notNull(), kind: text().notNull(),
   title: text().notNull(), payload: text().notNull(), fingerprint: text().notNull(),
-  recordId: text("record_id").notNull(), triage: text(), createdAt: integer("created_at").notNull(),
+  issueUrl: text("issue_url"), createdAt: integer("created_at").notNull(),
 });
 
 // Software Foundry projects in the installation's own database: a named group

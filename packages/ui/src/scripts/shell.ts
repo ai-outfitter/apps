@@ -89,6 +89,7 @@ function installSwipe() {
     (event) => {
       cancel();
       if (!canStartSwipe(event)) return;
+      if (event.target instanceof Element && event.target.closest(".personal-rail a, .personal-rail button")) return;
       const open = isOpen();
       const touch = event.touches[0];
       if (!open && touch.clientX > 24) return;
@@ -144,35 +145,30 @@ function shouldWrapFocus(shiftKey: boolean, boundary: HTMLElement) {
     (document.activeElement === boundary || !sidebar()?.contains(document.activeElement));
 }
 
-function install() {
-  const state = window as Window & { __outfitterUiShell?: boolean };
-  if (state.__outfitterUiShell) return;
-  state.__outfitterUiShell = true;
-  installChatViewport();
-  document.addEventListener("click", (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('.menu[aria-controls="sidebar"]')) {
-      setOpen(!isOpen());
-      if (isOpen() && mobile())
-        sidebar()
-          ?.querySelector<HTMLElement>("a[href], button:not(:disabled)")
-          ?.focus();
-      return;
-    }
-    if (target?.closest(".sidebar-dismiss")) return setOpen(false);
-    const disclosure = target?.closest<HTMLElement>("[data-disclosure]");
-    if (disclosure) toggleDisclosure(disclosure);
-    if (target?.closest("#sidebar a[href]") && !event.defaultPrevented)
-      closeSidebarOnMobile();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (!isOpen() || !mobile() || document.querySelector("dialog[open]"))
-      return;
-    if (event.key === "Escape") {
-      setOpen(false);
-      document.querySelector<HTMLElement>(".app-shell .menu")?.focus();
-    }
-    if (event.key !== "Tab") return;
+function closeMenusOutside(target: Element | null) {
+  for (const toggle of document.querySelectorAll<HTMLElement>('[data-disclosure][aria-expanded="true"][aria-controls="account-menu"], [data-disclosure][aria-expanded="true"][aria-controls="app-tools-menu"]')) {
+    const panel = document.getElementById(toggle.getAttribute("aria-controls") || "");
+    const inside = target && (toggle.contains(target) || panel?.contains(target));
+    const appLink = panel?.id === "app-tools-menu" && target?.closest("a[href]");
+    if (!inside || appLink) toggleDisclosure(toggle);
+  }
+}
+
+function activateDisclosure(disclosure: HTMLElement | null | undefined) {
+  if (!disclosure) return;
+  toggleDisclosure(disclosure);
+  if (disclosure.closest(".personal-rail")) closeSidebarOnMobile();
+}
+
+function closeExpandedDisclosure() {
+  const expanded = document.querySelector<HTMLElement>('[data-disclosure][aria-expanded="true"]');
+  if (!expanded) return false;
+  toggleDisclosure(expanded);
+  expanded.focus();
+  return true;
+}
+
+function trapSidebarFocus(event: KeyboardEvent) {
     const focusable = [
       ...(sidebar()?.querySelectorAll<HTMLElement>(
         'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
@@ -188,6 +184,40 @@ function install() {
       event.preventDefault();
       first.focus();
     }
+}
+
+function install() {
+  const state = window as Window & { __outfitterUiShell?: boolean };
+  if (state.__outfitterUiShell) return;
+  state.__outfitterUiShell = true;
+  installChatViewport();
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const disclosure = target?.closest<HTMLElement>("[data-disclosure]");
+    closeMenusOutside(target);
+    if (target?.closest('.menu[aria-controls="sidebar"]')) {
+      setOpen(!isOpen());
+      if (isOpen() && mobile())
+        sidebar()
+          ?.querySelector<HTMLElement>("a[href], button:not(:disabled)")
+          ?.focus();
+      return;
+    }
+    if (target?.closest(".sidebar-dismiss")) return setOpen(false);
+    activateDisclosure(disclosure);
+    if (target?.closest("#sidebar a[href]") && !event.defaultPrevented)
+      closeSidebarOnMobile();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && closeExpandedDisclosure()) { event.preventDefault(); return; }
+    if (!isOpen() || !mobile() || document.querySelector("dialog[open]"))
+      return;
+    if (event.key === "Escape") {
+      setOpen(false);
+      document.querySelector<HTMLElement>(".app-shell .menu")?.focus();
+    }
+    if (event.key !== "Tab") return;
+    trapSidebarFocus(event);
   });
   document.addEventListener(SIDEBAR_CLOSE, closeSidebarOnMobile);
   document.addEventListener("astro:before-preparation", closeSidebarOnMobile);

@@ -1,0 +1,17 @@
+# Local iteration on an app using an already-built sealed box. Same supervisor,
+# platform, gateway, Forgejo and workspace runtime as the base; no host tools.
+ARG BOX_BASE=localhost/outfitter/workshop-box:dev
+FROM docker.io/library/node:24-bookworm-slim AS app
+ARG BOX_APP=workshop
+WORKDIR /apps
+COPY . .
+RUN npm ci --ignore-scripts --no-audit --no-fund && mkdir /package && cd apps/${BOX_APP} && npx outfitter-app-build --mode operational --output /package/app.operational.json
+FROM ${BOX_BASE}
+USER root
+ARG BOX_APP=workshop
+COPY --from=app /package/app.operational.json /app/src/generated/apps/workshop.operational.json
+COPY --chown=node:node box /app/.box/box
+COPY --chown=node:node apps/workshop /app/.box/apps/workshop
+COPY --chown=node:node apps/workshop/box/workspace /opt/workshop
+ENV PATH="/opt/cad/bin:${PATH}" QT_QPA_PLATFORM=offscreen
+USER node

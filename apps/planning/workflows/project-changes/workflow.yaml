@@ -1,0 +1,39 @@
+version: beta
+id: project-changes
+summary: Link the pull requests merged into each project's repositories to the project in the Wiki, as one change batch a member reviews.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  # No actor fills this step: Planning does, through the workflow host. It reads
+  # what merged into the repositories each project's Wiki node has code in
+  # (source_in), asks the platform's inference which project a pull request
+  # delivered for when several share a repository, and stages CodeChange records
+  # with merged_into and delivers relationships, each with its evidence and
+  # reason, in one Wiki change batch. Confident links commit by policy; the rest
+  # wait for a member on the Wiki's Changes page.
+  - id: link
+    inference: {maxOutputTokens: 800}
+    outputs:
+      links:
+        connector: database
+        record: code-changes.staged
+        schema:
+          type: object
+          properties:
+            pullRequests:
+              type: integer
+              minimum: 0
+              description: Merged pull requests not yet in the Wiki
+            proposals:
+              type: integer
+              minimum: 0
+              description: Records and relationships staged
+            skipped:
+              type: integer
+              minimum: 0
+              description: Pull requests no project could be attributed
+          required: [pullRequests, proposals, skipped]
+          additionalProperties: false
+outputs:
+  links: link.outputs.links

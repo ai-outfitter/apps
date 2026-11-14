@@ -8,9 +8,7 @@ the agent's name and the page's focus, and the transcript and composer.
 The host owns everything with authority: transport, server routes, sign-in,
 persistence, inference and what an action does. The lower-level sidebar owns no conversation transport. The shared input stores
 its thinking-effort preference; the panel may store whether it is open. The UI
-package imports no platform source
-(`tests/app-package-boundary.test.ts` checks the UI package like an app package). The root
-Outfitter chat is the first host; app templates can adopt it in parallel.
+package imports no platform source. The root Outfitter chat is the first host.
 
 ## Exports
 
@@ -36,10 +34,9 @@ needs Astro's React integration and mounts `AgentSidebar` as one island in
   scope={{ intro: "Describe a change…", limits: "Nothing changes until you approve it." }}
   conversation={{ id, messages, status, error, notice }}            // null while loading
   onSend={({ text, focus }) => { /* post to the host's own route */ }}
-  onStop={…} onRetry={…} onNewConversation={…}
+  onStop={…} onRetry={…}
   onOpenChange={(open) => { /* load lazily on first open */ }}
   openStorageKey="…"                        // reopen after full-page navigation
-  actions={<a href="…">Open in full chat</a>}
   renderContent={(message, { focus, busy, send }) => <>
     <AgentMessageText message={message} />
     {/* host cards: proposals, tool results */}
@@ -54,8 +51,8 @@ needs Astro's React integration and mounts `AgentSidebar` as one island in
 - **Messages** are `{ id, role, parts }`, where each part has a `type`. AI SDK
   `UIMessage`s fit as they are. The default body shows `text` parts as plain
   text; `renderContent` replaces it, for Markdown, tool parts or action cards.
-- **Status** `submitted` or `streaming` is busy: send becomes Stop, New chat is
-  disabled. `error` shows with Retry when `onRetry` is set.
+- **Status** `submitted` or `streaming` is busy: send becomes Stop. `error`
+  shows with Retry when `onRetry` is set.
 - **Sends** carry the text and the focus it was written for. Return or resolve
   `false` to keep the draft.
 
@@ -77,8 +74,10 @@ browser can send any focus. A host's route must, for every send and action:
 
 - `conversation.id` is the boundary. Changing it remounts the transcript and
   empties the composer; an unsent draft is dropped, never sent. The host
-  chooses the scope: one saved chat (root), one per focused item (a Workshop
-  project), or a reset on New chat.
+  chooses the authorized scope: one saved thread (home), or one per page
+  context (such as a project). Closing and reopening preserves it.
+  Headers offer Debug when authorized and Close, with no reset or Chat
+  navigation. Compaction happens in the thread service, beneath the UI.
 - When the focus changes under a non-empty draft (another item, or the same one
   at a new revision), the panel shows "Now viewing … This draft was written for
   …" and refuses to send until the member chooses **Keep draft for …** or
@@ -92,28 +91,23 @@ browser can send any focus. A host's route must, for every send and action:
 
 | Host | Status | Focus | Transport and actions |
 | --- | --- | --- | --- |
-| Root Outfitter chat (`src/components/SidebarChat.tsx`) | Implemented | None: Outfitter cannot see the page | `/api/chat`, `/api/chats/:id`, saved per user and organization; Markdown and tool parts; Open in full chat ([sidebar chat](../../docs/sidebar-chat.md)) |
-| Workshop | Proposed | `workshop-project`, with the project revision | `POST /api/apps/workshop/agent` already takes `projectId` and `revision` and refuses stale follow-ups. It saves a revision directly; a proposal card needs an approve step that does not exist yet |
-| Software Foundry | Proposed | A task, issue or workflow run | Its own route, with approvals following [workflow authority](../../docs/app-workflow-authority.md) |
-| Forerunner demo (`catalog/apps/forerunner`) | Implemented, demo-only | `forerunner-stone`: the selected priority | None: per-stone fixture briefing and scripted suggestions in memory; free text is refused and kept ([README](../../catalog/apps/forerunner/README.md)) |
-
-`tests/ui/AgentSidebarFixture.tsx` is a Workshop-shaped host with project
-revisions, per-project conversations and proposal cards. It scripts replies in
-the browser; it is not the Workshop API.
+| Root Outfitter chat (`react/chat/ThreadSidebarChat`) | Implemented | None: Outfitter cannot see the page | Shared `/api/platform/threads` routes, saved per user and owner; Markdown, images and interactive cards in place |
+| Installed apps (`react/AppAgentSidebar`) | Implemented | The app's page claim | Shared threads plus the app's own `endpoint`; see below |
+| Forerunner demo ([`apps/forerunner`](../../apps/forerunner/README.md)) | Implemented, demo-only | `forerunner-stone`: the selected priority | None: per-stone fixture briefing and scripted suggestions in memory; free text is refused and kept |
 
 ## Current boundaries
 
 Installed app agents use generic platform inference with dispatch-only SDK
-callbacks; Planning owns its conversation, page context and approved document
-writes. Installed apps do not use the root `/api/chat` or `/api/chats/:id` store.
+callbacks; each app owns its page context and approved writes. Both
+installed apps and home use shared threads for conversation persistence; app
+domain records remain separate.
 Root sidebar chat still has no page context. A Chrome extension or a surface
 outside an Outfitter page is not implemented.
 
 ## Verification
 
-`npm run test:e2e:ui` runs `tests/ui/agent-sidebar.spec.ts` against the
-fixture. The root journey is `tests/e2e/sidebar-chat.spec.ts`. The root
-`npm run check` typechecks the package source.
+`npm test --workspace @ai-outfitter/ui` runs the package's unit tests. Apps
+cover the sidebar in their own browser suites.
 
 ## Standard installed-app adapter
 
@@ -133,8 +127,7 @@ the member's proposals (`GET proposals?thread=`), review decisions
 from the app schema, with optional relationship display choices. Apps supply
 `intro`, `emptyIntro`, `limits` and `demoReply` strings alongside `id`, `pageId`
 and `endpoint`. Resolve mode-specific limits in the app; the shared adapter
-never describes an application's domain or simulates its demo content. See
-[app agent registration](../../docs/app-agents.md). `composerActions` places
+never describes an application's domain or simulates its demo content. `composerActions` places
 context controls above the composer without crowding the header.
 
 ## Shared timeline
@@ -163,8 +156,28 @@ such as draft inclusion, separate from the shared input's controls.
 
 Operational `AppAgentSidebar` enables shared image uploads and thinking effort.
 Its application copy (`intro`, `emptyIntro`, `limits`, `demoReply`) remains required
-props. See [app agents](../../docs/app-agents.md) for server ownership and uploads.
+props.
 
 Use `transcriptContent` for review cards with local edits. They remain mounted
 when a streamed message is replaced by saved history; `renderContent` is for
 message bodies whose identity may change when streaming finishes.
+
+## Debug view and link (platform administrators)
+
+Hosts over the shared thread service pass `debug={<AgentDebug threads={threads} … />}`
+when `useAgentInspector(threads)` is true. The header's Debug icon then shows, in
+place of the transcript, the model and provider, the system prompt, the tools with
+their input schemas and the context, prepared again from the last member message
+through the page's own thread client (`<id>/inspect`; a mounted app may reach only
+its own paths). The view links the full page below. A host with no `debug` and a
+`debugHref` gets a plain link instead.
+
+Hosts also pass `debugHref={sessionDebugHref(id)}`
+(from `agent-debug.ts`) once a conversation exists. It opens `/debug/session?thread=<id>` in a new tab,
+always on the root host (mounted pages leave `/debug` links alone). The page reads
+and continues the conversation through one central API, `/api/platform/debug/threads`,
+which takes the owner (organization or person) and installation from the conversation
+itself. It shows the model and provider, the full system prompt, each tool with its
+input schema, the provider's context, the page claim last sent, the whole transcript
+with every tool call and result, and a composer. Its MCP inspector link opens
+`/debug/mcp` filtered to the conversation's owner. Everyone else gets a 404 and no icon.

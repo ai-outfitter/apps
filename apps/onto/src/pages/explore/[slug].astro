@@ -1,0 +1,7 @@
+---
+import Layout from "../../components/Layout.astro";
+---
+<Layout title="Exploration" description="A view of this Wiki you and agents change together." page="graph" routeDepth={2}>
+  <div id="exploration" class="wiki-map exploration" aria-busy="true" data-slug={Astro.params.slug}></div>
+</Layout>
+<script>import "../../scripts/exploration.ts";</script>

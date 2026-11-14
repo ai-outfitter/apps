@@ -1,0 +1,1656 @@
+[
+  {
+    "id": "71000000-0000-4000-8000-000000000013",
+    "category": "node",
+    "name": "Entity",
+    "title": "Entities",
+    "body": "## Graph building blocks\n\nAn entity is an identifiable thing that people and agents need shared context about. Its stable ID is its identity; its name and documentation can change.\n\nThe graph has four building blocks:\n- **Types** explain what a kind of entity or connection means and which properties it accepts.\n- **Entities** are the actual projects, people, organizations, technologies, goals and documents. Each has a type, a stable ID and Markdown documentation.\n- **Connections** are named, directed statements between two entities. They can carry notes, evidence and a status such as proposed.\n- **Attachments** are files associated with an entity; their metadata and bytes have separate storage.\n\nA type page explains a category. It is not an instance of that category. For example, Projects explains what a project is; a named research effort has its own page and can optionally link a Planning record.\n\n## For agents\n\nDiscover the installed graph's types through `graph-type`, then read `graph-node` and `graph-edge` records. Use stable references and current revisions for changes. Read the relevant type documentation before creating context. A connection never grants permission to act. Advanced SemLang reasoning and analytics are future work.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000001",
+    "category": "node",
+    "name": "Organization",
+    "title": "Organizations",
+    "body": "## What an organization is\n\nAn organization is a company, institution or other identifiable group. Document what it does, its public references and its relationship to the work.\n\nBusiness units are recorded separately when a team or department needs its own context. Organization and business-unit pages can connect to projects, people, agents and technologies.\n\n## Example\n\nApple is an organization. Apple Health can have a `developed_by` connection to Apple. This does not imply that Apple owns projects which use Apple Health.\n\n## For agents\n\nRead the organization's documented scope and relevant connections. Graph membership is shared context, not an account permission, financial authorization or legal assertion.\n\n## Canonical organization binding\n\nThe optional organization_id property records the exact authenticated platform organization ID this node represents within the current owner scope. A unique exact match can select its overview automatically. Missing or duplicate bindings require an explicit choice; never infer identity from a display name. This metadata does not grant access or authority. Standard data setup is add-only: existing installations need an explicit editor revision update to add this property to the Organization type and set the intended node; existing types and nodes are never silently rewritten.",
+    "properties": [
+      {
+        "name": "organization_id",
+        "type": "string",
+        "description": "Optional exact platform organization ID represented by this Wiki Organization within the current owner scope. Consumers must require a unique match to the authenticated organization ID; display names are not identities. This binding grants no permissions. Existing installations require an explicit editor revision update; shared seed setup never overwrites an existing type or node.",
+        "required": false
+      }
+    ],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000002",
+    "category": "node",
+    "name": "BusinessUnit",
+    "title": "Business Unit",
+    "body": "## Business units\n\nA business unit is a team, department or area of work such as Life Sciences. Record its purpose, responsibilities and how its projects contribute to outcomes.\n\nConnect projects with `belongs_to_unit` and people or agents through the projects they participate in. A unit can later support a community, but this record does not create community membership or permissions.\n\n## For agents\n\nUse the unit's documented scope to understand project priorities. Authority to change apps or run workflows is checked separately.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000003",
+    "category": "node",
+    "name": "Project",
+    "title": "Projects",
+    "body": "## What a project is\n\nA project is a bounded effort toward an outcome. Use its page to explain the problem, desired result, scope, decisions and current evidence.\n\n## What belongs on the page\n\nRecord readable Markdown documentation and connect the project to its business unit, human or agent participants, technology dependencies and goals. Distinguish proposed dependencies from operational integrations.\n\nExternal projects can live directly in this Wiki without a Planning record. Connect them to their organization with `part_of` and document their goals, problems and dependencies through ordinary graph relationships. **Create/link project** offers **Document an external project** for this purpose. For work managed in Planning, create or select its canonical record and keep its verified `{installationId, type, id}` reference on the context page.\n\n## Example\n\nA health-data research project may have a proposed `uses` connection to a health platform. That connection documents intent; it does not prove a working connector.\n\n## For agents\n\nRead this context page and, when present, its linked Planning record before work. Standalone Project nodes can be created through the Wiki entity API or `graph.apply` without an app reference. Update the appropriate record through its app's entity operations, preserve any existing canonical reference and use the latest revision. Add decisions, evidence and progress to the documentation rather than claiming unsupported completion.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000005",
+    "category": "node",
+    "name": "Person",
+    "title": "People",
+    "body": "## What a person is\n\nA person is a real human involved in the work. This page explains the People section; each actual person has a separate entity page.\n\n## Identity and privacy\n\nTwo people may have the same name. Keep separate stable IDs and do not merge records using a name alone. Sources publish people through stable record references; Wiki notes remain independent of the source.\n\n## For agents\n\nUse the person's stable ID, documented responsibilities and project connections. A Person page is not proof of an authenticated account or consent to contact them. Confirm identity and permission through the relevant platform or connector before taking action.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000006",
+    "category": "node",
+    "name": "Agent",
+    "title": "Agent",
+    "body": "## Agents\n\nAn agent is a software participant, local or resident. Document its purpose, responsibilities, operating boundaries and links to projects.\n\nThis entity describes the agent; it does not provision a runtime, verify its identity or grant credentials. Use project participation and reporting connections as context.\n\n## For agents\n\nRead your assigned project, its business unit, relevant people, dependencies and goals before acting. Only use connectors and workflows permitted by the platform. Record evidence of progress and ask for required human decisions.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000007",
+    "category": "node",
+    "name": "Technology",
+    "title": "Technologies",
+    "body": "## What a technology is\n\nA technology is software, a framework, a protocol, a service, hardware or another technical dependency worth documenting independently of a project.\n\nDescribe its purpose, important technical details, references, constraints and evidence of use. Use Product for a named software product and PhysicalComponent for a physical component when those descriptions fit.\n\n## Example\n\nApple Health is a software product; HealthKit is a separate developer framework. A research project can document a proposed `uses` connection to Apple Health without asserting an operational HealthKit integration.\n\n## For agents\n\nRead the technology page and dependency evidence before building a connector or workflow. Preserve proposed versus observed status. A graph connection supplies context; execution and credentials come from the approved platform capabilities.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000009",
+    "category": "node",
+    "name": "PhysicalComponent",
+    "title": "Physical Component",
+    "body": "## Physical components\n\nA physical part or component design relevant to a project: a mechanical part, a PCB, a bought (COTS) part or an assembly of parts. Document specifications, drawings, interfaces, evidence and practical constraints.\n\nDesigners, manufacturers and suppliers may be different organizations. Use `designed_by`, `manufactured_by` and `supplied_by` without assuming that one implies the others. Use `component_of` for the Product or assembly the part belongs to, `design_of` from its DesignArtifacts, and `includes_component` from each ProductRevision that pins it.\n\n## For agents\n\nDistinguish design intent, simulation, manufactured parts and measured physical behavior. Link evidence for compatibility and performance claims. Buy before build: record a bought part's manufacturer, MPN and datasheet so an equivalent can be found.",
+    "properties": [
+      {
+        "name": "kind",
+        "type": "string",
+        "description": "mechanical, pcb, cots (bought as-is) or assembly.",
+        "required": false
+      },
+      {
+        "name": "part_number",
+        "type": "string",
+        "description": "Our own part number for this component.",
+        "required": false
+      },
+      {
+        "name": "manufacturer",
+        "type": "string",
+        "description": "Who makes it, for a bought part.",
+        "required": false
+      },
+      {
+        "name": "mpn",
+        "type": "string",
+        "description": "Manufacturer part number, for a bought part.",
+        "required": false
+      },
+      {
+        "name": "datasheet",
+        "type": "string",
+        "description": "URL of the datasheet or specification.",
+        "required": false
+      }
+    ],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000010",
+    "category": "node",
+    "name": "Goal",
+    "title": "Goal",
+    "body": "## Goals\n\nA goal describes a desired outcome. Document the result, accountable owner, target, time period and evidence that will determine progress.\n\nConnect projects or participants using `pursues`. Connect a measurement definition using `measured_by` when the evaluation method is known.\n\n## For agents\n\nUse goals to choose useful work and report evidence. A goal page alone does not schedule a workflow or establish that the result has been achieved.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind",
+      "measures": [
+        {
+          "name": "metrics",
+          "title": "Metric definitions",
+          "expression": {
+            "op": "count",
+            "of": "measured_by",
+            "direction": "outgoing"
+          }
+        },
+        {
+          "name": "pursuers",
+          "title": "Pursuers",
+          "expression": {
+            "op": "count",
+            "of": "pursues",
+            "direction": "incoming"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000011",
+    "category": "node",
+    "name": "MetricDefinition",
+    "title": "Metric Definition",
+    "body": "## Metric definitions\n\nA metric definition explains how progress is measured: meaning, calculation, units, source, reporting interval and limitations.\n\nIt describes a measurement method. Actual observations and computed analytics are separate work; the existence of this page is not a measured result.\n\n## For agents\n\nRead the definition before interpreting a KPI. Report the period, source and evidence with any value. Future SemLang/Malloy integration may turn suitable definitions and observations into analytical queries.",
+    "properties": [
+      {
+        "name": "calculation",
+        "type": "string",
+        "description": "How the value is calculated, including filters and exclusions.",
+        "required": false
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "description": "Unit of the measured value, for example percent, count or hours.",
+        "required": false
+      },
+      {
+        "name": "source",
+        "type": "string",
+        "description": "System or record set the observations come from.",
+        "required": false
+      },
+      {
+        "name": "interval",
+        "type": "string",
+        "description": "Reporting interval, for example weekly or calendar quarter.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind",
+      "measures": [
+        {
+          "name": "measurement",
+          "title": "Measurement",
+          "expression": {
+            "op": "formula",
+            "language": "metric-v1",
+            "fields": {
+              "calculation": "calculation",
+              "unit": "unit",
+              "source": "source",
+              "interval": "interval"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000012",
+    "category": "node",
+    "name": "Document",
+    "title": "Document",
+    "body": "## Documents\n\nA document is written context that needs its own stable identity, such as a decision, technical guide or evidence summary. Entity pages can also contain Markdown directly.\n\nUse `documents` to connect a document to what it describes. A document about a project does not replace the canonical Planning project.\n\n## For agents\n\nPreserve provenance, references and authored conclusions. Separate evidence, assumptions and proposed decisions.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000021",
+    "category": "edge",
+    "name": "belongs_to_unit",
+    "title": "belongs to unit",
+    "body": "Source project or unit belongs to the target business unit. No access grant is implied.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000002"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000022",
+    "category": "edge",
+    "name": "participant",
+    "title": "Participant",
+    "body": "## Participation\n\nThe source Person or Agent is a participant in the target project or organization. This is a relationship, not a separate kind of person.\n\n## For agents\n\nRead this edge from the person or agent to the project or organization. Record responsibilities and evidence in the edge notes. Participation does not grant permissions.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000023",
+    "category": "edge",
+    "name": "reports_to",
+    "title": "reports to",
+    "body": "Source participant reports to target participant. This is not an authentication relationship. Record when the reporting line held as the connection's validity (from inclusive, until exclusive).\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "validity": "interval",
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000024",
+    "category": "edge",
+    "name": "uses",
+    "title": "uses",
+    "body": "The source project, product or organization uses or proposes using the target product or technology. State proposed until implementation and operational evidence establish otherwise.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000025",
+    "category": "edge",
+    "name": "developed_by",
+    "title": "developed by",
+    "body": "Source software product was developed by target organization or participant. This does not transfer ownership to projects that use it.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000026",
+    "category": "edge",
+    "name": "designed_by",
+    "title": "designed by",
+    "body": "The source project, product or technology is designed by the target organization, person or agent.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000009"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000027",
+    "category": "edge",
+    "name": "manufactured_by",
+    "title": "manufactured by",
+    "body": "Source physical component is manufactured by target organization.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000009",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000028",
+    "category": "edge",
+    "name": "supplied_by",
+    "title": "supplied by",
+    "body": "The source Technology or PhysicalComponent is supplied by the target Organization. Supplying does not imply designing or manufacturing.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000009",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000029",
+    "category": "edge",
+    "name": "pursues",
+    "title": "pursues",
+    "body": "The source project, organization, person or agent pursues the target goal.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": [
+          "71000000-0000-4000-8000-000000000010"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000030",
+    "category": "edge",
+    "name": "measured_by",
+    "title": "measured by",
+    "body": "## Measurement relationships\n\nA goal, customer problem, project or organization is evaluated with a metric definition. A metric definition can in turn link to its measurement instrument or data source, such as a sensor platform.\n\n## For agents\n\nRead the metric definition for units, scope, targets and reporting periods. A target is not an observed value. A link to an instrument does not prove a working integration; distinguish intended sources from verified observations.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000010",
+          "71000000-0000-4000-8000-000000000017",
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000011",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": "any"
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000031",
+    "category": "edge",
+    "name": "documents",
+    "title": "documents",
+    "body": "Source document describes target node. It does not replace that node or its canonical source.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000012"
+        ],
+        "to": "any"
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000032",
+    "category": "edge",
+    "name": "part_of",
+    "title": "part of",
+    "body": "## Organizational context\n\nThe source project is part of the target organization. Use this to group an organization’s projects without confusing the organization with an individual project.\n\n## For agents\n\nFollow this edge from a project to its organization for shared context. This relationship does not grant access or assert legal ownership.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": "any"
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000014",
+    "category": "node",
+    "name": "Repository",
+    "title": "Repositories",
+    "body": "A version-control repository. Use one node for the whole repository and its URL in Website. Projects, technologies, software products and product revisions link through source_in. The relationship path identifies a monorepo directory; empty means the repository root. Its ref identifies a branch, tag or exact commit. Repository context grants no access.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000033",
+    "category": "edge",
+    "name": "source_in",
+    "title": "source in",
+    "body": "The source Project, Technology, Product or ProductRevision has code in the target Repository. Use the repository URL together with this relationship’s path and ref. A path scopes a monorepo directory; empty means the whole repository. Product revisions use an exact commit. This relationship is source location, not a dependency or access grant.",
+    "properties": [
+      {
+        "name": "path",
+        "type": "string",
+        "description": "Repository-relative directory; empty for the whole repository.",
+        "required": false
+      },
+      {
+        "name": "ref",
+        "type": "string",
+        "description": "Branch, tag or commit used for browsing source.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015",
+          "76000000-0000-4000-8000-000000000002"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000014"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000034",
+    "category": "edge",
+    "name": "collects_telemetry_from",
+    "title": "collects telemetry from",
+    "body": "The source project collects telemetry produced by the target platform or project.\n\n## For agents\n\nUse this relationship to find the data source and the project responsible for collecting it. Consult their documentation for schemas, transport and deployment status.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000015",
+    "category": "node",
+    "name": "Product",
+    "title": "Products",
+    "body": "## Products\n\nA product is an identifiable output of a project, such as a software application, sensor platform, consumer device or service. Keep its specifications, interfaces and usage documentation here. The project describes the work that creates and maintains it.\n\nConnect the project to its product with `produces`. Connect a consuming project or product to another product with `uses`. For example, a sensor-development project produces a sensor platform, and a consumer product proposes using that platform.\n\n## For agents\n\nKeep project and product identities separate. Follow the producing project for work and ownership context. A produces or uses relationship records intent unless evidence establishes delivery or operational use.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000035",
+    "category": "edge",
+    "name": "produces",
+    "title": "produces",
+    "body": "## Project outputs\n\nThe source project creates or maintains the target product. This separates the work from the output other projects and products can use.\n\n## For agents\n\nFollow this edge from project to product. Record proposed status for planned outputs; the relationship alone does not establish that a product has shipped or is operational.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000003"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015",
+          "71000000-0000-4000-8000-000000000007"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000016",
+    "category": "node",
+    "name": "CustomerSegment",
+    "title": "Customer segments",
+    "body": "## Customer segments\n\nA group of prospective or existing customers with shared needs, such as commercial spaces with indoor plants or home plant owners. A segment is not an individual organization.\n\n## For agents\n\nUse `in_segment` to connect people or organizations to the segment, and `experiences` to connect it to shared customer problems. A proposed `customer_of` relationship describes an intended market, not a signed customer.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000017",
+    "category": "node",
+    "name": "Problem",
+    "title": "Customer problems",
+    "body": "## Customer problems\n\nA need or difficulty experienced by customers. Keep one shared problem when several segments experience the same need. Document the desired outcome and gaps in current measurement.\n\n## For agents\n\nUse `experiences` from a customer or segment to this problem, `addresses` from a project or product to the problem, and `measured_by` to link relevant success metrics. A coverage metric such as monitored plants does not alone prove plant health or problem resolution.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000036",
+    "category": "edge",
+    "name": "customer_of",
+    "title": "customer of",
+    "body": "The source person, organization or customer segment is a customer or prospective customer of the target provider organization or project.\n\nA design partner is a customer with `design_partner` set: it builds the provider's product with the provider and files requests with the provider's Planning from its own organization. Other customers file issues on the provider's public repository.\n\n## For agents\n\nDirection is customer to provider. Use proposed status for target customers or hypotheses; never infer contracts, purchases or endorsements from this relationship. Set `design_partner` only when the provider has said so.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      },
+      {
+        "name": "design_partner",
+        "type": "boolean",
+        "description": "The customer is a design partner of the provider: it builds the provider's product with it and may file requests with the provider's Planning from its own organization.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000016"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000003"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000037",
+    "category": "edge",
+    "name": "in_segment",
+    "title": "in segment",
+    "body": "The source person or organization belongs to the target customer segment.\n\n## For agents\n\nSegment membership describes shared needs and is separate from an established customer relationship. Preserve proposed status when unvalidated.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000016"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000038",
+    "category": "edge",
+    "name": "experiences",
+    "title": "experiences",
+    "body": "The source customer or customer segment experiences the target problem.\n\n## For agents\n\nReuse shared problem entities across segments. Record proposed status until customer research supports the problem statement.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000016"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000017"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000039",
+    "category": "edge",
+    "name": "addresses",
+    "title": "addresses",
+    "body": "The source project, product, organization or release aims to address the target customer problem.\n\n## For agents\n\nFollow the problem’s measured_by relationships for evaluation. Proposed solutions and monitoring coverage are not evidence that the customer problem has been solved.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": [
+          "71000000-0000-4000-8000-000000000017"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000040",
+    "category": "edge",
+    "name": "integrates_with",
+    "title": "integrates with",
+    "body": "## Product integration\n\nThe source technology connects or is intended to connect with the target technology. This is separate from who develops either product.\n\n## For agents\n\nUse status and evidence to distinguish an intended integration from verified operational behavior. This relationship does not install a connector or grant access.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000007",
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000018",
+    "category": "node",
+    "name": "Role",
+    "title": "Roles",
+    "body": "## Roles\n\nA reusable responsibility such as CEO, CPO, CFO, CTO or Senior Software Engineer. A role describes responsibilities; it is separate from the person or agent holding it and from the organization where it applies.\n\n## For agents\n\nFind RoleAssignment entities linked to this role through `assigns_role`. Do not infer permissions or runtime provisioning from the role name.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000019",
+    "category": "node",
+    "name": "RoleAssignment",
+    "title": "Role assignments",
+    "body": "## Role assignments\n\nA role assignment joins one Person or Agent, one Role, and one organization or other work scope. Separate assignments allow one holder to have multiple roles and preserve organization-specific agent identities.\n\nUse `assigned_to` for the holder, `assigns_role` for the role, and `scoped_to` for its organization. The holder and role are participant slots; scope stays an ordinary `scoped_to` connection because scopes such as boards are defined by other apps. Put business dates on the assignment's validity (from inclusive, until exclusive), never on its slot connections.\n\n## For agents\n\nRead all three relationships together. Missing links mean incomplete context. An assignment documents responsibility and does not grant application permissions, deploy a resident agent or configure reporting lines.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "relator",
+      "validity": "interval",
+      "participation": {
+        "slots": [
+          {
+            "name": "holder",
+            "edgeTypeId": "71000000-0000-4000-8000-000000000041",
+            "participantTypes": [
+              "71000000-0000-4000-8000-000000000005",
+              "71000000-0000-4000-8000-000000000006"
+            ],
+            "min": 0,
+            "max": 1
+          },
+          {
+            "name": "role",
+            "edgeTypeId": "71000000-0000-4000-8000-000000000042",
+            "participantTypes": [
+              "71000000-0000-4000-8000-000000000018"
+            ],
+            "min": 0,
+            "max": 1
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000041",
+    "category": "edge",
+    "name": "assigned_to",
+    "title": "assigned to",
+    "body": "The source RoleAssignment is held by the target Person or Agent.\n\n## For agents\n\nPreserve the holder’s stable identity. Different organization-specific agents may share a display name but must remain separate entities.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000019"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000042",
+    "category": "edge",
+    "name": "assigns_role",
+    "title": "assigns role",
+    "body": "The source RoleAssignment assigns the target Role.\n\n## For agents\n\nRead the assignment’s holder and scope to understand where this role applies. Multiple roles require separate assignments.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000019"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000018"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000043",
+    "category": "edge",
+    "name": "scoped_to",
+    "title": "scoped to",
+    "body": "The source RoleAssignment or DecisionRecord applies within the target organization, business unit or project.\n\n## For agents\n\nRead the scope before using role or decision context. A title held in one organization does not carry over to another organization.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000019",
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000002",
+          "71000000-0000-4000-8000-000000000003",
+          "71000000-0000-4000-8000-000000000015",
+          "76000000-0000-4000-8000-000000000002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000050",
+    "category": "node",
+    "name": "DecisionType",
+    "title": "Decision types",
+    "body": "## Decision types\n\nA named kind of decision, such as Approve Release. It describes what may be decided, not an approval of a particular release.\n\n## For agents\n\nFollow incoming `permits` relationships to authority definitions. Concrete DecisionRecords link here with `decision_type`. Execution permissions and enforcement remain outside this context graph.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000051",
+    "category": "node",
+    "name": "AuthorityDefinition",
+    "title": "Authority definitions",
+    "body": "## Authority definitions\n\nA reusable definition of decision authority. Its `permits` relationships identify the decision types it covers.\n\n## For agents\n\nAn AuthorityGrant points here with `defined_by`. Read the grant’s role and the holder’s RoleAssignment scope together. This record describes authority; it is not a platform permission.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000052",
+    "category": "node",
+    "name": "AuthorityGrant",
+    "title": "Authority grants",
+    "body": "## Authority grants\n\nA grant gives a role the authority described by one AuthorityDefinition. Follow `has_authority_grant` from Role to grant, then `defined_by` to its definition and `permits` to DecisionType.\n\n## Scope\n\nA holder’s authority applies in the organization of their RoleAssignment. An unscoped or incomplete assignment does not establish scoped authority. Archived grants do not contribute current authority.\n\n## For agents\n\nThis is documented decision authority, not executable authorization. Release workflows still require their own permissions and approval checks.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000053",
+    "category": "edge",
+    "name": "has_authority_grant",
+    "title": "has authority grant",
+    "body": "The source Role holds the target AuthorityGrant.\n\n## For agents\n\nCombine the role’s grant with a holder’s explicit RoleAssignment scope. Never infer cross-organization authority from a shared role name.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000018"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000052"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000054",
+    "category": "edge",
+    "name": "defined_by",
+    "title": "defined by",
+    "body": "The source AuthorityGrant is defined by the target AuthorityDefinition.\n\n## For agents\n\nRead the authority definition’s permitted DecisionTypes; the grant alone does not approve any concrete action.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000052"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000051"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000055",
+    "category": "edge",
+    "name": "permits",
+    "title": "permits",
+    "body": "The source AuthorityDefinition permits the target DecisionType.\n\n## For agents\n\nThis relationship documents a permitted kind of decision. It is not an actual decision, release approval or deployed permission check.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000051"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000050"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000056",
+    "category": "node",
+    "name": "Offering",
+    "title": "Offerings",
+    "body": "## Offerings\n\nAn offering packages and prices a product for customers. The product is the reusable thing; the offering describes what a customer can obtain and its commercial terms. Multiple offerings may package the same product differently.\n\nUse `packages_product` to identify the product, `offered_by` for the provider, and `pays_for` from the customer to the offering. Omit an unknown price; zero means free, not unknown.\n\n## For agents\n\nRead pricing notes and the relationship status. A proposed paying-customer relationship is not an invoice, completed payment, contract or deployment.\n\n## Pricing models\n\nInference may use cost_plus pricing: provider cost plus a markup. Resident-agent offerings may use role_based pricing, with priced_by_role edges carrying optional per-role prices. Missing rates remain unspecified; do not infer free usage.",
+    "properties": [
+      {
+        "name": "price",
+        "type": "number",
+        "description": "Explicit price when known; omit if not specified.",
+        "required": false
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "description": "Currency code for the stated price.",
+        "required": false
+      },
+      {
+        "name": "billing_interval",
+        "type": "string",
+        "description": "One-time, monthly, usage-based or other stated interval.",
+        "required": false
+      },
+      {
+        "name": "pricing_notes",
+        "type": "string",
+        "description": "Commercial terms, scope and unresolved pricing details.",
+        "required": false
+      },
+      {
+        "name": "pricing_model",
+        "type": "string",
+        "description": "Commercial pricing basis, such as cost_plus or role_based.",
+        "required": false
+      },
+      {
+        "name": "markup_percent",
+        "type": "number",
+        "description": "Explicit percentage added to provider cost; omit when not specified.",
+        "required": false
+      }
+    ],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000057",
+    "category": "edge",
+    "name": "packages_product",
+    "title": "packages product",
+    "body": "The source Offering packages the target Product.\n\n## For agents\n\nThe offering holds commercial terms; the product holds technical identity. Do not duplicate the product for each customer or price.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000015"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000058",
+    "category": "edge",
+    "name": "offered_by",
+    "title": "offered by",
+    "body": "The source Offering is offered by the target organization.\n\n## For agents\n\nOffering a product does not imply manufacturing or designing it; follow those relationships separately.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000059",
+    "category": "edge",
+    "name": "pays_for",
+    "title": "pays for",
+    "body": "The source customer organization or person pays or intends to pay for the target Offering.\n\n## For agents\n\nUse proposed status for a planned commercial relationship. Read the offering for package and pricing terms. This edge is not proof of a settled payment.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000005"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000056"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000060",
+    "category": "edge",
+    "name": "priced_by_role",
+    "title": "priced by role",
+    "body": "The source Offering has a pricing tier based on the target Role. Optional edge properties describe that role’s price and billing interval.\n\n## For agents\n\nThis is a commercial rate relationship, not a role assignment or authority grant. An omitted price is unknown, not zero.",
+    "properties": [
+      {
+        "name": "price",
+        "type": "number",
+        "description": "Explicit rate for this role; omit when unspecified.",
+        "required": false
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "description": "Currency for this role rate.",
+        "required": false
+      },
+      {
+        "name": "billing_interval",
+        "type": "string",
+        "description": "Billing interval or unit for this role rate.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000056"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000018"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000061",
+    "category": "node",
+    "name": "DecisionRecord",
+    "title": "Decision records",
+    "body": "A concrete decision made by a person or agent. Record rationale, outcome, decision time and conditions in Markdown. Link decision_type, made_by, under_assignment and scoped_to. For release approval, scope to the exact ProductRevision, record its node revision and build identity, and supported_by the ReadinessAssessment. Approval, passing checks and deployment are separate facts. This records context, not executable authorization or a tamper-proof audit log; a current assignment does not prove historical authority.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Decision state, such as proposed, decided or superseded.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "event"
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000062",
+    "category": "edge",
+    "name": "decision_type",
+    "title": "decision type",
+    "body": "The source DecisionRecord is an instance of the target DecisionType.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000050"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000063",
+    "category": "edge",
+    "name": "made_by",
+    "title": "made by",
+    "body": "The source DecisionRecord was made by the target Person or Agent.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000064",
+    "category": "edge",
+    "name": "under_assignment",
+    "title": "under assignment",
+    "body": "The source DecisionRecord was made in the capacity of the target RoleAssignment. Preserve this historical link if the assignment later ends.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000019"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000065",
+    "category": "edge",
+    "name": "establishes",
+    "title": "establishes",
+    "body": "The source DecisionRecord establishes the target goal. Read the decision rationale, organization scope and the goal’s measured_by links.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000061"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000010"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000101",
+    "category": "node",
+    "name": "Activity",
+    "title": "Activities",
+    "body": "## Activities\n\nAn identifiable practice, recurring pursuit or bounded activity in personal or organizational life: yoga practice, training, inspections or a team workshop. Repeated calendar entries may support one activity; each appointment need not become a separate activity.\n\n## For agents\n\nSeparate the activity from its individual occurrences, preferences and goals. A scheduled activity does not establish attendance, enjoyment, success or a health condition. Connect people and organizations with participates_in, retaining evidence and uncertainty.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000102",
+    "category": "node",
+    "name": "Asset",
+    "title": "Assets",
+    "body": "## Assets\n\nAn identifiable resource that a person or organization may own, control or use, such as a home, vehicle, equipment or business property. PhysicalComponent describes a part or design; Asset captures the resource in a life or business context.\n\n## For agents\n\nRecord ownership, use, value and financing as separate claims. A mortgage notice may suggest a property but does not prove legal ownership, address, market value or equity. Unknown values remain unknown. Personal and organizational assets use the same type.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000103",
+    "category": "node",
+    "name": "FinancialObligation",
+    "title": "Financial obligations",
+    "body": "## Financial obligations\n\nAn identifiable financial responsibility of a person or organization, such as a mortgage, loan, payable or recurring contractual obligation. It is distinct from its payment notices, individual transactions, financed asset and provider product.\n\n## For agents\n\nUse has_obligation from the responsible person or organization. Use secured_by only when evidence supports the collateral relationship. Do not infer a paid transaction, debt balance, interest rate, delinquency or financial distress from a scheduled payment notice. Amounts and dates require explicit supporting evidence.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000104",
+    "category": "node",
+    "name": "Question",
+    "title": "Questions",
+    "body": "## Questions\n\nAn individually identifiable unresolved question about an entity or relationship. Explain what is unknown, why the answer matters, and the evidence that raised it. It applies to personal and organizational knowledge.\n\n## For agents\n\nLink subjects with about. Keep questions separate from facts, goals and problems: asking about cost does not establish excessive cost. User answers can support new claims; retain the original evidence and do not silently overwrite authored knowledge.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Question lifecycle: open, answered or dismissed.",
+        "required": false
+      }
+    ],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000105",
+    "category": "edge",
+    "name": "participates_in",
+    "title": "participates in",
+    "body": "A Person or Organization participates or proposes participating in an Activity.\n\n## For agents\n\nScheduled participation is distinct from observed attendance. Record proposed when only calendar evidence is available; do not infer enjoyment or a goal.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001",
+          "71000000-0000-4000-8000-000000000006"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000101"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000106",
+    "category": "edge",
+    "name": "owns",
+    "title": "owns",
+    "body": "A Person or Organization owns an Asset.\n\n## For agents\n\nTreat a candidate ownership claim as proposed until supported or confirmed. A payment notice alone does not establish title or ownership share. This relationship grants no authority.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000102"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000107",
+    "category": "edge",
+    "name": "has_obligation",
+    "title": "has obligation",
+    "body": "A Person or Organization is responsible for a FinancialObligation.\n\n## For agents\n\nRetain the evidence and proposed status when responsibility is inferred. Do not infer completed payments, balances or distress.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000001"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000103"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000108",
+    "category": "edge",
+    "name": "secured_by",
+    "title": "secured by",
+    "body": "A FinancialObligation is secured by an Asset.\n\n## For agents\n\nThis documents collateral only where evidenced; do not infer a specific property, legal lien or valuation from a generic payment notification.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000103"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000102"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000109",
+    "category": "edge",
+    "name": "interacts_with",
+    "title": "interacts with",
+    "body": "A Person has documented or proposed interaction with another Person.\n\n## For agents\n\nExplain the context. A jointly named appointment supports a scheduled interaction, not an inferred family, romantic, employment or client relationship.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000005"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000110",
+    "category": "edge",
+    "name": "about",
+    "title": "about",
+    "body": "A Question concerns the target entity.\n\n## For agents\n\nThis links the subject of an unresolved question. It does not assert the question's premise as fact or grant permission to act.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status: proposed, observed or user-confirmed. Publication alone is not confirmation.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Supporting source references and limits on the claim.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000104"
+        ],
+        "to": "any"
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000120",
+    "category": "node",
+    "name": "OutfitterUser",
+    "title": "Outfitter users",
+    "body": "## Outfitter users\n\nAn Outfitter account: a member or an agent principal on an Outfitter host. Its key is `<host>/users:<id>`, set only by the platform, and it never changes. Link it to the Person or Agent it belongs to with `account_of`.\n\n## For agents\n\nAn account is how Outfitter knows someone, not who they are. Describe the person on their Person page; an account grants nothing by itself.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000121",
+    "category": "node",
+    "name": "OutfitterOrganization",
+    "title": "Outfitter organizations",
+    "body": "## Outfitter organizations\n\nAn Outfitter organization account on an Outfitter host. Its key is `<host>/organizations:<id>`, set only by the platform. Link it to the Organization it belongs to with `account_of`.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000122",
+    "category": "edge",
+    "name": "account_of",
+    "title": "account of",
+    "body": "The source account belongs to the target Person, Agent or Organization. One account belongs to one holder at a time; relationships grant no access.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "71000000-0000-4000-8000-000000000120",
+          "71000000-0000-4000-8000-000000000121"
+        ],
+        "to": [
+          "71000000-0000-4000-8000-000000000005",
+          "71000000-0000-4000-8000-000000000006",
+          "71000000-0000-4000-8000-000000000001"
+        ]
+      }
+    },
+    "archived": false
+  }
+]

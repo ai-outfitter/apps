@@ -14,6 +14,7 @@ import {
 // run's one record is the batch of issues it filed.
 const REPOSITORY_INPUT = "analyze.inputs.repository";
 const ISSUES_OUTPUT = "analyze.outputs.issues";
+const JOBS = "/api/apps/software-foundry/jobs";
 const statuses = {
   running: "In progress",
   complete: "Completed",
@@ -24,8 +25,6 @@ let select = null;
 let buttons = [];
 let scheduleButtons = [];
 let schedules = [];
-let members = [];
-let canReassign = false;
 
 function issuesCell(run) {
   const cell = document.createElement("td");
@@ -73,55 +72,25 @@ async function loadRuns(job) {
   }
 }
 
-// A schedule's line: its repository, its owner, whether it is on, and its last
-// outcome, which carries the reason when it paused itself.
+// A schedule's line: its repository, whether it is on, and its last outcome,
+// which carries the reason when it paused itself.
 function scheduleItem(schedule, canEdit) {
-  const path = `/api/workflow-schedules/${encodeURIComponent(schedule.id)}`;
-  const owner = members.find((member) => member.id === schedule.createdBy);
+  const repository = schedule.inputs?.[REPOSITORY_INPUT] ?? "";
   const item = text(
     "li",
-    `${schedule.inputs?.[REPOSITORY_INPUT] ?? ""}${owner ? ` · owner: ${owner.name}` : ""} · ${schedule.enabled ? "On" : "Paused"}${schedule.lastOutcome ? ` · last: ${schedule.lastOutcome}` : ""}`,
+    `${repository} · ${schedule.enabled ? "On" : "Paused"}${schedule.lastOutcome ? ` · last: ${schedule.lastOutcome}` : ""}`,
   );
   if (canEdit) {
     const toggle = text("button", schedule.enabled ? "Pause" : "Resume");
     toggle.className = "secondary";
     toggle.onclick = () =>
-      void changeSchedule(path, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled: !schedule.enabled }),
-      });
-    const remove = text("button", "Remove");
-    remove.className = "secondary";
-    remove.onclick = () => void changeSchedule(path, { method: "DELETE" });
-    item.append(" ", toggle, " ", remove);
+      void changeJob(
+        { action: "schedule", job: schedule.workflowId, repository, enabled: !schedule.enabled },
+        `${schedule.enabled ? "Paused" : "Resumed"} on ${repository}.`,
+      );
+    item.append(" ", toggle);
   }
-  if (canReassign && members.length)
-    item.append(" ", reassignControl(schedule, path));
   return item;
-}
-
-// Admins move a schedule to another member, for example when its owner leaves.
-function reassignControl(schedule, path) {
-  const picker = document.createElement("select");
-  picker.setAttribute("aria-label", "New owner");
-  picker.replaceChildren(
-    ...members.map((member) => {
-      const option = text("option", member.name);
-      option.value = member.id;
-      option.selected = member.id === schedule.createdBy;
-      return option;
-    }),
-  );
-  const reassign = text("button", "Reassign");
-  reassign.className = "secondary";
-  reassign.onclick = () =>
-    void changeSchedule(path, {
-      method: "PATCH",
-      body: JSON.stringify({ owner: picker.value }),
-    });
-  const control = text("span");
-  control.append(picker, " ", reassign);
-  return control;
 }
 
 function renderSchedules(canEdit) {
@@ -137,75 +106,44 @@ function renderSchedules(canEdit) {
 }
 
 async function loadSchedules(canEdit) {
-  const loaded = await api("/api/workflow-schedules");
-  schedules = loaded.items;
-  members = loaded.members ?? [];
-  canReassign = Boolean(loaded.canReassign);
+  schedules = (await api(JOBS)).items;
   renderSchedules(canEdit);
 }
 
-async function changeSchedule(path, options) {
+// Runs or schedules a job through Foundry, which approves the job's workspace
+// agent on the repository first.
+async function changeJob(body, done) {
+  // This page's notice, even when a reply arrives after the next page swapped in.
+  const status = notice;
   try {
-    await api(path, options);
+    await api(JOBS, { method: "POST", body: JSON.stringify(body) });
+    status.textContent = done;
   } catch (error) {
-    notice.textContent = error.message;
+    status.textContent = error.message;
   }
-  await loadSchedules(true);
 }
 
 async function schedule(button) {
-  const job = button.dataset.schedule;
-  // This page's notice, even when a reply arrives after the next page swapped in.
-  const status = notice;
-  if (
-    schedules.some(
-      (item) =>
-        item.workflowId === job &&
-        item.inputs?.[REPOSITORY_INPUT] === select.value,
-    )
-  ) {
-    status.textContent = `${select.value} already has this schedule.`;
-    return;
-  }
   button.disabled = true;
-  try {
-    await api("/api/workflow-schedules", {
-      method: "POST",
-      body: JSON.stringify({
-        workflow: job,
-        inputs: { [REPOSITORY_INPUT]: select.value },
-      }),
-    });
-    status.textContent = `Scheduled on ${select.value}.`;
-  } catch (error) {
-    status.textContent = error.message;
-  } finally {
-    button.disabled = false;
-    await loadSchedules(true);
-  }
+  await changeJob(
+    { action: "schedule", job: button.dataset.schedule, repository: select.value },
+    `Scheduled on ${select.value}.`,
+  );
+  button.disabled = false;
+  await loadSchedules(true);
 }
 
 async function run(button) {
   const job = button.dataset.job;
-  const status = notice;
   button.disabled = true;
   button.textContent = "Starting…";
-  try {
-    await api("/api/workflow-runs", {
-      method: "POST",
-      body: JSON.stringify({
-        workflow: job,
-        inputs: { [REPOSITORY_INPUT]: select.value },
-      }),
-    });
-    status.textContent = `Started on ${select.value}. Issues appear here as the agent files them.`;
-  } catch (error) {
-    status.textContent = error.message;
-  } finally {
-    button.textContent = "Run now";
-    button.disabled = false;
-    await loadRuns(job);
-  }
+  await changeJob(
+    { action: "run", job, repository: select.value },
+    `Started on ${select.value}. Issues appear here as the agent files them.`,
+  );
+  button.textContent = "Run now";
+  button.disabled = false;
+  await loadRuns(job);
 }
 
 async function initialize(signal) {
@@ -243,7 +181,7 @@ async function initialize(signal) {
     return;
   }
   notice.textContent =
-    "Each run files at most 10 ranked issues. Send the ones worth doing through issue to review.";
+    "Each run files a few issues, and Foundry fixes and merges each one. The next run retries a fix that stopped, and closes an issue after three failed attempts.";
   select.disabled = false;
   for (const button of buttons) {
     button.disabled = false;
@@ -262,8 +200,6 @@ onPageLoad((signal) => {
   buttons = [...document.querySelectorAll("button[data-job]")];
   scheduleButtons = [...document.querySelectorAll("button[data-schedule]")];
   schedules = [];
-  members = [];
-  canReassign = false;
   initialize(signal).catch((error) => {
     if (!signal.aborted) notice.textContent = error.message;
   });

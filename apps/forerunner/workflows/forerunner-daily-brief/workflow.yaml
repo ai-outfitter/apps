@@ -1,0 +1,34 @@
+version: beta
+id: forerunner-daily-brief
+summary: Write a personal morning brief as a dated Wiki document, synthesized from yesterday's authorized saved reports, current priorities, goals and role, with cited sources and explicit gaps.
+actors: {}
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 5 * * *"
+steps:
+  - id: collect
+    # One model answer: at most eight highlights and five suggestions, each citing
+    # saved evidence. A member's own request waits on it, so it stays short.
+    inference: {maxOutputTokens: 3000, timeoutMs: 75000, reasoningEffort: none}
+    inputs: {}
+    outputs:
+      brief:
+        connector: database
+        record: daily-brief.saved
+        schema:
+          type: object
+          properties:
+            documentId: {type: string}
+            revision: {type: integer}
+            slug: {type: string}
+            date: {type: string}
+            status: {type: string, enum: [complete, incomplete, failed]}
+            # saved: a new revision; unchanged: evidence matched the saved revision;
+            # superseded: another run saved first and its revision stands.
+            outcome: {type: string, enum: [saved, unchanged, superseded]}
+            reason: {type: string, maxLength: 300}
+          required: [date, status]
+          additionalProperties: false
+outputs:
+  brief: collect.outputs.brief

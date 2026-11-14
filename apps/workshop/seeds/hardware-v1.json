@@ -42,7 +42,7 @@
       "archived": false
     },
     {
-      "id": "7b000000-0000-4000-8000-000000000004",
+      "id": "7b000000-0000-4000-8000-000000000020",
       "category": "node",
       "name": "DesignArtifact",
       "title": "Design artifacts",
@@ -70,12 +70,23 @@
       "archived": false
     },
     {
-      "id": "7b000000-0000-4000-8000-000000000005",
+      "id": "7b000000-0000-4000-8000-000000000021",
       "category": "edge",
       "name": "design_of",
       "title": "design of",
       "body": "The source DesignArtifact describes the target PhysicalComponent. One component may have several artifacts (a model, its drawing, its PCB outputs).",
       "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7b000000-0000-4000-8000-000000000020"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000009"
+          ]
+        }
+      },
       "archived": false
     },
     {
@@ -113,6 +124,17 @@
       "title": "streams from",
       "body": "The source TelemetryStream is produced by the target PhysicalComponent.",
       "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7b000000-0000-4000-8000-000000000006"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000009"
+          ]
+        }
+      },
       "archived": false
     },
     {
@@ -122,6 +144,17 @@
       "title": "measures",
       "body": "The source TelemetryStream carries observations for the target MetricDefinition. The definition explains the measurement; the stream is where its values come from.",
       "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7b000000-0000-4000-8000-000000000006"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000011"
+          ]
+        }
+      },
       "archived": false
     }
   ],

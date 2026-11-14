@@ -9,6 +9,14 @@ on:
         description: Optional full public ai-outfitter/apps SDK commit
         type: string
         default: ''
+      app-set:
+        description: Validation cohort (all, catalog or source)
+        type: string
+        default: all
+      catalog-apps:
+        description: Official app paths registered in the platform catalog (JSON array)
+        type: string
+        default: '[]'
       baseline-workflow:
         description: Calling workflow file used to find last successful push
         type: string
@@ -17,6 +25,12 @@ on:
       apps:
         description: Affected app paths
         value: ${{ jobs.plan.outputs.apps }}
+      non_catalog_apps:
+        description: Checked apps outside the platform catalog
+        value: ${{ jobs.plan.outputs.non_catalog_apps }}
+      catalog_apps:
+        description: Checked official catalog app paths
+        value: ${{ jobs.plan.outputs.catalog_apps }}
       has_apps:
         description: Whether apps were selected
         value: ${{ jobs.plan.outputs.has_apps }}
@@ -27,9 +41,11 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
-      apps: ${{ steps.plan.outputs.apps }}
-      has_apps: ${{ steps.plan.outputs.has_apps }}
+      apps: ${{ steps.catalog.outputs.selected }}
+      has_apps: ${{ steps.catalog.outputs.has_apps }}
       sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
+      catalog_apps: ${{ steps.catalog.outputs.apps }}
+      non_catalog_apps: ${{ steps.catalog.outputs.other }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,6 +73,24 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || steps.baseline.outputs.sha }}
           HEAD_SHA: ${{ github.sha }}
+      - id: catalog
+        env:
+          SELECTED_APPS: ${{ steps.plan.outputs.apps }}
+          CATALOG_APPS: ${{ inputs.catalog-apps }}
+          APP_SET: ${{ inputs.app-set }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const affected = JSON.parse(process.env.SELECTED_APPS);
+          const cohort = process.env.APP_SET;
+          assert.ok(['all','catalog','source'].includes(cohort), 'Unknown validation cohort');
+          const registered = JSON.parse(process.env.CATALOG_APPS);
+          const selected = affected.filter(app => cohort === 'all' || (cohort === 'catalog') === registered.includes(app));
+          appendFileSync(process.env.GITHUB_OUTPUT, `selected=${JSON.stringify(selected)}\nhas_apps=${selected.length > 0}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(selected.filter(app => registered.includes(app)))}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `other=${JSON.stringify(selected.filter(app => !registered.includes(app)))}\n`);
+          NODE
   app:
     name: App validation (${{ matrix.app }})
     needs: plan
@@ -96,6 +130,22 @@ jobs:
           command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
           app: ${{ matrix.app }}
           config-path: ${{ inputs.config-path }}
+      - name: Retain checked catalog inputs
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && contains(fromJSON('["ai-outfitter/apps","ai-outfitter/apps-private"]'), github.repository) && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          APP: ${{ matrix.app }}
+        # Callers run the tooling from their pinned public SDK checkout.
+        run: |
+          tooling=scripts
+          [ -f .outfitter-sdk/scripts/catalog-publication.mjs ] && tooling=.outfitter-sdk/scripts
+          node "$tooling/catalog-publication.mjs" prepare "$APP" "$RUNNER_TEMP/catalog/bundle.json"
+      - uses: actions/upload-artifact@v4
+        if: contains(fromJSON(inputs.catalog-apps), matrix.app) && contains(fromJSON('["ai-outfitter/apps","ai-outfitter/apps-private"]'), github.repository) && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: catalog-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog/bundle.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Record validation provenance
         env:
           APP: ${{ matrix.app }}
@@ -106,7 +156,7 @@ jobs:
           echo "App: $APP. Validation: $VALIDATION. Metadata checks do not certify app runtime, tests or builds." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: app-validation-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: app-validation-${{ inputs.app-set }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: outfitter-provenance.json
           if-no-files-found: error
   gate:

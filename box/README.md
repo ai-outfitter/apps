@@ -113,6 +113,11 @@ The production Node build cannot dispatch apps, so the webapp's
 `scripts/local-dev/box-platform.ts` runs the local-organizations loader (the one
 `dev-local` uses) with one `box` organization that has the box app installed. Sign in at
 `http://outfitter.localhost:8787` as `local@example.test` / `local-orgs-only`.
+From another device, such as one on the tailnet, use the machine's bare
+hostname, `http://<hostname>:8787`. Agent Eval publishes the port on every
+interface and passes that name as `OUTFITTER_LOCAL_HOSTNAME`; a box started by
+hand needs `-p 8787:8787 -e OUTFITTER_LOCAL_HOSTNAME=$(hostname -s)`. The
+published port must stay 8787, the port the platform's own origin names.
 
 The organization's repository connection is a real Forgejo connection
 (provider `forgejo`), preset at startup as an admin would connect it in
@@ -157,17 +162,25 @@ Its agent turns each fixture into a git repository and a request (the
 fixture's `request.json`, or one the app makes from `PROMPT.md`), runs the
 image to completion with the platform published on `BOX_PORT` (8787) for
 watching, and grades the default branch the box left with the fixture's
-`EVAL.ts`. For the Software Foundry:
+`EVAL.ts`.
+
+Each app keeps its evals in `apps/<app>/agent-evals/`, laid out as an Agent
+Eval project: `evals/<name>/` fixtures (`PROMPT.md`, `EVAL.ts`, optional
+`request.json` and hidden `reference/`), `experiments/<model>.ts` with one
+experiment per model (`luna.ts`, `spark.ts`: agent, model, runs, timeout),
+and `results/<experiment>/` (gitignored). The first argument names the
+experiment; the box reads that model's settings from `.env.<experiment>` in the
+same folder (copy `.env.example`, see "Models"). For the Software Foundry:
 
 ```sh
-BOX_CLI=podman BOX_MODEL_ENV=model.env node --import tsx apps/software-foundry/box/evals/run.ts subtract-helper
+BOX_CLI=podman node --import tsx apps/software-foundry/agent-evals/run.ts luna subtract-helper
 ```
 
-`BOX_TIMEOUT` sets each run's limit in seconds (the experiment's default is
-1800). A Foundry run on the DGX Spark takes longer than on Luna; give it 4800.
-Each run's time and model use (wall and model seconds, model calls, tokens in
-and out, output tokens per second) is printed after the results and saved in
-`results/<box>-metrics-<time>.json`, so runs on different models can be compared.
+A run on the DGX Spark takes much longer than on Luna, so `spark.ts` sets a
+longer timeout. Each run's time and model use (wall and model seconds, model
+calls, tokens in and out, output tokens per second) is printed after the
+results and saved in `results/<experiment>/metrics-<time>.json`, and agent
+sessions in `results/<experiment>/sessions/`, so models can be compared.
 
 ### Geometry scoring
 
@@ -189,7 +202,7 @@ IoU, Chamfer and watertight columns to the metrics table. Outside an eval:
 
 ```sh
 node --import tsx box/eval/score.ts <candidate.stl|.scad> <reference.stl|.scad>
-node --import tsx box/eval/score.ts render apps/workshop/box/evals/evals/*/reference/model.scad
+node --import tsx box/eval/score.ts render apps/workshop/agent-evals/evals/*/reference/model.scad
 ```
 
 `render` (re)writes each reference's STL with OpenSCAD (`openscad`, or
@@ -264,3 +277,16 @@ docker run --rm --network container:<box> -w /app \
   and the independent review.
 - Replayed model answers for a run with no network at all.
 - A Workshop box on the forge: change requests as PRs with BOM and cost diffs.
+
+### Shared visual capture
+
+`capture-evidence.mjs` exports `captureEvidence(page, {url, readySelector,
+previewSelector})` for authenticated Playwright pages inside a box/workspace.
+It waits for the caller's ready marker, captures 1440×1000 and 390×844 views,
+optionally captures the model element, and returns PNG bytes, dimensions,
+SHA-256 hashes, browser version and capture time. A page error fails capture.
+Consumers publish through their app's authorized artifact API and retain the
+receipt alongside the images. Workshop's `box/capture-previews.mjs` implements
+that path, binding the receipt to a model revision and source/build identity.
+These captures are visual evidence, not a substitute for behavioral acceptance
+checks. Foundry's PR/release evidence publication remains its existing workflow.

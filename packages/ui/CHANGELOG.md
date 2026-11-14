@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- Show managed personal app navigation only with explicit platform metadata. Preserve the rail account footer across client navigation, keep app settings in the app sidebar, and support account menus and navigation on mobile.
+
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/ui-v0.1.4...ui-v0.1.5) (2026-11-09)
+
+
+### Features
+
+* **onto:** graph explorations agents and members change together ([#49](https://github.com/ai-outfitter/apps/issues/49)) ([f1c3424](https://github.com/ai-outfitter/apps/commit/f1c34248d61e4b9ff06082337400bcaf902017e2))
+
+
+### Bug Fixes
+
+* use canonical workflow run links ([#41](https://github.com/ai-outfitter/apps/issues/41)) ([8f5e0af](https://github.com/ai-outfitter/apps/commit/8f5e0af2d8377304dcf05c56fc64ee9c73465b41))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.3 to 0.1.4
+    * @ai-outfitter/connector-google bumped from 0.1.1 to 0.1.2
+    * @ai-outfitter/connector-google-calendar bumped from 0.1.1 to 0.1.2
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/ui-v0.1.3...ui-v0.1.4) (2026-11-06)
 
 

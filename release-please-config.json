@@ -58,6 +58,10 @@
     "packages/workflow-recurring-task": {
       "release-type": "node",
       "component": "workflow-recurring-task"
+    },
+    "packages/connector-github": {
+      "release-type": "node",
+      "component": "connector-github"
     }
   }
 }

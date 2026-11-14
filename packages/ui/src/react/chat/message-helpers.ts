@@ -32,3 +32,9 @@ export function connectLaterFree(messages: UIMessage[], connectToolName: string,
   const card = messages.findIndex((m) => m.parts.some((part) => part.type === `tool-${connectToolName}`));
   return card >= 0 && messages.slice(card + 1).some((message) => connectLaterMessage(message, isConnectLater));
 }
+
+/** The follow-up after connecting services, shared by Chat and its sidebar. */
+export const connectedMessage = (services: string[], gmail: boolean) => ({
+  text: `I connected ${services.join(" and ")}. ${gmail ? "Show my work profile." : "Find my recurring tasks."}`,
+  intent: gmail ? "work_profile" : "discover",
+});

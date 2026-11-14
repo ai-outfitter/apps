@@ -5,7 +5,7 @@ Actions, workflow orchestration and tooling tests. Keep domain tests, fixtures,
 migrations and release metadata with each official app. Personal apps remain in
 external caller repositories and use the same shared tooling. Migrate official
 apps separately after establishing the workflows; keep the hosted platform outside this repository. The SDK and its public
-dependency closure live in packages/* here. Preserve independent app checks and releases as apps arrive.
+dependency closure live in packages/* here; apps import them only through public entry points, never another app's or a package's source. Preserve independent app checks and releases as apps arrive.
 Run `npm test` and actionlint before pushing. Test flat personal and workspace
 organization layouts. Never assume package scope, modes, or browser tests.
 Pin workflow references to reviewed commits. Workflows pin the shared Action
@@ -26,6 +26,10 @@ the served source SHA and actual page/assets before reporting a preview as live.
 The public SDK is canonical here. App builders and test hosts must work without
 private webapp source. Release-please owns package versions and dependency bumps.
 
-App deployment follows successful default-branch checks through OIDC. Do not add
+Official catalog apps publish their exact checked demo and operational packages from successful default-branch app CI through GitHub OIDC. Publication runs separately from app builds, with no deployment credentials in the build job. The platform verifies repository identity, default-branch source and workflow run, stores immutable artifacts, and reconciles eligible installations through the ordinary deployment lifecycle. Catalog artifact hashes and the moving main channel belong in the platform registry, never version-pin promotion PRs in webapp. Component releases remain available for consumers that explicitly select releases; they are not a prerequisite for main-following catalog deployment. Personal repositories retain the shared source-build deployment path. Keep independent preview builds in app CI. This crossover is gated on deployed platform support and actual installation receipts. Do not add
 deployment enablement flags. SaaS is the default destination; self-hosting changes
 the destination and runner reachability, not the repository identity contract.
+
+Graph interoperability follows [graph providers](docs/graph-providers.md). Onto is an app, never a package: apps reach it through the platform. Graph schemas come from `@ai-outfitter/app-sdk/graph-contracts`, the graph client (`defaultWiki`, `wikiAdapter`, `readWikiGraph`, `queryWikiGraph`, `selectWikiGraph`, `stableGraphId`, `typeSegment`) from `@ai-outfitter/app-sdk/graph-client`, and snapshot-to-record conversion from `@ai-outfitter/app-sdk/graph-records`. A source reference or declared capability grants no access. Stable graph ID salts, routes and stored identities are unchanged.
+
+Portable archives are not signed installation restores. For Onto, every new authority or runtime-state table must be registered in `apps/onto/src/server/archive-authorities.ts` before import is exposed. Confirmations, receipts and review jobs require their authorized APIs; generic imports cannot recreate their authority. Backup exports retain these rows, and normal in-place database migrations preserve existing history.

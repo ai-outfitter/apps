@@ -22,7 +22,7 @@ import { parse, print } from "graphql";
 import { endpointsOf, graphqlNames, type NodeLayout, type SchemaLayout, schemaLayout, type TypeRow } from "./graph-graphql-names";
 import type { EdgeRow, GraphRow } from "./graph-graphql-source";
 import { type GraphSelection, type GraphSelectionDefinition, graphSelectionDefinition, normalizeRule, selectGraph } from "./graph-selection";
-import { wikiGraphRecords } from "./wiki";
+import { wikiGraphRecords } from "./graph-records";
 
 export type SelectionDocument = {
   /** The GraphQL document as graphql-js `print`s it, so one definition always compiles to the same text.

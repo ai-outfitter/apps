@@ -1,0 +1,128 @@
+{
+  "fixture": 1,
+  "synthetic": true,
+  "id": "forerunner-today.record-day",
+  "description": "One synthetic Tuesday on the Today timeline: calendar events and short batches of small tasks, with the current block highlighted.",
+  "day": {
+    "date": "2026-11-03",
+    "label": "Tuesday, November 3",
+    "weather": "Rain later today",
+    "owner": "Sam"
+  },
+  "blocks": [
+    {
+      "id": "block.run",
+      "time": "7:00",
+      "kind": "event",
+      "title": "Easy run, 30 min",
+      "done": true,
+      "proof": "Done \u00b7 3.4 mi logged in Health"
+    },
+    {
+      "id": "block.yoga",
+      "time": "9:30",
+      "kind": "now",
+      "title": "Record yoga practice class #4",
+      "action": {
+        "label": "Start recording",
+        "href": "life"
+      }
+    },
+    {
+      "id": "block.standup",
+      "time": "11:00",
+      "kind": "event",
+      "title": "Outfitter alpha standup"
+    },
+    {
+      "id": "block.lunch",
+      "time": "12:00",
+      "kind": "batch",
+      "title": "Lunch batch",
+      "length": "15 min",
+      "items": [
+        {
+          "id": "item.thanksgiving",
+          "title": "Plan Thanksgiving",
+          "action": "Plan",
+          "icon": "pick",
+          "href": "home"
+        },
+        {
+          "id": "item.gifts",
+          "title": "Pick gifts for Grandma, your aunt and Secret Santa",
+          "action": "Ideas",
+          "icon": "gift",
+          "href": "home"
+        }
+      ]
+    },
+    {
+      "id": "block.partner",
+      "time": "13:00",
+      "kind": "event",
+      "title": "Design partner call with Sunny"
+    },
+    {
+      "id": "block.followup",
+      "time": "13:45",
+      "kind": "batch",
+      "title": "Follow-up",
+      "length": "5 min",
+      "items": [
+        {
+          "id": "item.recap",
+          "title": "Send the design partner recap",
+          "action": "Link",
+          "icon": "link",
+          "href": "life"
+        }
+      ]
+    },
+    {
+      "id": "block.plans",
+      "time": "17:30",
+      "kind": "batch",
+      "title": "Plans",
+      "length": "20 min",
+      "items": [
+        {
+          "id": "item.salon",
+          "title": "Choose the salon dinner place and guests",
+          "action": "Plan",
+          "icon": "pick",
+          "href": "people"
+        },
+        {
+          "id": "item.cooking",
+          "title": "Choose the cooking party day",
+          "action": "Choose",
+          "icon": "pick",
+          "href": "people"
+        }
+      ]
+    },
+    {
+      "id": "block.practice",
+      "time": "19:00",
+      "kind": "batch",
+      "title": "Practice",
+      "length": "30 min",
+      "items": [
+        {
+          "id": "item.set",
+          "title": "Run the set with the airport bit cut to 60 seconds",
+          "action": "Recording",
+          "icon": "video",
+          "href": "life"
+        }
+      ]
+    },
+    {
+      "id": "block.mom",
+      "time": "20:00",
+      "kind": "event",
+      "title": "Call Mom about Thanksgiving"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ jobs:
     outputs:
       created: ${{ steps.release.outputs.releases_created }}
       paths: ${{ steps.release.outputs.paths_released }}
+      releases: ${{ toJSON(steps.release.outputs) }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -34,6 +35,8 @@ jobs:
     uses: ./.github/workflows/official-app-release.yml
     with:
       app: ${{ matrix.app }}
+      # One event can discover several merged releases. Build each immutable tag commit.
+      ref: ${{ fromJSON(needs.release.outputs.releases)[format('{0}--sha', matrix.app)] }}
     permissions:
       contents: write
     secrets:

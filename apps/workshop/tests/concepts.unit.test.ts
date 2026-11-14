@@ -27,7 +27,7 @@ test("publishing is one Document evidence_for the revision, with the images and 
   const subject = { id: "11111111-1111-4111-8111-111111111111", revision: 3, title: "SNSP-1 Indoor rev A" };
   const operations = conceptOperations({
     project: { id: "00000000-0000-4000-8000-000000000001", name: "Indoor sensor", concepts: [concept(1), concept(2)] },
-    origin: "https://workshop.artera.example",
+    origin: "https://workshop.example.test",
     installationId: "workshop-installation",
     subject,
     definition: { id: WIKI_IDS.designConcept, revision: 1 },
@@ -50,14 +50,14 @@ test("publishing is one Document evidence_for the revision, with the images and 
   assert.deepEqual(
     body.images.map((image: { artifact: { uri: string }; prompt: string; model: string; caption?: string }) => [image.artifact.uri, image.prompt, image.model, image.caption]),
     [
-      [`https://workshop.artera.example/files/main/concepts/${concept(1).key}`, "A sensor in a plant pot", "image-model", "In the pot"],
-      [`https://workshop.artera.example/files/main/concepts/${concept(2).key}`, "", "upload", undefined],
+      [`https://workshop.example.test/files/main/concepts/${concept(1).key}`, "A sensor in a plant pot", "image-model", "In the pot"],
+      [`https://workshop.example.test/files/main/concepts/${concept(2).key}`, "", "upload", undefined],
     ],
   );
   assert.deepEqual(body.images[0].artifact, {
     provider: "workshop",
     recordId: `workshop-installation/main/concepts/${concept(1).key}`,
-    uri: `https://workshop.artera.example/files/main/concepts/${concept(1).key}`,
+    uri: `https://workshop.example.test/files/main/concepts/${concept(1).key}`,
     contentHash: "a".repeat(64),
   });
   for (const edge of operations.slice(1))

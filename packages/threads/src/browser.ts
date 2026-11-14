@@ -1,4 +1,4 @@
-import { parseThreadRefKey, submissionBody } from "@ai-outfitter/app-sdk/threads";
+import { inspectBody, parseThreadRefKey, submissionBody } from "@ai-outfitter/app-sdk/threads";
 import { z } from "zod";
 import type { ThreadService } from "./service";
 import type { ThreadPrincipal } from "./types";
@@ -100,6 +100,10 @@ function route(service: ThreadService, principal: ThreadPrincipal, request: Requ
   const [id, section, child] = parts;
   const get = request.method === "GET";
   if (!parts.length) return collection(context);
+  // Administrators' debug view: `inspect` answers whether it is offered; `<id>/inspect` prepares the latest turn again, from the page the member is on now.
+  if (id === "inspect" && parts.length === 1 && get) return service.inspector(principal).then((allowed) => (allowed ? json({ inspect: true }) : notFound()));
+  if (section === "inspect" && parts.length === 2 && request.method === "POST")
+    return body(request, 192 * 1024).then((input) => service.inspect(principal, id, inspectBody.parse(input))).then(json);
   if (parts.length === 1) return single(context, id);
   if (section === "entries" && parts.length === 2 && get) return entries(context, id);
   if (section === "submissions" && parts.length <= 3) return submissions(context, id, child);

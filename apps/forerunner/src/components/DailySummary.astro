@@ -1,0 +1,53 @@
+---
+import { forerunnerContext } from "../server/context";
+import { documents, runDocument } from "../server/documents";
+import type { DayReview } from "../server/day-review";
+import { localDate, shiftDate } from "../server/review-period";
+import { readBriefPreview } from "../server/brief-preview";
+interface Props { root: string; period?: "today" | "yesterday" | "week" }
+const { root, period = "yesterday" } = Astro.props;
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const timezone = Astro.url.searchParams.get("timezone") ?? "America/Chicago";
+const today = localDate(Date.now(), timezone);
+const yesterday = shiftDate(today, -1);
+// Last week is the previous complete Monday-Sunday calendar week.
+const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+const weekEnd = shiftDate(today, -(weekday || 7));
+const date = period === "today" ? today : period === "week" ? weekEnd : Astro.url.searchParams.get("date") ?? yesterday;
+let report: DayReview | null = null;
+let preview: Awaited<ReturnType<typeof readBriefPreview>> = null;
+let error = "";
+try {
+  if (!demo) {
+    const context = forerunnerContext(Astro.request, Astro.locals);
+    preview = await readBriefPreview(context, date, period === "week", timezone);
+    if (!preview && period === "yesterday") report = (await runDocument(documents.DayReview.document, { input: { date, timezone } }, context)).dayReview as DayReview;
+  }
+} catch { error = "This update could not be loaded. Please try again."; }
+const organizations = preview?.organizations ?? report?.organizations.filter(org => org.projects?.length).map(org => ({ slug: org.scope, name: org.name, projects: org.projects! })) ?? [];
+const id = period === "today" ? "today-report" : period === "week" ? "last-week-report" : "daily-report";
+const title = period === "today" ? "Today" : period === "week" ? "Last week" : date === yesterday ? "Yesterday" : date;
+const href = (day: string) => `${root}?${new URLSearchParams({ date: day, timezone })}#daily-report`;
+---
+<section id={id} class="paper daily-summary" aria-labelledby={`${id}-title`}>
+  <header>
+    <h2 id={`${id}-title`}>{title}</h2>
+    {period === "yesterday" && <nav aria-label="Daily report history"><a href={href(shiftDate(date, -1))}>← Earlier</a>{date < yesterday && <a href={href(shiftDate(date, 1))}>Later →</a>}</nav>}
+  </header>
+  <p class="period muted">{period === "week" ? `${shiftDate(weekEnd, -6)} – ${weekEnd}` : date}{period === "today" ? " · In progress" : ""}{preview ? " · Local preview" : ""}</p>
+  {error ? <p role="status">{error}</p> : organizations.length ? <ul class="organization-updates">{organizations.map(org => <li>
+    <a class="organization" href={`/o/${encodeURIComponent(org.slug)}`}>{org.name}</a>
+    {org.projects.slice(0, 3).map(project => <p><strong>{project.projectId ? <a href={`${org.slug === "personal" ? "/apps/planning" : `/o/${encodeURIComponent(org.slug)}/planning`}/projects/${encodeURIComponent(project.projectId)}`}>{project.name}</a> : project.name}.</strong> {project.update.replace(/#\d+\s*/g, "")}</p>)}
+  </li>)}</ul> : <p>{period === "today" ? "Your active projects’ updates will appear here as the day progresses." : "No saved project updates for this period yet."}</p>}
+</section>
+<style>
+  .daily-summary { margin-top:24px; scroll-margin-top:24px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:12px; }
+  h2 { margin:0; }
+  nav { display:flex; gap:16px; font-size:.875rem; }
+  .period { font-size:.8rem; margin-block:8px 18px; }
+  .organization-updates { list-style:none; padding:0; display:grid; gap:16px; }
+  .organization { font-weight:600; }
+  .organization-updates a { text-decoration:none; }
+  li p { margin:4px 0 0; line-height:1.5; }
+</style>

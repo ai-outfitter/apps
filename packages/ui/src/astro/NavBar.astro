@@ -2,6 +2,7 @@
 import Icon from "./Icon.astro";
 interface Props {
   title: string;
+  headerStyle?: "breadcrumb" | "app";
   /** Marks the title for a script to replace, and keeps it across pages with the same id. */
   titleProjectId?: string;
   brand?: string;
@@ -9,10 +10,12 @@ interface Props {
   toggleLabel?: string;
   closeLabel?: string;
 }
-const { title, titleProjectId, brand = "Outfitter", homeHref = "/", toggleLabel = "Toggle sidebar", closeLabel = toggleLabel } = Astro.props;
+const { title, headerStyle = "breadcrumb", titleProjectId, brand = "Outfitter", homeHref = "/", toggleLabel = "Toggle sidebar", closeLabel = toggleLabel } = Astro.props;
 ---
 <header class="app-header">
-  <span class="header-title"><a href={homeHref} aria-label={`${brand} home`}>{brand}</a> <span class="header-muted">/ <span data-project-title={titleProjectId} {...(titleProjectId ? { "data-astro-transition-persist": `title:${titleProjectId}` } : {})}>{title}</span></span></span>
+  <span class:list={["header-title", { "ui-app-label": headerStyle === "app" }]}>
+    {headerStyle === "app" ? <a href={homeHref}>{title}</a> : <><a href={homeHref} aria-label={`${brand} home`}>{brand}</a> <span class="header-muted">/ <span data-project-title={titleProjectId} {...(titleProjectId ? { "data-astro-transition-persist": `title:${titleProjectId}` } : {})}>{title}</span></span></>}
+  </span>
   <slot />
   <button class="menu" type="button" aria-label={toggleLabel} data-open-label={toggleLabel} data-close-label={closeLabel} aria-controls="sidebar" aria-expanded="false"><Icon name="sidebar" /></button>
 </header>

@@ -12,3 +12,12 @@ test("a scheduled invocation acts for no member: only operations that name it ex
   for (const phase of workflowPhases.filter((current) => current !== "invocation"))
     assert.equal(operationAllowed("workflow.read", phase), true, phase);
 });
+
+
+test("platform document inputs preserve bounded Viewer queries and explicit app scopes", () => {
+  const input = {document:"Viewer", query:"query PlanningProjects { viewer { orgs { slug } } }", app:"planning", scopes:["org:artera"], variables:{slugs:["artera"]}};
+  assert.deepEqual(operations["platform.document"].input.parse(input), {...input,kind:"query"});
+  for (const invalid of [{...input,query:"x".repeat(8193)}, {...input,app:"Planning"}, {...input,scopes:[]}, {...input,owner:"organization:foreign"}])
+    assert.equal(operations["platform.document"].input.safeParse(invalid).success,false);
+  assert.deepEqual(operations["platform.document"].input.parse({document:"Viewer"}),{document:"Viewer",kind:"query",variables:{}});
+});

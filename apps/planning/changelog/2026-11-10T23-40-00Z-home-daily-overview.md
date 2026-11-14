@@ -1,0 +1,1 @@
+Planning's existing home card links to the persisted previous-day Wiki overview before listing projects. Personal and organization summaries retain missing/incomplete coverage; opening home does not trigger inference, report generation or connector calls.

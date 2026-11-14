@@ -56,6 +56,8 @@ export const actionDescriptor = z.strictObject({
   readOnly: z.boolean().optional(),
   input: z.record(z.string(), z.json()),
   output: z.record(z.string(), z.json()),
+  /** A member of another organization may call it (role `external`). */
+  external: z.literal(true).optional(),
 });
 export type ActionDescriptor = z.infer<typeof actionDescriptor>;
 
@@ -72,6 +74,8 @@ export type AppAction<Context extends ActionContext> = {
   readOnly: boolean;
   /** The tool name a sidebar agent offers it under. */
   mcpTool?: string;
+  /** A member of another organization may call it. */
+  external?: true;
   permitted(context: Context): boolean;
   /** `readOnly` runs the action's side-effect-free form, or refuses (403). */
   invoke(context: Context, input: unknown, readOnly?: boolean): Promise<unknown>;
@@ -87,13 +91,19 @@ export function defineAction<Context extends ActionContext, Input extends z.ZodT
   /** Override the default editor gate with the app's domain policy. The handler
    * must still authorize the specific record against fresh state on every call. */
   canInvoke?: (context: Context) => boolean;
+  /** A member of another organization (role `external`, with
+   * `identity.callerOrganizationId`) may call it; such a caller may call
+   * nothing else. The handler decides whom it serves and what they may do. */
+  external?: true;
   run: (context: Context, input: z.output<Input>) => unknown | Promise<unknown>;
   /** For a write action: a variant with no side effects that a read-only caller
    * (such as a delegated work scan) runs instead of `run`. It must not change
    * any state; read actions need none. */
   read?: (context: Context, input: z.output<Input>) => unknown | Promise<unknown>;
 }): AppAction<Context> {
-  const permitted = (context: Context) => definition.canInvoke?.(context) ?? (definition.access === "read" || context.identity.canEdit);
+  const permitted = (context: Context) => context.identity.callerOrganizationId || context.identity.role === "external"
+    ? Boolean(definition.external)
+    : definition.canInvoke?.(context) ?? (definition.access === "read" || context.identity.canEdit);
   return {
     description: definition.description,
     access: definition.access,
@@ -101,6 +111,7 @@ export function defineAction<Context extends ActionContext, Input extends z.ZodT
     output: z.toJSONSchema(definition.output, { io: "output", unrepresentable: "throw" }) as FieldSchema,
     readOnly: definition.access === "read" || Boolean(definition.read),
     ...(definition.mcpTool ? { mcpTool: appMcpToolName.parse(definition.mcpTool) } : {}),
+    ...(definition.external ? { external: true as const } : {}),
     permitted,
     async invoke(context, raw, readOnly = false) {
       if (!permitted(context)) throw new Response("App action not allowed", { status: 403 });
@@ -157,6 +168,7 @@ export function actionOperations<Context extends ActionContext>(actions: Record<
       run: (context: Context) => Object.entries(actions).map(([name, action]) => ({
         name, description: action.description, access: action.access,
         permitted: action.permitted(context), readOnly: action.readOnly, input: action.input, output: action.output,
+        ...(action.external ? { external: true as const } : {}),
       })),
     }),
     call: defineOperation({

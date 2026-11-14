@@ -1,0 +1,26 @@
+---
+import Layout from "../components/DocumentLayout.astro";
+import {context,mount,run} from "../documents/context";
+import {demoDocument,demoPage} from "../documents/demo";
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
+let requestContext:ReturnType<typeof context>|undefined;
+if(!demo) {
+ try {requestContext=context(Astro.request,Astro.locals);}
+ catch(error) {if(!(error instanceof Response&&error.status===401))throw error;}
+}
+// Install checks request this shell before initialization, without member scope.
+const canRead=demo||!!requestContext;
+const data=demo?{documents:[demoDocument],pages:[demoPage]}:requestContext?await run("WikiDocuments",{after:Astro.url.searchParams.get("after") ?? ""},requestContext):{documents:[],pages:[]};
+const documents=data.documents as typeof demoDocument[],pages=data.pages as typeof demoPage[];
+const root=mount(Astro.request);
+---
+<Layout title="Your Wiki">
+ <a slot="intro-actions" class="button" href={`${root}new`}>Create document</a>
+ <ul class="wiki-list">{documents.map(doc=>{
+  const page=pages.find(page=>page.documentId===doc.id);
+  return <li><a href={`${root}p/${encodeURIComponent(page?.slug ?? doc.id)}`}>{doc.title}</a><p>{doc.summary}</p><span class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":doc.publishedRevision?"Draft update":"Draft"}</span></li>;
+ })}</ul>
+ {!canRead?<p>Open Wiki through your workspace to view documents.</p>:!documents.length&&<p>No documents yet. Start with a note or link a page to an Onto entity.</p>}
+ {documents.length===50&&<a href={`?after=${encodeURIComponent(documents.at(-1)!.id)}`}>More documents</a>}
+ {canRead&&<section aria-label="Linked pages"><h2>Linked pages</h2><ul>{pages.filter(page=>!page.documentId).map(page=><li><a href={`${root}p/${encodeURIComponent(page.slug)}`}>{page.slug}</a></li>)}</ul></section>}
+</Layout>

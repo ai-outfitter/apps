@@ -1,0 +1,80 @@
+name: Deploy selected development apps
+on:
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: Comma-separated app slugs to deploy from current main (for example onto,wiki-map)
+        type: string
+        required: true
+permissions:
+  id-token: write
+concurrency:
+  group: development-deploy-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  request:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment: outfitter
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Request checked shared builds and owner deployments
+        env:
+          SELECTED_APPS: ${{ inputs.apps }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFile, writeFile, appendFile } from "node:fs/promises";
+          import { join } from "node:path";
+          assert.equal(process.env.GITHUB_REF, `refs/heads/${process.env.DEFAULT_BRANCH}`);
+          const selected = process.env.SELECTED_APPS ?? "";
+          assert.ok(selected.length <= 1000, "App selection is too long");
+          const apps = selected.split(",").map(app => app.trim());
+          assert.ok(apps.length >= 1 && apps.length <= 10, "Select between one and ten apps");
+          assert.equal(new Set(apps).size, apps.length, "Select each app once");
+          for (const app of apps) {
+            assert.match(app, /^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Expected an app slug");
+            assert.ok(app.length <= 64, "App slug is too long");
+          }
+          const destination = "https://ai-outfitter.com";
+          assert.ok(process.env.ACTIONS_ID_TOKEN_REQUEST_URL && process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN, "GitHub OIDC permission is required");
+          const tokenURL = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          tokenURL.searchParams.set("audience", destination);
+          const identity = await fetch(tokenURL, {
+            headers: { Authorization: `Bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+            signal: AbortSignal.timeout(30000),
+          });
+          assert.ok(identity.ok, `OIDC request failed (${identity.status})`);
+          const { value: token } = await identity.json();
+          assert.ok(typeof token === "string" && token.length > 0, "OIDC token is absent");
+          console.log(`::add-mask::${token.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A")}`);
+          const results = await Promise.allSettled(apps.map(async app => {
+            const payload = join(process.env.RUNNER_TEMP, `${app}.development-deploy.json`);
+            await writeFile(payload, JSON.stringify({ apps: [app] }));
+            const response = await fetch(`${destination}/api/app-repositories/deploy`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: await readFile(payload, "utf8"),
+              signal: AbortSignal.timeout(120000),
+              redirect: "error",
+            });
+            assert.ok(response.ok, `Deployment request failed (${response.status})`);
+            const result = await response.json();
+            for (const key of ["started", "unchanged", "failed"])
+              assert.ok(Number.isInteger(result[key]) && result[key] >= 0, `Invalid ${key} count`);
+            const summary = `${app}: ${result.started} requests queued; ${result.unchanged} unchanged; ${result.failed} failed.`;
+            console.log(summary);
+            await appendFile(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+            assert.equal(result.failed, 0, "Some deployment requests failed");
+            assert.ok(result.started + result.unchanged > 0, "No following installations matched");
+          }));
+          const failures = results.flatMap((result, index) => result.status === "rejected" ? [`${apps[index]}: ${result.reason?.message ?? "Request failed"}`] : []);
+          const summary = `${failures.join("\n")}${failures.length ? "\n" : ""}Queue acceptance is not completed deployment. Inspect installation history for check, test, build and activation results before retrying: a timed-out request may already have queued installs.\n`;
+          console.log(summary);
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
+          assert.equal(failures.length, 0, "Some app deployment requests failed");
+          NODE

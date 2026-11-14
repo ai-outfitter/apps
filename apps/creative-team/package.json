@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-creative-team",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",

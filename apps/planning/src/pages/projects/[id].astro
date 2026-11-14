@@ -1,0 +1,55 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { appHref } from "../../app-href";
+import Layout from "../../components/PlanningLayout.astro";
+import ProjectConversationPreview from "../../components/ProjectConversationPreview.astro";
+import { readProjectConversationPreview } from "../../server/project-conversation-preview";
+import ProjectWorkspace from "../../components/ProjectWorkspace.astro";
+import ProjectNextAction from "../../components/ProjectNextAction.astro";
+import WorkContext from "../../components/WorkContext.astro";
+
+const projectId = Astro.params.id!;
+
+import { demoProjectPage, projectPage } from "../../server/project-page";
+
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const model = demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals, projectId);
+const project=model.projects.find(project=>project.id===projectId);
+const preview = !demo && project ? await readProjectConversationPreview(Astro.request, Astro.locals, projectId).catch(() => null) : null;
+const focus=project ? {kind:"planning-project",id:project.id,label:project.name,revision:project.revision} : undefined;
+const href = (path: string) => appHref(Astro.url.pathname, path);
+Astro.response.status = model.status;
+---
+<Layout wiki={model.wiki ?? null} title={project?.name ?? "Project"} description={preview ? "" : "What changed, what needs your decision and what to do next."} {focus}>
+  <details slot="intro-actions" class="project-actions">
+    <summary aria-label="Project actions" title="Project actions">•••</summary>
+    <nav aria-label="Project actions">
+      <a href={href("/projects")}>All projects</a>
+      <a href={href(`/projects/${projectId}/work`)}>Review work</a>
+      <a href={href(`/projects/${projectId}/releases`)}>Press release</a>
+    </nav>
+  </details>
+  {preview ? <ProjectConversationPreview {preview} /> : project && <ProjectNextAction {projectId} />}
+  {!project && <p role="status">{model.error || "Project not found. Return to All projects to choose another project."}</p>}
+  <details class="planning-project-details" hidden={!project}>
+    <summary>Project documents and work details</summary>
+    {project && <div class="planning-toolbar" role="group" aria-label="Project maintenance">
+      <Button href={href(`/projects/${projectId}/releases`)} variant="secondary">Press release</Button>
+      <Button variant="secondary" id="link-changes" data-project-id={projectId} disabled={demo}>Link merged PRs</Button>
+      <Button variant="secondary" id="edit-project" disabled={demo}>Edit</Button>
+      <Button variant="secondary" id="delete-project" disabled={demo}>Delete</Button>
+    </div>}
+    <ProjectWorkspace {projectId} {model} />
+    {project && <WorkContext {projectId} />}
+  </details>
+</Layout>
+
+<style>
+  .project-actions { position:relative; margin:0; }
+  .project-actions summary { list-style:none; cursor:pointer; padding:10px 14px; border-radius:8px; font-size:18px; line-height:1; }
+  .project-actions summary::-webkit-details-marker { display:none; }
+  .project-actions summary:hover { background:var(--soft); }
+  .project-actions nav { position:absolute; right:0; top:100%; z-index:10; min-width:160px; padding:6px; border:1px solid var(--border); border-radius:10px; background:var(--surface); box-shadow:0 6px 20px #0001; }
+  .project-actions a { display:block; padding:10px; color:inherit; text-decoration:none; font-size:13px; }
+  .project-actions a:hover { background:var(--soft); }
+</style>

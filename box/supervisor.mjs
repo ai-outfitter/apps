@@ -97,29 +97,36 @@ async function ready(name, url, attempts = 60) {
   throw new Error(`${name} did not start`);
 }
 
-/** Forgejo's app.ini: SQLite, loopback only, no registration, no outside calls;
- * Git LFS objects (agent sessions) are kept in RustFS. */
+/** Forgejo's app.ini: SQLite, no registration, no outside calls. It listens on
+ * the container's interfaces, as the platform does, so a published port can
+ * reach it (evals publish it on the host's loopback); ROOT_URL stays the in-box
+ * origin. Its files
+ * (attachments, avatars, archives, packages) are kept in RustFS, Git LFS
+ * objects (agent sessions) in their own bucket. */
 function forgejoConfig() {
   const dir = join(STATE, "forgejo");
   mkdirSync(join(dir, "custom", "conf"), { recursive: true });
+  const rustfs = (bucket) => `STORAGE_TYPE = minio
+MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
+MINIO_ACCESS_KEY_ID = box
+MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
+MINIO_BUCKET = ${bucket}
+MINIO_USE_SSL = false`;
   const ini = `APP_NAME = Outfitter box
 RUN_MODE = prod
 WORK_PATH = ${dir}
 [server]
-HTTP_ADDR = 127.0.0.1
+HTTP_ADDR = 0.0.0.0
 HTTP_PORT = ${PORTS.forgejo}
 ROOT_URL = ${FORGEJO}/
 DISABLE_SSH = true
 OFFLINE_MODE = true
 LFS_START_SERVER = true
 LFS_JWT_SECRET = ${secret("forgejo-lfs-jwt", 32, "base64url")}
+[storage]
+${rustfs("forgejo")}
 [lfs]
-STORAGE_TYPE = minio
-MINIO_ENDPOINT = 127.0.0.1:${PORTS.rustfs}
-MINIO_ACCESS_KEY_ID = box
-MINIO_SECRET_ACCESS_KEY = ${secret("rustfs")}
-MINIO_BUCKET = lfs
-MINIO_USE_SSL = false
+${rustfs("lfs")}
 [database]
 DB_TYPE = sqlite3
 PATH = ${dir}/forgejo.db
@@ -318,8 +325,8 @@ async function main() {
   start("rustfs", "rustfs", [join(STATE, "rustfs")], {
     RUSTFS_ADDRESS: `127.0.0.1:${PORTS.rustfs}`, RUSTFS_ACCESS_KEY: s3.ATTACHMENTS_S3_ACCESS_KEY_ID, RUSTFS_SECRET_KEY: s3.ATTACHMENTS_S3_SECRET_ACCESS_KEY,
   });
-  // The box bucket, then workflow artifacts (node sessions, evidence) and Forgejo's LFS objects in their own buckets.
-  for (const bucket of [s3.ATTACHMENTS_S3_BUCKET, "artifacts", "lfs"]) await createBucket({ ...s3, ATTACHMENTS_S3_BUCKET: bucket });
+  // The box bucket, then workflow artifacts (node sessions, evidence), Forgejo's files and its LFS objects in their own buckets.
+  for (const bucket of [s3.ATTACHMENTS_S3_BUCKET, "artifacts", "forgejo", "lfs"]) await createBucket({ ...s3, ATTACHMENTS_S3_BUCKET: bucket });
   // Forgejo: the git server, issues, PRs, reviews and releases.
   const forgejo = forgejoConfig();
   start("forgejo", "forgejo", ["--config", forgejo.config, "web"], { GITEA_WORK_DIR: forgejo.dir, FORGEJO_WORK_DIR: forgejo.dir });
@@ -342,6 +349,11 @@ async function main() {
     WORKSPACE_RUNTIME_ORIGIN: `http://127.0.0.1:${PORTS.kube}/runtime/{namespace}/{id}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...(env.BOX_DEBUG_HOST ? { WORKSPACE_DEBUG_ERRORS: "1" } : {}),
     // The one forge this gateway serves: the platform names each task's, and the two must agree.
     WORKSPACE_FORGEJO_ORIGIN: FORGEJO,
+    // Workspace node operations that reach the platform (screenshots for the app's
+    // publish phase, packages, repository sources). The gateway accepts a loopback
+    // HTTP platform only under NODE_ENV=test, whose other effects need test-only
+    // issuer settings the box never sets.
+    WORKFLOW_NODE_URL: `http://127.0.0.1:${PORTS.webapp}/api/internal/workflow/nodes/`, NODE_ENV: "test",
     // The platform names the box organization's app installation deterministically (scripts/local-dev).
     WORKSPACE_REVIEWERS: JSON.stringify([{ id: "reviewer", login: "reviewer", token: bot.reviewerToken,
       organizationId: `local-${BOX_ORGANIZATION}`, installationId: `local-${BOX_ORGANIZATION}-${APP}` }]),

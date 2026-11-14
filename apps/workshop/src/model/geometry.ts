@@ -1,6 +1,6 @@
 import { makeBox, makeCylinder, measureVolume } from "replicad";
 import { type Params, ParamsSchema } from "../lib/project";
-import { type CadPlan, CadPlanSchema, planBounds } from "./cad-plan";
+import { type CadPlan, CadPlanSchema, AssemblyCadPlanSchema, planBounds } from "./cad-plan";
 
 function featureSolid(feature: CadPlan["features"][number]) {
   if (feature.kind === "box")
@@ -38,7 +38,7 @@ function applyFeature(
 
 /** One solid from a CAD plan alone, as an assembly item stores it. */
 export function buildPlannedModel(planInput: CadPlan) {
-  const plan = CadPlanSchema.parse(planInput);
+  const plan = AssemblyCadPlanSchema.parse(planInput);
   let solid: ReturnType<typeof makeBox> | undefined;
   try {
     for (const [index, feature] of plan.features.entries()) {

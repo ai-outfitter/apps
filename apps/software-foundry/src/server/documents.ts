@@ -11,13 +11,13 @@ import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
   SubmitReleaseEvidence:{
-    story:"As an authorized editor, I want expiring upload links for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
+    story:"As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
   },
-  Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can follow intake and review.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
+  Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can find their GitHub issues.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
   WorkTargets: {
     hidden:true,
-    story: "As an agent, I want the Foundry projects with their repositories, so that I can name a target before submitting or starting work.",
+    story: "As an agent, I want the Foundry projects with their repositories, so that I can name a target before filing a request.",
     document: graphql(`query WorkTargets { foundryProjects(first: 50) { nodes { id name repositories } } }`),
   },
   DailyShipped: {
@@ -29,28 +29,6 @@ const legacyDocuments = defineDocuments({
       }
     }`),
   },
-  SubmitWork: {
-    story: "As an agent, I want to submit hand-written work to a repository, so that Foundry records the issue and starts its workflow.",
-    document: graphql(`mutation SubmitWork($input: SubmitWorkInput!) {
-      submitWork(input: $input) { submissionId repository issue { number url created } run { id workflow existing status url } execution { status message } }
-    }`),
-  },
-  StartWork: {
-    story: "As an agent, I want to start work from a Wiki node, so that the GitHub issue carries the knowledge graph around it and the Wiki Issue links to both.",
-    document: graphql(`mutation StartWork($input: StartWorkInput!) {
-      startWork(input: $input) {
-        submissionId repository issue { number url created } run { id workflow existing status url } execution { status message }
-        wikiIssue { ref { installationId type id } revision } gaps
-      }
-    }`),
-  },
-  RequestFeature: {
-    hidden:true,
-    story: "As a design partner's agent, I want to file a feature request with its problem, requested change and acceptance criteria against an Outfitter repository, so that Outfitter records it in its Wiki, attributed to me, my organization and my role, for its team to review.",
-    document: graphql(`mutation RequestFeature($input: RequestFeatureInput!) {
-      requestFeature(input: $input) { ref { installationId type id } revision repository submittedAt created }
-    }`),
-  },
   CreateProject: {
     story: "As an owner, I want to add a project from the projects page or an agent, so that work can be routed to its repositories.",
     document: graphql(`mutation CreateProject($input: CreateProjectInput!) {
@@ -60,12 +38,18 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
-  SubmitReleaseEvidence:{description:"Get expiring PUT links for PNG/JSON release evidence. Supply stable asset keys, size and SHA-256; upload with the same authenticated account, then repeat to read verified receipts. No approval or deployment."},
+  SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
-    "description": "Read feature and bug intake requests and their durable triage results."
+    "description": "Read your feature and bug requests with their GitHub issues."
+  },
+  "RepositoryChanges": {
+    "description": "Turn Foundry execution on for a repository (action enable, input {repository}): approves Foundry's role agents and subscribes to the repository's issues, so RequestChanges there starts work instead of answering that execution is not configured. Repeat to refresh after a Foundry change. Owners and admins only; use a new item key each time."
+  },
+  "JobChanges": {
+    "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Owners and admins only; use a new item key each time."
   },
   "RequestChanges": {
-    "description": "Submit feature or bug requests to app-owned intake and triage. Implementation approval remains separate."
+    "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key. Action resume {requestId, resumeId} starts a request's failed or awaiting-details run again on the same issue."
   }
 });
 

@@ -1,0 +1,66 @@
+version: beta
+id: project-digest
+summary: Each morning, summarize what changed in every Planning project since its last daily digest, so the team sees what shipped and what is now prioritized.
+actors: {}
+# "Generate digest now" starts one project's digest as a registered task: the
+# platform owns the run, its durable dispatch, recovery and failure record.
+task:
+  input: summarize.inputs.request
+  output: summarize.outputs.digests
+  schema:
+    type: object
+    properties:
+      projectId: {type: string, format: uuid}
+      timezone: {type: string}
+      date: {type: string, format: date}
+    required: []
+    additionalProperties: false
+triggers:
+  - on: manual
+  # An editor turns the schedule on from a project's Daily digest page; it then
+  # runs unattended as them every local morning (organization default 03:00; personal default 04:00) across the installation.
+  - on: schedule
+    cron: "0 3 * * *"
+steps:
+  # No actor fills this step: Planning does, through the workflow host. It diffs
+  # each project against the snapshot its previous digest kept, asks the
+  # platform's inference (inference.generate) for a short narrative, keeps the
+  # digest in its own database and reports the counts with workflow.collect.
+  - id: summarize
+    inference: {maxOutputTokens: 1500}
+    inputs:
+      # A task's {projectId}; the morning run leaves it empty and covers every active project.
+      request:
+        schema: {type: object}
+        default: {}
+    outputs:
+      digests:
+        connector: database
+        record: digests.written
+        schema:
+          type: object
+          properties:
+            written:
+              type: integer
+              minimum: 0
+              description: Digests saved
+            unchanged:
+              type: integer
+              minimum: 0
+              description: Projects with nothing new since their last digest
+            reports:
+              type: object
+              description: Previous local-day project reports and their dependent owner overview, with exact Wiki revisions and completeness.
+              additionalProperties: true
+            failedProjects:
+              type: array
+              items: {type: string}
+              description: Projects whose legacy digest source read failed.
+            digestIds:
+              type: array
+              items: {type: string}
+              description: The digests saved, in Planning
+          required: [written, unchanged]
+          additionalProperties: false
+outputs:
+  digests: summarize.outputs.digests

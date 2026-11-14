@@ -1,0 +1,21 @@
+---
+import Examples from "./Examples.astro";
+---
+<div class="workshop workshop-new-model">
+  <form id="agent-form" class="card form-card agent-card">
+    <div class="eyebrow">CREATE WITH SPARK</div>
+    <label for="agent-message">What should we make?</label>
+    <textarea id="agent-message" name="message" rows="2" maxlength="500" required placeholder="Make a solid cube 40 mm on each side"></textarea>
+    <div class="actions">
+      <button id="agent-submit" type="submit" class="primary">Create model</button>
+    </div>
+    <p id="agent-status" class="muted" role="status" aria-live="polite">Spark makes a design study. Check dimensions and physical fit before fabrication.</p>
+  </form>
+
+  <div class="examples" role="region" aria-labelledby="examples-heading">
+    <h2 id="examples-heading">Start from an example</h2>
+    <p class="muted">Each creates your own editable project. No physical test results are prefilled.</p>
+    <div class="example-grid"><Examples /></div>
+  </div>
+  <script>import "../client/home";</script>
+</div>

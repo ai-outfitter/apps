@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791983608119,
+      "tag": "0000_amused_doomsday",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792032631105,
+      "tag": "0001_agent_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792093121855,
+      "tag": "0002_github_repository",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793388811147,
+      "tag": "0003_shared_thread_proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793414453845,
+      "tag": "0004_governed_intake_and_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793414453846,
+      "tag": "0005_graph_change_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793920906872,
+      "tag": "0006_project_archive",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793939420104,
+      "tag": "0007_project_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793988521915,
+      "tag": "0008_project_digests",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794010000000,
+      "tag": "0009_project_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794010000001,
+      "tag": "0010_priority_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794010000002,
+      "tag": "0011_priority_order_strict",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794010000003,
+      "tag": "0012_design_partner_requests",
+      "breakpoints": true
+    }
+  ]
+}

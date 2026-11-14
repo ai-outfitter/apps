@@ -1,0 +1,32 @@
+---
+import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import AppActionSidebar from "@ai-outfitter/ui/astro/AppActionSidebar.astro";
+import { requestPageURL } from "@ai-outfitter/app-sdk/server";
+import { documentTrees, navigationPages, type TreeLink } from "../documents/navigation";
+import { context, mount } from "../documents/context";
+const {title,description="Documents and pages connected to your knowledge.",active="home"}=Astro.props;
+const root=mount(Astro.request),url=requestPageURL(Astro.request);
+let trees:TreeLink[]=[];
+if(import.meta.env.OUTFITTER_APP_MODE!=="demo") {
+ let ctx:ReturnType<typeof context>|undefined;
+ try {ctx=context(Astro.request,Astro.locals);} catch(error) {if(!(error instanceof Response&&error.status===401))throw error;}
+ if(ctx)trees=documentTrees(await navigationPages(ctx.database));
+}
+const links=[{label:"Overview",href:root},{label:"Recent updates",href:`${root}recent`},{label:"Goals",href:`${root}related?type=Goal`},{label:"Projects",href:`${root}related?type=Project`},...trees.map(page=>({label:page.title,href:`${root}p/${encodeURIComponent(page.slug)}`,depth:page.depth})),{label:"People",href:`${root}related?type=Person`}];
+const selected=(href:string)=>{const target=new URL(href,url);return target.pathname.replace(/\/$/,"")===url.pathname.replace(/\/$/,"")&&target.searchParams.get("type")===url.searchParams.get("type");};
+---
+<ManagedAppLayout name="Wiki" {title} {description} {active} settingsHref={`${root}settings`} sidebarLinks={[]} accountLinks={[{label:"All documents",href:`${root}documents`}]}>
+ <nav slot="sidebar" class="ui-navigation" aria-label="Wiki navigation">{links.map(link=><a class="chat-link" href={link.href} style={"depth" in link?`padding-inline-start: ${1+Number(link.depth)*.8}rem`:undefined} aria-current={selected(link.href)?"page":undefined}>{link.label}</a>)}</nav>
+ <slot name="intro-actions" slot="intro-actions" />
+ <button slot="header-actions" type="button" data-agent-sidebar-toggle aria-controls="wiki-map-agent" aria-expanded="false">Ask Wiki</button>
+ <slot />
+ <AppActionSidebar slot="overlays" app="wiki-map" label="Wiki" focusId="e9500000-0000-4000-8000-000000000002" conversationNavigation={false}/>
+</ManagedAppLayout>
+<script>import "../documents/forms"; import "../documents/navigation-client";</script>
+<style is:global>
+ #org[href="#"] {display:none}
+ .wiki-doc {max-width:78ch;line-height:1.7}.wiki-doc pre{overflow:auto}.wiki-doc img{max-width:100%}
+ .wiki-form{display:grid;gap:1rem;max-width:78ch}.wiki-form label{display:grid;gap:.4rem}
+ .wiki-form textarea{min-height:25rem;font:inherit}.wiki-form input,.wiki-form textarea{padding:.65rem;border:1px solid var(--border,#8886);border-radius:.4rem;background:transparent;color:inherit}
+ .wiki-list{list-style:none;padding:0}.wiki-list li{padding:1rem 0;border-bottom:1px solid #8884}.wiki-meta{opacity:.7;font-size:.9rem}.wiki-actions{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+</style>

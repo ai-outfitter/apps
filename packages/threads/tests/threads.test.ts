@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
 import { MockLanguageModelV3, simulateReadableStream } from "ai/test";
 import { eq } from "drizzle-orm";
 import { attachments, chats, messages } from "../src/schema";
@@ -183,6 +184,48 @@ test("tools run through the provider, their parts are stored, and a stop tool en
   const [reply] = (await threads.entries(alice, { ref: { id: thread.id } })).entries.filter((e) => e.role === "assistant");
   assert.deepEqual(reply.parts.map((part) => part.type), ["tool-call", "tool-result", "proposal"]);
   assert.ok(calls.some((call) => call.operation === "finish"));
+});
+
+test("a provider that asks for platform tools gets the platform's tools and instructions in private threads only", async () => {
+  const { db } = await threadDatabase();
+  const retained: Promise<unknown>[] = [];
+  const systems: string[] = [];
+  const offered: string[][] = [];
+  let step = 0;
+  const model = () => ({ effort: false, model: new MockLanguageModelV3({ doStream: async ({ prompt, tools }) => {
+    if (step === 0) { systems.push(String(prompt.find((m) => m.role === "system")?.content ?? "")); offered.push((tools ?? []).map((t) => t.name).sort()); }
+    step++;
+    const chunks: LanguageModelV3StreamPart[] = step === 1 && systems.at(-1)?.startsWith("Platform")
+      ? [{ type: "tool-call", toolCallId: "q-1", toolName: "graph_query", input: JSON.stringify({ document: "WorkflowRuns" }) }, { ...finish, finishReason: { unified: "tool-calls", raw: "tool_calls" } }]
+      : [{ type: "text-start", id: "t" }, { type: "text-delta", id: "t", delta: "Done" }, { type: "text-end", id: "t" }, finish];
+    return { stream: simulateReadableStream({ chunks }) };
+  } }) });
+  const ran: unknown[] = [];
+  const { threads, calls } = service(db, { model, retained,
+    provider: ({ operation }) => operation === "prepare" ? { instructions: "Sidebar", platformTools: true, tools: [
+      { name: "graph_query", description: "The app's own", inputSchema: { type: "object" } },
+      { name: "board_read", description: "Read the board", inputSchema: { type: "object" } },
+    ] } : undefined,
+    platformTools: async (principal) => ({ instructions: `Platform docs for ${principal.userId}`, minSteps: 6, tools: [
+      { name: "graph_query", description: "Platform query", inputSchema: { type: "object", properties: { document: { type: "string" } } }, run: async (input) => { ran.push(input); return { items: [{ run: "r1" }] }; } },
+    ] }) });
+  const alice = member("alice", "acme");
+  const mine = await threads.create(alice, { type: "chat.conversation", title: "Mine" });
+  await threads.send(alice, { threadId: mine.id, submissionId: crypto.randomUUID(), text: "What did my last run read?" });
+  await settle(retained);
+  assert.match(systems[0], /^Platform docs for alice\n\nSidebar/, "platform instructions come before the provider's");
+  assert.deepEqual(offered[0], ["board_read", "graph_query"], "the platform's tool replaces a provider tool of the same name");
+  assert.deepEqual(ran, [{ document: "WorkflowRuns" }], "the platform runs its own tool");
+  assert.ok(!calls.some((call) => call.operation === "tool"), "the provider never runs a platform tool");
+  const [reply] = (await threads.entries(alice, { ref: { id: mine.id } })).entries.filter((e) => e.role === "assistant");
+  assert.deepEqual(reply.parts.find((part) => part.type === "tool-result"), { type: "tool-result", callId: "q-1", name: "graph_query", output: { omitted: true } }, "platform results are not stored");
+
+  step = 0;
+  const shared = await threads.create(alice, { type: "chat.conversation", title: "Shared", visibility: "organization" });
+  await threads.send(alice, { threadId: shared.id, submissionId: crypto.randomUUID(), text: "Hi" });
+  await settle(retained);
+  assert.equal(systems[1], "Sidebar", "an organization-shared thread gets no platform tools");
+  assert.deepEqual(offered[1], ["board_read", "graph_query"]);
 });
 
 test("cancel stops a running reply and keeps what arrived", async () => {
@@ -505,4 +548,65 @@ test("a current provider that does not answer discovery is an outage; an undecla
   const down = service(db, { model: textModel("hi"), types: () => { throw new Response("Unavailable", { status: 502 }); } }).threads;
   await assert.rejects(down.send(alice, { threadId: thread.id, submissionId: crypto.randomUUID(), text: "Hello" }), status(503));
   await assert.rejects(service(db, { model: textModel("hi") }).threads.create(alice, { type: "chat.unknown", title: "?" }), status(409));
+});
+
+test("inspect prepares the latest member turn again for administrators only, and calls no model", async () => {
+  const { db } = await threadDatabase();
+  const retained: Promise<unknown>[] = [];
+  const prompts: unknown[] = [];
+  const page = { location: "/person/p1", title: "Ada" };
+  const { threads, calls } = service(db, {
+    model: () => ({ ...textModel("Hi", prompts)(), describe: { provider: "Outfitter", model: "luna" } }),
+    retained,
+    inspector: async (principal) => principal.userId === "alice",
+    provider: ({ operation, input }) => {
+      if (operation !== "prepare") return;
+      const { entry } = input as { entry: { metadata?: Record<string, unknown> } };
+      return { instructions: "Wiki helper", context: { currentPage: entry.metadata?.["app.page"] ?? null, records: [1] },
+        tools: [{ name: "read_record", description: "Read one record", inputSchema: { type: "object" } }], maxSteps: 3 };
+    },
+  });
+  const alice = member("alice", "acme");
+  const thread = await threads.create(alice, { type: "chat.conversation", title: "T", visibility: "organization" });
+  assert.deepEqual(await threads.inspect(alice, thread.id), { model: { provider: "Outfitter", model: "luna" }, turn: null });
+  await threads.send(alice, { threadId: thread.id, submissionId: crypto.randomUUID(), text: "Who is this?", metadata: { "app.page": page } });
+  await settle(retained);
+  const before = prompts.length;
+  const inspected = await threads.inspect(alice, thread.id);
+  assert.equal(prompts.length, before, "no model call");
+  assert.equal(inspected.turn?.system, "Wiki helper");
+  assert.deepEqual(inspected.turn?.context, { currentPage: page, records: [1] });
+  assert.deepEqual(inspected.turn?.tools.map((tool) => tool.name), ["read_record"]);
+  assert.equal(inspected.turn?.maxSteps, 3);
+  assert.equal(calls.filter((call) => call.operation === "prepare").length, 2);
+  const here = { location: "/person/p2", title: "Grace" };
+  assert.deepEqual((await threads.inspect(alice, thread.id, { metadata: { "app.page": here } })).turn?.context, { currentPage: here, records: [1] }, "the current page stands in for the stored one");
+  await assert.rejects(threads.inspect(member("bob", "acme"), thread.id), status(404));
+  assert.equal(await threads.inspector(member("bob", "acme")), false);
+});
+
+test("user-facing MCP resource links are stored without tool output; assistant-only links are discarded", async () => {
+  const { db } = await threadDatabase();
+  const retained: Promise<unknown>[] = [];
+  const model = () => ({ effort: false, model: new MockLanguageModelV3({ doStream: async () => ({ stream: simulateReadableStream({ chunks: [
+    { type: "tool-call", toolCallId: "link-1", toolName: "review", input: "{}" },
+    { ...finish, finishReason: { unified: "tool-calls" as const, raw: "tool_calls" } },
+  ] }) }) }) });
+  const { threads } = service(db, { model, retained, provider: ({ operation }) => operation === "prepare"
+    ? { tools: [{ name: "review", description: "Review", inputSchema: { type: "object" }, store: false }] }
+    : operation === "tool" ? { output: { content: [
+      { type: "resource_link", uri: "https://example.test/review", name: "Review changes", annotations: { audience: ["user"], priority: 0.8 } },
+      { type: "resource_link", uri: "https://example.test/private", name: "Private", annotations: { audience: ["assistant"], priority: 0.1 } },
+      { type: "text", text: "sensitive raw output" },
+    ] } } : undefined });
+  const alice = member("alice", "acme");
+  const thread = await threads.create(alice, { type: "chat.conversation", title: "Links" });
+  await threads.send(alice, { threadId: thread.id, submissionId: crypto.randomUUID(), text: "Review" });
+  await settle(retained);
+  const [reply] = (await threads.entries(alice, { ref: { id: thread.id } })).entries.filter((entry) => entry.role === "assistant");
+  const links = reply.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link");
+  assert.ok(links.length >= 1);
+  assert.deepEqual(links[0], { type: "data", name: "platform.resource-link", data: { uri: "https://example.test/review", name: "Review changes" } });
+  assert.equal(JSON.stringify(reply.parts).includes("sensitive raw output"), false);
+  assert.equal(JSON.stringify(reply.parts).includes("example.test/private"), false);
 });

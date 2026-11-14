@@ -7,7 +7,7 @@ import {
   evidenceKey,
   evidenceList,
 } from "../src/evidence";
-import { assertionBody } from "../src/wiki";
+import { assertionBody } from "../src/graph-contracts/index";
 
 const hash = "a".repeat(64);
 

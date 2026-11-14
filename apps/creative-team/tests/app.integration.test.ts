@@ -133,3 +133,20 @@ test("the sidebar offers read tools to members and proposal tools to editors", a
     assert.deepEqual(await context(member), ["creative_team_brand_read", "creative_team_content_read", "creative_team_drafts_read", "creative_team_map_read", "creative_team_wiki_read"]);
   });
 });
+
+for (const mode of ["demo", "operational"] as const)
+  test(`the ${mode} package answers health, guards writes and sends its policy`, async () => {
+    const app = await appWorker("creative-team", appArtifact(new URL("..", import.meta.url), mode), "creative");
+    try {
+      const health = (await (await app.call("/__health")).json()) as Record<string, unknown>;
+      assert.deepEqual(mode === "demo" ? health : { app: health.app, status: health.status }, { app: "creative-team", status: "ok" });
+      const api = await app.call(`${actionPath}/call`, undefined, { method: "POST", body: {} });
+      assert.equal(api.status, mode === "demo" ? 405 : 401);
+      const page = await app.call("/", owner);
+      assert.match(page.headers.get("content-security-policy") ?? "", mode === "demo" ? /form-action 'none'/ : /form-action 'self'/);
+      assert.equal(page.headers.get("cache-control"), "private, no-store");
+      assert.equal(page.headers.get("x-content-type-options"), "nosniff");
+    } finally {
+      await app.dispose();
+    }
+  });

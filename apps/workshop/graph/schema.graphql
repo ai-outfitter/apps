@@ -26,6 +26,11 @@ type Query {
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
   """
   workshopProjectHandoff(input: WorkshopProjectHandoffInput!): JSON!
+
+  """
+  Read one design run by the id StartWorkshopDesign answered: status (running, complete or failed) and, once complete, design { projectId, revision, name, features, size [x, y, z] mm, prompt }. A failed run saved nothing; the platform's TaskRuns holds its reason. Changes nothing.
+  """
+  workshopDesignRun(input: WorkshopDesignRunInput!): JSON!
 }
 
 type WorkshopProjectConnection {
@@ -88,6 +93,158 @@ scalar JSON
 
 input WorkshopProjectHandoffInput {
   id: ID!
+}
+
+input WorkshopDesignRunInput {
+  id: ID!
+}
+
+input RequestWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  repository: String!
+  sourceDir: String
+  sourceCommit: String!
+  instructions: String!
+  parameters: JSON
+  runner: String!
+}
+
+input ClaimWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  buildId: ID!
+  workflowRunId: ID!
+}
+
+input FinishWorkshopBuildInput {
+  id: ID!
+  revision: Float!
+  buildId: ID!
+  manifest: FinishWorkshopBuildInputManifest
+  error: String
+}
+
+input FinishWorkshopBuildInputManifest {
+  version: Float!
+  units: String!
+  sourceCommit: String!
+  sourceHash: String!
+  compiler: String!
+  runner: String!
+  parameters: JSON!
+  assembly: FinishWorkshopBuildInputManifestAssembly!
+  artifacts: [FinishWorkshopBuildInputManifestArtifactsItem!]!
+  tests: [FinishWorkshopBuildInputManifestTestsItem!]!
+  notes: String!
+  startedAt: String!
+  finishedAt: String!
+}
+
+input FinishWorkshopBuildInputManifestAssembly {
+  rootId: ID
+  items: [FinishWorkshopBuildInputManifestAssemblyItemsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItem {
+  id: ID!
+  number: String!
+  revision: String!
+  name: String!
+  kind: FinishWorkshopBuildInputManifestAssemblyItemsItemKind!
+  manufacturer: String
+  mpn: String
+  source: String
+  unitCost: Float
+  trackBy: FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy
+  color: String
+  geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
+  mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
+  priceKnown: Boolean
+  provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
+  firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
+  notes: String
+  uses: [FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem!]
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemKind {
+  assembly
+  printed
+  fabricated
+  cots
+  pcb
+  firmware
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy {
+  none
+  mac
+  serial
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry {
+  version: Float!
+  units: String!
+  features: [JSON!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemMesh {
+  path: String!
+  bounds: FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
+  repository: String!
+  path: String
+  ref: String!
+  target: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
+  id: ID!
+  itemId: ID!
+  quantity: Int!
+  refdes: String
+  position: [JSON!]
+  rotation: Float
+  orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestArtifactsItem {
+  path: String!
+  sha256: String!
+  bytes: Float!
+  contentType: String!
+}
+
+input FinishWorkshopBuildInputManifestTestsItem {
+  name: String!
+  status: FinishWorkshopBuildInputManifestTestsItemStatus!
+  detail: String!
+}
+
+enum FinishWorkshopBuildInputManifestTestsItemStatus {
+  pass
+  fail
+  unverified
+}
+
+input StartWorkshopDesignInput {
+  id: ID
+  message: String!
+  projectId: ID
+  revision: Float
 }
 
 input CreateWorkshopProjectInput {
@@ -165,6 +322,9 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
   color: String
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
+  mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
+  priceKnown: Boolean
+  provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
   notes: String
   uses: [SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem!]
@@ -173,6 +333,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
 enum SaveWorkshopAssemblyInputAssemblyItemsItemKind {
   assembly
   printed
+  fabricated
   cots
   pcb
   firmware
@@ -190,6 +351,22 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemGeometry {
   features: [JSON!]!
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemMesh {
+  path: String!
+  bounds: SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
   repository: String!
   path: String
@@ -204,6 +381,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   refdes: String
   position: [JSON!]
   rotation: Float
+  orientation: [JSON!]
 }
 
 input DeleteWorkshopProjectInput {
@@ -259,6 +437,20 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """Request a project workspace build and preserve revision provenance."""
+  requestWorkshopBuild(input: RequestWorkshopBuildInput!): JSON
+
+  """Claim a project workspace build and preserve revision provenance."""
+  claimWorkshopBuild(input: ClaimWorkshopBuildInput!): JSON
+
+  """Finish a project workspace build and preserve revision provenance."""
+  finishWorkshopBuild(input: FinishWorkshopBuildInput!): JSON
+
+  """
+  Start Workshop's design agent on a part or project request without waiting for the model: a new project from `message`, or a follow-up to `projectId` at the `revision` the caller saw (a stale revision is refused before anything starts). The work runs as a workshop-design task run; an organization owner or admin may start it. Answers the run { id, status, design, created }: read WorkshopDesignRun with that id until status is complete (design names the saved projectId and revision) or failed. Pass `id` to make a retry start nothing twice.
+  """
+  startWorkshopDesign(input: StartWorkshopDesignInput!): JSON
+
   """
   Start a project from a starter example (cube, holder, button, node or sensor) as the Workshop page's New project does, within the installation's cap of 100 projects, named and linked to the Wiki ProductRevision it builds when given. Answers the project as the list shows it; a member refines it on the page.
   """
@@ -353,7 +545,7 @@ input ProjectChangesInput {
 }
 
 input ProjectChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ProjectChangesInputItemsItemAction!
   input: JSON!
 }
@@ -369,7 +561,7 @@ input UnitChangesInput {
 }
 
 input UnitChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: UnitChangesInputItemsItemAction!
   input: JSON!
 }
@@ -385,7 +577,7 @@ input ConceptChangesInput {
 }
 
 input ConceptChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ConceptChangesInputItemsItemAction!
   input: JSON!
 }
@@ -400,7 +592,7 @@ input AssemblyChangesInput {
 }
 
 input AssemblyChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: AssemblyChangesInputItemsItemAction!
   input: JSON!
 }
@@ -414,7 +606,7 @@ input ProductRevisionChangesInput {
 }
 
 input ProductRevisionChangesInputItemsItem {
-  key: ID!
+  key: String!
   action: ProductRevisionChangesInputItemsItemAction!
   input: JSON!
 }

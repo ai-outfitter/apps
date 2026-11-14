@@ -47,3 +47,22 @@ test('publishes distinct verified demo and operational packages and rejects mode
   assert.throws(()=>publish('apps/example','release',env,execute));
  } finally {process.chdir(original);rmSync(root,{recursive:true,force:true});}
 });
+
+test('a recovered release binds the tag commit it was built from, not the run that built it',()=>{
+ const root=mkdtempSync(join(tmpdir(),'official-recovery-')), original=process.cwd();
+ try {
+  process.chdir(root);
+  mkdirSync('apps/hr/.outfitter/packages',{recursive:true});
+  writeFileSync('.release-please-apps.json',JSON.stringify({packages:{'apps/hr':{component:'hr'}}}));
+  writeFileSync('apps/hr/package.json',JSON.stringify({version:'0.1.2'}));
+  writeFileSync('apps/hr/app.json',JSON.stringify({id:'outfitter/hr',version:'0.1.2'}));
+  writeFileSync('apps/hr/.outfitter/packages/demo.json',JSON.stringify({manifest:{id:'outfitter/hr',version:'0.1.2',mode:'demo',capabilities:[]},artifact:{mainModule:'entry.mjs',modules:{'entry.mjs':'export default {}'},assets:{'/a.css':{content:'eA=='}}}}));
+  const tag='b'.repeat(40), env={GITHUB_SHA:'a'.repeat(40),SOURCE_COMMIT:tag,GITHUB_REPOSITORY:'ai-outfitter/apps'};
+  prepare('apps/hr','release',env);
+  assert.equal(JSON.parse(readFileSync('release/hr.provenance.json','utf8')).sourceCommit,tag);
+  const execute=(program,args)=>{if(args[0]==='api')return JSON.stringify({sha:tag});if(args[0]==='release' && args[1]==='view')return JSON.stringify({assets:[]});return '';};
+  publish('apps/hr','release',env,execute);
+  // The run's own commit is not the release's source.
+  assert.throws(()=>publish('apps/hr','release',{...env,SOURCE_COMMIT:undefined},execute),/do not match this workflow/);
+ } finally {process.chdir(original);rmSync(root,{recursive:true,force:true});}
+});

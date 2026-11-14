@@ -123,3 +123,13 @@ test("the PR author cannot approve their own change", async () => {
   pull.user.id = reviewer.id;
   await refused(forge.approval(candidate, review), "Current independent formal approval required");
 });
+
+test("later comments or same-head approvals by the reviewer's account leave the approval current", async () => {
+  const { forge, reviews } = fake();
+  reviews.push({ id: 10, state: "COMMENT", commit_id: head, user: reviewer, stale: false, dismissed: false });
+  await forge.approval(candidate, review);
+  reviews.push({ id: 11, state: "APPROVED", commit_id: head, user: reviewer, stale: false, dismissed: false });
+  await forge.approval(candidate, review);
+  reviews.push({ id: 12, state: "REQUEST_CHANGES", commit_id: head, user: reviewer, stale: false, dismissed: false });
+  await refused(forge.approval(candidate, review), "Current independent formal approval required");
+});

@@ -35,8 +35,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -93,6 +93,7 @@
                                       "enum": [
                                         "assembly",
                                         "printed",
+                                        "fabricated",
                                         "cots",
                                         "pcb",
                                         "firmware"
@@ -145,7 +146,7 @@
                                         },
                                         "features": {
                                           "minItems": 1,
-                                          "maxItems": 24,
+                                          "maxItems": 64,
                                           "type": "array",
                                           "items": {
                                             "oneOf": [
@@ -168,18 +169,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -192,17 +193,17 @@
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
                                                         "minimum": 1,
-                                                        "maximum": 200
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -237,18 +238,18 @@
                                                     "prefixItems": [
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       },
                                                       {
                                                         "type": "number",
-                                                        "minimum": -250,
-                                                        "maximum": 250
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
                                                       }
                                                     ],
                                                     "items": false,
@@ -258,12 +259,12 @@
                                                   "radius": {
                                                     "type": "number",
                                                     "minimum": 0.1,
-                                                    "maximum": 200
+                                                    "maximum": 5000
                                                   },
                                                   "height": {
                                                     "type": "number",
                                                     "minimum": 1,
-                                                    "maximum": 200
+                                                    "maximum": 5000
                                                   },
                                                   "axis": {
                                                     "type": "string",
@@ -294,6 +295,87 @@
                                         "features"
                                       ],
                                       "additionalProperties": false
+                                    },
+                                    "mesh": {
+                                      "type": "object",
+                                      "properties": {
+                                        "path": {
+                                          "type": "string",
+                                          "maxLength": 300
+                                        },
+                                        "bounds": {
+                                          "type": "object",
+                                          "properties": {
+                                            "min": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                }
+                                              ],
+                                              "items": false,
+                                              "minItems": 3,
+                                              "maxItems": 3
+                                            },
+                                            "max": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                },
+                                                {
+                                                  "type": "number",
+                                                  "minimum": -10000,
+                                                  "maximum": 10000
+                                                }
+                                              ],
+                                              "items": false,
+                                              "minItems": 3,
+                                              "maxItems": 3
+                                            }
+                                          },
+                                          "required": [
+                                            "min",
+                                            "max"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "path",
+                                        "bounds"
+                                      ]
+                                    },
+                                    "priceKnown": {
+                                      "default": false,
+                                      "type": "boolean"
+                                    },
+                                    "provenance": {
+                                      "default": "provisional",
+                                      "type": "string",
+                                      "enum": [
+                                        "provisional",
+                                        "manufacturer",
+                                        "measured"
+                                      ]
                                     },
                                     "firmware": {
                                       "type": "object",
@@ -367,18 +449,18 @@
                                             "prefixItems": [
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               },
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               },
                                               {
                                                 "type": "number",
-                                                "minimum": -500,
-                                                "maximum": 500
+                                                "minimum": -10000,
+                                                "maximum": 10000
                                               }
                                             ],
                                             "items": false,
@@ -390,6 +472,23 @@
                                             "type": "number",
                                             "minimum": -360,
                                             "maximum": 360
+                                          },
+                                          "orientation": {
+                                            "type": "array",
+                                            "prefixItems": [
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "number"
+                                              }
+                                            ],
+                                            "items": false,
+                                            "minItems": 3,
+                                            "maxItems": 3
                                           }
                                         },
                                         "required": [
@@ -450,6 +549,25 @@
     }
   },
   {
+    "name": "ClaimWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a workspace runner, I want to claim a queued build at its observed revision, so that concurrent runners cannot execute the same request.",
+    "query": "mutation ClaimWorkshopBuild($input: ClaimWorkshopBuildInput!) {\n  claimWorkshopBuild(input: $input)\n}",
+    "hash": "bec87407da88f0ac8d19c4f1df75cb357daa0b7c368d1e00a614f9dca9f2562a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ClaimWorkshopBuildInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "ConceptChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply concept changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -485,8 +603,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -531,8 +649,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -665,6 +783,25 @@
     "hidden": true
   },
   {
+    "name": "FinishWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a workspace runner, I want to attach verified artifacts and tests, so that members can inspect a revision without replacing newer work.",
+    "query": "mutation FinishWorkshopBuild($input: FinishWorkshopBuildInput!) {\n  finishWorkshopBuild(input: $input)\n}",
+    "hash": "0b355d24478a2d678c5e93c748eab4afb3e26e9db28f052c0317b9e338dbf756",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FinishWorkshopBuildInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "NameWorkshopProductRevision",
     "kind": "mutation",
     "story": "As a member, I want to name the Wiki product revision a project builds, so that its concepts and evidence publish to the right release chain.",
@@ -719,8 +856,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -843,8 +980,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -916,8 +1053,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -979,8 +1116,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1088,6 +1225,25 @@
     "hidden": true
   },
   {
+    "name": "RequestWorkshopBuild",
+    "kind": "mutation",
+    "story": "As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",
+    "query": "mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) {\n  requestWorkshopBuild(input: $input)\n}",
+    "hash": "8ecc45675c8a6ecde77f491539ac59cbde73f65105ca6555b4354c8ccfc1c355",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RequestWorkshopBuildInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
@@ -1105,6 +1261,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "StartWorkshopDesign",
+    "kind": "mutation",
+    "story": "As a member or an agent working for one, I want to start Workshop's design agent on a part or project request with one mutation, so that design work begins from wherever I am without opening the project page or waiting on the model.",
+    "query": "mutation StartWorkshopDesign($input: StartWorkshopDesignInput!) {\n  startWorkshopDesign(input: $input)\n}",
+    "hash": "b90de2e63c48d129e777d6029b4298a2d080750b825f7bab6ecc42bf7f44d405",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StartWorkshopDesignInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "startWorkshopDesign": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "UnitChanges",
@@ -1142,8 +1328,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1227,8 +1413,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1333,8 +1519,8 @@
                     "properties": {
                       "key": {
                         "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
                       },
                       "action": {
                         "type": "string",
@@ -1402,6 +1588,35 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WorkshopDesignRun",
+    "kind": "query",
+    "story": "As a member or an agent working for one, I want to read a design run I started, so that I know when the project revision it saved is ready and which project to open.",
+    "query": "query WorkshopDesignRun($input: WorkshopDesignRunInput!) {\n  workshopDesignRun(input: $input)\n}",
+    "hash": "65dfb32e1b2a7ebf0ade2abc591f1173ceeb0b61a2edeac7bf276a6b7aa4c283",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopDesignRunInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopDesignRun": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "WorkshopProjectHandoff",

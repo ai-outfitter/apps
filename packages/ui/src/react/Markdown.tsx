@@ -16,7 +16,8 @@ function PlainText({ children }: { children?: string }) {
 const parser = import("react-markdown").catch(() => ({
   default: PlainText as MarkdownModule["default"],
 }));
-const Rendered = import.meta.env.SSR
+// `import.meta.env` exists only under Vite; plain Node (unit tests) renders like the server.
+const Rendered = (import.meta.env?.SSR ?? typeof window === "undefined")
   ? (await parser).default
   : lazy(() => parser);
 

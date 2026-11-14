@@ -1,0 +1,69 @@
+---
+import { appHref } from "../../../app-href";
+import Layout from "../../../components/PlanningLayout.astro";
+import DigestCard from "../../../components/DigestCard.astro";
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import { planningContext } from "../../../server/context";
+import { demoDigests, digestRuns, digestSchedule, listDigests, type DigestRun, type DigestSchedule, type DigestView } from "../../../server/digests";
+import { projects } from "../../../server/schema";
+import { and, eq } from "drizzle-orm";
+const projectId = Astro.params.id ?? "";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+let digests: DigestView[] = [], runs: DigestRun[] = [], schedule: DigestSchedule | null = null, name = "Project", canEdit = false, error = "";
+try {
+  if (demo) ({ name, digests } = demoDigests(projectId));
+  else {
+    const context = planningContext(Astro.request, Astro.locals);
+    canEdit = context.identity.canEdit;
+    const [project] = await context.db().select({ name: projects.name }).from(projects)
+      .where(and(eq(projects.installationId, context.identity.installationId), eq(projects.id, projectId)));
+    if (!project) throw new Response("Project not found", { status: 404 });
+    name = project.name;
+    digests = await listDigests(context.db(), context.identity, { projectId });
+    // The schedule is installation configuration; a failure to read it never hides the digests.
+    schedule = await digestSchedule(context.host()).catch(() => null);
+    // Runs are the platform's record; Planning keeps none of its own.
+    runs = await digestRuns(context.host()).catch(() => []);
+  }
+} catch (failure) {
+  if (failure instanceof Response && [401, 403].includes(failure.status)) throw failure;
+  Astro.response.status = failure instanceof Response && failure.status === 404 ? 404 : 503;
+  error = Astro.response.status === 404 ? "Project not found. Return to All projects to choose another project." : "Digests are unavailable. Retry loading the page.";
+}
+const when = (ms: number) => new Date(ms).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+---
+<Layout title={`Daily digest · ${name}`} description="What changed in this project since the last digest: what shipped and what is prioritized now.">
+  <div id="project-digest" data-project-id={projectId}>
+    <Button href={appHref(Astro.url.pathname, `/projects/${projectId}`)} variant="secondary">← Back to project</Button>
+    {demo && <p class="planning-notice">Read-only demo · These digests are synthetic.</p>}
+    <p role="status" id="digest-notice" hidden={!error}>{error}</p>
+    {!error && <>
+      <div class="planning-toolbar">
+        {(canEdit || demo) && <Button id="generate-digest" disabled={demo}>Generate digest now</Button>}
+        {canEdit && schedule && <Button variant="secondary" id="digest-schedule" data-enabled={String(schedule.enabled)}>{schedule.enabled ? "Turn off morning digest" : "Turn on morning digest"}</Button>}
+      </div>
+      <p class="muted" id="digest-schedule-status">
+        {schedule?.enabled
+          ? `Morning digest is on: every active project with changes gets one daily on its configured morning schedule${schedule.nextRunAt ? `, next ${when(schedule.nextRunAt)}` : ""}.`
+          : demo ? "The morning digest runs daily on its configured morning schedule once an editor turns it on."
+          : canEdit ? "Morning digest is off. Turn it on to get one for every active project daily on its configured morning schedule."
+          : "Morning digest is off. An editor can turn it on."}
+        {schedule?.lastOutcome && ` Last run: ${schedule.lastOutcome}.`}
+      </p>
+      {runs.length > 0 && <section class="planning-digest-runs" aria-labelledby="digest-runs-heading" data-running={String(runs.some(run => run.status === "running"))}>
+        <h2 id="digest-runs-heading">Recent digest runs</h2>
+        <ul>{runs.map(run => <li>
+          <span title={run.id}>{when(run.createdAt)}</span>
+          <span class={`planning-pill planning-run-${run.status}`}>{run.status === "running" ? "Running" : run.status === "failed" ? "Failed" : "Complete"}</span>
+          {digests.some(digest => digest.runId === run.id) && <small class="muted"> · this project's digest</small>}
+        </li>)}</ul>
+        <p class="muted">The platform runs each digest and keeps its run.</p>
+      </section>}
+      <div class="planning-digests" aria-label="Digests">
+        {digests.length ? digests.map(digest => <DigestCard {digest} />)
+          : <p id="digest-empty">No digests yet. Generate one to see what changed in the last 24 hours; later digests cover what changed since the previous one.</p>}
+      </div>
+    </>}
+  </div>
+</Layout>
+<script>import "../../../scripts/digest";</script>

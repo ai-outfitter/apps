@@ -40,7 +40,7 @@ export const exampleInput = z
   })
   .strict();
 // What the projects route takes: a starter example, or a whole first-revision
-// project, which the platform's design agent saves the model it generated as.
+// project (an import, or a client that built the project itself).
 export const createInput = z.union([exampleInput, z.object({ project: ProjectSchema }).strict()]);
 /** The project at the revision the caller saw, which every patching mutation takes.
  * Any text as the id: a malformed one is a project that is not found (404), as on the page. */
@@ -97,7 +97,7 @@ export async function workshopProjectRow(db: WorkshopDatabase, id: string) {
 }
 
 export async function getWorkshopProject(db: WorkshopDatabase, id: string) {
-  return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db, id)).data));
+  return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db,id)).data));
 }
 
 /** Stores `project` as its first revision, within the installation's cap. */
@@ -106,6 +106,7 @@ export async function createWorkshopProject(
   identity: AppIdentity,
   input: Project,
 ) {
+  if (input.workspace) throw new Response("Import model source, not workspace execution records", {status:400});
   const project: Project = { ...input, revision: 1 };
   const exists = async () =>
     (
@@ -133,10 +134,15 @@ export async function updateWorkshopProject(
   identity: AppIdentity,
   input: Project,
   id: string,
+  workspaceWrite = false,
 ) {
   const previous = await workshopProjectRow(db, id);
   if (input.id !== id)
     throw new Response("Project ID mismatch", { status: 400 });
+  if (!workspaceWrite) {
+    const stored = await getWorkshopProject(db,id);
+    if (JSON.stringify(stored.workspace) !== JSON.stringify(input.workspace)) throw new Response("Use workspace build operations to change revision records", {status:400});
+  }
   const parsed = ProjectSchema.safeParse({
     ...input,
     createdAt: previous.createdAt,

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { axisRotations, centred, checkMesh, parseStl, readStl, rotated, scoreGeometry, scoreMeshes, type Mesh } from "../eval/geometry.ts";
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
-const clip = here("../../apps/workshop/box/evals/evals/cable-clip/reference/model.stl");
+const clip = here("../../apps/workshop/agent-evals/evals/cable-clip/reference/model.stl");
 const hasOpenscad = spawnSync(process.env.OPENSCAD || "openscad", ["--version"]).status === 0;
 
 /** An axis-aligned box from (0,0,0) to size, wound outward. */

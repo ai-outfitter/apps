@@ -1,0 +1,1619 @@
+"""
+A design partner's feature or bug request, filed from its own organization.
+"""
+type PartnerRequest {
+  id: ID!
+
+  """The partner's own ID for it."""
+  requestId: ID!
+  revision: Int!
+
+  """
+  proposed until an editor accepts (Software Foundry files it as an issue) or rejects it.
+  """
+  status: PartnerRequestStatus!
+
+  """feature or bug."""
+  kind: String!
+  title: String!
+  problem: String!
+
+  """[{ id, text }]"""
+  acceptanceCriteria: JSON!
+
+  """Bugs only: { stepsToReproduce, expected, actual, environment? }."""
+  bug: JSON
+
+  """The provider's product record, by the ID both graphs share."""
+  productId: ID
+
+  """{ organizationId, userId, role: "design partner" }"""
+  partner: JSON!
+
+  """Why it was rejected."""
+  reason: String
+
+  """
+  Once accepted: Foundry's request { requestId, kind, issue { number, url }, run }.
+  """
+  foundryRequest: JSON
+
+  """Epoch milliseconds."""
+  createdAt: Float!
+  updatedAt: Float!
+}
+
+enum PartnerRequestStatus {
+  proposed
+  accepted
+  rejected
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type DailyReportSourceConnection {
+  nodes: [DailyReportSource!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DailyReportSource {
+  id: ID!
+  name: String!
+  ownerKind: String!
+  ownerId: String!
+  planningInstallationId: String!
+  organizationSlug: String
+  report: JSON
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type ProductCard {
+  rank: Int
+  id: ID!
+  title: String!
+  revision: Int!
+  summary: String
+  revisions: [ProductReference!]!
+  projects: [ProductProject!]!
+}
+
+type ProductReference {
+  id: ID!
+  title: String!
+  revision: Int!
+  summary: String
+}
+
+type ProductProject {
+  id: ID!
+  title: String!
+  revision: Int!
+  summary: String
+  goals: [ProductReference!]!
+}
+
+type ProductPage {
+  id: ID!
+  name: String!
+  slug: String!
+  organizationSlug: String!
+  periodStart: String!
+  periodEnd: String!
+  report: JSON
+  sourceContext: JSON!
+  products: [ProductCard!]!
+  markdown: String!
+}
+
+type ProductPageConnection {
+  nodes: [ProductPage!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OrganizationGoalsConnection {
+  nodes: [OrganizationGoals!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+"""
+The organization's Wiki page (bound by its organization_id) with the goals it pursues and each goal's metrics.
+"""
+type OrganizationGoals {
+  """The Wiki Organization page's id."""
+  id: ID!
+  revision: Int!
+  title: String!
+  summary: String!
+  goals: [OrganizationGoal!]!
+
+  """The organization pursues more goals than the 20 listed."""
+  truncated: Boolean!
+}
+
+type OrganizationGoal {
+  id: ID!
+  title: String!
+  summary: String!
+  revision: Int!
+
+  """The KPIs that measure this goal, by title."""
+  metrics: [GoalMetric!]!
+}
+
+"""A metric definition that measures a goal (`measured_by`)."""
+type GoalMetric {
+  id: ID!
+  title: String!
+  summary: String!
+}
+
+type ProjectConnection {
+  nodes: [Project!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Project {
+  id: ID!
+  name: String!
+  archived: Boolean!
+  rank: Int
+
+  """Project lifecycle: draft, backlog, active, completed or archived."""
+  state: String!
+  slug: String
+  useCases: [ProjectContextRecord!]!
+  customerSegments: [ProjectContextRecord!]!
+  userStoryRecords: [ProjectContextRecord!]!
+  goalRecords: [ProjectContextRecord!]!
+  readiness: ProjectReadiness!
+  githubRepository: String
+
+  """
+  Repository publication status, receipt and retry instructions returned by patchProject.
+  """
+  repositoryChanges: JSON
+
+  """
+  Onto Project node link returned by patchProject: state (unchanged, linked or created), slug, or the error and retry instructions.
+  """
+  projectNodeChanges: JSON
+  repositories(first: Int = 100, after: String, ids: [ID!]): ProjectRepositoryConnection!
+
+  """What the project must achieve (Markdown)."""
+  goals: String!
+
+  """Who it serves and what they need (Markdown)."""
+  userStories: String!
+
+  """The draft press release announcing it (Markdown)."""
+  pressRelease: String!
+
+  """How to demonstrate it (Markdown)."""
+  demoInstructions: String!
+
+  """What the demonstration showed (Markdown)."""
+  demoResults: String!
+
+  """
+  Rises with each change; updateProject and deleteProject name the revision read.
+  """
+  revision: Int!
+
+  """
+  Active and retired requirements with their stable keys, ids and revisions. Being listed does not mean approved, implemented or verified.
+  """
+  requirements: JSON!
+
+  """
+  On a write: which requirements were added, changed, retired, or only described differently (not actionable).
+  """
+  requirementChanges: JSON
+
+  """
+  The latest delivery preparation: state (queued, dispatched, dispatch_failed, running, prepared, blocked, superseded, failed), dispatchError, intake, packages, questions, conflicts and blockers.
+  """
+  preparation: JSON
+
+  """
+  On a write that started preparation: its task run (id, status); read it with TaskRuns.
+  """
+  run: JSON
+
+  """On a write: required next steps, such as retrying a failed dispatch."""
+  instructions: JSON
+
+  """Issues in todo or in-progress."""
+  openIssues: Int!
+  updatedAt: DateTime!
+}
+
+type ProjectContextRecord {
+  id: ID!
+  title: String!
+  summary: String!
+  revision: Int!
+}
+
+"""
+How ready the project is to plan or implement, from its linked Wiki context.
+"""
+type ProjectReadiness {
+  """
+  frame (no linked problem or people yet), plan (context identified, scope to fill in) or implement.
+  """
+  stage: String!
+  priority: Int!
+  signals: [String!]!
+
+  """The decisions and context still needed before the work is ready."""
+  missing: [String!]!
+  priorityGaps: [String!]!
+}
+
+type ProjectRepositoryConnection {
+  nodes: [ProjectRepository!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProjectRepository {
+  id: ID!
+  nameWithOwner: String!
+  url: String!
+  path: String
+  ref: String
+  pullRequests(first: Int = 20, after: String): GithubPullRequestConnection
+  pullRequestActivity(first: Int = 20, after: String): GithubPullRequestActivity!
+}
+
+type GithubPullRequestConnection {
+  nodes: [GithubPullRequest!]!
+  pageInfo: GithubPullRequestPageInfo!
+}
+
+type GithubPullRequest {
+  number: Int!
+  title: String!
+  url: String!
+  state: String!
+  createdAt: String!
+  updatedAt: String!
+  closedAt: String
+  mergedAt: String
+}
+
+type GithubPullRequestPageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type GithubPullRequestActivity {
+  pullRequests: GithubPullRequestConnection
+  error: String
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type IssueConnection {
+  nodes: [Issue!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Issue {
+  id: ID!
+  projectId: ID!
+  parentId: ID
+  title: String!
+  description: String!
+  category: String!
+  status: String!
+  assigneeId: String
+  dueDate: String
+  position: Float!
+  revision: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input MetricMeasurementsInput {
+  metricIds: [ID!]
+}
+
+input UseCasesInput {
+  projectId: ID!
+}
+
+input IntakeReleaseOptionsInput {
+  projectId: ID!
+}
+
+type IntakeConnection {
+  nodes: [Intake!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Intake {
+  """The requestId it was created with."""
+  id: ID!
+  revision: Int!
+  projectId: ID
+  kind: String!
+  title: String!
+  description: String!
+  sourceUrls: [String!]!
+
+  """Wiki records at the revisions the intake was scoped to."""
+  sources: JSON!
+
+  """Caller-provided conversation provenance; grants no transcript access."""
+  originatingMessage: JSON
+
+  """
+  Persisted release disposition, existing Release revision, rationale and backlog status.
+  """
+  releaseFit: JSON
+  releaseFitHistory: JSON!
+  routes: [IntakeRoute!]!
+
+  """
+  The automatic routing run: runId and state (running, proposed, complete or failed).
+  """
+  routing: JSON
+
+  """
+  Set by createIntake when the saved intake could not be routed; route it later.
+  """
+  routingError: String
+}
+
+type IntakeRoute {
+  id: ID!
+
+  """Rises with each recorded result."""
+  revision: Int!
+
+  """research, architecture, prioritization, backlog or implementation."""
+  kind: String!
+
+  """Kinds whose approved results this work waits for."""
+  dependsOn: [String!]!
+  rationale: String!
+  gate: IntakeGate
+
+  """
+  Why the work cannot proceed now; null when it is ready or its result awaits review.
+  """
+  blocker: String
+  claim: IntakeClaim
+
+  """
+  The claim holder's unsubmitted draft (savedAt, result); saveResultDraft replaces it, recordResult submits it.
+  """
+  draft: JSON
+
+  """
+  The recorded summary, sources, gaps and, by kind, disposition or architecture.
+  """
+  result: JSON
+  observedAt: String
+
+  """Governance's receipt for the review request of the current result."""
+  gateReceipt: JSON
+  gateError: String
+
+  """The Foundry delivery once implementation was submitted."""
+  receipt: JSON
+  submissionIntent: JSON
+
+  """The Governance subject: ref, revision and digest of this work record."""
+  subject: JSON
+}
+
+"""The Governance control that gates the work."""
+type IntakeGate {
+  installationId: String!
+  controlId: ID!
+}
+
+"""Who holds the work and until when (epoch milliseconds)."""
+type IntakeClaim {
+  principal: String!
+  until: Float!
+}
+
+input ProjectDeliveryInput {
+  projectId: ID!
+}
+
+input DailyReportInput {
+  level: DailyReportInputLevel
+  subject: String
+  date: String!
+  timezone: String
+}
+
+enum DailyReportInputLevel {
+  project
+  organization
+  personal
+}
+
+"""What changed in a project since its previous digest."""
+type ProjectDigest {
+  id: ID!
+  projectId: ID!
+
+  """manual (a member's click) or schedule (the morning run)."""
+  trigger: String!
+
+  """
+  When the previous digest was taken; null for a project's first digest, which covers the last 24 hours.
+  """
+  since: DateTime
+  createdAt: DateTime!
+
+  """
+  The AI narrative: a headline line, a blank line, then a few sentences. Null when inference was unavailable.
+  """
+  summary: String
+
+  """Why there is no summary, when there is none."""
+  summaryError: String
+
+  """
+  shipped, started, added, reopened, edited and removed issues ({ id, title, category, status }, at most 20 each); counts (exact); changed project documents by label; delivery { submitted, accepted }; current priorities (in-progress first, then top open stones and pebbles); totals { open, inProgress, done }.
+  """
+  changes: JSON!
+}
+
+input ProjectDigestsInput {
+  projectId: ID!
+  first: Int
+}
+
+"""
+The local morning report chain: organization projects at 03:00, personal overview at 04:00 by default.
+"""
+type DigestSchedule {
+  enabled: Boolean!
+  cron: String
+  timezone: String
+
+  """Epoch milliseconds; null when off."""
+  nextRunAt: Float
+  lastRunAt: Float
+  lastOutcome: String
+}
+
+input IntakeWorkPreviewInput {
+  intakeId: ID!
+  childId: ID!
+  preview: IntakeWorkPreviewInputPreview!
+}
+
+input IntakeWorkPreviewInputPreview {
+  supportingSources: [IntakeWorkPreviewInputPreviewSupportingSourcesItem!]
+  projectId: ID!
+  issueId: ID
+  definitionId: ID
+  requirementIds: [ID!]
+}
+
+input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input GenerateProductReportInput {
+  at: String
+}
+
+input ChangeProductReportScheduleInput {
+  enabled: Boolean!
+}
+
+input CreateIssueInput {
+  projectId: ID!
+  title: String!
+  description: String
+  category: CreateIssueInputCategory!
+  status: String
+  assigneeId: String
+  dueDate: String
+  parentId: ID
+}
+
+enum CreateIssueInputCategory {
+  stone
+  pebble
+  sand
+}
+
+input UpdateIssueInput {
+  projectId: ID!
+  title: String!
+  description: String
+  category: UpdateIssueInputCategory!
+  status: String
+  assigneeId: String
+  dueDate: String
+  parentId: ID
+  id: ID!
+  revision: Float!
+}
+
+enum UpdateIssueInputCategory {
+  stone
+  pebble
+  sand
+}
+
+type Deleted {
+  deleted: Boolean!
+}
+
+input DeleteIssueInput {
+  id: ID!
+  revision: Float!
+}
+
+type Reordered {
+  reordered: Boolean!
+}
+
+input ReorderIssuesInput {
+  projectId: ID!
+  category: ReorderIssuesInputCategory!
+  items: [ReorderIssuesInputItemsItem!]!
+}
+
+enum ReorderIssuesInputCategory {
+  stone
+  pebble
+  sand
+}
+
+input ReorderIssuesInputItemsItem {
+  id: ID!
+  revision: Float!
+}
+
+input CreateProjectInput {
+  githubRepository: String
+  name: String!
+  goals: String
+  userStories: String
+  pressRelease: String
+  demoInstructions: String
+  demoResults: String
+  requirements: [CreateProjectInputRequirementsItem!]
+}
+
+input CreateProjectInputRequirementsItem {
+  key: String!
+  title: String!
+  kind: CreateProjectInputRequirementsItemKind
+  statement: String!
+  acceptanceCriteria: [String!]
+  constraints: [String!]
+  interfaces: [CreateProjectInputRequirementsItemInterfacesItem!]
+  components: [CreateProjectInputRequirementsItemComponentsItem!]
+  connections: [CreateProjectInputRequirementsItemConnectionsItem!]
+  dimensions: [CreateProjectInputRequirementsItemDimensionsItem!]
+  deliverables: [String!]
+  dependsOn: [String!]
+  unknowns: [String!]
+  assumptions: [String!]
+  target: CreateProjectInputRequirementsItemTarget
+  notes: String
+}
+
+enum CreateProjectInputRequirementsItemKind {
+  research
+  hardware
+  enclosure
+  wiring
+  mechanical
+  firmware
+  software
+  marketing
+  manufacturing
+}
+
+input CreateProjectInputRequirementsItemInterfacesItem {
+  name: String!
+  value: String!
+}
+
+input CreateProjectInputRequirementsItemComponentsItem {
+  name: String!
+  kind: CreateProjectInputRequirementsItemComponentsItemKind
+  manufacturer: String
+  mpn: String
+  quantity: Int
+  unitCost: Float
+}
+
+enum CreateProjectInputRequirementsItemComponentsItemKind {
+  cots
+  printed
+  pcb
+  assembly
+}
+
+input CreateProjectInputRequirementsItemConnectionsItem {
+  from: String!
+  to: String!
+  signal: String!
+}
+
+input CreateProjectInputRequirementsItemDimensionsItem {
+  name: String!
+  value: Float
+  verified: Boolean
+}
+
+input CreateProjectInputRequirementsItemTarget {
+  repository: String
+  productRevision: String
+  productRevisionId: ID
+}
+
+input UpdateProjectInput {
+  githubRepository: String
+  name: String!
+  goals: String
+  userStories: String
+  pressRelease: String
+  demoInstructions: String
+  demoResults: String
+  id: ID!
+  revision: Float!
+}
+
+input PatchProjectInput {
+  project: JSON!
+  mask: PatchProjectInputMask!
+}
+
+input PatchProjectInputMask {
+  name: String
+  githubRepository: String
+  goals: String
+  userStories: String
+  pressRelease: String
+  demoInstructions: String
+  demoResults: String
+  repositories: [PatchProjectInputMaskRepositoriesItem!]
+  projectNode: String
+  requirements: [PatchProjectInputMaskRequirementsItem!]
+  retireRequirements: [String!]
+}
+
+input PatchProjectInputMaskRepositoriesItem {
+  url: String!
+  path: String
+  ref: String
+}
+
+input PatchProjectInputMaskRequirementsItem {
+  key: String!
+  title: String!
+  kind: PatchProjectInputMaskRequirementsItemKind
+  statement: String!
+  acceptanceCriteria: [String!]
+  constraints: [String!]
+  interfaces: [PatchProjectInputMaskRequirementsItemInterfacesItem!]
+  components: [PatchProjectInputMaskRequirementsItemComponentsItem!]
+  connections: [PatchProjectInputMaskRequirementsItemConnectionsItem!]
+  dimensions: [PatchProjectInputMaskRequirementsItemDimensionsItem!]
+  deliverables: [String!]
+  dependsOn: [String!]
+  unknowns: [String!]
+  assumptions: [String!]
+  target: PatchProjectInputMaskRequirementsItemTarget
+  notes: String
+}
+
+enum PatchProjectInputMaskRequirementsItemKind {
+  research
+  hardware
+  enclosure
+  wiring
+  mechanical
+  firmware
+  software
+  marketing
+  manufacturing
+}
+
+input PatchProjectInputMaskRequirementsItemInterfacesItem {
+  name: String!
+  value: String!
+}
+
+input PatchProjectInputMaskRequirementsItemComponentsItem {
+  name: String!
+  kind: PatchProjectInputMaskRequirementsItemComponentsItemKind
+  manufacturer: String
+  mpn: String
+  quantity: Int
+  unitCost: Float
+}
+
+enum PatchProjectInputMaskRequirementsItemComponentsItemKind {
+  cots
+  printed
+  pcb
+  assembly
+}
+
+input PatchProjectInputMaskRequirementsItemConnectionsItem {
+  from: String!
+  to: String!
+  signal: String!
+}
+
+input PatchProjectInputMaskRequirementsItemDimensionsItem {
+  name: String!
+  value: Float
+  verified: Boolean
+}
+
+input PatchProjectInputMaskRequirementsItemTarget {
+  repository: String
+  productRevision: String
+  productRevisionId: ID
+}
+
+input PrepareProjectInput {
+  project: JSON!
+}
+
+input SubmitDeliveryPackageInput {
+  requestId: ID!
+  packageId: ID!
+  expectedDigest: String!
+}
+
+input ReorderPriorityInput {
+  kind: ReorderPriorityInputKind!
+  items: [ID!]!
+  revision: Float!
+}
+
+enum ReorderPriorityInputKind {
+  projects
+  products
+}
+
+input ReorderPersonalPortfolioInput {
+  kind: ReorderPersonalPortfolioInputKind!
+  items: [String!]!
+  revision: Float!
+}
+
+enum ReorderPersonalPortfolioInputKind {
+  organizations
+  projects
+}
+
+input SetProjectStateInput {
+  project: JSON!
+  state: SetProjectStateInputState!
+}
+
+enum SetProjectStateInputState {
+  draft
+  backlog
+  active
+  completed
+  archived
+}
+
+input ArchiveProjectInput {
+  project: JSON!
+}
+
+input DeleteProjectInput {
+  id: ID!
+  revision: Float!
+}
+
+input SetIntakeReleaseFitInput {
+  intakeId: ID!
+  revision: Float!
+  requestId: ID!
+  disposition: String!
+  rationale: String!
+  release: SetIntakeReleaseFitInputRelease
+}
+
+input SetIntakeReleaseFitInputRelease {
+  id: ID!
+  revision: Float!
+}
+
+input CreateIntakeInput {
+  requestId: ID!
+  kind: String!
+  title: String!
+  description: String!
+  projectId: ID
+  originatingMessage: CreateIntakeInputOriginatingMessage
+  sourceUrls: [String!]
+  sources: [CreateIntakeInputSourcesItem!]
+}
+
+input CreateIntakeInputOriginatingMessage {
+  threadId: ID!
+  messageId: String!
+}
+
+input CreateIntakeInputSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input RouteIntakeInput {
+  intakeId: ID!
+  revision: Float!
+  proposal: RouteIntakeInputProposal
+  projectId: ID
+}
+
+input RouteIntakeInputProposal {
+  routes: [RouteIntakeInputProposalRoutesItem!]!
+}
+
+input RouteIntakeInputProposalRoutesItem {
+  kind: RouteIntakeInputProposalRoutesItemKind!
+  dependsOn: [RouteIntakeInputProposalRoutesItemDependsOnItem!]!
+  rationale: String!
+  gate: RouteIntakeInputProposalRoutesItemGate
+}
+
+enum RouteIntakeInputProposalRoutesItemKind {
+  research
+  architecture
+  prioritization
+  backlog
+  implementation
+  hardware
+}
+
+enum RouteIntakeInputProposalRoutesItemDependsOnItem {
+  research
+  architecture
+  prioritization
+  backlog
+  implementation
+  hardware
+}
+
+input RouteIntakeInputProposalRoutesItemGate {
+  installationId: String!
+  controlId: ID!
+}
+
+type ClaimedWork {
+  """The requestId; recordResult carries it."""
+  token: ID!
+
+  """
+  The work's deterministic context: markdown, digest and sources, as work.context serves it.
+  """
+  context: JSON!
+}
+
+input ClaimWorkInput {
+  intakeId: ID!
+  childId: ID!
+  requestId: ID!
+}
+
+input SaveResultDraftInput {
+  intakeId: ID!
+  childId: ID!
+  token: ID!
+  draft: SaveResultDraftInputDraft!
+}
+
+input SaveResultDraftInputDraft {
+  summary: String
+  sources: [SaveResultDraftInputDraftSourcesItem!]
+  gaps: [String!]
+  disposition: SaveResultDraftInputDraftDisposition
+  architecture: SaveResultDraftInputDraftArchitecture
+  wikiRefs: [SaveResultDraftInputDraftWikiRefsItem!]
+}
+
+input SaveResultDraftInputDraftSourcesItem {
+  url: String!
+  observedAt: String!
+  excerpt: String!
+  contentHash: String
+}
+
+enum SaveResultDraftInputDraftDisposition {
+  implement
+  defer
+  investigate
+  reject
+}
+
+input SaveResultDraftInputDraftArchitecture {
+  approach: String!
+  constraints: [String!]!
+  dependencies: [String!]!
+  openDecisions: [String!]!
+}
+
+input SaveResultDraftInputDraftWikiRefsItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input RecordResultInput {
+  intakeId: ID!
+  childId: ID!
+  token: ID
+  result: RecordResultInputResult
+}
+
+input RecordResultInputResult {
+  summary: String!
+  sources: [RecordResultInputResultSourcesItem!]!
+  gaps: [String!]!
+  disposition: RecordResultInputResultDisposition
+  architecture: RecordResultInputResultArchitecture
+  wikiRefs: [RecordResultInputResultWikiRefsItem!]
+}
+
+input RecordResultInputResultSourcesItem {
+  url: String!
+  observedAt: String!
+  excerpt: String!
+  contentHash: String
+}
+
+enum RecordResultInputResultDisposition {
+  implement
+  defer
+  investigate
+  reject
+}
+
+input RecordResultInputResultArchitecture {
+  approach: String!
+  constraints: [String!]!
+  dependencies: [String!]!
+  openDecisions: [String!]!
+}
+
+input RecordResultInputResultWikiRefsItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input ReviseIntakeScopeInput {
+  intakeId: ID!
+  revision: Float!
+  requestId: ID!
+  title: String!
+  description: String!
+  sources: [ReviseIntakeScopeInputSourcesItem!]
+}
+
+input ReviseIntakeScopeInputSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input PublishResultInput {
+  intakeId: ID!
+  childId: ID!
+}
+
+input SubmitIntakeWorkInput {
+  intakeId: ID!
+  childId: ID!
+  work: SubmitIntakeWorkInputWork!
+}
+
+input SubmitIntakeWorkInputWork {
+  requestId: ID!
+  preview: SubmitIntakeWorkInputWorkPreview!
+  expectedDigest: String!
+  foundryInstallationId: String!
+  foundryProjectId: String!
+  governanceInstallationId: String!
+  controlId: ID!
+}
+
+input SubmitIntakeWorkInputWorkPreview {
+  supportingSources: [SubmitIntakeWorkInputWorkPreviewSupportingSourcesItem!]
+  projectId: ID!
+  issueId: ID
+  definitionId: ID
+  requirementIds: [ID!]
+}
+
+input SubmitIntakeWorkInputWorkPreviewSupportingSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input ResetIntakeSubmissionInput {
+  intakeId: ID!
+  childId: ID!
+  revision: Float!
+}
+
+input GenerateDailyReportsInput {
+  timezone: String
+  date: String
+}
+
+input GenerateProjectDigestInput {
+  projectId: ID!
+}
+
+input ChangeDigestScheduleInput {
+  enabled: Boolean!
+  timezone: String
+}
+
+input LinkProjectChangesInput {
+  projectId: ID
+  days: Int
+}
+
+input RecordMeasurementsInput {
+  measureId: ID
+}
+
+input SubmitPartnerRequestInput {
+  requestId: ID!
+  kind: SubmitPartnerRequestInputKind!
+  title: String!
+  problem: String!
+  acceptanceCriteria: [SubmitPartnerRequestInputAcceptanceCriteriaItem!]!
+  bug: SubmitPartnerRequestInputBug
+  productId: String
+}
+
+enum SubmitPartnerRequestInputKind {
+  feature
+  bug
+}
+
+input SubmitPartnerRequestInputAcceptanceCriteriaItem {
+  id: String!
+  text: String!
+}
+
+input SubmitPartnerRequestInputBug {
+  stepsToReproduce: [String!]!
+  expected: String!
+  actual: String!
+  environment: String
+}
+
+type DesignPartners {
+  designPartners: [DesignPartner!]!
+}
+
+type DesignPartner {
+  organizationId: ID!
+  name: String!
+}
+
+input AcceptPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  target: AcceptPartnerRequestInputTarget!
+}
+
+input AcceptPartnerRequestInputTarget {
+  repository: String
+  project: String
+}
+
+input RejectPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  reason: String!
+}
+
+input SaveUseCaseInput {
+  projectId: ID!
+  title: String!
+  summary: String
+  document: SaveUseCaseInputDocument!
+  id: ID
+  revision: Float
+  archived: Boolean
+}
+
+input SaveUseCaseInputDocument {
+  actor: String!
+  goal: String!
+  trigger: String!
+  steps: String!
+  alternatives: String!
+  successCriteria: String!
+}
+
+type Query {
+  """
+  Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.
+  """
+  partnerRequests(status: PartnerRequestStatus): [PartnerRequest!]!
+  dailyReports(first: Int = 100, after: String, ids: [ID!], date: String!, timezone: String): DailyReportSourceConnection!
+  priorityOrder(kind: String!): JSON!
+  personalPortfolio(kind: String!): JSON!
+  productReportRuns: JSON!
+  productReportSchedule: JSON!
+  products(at: String): [ProductCard!]!
+  weeklyProductRoadmap(at: String): ProductPage!
+  productPage(at: String): ProductPage!
+  productPages(first: Int = 100, after: String, ids: [ID!], at: String): ProductPageConnection!
+
+  """
+  This organization's goals and their metrics from the Wiki: one record for an organization whose Wiki has an Organization page bound to it, none on a personal installation.
+  """
+  organizationGoals(first: Int = 100, after: String, ids: [ID!]): OrganizationGoalsConnection!
+
+  """
+  Projects with their open issue counts, in ID order. active: true keeps projects with at least one todo or in-progress issue, false the others.
+  """
+  projects(first: Int = 100, after: String, ids: [ID!], active: Boolean, archived: Boolean, states: [String!]): ProjectConnection!
+  issues(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    projectId: [ID!]
+    status: [String!]
+    category: [String!]
+  ): IssueConnection!
+
+  """
+  Every MetricDefinition in the Wiki with its latest and previous recorded Measurement ({ value, unit, windowStart, windowEnd, capturedAt }) and the change between them, for KPIs such as this week's GitHub stars and growth since last week. latest is null until a Measure records one.
+  """
+  metricMeasurements(input: MetricMeasurementsInput!): JSON
+
+  """
+  Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.
+  """
+  useCases(input: UseCasesInput!): JSON
+
+  """
+  Read the canonical project's existing Wiki Releases with their IDs, revisions and linked evidence before recording intake release fit.
+  """
+  intakeReleaseOptions(input: IntakeReleaseOptionsInput!): JSON
+
+  """
+  Customer and competitive intakes with their routed child work, in ID order. Reading routes inspects each intake against Governance, so first defaults to 20.
+  """
+  intakes(first: Int = 20, after: String, ids: [ID!]): IntakeConnection!
+
+  """
+  The active Governance work gates an intake route can use, with the work kinds each governs: { gates, error }. A route whose kind has exactly one is gated by it automatically; when the gates cannot be read, gates is empty and error says why.
+  """
+  intakeOptions: JSON!
+
+  """
+  Read a project's delivery handoff as persisted: requirements with revisions, the latest preparation (routes, questions, conflicts, deferred claims, blockers with remediation), every Workshop and Foundry package with its frozen body and digest, Workshop and Foundry read-backs, milestone readiness from evidence and acceptance criteria still unverified. Changes nothing.
+  """
+  projectDelivery(input: ProjectDeliveryInput!): JSON
+
+  """
+  Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.
+  """
+  dailyReport(input: DailyReportInput!): JSON
+
+  """
+  A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.
+  """
+  projectDigests(input: ProjectDigestsInput!): [ProjectDigest!]!
+
+  """
+  The installation's latest project-digest runs as the platform records them, newest first: [{ id, status (running, complete or failed), createdAt, updatedAt }].
+  """
+  digestRuns: JSON!
+
+  """Whether the morning digest runs, and when it runs next."""
+  digestSchedule: DigestSchedule!
+
+  """
+  Preview an implementation route's work package with the intake's current research, architecture and prioritization records as supporting sources: the preview to submit and the package with its digest. Changes nothing.
+  """
+  intakeWorkPreview(input: IntakeWorkPreviewInput!): JSON
+
+  """Preview selected intake routes before submitting work"""
+  intakeWorkPreviews(input: IntakeWorkPreviewsInput!): JSON
+}
+
+input IntakeWorkPreviewsInput {
+  inputs: [IntakeWorkPreviewsInputInputsItem!]
+  ids: [String!]
+  search: String
+  first: Int
+  after: String
+}
+
+input IntakeWorkPreviewsInputInputsItem {
+  intakeId: ID!
+  childId: ID!
+  preview: IntakeWorkPreviewsInputInputsItemPreview!
+}
+
+input IntakeWorkPreviewsInputInputsItemPreview {
+  supportingSources: [IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem!]
+  projectId: ID!
+  issueId: ID
+  definitionId: ID
+  requirementIds: [ID!]
+}
+
+input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+type Mutation {
+  """
+  Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.
+  """
+  generateProductReport(input: GenerateProductReportInput!): JSON
+
+  """Enable or disable daily roadmap regeneration. Editors only."""
+  changeProductReportSchedule(input: ChangeProductReportScheduleInput!): JSON
+
+  """
+  Add an issue (a stone, pebble or sand) to a project, last in its category. An assignee must be a current organization member. Any member of the installation.
+  """
+  createIssue(input: CreateIssueInput!): Issue!
+
+  """
+  Replace an issue's fields. Moving it to another project or category appends it there. A departed member stays assigned only while assigneeId is unchanged. Name the revision you read; a changed record is refused (409).
+  """
+  updateIssue(input: UpdateIssueInput!): Issue!
+
+  """
+  Delete an issue that has no sub-issues. Name the revision you read; a changed record is refused (409).
+  """
+  deleteIssue(input: DeleteIssueInput!): Deleted!
+
+  """
+  Set the order of one category of a project's issues: every issue of that category, each at its current revision, in the new order. Any change meanwhile is refused (409).
+  """
+  reorderIssues(input: ReorderIssuesInput!): Reordered!
+
+  """
+  Create a project with its name, GitHub repository link and documents (goals, user stories, press release, demo instructions and results, each Markdown of up to 16,000 characters), and optionally its requirements. Requirements start delivery preparation automatically; the answer says what changed and the preparation started. Any member of the installation.
+  """
+  createProject(input: CreateProjectInput!): Project!
+
+  """
+  Replace a project's name, repository and documents: a field left out is cleared, so send every document you read. Name the revision you read; a changed record is refused (409).
+  """
+  updateProject(input: UpdateProjectInput!): Project!
+
+  """
+  Overlay only mask fields on an existing Projects record. Read with includeIdentifiers:true first. Revision conflicts require a fresh read; omitted fields are preserved.
+  """
+  patchProject(input: PatchProjectInput!): Project!
+
+  """
+  Start delivery preparation again for a saved project revision whose dispatch failed or whose run failed. Uses the same preparation id, so it never duplicates work. Editors only.
+  """
+  prepareProject(input: PrepareProjectInput!): Project!
+
+  """
+  Submit a prepared Foundry package once, under requestId, at the digest you reviewed in ProjectDelivery. Requires an editor, a current unconflicted package, a ready implementation route and Governance approval of the package; without approval it asks for review and answers awaiting_review. Never merges, releases, publishes or manufactures.
+  """
+  submitDeliveryPackage(input: SubmitDeliveryPackageInput!): JSON
+
+  """
+  Save the complete organization project or product order at the revision read.
+  """
+  reorderPriority(input: ReorderPriorityInput!): JSON!
+
+  """
+  Save your personal organization or cross-organization project order at the revision read. Does not change shared priorities.
+  """
+  reorderPersonalPortfolio(input: ReorderPersonalPortfolioInput!): JSON!
+
+  """
+  Set the project lifecycle state at the revision read; archived projects can be restored.
+  """
+  setProjectState(input: SetProjectStateInput!): Project!
+
+  """
+  Archive a project at its current revision without deleting its issues or documents.
+  """
+  archiveProject(input: ArchiveProjectInput!): Project!
+
+  """
+  Delete a project that has no issues. Name the revision you read; a changed record is refused (409).
+  """
+  deleteProject(input: DeleteProjectInput!): Deleted!
+
+  """
+  Record current-release, deferred, needs-research or rejected with rationale, an optional existing project Release revision, and history. Current-release requires a Release; deferred without one stays in intake backlog. Optimistic revision and stable requestId required. Does not approve or start delivery. Editors only.
+  """
+  setIntakeReleaseFit(input: SetIntakeReleaseFitInput!): Intake!
+
+  """
+  Capture a customer or competitive intake under a stable requestId (replaying it returns the saved intake) and route it: the configured model proposes the child work, each route gated by the one active Governance control for its kind. When routing fails the intake is still saved, with routingError; routeIntake runs it later. Editors only.
+  """
+  createIntake(input: CreateIntakeInput!): Intake!
+
+  """
+  Route an intake whose work has not started, or set its canonical Planning project (required before implementation, changeable until implementation starts): with projectId alone the routes stay as they are; without a proposal the configured model proposes the child work; with one, those routes replace the current ones (implementation always waits for the selected discovery work). Name the intake revision you read. Editors only.
+  """
+  routeIntake(input: RouteIntakeInput!): Intake!
+
+  """
+  Claim a route's work for 15 minutes under a stable requestId and get its deterministic context. The caller must hold the perform (or recommend) duty of the route's control, the route's prerequisites must be approved, and nobody else may hold a live claim. Replaying the requestId renews the claim.
+  """
+  claimWork(input: ClaimWorkInput!): ClaimedWork!
+
+  """
+  Save a draft of a route's findings under a live claim (token) without requesting review. The draft may be incomplete; each save replaces the previous one, so an agent keeps adding sources and findings and then submits with recordResult. Returns { intakeId, revision, childId, savedAt }. The route's work record and its revision, which Governance reviews, do not change; the intake's revision does.
+  """
+  saveResultDraft(input: SaveResultDraftInput!): JSON
+
+  """
+  Submit research, architecture or prioritization findings under a live claim (token) and request the route's Governance review: pass result, or omit it to submit the draft saved with saveResultDraft; the previous result is kept in history. Architecture needs an approach; prioritization a disposition; an incomplete draft is refused (422). Without token and result, or with the same result again under the same token, it only asks the gate again to review the recorded result: any holder of the route's perform or recommend duty may, such as the Recommend holder after a perform-only worker recorded it. Provenance is agent-reported.
+  """
+  recordResult(input: RecordResultInput!): Intake!
+
+  """
+  Approve a changed title, description or sources under a stable requestId. Previous scope and results stay in history and every route gets a new identity, so earlier decisions cannot authorize the change; submitted delivery is frozen. Name the revision you read; a changed record is refused (409). Editors only.
+  """
+  reviseIntakeScope(input: ReviseIntakeScopeInput!): Intake!
+
+  """
+  Publish a route's recorded result to the Wiki as a proposed, agent-reported assertion on the intake's node, and return the Wiki record. Publishing again returns the existing record; a differing one is refused. Editors, or the route's assigned holder.
+  """
+  publishResult(input: PublishResultInput!): JSON
+
+  """
+  Submit a ready implementation route's work package to Foundry once, under work.requestId, with the preview and expectedDigest intakeWorkPreview returned and a selected Governance control; the delivery is recorded on the route. Editors only.
+  """
+  submitIntakeWork(input: SubmitIntakeWorkInput!): JSON
+
+  """
+  Reset an implementation submission Foundry rejected before creating a delivery record, so a corrected package can be submitted. Name the revision you read; a changed record is refused (409). Editors only.
+  """
+  resetIntakeSubmission(input: ResetIntakeSubmissionInput!): Intake!
+
+  """
+  Start one durable task that captures every active project's previous local day, then saves this owner's overview from those exact reports.
+  """
+  generateDailyReports(input: GenerateDailyReportsInput!): JSON!
+
+  """
+  Start the project-digest task for one project: the platform runs it durably and records its run; the digest appears in projectDigests when the run completes. Returns { id, task, created }: id is the run, read with digestRuns or the platform's TaskRuns. Editors only.
+  """
+  generateProjectDigest(input: GenerateProjectDigestInput!): JSON
+
+  """
+  Turn the morning digest of every active project on or off; it runs as the caller every day at 13:00 UTC. Editors only.
+  """
+  changeDigestSchedule(input: ChangeDigestScheduleInput!): DigestSchedule!
+
+  """
+  Link the pull requests merged into each project's repositories (its Wiki node's source_in edges) over the last days (default 7) to the project in the Wiki: one change batch of CodeChange records with merged_into and delivers relationships, each with its evidence and reason. Confident links commit by policy; the rest wait for review on the Wiki's Changes page. Returns { runId, batchId, state, pullRequests, proposals, skipped, unread }. Editors only.
+  """
+  linkProjectChanges(input: LinkProjectChangesInput!): JSON
+
+  """
+  Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.
+  """
+  recordMeasurements(input: RecordMeasurementsInput!): JSON
+
+  """
+  File a feature or bug request with this organization as one of its design partners, from your own organization (graph_mutate with scope set to this organization and fromScope to yours). It waits as proposed until an editor here accepts or rejects it; replay the same requestId to read its status. Design partners only: other customers file an issue on the public repository.
+  """
+  submitPartnerRequest(input: SubmitPartnerRequestInput!): PartnerRequest!
+
+  """
+  Re-read this organization's design partners from its graph: customers whose customer_of link to it has design_partner set, each bound to a platform organization by organization_id. Only they can submit partner requests. Editors only.
+  """
+  refreshDesignPartners(input: JSON!): DesignPartners!
+
+  """
+  Accept a design partner's proposed request: if the graph still flags the partner, Software Foundry's RequestChanges files it as an issue in the repository or project you name, attributed to you, with the partner named in the problem and its product in the context. Name the revision you read; a changed record is refused (409). A refusal keeps it proposed. Editors only.
+  """
+  acceptPartnerRequest(input: AcceptPartnerRequestInput!): PartnerRequest!
+
+  """
+  Reject a design partner's proposed request with a reason the partner reads back. Nothing is filed. Name the revision you read; a changed record is refused (409). Editors only.
+  """
+  rejectPartnerRequest(input: RejectPartnerRequestInput!): PartnerRequest!
+
+  """
+  Create a use case in the Wiki for a project, or with id and revision replace one's title, summary, document and archived flag, and return the Wiki record. Editors only.
+  """
+  saveUseCase(input: SaveUseCaseInput!): JSON
+
+  """
+  Create, edit with a field mask (including requirements, repository links and the Onto Project node link), archive projects, or retry their delivery preparation
+  """
+  mutateProject(input: MutateProjectInput!): ChangeResults
+
+  """Apply project changes using explicit actions"""
+  projectChanges(input: ProjectChangesInput!): ChangeResults
+
+  """Apply issue changes using explicit actions"""
+  issueChanges(input: IssueChangesInput!): ChangeResults
+
+  """Apply intake changes using explicit actions"""
+  intakeChanges(input: IntakeChangesInput!): ChangeResults
+
+  """Apply result changes using explicit actions"""
+  resultChanges(input: ResultChangesInput!): ChangeResults
+
+  """Apply usecase changes using explicit actions"""
+  useCaseChanges(input: UseCaseChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input MutateProjectInput {
+  items: [MutateProjectInputItemsItem!]!
+}
+
+input MutateProjectInputItemsItem {
+  key: String!
+  action: MutateProjectInputItemsItemAction!
+  input: JSON!
+}
+
+enum MutateProjectInputItemsItemAction {
+  create
+  edit
+  archive
+  prepare
+}
+
+input ProjectChangesInput {
+  items: [ProjectChangesInputItemsItem!]!
+}
+
+input ProjectChangesInputItemsItem {
+  key: String!
+  action: ProjectChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ProjectChangesInputItemsItemAction {
+  createProject
+  updateProject
+  deleteProject
+}
+
+input IssueChangesInput {
+  items: [IssueChangesInputItemsItem!]!
+}
+
+input IssueChangesInputItemsItem {
+  key: String!
+  action: IssueChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum IssueChangesInputItemsItemAction {
+  createIssue
+  updateIssue
+  deleteIssue
+  reorderIssues
+}
+
+input IntakeChangesInput {
+  items: [IntakeChangesInputItemsItem!]!
+}
+
+input IntakeChangesInputItemsItem {
+  key: String!
+  action: IntakeChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum IntakeChangesInputItemsItemAction {
+  createIntake
+  routeIntake
+  reviseIntakeScope
+  resetIntakeSubmission
+  submitIntakeWork
+  submitDeliveryPackage
+}
+
+input ResultChangesInput {
+  items: [ResultChangesInputItemsItem!]!
+}
+
+input ResultChangesInputItemsItem {
+  key: String!
+  action: ResultChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ResultChangesInputItemsItemAction {
+  claimWork
+  saveResultDraft
+  recordResult
+  publishResult
+}
+
+input UseCaseChangesInput {
+  items: [UseCaseChangesInputItemsItem!]!
+}
+
+input UseCaseChangesInputItemsItem {
+  key: String!
+  action: UseCaseChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum UseCaseChangesInputItemsItemAction {
+  saveUseCase
+}

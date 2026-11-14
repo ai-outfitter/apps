@@ -1,8 +1,0 @@
----
-import WorkshopPage from "../../../components/WorkshopPage.astro";
-import { slugId } from "../../../lib/sections";
-
-const slug = Astro.params.slug ?? "";
-if (!slugId(slug)) return new Response("Not found", { status: 404 });
----
-<WorkshopPage section="overview" slug={slug} />

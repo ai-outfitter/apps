@@ -1,0 +1,17 @@
+---
+import ForerunnerLayout, { type ForerunnerPage } from "./ForerunnerLayout.astro";
+import { rootHref } from "../root-href";
+
+/** A sidebar page that is designed but not built yet. */
+interface Props { title: string; description: string; page: ForerunnerPage; shows: string }
+const { title, description, page, shows } = Astro.props;
+const root = rootHref(Astro.url.pathname, 1);
+---
+<ForerunnerLayout title={title} description={description} page={page}>
+  <section class="coming-soon" aria-labelledby="coming-soon-heading">
+    <span class="coming-soon-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span>
+    <h2 id="coming-soon-heading">{title} is coming soon</h2>
+    <p class="muted">{shows}. Until then, Today shows your next steps and the knowledge graph holds everything found so far.</p>
+    <div class="manual-actions"><a class="ui-button ui-button--secondary" href={root}>Back to Today</a><a class="ui-button ui-button--secondary" href={`${root}graph`}>Open knowledge graph</a></div>
+  </section>
+</ForerunnerLayout>

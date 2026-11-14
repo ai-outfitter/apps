@@ -1,0 +1,58 @@
+---
+import Layout from "../components/PlanningLayout.astro";
+import OrgProgress from "../components/OrgProgress.astro";
+import ProductGroup from "../components/ProductGroup.astro";
+import { requestIdentity, requestPageURL, type AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { readProductHome, type ProductHome } from "../server/product-graphs";
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const legacyProject = Astro.url.searchParams.get("project");
+if (legacyProject) return Astro.redirect(`/projects/${encodeURIComponent(legacyProject)}`);
+let page: ProductHome | undefined;
+let error: string | undefined;
+let identity: AppIdentity | undefined;
+if (!demo) {
+  try {
+    identity = requestIdentity(Astro.request);
+  } catch (cause) {
+    if (!(cause instanceof Response && cause.status === 401)) throw cause;
+    // Installation checks request the public shell without forwarded identity.
+    // Reading organization content still requires authenticated app scope.
+    error = "Open Planning through your organization to view its products.";
+  }
+}
+if (identity?.owner.kind === "user") return Astro.redirect("/projects");
+if (identity) {
+  try {
+    const host = workflowHost<"interactive">(Astro.locals);
+    page = await readProductHome({ identity, db: () => installationDatabase(), host: () => host }, requestPageURL(Astro.request));
+  } catch (cause) {
+    if (cause instanceof Response && [401, 403].includes(cause.status)) return cause;
+    const status = cause instanceof Response ? cause.status : 503;
+    console.error("Planning Product read failed", { status });
+    Astro.response.status = [409, 413].includes(status) ? status : 503;
+    error = status === 413
+      ? "The selected context exceeds this view’s size limit. Narrow the organization overview in Wiki."
+      : status === 409
+        ? "The organization’s Wiki context needs setup before products can be shown."
+        : "Product context is unavailable. Try again or check the organization’s Wiki configuration.";
+  }
+}
+---
+<Layout title="Product" description="" wiki={page?.wiki ?? null}>
+  {page && <OrgProgress view={page.progress} />}
+  {page?.roadmap && <section class="planning-product-section" aria-labelledby="roadmap-heading">
+    <h2 id="roadmap-heading">Product roadmap</h2>
+    <p><a href={`${page.roadmapWikiBase}${encodeURIComponent(page.roadmap.id)}`}>{page.roadmap.title}</a> · {page.roadmap.status}{page.roadmap.dueOn && ` · ${page.roadmap.dueOn}`}</p>
+    {page.roadmap.scope && <p>{page.roadmap.scope}</p>}
+    {page.roadmap.sections.map(section => <section><h3>{section.title}</h3><p>{section.intent}</p>
+      {section.decisions.length > 0 && <><h4>Decisions</h4><ul>{section.decisions.map(item => <li>{item}</li>)}</ul></>}
+      {section.open_questions.length > 0 && <><h4>Open questions</h4><ul>{section.open_questions.map(item => <li>{item}</li>)}</ul></>}
+    </section>)}
+  </section>}
+  <div id="home-products" data-demo={String(demo)}>
+    <p id="products-status" role="status" hidden={!!page?.products.length && !page.incomplete && !page.setup}>{error ?? page?.setup ?? (demo ? "Products are unavailable in the read-only demo." : page?.incomplete ? "Some products may be missing because the organization view is too large." : page?.products.length ? "" : "No products yet.")}</p>
+    <div id="products-list">{page?.products.map(product => <ProductGroup {product} />)}</div>
+  </div>
+</Layout>

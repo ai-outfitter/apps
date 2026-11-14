@@ -1,3 +1,5 @@
+import cadWorkerURL from "../model/worker.ts?worker&url";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { syncFaces, syncLines } from "replicad-threejs-helper";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -38,6 +40,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
   node.userData.itemId = item.id;
   node.position.set(...placement.position);
   node.rotation.z = (placement.rotation * Math.PI) / 180;
+  if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
   return node;
 }
 
@@ -45,7 +48,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
 export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void) {
-  const worker = new Worker(new URL("../model/worker.ts", import.meta.url), { type: "module" });
+  const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
   let id = 0;
   let version = 0;
@@ -59,10 +62,10 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     pending.clear();
     report("CAD engine failed. Reload the page to retry.");
   };
-  const mesh = (plan: unknown) =>
+  const mesh = (plan: unknown, singlePart?: {params:unknown;plan:unknown}) =>
     new Promise<MeshReply>((resolve, reject) => {
       pending.set(++id, { resolve, reject });
-      worker.postMessage({ id, plan });
+      worker.postMessage({ id, plan, ...singlePart });
     });
 
   const scene = new THREE.Scene();
@@ -104,6 +107,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     const { min, max } = frame;
     const center = min.map((v, i) => (v + max[i]) / 2);
     const n = Math.max(...max.map((v, i) => v - min[i])) * 1.25;
+    camera.near = Math.max(0.01, n / 10000);
+    camera.far = Math.max(4000, n * 10);
+    camera.updateProjectionMatrix();
     controls.target.set(center[0], center[1], center[2]);
     camera.position.set(center[0] + n, center[1] - n, center[2] + n * 0.8);
     controls.update();
@@ -135,31 +141,45 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   /** Each distinct item meshed once, however many places use it. */
-  async function meshItems(list: Placement[]) {
+  async function meshItems(list: Placement[],singlePart?: {params:unknown;plan:unknown}) {
     const items = new Map(list.map(({ item }) => [item.id, item]));
-    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry)));
+    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry,singlePart)));
     return new Map([...items.keys()].map((id, i) => [id, replies[i]]));
   }
 
-  async function render(assembly: Assembly) {
+  async function render(assembly: Assembly, artifactBase = "", singlePart?: {params:unknown;plan:unknown}) {
     const current = ++version;
     const list = placements(assembly);
     if (!list.length) {
       clear();
+      canvas.dataset.ready="false";
       report("This project has no assembly with geometry yet.");
       return;
     }
     report(`Building ${list.length} placed solids…`);
     try {
-      const replies = await meshItems(list);
+      const replies = await meshItems(list.filter(p=>!p.item.mesh),singlePart);
+      const external=new Map<string,THREE.BufferGeometry>();
+      for(const {item} of list)if(item.mesh&&!external.has(item.id)){
+        const response=await fetch(artifactBase+item.mesh.path);if(!response.ok)throw new Error(`Cannot load ${item.name}`);
+        external.set(item.id,new STLLoader().parse(await response.arrayBuffer()));
+      }
       if (current !== version) return;
       clear();
-      for (const placement of list) group.add(placedNode(placement, replies.get(placement.item.id) as MeshReply));
+      for (const placement of list) {
+        const geometry=external.get(placement.item.id);
+        if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
+        const node=new THREE.Group();node.userData.itemId=placement.item.id;
+        const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=1;node.add(solid);
+        if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
+        group.add(node);
+      }
+      for(const geometry of external.values())geometry.dispose();
       highlight();
       const firstFrame = !frame;
       frame = assemblyBounds(list);
       if (firstFrame) reset();
-      report(`${list.length} solids from ${replies.size} items · envelopes for COTS parts`);
+      report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
       canvas.dataset.ready = "true";
     } catch (e) {
       if (current === version) {
@@ -173,6 +193,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     render,
     reset,
     /** Show one item at full strength and fade the rest; undefined shows all. */
+    isolate(items?: Set<string>) {for(const node of group.children)node.visible=!items||items.has(node.userData.itemId);},
     select(itemId?: string) {
       selected = itemId;
       highlight();

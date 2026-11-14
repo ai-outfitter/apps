@@ -1,3 +1,4 @@
+import { bomTotals } from "./assembly";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { strToU8, zipSync } from "fflate";
@@ -33,7 +34,7 @@ export function projectPackage(p: Project) {
     ),
     "bom.csv": [
       ["Part", "Quantity", "Unit cost USD", "Source", "Notes"],
-      ...p.parts.map((r) => [
+      ...(p.assembly.rootId ? bomTotals(p.assembly).lines.filter(r=>r.item.kind!=="assembly").map(r=>({name:r.item.name,quantity:r.quantity,unitCost:r.item.priceKnown?r.item.unitCost:"Unpriced",source:r.item.source,notes:r.item.notes})) : p.parts).map((r) => [
         r.name,
         r.quantity,
         r.unitCost,
@@ -49,6 +50,8 @@ export function projectPackage(p: Project) {
     "evidence.json": JSON.stringify(p.evidence, null, 2),
     "README.md": `# ${p.name} — draft package\n\nProject revision: ${p.revision}.\n${p.productRevision ? `Builds product revision: ${p.productRevision.title || p.productRevision.id}${p.productRevision.url ? ` (${p.productRevision.url})` : ""}.\n` : ""}Physical fit for these dimensions: ${fitReady(p) ? "recorded pass" : "not accepted"}.\nBreadboard: ${pcbReady(p) ? "recorded pass" : "not accepted / not applicable"}.\n\nThis archive records the project. Export matching STEP/STL files from the Design tab. It is not a manufacturing approval. Keep the template source revision with these files.\n`,
   };
+  if(p.workspace)files["workspace.json"]=JSON.stringify(p.workspace,null,2);
+  if(p.assembly.rootId)files["assembly.json"]=JSON.stringify(p.assembly,null,2);
   if (p.cadPlan) files["cad-plan.json"] = JSON.stringify(p.cadPlan, null, 2);
   if (p.kind === "electronics")
     files["electronics/pcb-handoff.md"] =

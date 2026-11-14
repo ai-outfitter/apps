@@ -30,10 +30,10 @@ export const designIterations = (project) =>
 
 /**
  * The design-result document for a request.
- * @param {{ request: any, project?: any, geometry?: any, bom?: any[], files?: any[], commitSha?: string,
+ * @param {{ request: any, project?: any, geometry?: any, bom?: any[], files?: any[], screenshots?: any[], commitSha?: string,
  *   model: { provider: string, id: string }, metrics?: any, sessions?: any, error?: unknown, startedAt: string, finishedAt: string }} input
  */
-export function designResult({ request, project, geometry, bom = [], files = [], commitSha, model, metrics, sessions, error, startedAt, finishedAt }) {
+export function designResult({ request, project, geometry, bom = [], files = [], screenshots = [], commitSha, model, metrics, sessions, error, startedAt, finishedAt }) {
   const designed = !error && project && geometry && commitSha;
   return {
     schemaVersion: 1,
@@ -41,11 +41,13 @@ export function designResult({ request, project, geometry, bom = [], files = [],
     status: designed ? "designed" : "failed",
     ...(designed ? {} : { reason: String(/** @type {any} */ (error)?.message ?? error ?? "The design did not finish").slice(0, 4000) }),
     path: `designs/${request.slug}`,
+    ...(request.via ? { via: request.via } : {}),
     ...(project ? { project: { id: project.id, revision: project.revision, name: project.name } } : {}),
     iterations: project ? designIterations(project) : [],
     ...(geometry ? { geometry } : {}),
     bom,
     files,
+    ...(screenshots.length ? { screenshots } : {}),
     ...(commitSha ? { commitSha } : {}),
     model,
     ...(metrics ? { metrics } : {}),

@@ -1,0 +1,3 @@
+# Case top with lip and vent grid
+
+A 224 x 178 x 3 mm plate with a lip under it: a 2 mm thick rectangular wall, 6 mm deep, whose outside is inset 3.2 mm from every edge. A 6 x 6 grid of 6 mm holes through the plate at 12 mm pitch, the first centred 59 mm from the left and 64 mm from the front. A 2.5 mm pilot hole through the lip, centred on each of its four sides, 3.5 mm below the plate's underside.

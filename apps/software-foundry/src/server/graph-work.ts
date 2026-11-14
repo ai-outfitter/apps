@@ -10,7 +10,7 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { entityRef, type EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import type { GraphSelectionDefinition } from "@ai-outfitter/app-sdk/graph-selection";
 import { type GraphTemplate, renderKnowledgeGraph } from "@ai-outfitter/app-sdk/graph-templates";
-import { defaultWiki, stableGraphId, wikiAdapter } from "@ai-outfitter/app-sdk/wiki";
+import { defaultWiki, stableGraphId, wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
 import { repositoryName } from "./projects";
 import {
   approvedTarget,
@@ -78,7 +78,7 @@ const featureRequestTemplate: GraphTemplate = {
 const criterionBudget = 2000;
 const wikiBodyLimit = 20_000;
 
-/** A Wiki node at the revision the caller read (StartWork's root, RequestFeature's related nodes). */
+/** A Wiki node at the revision the caller read (work.start's root). */
 export const nodeWitness = z.strictObject({
   ref: entityRef.extend({ type: z.literal("graph-node") }),
   revision: z.number().int().positive(),

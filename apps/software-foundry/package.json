@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-software-foundry",
-  "version": "0.3.1",
+  "version": "0.3.5",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build",
     "build:demo": "outfitter-app-build --mode demo",
     "build:operational": "outfitter-app-build --mode operational",
@@ -28,7 +29,6 @@
     "@ai-outfitter/workflow-architecture-reanalysis": "0.1.0",
     "@ai-outfitter/workflow-dependency-review": "0.1.0",
     "@ai-outfitter/workflow-foundry-land-reviewed-change": "0.1.0",
-    "@ai-outfitter/workflow-foundry-request-intake": "0.1.0",
     "@ai-outfitter/workflow-foundry-workspace-checks": "0.1.0",
     "@ai-outfitter/workflow-issue-to-merge-actions-ci": "0.1.0",
     "@ai-outfitter/workflow-issue-to-merge-workspace": "0.1.0",
@@ -36,6 +36,7 @@
     "@ai-outfitter/workflow-issue-to-triage-resident": "0.1.0",
     "@ai-outfitter/workflow-issue-triage-observation": "0.1.0",
     "@ai-outfitter/workflow-sdlc-setup": "0.1.0",
+    "@ai-outfitter/workflow-ui-review": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/react": "^7.0.0",
     "astro": "^7.3.5",

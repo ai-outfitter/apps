@@ -1,0 +1,35 @@
+---
+interface Props { slug:string; section:string }
+const {slug,section}=Astro.props;
+---
+<div class="workspace" data-slug={slug} data-section={section}>
+  <header><div><h1 id="project-name">Loading project…</h1></div><span id="revision-label"></span></header>
+  <p id="workspace-notice" role="status"></p>
+  <section id="model-panel" hidden={section!=="assembly"}>
+    <div class="model-layout">
+      <div class="model-stage workspace-card"><canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas><div class="view-tools"><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div><p id="assembly-status" role="status">Loading geometry…</p></div>
+      <aside class="workspace-card"><h2>Components</h2><div id="component-tree"></div></aside>
+    </div>
+    <details id="inspector"><summary>Selected component</summary><div id="item-details"></div><button id="isolate-item">Isolate component</button></details>
+    <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
+    <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
+  </section>
+  <section id="bom-panel" hidden={section!=="parts"}><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><div id="bom-rows"></div></section>
+  <section id="revisions-panel" hidden={section!=="release"}><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
+</div>
+<script>import "../client/workspace";</script>
+<style is:global>
+.workspace{max-width:1440px;margin:auto;padding:0;color:var(--text);font-size:16px}.workspace header,.workspace .toolbar,.workspace .composer{display:flex;gap:16px;justify-content:space-between;align-items:center}.workspace h1{font-size:28px;margin:4px 0}.workspace p{line-height:1.5}.workspace button,.workspace select,.workspace input,.workspace textarea{font:inherit;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:inherit}.workspace button{cursor:pointer}.workspace .model-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,1fr);gap:20px}.workspace .model-stage{position:relative;min-width:0}.workspace canvas{display:block;width:100%;height:60vh;min-height:320px;touch-action:none;border-radius:10px}.workspace .view-tools{position:absolute;top:12px;left:12px;display:flex;gap:8px}.workspace aside{max-height:65vh;overflow:auto}.workspace .component-row{display:block;width:100%;text-align:left;margin-bottom:4px}.workspace details,.workspace .bom-row,.workspace .run-row{padding:16px;margin:12px 0;border:1px solid var(--border);border-radius:8px}.workspace summary{cursor:pointer;min-height:32px}.workspace .bom-row{display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr);gap:12px}.workspace small{display:block;color:var(--muted);line-height:1.5}.workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}.workspace textarea{width:100%;box-sizing:border-box}.workspace .composer input{flex:1;min-width:0}.workspace a{overflow-wrap:anywhere}.workspace #build-request{margin:24px 0}.workspace #source-files{display:flex;gap:8px;flex-wrap:wrap}.workspace [hidden]{display:none!important}
+@media(max-width:700px){.workspace{padding:0}.workspace header{display:block}.workspace .model-layout{display:flex;flex-direction:column}.workspace canvas{height:48vh;min-height:300px}.workspace aside{max-height:240px}.workspace .bom-row{grid-template-columns:minmax(0,1fr) auto}.workspace .bom-row>div:last-child{grid-column:1/-1}.workspace .toolbar{align-items:flex-start;flex-direction:column}.workspace .composer{gap:8px}.workspace #inspector[open]{position:fixed;z-index:60;bottom:0;left:0;right:0;margin:0;max-height:50vh;overflow:auto;background:var(--surface);box-shadow:0 -4px 24px #0003}.workspace h1{font-size:24px}}
+/* Sections group content; only explicit cards carry a surface. */
+.workspace > section { margin:20px 0; }
+.workspace .workspace-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px; }
+.workspace .model-stage { padding:0; overflow:hidden; }
+.workspace .workspace-card h2 { margin:0 0 12px; }
+.workspace header { margin-bottom:20px; }
+.workspace #workspace-notice:empty { display:none; }
+.workspace .bom-row { background:var(--surface); }
+.workspace .component-row { border:0; background:transparent; padding:8px; margin:0; }
+.workspace .component-row:hover { background:var(--hover); }
+.workspace .bom-row button { border:0; background:none; padding:0; text-align:left; min-height:32px; }
+</style>

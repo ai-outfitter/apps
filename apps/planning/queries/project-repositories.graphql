@@ -1,0 +1,28 @@
+query ProjectRepositoriesByOrganization($slugs: [String!], $after: String) {
+  viewer {
+    orgs(slugs: $slugs) {
+      slug
+      projects(first: 20, after: $after) {
+        nodes {
+          id
+          name
+          repositories(first: 100) {
+            nodes {
+              id
+              nameWithOwner
+              url
+              path
+              ref
+              pullRequests(first: 20) {
+                nodes { number title url state createdAt updatedAt closedAt mergedAt }
+                pageInfo { endCursor hasNextPage }
+              }
+            }
+            pageInfo { endCursor hasNextPage }
+          }
+        }
+        pageInfo { endCursor hasNextPage }
+      }
+    }
+  }
+}

@@ -1,0 +1,374 @@
+{
+  "types": [
+    {
+      "id": "7a000000-0000-4000-8000-000000000001",
+      "category": "node",
+      "name": "Release",
+      "title": "Releases",
+      "body": "## What a release is\n\nA release is the customer announcement written before the work: a working-backwards press release. It says who the customer is, what problem goes away, how they start, and exactly what is in and out of scope. The announcement defines scope, so it drives prioritization.\n\n## Lifecycle\n\n`draft` while it changes. `committed` freezes scope: work linked `in_scope` of a committed release is prioritized, and work linked `out_of_scope` is visibly parked with its reason. Commit only when every in-scope record has at least one AcceptanceCriterion and `openQuestions` is empty. `announced` once published. `shipped` once `delivered_as` names the released ProductRevision; that revision's ReadinessAssessment and ReleaseRecord hold the delivery evidence. `withdrawn` keeps an abandoned release for history.\n\n## Relationships\n\n- `announces` → the Product or Offering customers get.\n- `for_customer` → each CustomerSegment it is for.\n- `addresses` → each customer Problem it relieves.\n- `measured_by` → the Goal or MetricDefinition that shows it worked.\n- `part_of` → its Project or Organization.\n- `in_scope` / `out_of_scope` → UseCase, UserStory or Requirement records (and Projects, for out of scope).\n- `delivered_as` → the ProductRevision that shipped it.\n\n## For agents\n\nStore the structured JSON body below. Keep `inScope` and `outOfScope` in step with the `in_scope` and `out_of_scope` edges: the edges are what Planning and Foundry read. Mark imagined customer quotes `hypothetical: true`. Read a release with the \"Release scope\" knowledge graph, and render it with the \"Press release\" artifact definition. A release records intent; it does not prove delivery, authorize work or start execution.",
+      "properties": [],
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "committed",
+              "announced",
+              "shipped",
+              "withdrawn"
+            ],
+            "description": "draft: still changing. committed: scope frozen; in_scope work is prioritized. announced: published to customers. shipped: delivered_as links the released ProductRevision. withdrawn: abandoned, kept for history."
+          },
+          "headline": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "One sentence a customer would repeat."
+          },
+          "subheadline": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Who it is for and the benefit, in one or two sentences."
+          },
+          "announceTarget": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Target date or window, such as 2026-12 or Q1 2027. A target, not a commitment."
+          },
+          "customer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "Who the customer is, in their words. Also link for_customer."
+          },
+          "problem": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "What hurts for the customer today. Also link addresses."
+          },
+          "solution": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "What changes for the customer. No internals."
+          },
+          "leaderQuote": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1500,
+                "description": "The quote."
+              },
+              "speakerRole": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "description": "Speaker's role, e.g. CEO."
+              }
+            },
+            "required": [
+              "text",
+              "speakerRole"
+            ],
+            "additionalProperties": false
+          },
+          "customerQuote": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1500,
+                "description": "The quote."
+              },
+              "persona": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "description": "Who says it, e.g. independent builder."
+              },
+              "hypothetical": {
+                "type": "boolean",
+                "description": "True when the quote is imagined rather than said by a real customer."
+              }
+            },
+            "required": [
+              "text",
+              "persona",
+              "hypothetical"
+            ],
+            "additionalProperties": false
+          },
+          "gettingStarted": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2500,
+            "description": "How a customer starts on day one."
+          },
+          "inScope": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "statement": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "What ships, as the customer sees it."
+                }
+              },
+              "required": [
+                "statement"
+              ],
+              "additionalProperties": false
+            },
+            "description": "What this release delivers. Link each to its UseCase, UserStory or Requirement with in_scope."
+          },
+          "outOfScope": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "statement": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "What does not ship."
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "Why not, or when instead."
+                }
+              },
+              "required": [
+                "statement",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "description": "What this release deliberately leaves out. Link each to its record with out_of_scope."
+          },
+          "successMeasure": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "How we will know it worked. Link Goals or MetricDefinitions with measured_by."
+          },
+          "faq": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "Question."
+                },
+                "answer": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2500,
+                  "description": "Answer."
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "customer",
+                    "internal"
+                  ]
+                }
+              },
+              "required": [
+                "question",
+                "answer",
+                "audience"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "openQuestions": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "description": "An unresolved decision."
+            },
+            "description": "Must be empty before the stage moves to committed."
+          }
+        },
+        "required": [
+          "stage",
+          "headline",
+          "subheadline",
+          "customer",
+          "problem",
+          "solution",
+          "gettingStarted",
+          "inScope",
+          "outOfScope"
+        ],
+        "additionalProperties": false
+      },
+      "archived": false
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000002",
+      "category": "edge",
+      "name": "announces",
+      "title": "announces",
+      "body": "The source Release announces the target Product or Offering to customers. An announcement is intent until the release is shipped.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7a000000-0000-4000-8000-000000000001"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000015",
+            "71000000-0000-4000-8000-000000000056"
+          ]
+        }
+      },
+      "archived": false
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000003",
+      "category": "edge",
+      "name": "for_customer",
+      "title": "for customer",
+      "body": "The source Release or Offering is written for, or sold to, the target CustomerSegment. It records the intended customer, not a sale or contract.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7a000000-0000-4000-8000-000000000001",
+            "71000000-0000-4000-8000-000000000056"
+          ],
+          "to": [
+            "71000000-0000-4000-8000-000000000016"
+          ]
+        }
+      },
+      "archived": false
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000004",
+      "category": "edge",
+      "name": "in_scope",
+      "title": "in scope",
+      "body": "The source Release delivers the target UseCase, UserStory or Requirement. When the release is committed, this work is prioritized. Scope is not completion; acceptance criteria and evaluations carry evidence. Planning creates the UseCase type, so targets are documented here rather than enforced as endpoints.",
+      "properties": [],
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7a000000-0000-4000-8000-000000000001"
+          ],
+          "to": "any"
+        }
+      }
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000005",
+      "category": "edge",
+      "name": "out_of_scope",
+      "title": "out of scope",
+      "body": "The source Release deliberately leaves out the target UseCase, UserStory, Requirement or Project. Record why in the reason property. Parked work is not rejected work. Planning creates the UseCase type, so targets are documented here rather than enforced as endpoints.",
+      "properties": [
+        {
+          "name": "reason",
+          "type": "string",
+          "description": "Why it is out of scope, or which release takes it instead.",
+          "required": false
+        }
+      ],
+      "archived": false,
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7a000000-0000-4000-8000-000000000001"
+          ],
+          "to": "any"
+        }
+      }
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000006",
+      "category": "edge",
+      "name": "delivered_as",
+      "title": "delivered as",
+      "body": "The source Release shipped as the target ProductRevision. Follow that revision's ReadinessAssessment and ReleaseRecord for delivery evidence.",
+      "properties": [],
+      "ontology": {
+        "version": 2,
+        "endpoints": {
+          "from": [
+            "7a000000-0000-4000-8000-000000000001"
+          ],
+          "to": [
+            "76000000-0000-4000-8000-000000000002"
+          ]
+        }
+      },
+      "archived": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "7a000000-0000-4000-8000-000000000010",
+      "typeId": "71000000-0000-4000-8000-000000000066",
+      "slug": "release-scope",
+      "title": "Release scope",
+      "summary": "Read one release: its product, customers, problems, measures, in-scope and out-of-scope work, and the acceptance criteria behind that work.",
+      "body": "{\"name\":\"Release scope\",\"purpose\":\"Every organization plans releases press-release first. Start at a Release and follow what it announces, who it is for, which problems it addresses, how success is measured, and which use cases, stories and requirements are in and out of scope, one step further to their stories and acceptance criteria. Missing criteria show work that is not ready to commit.\\n\\nOnly recorded relationships count. In scope is not completion, and out of scope is not rejection. The view grants no authorization and starts no execution.\",\"rootTypes\":[\"Release\"],\"selection\":{\"relationships\":[{\"type\":\"announces\",\"from_type\":\"Release\"},{\"type\":\"for_customer\",\"from_type\":\"Release\"},{\"type\":\"addresses\",\"from_type\":\"Release\",\"to_type\":\"Problem\"},{\"type\":\"measured_by\",\"from_type\":\"Release\",\"to_type\":\"Goal\"},{\"type\":\"measured_by\",\"from_type\":\"Release\",\"to_type\":\"MetricDefinition\"},{\"type\":\"part_of\",\"from_type\":\"Release\"},{\"type\":\"in_scope\",\"from_type\":\"Release\"},{\"type\":\"out_of_scope\",\"from_type\":\"Release\"},{\"type\":\"has_story\",\"to_type\":\"UserStory\"},{\"type\":\"has_acceptance_criterion\",\"to_type\":\"AcceptanceCriterion\"},{\"type\":\"delivered_as\",\"from_type\":\"Release\"}],\"maxDepth\":2,\"maxNodes\":200},\"query\":\"query ReleaseScope($rootIds: [ID!]!) {\\n  releases(ids: $rootIds, first: 200) {\\n    nodes {\\n      ...Record\\n      ...Step1\\n    }\\n  }\\n}\\n\\nfragment Record on Node {\\n  id\\n  typeId\\n  title\\n  slug\\n}\\n\\nfragment Link on Edge {\\n  id\\n  typeId\\n  fromId\\n  toId\\n}\\n\\nfragment Step1 on Node {\\n  hasStoryLinks: edges(types: [\\\"has_story\\\"], direction: OUTGOING) {\\n    ...Link\\n    to {\\n      ...Record\\n      ...Step2\\n    }\\n  }\\n  hasAcceptanceCriterionLinks: edges(\\n    types: [\\\"has_acceptance_criterion\\\"]\\n    direction: OUTGOING\\n  ) {\\n    ...Link\\n    to {\\n      ...Record\\n      ...Step2\\n    }\\n  }\\n  ... on Release {\\n    announcesEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    addressesLinks: edges(types: [\\\"addresses\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    measuredByLinks: edges(types: [\\\"measured_by\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    partOfLinks: edges(types: [\\\"part_of\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    inScopeLinks: edges(types: [\\\"in_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    outOfScopeLinks: edges(types: [\\\"out_of_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n  }\\n}\\n\\nfragment Step2 on Node {\\n  hasStoryLinks: edges(types: [\\\"has_story\\\"], direction: OUTGOING) {\\n    ...Link\\n    to {\\n      ...Record\\n      ...Beyond\\n    }\\n  }\\n  hasAcceptanceCriterionLinks: edges(\\n    types: [\\\"has_acceptance_criterion\\\"]\\n    direction: OUTGOING\\n  ) {\\n    ...Link\\n    to {\\n      ...Record\\n      ...Beyond\\n    }\\n  }\\n  ... on Release {\\n    announcesEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    addressesLinks: edges(types: [\\\"addresses\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    measuredByLinks: edges(types: [\\\"measured_by\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    partOfLinks: edges(types: [\\\"part_of\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    inScopeLinks: edges(types: [\\\"in_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    outOfScopeLinks: edges(types: [\\\"out_of_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n  }\\n}\\n\\nfragment Beyond on Node {\\n  hasStoryLinks: edges(types: [\\\"has_story\\\"], direction: OUTGOING) {\\n    ...Link\\n    to {\\n      id\\n      typeId\\n    }\\n  }\\n  hasAcceptanceCriterionLinks: edges(\\n    types: [\\\"has_acceptance_criterion\\\"]\\n    direction: OUTGOING\\n  ) {\\n    ...Link\\n    to {\\n      id\\n      typeId\\n    }\\n  }\\n  ... on Release {\\n    announcesEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    addressesLinks: edges(types: [\\\"addresses\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    measuredByLinks: edges(types: [\\\"measured_by\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    partOfLinks: edges(types: [\\\"part_of\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    inScopeLinks: edges(types: [\\\"in_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    outOfScopeLinks: edges(types: [\\\"out_of_scope\\\"], direction: OUTGOING) {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n  }\\n}\",\"hash\":\"bad2c054d2b8fd17b5d5c4933ce89a2ad404a3225726a5c5c503eeacc6c6f49a\",\"variables\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"rootIds\"],\"properties\":{\"rootIds\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":32,\"items\":{\"type\":\"string\",\"format\":\"uuid\"},\"description\":\"Root node IDs, each of one of the selection's root types.\"}}}}",
+      "archived": false
+    },
+    {
+      "id": "7a000000-0000-4000-8000-000000000011",
+      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "slug": "press-release",
+      "title": "Press release",
+      "summary": "Render one Release as a working-backwards press release with its in-scope and out-of-scope lists.",
+      "body": "{\n  \"artifactKind\": \"press release\",\n  \"audience\": \"Customers for the announcement; the team and its agents for scope and priority.\",\n  \"purpose\": \"Agree, before work starts, what the customer gets and what is in and out of scope.\",\n  \"outputTitle\": \"Press release\",\n  \"sections\": [\n    \"Headline\",\n    \"Subheadline\",\n    \"Problem\",\n    \"Solution\",\n    \"Quotes\",\n    \"Getting started\",\n    \"In scope\",\n    \"Out of scope\",\n    \"How we will measure it\",\n    \"FAQ\"\n  ],\n  \"sourceScope\": \"One Release and the records the Release scope knowledge graph reaches from it, in the release's own Wiki.\",\n  \"refreshPolicy\": \"Re-render whenever the release or a linked scope record changes; a committed release shows changed scope as drift.\",\n  \"revisionPolicy\": \"Record the release revision and each linked record revision used for the rendered output.\",\n  \"status\": \"proposed\",\n  \"sectionMappings\": [\n    {\n      \"title\": \"In scope\",\n      \"types\": [\n        \"UseCase\",\n        \"UserStory\",\n        \"Requirement\"\n      ],\n      \"mode\": \"summaries\"\n    },\n    {\n      \"title\": \"Out of scope\",\n      \"types\": [\n        \"UseCase\",\n        \"UserStory\",\n        \"Requirement\",\n        \"Project\"\n      ],\n      \"mode\": \"links\"\n    },\n    {\n      \"title\": \"How we will measure it\",\n      \"types\": [\n        \"Goal\",\n        \"MetricDefinition\"\n      ],\n      \"mode\": \"links\"\n    }\n  ]\n}",
+      "properties": {},
+      "archived": false
+    },
+    {
+      "id": "7b000000-0000-4000-8000-000000000010",
+      "typeId": "71000000-0000-4000-8000-000000000066",
+      "slug": "product-chain",
+      "title": "Product chain",
+      "summary": "Follow one release to the revision that delivers it, the product it revises, the offerings that package that product and their customers, with the revision's evidence.",
+      "body": "{\"name\":\"Product chain\",\"purpose\":\"Every product, software or hardware, is documented as one chain: a Release is delivered as a ProductRevision, which is a revision of a Product, which Offerings package for CustomerSegments. Start at a Release and walk that chain, picking up each revision's evidence (design concepts, evidence bundles, demonstrations).\\n\\nOnly recorded relationships count. A revision at the concept stage with a design concept is an idea with pictures, not a shipped product. The view grants no authorization and starts no execution.\",\"rootTypes\":[\"Release\"],\"selection\":{\"relationships\":[{\"type\":\"delivered_as\",\"from_type\":\"Release\",\"to_type\":\"ProductRevision\"},{\"type\":\"revision_of\",\"from_type\":\"ProductRevision\",\"to_type\":\"Product\"},{\"type\":\"packages_product\",\"direction\":\"incoming\",\"from_type\":\"Offering\",\"to_type\":\"Product\"},{\"type\":\"for_customer\",\"from_type\":\"Offering\",\"to_type\":\"CustomerSegment\"},{\"type\":\"evidence_for\",\"direction\":\"incoming\",\"to_type\":\"ProductRevision\"}],\"maxDepth\":4,\"maxNodes\":200},\"query\":\"query ProductChain($rootIds: [ID!]!) {\\n  releases(ids: $rootIds, first: 200) {\\n    nodes {\\n      ...Record\\n      ...Step1\\n    }\\n  }\\n}\\n\\nfragment Record on Node {\\n  id\\n  typeId\\n  title\\n  slug\\n}\\n\\nfragment Link on Edge {\\n  id\\n  typeId\\n  fromId\\n  toId\\n}\\n\\nfragment Step1 on Node {\\n  ... on Offering {\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n  }\\n  ... on Product {\\n    packagesProductIncomingEdges {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n  }\\n  ... on ProductRevision {\\n    revisionOfEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n    evidenceForIncomingLinks: edges(types: [\\\"evidence_for\\\"], direction: INCOMING) {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n  }\\n  ... on Release {\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step2\\n      }\\n    }\\n  }\\n}\\n\\nfragment Step2 on Node {\\n  ... on Offering {\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step3\\n      }\\n    }\\n  }\\n  ... on Product {\\n    packagesProductIncomingEdges {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step3\\n      }\\n    }\\n  }\\n  ... on ProductRevision {\\n    revisionOfEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step3\\n      }\\n    }\\n    evidenceForIncomingLinks: edges(types: [\\\"evidence_for\\\"], direction: INCOMING) {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step3\\n      }\\n    }\\n  }\\n  ... on Release {\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step3\\n      }\\n    }\\n  }\\n}\\n\\nfragment Step3 on Node {\\n  ... on Offering {\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step4\\n      }\\n    }\\n  }\\n  ... on Product {\\n    packagesProductIncomingEdges {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step4\\n      }\\n    }\\n  }\\n  ... on ProductRevision {\\n    revisionOfEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step4\\n      }\\n    }\\n    evidenceForIncomingLinks: edges(types: [\\\"evidence_for\\\"], direction: INCOMING) {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Step4\\n      }\\n    }\\n  }\\n  ... on Release {\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Step4\\n      }\\n    }\\n  }\\n}\\n\\nfragment Step4 on Node {\\n  ... on Offering {\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n  }\\n  ... on Product {\\n    packagesProductIncomingEdges {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n  }\\n  ... on ProductRevision {\\n    revisionOfEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n    evidenceForIncomingLinks: edges(types: [\\\"evidence_for\\\"], direction: INCOMING) {\\n      ...Link\\n      from {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n  }\\n  ... on Release {\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        ...Record\\n        ...Beyond\\n      }\\n    }\\n  }\\n}\\n\\nfragment Beyond on Node {\\n  ... on Offering {\\n    forCustomerEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n  }\\n  ... on Product {\\n    packagesProductIncomingEdges {\\n      ...Link\\n      from {\\n        id\\n        typeId\\n      }\\n    }\\n  }\\n  ... on ProductRevision {\\n    revisionOfEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n    evidenceForIncomingLinks: edges(types: [\\\"evidence_for\\\"], direction: INCOMING) {\\n      ...Link\\n      from {\\n        id\\n        typeId\\n      }\\n    }\\n  }\\n  ... on Release {\\n    deliveredAsEdges {\\n      ...Link\\n      to {\\n        id\\n        typeId\\n      }\\n    }\\n  }\\n}\",\"hash\":\"9f5ea1752e5d18e94eb307c57aa677fe458c9aa5b13706e78e86d26c94b787f5\",\"variables\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"rootIds\"],\"properties\":{\"rootIds\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":32,\"items\":{\"type\":\"string\",\"format\":\"uuid\"},\"description\":\"Root node IDs, each of one of the selection's root types.\"}}}}",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "7a000000-0000-4000-8000-000000000020",
+      "typeId": "08755272-8498-4671-8f63-ec97acc97f76",
+      "fromId": "7a000000-0000-4000-8000-000000000011",
+      "toId": "7a000000-0000-4000-8000-000000000010"
+    }
+  ]
+}

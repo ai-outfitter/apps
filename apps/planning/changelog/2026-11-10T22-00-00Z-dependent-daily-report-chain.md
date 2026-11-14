@@ -1,0 +1,13 @@
+# Calendar-based project, organization and personal report chain
+
+The existing project-digest workflow now saves each active project's previous local calendar day, then an organization overview depending on those exact project report revisions. A personal installation reads member-authorized organization Planning reports through the existing platform document host and saves its own overview. It writes only its own Wiki. Missing, mismatched or failed source reports create an incomplete overview and leave the workflow output incomplete before failure; they never become no-change reports.
+
+`DailyReport` reads the exact generated report and its source references. `GenerateDailyReports` starts the complete owner chain as a registered durable task. Existing project digest history, run and schedule documents are now published too. The legacy incremental digest history remains intact and separate from calendar reporting.
+
+Daily periods are exact half-open local midnight windows, including 23/25-hour DST days. Scheduled occurrences pin the period to `scheduledFor`; manual tasks use their persisted run creation time. Saving a schedule defaults to 06:00 organizations / 08:00 personal in America/Chicago, with an explicit report timezone input. Existing schedules retain their configuration until edited. No schedules are enabled by this code change. Personal scheduled reads depend on the companion generic query-only platform.document schedule support.
+
+Daily reports revise only Wiki's generated draft section at an exact revision. Authored notes, published revisions and previous revisions survive regeneration. Identical captured input does not create another revision. This supersedes the first-capture behavior of the earlier foundation entry.
+
+Coverage is explicit: current Planning project/issue/submission rows only. Timestamp filters select observed records in the requested calendar day, but current tables cannot reconstruct overwritten transitions, deleted rows, per-document edit times, or acceptance times. Reports therefore mark historical coverage limited and say "no observed changes", not that nothing happened. External repositories, connectors and threads are outside this capture. Personal coverage is member-authorized installed Planning sources, not organizations without Planning. Missing organization reports must complete before a personal retry can succeed; the personal worker does not gain organization write authority.
+
+Validation covers DST boundaries, timestamp filtering, same-date regeneration and no-op retries, generated/authored/publication preservation, source failure, incomplete dependency propagation and personal/organization write separation. Local fixture results do not establish production activation.

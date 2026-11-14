@@ -1,14 +1,16 @@
 {
   "name": "@ai-outfitter/app-workshop",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
+    "pcb-check": "node --import tsx scripts/pcb-check.ts",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "node --import tsx --test tests/*.unit.test.ts",
     "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
@@ -21,6 +23,8 @@
     "@ai-outfitter/app-sdk": "*",
     "@ai-outfitter/server": "*",
     "@ai-outfitter/ui": "*",
+    "@ai-outfitter/workflow-workshop-concept": "0.1.0",
+    "@ai-outfitter/workflow-workshop-design": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",
     "@noble/hashes": "2.0.1",
     "astro": "^7.3.5",
@@ -32,7 +36,11 @@
     "replicad-opencascadejs": "1.1.0",
     "replicad-threejs-helper": "1.0.0",
     "three": "0.185.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@ai-outfitter/workflow-workshop-workspace": "0.1.0",
+    "@astrojs/react": "^7.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",
@@ -44,7 +52,9 @@
     "@types/three": "0.185.0",
     "@types/w3c-web-serial": "^1.0.8",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
   },
   "outfitter": {
     "kind": "app",

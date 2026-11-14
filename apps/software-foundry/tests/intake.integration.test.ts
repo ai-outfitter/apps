@@ -20,7 +20,7 @@ const fixtureSource = (mainModule: string) => `
 import { WorkerEntrypoint } from "cloudflare:workers";
 import app from "./${mainModule}";
 const issue = (number, extra = {}) => ({ number, title: "Issue " + number, html_url: "https://github.com/acme/app/issues/" + number, state: "open", body: "", ...extra });
-const state = { pullMerged: true, clock: 0, calls: [], bindingHash: "hash", subscriptionEnabled: true, startFailure: false, operations: ["issues.create", "issues.comment"], comments: new Map(), runs: [],
+const state = { pullMerged: true, clock: 0, calls: [], bindingEnabled: true, subscriptionEnabled: true, startFailure: false, operations: ["issues.create", "issues.comment"], comments: new Map(), runs: [],
   issues: new Map([[3, issue(3)], [4, issue(4, { state: "closed" })], [5, issue(5, { html_url: "https://github.com/acme/app/pull/5", pull_request: {} })]]) };
 const inputs = { "triage.inputs.triagerBinding": "b-triager", "triage.inputs.engineerBinding": "b-engineer", "triage.inputs.reviewerBinding": "b-reviewer", "triage.inputs.landerBinding": "b-lander" };
 const denied = (status, message) => ({ denied: { ok: false, status, message } });
@@ -48,7 +48,7 @@ function answer(operation, input, props) {
   if (editorOnly.has(operation) && !/owner|admin/.test(props.role)) return denied(403, "Workflow host authority unavailable");
   if (operation === "snapshot") return {
     installation: { id: "foundry", activeHash: "hash", hostname: "foundry.acme.localhost", workflows: ["issue-to-merge-actions-ci"] },
-    bindings: Object.values(inputs).map((id) => ({ id, workflowId: "issue-to-merge-actions-ci", actor: id.slice(2), kind: "external", label: id, revision: "r", packageHash: state.bindingHash, enabled: true })),
+    bindings: Object.values(inputs).map((id) => ({ id, workflowId: "issue-to-merge-actions-ci", actor: id.slice(2), kind: "external", label: id, revision: "r", packageHash: "hash", enabled: state.bindingEnabled })),
     subscriptions: [{ id: "sub", workflowId: "issue-to-merge-actions-ci", connectionId: "github", resource: "1", enabled: state.subscriptionEnabled, inputs }],
     connections: [{ id: "github", provider: "github", revision: "r", owner: "organization", operations: state.operations, repositories: ["acme/app"] }],
   };
@@ -85,7 +85,7 @@ function answer(operation, input, props) {
     const prior = state.runs.find((run) => run.id === input.id);
     const request = JSON.stringify([input.workflow, input.inputs]);
     if (prior) return prior.request === request && prior.createdBy === props.user ? { id: input.id, workflow: input.workflow, created: false } : denied(409, "Run ID already claimed with different inputs");
-    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"].issue.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
+    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"]?.issue?.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
     return { id: input.id, workflow: input.workflow, created: true };
   }
   return undefined;
@@ -112,7 +112,7 @@ export default {
       if (change.failAfterCreate && change.failAfterStatus === undefined) state.failAfterStatus = 502;
       if (change.issueState) state.issues.get(change.issueState.number).state = change.issueState.state;
       if (change.clearIssueBody) state.issues.get(change.clearIssueBody).body = "";
-      if (change.bindingHash) state.bindingHash = change.bindingHash;
+      if (change.bindingEnabled !== undefined) state.bindingEnabled = change.bindingEnabled;
       if (change.subscriptionEnabled !== undefined) state.subscriptionEnabled = change.subscriptionEnabled;
       if (change.startFailure !== undefined) state.startFailure = change.startFailure;
       if (change.operations) state.operations = change.operations;
@@ -197,21 +197,21 @@ const submission = (extra: Record<string, unknown> = {}) => ({
 const starts = (calls: { operation: string }[]) => calls.filter((call) => call.operation === "workflow.start").length;
 const writes = (calls: { operation: string }[]) => calls.filter((call) => ["connector.execute", "workflow.start"].includes(call.operation)).length;
 
-test("stale or missing execution setup preserves the issue receipt and retries resume once configured", async () => {
+test("disabled or missing execution setup preserves the issue receipt and retries resume once configured", async () => {
   const f = await installed();
   try {
-    await f.change({ bindingHash: "previous-package" });
+    await f.change({ bindingEnabled: false });
     const first = await f.action(submission());
     assert.equal(first.status, 200, String(first.body));
     const receipt = first.body as Record<string, any>;
     assert.equal(receipt.issue.created, true);
     assert.equal(receipt.run, null);
     assert.equal(receipt.execution.status, "blocked");
-    assert.match(receipt.execution.message, /active package/);
+    assert.match(receipt.execution.message, /not configured for this repository/);
     const calls = await f.calls();
-    assert.equal(calls.some((call) => call.operation === "repository.read"), false, "a stale executable binding is never used to authorize submission");
+    assert.equal(calls.some((call) => call.operation === "repository.read"), false, "a disabled executable binding is never used to authorize submission");
     assert.equal(starts(calls), 0);
-    await f.change({ bindingHash: "hash", subscriptionEnabled: false });
+    await f.change({ bindingEnabled: true, subscriptionEnabled: false });
     const disabled = (await f.action(submission())).body as Record<string, any>;
     assert.equal(disabled.issue.number, receipt.issue.number);
     assert.equal(disabled.issue.created, false);
@@ -222,10 +222,10 @@ test("stale or missing execution setup preserves the issue receipt and retries r
     assert.equal(configured.issue.created, false);
     assert.equal(configured.run.status, "running");
     assert.equal(starts(await f.calls()), 1);
-    await f.change({ bindingHash: "previous-package" });
-    const upgraded = (await f.action(submission())).body as Record<string, any>;
-    assert.equal(upgraded.run.id, configured.run.id, "a package upgrade does not hide the run already started for this issue");
-    assert.equal(upgraded.run.existing, true);
+    await f.change({ bindingEnabled: false });
+    const disabledAgain = (await f.action(submission())).body as Record<string, any>;
+    assert.equal(disabledAgain.run.id, configured.run.id, "disabling a binding does not hide the run already started for this issue");
+    assert.equal(disabledAgain.run.existing, true);
     assert.equal(starts(await f.calls()), 0);
   } finally { await f.worker.dispose(); }
 });
@@ -625,4 +625,60 @@ test("large optional evidence collections retain bounded records and nullable ob
     assert.equal(reviews.filter((review:any)=>review.commit_id === result.pullRequests[0].headSha).length,1,"obsolete null-commit review is preserved but cannot count as exact-head evidence");
     assert.deepEqual(result.blockers,[]);
   } finally {await f.worker.dispose();}
+});
+
+test("RequestChanges files a bug as one issue and starts the workflow through graph.mutate", async () => {
+  const f = await installed();
+  try {
+    await f.calls();
+    const bugId = "cccccccc-2222-4222-8222-222222222222";
+    const request = { kind: "bug", requestId: bugId, target: { repository: "acme/app" }, title: "Totals double-count refunds",
+      problem: "Monthly totals are wrong whenever an order was refunded.", acceptanceCriteria: [{ id: "refund-once", text: "A refunded order reduces the total exactly once" }],
+      bug: { stepsToReproduce: ["Create an order for 10", "Refund it"], expected: "Total is 0", actual: "Total is -10" } };
+    const mutate = async (key: string, input: unknown) => {
+      const response = await f.dispatch("/api/internal/actions/v1/call", { actor: codex, originActor: codex, body: { action: "graph.mutate", input: {
+        query: "mutation RequestChanges($input: RequestChangesInput!) { requestChanges(input: $input) { items { key status result error } } }",
+        operationName: "RequestChanges", variables: { input: { items: [{ key, action: "submit", input }] } },
+      } } });
+      assert.equal(response.status, 200, await response.clone().text());
+      return JSON.stringify(await response.json());
+    };
+    const filed = await mutate("11111111-aaaa-4aaa-8aaa-111111111111", request);
+    assert.match(filed, /"created":true/, filed);
+    const calls = await f.calls();
+    assert.equal(starts(calls), 1);
+    const created = calls.find((call) => call.operation === "connector.execute" && call.input.operation === "issues.create")!;
+    const issue = (await f.state()).issues[Object.keys((await f.state()).issues).map(Number).at(-1)!];
+    assert.equal(created.input.input.title, "Totals double-count refunds");
+    assert.match(issue.body, /\*\*Kind:\*\* bug/);
+    assert.match(issue.body, /## Steps to reproduce\n1\. Create an order for 10\n2\. Refund it/);
+    assert.match(issue.body, /- \[ \] `refund-once`: A refunded order reduces the total exactly once/);
+    // A bug without bug details is refused before anything reaches GitHub.
+    const { bug: _bug, ...noDetails } = request;
+    assert.match(await mutate("22222222-aaaa-4aaa-8aaa-222222222222", { ...noDetails, requestId: "dddddddd-2222-4222-8222-222222222222" }), /bug requests need bug details/);
+    assert.equal(writes(await f.calls()), 0);
+  } finally { await f.worker.dispose(); }
+});
+
+test("a repository job schedule occurrence starts the reserved run with its saved binding", async () => {
+  const f = await installed();
+  const scheduled: Record<string, unknown> = { "analyze.inputs.repository": "acme/app", "analyze.inputs.reviewerBinding": "b-job",
+    "analyze.inputs.fix": { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } } };
+  const occurrence = (workflowId: string, runId: string, inputs: Record<string, unknown> = scheduled) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
+    runId, scheduledFor: 1,
+    schedule: { id: "schedule-1", workflowId, inputs, connectionId: null, resource: null },
+  } } });
+  try {
+    const runId = "cccccccc-1111-4111-8111-111111111111";
+    const started = await occurrence("dependency-review", runId);
+    assert.equal(started.status, 200, await started.clone().text());
+    assert.deepEqual(await started.json(), { outcome: "started" });
+    const [start] = (await f.calls()).filter((call) => call.operation === "workflow.start");
+    assert.deepEqual(start?.input, { workflow: "dependency-review", id: runId, inputs: scheduled });
+    const unbound = await occurrence("dependency-review", "eeeeeeee-1111-4111-8111-111111111111", { "analyze.inputs.repository": "acme/app" });
+    assert.match(((await unbound.json()) as { reason: string }).reason, /JobChanges schedule/);
+    const declined = await occurrence("issue-to-merge-actions-ci", "dddddddd-1111-4111-8111-111111111111");
+    assert.equal(((await declined.json()) as { outcome: string }).outcome, "declined");
+    assert.equal(starts(await f.calls()), 0);
+  } finally { await f.worker.dispose(); }
 });

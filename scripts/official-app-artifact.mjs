@@ -17,9 +17,11 @@ function component(path) {
   assert.match(name,/^[a-z0-9]+(?:-[a-z0-9]+)*$/,'Invalid release component');
   return name;
 }
+/** The commit the release is built from: the checked-out tag when recovering, else the pushed commit. */
+const sourceCommit=(env)=>env.SOURCE_COMMIT || env.GITHUB_SHA;
 export function prepare(path, output, env=process.env) {
   const name=component(path);
-  assert.match(env.GITHUB_SHA || '',/^[a-f0-9]{40}$/,'Source commit required');
+  assert.match(sourceCommit(env) || '',/^[a-f0-9]{40}$/,'Source commit required');
   assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps','Unexpected release repository');
   const pkg=json(join(path,'package.json')), appBytes=readFileSync(join(path,'app.json'));
   const app=JSON.parse(appBytes);
@@ -39,7 +41,7 @@ export function prepare(path, output, env=process.env) {
     hashes[mode]=digest(bytes);
     writeFileSync(join(output,`${name}.${mode}.json`),bytes);
   }
-  const proof={schema:2,sourceRepository:env.GITHUB_REPOSITORY,sourceCommit:env.GITHUB_SHA,appPath:path,version:app.version,appSha256:digest(appBytes),packages:hashes};
+  const proof={schema:2,sourceRepository:env.GITHUB_REPOSITORY,sourceCommit:sourceCommit(env),appPath:path,version:app.version,appSha256:digest(appBytes),packages:hashes};
   writeFileSync(join(output,`${name}.provenance.json`),JSON.stringify(proof,null,2)+'\n');
 }
 export function publish(path,input,env=process.env,execute=execFileSync) {
@@ -47,7 +49,7 @@ export function publish(path,input,env=process.env,execute=execFileSync) {
   const proof=json(join(input,`${name}.provenance.json`));
   assert.equal(proof.schema,2);
   assert.equal(proof.sourceRepository,'ai-outfitter/apps');
-  assert.equal(proof.sourceCommit,env.GITHUB_SHA,'Release artifacts do not match this workflow');
+  assert.equal(proof.sourceCommit,sourceCommit(env),'Release artifacts do not match this workflow');
   assert.equal(proof.appPath,path);assert.equal(proof.appSha256,digest(appBytes));
   const app=JSON.parse(appBytes), modes=Object.keys(app.modes || {demo:{}});
   assert.ok(modes.length && modes.every(mode=>['demo','operational'].includes(mode)));

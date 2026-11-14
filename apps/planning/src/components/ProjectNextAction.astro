@@ -1,0 +1,69 @@
+---
+import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
+import { requestPageURL } from "@ai-outfitter/app-sdk/server";
+import { appHref } from "../app-href";
+import { projectNextAction } from "../project-next-action";
+import { planningContext } from "../server/context";
+import { documents, runDocument } from "../server/documents";
+import { configuredReportPeriod } from "../server/report-config";
+import { previousReportPeriod, type ReportPeriod } from "../server/report-period";
+import { wikiPageHref } from "../server/wiki-links";
+interface Props { projectId: string; }
+const {projectId}=Astro.props;
+const demo=import.meta.env.OUTFITTER_APP_MODE==="demo";
+let period:ReportPeriod|null=demo?previousReportPeriod(Date.now()):null;
+let delivery:unknown=null,report:unknown=null,questionsError=false,reportError=false,reportHref="";
+if(demo) {
+  delivery={intakeDecisions:{items:[{intakeId:"demo-request",title:"Next customer outcome",revision:1,questions:["What evidence would make this release ready for the customer?"]}],truncated:false}};
+} else {
+  const context=planningContext(Astro.request,Astro.locals);
+  const results=await Promise.allSettled([
+    runDocument(documents.ProjectDelivery.document,{input:{projectId}},context),
+    (async()=>{period=await configuredReportPeriod(context.host());return runDocument(documents.DailyReport.document,{input:{level:"project",subject:projectId,date:period.date,timezone:period.timezone}},context);})(),
+  ]);
+  for(const result of results)if(result.status==="rejected" && result.reason instanceof Response && [401,403].includes(result.reason.status))throw result.reason;
+  if(results[0].status==="fulfilled")delivery=results[0].value.projectDelivery;else questionsError=true;
+  if(results[1].status==="fulfilled")report=results[1].value.dailyReport;else reportError=true;
+  if(report)try {
+    const wiki=await documentWiki(context.host());
+    const reference=projectNextAction(delivery,report).reference;
+    const types=await context.host().call("entities.types",{installationId:wiki.installationId});
+    const source=types.find(type=>type.slug || type.template);
+    if(reference.installationId===wiki.installationId && typeof reference.slug==="string" && source)reportHref=wikiPageHref({slug:source.slug ?? source.template!,hostname:source.hostname ?? null},requestPageURL(Astro.request),`p/${encodeURIComponent(reference.slug)}?revision=${encodeURIComponent(String(reference.revision))}`);
+  }catch{reportError=true;}
+}
+const view=projectNextAction(delivery,report);
+const href=(path:string)=>appHref(Astro.url.pathname,path);
+---
+<section class="planning-project-next" id="project-next-action" aria-label="Project next action">
+  {demo && <p class="planning-notice">Read-only demo · These questions are synthetic. No report was generated.</p>}
+  <div>
+    <h2>Needs you</h2>
+    {view.blockers.length>0 && <div data-delivery-blockers><h3>Delivery blockers</h3><ul>{view.blockers.slice(0,10).map(blocker=><li><strong>{blocker.message}</strong>{blocker.remediation && <p>{blocker.remediation}</p>}</li>)}</ul><p><a href={href(`/projects/${projectId}/work`)}>Review preparation and handoff</a></p></div>}
+    {["queued","dispatched","running"].includes(view.preparationState) && <p role="status">Work preparation is {view.preparationState}. Its blockers and handoff are not final yet.</p>}
+    {questionsError ? <p role="status">Pending decisions are unavailable. Open the conversation or retry this page before assuming there are none.</p>
+      : view.questions.length ? <ul class="planning-next-questions">{view.questions.slice(0,5).map(item=><li><strong>{item.title}</strong><ul>{item.questions.slice(0,3).map(question=><li>{question}</li>)}</ul></li>)}</ul>
+      : <p>No pending intake questions in this capture.</p>}
+    {(view.questions.length>5 || view.questions.some(item=>item.questions.length>3) || view.blockers.length>10) && <p class="muted">Showing the first questions and blockers. <a href={href("/intake")}>Review intake</a> or <a href={href(`/projects/${projectId}/work`)}>inspect all work details</a> for the rest.</p>}
+    {view.truncated && <p class="muted">More requests may need attention. <a href={href("/intake")}>Review all intake</a>.</p>}
+  </div>
+  <div>
+    <h2>What changed</h2>
+    <p class="muted">Daily report{period ? ` · ${period.date} · ${period.timezone}` : " · calendar unavailable"}</p>
+    {reportError ? <p role="status">The daily report is unavailable. Its absence does not mean nothing changed.</p>
+      : report ? <><p>{view.summary || "Read the saved report for this period's captured outcomes."}</p>{view.incomplete && <p role="status">Some source outcomes are incomplete.</p>}</>
+      : <p>No daily report has been saved for this date.</p>}
+    <p>{reportHref && <><a href={reportHref}>Read daily report</a> · </>}<a href={href(`/projects/${projectId}/evidence`)}>Review evidence</a> · <a href={href(`/projects/${projectId}/digest`)}>Earlier digests</a></p>
+  </div>
+  <div>
+    <h2>Next action</h2>
+    <p>{view.blockers.length ? "Resolve the delivery blockers above with the responsible owner before continuing. Use this project's conversation to review the next decision." : view.questions.length ? "Answer the pending questions in this project's conversation. Confirm each decision before it is saved." : "Review the report and evidence, then describe the next outcome in this project's conversation."}</p>
+  </div>
+</section>
+<style>
+  .planning-project-next { display: grid; gap: 1.5rem; overflow-wrap: anywhere; margin-block: 1rem 2rem; }
+  .planning-project-next h2 { margin-block: 0 .5rem; }
+  .planning-project-next p { max-width: 75ch; }
+  .planning-next-questions { padding-inline-start: 1.25rem; }
+  .planning-next-questions > li + li { margin-block-start: .75rem; }
+</style>

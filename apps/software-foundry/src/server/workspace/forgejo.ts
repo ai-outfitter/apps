@@ -73,6 +73,19 @@ export class ForgejoFoundryForge {
     return { number: pull.number, headSha: pull.head.sha, branch: pull.head.ref, url: pull.html_url };
   }
 
+  /** Open issues the bot opened (the newest page). */
+  async openedIssues(): Promise<IssueReceipt[]> {
+    const issues = await this.api(this.path(`/issues?state=open&type=issues&limit=${page}`));
+    return (Array.isArray(issues) ? issues : []).filter((issue: any) => issue.user?.id === this.botUserId).map((issue: any) => ({
+      number: issue.number, repository: this.repository, url: issue.html_url, title: issue.title,
+      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const }));
+  }
+
+  async close(number: number, comment: string) {
+    await this.api(this.path(`/issues/${number}/comments`), { body: comment });
+    await this.api(this.path(`/issues/${number}`), { state: "closed" }, "PATCH");
+  }
+
   async comment(issue: number, attemptId: string, summary: string) {
     const marker = `<!-- outfitter:workspace-triage:${attemptId} -->`;
     const comments = await this.api(this.path(`/issues/${issue}/comments?limit=${page}`));
@@ -141,11 +154,13 @@ export class ForgejoFoundryForge {
   private async requireApproval(candidate: ChangeReceipt, review: ReviewReceipt, pull: any) {
     const reviews = await this.api(this.path(`/pulls/${candidate.number}/reviews?limit=${page}`));
     if (reviews.length >= page) throw conflict("Review history exceeds safe merge limit");
-    const latest = reviews
-      .filter((item: any) => item.user?.id === review.reviewer.id && item.state !== "PENDING" && !item.dismissed)
-      .sort((a: any, b: any) => b.id - a.id)[0];
-    if (!latest || latest.id !== review.id || latest.state !== "APPROVED" || latest.commit_id !== candidate.headSha ||
-      latest.stale || pull.user.id === review.reviewer.id)
+    // Later comments or same-head approvals by the reviewer account leave the approval standing.
+    const own = reviews.find((item: any) => item.id === review.id);
+    const revoked = reviews.some((item: any) => item.user?.id === review.reviewer.id && item.id > review.id &&
+      !["PENDING", "COMMENT"].includes(item.state) &&
+      (item.dismissed || item.state !== "APPROVED" || item.commit_id !== candidate.headSha));
+    if (!own || own.user?.id !== review.reviewer.id || own.state !== "APPROVED" || own.dismissed || own.stale ||
+      own.commit_id !== candidate.headSha || revoked || pull.user.id === review.reviewer.id)
       throw conflict("Current independent formal approval required");
   }
 

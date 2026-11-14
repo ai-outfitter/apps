@@ -2,11 +2,11 @@
 // repository and a request, runs the sealed box image on it (its platform is
 // inspectable on a local port while it works), and grades the repository the
 // box left on its default branch with the fixture's EVAL.ts. Each app's evals
-// (apps/<app>/box/evals) say how a fixture becomes a request and what counts
+// (apps/<app>/agent-evals) say how a fixture becomes a request and what counts
 // as a passing result.
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -27,10 +27,18 @@ export type BoxOptions = {
   image: string;
   /** Host port for the box's platform, for watching a run. */
   inspectPort: number;
+  /** The host port Forgejo is published on (BOX_FORGEJO_PORT, 3300: its links name 127.0.0.1:3300). */
+  forgejoPort: number;
   /** Env file with the model settings (README, "Models"). */
   modelEnv?: string;
   /** Where each run's agent sessions are kept (`<dir>/<requestId>/<agent>.jsonl`). */
   sessionsDir?: string;
+  /** Where each run's UI screenshots are kept (`<dir>/<eval>/<n>-<step>.png`), for boxes that take them. */
+  screenshotsDir?: string;
+  /** One box run's limit in ms, counted from when it starts rather than while it waits its turn. */
+  runTimeoutMs?: number;
+  /** The experiment being run, for an app that prepares its requests by experiment. */
+  experiment?: string;
 };
 
 function git(directory: string, ...args: string[]) {
@@ -54,19 +62,28 @@ export type BoxApp = {
   requestFromPrompt(prompt: string): { requestId: string } & Record<string, unknown>;
   /** Whether the run-result the box wrote is a finished, successful run. */
   succeeded(result: any): boolean;
+  /** The experiment whose `.env.<name>` holds this experiment's model settings, for experiments
+   * that share a model and differ in how they reach the agent (default: the experiment itself). */
+  modelEnv?(experiment: string): string;
+  /** The request as this experiment sends it, for an experiment that reaches the same agent another way. */
+  prepareRequest?<T extends { requestId: string } & Record<string, unknown>>(request: T, experiment: string): T;
 };
 
 /** The fixture's request.json, or one the app makes from PROMPT.md. */
-export function fixtureRequest(app: BoxApp, fixture: string, prompt: string) {
+export function fixtureRequest(app: BoxApp, fixture: string, prompt: string, experiment?: string) {
   const file = join(fixture, "request.json");
-  if (existsSync(file)) return JSON.parse(readFileSync(file, "utf8"));
-  return app.requestFromPrompt(prompt);
+  const request = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : app.requestFromPrompt(prompt);
+  return experiment && app.prepareRequest ? app.prepareRequest(request, experiment) : request;
 }
 
 /** Runs the box to completion, streaming its log, within the eval's timeout. */
 function runBox(box: BoxOptions, work: string, timeout: number, signal?: AbortSignal) {
   const name = `${box.name}-eval-${work.split("-").pop()}`;
-  const args = ["run", "--rm", "--name", name, "-p", `127.0.0.1:${box.inspectPort}:8787`, "-e", "BOX_EXIT_WHEN_DONE=1",
+  // The platform is published on every interface and told this machine's bare hostname, so another
+  // device opens it at http://<hostname>:<port> (the webapp's OUTFITTER_LOCAL_HOSTNAME). Forgejo is
+  // published on loopback, at the port its ROOT_URL names, so the box's PRs and their screenshots can be viewed while it runs.
+  const args = ["run", "--rm", "--name", name, "-p", `${box.inspectPort}:8787`, "-p", `127.0.0.1:${box.forgejoPort}:3300`,
+    "-e", `OUTFITTER_LOCAL_HOSTNAME=${hostname().split(".")[0]}`, "-e", "BOX_EXIT_WHEN_DONE=1",
     ...(box.modelEnv ? ["--env-file", box.modelEnv] : []),
     "-v", `${join(work, "repo")}:/in/repo:ro`, "-v", `${join(work, "requests")}:/in/requests:ro`, "-v", `${join(work, "out")}:/out`, box.image];
   return new Promise<{ code: number | null; log: string }>((done) => {
@@ -114,7 +131,7 @@ export function grade(fixture: string, tree: string) {
   return { success: result.status === 0, output: `${result.stdout}${result.stderr}`, geometry };
 }
 
-/** One box run's time and model use, for comparing models (results/<name>-metrics.json). */
+/** One box run's time and model use, for comparing models (results/<experiment>/metrics-<time>.json). */
 export type RunMetrics = { eval: string; success: boolean; status?: string; model?: { provider: string; id: string };
   durationSeconds: number; metrics?: any;
   /** Geometry scores the eval recorded, by part (geometry.ts summary). */
@@ -182,18 +199,21 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
         git(work, "init", "--quiet", "--initial-branch=main", "repo");
         git(repo, "add", "-A");
         git(repo, "commit", "--quiet", "-m", "Eval fixture");
-        const request = fixtureRequest(app, fixturePath, options.prompt);
+        const request = fixtureRequest(app, fixturePath, options.prompt, box.experiment);
         mkdirSync(join(work, "requests"));
         writeFileSync(join(work, "requests", "request.json"), JSON.stringify(request, null, 2));
         mkdirSync(join(work, "out"));
         // The box runs as its own user; it writes results here.
         chmodSync(join(work, "out"), 0o777);
-        const ran = await runBox(box, work, options.timeout, options.signal);
+        const ran = await runBox(box, work, box.runTimeoutMs ?? options.timeout, options.signal);
         const resultFile = join(work, "out", "results", `${request.requestId.toLowerCase()}.json`);
         const result = existsSync(resultFile) ? JSON.parse(readFileSync(resultFile, "utf8")) : undefined;
         // Every agent's session (box/sessions.mjs): kept beside the results, and merged for Agent Eval's transcript.
         const sessions = join(work, "out", "sessions", request.requestId.toLowerCase());
         if (box.sessionsDir && existsSync(sessions)) cpSync(sessions, join(box.sessionsDir, request.requestId.toLowerCase()), { recursive: true });
+        // The app's UI as the box saw it after each step (Workshop's workbench screenshots).
+        const screenshots = join(work, "out", "screenshots", request.requestId.toLowerCase());
+        if (box.screenshotsDir && existsSync(screenshots)) cpSync(screenshots, join(box.screenshotsDir, basename(fixturePath)), { recursive: true });
         const transcriptFile = join(sessions, "transcript.jsonl");
         const transcript = existsSync(transcriptFile) ? readFileSync(transcriptFile, "utf8") : result && JSON.stringify(result);
         const measured = (success: boolean) => runs.push({ eval: basename(fixturePath), success, status: result?.status, model: result?.model,
@@ -233,40 +253,53 @@ export function boxAgent(box: BoxOptions, app: BoxApp, runs: RunMetrics[] = []):
   }
 }
 
-/** Runs an app's box evals with Agent Eval: every fixture under `<project>/evals`
- * (or the ones named on the command line) through the box, graded by its EVAL.ts.
- * Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection port),
- * BOX_TIMEOUT (seconds per run) and BOX_MODEL_ENV (an env file with the model settings, box/README.md, "Models"). */
+/** Runs an app's box evals with Agent Eval, in its `agent-evals/` project (the Agent Eval layout):
+ * `run.ts <experiment> [eval ...]` runs every fixture under `evals/` (or the ones named) through the
+ * box with `experiments/<experiment>.ts`, one file per model, and grades each with its EVAL.ts.
+ * The box gets that model's settings from `.env.<experiment>` (see `.env.example`), and results go to
+ * `results/<experiment>/`. Settings: BOX_CLI (docker or podman), BOX_IMAGE, BOX_PORT (the inspection
+ * port) and BOX_FORGEJO_PORT (Forgejo, 3300). */
 export async function runBoxEvals(project: string, box: { name: string; displayName: string; image: string }, app: BoxApp) {
   const env = process.env;
+  const [experiment, ...selected] = process.argv.slice(2);
+  const experiments = readdirSync(join(project, "experiments")).filter((file) => file.endsWith(".ts")).map((file) => file.slice(0, -3));
+  if (!experiment || !experiments.includes(experiment)) throw new Error(`Name an experiment first: ${experiments.join(", ")}`);
+  const modelEnv = join(project, `.env.${app.modelEnv?.(experiment) ?? experiment}`);
+  if (!existsSync(modelEnv)) throw new Error(`${modelEnv} is missing: copy .env.example and fill in the ${experiment} model settings`);
   const port = Number(env.BOX_PORT || 8787);
   const runs: RunMetrics[] = [];
-  const sessionsDir = join(project, "results", `${box.name}-sessions`);
-  registerAgent(boxAgent({ ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, modelEnv: env.BOX_MODEL_ENV, sessionsDir }, app, runs));
-  const resolved = await loadConfig(join(project, "experiments", `${box.name}.ts`));
-  // One model: the box routes every call to the model its env file names.
-  // BOX_TIMEOUT (seconds) overrides the experiment's timeout: a slower local model needs longer.
-  const timeout = Number(env.BOX_TIMEOUT) > 0 ? Number(env.BOX_TIMEOUT) : resolved.timeout;
-  const config = { ...resolved, timeout, model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
+  const resultsDir = join(project, "results");
+  const sessionsDir = join(resultsDir, experiment, "sessions");
+  const screenshotsDir = join(resultsDir, experiment, "screenshots");
+  // Agent Eval checks an experiment's agent when it loads it, so the agent is registered first;
+  // its per-run limit is set from the experiment once loaded.
+  const options: BoxOptions = { ...box, cli: env.BOX_CLI || "docker", image: env.BOX_IMAGE || box.image, inspectPort: port, forgejoPort: Number(env.BOX_FORGEJO_PORT || 3300), modelEnv, sessionsDir, screenshotsDir, experiment };
+  registerAgent(boxAgent(options, app, runs));
+  const resolved = await loadConfig(join(project, "experiments", `${experiment}.ts`));
+  options.runTimeoutMs = resolved.timeout * 1000;
   const { fixtures, errors } = loadAllFixtures(join(project, "evals"));
   for (const error of errors) console.error(error.message);
-  const selected = process.argv.slice(2);
   const chosen = selected.length ? fixtures.filter((fixture) => selected.includes(fixture.name)) : fixtures;
   if (!chosen.length) throw new Error(`No ${box.displayName} evals selected`);
+  // One model per experiment: the box routes every call to the model its env file names. Agent Eval
+  // starts every eval's clock at once while boxes take turns, so its limit covers the whole queue
+  // and each box run keeps the experiment's timeout from when it starts.
+  const config = { ...resolved, timeout: resolved.timeout * chosen.length * (resolved.runs ?? 1),
+    model: (Array.isArray(resolved.model) ? resolved.model[0] : resolved.model) ?? "gpt-6-luna" };
   console.log(`Running ${chosen.map((fixture) => fixture.name).join(", ")}; watch the box at http://outfitter.localhost:${port}`);
   const results = await runExperiment({
     config,
     fixtures: chosen,
     apiKey: env.OPENAI_API_KEY ?? "",
-    resultsDir: join(project, "results"),
-    experimentName: box.name,
+    resultsDir,
+    experimentName: experiment,
     onProgress: (event) => console.log(JSON.stringify(event).slice(0, 300)),
   });
   console.log(formatResultsTable(results));
   // Time and model use per run, kept next to Agent Eval's results so models can be compared.
-  mkdirSync(join(project, "results"), { recursive: true });
-  const file = join(project, "results", `${box.name}-metrics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-  writeFileSync(file, `${JSON.stringify({ image: env.BOX_IMAGE || box.image, runs }, null, 2)}\n`);
-  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}\nAgent sessions: ${sessionsDir}`);
+  mkdirSync(join(resultsDir, experiment), { recursive: true });
+  const file = join(resultsDir, experiment, `metrics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+  writeFileSync(file, `${JSON.stringify({ experiment, image: env.BOX_IMAGE || box.image, runs }, null, 2)}\n`);
+  console.log(`\n${metricsTable(runs)}\n\nMetrics: ${file}\nAgent sessions: ${sessionsDir}${existsSync(screenshotsDir) ? `\nScreenshots: ${screenshotsDir}` : ""}`);
   process.exitCode = results.evals.every((entry) => entry.passedRuns === entry.totalRuns) ? 0 : 1;
 }

@@ -17,6 +17,9 @@ scripts/              Shared tooling implementation and its tests
 action.yml            Reusable tooling Action
 ```
 
+See [public SDK distribution](docs/sdk-distribution.md) for the existing pinned
+workspace checkout, GitHub release archives, and release versus cutover gates.
+
 The official apps will use the same affected-app matrix and independent release
 components as external repositories. Adding them must not make tooling-only
 changes rebuild or deploy every app by default.
@@ -75,6 +78,27 @@ affected component because release-please tracks component paths.
 Keep release and deploy as separate caller jobs after the check job. The caller
 chooses triggers, permissions and deployment environments. Successful default-branch
 app checks should call deployment directly; no deployment enablement flag is needed.
+
+## Official catalog deployment
+
+The official apps registered by the platform publish from successful app CI
+on `main`. `check.yml` retains the exact checked packages and catalog metadata;
+`catalog-deploy.yml` downloads those artifacts in a separate OIDC-authorized job.
+It never rebuilds app code with publication credentials. The platform takes the
+artifact hashes, records the source commit and workflow run, and reconciles
+catalog demos and installations following that repository. Busy workflows defer
+activation through the durable reconciliation queue. A published artifact or
+accepted queue request is not proof that every installation is active.
+The publication job succeeds once every selected artifact is accepted. Per-owner
+activation failures or workflow deferrals appear as explicit warnings and remain
+in the durable retry ledger; they do not force unchanged apps to rebuild.
+
+Webapp retains reviewed app identity and compatibility policy. It resolves the
+current catalog channel from the registry instead of pinning component releases
+in source. Runtime GraphQL metadata follows each installation's exact active
+package during a partial rollout. App updates require no webapp version-pin PR,
+release tag or package version bump. Independent component releases and the
+shared personal-repository workflow below remain available.
 
 ## SaaS and self-hosted auto deployment
 
@@ -163,8 +187,8 @@ they are not customer installations or authenticated platform integration tests.
 A thin caller invokes the shared workflow on same-repository PR opened,
 synchronize, reopened and closed events, passing `pull-request` and the explicit
 `CLOUDFLARE_API_TOKEN` secret. Keep that secret in the caller's `preview-publish`
-environment and configure `OUTFITTER_PREVIEW_ACCOUNT_ID`. The current provider is
-Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
+environment. The current provider is Cloudflare Workers (`workers.dev`) in the
+Unsupervised account, hard-coded in the shared workflow; SaaS/self-hosted
 installation destinations remain the separate main-branch deploy workflow.
 Fork code is not imported automatically.
 
@@ -205,3 +229,14 @@ configured yet. App versions and changelogs remain in their app repositories.
 Pin the SDK once as `sdkSha` in `.outfitter/apps.json`. Check/preview workflows
 and the platform repository build adapter use the same commit and root lockfile.
 The optional workflow `sdk-sha` input remains an explicit override for existing callers.
+
+## Onto extraction and shared graph contracts
+
+The public [Onto app](apps/onto/README.md) retains the legacy `wiki-map`
+installation identity during migration. [Provider interoperability](docs/graph-providers.md)
+describes the public SDK discovery/read contracts and Onto-owned contracts.
+[The Onto plan](apps/onto/docs/graph-database-plan.md) describes its scope as a
+graph database; documents and reports belong to a separate Wiki app. The platform
+architecture and full delivery sequence are maintained in
+[webapp's Onto architecture](https://github.com/ai-outfitter/webapp/blob/main/docs/architecture/onto.md).
+Old Wikis move to Onto by import into a fresh installation, not by upgrading in place.

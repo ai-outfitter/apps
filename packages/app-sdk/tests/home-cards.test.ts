@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  defineHomeCard, homeCardAPI, homeCardBody, homeCardLimits, homeCardOperations, homeCardReadResult, safeHomeCardPath,
+  defineHomeCard, homeCardAPI, homeCardBody, homeCardCatalog, homeCardLimits, homeCardOperations, homeCardReadResult, safeHomeCardPath,
   type HomeCardNode, type HomeCardProvider,
 } from "../src/home-cards";
-import { identityHeaderValues, type AppIdentity } from "../src/server";
+import { type AppIdentity, identityHeaderValues } from "../src/server";
 
 const member: AppIdentity = { userId: "member", organizationId: "org", owner: { kind: "organization", id: "org" }, installationId: "tasks", role: "member", canEdit: false };
 const request = (operation: string, body?: unknown, who: Partial<AppIdentity> = {}) => new Request(`https://app.internal/api/internal/home-cards/v1/${operation}`, {
@@ -112,4 +112,17 @@ test("unavailable is a typed answer distinct from an HTTP failure, and declarati
   assert.deepEqual(await hidden.catalog.execute(request("catalog"), member), { version: 1, cards: [] });
   await assert.rejects(hidden.read.execute(request("read", { cardId: "admin", size: "small" }), member), (error: Response) => error.status === 403);
   assert.throws(() => homeCardOperations([declare({})(), declare({})()]));
+});
+
+test("surface declarations round-trip without changing legacy catalogs", async () => {
+  const legacy = tasks().card;
+  const personal = defineHomeCard({ cardId: "personal-feed", title: "For your role", surfaces: ["for-you"], view: { id: "role", label: "For your role", order: 4 }, sizes: ["large"], defaultSize: "large", read: async () => ({ title: "For designer", body: [] }) });
+  const response = await homeCardAPI(request("catalog"), "catalog", [legacy, personal]);
+  const catalog = homeCardCatalog.parse(await response.json());
+  assert.equal(catalog.cards[0].surfaces, undefined);
+  assert.deepEqual(catalog.cards[1].surfaces, ["for-you"]);
+  assert.deepEqual(catalog.cards[1].view, { id: "role", label: "For your role", order: 4 });
+  const read = await homeCardAPI(request("read", { cardId: "personal-feed", size: "large" }), "read", [personal]);
+  assert.equal(homeCardReadResult.parse(await read.json()).title, "For designer");
+  assert.throws(() => defineHomeCard({ ...personal, surfaces: ["home", "home"] }));
 });

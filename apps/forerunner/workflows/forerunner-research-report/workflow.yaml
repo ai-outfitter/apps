@@ -1,0 +1,51 @@
+version: beta
+id: forerunner-research-report
+summary: Each morning, search the public web for the member's saved report topics and save a dated, sourced report to their Wiki.
+actors: {}
+triggers:
+  - on: manual
+  # The member saves the reports (title, who it is for, place and topics), the
+  # hour and the timezone with SetResearchReportSchedule; this cron is only the default.
+  - on: schedule
+    cron: "0 7 * * *"
+steps:
+  # No actor fills this step: Forerunner does, through the workflow host. For
+  # each saved report it runs one web search per topic (web.search), asks the
+  # platform's inference (inference.generate) to pick and summarize what is
+  # relevant, keeps only items that cite a page the search returned, and saves
+  # the result as that day's Wiki document.
+  - id: research
+    inference: {maxOutputTokens: 3000, timeoutMs: 90000}
+    inputs:
+      # The saved reports. The schedule carries them; a run started without
+      # them reads the schedule's.
+      reports:
+        schema: {type: array, maxItems: 3, items: {type: object}}
+        default: []
+    outputs:
+      reports:
+        connector: database
+        record: research-reports.saved
+        schema:
+          type: object
+          properties:
+            date: {type: string}
+            reports:
+              type: array
+              items:
+                type: object
+                properties:
+                  slug: {type: string}
+                  status: {type: string, enum: [saved, unchanged, empty, failed]}
+                  page: {type: string, description: The Wiki page slug of the saved report}
+                  documentId: {type: string}
+                  revision: {type: integer}
+                  items: {type: integer, minimum: 0, description: Sourced items in the report}
+                  searches: {type: integer, minimum: 0, description: Topic searches that answered}
+                  reason: {type: string, description: Why nothing was saved}
+                required: [slug, status]
+                additionalProperties: false
+          required: [date, reports]
+          additionalProperties: false
+outputs:
+  reports: research.outputs.reports

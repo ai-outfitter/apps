@@ -9,8 +9,10 @@ import {gzipSync} from 'node:zlib';
 import {normalizeUnusedIslandKey} from './normalize.mjs';
 import {isManagedAssetPath,managedAssetContentType,isWorkerModuleName} from './paths.mjs';
 import {storageMigration} from '@ai-outfitter/app-sdk/migrations';
+import {loadAppMigrations} from './migrations.mjs';
 import {readWorkflowPackage} from '@ai-outfitter/workflow-core/source';
 import {z} from 'zod';
+import {catalogMetadata,catalogContract,catalogContractModule} from './catalog-metadata.mjs';
 const dependencies=z.array(z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)).max(16).refine(a=>new Set(a).size===a.length).parse;
 function appWorkflows(directory) {
  const pkg=JSON.parse(readFileSync(join(directory,'package.json'),'utf8'));
@@ -38,18 +40,6 @@ async function files(directory) {
   }
   return result.sort();
 }
-// The installation database's migrations, in the order they apply.
-async function migrations(directory) {
-  const folder = join(directory, "migrations");
-  const names = (await readdir(folder)).filter((name) => name.endsWith(".sql")).sort();
-  if (!names.length) throw new Error(`No migrations in ${folder}`);
-  return Promise.all(
-    names.map(async (name) => ({
-      name: name.slice(0, -".sql".length),
-      sql: await readFile(join(folder, name), "utf8"),
-    })),
-  );
-}
 export async function buildApp(directory, {mode,output}={}) {
  directory=resolve(directory);
  const require=createRequire(join(directory,'package.json'));
@@ -74,7 +64,7 @@ export async function buildApp(directory, {mode,output}={}) {
     // Demo packages serve fixtures and keep no records or files.
     ...(base.dataLocation === "installation-database" && mode === "operational"
       ? {
-          database: { migrations: [...(base.storage ? [storageMigration] : []), ...await migrations(directory)] },
+          database: await loadAppMigrations(directory, base.storage ? [storageMigration] : []),
           ...(base.storage ? { storage: base.storage } : {}),
         }
       : {}),
@@ -156,6 +146,9 @@ export async function buildApp(directory, {mode,output}={}) {
         : {}),
     };
   }
+  // Bind the public schema/documents to the executable identity. Changing only
+  // published metadata must still produce a distinct installed package hash.
+  modules[catalogContractModule] = catalogContract(await catalogMetadata(directory,template));
   const artifact = {
     mainModule: config.main,
     compatibilityDate: config.compatibility_date,

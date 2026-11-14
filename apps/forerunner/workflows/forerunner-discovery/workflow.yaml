@@ -1,0 +1,84 @@
+version: beta
+id: forerunner-discovery
+summary: Propose evidence-grounded Wiki entities and questions from selected private sources.
+actors: {}
+task:
+  input: analyze.inputs.request
+  output: analyze.outputs.result
+  schema:
+    type: object
+    properties:
+      sources: {type: array, minItems: 1, maxItems: 4, items: {type: string, minLength: 1, maxLength: 200}}
+      range: {type: string, enum: [since-last, 7d, 30d, all]}
+      timezone: {type: string, minLength: 1, maxLength: 100}
+    required: [sources]
+    additionalProperties: false
+triggers:
+  - on: manual
+  # A member turns the daily run on in Settings for one connected account; it
+  # then runs unattended as them each morning, in their time zone.
+  - on: schedule
+    cron: 0 7 * * *
+    connection:
+      providers: [gmail, google-calendar, github, slack]
+      inputs:
+        provider: analyze.inputs.provider
+        label: analyze.inputs.label
+steps:
+  - id: analyze
+    # One model answer per analysis batch proposes up to 16 entities and 18
+    # relationships with bodies, reasons and citations; 4000 tokens cut that
+    # off. Each answer may take up to five minutes.
+    inference: {maxOutputTokens: 16000, timeoutMs: 300000, reasoningEffort: none}
+    # A daily schedule names the account it reads; a manual run uses the defaults.
+    inputs:
+      request:
+        schema: {type: object}
+        default: {}
+      provider:
+        schema: {type: string, enum: [gmail, google-calendar, github, slack]}
+        default: gmail
+      label:
+        schema: {type: string, maxLength: 300}
+        default: ""
+    outputs:
+      result:
+        connector: database
+        record: discovery.analyzed
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [ready, failed, preparing, reading, analyzing, saving]
+            entries:
+              type: integer
+              minimum: 0
+            previewId: {type: string}
+            savedAt: {type: string}
+            batchId: {type: string}
+          required: [status, entries]
+          additionalProperties: false
+  # After a saved daily run, a second model answer in a fresh context looks at the
+  # member's routines and what the run read, and suggests new workflows, changes
+  # to their routines and apps. Any other run skips it.
+  - id: suggestions
+    inference: {maxOutputTokens: 3000, timeoutMs: 60000, reasoningEffort: none}
+    outputs:
+      result:
+        connector: database
+        record: discovery.suggestions
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [ready, skipped, failed]
+            suggestions:
+              type: integer
+              minimum: 0
+          required: [status, suggestions]
+          additionalProperties: false
+outputs:
+  result: analyze.outputs.result
+  suggestions: suggestions.outputs.result

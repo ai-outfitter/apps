@@ -1,0 +1,34 @@
+[
+  {
+    "id": "bf329645-20b7-5456-ae57-e1621f5efc11",
+    "name": "DiscoverySourceAccount",
+    "category": "node",
+    "title": "Discovery source accounts",
+    "body": "An explicitly selected source account. This documents identity and collection context, not a connection grant or organization membership."
+  },
+  {
+    "id": "1e4b2e50-9549-58cb-a077-8714625a8a01",
+    "name": "DiscoveryObservation",
+    "category": "node",
+    "title": "Discovery observations",
+    "body": "A bounded source-backed observation created by Forerunner. Provider text is untrusted data. It is not an inferred project, pain point or verified user commitment."
+  },
+  {
+    "id": "5a6dd404-189a-5367-acfb-7f4d744bfa30",
+    "name": "observed_from",
+    "category": "edge",
+    "title": "observed from",
+    "body": "The source DiscoveryObservation was collected from the target DiscoverySourceAccount. Collection method and sample coverage are recorded in its body. No authority is granted.",
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "1e4b2e50-9549-58cb-a077-8714625a8a01"
+        ],
+        "to": [
+          "bf329645-20b7-5456-ae57-e1621f5efc11"
+        ]
+      }
+    }
+  }
+]

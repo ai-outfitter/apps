@@ -1,0 +1,429 @@
+type Query {
+  """
+  Search saved change batches; operations and evidence are selected explicitly.
+  """
+  changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
+
+  """Saved explorations in this Wiki, by title."""
+  explorations: [ExplorationSummary!]!
+
+  """
+  One exploration and its picture, rebuilt from current records; null when there is none.
+  """
+  exploration(slug: String!): Exploration
+
+  """
+  What this graph shows other organizations, by title. Select view to see what each one reads.
+  """
+  shares: [Share!]!
+
+  """
+  One share and what its organization reads now; null when there is none.
+  """
+  share(slug: String!): Share
+
+  """
+  One change batch, with every operation and its state; null when there is none.
+  """
+  changeBatch(id: ID!): ChangeBatch
+}
+
+type ChangeBatchConnection {
+  nodes: [ChangeBatch!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+"""
+Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.
+"""
+type ChangeBatch {
+  id: ID!
+  title: String!
+  purpose: String!
+
+  """open, awaiting_review, committed, rejected or discarded."""
+  state: String!
+  source: JSON
+  createdAt: DateTime!
+
+  """Anchor node addresses; every created node must connect to one."""
+  anchors: [String!]!
+
+  """
+  Current dry-run result: valid, error and operations. valid=false means repair the draft before submitting; nothing has been applied.
+  """
+  validation: JSON!
+  policy: JSON!
+  summary: JSON
+  reviewBy: DateTime
+
+  """
+  The review page, relative to this installation (the platform returns it as a full link).
+  """
+  reviewUrl: String
+
+  """
+  The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything.
+  """
+  review: JSON
+  expiresAt: DateTime!
+  updatedAt: DateTime!
+
+  """Operations by state."""
+  counts: JSON!
+  instructions: [ChangeInstruction!]!
+  operations(
+    """
+    Read only these proposal refs; omit for all. Use to inspect individual proposals when the whole batch exceeds the response limit.
+    """
+    refs: [String!]
+  ): [StagedChange!]!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+"""One proposed graph.apply operation in a batch."""
+type StagedChange {
+  ref: String!
+
+  """pending, awaiting_review, committed or rejected."""
+  state: String!
+  operation: JSON!
+  evidence: JSON!
+  confidence: Float
+  reason: String
+
+  """Who or which policy decided it, and when."""
+  decision: JSON
+
+  """
+  The committed record's address: Person, Organization:sunny or works_on(Person:ada → Project:sunny).
+  """
+  record: String
+  recordRevision: Int
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type ExplorationSummary {
+  slug: String!
+  title: String!
+  revision: Int!
+  start: JSON!
+}
+
+"""
+A saved view of this Wiki's graph that members and agents change together. It stores steps, never facts.
+"""
+type Exploration {
+  slug: String!
+  title: String!
+
+  """Send it as expectedRevision with the next patch."""
+  revision: Int!
+
+  """
+  {title, start: {type, slug}, steps: {<key>: {from, path, direction?, limit?, type?}}, hidden: {<node key>: true}, focus?, direction?}; patch it with MutateExploration.
+  """
+  state: JSON!
+
+  """
+  {by, via, summary, nodes}: the latest change and the node keys it added.
+  """
+  lastChange: JSON
+  picture: ExplorationPicture!
+  dryRun: Boolean
+}
+
+"""
+The nodes and relationships an exploration's steps reach now, rebuilt on every read.
+"""
+type ExplorationPicture {
+  nodes: [ExplorationNode!]!
+  edges: [ExplorationEdge!]!
+  steps: [ExplorationStepResult!]!
+
+  """The picture reached its 300-node limit."""
+  truncated: Boolean!
+}
+
+"""A record in an exploration's picture."""
+type ExplorationNode {
+  """
+  <Type>:<slug> (Onto's node address); steps, hidden and focus name nodes by it.
+  """
+  key: String!
+  type: String!
+  title: String!
+  slug: String
+  id: ID!
+
+  """The step that added it; null for the start."""
+  step: String
+
+  """Its website; a pull request's GitHub page."""
+  url: String
+
+  """
+  The change batch proposing it; set only for staged records a member has not committed (key proposed:<batch>/<ref>).
+  """
+  proposedIn: ID
+}
+
+"""A relationship between two nodes in the picture."""
+type ExplorationEdge {
+  from: String!
+  to: String!
+  label: String!
+}
+
+"""What one step reached."""
+type ExplorationStepResult {
+  key: String!
+  count: Int!
+
+  """The step's limit cut it."""
+  truncated: Boolean!
+  error: String
+}
+
+"""
+What this graph shows another organization: a saved KnowledgeGraph walked from roots, minus hidden nodes. It holds a selection, never a copy.
+"""
+type Share {
+  slug: String!
+  title: String!
+  revision: Int!
+  archived: Boolean!
+
+  """The Organization node it is for, such as Organization:sunny."""
+  organization: String!
+
+  """The KnowledgeGraph that picks relationships, types and depth."""
+  graph: String!
+
+  """{"Type:slug": true} the walk starts from."""
+  roots: JSON!
+
+  """{"Type:slug": true} left out, with anything reached only through them."""
+  hidden: JSON!
+
+  """Null while archived."""
+  view: ShareView
+}
+
+"""
+What the organization reads now: current records the KnowledgeGraph reaches from the roots, without hidden nodes.
+"""
+type ShareView {
+  nodes: [ShareNode!]!
+  edges: [ShareEdge!]!
+
+  """The KnowledgeGraph's maxNodes or read budget cut the walk."""
+  incomplete: Boolean!
+}
+
+type ShareNode {
+  address: String!
+  title: String!
+  summary: String
+}
+
+type ShareEdge {
+  address: String!
+}
+
+input ReviseBatchInput {
+  batchId: ID!
+  proposals: [ReviseBatchInputProposalsItem!]
+  remove: [String!]
+}
+
+input ReviseBatchInputProposalsItem {
+  operation: JSON!
+  evidence: [ReviseBatchInputProposalsItemEvidenceItem!]
+  confidence: Float
+  reason: String
+}
+
+input ReviseBatchInputProposalsItemEvidenceItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+  quote: String
+  observedAt: String
+}
+
+input MutateExplorationInput {
+  slug: String!
+  expectedRevision: Float!
+  patch: JSON!
+  summary: String
+  dryRun: Boolean
+}
+
+input MutateShareInput {
+  slug: String!
+  expectedRevision: Float!
+  patch: JSON!
+  archived: Boolean
+}
+
+input ReviewBatchInput {
+  batchId: ID!
+  refs: [String!]
+  verdict: ReviewBatchInputVerdict!
+  comment: String
+}
+
+enum ReviewBatchInputVerdict {
+  approve
+  reject
+}
+
+input StageChangesInput {
+  batchId: ID
+  title: String
+  purpose: String
+  source: StageChangesInputSource
+  anchors: [String!]
+  proposals: [StageChangesInputProposalsItem!]!
+  replace: Boolean
+}
+
+input StageChangesInputSource {
+  kind: String!
+  ref: String!
+  label: String
+}
+
+input StageChangesInputProposalsItem {
+  operation: JSON!
+  evidence: [StageChangesInputProposalsItemEvidenceItem!]
+  confidence: Float
+  reason: String
+}
+
+input StageChangesInputProposalsItemEvidenceItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+  quote: String
+  observedAt: String
+}
+
+input ConfigureBatchInput {
+  batchId: ID!
+  anchors: [String!]!
+}
+
+input RemoveStagedChangesInput {
+  batchId: ID!
+  refs: [String!]!
+}
+
+input SubmitBatchInput {
+  batchId: ID!
+  summary: String
+}
+
+type Mutation {
+  """
+  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.
+  """
+  reviseBatch(input: ReviseBatchInput!): ChangeBatch!
+
+  """
+  Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.
+  """
+  mutateExploration(input: MutateExplorationInput!): Exploration!
+
+  """
+  Editors only. Create or change what this graph shows another organization with a merge patch over {title, organization, graph, roots, hidden} and the revision you read (0 creates). organization is an Organization node address, graph a KnowledgeGraph address whose relationships, stop types and maxDepth decide what is reached, roots and hidden are {"Type:slug": true}. archived:true stops it. Answers with what the organization would read.
+  """
+  mutateShare(input: MutateShareInput!): Share!
+
+  """
+  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
+  """
+  reviewBatch(input: ReviewBatchInput!): ChangeBatch!
+
+  """
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.
+  """
+  stageChanges(input: StageChangesInput!): ChangeBatch!
+
+  """
+  Replace anchor nodes of an open batch or an undecided batch awaiting member review. Submitted proposals must already connect to the selected anchors. Empty anchors removes the connectivity requirement. Returns current validation without applying any records.
+  """
+  configureBatch(input: ConfigureBatchInput!): ChangeBatch!
+
+  """Remove proposals from an open batch by ref."""
+  removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
+
+  """
+  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background and attaches advisory findings (review, empty until it finishes); its policy decides exactly as without them.
+  """
+  submitBatch(input: SubmitBatchInput!): ChangeBatch!
+
+  """Apply changebatch changes using explicit actions"""
+  changeBatchChanges(input: ChangeBatchChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+input ChangeBatchChangesInput {
+  items: [ChangeBatchChangesInputItemsItem!]!
+}
+
+input ChangeBatchChangesInputItemsItem {
+  key: String!
+  action: ChangeBatchChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ChangeBatchChangesInputItemsItemAction {
+  amend
+  stage
+  configure
+  remove
+  submit
+  review
+}

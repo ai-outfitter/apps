@@ -1,110 +1,81 @@
-import { useChat } from "@ai-sdk/react";
 import { defaultEffort, imageAttachments } from "@ai-outfitter/app-sdk/chat-input";
-import { type ThreadEntry, threadClient } from "@ai-outfitter/app-sdk/threads";
+import { SIDEBAR_THREAD, threadClient } from "@ai-outfitter/app-sdk/threads";
+import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
+import AgentDebug from "../AgentDebug";
 import AgentSidebar from "../AgentSidebar";
-import Icon from "../Icon";
+import { sessionDebugHref, useAgentInspector } from "../agent-debug";
 import Markdown from "../Markdown";
+import { randomId } from "../../random-id";
+import { ChatTaskQuestion, ChatToolPart } from "./ChatComponents";
+import { ChatComponentContext } from "./context";
+import { activeTaskQuestion } from "./message-helpers";
+import { type SidebarActivity, shownEntry, uiMessage } from "./thread-messages";
+import "../../styles/sidebar-chat-cards.css";
 
-/** The owner's default Chat, as the platform's `/api/default-apps/<mount>` answers it. */
-type ChatHost = { installationId: string; type: string; chatPath: string };
+/** The panel's one thread for this member and owner, as the page named it on the server. */
+type SidebarThread = { id: string; context: { type: string; id: string } };
 type Selected = { id: string; messages: UIMessage[]; persisted: boolean };
-const fresh = (): Selected => ({ id: crypto.randomUUID(), messages: [], persisted: false });
 // The chat useChat holds until the saved conversation loads; it never sends.
 const PENDING = "pending";
+/** Entries the panel shows on open; the model's own view is bounded by compaction, not by this. */
+const SHOWN_ENTRIES = 200;
 
-/** A saved entry as the panel shows it: text and images; cards open in full chat. */
-function uiMessage(entry: ThreadEntry): UIMessage {
-  const parts: UIMessage["parts"] = [];
-  for (const part of entry.parts) {
-    if (part.type === "text") parts.push({ type: "text", text: part.text });
-    else if (part.type === "file") parts.push({ type: "file", mediaType: part.mediaType, filename: part.filename, url: part.url });
-    else if (part.type === "tool-call") parts.push({ type: `tool-${part.name}`, toolCallId: part.callId, state: "output-available", input: part.input, output: null } as UIMessage["parts"][number]);
-  }
-  return { id: entry.id, role: entry.role === "user" ? "user" : "assistant", parts };
-}
-
-/** The owner's default Chat, provisioned on first use by the platform. */
-async function chatHost(hostURL: string): Promise<ChatHost> {
-  const response = await fetch(hostURL, { method: "POST", headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(await response.text());
-  return (await response.json()) as ChatHost;
-}
-
-/** The conversation this panel last saved, when it is still this member's own conversation; else null. */
-async function savedConversation(found: ChatHost, chatKey: string, userId: string): Promise<Selected | null> {
-  let saved: string | null = null;
-  try {
-    saved = localStorage.getItem(chatKey);
-  } catch {}
-  if (!saved) return null;
-  const threads = threadClient({ installationId: found.installationId });
-  const thread = await threads.get(saved).catch(() => null);
-  // Deleted, from another account or scope, or not a conversation: start over quietly.
-  if (thread?.type !== found.type || thread.createdBy !== userId) return null;
-  const { entries } = await threads.entries(saved, { limit: 200 });
-  return { id: saved, persisted: true, messages: entries.filter((entry) => entry.role === "user" || entry.role === "assistant").map(uiMessage) };
+/**
+ * The panel's one thread for this member and owner. The platform names its id, so every device and
+ * browser continues the same conversation; until the first message it is not stored yet.
+ */
+async function sidebarConversation(id: string): Promise<Selected> {
+  const threads = threadClient();
+  const thread = await threads.get(id).catch(() => null);
+  if (!thread) return { id, messages: [], persisted: false };
+  const { entries } = await threads.entries(id, { limit: SHOWN_ENTRIES });
+  return { id, persisted: true, messages: entries.filter(shownEntry).map(uiMessage) };
 }
 
 /**
  * "Ask Outfitter" beside a platform page: the shared agent sidebar over the
- * owner's default Chat conversations (private, the Chat app's
- * `chat.conversation` threads). Turns go to the platform's thread routes for
- * that installation, so Chat's own reply policy, tools and history apply; the
- * panel renders text and images, and offers Open in full chat for cards. It
- * has no focus: Outfitter does not see the page it sits beside.
+ * member's one `platform.sidebar` thread for this owner. The platform provides
+ * that thread type itself, so no app is installed
+ * or asked for; turns go to the platform's thread routes. It has no focus:
+ * Outfitter does not see the page it sits beside.
  */
-export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label = "Outfitter" }: {
+export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label = "Outfitter" }: {
   /** The panel's id, which its header toggle controls. */
   id: string;
   userId: string;
   /** The owner scope (an organization id, or "personal"): switching it switches conversations. */
   scopeKey: string;
-  /** Where the platform answers (and provisions) this owner's default Chat. */
-  hostURL: string;
+  /** The member's sidebar thread for this owner (`sidebarThreadId`, `sidebarContext`). */
+  thread: SidebarThread;
   label?: string;
 }) {
-  // Pages without the ClientRouter reload on navigation; these keys carry the
-  // panel's state and conversation to the next page.
+  // Pages without the ClientRouter reload on navigation; this key carries whether
+  // the panel is open to the next page. The thread itself is named by the platform.
   const chatKey = `outfitter:sidebar-chat:${userId}:${scopeKey}`;
   const [open, setOpen] = useState(false);
-  const [host, setHost] = useState<ChatHost | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [notice, setNotice] = useState("");
   const effort = useRef(defaultEffort);
   const current = useRef(selected);
   current.current = selected;
-  const client = useMemo(() => (host ? threadClient({ installationId: host.installationId }) : null), [host]);
+  const client = useMemo(() => threadClient(), []);
   const stored = useRef<Promise<unknown> | null>(null);
 
-  function forget() {
-    try {
-      localStorage.removeItem(chatKey);
-    } catch {}
-  }
-
-  // The first open finds the owner's Chat, then loads the conversation this panel last saved.
+  // The first open loads the panel's one thread.
   // biome-ignore lint/correctness/useExhaustiveDependencies: loads once, on first open.
   useEffect(() => {
     if (!open || selected) return;
     let active = true;
-    (async () => {
-      const found = await chatHost(hostURL);
+    sidebarConversation(thread.id).catch(() => {
+      setNotice("Could not load your earlier messages. Close and reopen the panel to try again.");
+      // Still the panel's own thread: sending continues it.
+      return { id: thread.id, messages: [], persisted: false };
+    }).then((restored) => {
       if (!active) return;
-      setHost(found);
-      const restored = await savedConversation(found, chatKey, userId);
-      if (!active) return;
-      if (!restored) {
-        forget();
-        return setSelected(fresh());
-      }
-      stored.current = Promise.resolve();
+      if (restored.persisted) stored.current = Promise.resolve();
       setSelected(restored);
-    })().catch(() => {
-      if (!active) return;
-      setNotice("Could not load your last conversation. This is a new chat.");
-      setSelected(fresh());
     });
     return () => {
       active = false;
@@ -114,11 +85,9 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
   /** Stores the conversation before its first turn or upload: the member's own, private. */
   function ready() {
     const chat = current.current;
-    if (!chat || !client || !host) return Promise.reject(new Error("Chat is not ready yet."));
-    stored.current ??= client.create({ id: chat.id, type: host.type, visibility: "private" }).then(() => {
-      try {
-        localStorage.setItem(chatKey, chat.id);
-      } catch {}
+    if (!chat) return Promise.reject(new Error("Chat is not ready yet."));
+    // Creating the platform-named thread again is a replay: it answers the same thread.
+    stored.current ??= client.create({ id: chat.id, type: SIDEBAR_THREAD, visibility: "private", context: thread.context }).then(() => {
       setSelected((value) => (value && value.id === chat.id ? { ...value, persisted: true } : value));
     }, (error) => {
       stored.current = null;
@@ -132,7 +101,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
   const { messages, sendMessage, status, error, stop, regenerate } = useChat({
     id: selected?.id ?? PENDING,
     messages: selected?.messages ?? [],
-    generateId: () => crypto.randomUUID(),
+    generateId: randomId,
     transport: new DefaultChatTransport({
       api: "/api/platform/threads",
       fetch: async (input, init) => {
@@ -141,13 +110,15 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
       },
       prepareSendMessagesRequest: ({ id: threadId, messages: sent, trigger }) => {
         const message = sent.filter((m) => m.role === "user").at(-1);
+        const intent = (message?.metadata as { intent?: string } | undefined)?.intent;
         return {
-          api: client?.submissionsURL(threadId) ?? "/api/platform/threads",
+          api: client.submissionsURL(threadId),
           body: {
             submissionId: message?.id,
             text: (message?.parts ?? []).flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n"),
             attachments: (message?.parts ?? []).flatMap((part) => (part.type === "file" ? [part.url.slice(part.url.lastIndexOf("/") + 1).split("?")[0]] : [])),
             effort: effort.current,
+            ...(intent ? { metadata: { intent } } : {}),
             ...(trigger === "regenerate-message" ? { retry: true } : {}),
           },
         };
@@ -155,23 +126,27 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
     }),
   });
   const busy = status === "streaming" || status === "submitted";
-  const fullChat = host && selected?.persisted ? `${host.chatPath}/c/${selected.id}` : null;
+  const inspector = useAgentInspector(client, open);
+  const persistedId = selected?.persisted ? selected.id : null;
+  const taskQuestion = activeTaskQuestion(messages);
 
   return (
+    <ChatComponentContext.Provider value={{ signedIn: true, chatPath: "/", busy, send: (text, intent) => { void sendMessage({ text, ...(intent ? { metadata: { intent } } : {}) }); } }}>
     <AgentSidebar
       id={id}
       agent={{ name: label }}
       focus={null}
       scope={{
-        intro: "Ask Outfitter anything while you work. Chats here are saved in Chat with your others, private to you.",
-        limits: "Outfitter can't see or change this page.",
+        intro: "Ask Outfitter anything while you work.",
+        limits: "Ask about your apps, workflows, schedules and recent runs. I can manage schedules you ask for.",
       }}
       conversation={selected ? { id: selected.id, messages, status, error: error ? error.message || "Could not send your message." : undefined, notice } : null}
       openStorageKey={`${chatKey}:open`}
       onOpenChange={setOpen}
       input={{ attachments: imageAttachments, effortEnabled: true, onEffortChange: (next) => { effort.current = next; } }}
+      composerActions={taskQuestion ? <ChatTaskQuestion part={taskQuestion} /> : undefined}
       onSend={async ({ text, files }) => {
-        if (busy || !selected || !client) return false;
+        if (busy || !selected) return false;
         let parts: FileUIPart[] = [];
         if (files.length) {
           await readyRef.current();
@@ -184,37 +159,61 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, hostURL, label
       }}
       onStop={() => void stop()}
       onRetry={() => void regenerate()}
-      onNewConversation={() => {
-        forget();
-        stored.current = null;
-        setNotice("");
-        setSelected(fresh());
-      }}
-      actions={fullChat ? (
-        <a className="agent-sidebar-action" href={fullChat} title="Open in full chat" data-astro-reload>
-          <Icon name="arrow" size={18} />
-          <span className="visually-hidden">Open in full chat</span>
-        </a>
-      ) : null}
-      renderContent={(message) => (
-        <>
-          {message.parts.map((part, i) =>
-            part.type === "text" ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and never reorder.
-              <Markdown key={i}>{part.text}</Markdown>
-            ) : part.type === "file" ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and never reorder.
-              <img key={i} className="message-attachment" src={part.url} alt={part.filename || ""} />
-            ) : null,
-          )}
-          {/* Chat's cards and tool results render in Chat; the panel links there once. */}
-          {message.role === "assistant" && message.parts.some((part) => part.type.startsWith("tool-") && "state" in part && part.state === "output-available") ? (
-            <p className="agent-sidebar-card-note">
-              {fullChat ? <a href={fullChat} data-astro-reload>Open in full chat</a> : "Open in full chat"} to see the cards in this reply.
-            </p>
-          ) : null}
-        </>
-      )}
+      debugHref={inspector && persistedId ? sessionDebugHref(persistedId) : undefined}
+      debug={inspector ? <SidebarDebug threads={client} threadId={persistedId} revision={messages.findLast((message) => message.role === "user")?.id} /> : undefined}
+      onDebugOpen={() => { void ready().catch(() => setNotice("Could not prepare this chat for debugging.")); }}
+      renderContent={(message, context) => <SidebarMessage message={message} busy={context.busy} answered={context.messages.slice(context.index + 1).some((item) => item.role === "user")} />}
     />
+    </ChatComponentContext.Provider>
   );
+}
+
+/** Render normal Chat cards in the sidebar, keeping graph activity compact. */
+function SidebarMessage({ message, busy, answered }: { message: UIMessage; busy: boolean; answered: boolean }) {
+  const { activity, at } = (message.metadata ?? {}) as { activity?: SidebarActivity; at?: number };
+  if (activity) return <ActivityCard activity={activity} at={at} />;
+  const graph = message.parts.filter((part) => part.type === "tool-graph_query" || part.type === "tool-graph_documents");
+  const graphFailed = graph.some((part) => "state" in part && part.state === "output-error");
+  const stopped = message.role === "assistant" && ["aborted", "error"].includes((message.metadata as { status?: string } | undefined)?.status ?? "");
+  return <>
+    {graph.length ? <p role="status">{busy ? "Checking your connected information…" : graphFailed ? "Some connected information could not be checked." : "Checked your connected information."}</p> : null}
+    {message.parts.map((part, index) => {
+      if (part.type === "text") {
+        // biome-ignore lint/suspicious/noArrayIndexKey: parts are ordered and text has no id.
+        return <Markdown key={index}>{part.text}</Markdown>;
+      }
+      if (part.type === "file") {
+        // biome-ignore lint/suspicious/noArrayIndexKey: parts are ordered and files have no id.
+        return <img key={index} className="message-attachment" src={part.url} alt={part.filename || ""} />;
+      }
+      if (part.type.startsWith("tool-") && !graph.includes(part) && "toolCallId" in part)
+        return <ChatToolPart key={part.toolCallId} part={part} answered={answered} />;
+      return null;
+    })}
+    {stopped ? <p role="status">This reply did not finish. Send another message to continue.</p> : null}
+  </>;
+}
+
+const ACTIVITY_LABEL = { complete: "Run finished", failed: "Run failed", created: "Routine turned on" } as const;
+const ACTIVITY_LINK = { run: "Open run", routine: "Open routine" } as const;
+
+/** Something that happened for the member, recorded by the platform: what, when, its result and where to look. */
+function ActivityCard({ activity, at }: { activity: SidebarActivity; at?: number }) {
+  const when = at ? new Date(at) : null;
+  return (
+    <section className={`sidebar-activity sidebar-activity--${activity.status}`} aria-label={`${ACTIVITY_LABEL[activity.status]}: ${activity.title}`}>
+      <p className="sidebar-activity__label">
+        {ACTIVITY_LABEL[activity.status]}
+        {when ? <time dateTime={when.toISOString()}>{when.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}</time> : null}
+      </p>
+      <p className="sidebar-activity__title">{activity.title}</p>
+      {activity.summary ? <p className="sidebar-activity__summary">{activity.summary}</p> : null}
+      <a className="sidebar-activity__link" href={activity.href}>{ACTIVITY_LINK[activity.kind]}</a>
+    </section>
+  );
+}
+
+/** The in-panel debug view for a saved conversation, linking the full session debug page. */
+function SidebarDebug({ threads, threadId, revision }: { threads: Parameters<typeof AgentDebug>[0]["threads"]; threadId: string | null; revision?: string }) {
+  return <AgentDebug threads={threads} threadId={threadId} href={threadId ? sessionDebugHref(threadId) : undefined} revision={revision} />;
 }

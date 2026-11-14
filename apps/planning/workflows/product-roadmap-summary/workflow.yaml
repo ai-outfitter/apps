@@ -1,0 +1,38 @@
+version: beta
+id: product-roadmap-summary
+summary: Update the current weekly product roadmap from the organization's verified product graph every day, retaining evidence and unknowns for review.
+actors: {}
+task:
+  input: summarize.inputs.request
+  output: summarize.outputs.report
+  schema:
+    type: object
+    properties:
+      at: {type: string, format: date}
+    additionalProperties: false
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 13 * * *"
+steps:
+  - id: summarize
+    inference: {maxOutputTokens: 5000, timeoutMs: 90000}
+    inputs:
+      request:
+        schema: {type: object, properties: {at: {type: string, format: date}}, additionalProperties: false}
+        default: {}
+    outputs:
+      report:
+        connector: database
+        record: weekly-report.updated
+        schema:
+          type: object
+          properties:
+            id: {type: string}
+            revision: {type: integer, minimum: 1}
+            organizationId: {type: string}
+            updatedAt: {type: string}
+          required: [id, revision, organizationId, updatedAt]
+          additionalProperties: false
+outputs:
+  report: summarize.outputs.report

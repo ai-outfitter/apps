@@ -1,0 +1,20 @@
+/* Administrators' debug view in the agent sidebar: plain sections divided by hairlines. */
+.agent-debug { display: grid; gap: 6px; padding: 4px 0 16px; font-size: 13px; }
+.agent-debug h3 { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--muted); }
+.agent-debug p { margin: 0; }
+.agent-debug pre { margin: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; }
+.agent-debug-note, .agent-debug-muted { color: var(--muted); }
+.agent-debug-tools { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.agent-debug-tools summary { cursor: pointer; }
+.agent-debug-tools details > p, .agent-debug-tools details > pre { margin: 4px 0 8px 16px; }
+.agent-debug-link { margin: 0 0 4px; font-weight: 600; }
+.agent-debug-section { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
+.agent-debug-section > summary { cursor: pointer; display: list-item; }
+.agent-debug-section > summary > h3 { display: inline; margin: 0; padding: 0; border: 0; }
+.agent-debug-section > .code-block { margin-top: 6px; }
+.agent-debug-transcript { display: grid; gap: 0; margin: 4px 0 0; padding: 0; list-style: none; }
+.agent-debug-transcript > li { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--border); }
+.agent-debug-transcript > li[data-role="user"] { background: var(--hover); padding-inline: 8px; border-radius: 6px; border-top: 0; margin-top: 6px; }
+.agent-debug-tool > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.agent-debug-tool[data-error="true"] > summary { color: var(--danger, #b42318); }
+.agent-debug-tool > .code-block { margin: 4px 0 0 16px; }

@@ -3,13 +3,14 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { CadPlanSchema, planBounds } from "../model/cad-plan";
 import { AssemblySchema } from "./assembly";
+import { WorkspaceSchema } from "./workspace";
 import { sensorNodeAssembly } from "./sensor-node";
 export const ParamsSchema = z
   .object({
     design: z.enum(["cube", "tray", "button", "sensor", "custom"]),
-    width: z.number().min(1).max(200),
-    depth: z.number().min(1).max(200),
-    height: z.number().min(1).max(200),
+    width: z.number().min(1).max(300),
+    depth: z.number().min(1).max(300),
+    height: z.number().min(1).max(300),
     wall: z.number().min(1.2).max(6),
   })
   .strict()
@@ -91,6 +92,7 @@ export const ProjectSchema = z
       .strict()
       .optional(),
     cadPlan: CadPlanSchema.optional(),
+    workspace: WorkspaceSchema.optional(),
     measurementNotes: text,
     circuitNotes: text,
     research: z
@@ -156,9 +158,9 @@ export const ProjectSchema = z
             size: z.number().min(25).max(80).optional(),
             dimensions: z
               .object({
-                width: z.number().min(1).max(200),
-                depth: z.number().min(1).max(200),
-                height: z.number().min(1).max(200),
+                width: z.number().min(1).max(300),
+                depth: z.number().min(1).max(300),
+                height: z.number().min(1).max(300),
               })
               .strict()
               .optional(),

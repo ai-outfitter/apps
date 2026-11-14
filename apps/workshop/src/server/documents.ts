@@ -5,12 +5,23 @@ import { batchGroups } from "./batch-groups";
 // them). scripts/graph-schema.ts writes them to graph/documents.json, which the platform
 // lists (graph_documents) and runs by name (graph_mutate); the page's routes run the same
 // documents with runDocument.
-import { defineDocuments } from "@ai-outfitter/app-sdk/app-documents";
+import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
 import { documentRunner } from "@ai-outfitter/app-sdk/app-graphql";
 import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  RequestWorkshopBuild: {story:"As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",document:graphql(`mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) { requestWorkshopBuild(input:$input) }`)},
+  ClaimWorkshopBuild: {story:"As a workspace runner, I want to claim a queued build at its observed revision, so that concurrent runners cannot execute the same request.",document:graphql(`mutation ClaimWorkshopBuild($input: ClaimWorkshopBuildInput!) { claimWorkshopBuild(input:$input) }`)},
+  FinishWorkshopBuild: {story:"As a workspace runner, I want to attach verified artifacts and tests, so that members can inspect a revision without replacing newer work.",document:graphql(`mutation FinishWorkshopBuild($input: FinishWorkshopBuildInput!) { finishWorkshopBuild(input:$input) }`)},
+  StartWorkshopDesign: {
+    story: "As a member or an agent working for one, I want to start Workshop's design agent on a part or project request with one mutation, so that design work begins from wherever I am without opening the project page or waiting on the model.",
+    document: graphql(`mutation StartWorkshopDesign($input: StartWorkshopDesignInput!) { startWorkshopDesign(input: $input) }`),
+  },
+  WorkshopDesignRun: {
+    story: "As a member or an agent working for one, I want to read a design run I started, so that I know when the project revision it saved is ready and which project to open.",
+    document: graphql(`query WorkshopDesignRun($input: WorkshopDesignRunInput!) { workshopDesignRun(input: $input) }`),
+  },
   CreateWorkshopProject: {
     story: "As a member, I want to start a project from a starter example on the Workshop page or through an agent, named for the product revision it builds, so that I can refine a working model instead of a blank one.",
     document: graphql(`mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {
@@ -71,7 +82,11 @@ const legacyDocuments = defineDocuments({
   },
 });
 
-export const documents = withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups);
+// What an MCP client finds for Workshop (graph_documents): starting design work and following its run.
+export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
+  WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
+});
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */
 export const runDocument = documentRunner<WorkshopContext>(() => graphqlSchema);

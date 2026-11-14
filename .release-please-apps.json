@@ -61,6 +61,50 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/onto": {
+      "release-type": "node",
+      "component": "onto",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/planning": {
+      "release-type": "node",
+      "component": "planning",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/forerunner": {
+      "release-type": "node",
+      "component": "forerunner",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/wiki": {
+      "release-type": "node",
+      "component": "wiki-map",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

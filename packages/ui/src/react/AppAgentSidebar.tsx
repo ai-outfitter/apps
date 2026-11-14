@@ -1,6 +1,6 @@
-import { agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
+import { type AgentFocus, agentPage, type FieldOptions, type PageClaim } from "@ai-outfitter/app-sdk/agent-context";
 import { agentPageKey, navigatePart, navigatePartName } from "@ai-outfitter/app-sdk/agent-page";
-import { appLocation, openPage, pageHref, requestedPage } from "../agent-navigation";
+import { appEndpoint, appLocation, mountPrefix, openPage, pageHref, requestedPage } from "../agent-navigation";
 import { changeDiff, type FieldSchema } from "@ai-outfitter/app-sdk/agent-schema";
 import { imageAttachments } from "@ai-outfitter/app-sdk/chat-input";
 import {
@@ -14,7 +14,11 @@ import {
   threadRefKey,
 } from "@ai-outfitter/app-sdk/threads";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { randomId } from "../random-id";
+import AgentDebug from "./AgentDebug";
+import { sessionDebugHref, useAgentInspector } from "./agent-debug";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
+import { ResourceLink } from "./resource-link";
 import type { ChatInputDraft } from "./ChatInput";
 import SchemaFields from "./SchemaFields";
 import Timeline, { TimelinePartView, type TimelineEntry } from "./timeline/Timeline";
@@ -50,15 +54,6 @@ const empty: PageClaim = { focus: null };
 const claimKey = (pageId: string) => `${pageId}.page`;
 const metadataBudget = submissionMetadataBytes;
 
-/**
- * The app's mount prefix on the main host (`/o/<org>/<app>` or a personal
- * `/apps/<id>`), empty on an app's own host. Platform paths that the service
- * returns (`/api/platform/...`) are resolved under it, so a canonical
- * organization page never reads through the root personal owner.
- */
-export function mountPrefix(pathname: string) {
-  return /^\/o\/[^/]+\/[^/]+/.exec(pathname)?.[0] ?? /^\/apps\/[^/]+/.exec(pathname)?.[0] ?? "";
-}
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) throw new Error((await response.text()).slice(0, 1000) || `Request failed (${response.status})`);
   return response.json() as Promise<T>;
@@ -72,7 +67,6 @@ function appClient(endpoint: string) {
     revise: (id: string, revision: number, changes: unknown) => call<AppProposal>(`/proposals/${id}`, { method: "PUT", body: JSON.stringify({ revision, changes }) }),
     decide: (id: string, revision: number, decision: "approve" | "reject") =>
       call<{ proposal: AppProposal; receipt: unknown }>(`/proposals/${id}/${decision}`, { method: "POST", body: JSON.stringify({ revision }) }),
-    remove: (thread: string) => call<{ deleted: true; detachedChildren: number }>(`/conversations/${thread}`, { method: "DELETE" }),
     histories: () => call<{ providers: HistoryGroup[] }>("/history"),
     history: (ref: ThreadRef, before?: string) =>
       call<{ thread: Thread; entries: ThreadEntry[]; before: string | null }>(`/history/entries?ref=${encodeURIComponent(threadRefKey(ref))}${before ? `&before=${encodeURIComponent(before)}` : ""}`),
@@ -215,9 +209,11 @@ export default function AppAgentSidebar({
   agentName = "Outfitter",
   intro,
   emptyIntro,
+  defaultFocus,
   limits,
   demoReply,
   conversationNavigation = false,
+  initialOpen = false,
 }: {
   id: string;
   pageId: string;
@@ -228,19 +224,24 @@ export default function AppAgentSidebar({
   agentName?: string;
   intro: string;
   emptyIntro: string;
+  /** The app-wide conversation for a page that selects nothing (shown with `intro`, not `emptyIntro`). */
+  defaultFocus?: AgentFocus;
   limits: string;
   demoReply: string;
   /** Hide conversation management and workflow browsing for a focused page assistant. */
   conversationNavigation?: boolean;
+  /** Rendered open (the `outfitter-ui` cookie names this sidebar). */
+  initialOpen?: boolean;
 }) {
   const page = useMemo(() => agentPage(pageId), [pageId]);
   const reopenKey = `outfitter:agent-reopen:${pageId}`;
-  const claim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const pageClaim = useSyncExternalStore(page.subscribe, page.get, () => empty);
+  const claim = useMemo(() => (pageClaim.focus || !defaultFocus ? pageClaim : { ...pageClaim, focus: defaultFocus }), [pageClaim, defaultFocus]);
   // Switchable previews serve an operational package while explicitly selecting read-only fixtures.
   const demo = configuredDemo || (typeof document !== "undefined" &&
     document.querySelector<HTMLMetaElement>('meta[name="outfitter-preview-mode"]')?.content === "demo");
-  const app = useMemo(() => appClient(endpoint), [endpoint]);
   const prefix = useMemo(() => (typeof location === "undefined" ? "" : mountPrefix(location.pathname)), []);
+  const app = useMemo(() => appClient(appEndpoint(prefix, endpoint)), [prefix, endpoint]);
   const threads = useMemo(() => threadClient({ base: threadsBase ?? `${prefix}/api/platform/threads` }), [threadsBase, prefix]);
   /** History pages arrive through the app endpoint; rebase their platform paths onto this mount. */
   const mountEntry = (entry: ThreadEntry): TimelineEntry => ({
@@ -436,6 +437,7 @@ export default function AppAgentSidebar({
       if (current()) {
         setStatus("ready");
         const saved = await loadThread(target).catch(() => undefined);
+        if (finished) page.replied();
         // Only after a finished reply, and unless the member has moved on.
         const opened = finished && saved && requestedPage(saved, input.submissionId);
         const href = opened && pageHref(prefix, opened.location, location.href);
@@ -457,8 +459,8 @@ export default function AppAgentSidebar({
     if (demo) {
       setEntries((current) => [
         ...current,
-        { id: crypto.randomUUID(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
-        { id: crypto.randomUUID(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
+        { id: randomId(), role: "user", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text }] },
+        { id: randomId(), role: "assistant", status: "complete", createdAt: Date.now(), recordedAt: null, parts: [{ type: "text", text: demoReply }] },
       ]);
       return;
     }
@@ -474,7 +476,7 @@ export default function AppAgentSidebar({
       remember(target.id);
       const attachments = await Promise.all(files.map((file) => threads.upload(target.id, file)));
       if (expected !== generation.current) return false;
-      return stream(target, { submissionId: crypto.randomUUID(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
+      return stream(target, { submissionId: randomId(), text, attachments: attachments.map((a) => a.id), ...(effort ? { effort } : {}) });
     } catch (e) {
       if (expected === generation.current) setError(e instanceof Error ? e.message : "Send failed; your draft is preserved.");
       return false;
@@ -517,17 +519,6 @@ export default function AppAgentSidebar({
       setError(e instanceof Error ? e.message : String(e));
     }
   }
-  async function removeCurrent() {
-    if (!thread || !confirm("Delete this conversation? Pending proposals are cancelled; approved changes stay saved. Child conversations are kept.")) return;
-    try {
-      await app.remove(thread.id);
-      if (conversationNavigation) await refreshList();
-      await open(null);
-      if (scope) setInfo(await app.context(scope));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }
   async function refreshUnresolved(applied: boolean) {
     if (scope) setInfo(await app.context(scope));
     if (applied) page.applied();
@@ -539,6 +530,9 @@ export default function AppAgentSidebar({
   const proposalById = new Map(proposals.map((p) => [p.id, p]));
   const renderers = {
     data: {
+      "platform.resource-link": (part: Extract<ThreadPart, { type: "data" }>) => {
+        return <ResourceLink data={part.data as { uri?: unknown; name?: unknown } | null} />;
+      },
       [navigatePartName]: (part: Extract<ThreadPart, { type: "data" }>) => {
         const target = navigatePart.safeParse(part.data);
         const href = target.success ? pageHref(prefix, target.data.location, location.href) : null;
@@ -556,6 +550,7 @@ export default function AppAgentSidebar({
     },
   };
   const readOnly = view.kind === "history";
+  const inspector = useAgentInspector(threads, activated && !demo);
   const shownProposalIds = new Set<string>();
   const messages: Message[] = (readOnly ? [] : entries).map((entry) => ({
     ...asMessage(entry),
@@ -594,7 +589,7 @@ export default function AppAgentSidebar({
           Share with the organization (cannot be changed later)
         </label>
       ) : null}
-      {thread ? <p className="agent-thread-scope">{thread.visibility === "organization" ? "Shared with the organization" : "Private to you"}</p> : null}
+      {thread?.visibility === "organization" ? <p className="agent-thread-scope">Shared with the organization</p> : null}
       {thread?.parent ? <button type="button" className="ui-button ui-button--secondary" onClick={() => void openRef({ id: thread.parent!.id })}>Back to parent conversation</button> : null}
       {children.length ? (
         <details className="agent-children">
@@ -602,7 +597,6 @@ export default function AppAgentSidebar({
           <ul>{children.map((child) => <li key={child.id}><button type="button" className="ui-button ui-button--secondary" onClick={() => void open(child)}>{child.title || "Untitled"}</button></li>)}</ul>
         </details>
       ) : null}
-      {thread ? <button type="button" className="ui-button ui-button--secondary" onClick={() => void removeCurrent()}>Delete conversation</button> : null}
       <button type="button" className="ui-button ui-button--secondary" onClick={() => void showHistories()}>Workflow history</button>
       {histories ? (
         <div className="agent-histories">
@@ -636,6 +630,7 @@ export default function AppAgentSidebar({
       id={id}
       agent={{ name: agentName }}
       reopenKey={reopenKey}
+      initialOpen={initialOpen}
       focus={claim.focus}
       scope={{ intro: claim.focus ? intro : emptyIntro, limits: demo ? "Read-only demo. Replies are scripted; records cannot change." : limits }}
       // Nothing renders until the panel opens: server markup stays free of composer inline styles (CSP).
@@ -654,15 +649,11 @@ export default function AppAgentSidebar({
         if (thread && pending) void threads.cancel(thread.id, pending.submissionId).catch(() => {});
       }}
       onRetry={thread && lastSend.current && !readOnly ? () => void stream(thread, { ...lastSend.current!, retry: true }) : undefined}
-      onNewConversation={!conversationNavigation || demo || !scope ? undefined : () => void open(null)}
       composerActions={
         <>
           {navigation}
-          {!conversationNavigation && thread ? (
-            <div className="agent-thread-summary">
-              <span>{thread.visibility === "organization" ? "Shared with the organization" : "Private to you"}</span>
-              <details><summary>Conversation</summary><button type="button" className="ui-button ui-button--secondary" onClick={() => void removeCurrent()}>Delete conversation</button></details>
-            </div>
+          {!conversationNavigation && thread?.visibility === "organization" ? (
+            <p className="agent-thread-summary">Shared with the organization</p>
           ) : null}
           {info?.unresolved?.some((proposal) => proposal.threadId !== thread?.id) ? (
             <section className="agent-unresolved" aria-label="Unresolved actions">
@@ -684,8 +675,12 @@ export default function AppAgentSidebar({
         <>
           {message.entry.parts.map((part, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: entry parts are immutable and ordered.
-            <TimelinePartView key={index} part={part} renderers={renderers} onOpenThread={(ref, title) => void openRef(ref, title)} />
+            <TimelinePartView key={index} part={part} renderers={renderers} markdown={message.entry.role === "assistant"} onOpenThread={(ref, title) => void openRef(ref, title)} />
           ))}
+          {message.entry.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link").map((part, index) => {
+            const data = part.type === "data" ? part.data as { uri?: unknown; name?: unknown } | null : null;
+            return <ResourceLink key={`${typeof data?.uri === "string" ? data.uri : "link"}:${index}`} data={data} />;
+          })}
           {conversationNavigation && !demo && thread && message.entry.status !== "partial" && ["user", "assistant"].includes(message.entry.role) ? (
             <button type="button" className="agent-child-action" onClick={() => void startChild(message.entry)} disabled={status !== "ready"}>
               Start child conversation
@@ -695,6 +690,9 @@ export default function AppAgentSidebar({
       )}
       messageClassName={(message) => `timeline-${message.entry.role}`}
       transcriptContent={historyView}
+      debugHref={inspector && thread && !readOnly ? sessionDebugHref(thread.id) : undefined}
+      debug={inspector ? <AgentDebug threads={threads} threadId={readOnly ? null : (thread?.id ?? null)} href={thread && !readOnly ? sessionDebugHref(thread.id) : undefined}
+        revision={`${entries.findLast((entry) => entry.role === "user")?.id}:${JSON.stringify(claim.focus)}:${claim.view?.href ?? ""}`} metadata={pageMetadata} entries={readOnly ? [] : entries} /> : undefined}
     />
   );
 }

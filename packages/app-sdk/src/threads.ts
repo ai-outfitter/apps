@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readJSON, respond } from "./server";
+import { entityRef } from "./entities";
 
 /** Shared threads: the public contract between apps and the platform's thread
  * service. The platform stores conversational threads, runs replies and owns
@@ -55,6 +56,21 @@ function safeDecode(value: string) {
 export const threadContext = z.strictObject({ type: threadTypeName, id: z.string().min(1).max(256), label: z.string().max(200).optional() });
 export type ThreadContext = z.infer<typeof threadContext>;
 
+/**
+ * The Ask Outfitter panel's thread type: the platform provides it itself, with no installed app.
+ * Each member has one per owner (their personal scope, or each organization they belong to),
+ * private and never reset. Its prompt stays stable so it can grow without end; compaction keeps
+ * the model's view bounded.
+ */
+export const SIDEBAR_THREAD = "platform.sidebar";
+/** The context of a member's sidebar thread: their own scope, or the organization's. */
+export const sidebarContext = (owner: { organizationId: string | null; userId: string }) =>
+  owner.organizationId ? { type: "platform.organization", id: owner.organizationId } : { type: "platform.user", id: owner.userId };
+/** The id of a member's sidebar thread for an owner: the same on every device and page. */
+export const sidebarThreadId = (owner: { organizationId: string | null; userId: string }) =>
+  stableThreadId(SIDEBAR_THREAD, owner.organizationId ? `organization:${owner.organizationId}` : "personal", owner.userId);
+/** The default `history: { budget }` (tokens) for threads that never end: compaction keeps the model's view near it. */
+export const HISTORY_BUDGET = 48_000;
 export const threadStatus = z.enum(["active", "archived"]);
 export const thread = z.object({
   ref: threadRef,
@@ -299,6 +315,9 @@ export const submissionBody = z.strictObject({
   retry: z.boolean().optional(),
 });
 
+/** Browser body for `POST /api/platform/threads/{id}/inspect`: the page metadata a send from here would carry now. */
+export const inspectBody = z.strictObject({ metadata: boundedJSON(submissionMetadataBytes).optional() });
+
 const running = ["event", "operator", "interactive", "schedule"] as const;
 const op = <I extends z.ZodType, O extends z.ZodType>(input: I, output: O) => ({ phases: running, input, output });
 /** Host operations for threads (require `threads.use`). Merged into the workflow-host `operations` map. */
@@ -338,6 +357,11 @@ export const toolDescriptor = z.strictObject({
 });
 /** What a saved entry keeps of a `store: false` tool result. */
 export const omittedToolOutput = { omitted: true } as const;
+/** An authorized entity snapshot reloaded at this exact revision for every reply.
+ * A reference supplies context only; it never claims coverage of thread messages. */
+export const threadContextSource = entityRef.extend({ revision: z.number().int().positive() });
+export type ThreadContextSource = z.infer<typeof threadContextSource>;
+
 export const providerCallbacks = {
   types: { input: z.strictObject({}), output: z.array(threadTypeDescriptor).max(32) },
   prepare: {
@@ -348,9 +372,21 @@ export const providerCallbacks = {
       history: z.union([
         z.strictObject({ limit: z.number().int().min(0).max(200) }),
         z.strictObject({ entries: z.array(z.string().max(256)).max(200) }),
+        /** Every entry since the thread's latest compaction checkpoint, after its summary, up to about
+         * this many tokens. Past it, the platform folds the oldest turns into a new checkpoint (down to
+         * half), so the prompt only grows at its end between compactions and stays prefix-cacheable.
+         * For threads that never end, such as an owner's sidebar thread. */
+        z.strictObject({ budget: z.number().int().min(4_000).max(400_000),
+          /** Transient, attributed context. Platform reauthorizes and pins revisions every reply;
+           * these sources never replace transcript entries or enter compaction summaries. */
+          sources: z.array(threadContextSource).max(4).optional(),
+        }),
       ]).optional(),
       tools: z.array(toolDescriptor).max(64).default([]),
       maxSteps: z.number().int().min(1).max(16).default(4),
+      /** Also offer the platform's MCP tools (graph_documents, graph_query, graph_mutate) and their instructions,
+       * run as the member, exactly as an MCP client gets them. Private conversations only; results are not stored. */
+      platformTools: z.boolean().optional(),
       /** Default 4096. */
       maxOutputTokens: z.number().int().min(1).max(8000).optional(),
     }),
@@ -423,6 +459,27 @@ export async function stableThreadId(namespace: string, ...parts: string[]) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+export type ModelDescription = { provider: string; model: string; source?: string };
+
+/** What a thread's latest member message sends to the model, as `inspect` prepares it again. */
+export type ThreadInspection = {
+  model: ModelDescription | { error: string };
+  /** Null before the first member message. */
+  turn: {
+    entryId: string;
+    sentAt: number;
+    /** The page claim the sidebar sent (e.g. the record in view), as the provider received it. */
+    metadata: unknown;
+    system: string;
+    tools: { name: string; description: string; inputSchema: unknown }[];
+    /** The provider's untrusted context data, e.g. the page the member was viewing. */
+    context: unknown;
+    history: unknown;
+    maxSteps: number;
+    maxOutputTokens: number;
+  } | null;
+};
+
 /** Same-origin browser client for the platform thread routes. `send()` returns
  * the raw response: an AI SDK UI message stream, or JSON `{ submission }` for a
  * duplicate submission. */
@@ -480,6 +537,10 @@ export function threadClient(options: { base?: string; installationId?: string; 
       fetcher(url(`/${id}/submissions`), { ...body(input, "POST"), credentials: "same-origin", signal }),
     cancel: (id: string, submissionId: string) =>
       request<{ canceled: boolean }>(`/${id}/submissions/${submissionId}`, { method: "DELETE" }),
+    /** Whether the debug view is offered to this person (platform administrators); false on any refusal. */
+    inspector: () => request<{ inspect: true }>("/inspect").then(() => true, () => false),
+    /** Administrators only: the latest turn's model, system prompt, tools and context, prepared again (with this page's `metadata` when given). */
+    inspect: (id: string, input: z.input<typeof inspectBody> = {}) => request<ThreadInspection>(`/${encodeURIComponent(id)}/inspect`, body(input, "POST")),
   };
 }
 

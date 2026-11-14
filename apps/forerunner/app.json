@@ -1,0 +1,117 @@
+{
+  "id": "outfitter/forerunner",
+  "version": "0.1.1",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "data.export",
+        "api.serve",
+        "home-cards.publish",
+        "workflow.host",
+        "threads.use",
+        "threads.provide",
+        "entities.read",
+        "actions.invoke",
+        "connector.gmail.messages.list",
+        "connector.gmail.messages.get",
+        "connector.google-calendar.events.list",
+        "connector.github.activity.read",
+        "connector.slack.channels.selected",
+        "connector.slack.history.read",
+        "connector.slack.thread.read",
+        "workflow.forerunner-discovery.start",
+        "graph.serve",
+        "storage.artifacts.read",
+        "storage.artifacts.write",
+        "routines.manage",
+        "platform.documents",
+        "platform.records",
+        "workflow.forerunner-daily-brief.start",
+        "workflow.forerunner-research-report.start",
+        "web.search"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "demo": {
+      "slug": "forerunner",
+      "name": "Forerunner",
+      "description": "See how a foreman keeps your priorities moving."
+    },
+    "operational": {
+      "slug": "forerunner",
+      "name": "Forerunner",
+      "description": "Privately manage your stones, pebbles and sand by hand."
+    },
+    "sections": [
+      {
+        "label": "Today",
+        "path": ""
+      },
+      {
+        "label": "Yesterday",
+        "path": "yesterday"
+      },
+      {
+        "label": "Life",
+        "path": "life"
+      },
+      {
+        "label": "Home",
+        "path": "home"
+      },
+      {
+        "label": "People",
+        "path": "people"
+      },
+      {
+        "label": "Money",
+        "path": "money"
+      },
+      {
+        "label": "Body",
+        "path": "body"
+      },
+      {
+        "label": "Progress",
+        "path": "progress"
+      }
+    ],
+    "presentation": {
+      "outcome": "Keep your highest priorities moving with a private board of stones, pebbles and sand.",
+      "connectors": [
+        "Gmail \u00b7 unavailable",
+        "Google Calendar \u00b7 unavailable"
+      ],
+      "steps": [
+        [
+          "Rank the stones",
+          "Create your highest-priority tickets and move them into the order you want to work."
+        ],
+        [
+          "Break work into pebbles",
+          "Add the next actions that move each stone forward."
+        ],
+        [
+          "Capture the sand",
+          "Keep small tasks on their own or link them to a stone."
+        ],
+        [
+          "Keep your board current",
+          "Edit notes and due dates, complete work, and reopen it when needed."
+        ]
+      ],
+      "access": "Private manual board. Each member creates and ranks their own stones, pebbles and sand. Demo records are synthetic; no mail or calendar is read and no model runs."
+    },
+    "cover": "catalog/cover.png"
+  },
+  "dependencies": [
+    "onto"
+  ]
+}

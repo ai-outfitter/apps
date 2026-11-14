@@ -10,6 +10,8 @@ import {
   launchFoundryWorkspaceIssue,
   startExistingFoundryIssue,
   resolveFoundryRepository,
+  retryJobFixes, runFoundryJob, startJobFix,
+  scheduleFoundryJob,
 } from "../src/server/workspace/workspaces";
 
 type Call = { operation: string; input: any };
@@ -54,6 +56,8 @@ function platform(provider = "github") {
     // This installation's run by ID; none exist in this double.
     "workflow.read": () => null,
     "workflow.start": (input) => ({ id: input.id, workflow: input.workflow, created: true }),
+    "schedule.save": (input) => ({ id: "schedule", workflowId: input.workflow, cron: "0 14 * * 1", timezone: input.timezone, inputs: input.inputs,
+      connectionId: null, resource: null, createdBy: "owner", enabled: input.enabled, nextRunAt: null, lastRunAt: null, lastRunId: null, lastOutcome: null }),
   };
   const host = {
     async call(operation: string, input: any) {
@@ -145,10 +149,97 @@ test("an editor's start on an existing issue uses the stable installation, repos
 });
 
 
-test("workspace guidance scopes repository commands and requires actual viewport captures", async () => {
+test("each role gets only its own guidance, and repository commands only for their repository", async () => {
   const {workspaceGuidance}=await import("../src/server/workspace/execution");
-  const playground=workspaceGuidance("ai-outfitter/outfitter-playground-internal").join("\n");
-  assert.doesNotMatch(playground,/build:node|anonymous-onboarding/);
-  assert.match(playground,/resize_page or emulate/);
-  assert.match(workspaceGuidance("ai-outfitter/webapp").join("\n"),/build:node/);
+  const implement=workspaceGuidance("ai-outfitter/outfitter-playground-internal","implement").join("\n");
+  assert.doesNotMatch(implement,/build:node|anonymous-onboarding|IHDR|must not push/);
+  assert.match(implement,/resize_page or emulate/);
+  assert.match(implement,/previous\.summary/);
+  const review=workspaceGuidance("ai-outfitter/webapp","review").join("\n");
+  assert.match(review,/IHDR/);assert.match(review,/installPreview/);
+  assert.doesNotMatch(review,/copying the closest existing test/);
+  assert.deepEqual(workspaceGuidance("acme/app","triage"),[]);
+  assert.match(workspaceGuidance("ai-outfitter/webapp","repair").join("\n"),/build:node/);
+});
+
+test("an owner or admin turns a repository on from Foundry itself, within interactive host operations", async () => {
+  const { enableRepository } = await import("../src/server/repositories");
+  const { operationAllowed } = await import("@ai-outfitter/app-sdk/workflow-host");
+  const { host, calls, subscriptions } = platform();
+  const context = (canEdit: boolean) => ({ identity: { userId: "owner", canEdit }, host: () => host }) as never;
+  assert.deepEqual(await enableRepository(context(true), { repository: "acme/app", reviewer: "vega" }),
+    { repository: "acme/app", subscriptionId: "subscription", workflow: foundryWorkspaceWorkflow });
+  assert.equal(subscriptions.length, 1);
+  assert.ok(calls.every((call) => operationAllowed(call.operation, "interactive")), "no operator-only operation is needed");
+  await assert.rejects(enableRepository(context(false), { repository: "acme/app", reviewer: "vega" }));
+});
+
+test("a repository job runs and schedules under its approved read-only analyze binding", async () => {
+  const { host, bindings, calls } = platform();
+  await assert.rejects(runFoundryJob(host as never, "dependency-review", "acme/app"),
+    (error: Response) => error.status === 409, "a job's issues need Foundry on to be fixed");
+  await configureFoundryWorkspaces(host as never, "acme/app", "vega");
+  bindings.length = 0;
+  calls.length = 0;
+  const started = await runFoundryJob(host as never, "architecture-reanalysis", "Acme/App");
+  assert.equal(started.repository, "acme/app");
+  const [binding] = bindings;
+  assert.equal(`${binding.workflowId}/${binding.actor}`, "architecture-reanalysis/architect");
+  assert.equal(binding.workspace.settings.role, "file-issues");
+  assert.deepEqual([binding.workspace.agentPermissions.contents, binding.workspace.agentPermissions.pull_requests, binding.workspace.agentPermissions.issues], ["read", "read", "write"]);
+  const start = calls.find((call) => call.operation === "workflow.start");
+  const fix = start?.input.inputs["analyze.inputs.fix"];
+  assert.deepEqual(start?.input, { workflow: "architecture-reanalysis", id: started.run, inputs: { "analyze.inputs.repository": "acme/app", "analyze.inputs.architectBinding": binding.id, "analyze.inputs.fix": fix } });
+  assert.equal(fix.resource, "77");
+  assert.equal(typeof fix.inputs["triage.inputs.triagerBinding"], "string", "the repository's issue-to-merge bindings");
+  const saved = await scheduleFoundryJob(host as never, "ui-review", "acme/app", false);
+  assert.deepEqual(saved, { job: "ui-review", repository: "acme/app", schedule: "schedule", enabled: false });
+  const save = calls.find((call) => call.operation === "schedule.save");
+  assert.equal(save?.input.inputs["analyze.inputs.reviewerBinding"], bindings.at(-1).id);
+  assert.equal(save?.input.cron, undefined, "the job's declared cadence");
+  assert.ok(!calls.some((call) => !Object.hasOwn(operations, call.operation)), "only operations the host defines");
+});
+
+test("a repository job's issue starts issue-to-merge once, under the issue's run id", async () => {
+  const { host, calls } = platform();
+  const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
+  const issue = { number: 12, title: "Update packages", body: "Plan", url: "https://github.com/acme/app/issues/12" };
+  const started = await startJobFix(host as never, fix, { id: 77, name: "acme/app" }, issue);
+  const start = calls.find((call) => call.operation === "workflow.start");
+  assert.equal(started.id, await foundryIssueRunId("foundry", "77", 12));
+  assert.equal(start?.input.inputs["triage.inputs.triagerBinding"], "b-triage");
+  assert.equal(start?.input.inputs["triage.inputs.event"].issue.number, 12);
+});
+
+test("a job run retries Foundry's failed fixes and closes ones that keep failing", async () => {
+  const runs: Record<number, any[]> = {
+    // 20: failed once, retried on the failed run's branch.
+    20: [{ id: "f20", status: "failed", updatedAt: 2 }],
+    // 21: still running; 22: merged; 23: failed three times; 24: never started.
+    21: [{ id: "r21", status: "running", updatedAt: 1 }],
+    22: [{ id: "c22", status: "complete", updatedAt: 1 }],
+    23: [1, 2, 3].map((n) => ({ id: `f23-${n}`, status: "failed", updatedAt: n })),
+    24: [],
+  };
+  const calls: Call[] = [];
+  const host = { async call(operation: string, input: any) {
+    calls.push({ operation, input });
+    if (operation === "workflow.references") return runs[input.subjects[0]];
+    if (operation === "workflow.read") return { run: { id: input.id }, inputs: { "triage.inputs.event": { sourceRunId: reserved } } };
+    if (operation === "workflow.start") return { id: input.id, workflow: input.workflow, created: true };
+    throw new Response(`Unexpected ${operation}`, { status: 403 });
+  } };
+  const closed: number[] = [];
+  const issue = (number: number) => ({ number, repository: "acme/app", url: `https://github.com/acme/app/issues/${number}`, title: `#${number}`, body: "", state: "open" as const });
+  const forge = { openedIssues: async () => [19, 20, 21, 22, 23, 24].map(issue), close: async (number: number) => { closed.push(number); } };
+  const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
+  const swept = await retryJobFixes(host as never, fix, { id: 77, name: "acme/app" }, forge, new Set([19]));
+  assert.deepEqual(swept.retried.map((item) => item.number), [20, 24]);
+  assert.deepEqual(swept.closed.map((item) => item.number), [23]);
+  assert.deepEqual(closed, [23]);
+  const starts = calls.filter((call) => call.operation === "workflow.start");
+  assert.equal(starts[0].input.id, await foundryIssueRunId("foundry", "77", 20, "retry-1"));
+  assert.deepEqual([starts[0].input.inputs["triage.inputs.event"].previousRunId, starts[0].input.inputs["triage.inputs.event"].sourceRunId], ["f20", reserved]);
+  assert.equal(starts[1].input.inputs["triage.inputs.event"].previousRunId, undefined, "a fix that never started starts fresh");
+  assert.ok(!calls.some((call) => call.operation === "workflow.references" && call.input.subjects[0] === 19), "the run's own new issues are skipped");
 });

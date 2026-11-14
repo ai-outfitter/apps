@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 .outfitter-sdk/
 .outfitter-preview/
 .preview-toolchain/
@@ -8,3 +8,6 @@ node_modules/
 **/.outfitter/packages/
 
 **/.wrangler/
+apps/onto/seeds/*.local.json
+
+apps/wiki/seeds/*.local.json

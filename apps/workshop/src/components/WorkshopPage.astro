@@ -1,21 +1,26 @@
 ---
-import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import AppLayout from "./WorkshopLayout.astro";
 import "../styles/workshop.css";
-import { projectPath, SECTIONS, type SectionId } from "../lib/sections";
-import Content from "./Workshop.astro";
+import { projectPath, type SectionId } from "../lib/sections";
+import Content from "./Workspace.astro";
 
 interface Props { section: SectionId; slug: string }
 const { section, slug } = Astro.props;
-const current = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":"Model"};
 ---
 <AppLayout
   name="Workshop"
+  headerStyle="app"
+  showOrganizationLink={false}
+  introVisuallyHidden
   title={current.label}
-  description="Research, design and record what works on your bench."
+  description="Inspect models, parts and product revisions."
   active="home"
-  sidebarLinks={[
-    { label: "All projects", href: "/", active: false },
-    ...SECTIONS.map((s) => ({ label: s.label, href: projectPath(slug, s.id), active: s.id === section })),
+  sidebarSections={[
+    { label: "Workspace", links: [{ label: "All projects", href: "/", active: false }, { label: "New model", href: "/new", active: false }] },
+    { label: "Project", links: [
+    ...([{id:"assembly",label:"Model"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
+  ] },
   ]}
 >
   <Content section={section} slug={slug} />

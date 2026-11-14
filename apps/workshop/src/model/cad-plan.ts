@@ -1,9 +1,10 @@
 import { z } from "zod";
 import type { Params } from "../lib/project";
 
-const coordinate = z.number().min(-250).max(250);
-const extent = z.number().min(1).max(200);
-const radius = z.number().min(0.1).max(200);
+function cadPlanSchema(limit: number) {
+const coordinate = z.number().min(-limit).max(limit);
+const extent = z.number().min(1).max(limit);
+const radius = z.number().min(0.1).max(limit);
 const point = z.tuple([coordinate, coordinate, coordinate]);
 const mode = z.enum(["add", "cut"]);
 const feature = z.discriminatedUnion("kind", [
@@ -27,11 +28,11 @@ const feature = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 
-export const CadPlanSchema = z
+return z
   .object({
     version: z.literal(1),
     units: z.literal("mm"),
-    features: z.array(feature).min(1).max(24),
+    features: z.array(feature).min(1).max(64),
   })
   .strict()
   .superRefine((plan, ctx) => {
@@ -40,10 +41,15 @@ export const CadPlanSchema = z
       return;
     }
     const bounds = planBounds(plan);
-    if (bounds.size.some((side) => side > 200))
-      ctx.addIssue({ code: "custom", message: "Design exceeds 200 mm" });
+    if (bounds.size.some((side) => side > limit))
+      ctx.addIssue({ code: "custom", message: `Design exceeds ${limit} mm` });
   });
 
+}
+
+// Keep single-part design limits; assembly members may be furniture-sized.
+export const CadPlanSchema = cadPlanSchema(300);
+export const AssemblyCadPlanSchema = cadPlanSchema(5000);
 export type CadPlan = z.infer<typeof CadPlanSchema>;
 
 function featureBounds(part: CadPlan["features"][number]) {

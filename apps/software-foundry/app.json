@@ -1,6 +1,6 @@
 {
   "id": "outfitter/software-foundry",
-  "version": "0.3.1",
+  "version": "0.3.5",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "storage": {
@@ -35,6 +35,7 @@
         "workflow.sdlc-setup.start",
         "workflow.dependency-review.start",
         "workflow.architecture-reanalysis.start",
+        "workflow.ui-review.start",
         "features.read",
         "graph.serve",
         "workflow.issue-to-triage-resident.start",
@@ -73,8 +74,7 @@
         "entities.read",
         "entities.write",
         "actions.invoke",
-        "platform.records",
-        "workflow.foundry-request-intake.start"
+        "platform.records"
       ]
     }
   },
@@ -106,6 +106,6 @@
     "policy": "scripts/preview.mjs"
   },
   "dependencies": [
-    "wiki-map"
+    "onto"
   ]
 }

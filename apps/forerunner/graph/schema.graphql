@@ -1,0 +1,384 @@
+type Query {
+  """
+  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. `sections` reads only the named sections (digest, priorities, review, history), so the saved brief never waits on reports. No generation, schedule write or connector read starts.
+  """
+  dailyHome(input: DailyHomeInput!): JSON
+
+  """Read the personal daily brief schedule; no scheduling side effects."""
+  dailyBriefSchedule(input: JSON!): JSON
+
+  """
+  Read the saved research reports and their schedule; no scheduling side effects.
+  """
+  researchReportSchedule(input: JSON!): JSON
+
+  """
+  Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.
+  """
+  dayReview(input: DayReviewInput!): JSON
+
+  """
+  Read saved canonical need identities and revisions for a private discovery selection; excludes raw source samples and uncommitted proposals.
+  """
+  planningCandidates(input: PlanningCandidatesInput!): JSON
+  items(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    category: [String!]
+    status: [String!]
+  ): ItemConnection!
+  discoveryRecords(
+    first: Int = 100
+    after: String
+    ids: [ID!]
+
+    """Match text across this collection’s text fields."""
+    search: String
+    kind: [String!]
+  ): DiscoveryRecordConnection!
+
+  """
+  What the daily runs suggest, newest first: open suggestions unless `status` names others (applied, dismissed). Editors only.
+  """
+  suggestions(status: [String!]): [Suggestion!]!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+input DailyHomeInput {
+  timezone: String
+  includeHistory: Boolean
+  sections: [DailyHomeInputSectionsItem!]
+}
+
+enum DailyHomeInputSectionsItem {
+  digest
+  priorities
+  review
+  history
+}
+
+input DayReviewInput {
+  date: String
+  timezone: String
+}
+
+input PlanningCandidatesInput {
+  previewId: ID!
+}
+
+type ItemConnection {
+  nodes: [Item!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type Item {
+  id: ID!
+  category: String!
+  title: String!
+  description: String!
+  dueDate: String
+  status: String!
+  position: Float!
+  parentId: ID
+  revision: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""ISO-8601 date or date-time; as input also "NOW"."""
+scalar DateTime
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+type DiscoveryRecordConnection {
+  nodes: [DiscoveryRecord!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DiscoveryRecord {
+  id: ID!
+  kind: String!
+  createdAt: DateTime!
+}
+
+"""
+Something the daily run suggests: a new workflow to turn on, a change to one of the member's routines, or an app. Status is open, applied or dismissed.
+"""
+type Suggestion {
+  id: ID!
+
+  """workflow, change or app"""
+  kind: String!
+  status: String!
+  title: String!
+  why: String!
+
+  """
+  change only: the routine it rewrites, its routine id in platform Schedules
+  """
+  routineId: ID
+  routineName: String
+
+  """workflow: the routine to turn on; change: the routine's whole new task"""
+  task: RoutineTask
+  appName: String
+  appGoal: String
+  createdAt: String!
+}
+
+"""A recurring task: what a routine does each time, when, and how."""
+type RoutineTask {
+  title: String!
+  description: String!
+  cadence: String
+  steps: [String!]!
+}
+
+input CreatePlanningIntakeInput {
+  previewId: ID!
+  entryIndex: Float!
+  expectedId: ID!
+  expectedRevision: Float!
+  planningInstallationId: String!
+  projectId: ID
+  kind: String
+  confirmDestination: Boolean!
+}
+
+input CreateItemInput {
+  category: CreateItemInputCategory!
+  title: String!
+  description: String
+  dueDate: String
+  status: String
+  parentId: ID
+}
+
+enum CreateItemInputCategory {
+  stone
+  pebble
+  sand
+}
+
+input UpdateItemInput {
+  category: UpdateItemInputCategory!
+  title: String!
+  description: String
+  dueDate: String
+  status: String
+  parentId: ID
+  revision: Float!
+  id: ID!
+}
+
+enum UpdateItemInputCategory {
+  stone
+  pebble
+  sand
+}
+
+type DeletedItem {
+  deleted: ID!
+}
+
+input DeleteItemInput {
+  revision: Float!
+  id: ID!
+}
+
+input ReorderItemsInput {
+  items: [ReorderItemsInputItemsItem!]!
+}
+
+input ReorderItemsInputItemsItem {
+  id: ID!
+  revision: Float!
+}
+
+input UpdateSuggestionInput {
+  id: ID!
+  status: UpdateSuggestionInputStatus!
+  timezone: String
+}
+
+enum UpdateSuggestionInputStatus {
+  applied
+  dismissed
+}
+
+input SetDailyBriefScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  ifUnset: Boolean
+}
+
+input GenerateDailyBriefInput {
+  timezone: String!
+}
+
+input SetResearchReportScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  hour: Int
+  reports: [SetResearchReportScheduleInputReportsItem!]!
+}
+
+input SetResearchReportScheduleInputReportsItem {
+  slug: String!
+  title: String!
+  subject: String
+  location: String!
+  topics: [String!]!
+}
+
+"""
+The daily discovery run as Settings shows it; times are epoch milliseconds.
+"""
+type DailyRun {
+  enabled: Boolean!
+  connectionId: ID
+  timezone: String
+  nextRunAt: Float
+  lastRunAt: Float
+  lastOutcome: String
+}
+
+input SetDailyRunInput {
+  enabled: Boolean!
+  source: String
+  timezone: String
+}
+
+type Mutation {
+  """
+  Explicitly capture one selected saved discovered need in the same owner's authorized Planning installation. Uses only current canonical Wiki content, honors corrected identity and revision, and retries with a deterministic intake request ID. Never copies private source samples or automatically shares across owners.
+  """
+  createPlanningIntake(input: CreatePlanningIntakeInput!): JSON
+
+  """
+  Add a stone (a top priority), a pebble (a stone's next action, parentId required) or sand (a small task, optionally under a stone) to the caller's board, last in its category. Status is todo, in-progress or done; dueDate an ISO date. At most 500 items.
+  """
+  createItem(input: CreateItemInput!): Item!
+
+  """
+  Replace one of the caller's items: its category, title, description, dueDate, status (done completes it, todo reopens it) and parentId. Send the revision last read; a stale one is refused (409) so a change you have not seen is never overwritten.
+  """
+  updateItem(input: UpdateItemInput!): Item!
+
+  """
+  Delete one of the caller's items. A stone with pebbles or sand under it is refused until they move. Send the revision last read; a stale one is refused (409) so a change you have not seen is never overwritten.
+  """
+  deleteItem(input: DeleteItemInput!): DeletedItem!
+
+  """
+  Rank one whole category of the caller's board, completed items included, in the order given; nothing moves unless every item is named at its revision. Returns the board. Send the revision last read; a stale one is refused (409) so a change you have not seen is never overwritten.
+  """
+  reorderItems(input: ReorderItemsInput!): [Item!]!
+
+  """
+  Act on an open suggestion by its status. `applied` turns a workflow suggestion on as a routine (its first run starts now, in `timezone`) or rewrites a change's routine; `dismissed` sets it aside so later runs do not suggest it again. App suggestions are built from Apps, so they can only be dismissed here. Editors only.
+  """
+  updateSuggestion(input: UpdateSuggestionInput!): Suggestion!
+
+  """
+  Enable or disable the personal daily brief at 05:00 in a saved timezone. `ifUnset` saves the default only when no daily brief schedule exists. No connection is auto-authorized.
+  """
+  setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
+
+  """
+  Write today's personal brief from saved reports, priorities, goals and role with one cited model answer. A failed answer saves nothing and returns status failed; missing sources stay listed as not known.
+  """
+  generateDailyBrief(input: GenerateDailyBriefInput!): JSON
+
+  """
+  Save this scope's research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
+  """
+  setResearchReportSchedule(input: SetResearchReportScheduleInput!): JSON
+
+  """
+  Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.
+  """
+  generateResearchReports(input: JSON!): JSON
+
+  """
+  Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.
+  """
+  setDailyRun(input: SetDailyRunInput!): DailyRun!
+
+  """Apply item changes using explicit actions"""
+  itemChanges(input: ItemChangesInput!): ChangeResults
+
+  """
+  Act on the daily run's suggestions: update one to applied (turn a workflow on or rewrite its routine) or dismissed (set it aside). Read Suggestions for the ids.
+  """
+  suggestionChanges(input: SuggestionChangesInput!): ChangeResults
+}
+
+type ChangeResults {
+  items: [ChangeReceipt!]!
+  instructions: [ChangeInstruction!]!
+}
+
+type ChangeReceipt {
+  key: String!
+  status: String!
+  result: JSON
+  error: JSON
+}
+
+type ChangeInstruction {
+  code: String!
+  itemKey: String!
+  actor: String!
+  required: Boolean!
+  message: String!
+  call: JSON
+  taskId: String
+  url: String
+}
+
+input ItemChangesInput {
+  items: [ItemChangesInputItemsItem!]!
+}
+
+input ItemChangesInputItemsItem {
+  key: String!
+  action: ItemChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum ItemChangesInputItemsItemAction {
+  createItem
+  updateItem
+  deleteItem
+  reorderItems
+}
+
+input SuggestionChangesInput {
+  items: [SuggestionChangesInputItemsItem!]!
+}
+
+input SuggestionChangesInputItemsItem {
+  key: String!
+  action: SuggestionChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum SuggestionChangesInputItemsItemAction {
+  update
+}

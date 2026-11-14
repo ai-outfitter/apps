@@ -342,22 +342,17 @@
 .workshop .bom td:first-child { white-space: nowrap; }
 .workshop .units th:nth-child(2) { width: 30%; }
 
-/* Projects home: one row per project, its model and its stage. */
+/* Projects home: project names and model thumbnails. */
 .workshop .project-list {
   list-style: none;
   margin: 0 0 32px;
   padding: 0;
 }
 .workshop .project-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: 24px;
-  align-items: center;
-  padding: 16px 0;
-  border-top: 1px solid var(--border);
+  padding: 24px 0;
 }
-.workshop .project-row:last-child {
-  border-bottom: 1px solid var(--border);
+.workshop-new-model .agent-card {
+  border-top: 0;
 }
 .workshop .project-row > a {
   display: flex;
@@ -379,36 +374,7 @@
 }
 .workshop .project-text {
   display: grid;
+  flex: 1;
   gap: 4px;
   min-width: 0;
-}
-.workshop .phase-track {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.workshop .phase-step {
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
-.workshop .phase-step.done {
-  border-top-color: var(--text);
-}
-.workshop .phase-step.current {
-  border-top: 2px solid var(--text);
-  color: var(--text);
-  font-weight: 600;
-}
-@media (max-width: 850px) {
-  .workshop .project-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .workshop .phase-track {
-    font-size: 0.65rem;
-  }
 }

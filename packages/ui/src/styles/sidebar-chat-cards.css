@@ -1,0 +1,193 @@
+.connect-services {
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  border-radius: 0;
+  padding: 12px 0 0;
+}
+.chat-workflow {
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  border-radius: 0;
+  padding: 12px 0 0;
+}
+.chat-workflow .chat-workflow__intro {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chat-workflow .workflow-card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  gap: 9px;
+}
+.chat-workflow .workflow-card__flow > li > span {
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+}
+.chat-workflow .workflow-card__flow > .workflow-card__trigger > span {
+  border: 0;
+}
+.chat-workflow .workflow-card__flow > .workflow-card__more-item::before {
+  content: none;
+}
+.chat-workflow .workflow-card__graph[open] {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.chat-workflow .workflow-card__connections {
+  font-size: 12px;
+}
+.connect-services p {
+  margin-bottom: 10px;
+}
+.connect-services .primary {
+  white-space: nowrap;
+}
+/* Not now on the connect card, and the member's message it sends. */
+.chat-component .connect-later {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.choose-task-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.choose-task-skip {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.choose-task-skip:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--soft);
+}
+.composer-question-shell .composer {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.choose-task-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.choose-task-option:focus-visible,
+.choose-task-skip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.choose-task-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+button.choose-task-option {
+  cursor: pointer;
+}
+button.choose-task-option:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+.choose-task-option span,
+.choose-task-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.choose-task-option small {
+  grid-column: 1 / -1;
+}
+.suggested-apps {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.suggested-apps h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.suggested-apps p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.suggested-apps ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+}
+
+/* Activity the platform recorded in the member's sidebar thread: a run that settled, a routine turned on. */
+.sidebar-activity {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+.sidebar-activity--failed {
+  border-left-color: var(--error);
+}
+.sidebar-activity p {
+  margin: 0;
+}
+.sidebar-activity__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sidebar-activity--failed .sidebar-activity__label {
+  color: var(--error);
+}
+.sidebar-activity__label time {
+  font-weight: 400;
+}
+.sidebar-activity__title {
+  font-weight: 600;
+}
+.sidebar-activity__summary {
+  color: var(--muted);
+  font-size: 13px;
+}
+.sidebar-activity__link {
+  justify-self: start;
+  font-size: 13px;
+  color: var(--accent);
+}

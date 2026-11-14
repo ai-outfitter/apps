@@ -1,6 +1,6 @@
 import { artifactRef } from "@ai-outfitter/app-sdk/evidence";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { defaultWiki, typeSegment } from "@ai-outfitter/app-sdk/wiki";
+import { defaultWiki, typeSegment } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -84,8 +84,7 @@ const addQuery = z
 /**
  * Stores the request body (an image) as a concept of the project. The query
  * names the project revision it applies to, the prompt, the model ("upload"
- * for an image made elsewhere) and an optional caption. The platform's image
- * generator saves its result through this same route as the member.
+ * for an image made elsewhere) and an optional caption.
  */
 export async function addConcept(
   context: WorkshopContext,
@@ -115,13 +114,25 @@ export async function addConcept(
   if (bytes.byteLength > MAX_CONCEPT_BYTES)
     throw new Response("Images are at most 10 MB.", { status: 413 });
   const current = await currentAt(db, projectId, query.data.revision);
+  return storeConcept(context, current, bytes, type as ImageType, query.data);
+}
+
+/** Keeps `bytes` in the concepts space and the reference in the project, as its next revision. */
+async function storeConcept(
+  context: WorkshopContext,
+  current: Project,
+  bytes: ArrayBuffer | Uint8Array,
+  type: ImageType,
+  meta: Pick<Concept, "prompt" | "model" | "caption">,
+) {
+  const db = context.db();
   if (current.concepts.length >= CONCEPT_LIMIT)
     throw new Response(
       `A project keeps up to ${CONCEPT_LIMIT} concepts. Remove one first.`,
       { status: 409 },
     );
   const id = crypto.randomUUID();
-  const key = `${current.id}/${id}.${EXTENSIONS[type as ImageType]}`;
+  const key = `${current.id}/${id}.${EXTENSIONS[type]}`;
   const files = context.storage();
   const stored = await files.put(CONCEPT_SPACE, key, bytes, {
     contentType: type,
@@ -129,11 +140,11 @@ export async function addConcept(
   const concept: Concept = {
     id,
     key,
-    contentType: type as ImageType,
+    contentType: type,
     sha256: stored.sha256,
-    prompt: query.data.prompt,
-    model: query.data.model,
-    caption: query.data.caption,
+    prompt: meta.prompt,
+    model: meta.model,
+    caption: meta.caption,
     createdAt: new Date().toISOString(),
   };
   // A save that loses the revision race leaves no orphaned file.
@@ -146,6 +157,57 @@ export async function addConcept(
     await files.delete({ space: CONCEPT_SPACE, key });
     throw error;
   }
+}
+
+export const conceptWorkflow = "workshop-concept";
+export const conceptStep = "concept";
+export const generateInput = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    prompt: z.string().trim().min(1).max(4000),
+    caption: ConceptSchema.shape.caption.default(""),
+  })
+  .strict();
+
+/** A concept image from the platform's image model on a workshop-concept run,
+ * kept like an upload. The run records which concept it made. */
+export async function generateConcept(
+  context: WorkshopContext,
+  projectId: string,
+  input: z.output<typeof generateInput>,
+  host: WorkflowHost<"interactive"> = context.host(),
+) {
+  const current = await currentAt(context.db(), projectId, input.revision);
+  if (current.concepts.length >= CONCEPT_LIMIT)
+    throw new Response(
+      `A project keeps up to ${CONCEPT_LIMIT} concepts. Remove one first.`,
+      { status: 409 },
+    );
+  const run = await host.call("workflow.start", {
+    workflow: conceptWorkflow,
+    id: crypto.randomUUID(),
+    inputs: { [`${conceptStep}.inputs.projectId`]: current.id },
+  });
+  const image = await host.call("inference.image", {
+    runId: run.id,
+    step: conceptStep,
+    prompt: input.prompt,
+  });
+  const bytes = Uint8Array.from(atob(image.base64), (char) => char.charCodeAt(0));
+  if (bytes.byteLength > MAX_CONCEPT_BYTES)
+    throw new Response("The generated image is larger than 10 MB.", { status: 502 });
+  const project = await storeConcept(context, current, bytes, image.contentType, {
+    prompt: input.prompt,
+    model: image.model,
+    caption: input.caption,
+  });
+  const concept = project.concepts.at(-1) as Concept;
+  await host.call("workflow.collect", {
+    runId: run.id,
+    slot: `${conceptStep}.outputs.concept`,
+    value: { projectId: project.id, revision: project.revision, conceptId: concept.id, model: concept.model, sha256: concept.sha256 },
+  });
+  return project;
 }
 
 /** The RemoveWorkshopConcept mutation's input: the concept, at the project revision the caller saw. */

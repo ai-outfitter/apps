@@ -1,10 +1,10 @@
 import type { WorkflowHost } from "./workflow-host";
 
 type Host = WorkflowHost<"interactive">;
-type Selector = { installationId?: string; template?: string };
+type Selector = { installationId?: string; template?: string; requireTypes?: boolean };
 const discovery = new WeakMap<Host, Map<string, ReturnType<typeof read>>>();
 const read = (host: Host, selector: Selector) => host.call("entities.types", selector);
-const keyFor = (selector: Selector) => JSON.stringify([selector.installationId ?? null, selector.template ?? null]);
+const keyFor = (selector: Selector) => JSON.stringify([selector.installationId ?? null, selector.template ?? null, selector.requireTypes ?? false]);
 
 /** Share schema discovery only within this dispatch. Every record operation
  * still checks current authority; failures are retryable on the same host. */

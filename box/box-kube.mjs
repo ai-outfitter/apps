@@ -10,11 +10,12 @@
 // on loopback only and is reachable only from inside the box.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { createServer as createNetServer } from "node:net";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sha256 } from "./lib.mjs";
 
 /** Pure object store with Kubernetes create/get/merge-patch/put/delete semantics. */
 export class Store {
@@ -156,8 +157,7 @@ export class Controller {
     const token = secret?.stringData?.token;
     if (!token) return this.#report(key, "Starting", undefined, generation);
     const port = await this.freePort();
-    const root = join(this.dataDirectory, namespace, name);
-    mkdirSync(root, { recursive: true });
+    const root = this.#link(key, namespace, name);
     const podName = `${name}-g${generation}`;
     const child = this.spawnRuntime(this.runtimeScript, {
       PORT: String(port),
@@ -174,6 +174,23 @@ export class Controller {
     this.store.put(`pods/${namespace}/${podName}`, pod(name, podName), namespace);
     this.#report(key, "Running", podName, generation);
   }
+  /** A workspace's files stay in `<dataDirectory>/<namespace>/<name>`, but its
+   * runtime is given a short link to them as WORKSPACE_ROOT, as a Pod's
+   * `/workspace` is short. Chrome keeps its profile and sockets under the
+   * runtime's TMPDIR (`<root>/tmp`), and a Unix socket path over 108 bytes
+   * makes it exit before the browser MCP can attach. */
+  #link(key, namespace, name) {
+    const directory = join(this.dataDirectory, namespace, name);
+    mkdirSync(directory, { recursive: true });
+    const link = this.#linkPath(key);
+    mkdirSync(dirname(link), { recursive: true });
+    rmSync(link, { force: true });
+    symlinkSync(directory, link);
+    return link;
+  }
+  #linkPath(key) {
+    return join(this.dataDirectory, ".w", sha256(key).slice(0, 12));
+  }
   #report(key, reason, podName, generation) {
     const workspace = this.store.get(key);
     if (!workspace) return;
@@ -188,6 +205,7 @@ export class Controller {
     const entry = this.processes.get(key);
     this.processes.delete(key);
     entry?.child.kill?.("SIGTERM");
+    rmSync(this.#linkPath(key), { force: true });
   }
   /** The local port serving a workspace's runtime, if it is running. */
   port(namespace, name) {

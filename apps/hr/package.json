@@ -1,12 +1,13 @@
 {
   "name": "@ai-outfitter/app-hr",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "exports": {
     "./manifest": "./app.json"
   },
   "scripts": {
+    "dev": "astro dev",
     "build": "outfitter-app-build --mode demo",
     "check": "astro check",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",

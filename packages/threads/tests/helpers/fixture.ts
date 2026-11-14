@@ -55,6 +55,10 @@ export function service(db: ThreadDatabase, options: {
   retained?: Promise<unknown>[];
   settled?: string[];
   types?: unknown[] | (() => unknown);
+  platformTools?: ThreadAdapters["platformTools"];
+  inspector?: ThreadAdapters["inspector"];
+  platform?: ThreadAdapters["platform"];
+  source?: ThreadAdapters["source"];
 }) {
   const calls: ProviderCall[] = [];
   const objects = options.objects ?? memoryObjects();
@@ -74,6 +78,10 @@ export function service(db: ThreadDatabase, options: {
       },
     },
     retain: (work) => { options.retained?.push(work); },
+    ...(options.platformTools ? { platformTools: options.platformTools } : {}),
+    ...(options.inspector ? { inspector: options.inspector } : {}),
+    ...(options.platform ? { platform: options.platform } : {}),
+    ...(options.source ? { source: options.source } : {}),
   };
   return { threads: createThreadService(adapters), calls, objects };
 }
