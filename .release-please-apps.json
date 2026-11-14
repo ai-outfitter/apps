@@ -105,6 +105,17 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/video-production": {
+      "release-type": "node",
+      "component": "video-production",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

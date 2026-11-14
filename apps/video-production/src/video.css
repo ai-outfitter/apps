@@ -1,0 +1,18 @@
+/* Only what this app adds to the shared frame; colors come from shared tokens. */
+.video .muted { color: var(--muted); }
+.video .brief { margin: 0 0 28px; }
+.video .brief h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.video .brief > p { margin: 0 0 8px; }
+.video .boards, .video .references, .video .plain-list { margin: 0; padding: 0; list-style: none; }
+.video .boards li, .video .references li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--border); }
+.video .references li p { flex-basis: 100%; margin: 0; }
+.video .plain-list li { padding: 8px 0; border-top: 1px solid var(--border); }
+.video .shots { margin: 16px 0 28px; padding: 0; list-style: none; }
+.video .shot { padding: 12px 0; border-top: 1px solid var(--border); }
+.video .shot p { margin: 4px 0 0 36px; }
+.video .shot-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.video .shot-number { display: inline-block; width: 24px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.video .voiceover { font-style: italic; }
+.video .status { font-size: 0.8rem; color: var(--muted); }
+.video .status--blocked, .video .requirement { color: var(--error); }
+.video section h2 { font-size: 1.1rem; margin: 0 0 4px; }

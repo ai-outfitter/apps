@@ -103,6 +103,11 @@ time is one thing: each new record reaches the owner.
 
 ### 3. The ontology comes first; an app can come later
 
+Update (Nicholas, 2026-11-14): the app is built. `apps/video-production` owns
+these types and their evals, and adds the types add-only with the same fixed
+IDs, so Sunny's existing records need no migration. The rest of this section is
+the earlier decision, kept for history.
+
 Decision (Nicholas, 2026-11-11, replacing the 2026-11-10 idea of an app
 owning these types): let the ontology live. Do not build an app to host
 storyboard types now. Each organization's Onto gets the data structure we
@@ -140,6 +145,10 @@ app is ever built for this work, it adopts the types that already exist.
   organization-local types in the batch.
 
 ### 4. Evals
+
+Update (2026-11-14): the launch-video evals live in
+`apps/video-production/evals/launch-videos/`, with that app's types as the
+reference answer. `onto-questions-not-records` is still Onto's.
 
 With no app to hold them, these evals are Onto's own: they test whether
 Onto and the agent notice a missing type. They move from webapp#904 to

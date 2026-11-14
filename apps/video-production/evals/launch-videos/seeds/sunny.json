@@ -1,0 +1,101 @@
+{
+  "organization": {
+    "name": "Sunny",
+    "slug": "sunny"
+  },
+  "operations": [
+    {
+      "operation": "create",
+      "ref": "$org",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Organization",
+        "title": "Sunny",
+        "summary": "Plant sensors and growing supplies for people who grow at home.",
+        "properties": {
+          "organization_id": "eval-org"
+        }
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$sensor",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "SNY-1",
+        "summary": "Indoor plant sensor that reads light, CO2, temperature and humidity."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$app",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "Sunny plant placement planner",
+        "summary": "Phone app that finds the best place in a room for a plant."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$greens",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "Product",
+        "title": "Sunny microgreen growing system",
+        "summary": "Countertop tray system for growing microgreens."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$seg",
+      "type": "graph-node",
+      "attributes": {
+        "typeId": "CustomerSegment",
+        "title": "Home growers",
+        "summary": "People growing and caring for plants at home."
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e1",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$sensor",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e2",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$app",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e3",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$greens",
+        "toId": "$org"
+      }
+    },
+    {
+      "operation": "create",
+      "ref": "$e4",
+      "type": "graph-edge",
+      "attributes": {
+        "typeId": "part_of",
+        "fromId": "$seg",
+        "toId": "$org"
+      }
+    }
+  ]
+}
