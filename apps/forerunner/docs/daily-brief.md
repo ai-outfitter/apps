@@ -59,6 +59,8 @@ The `digest` section is the minimal current-brief read. It reads the saved sched
 
 The digest does not wait on the schedule to begin: the Wiki is resolved while the schedule loads. Discovery names the Wiki package (`wiki-map`), so the platform lists and describes that one installation instead of every installed app; the `outfitter.wiki-documents` contract still decides, and a Wiki under another package name is found by asking every provider as before.
 
+The `review` and `history` sections read each organization's saved report from Planning's published `DailyReports` document (`platform.document` with `app: "planning"` and that organization as the only scope), as the member. One read per organization keeps a failing organization from hiding the others.
+
 Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `wikiProvider`, `briefLookup`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
 
 No section starts source collection, a model request, a workflow, a connector read or a schedule write.

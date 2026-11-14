@@ -93,11 +93,14 @@ test("organization sources use live membership, saved order and independent fail
     if (operation === "entities.get") return { ref: { installationId: "planning", type: "portfolio-priority", id: "organizations" }, title: "Order", revision: 1, references: [], attributes: { items: ["sunny", "keystone", "artera", "revoked"] } };
     if (operation === "actions.call") { assert.equal(input.readOnly, true); return { data: { dailyReport: report() } }; }
     assert.equal(operation, "platform.document");
-    if (!input.variables) return { viewer: { orgs: ["artera", "keystone", "sunny"].map(slug => ({ slug, name: slug, appSlugs: ["planning"] })) } };
-    const slug = (input.variables as { slugs: string[] }).slugs[0];
+    if (input.document === "Viewer") return { viewer: { orgs: ["artera", "keystone", "sunny"].map(slug => ({ slug, name: slug, appSlugs: ["planning"] })) } };
+    // Each organization's report comes from Planning's published DailyReports document, one scope per read.
+    assert.deepEqual([input.app, input.document, input.kind], ["planning", "DailyReports", "query"]);
+    const [slug, ...others] = input.scopes as string[];
+    assert.deepEqual(others, []);
     assert.notEqual(slug, "revoked");
     if (slug === "keystone") throw new Response("Source unavailable", { status: 503 });
-    return { viewer: { orgs: [{ slug, dailyReports: { nodes: [{ report: slug === "artera" ? null : report() }], pageInfo: { hasNextPage: false } } }] } };
+    return { data: { dailyReports: [{ organizationSlug: slug, report: slug === "artera" ? null : report() }] } };
   } } as unknown as WorkflowHost<"interactive">;
   try {
     const result = await readDayReview(db, identity, host, {}, now);
