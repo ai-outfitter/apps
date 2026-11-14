@@ -423,15 +423,18 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     if (loose.length) fail(`Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}`, 409);
   }
   const now = Date.now();
-  const jobId = crypto.randomUUID();
   const contentDigest = await batchContentDigest(rows);
+  // The draft's own review carries over when nothing changed since it was queued.
+  const [draft] = batch.reviewJobId ? await db.select().from(ontoReviewJobs).where(eq(ontoReviewJobs.id, batch.reviewJobId)) : [];
+  const reused = draft && draft.contentDigest === contentDigest && ["pending", "running", "complete"].includes(draft.state) ? draft.id : null;
+  const jobId = reused ?? crypto.randomUUID();
   // D1 batch executes these statements atomically: no submitted batch can lose its review work.
   await db.batch([
     db.update(graphBatchOperations).set({ state: "awaiting_review" })
       .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
-    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId })
+    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId, ...(reused ? {} : { review: null }) })
       .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
-    db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now })]),
   ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));

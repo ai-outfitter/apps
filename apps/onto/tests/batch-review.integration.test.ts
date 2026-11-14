@@ -165,7 +165,7 @@ test("a Project part_of the owner passes, and the steward's own findings are kep
   const { review } = (await f.reviewed(batchId)).batch;
   // A member batch still waits for a member.
   assert.equal(state, "awaiting_review");
-  assert.equal(review.state, "complete");
+  assert.equal(review.state, "complete", review.error ?? undefined);
   assert.deepEqual(review.findings.map((item: Json) => [item.ref, item.rule]), [["$crop-artera", "claim.overstated"], [null, "node.duplicate"]]);
   assert.equal(review.summary, "1 finding: the relationship overstates a contract.");
 });
@@ -201,4 +201,102 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.equal((await f.app.call("/api/apps/onto/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
   const open = await json(await f.action("batch.open", { title: "Still open" }));
   assert.equal((await f.page("steward-review", { method: "POST", body: { batchId: open.batch.id } })).status, 409);
+});
+
+test("a large batch is read in parts that each fit the step cap, and the review says how much it covered", async (t) => {
+  const f = await fixture((input) => ({ summary: `Part ${input.data.part.index}: no findings.`, findings: [] }));
+  t.after(() => f.app.dispose());
+  const { batch } = await json(await f.action("batch.open", { title: "Confluence export" }));
+  // 150 pages, each a 3 KB pasted body with a 1.9 KB evidence quote: about ten times the cap.
+  const page = (n: number) => ({
+    operation: node(`$page-${n}`, 100 + n, core.document, `Page ${n} of the export`, { summary: `What page ${n} says about our platform.`, body: `Page ${n}. ${"Pasted PDF text. ".repeat(190)}` }),
+    evidence: [{ provider: "confluence", recordId: `page-${n}`, quote: `Page ${n} ${"quoted text ".repeat(158)}` }],
+    reason: `Page ${n} describes a system we run.`,
+  });
+  const relate = (n: number) => ({ operation: edge(`$page-${n}-of`, 400 + n, core.documents, `$page-${n}`, uuid(1)), evidence: cite(`page-${n}`) });
+  for (let start = 0; start < 150; start += 10)
+    await json(await f.action("batch.add", { batchId: batch.id, proposals: Array.from({ length: 10 }, (_, i) => page(start + i)) }));
+  for (let start = 0; start < 150; start += 50)
+    await json(await f.action("batch.add", { batchId: batch.id, proposals: Array.from({ length: 50 }, (_, i) => relate(start + i)) }));
+  await json(await f.action("batch.submit", { batchId: batch.id }));
+  const { review } = (await f.reviewed(batch.id)).batch;
+  assert.equal(review.state, "complete", review.error ?? undefined);
+
+  const inference = f.calls.filter((call) => call.operation === "inference.generate");
+  assert.ok(inference.length > 1, `${inference.length} parts`);
+  for (const call of inference) assert.ok(JSON.stringify(call.input.data).length <= 64 * 1024, `${JSON.stringify(call.input.data).length} bytes`);
+  // Every operation is read once, a node beside its own relationship, with excerpts instead of whole bodies and quotes.
+  const refs = inference.flatMap((call) => call.input.data.operations.map((op: Json) => op.ref));
+  assert.equal(refs.length, 300);
+  assert.equal(new Set(refs).size, 300);
+  const first = inference[0].input.data.operations;
+  assert.deepEqual(first.slice(0, 2).map((op: Json) => op.ref), ["$page-0", "$page-0-of"]);
+  assert.ok(first[0].operation.attributes.body.length <= 601);
+  assert.ok(first[0].evidence[0].quote.length <= 201);
+  assert.equal(first[0].evidence[0].recordId, "page-0");
+  assert.deepEqual(inference[0].input.data.part, { index: 1, of: inference.length, operations: first.length });
+  assert.deepEqual(review.coverage, { operations: 300, read: 300, parts: inference.length });
+  assert.equal(review.complete, true);
+  assert.match(review.summary, new RegExp(`^Read in ${inference.length} parts\\. Part 1: no findings\\.`));
+  // One run for the whole review; the built-in checks cover every operation.
+  assert.equal(f.calls.filter((call) => call.operation === "workflow.start").length, 1);
+  assert.ok(new Set(inference.map((call) => call.input.runId)).size === 1);
+  const quotes = review.findings.find((item: Json) => item.rule === "evidence.quote-too-long");
+  assert.equal(quotes.refs.length, 100);
+  assert.match(quotes.message, /^150 cards/);
+});
+
+test("staging returns advice, and the steward reviews the open draft once with a type the agent can stage", async (t) => {
+  const f = await fixture((input) => ({
+    summary: "1 finding: shots need a type.",
+    findings: input.data.batch.state === "open" ? [{
+      ref: null, refs: ["$shot-1", "$shot-2", "$shot-3", "$nope"], rule: "type.missing", severity: "warning", message: "Three shots are Documents.", fix: "Stage Shot and shot_of.",
+      types: [
+        { category: "node", name: "Shot", title: "Shot", body: "One beat of a storyboard.", properties: [{ name: "sequence", type: "number", description: "Order in the storyboard" }], from: [], to: [] },
+        { category: "edge", name: "shot_of", title: "Shot of", body: "A shot belongs to its storyboard.", properties: [], from: ["Shot"], to: ["Document"] },
+      ],
+    }] : [],
+  }));
+  t.after(() => f.app.dispose());
+  const shot = (n: number) => [
+    { operation: node(`$shot-${n}`, 30 + n, core.document, `0${n} — Hook — choose a place`, { summary: `Beat ${n} of the teaser.` }), evidence: cite("plan") },
+    { operation: edge(`$shot-${n}-of`, 40 + n, partOf, `$shot-${n}`, "$board"), evidence: cite("plan") },
+  ];
+  const input = { title: "Launch video", proposals: [
+    { operation: node("$board", 30, core.document, "Find your spot (15s)", { summary: "The teaser we post at launch." }), evidence: cite("plan") },
+    { operation: edge("$board-of", 39, core.documents, "$board", uuid(1)), evidence: cite("plan") },
+    ...shot(1), ...shot(2), ...shot(3),
+  ] };
+  const staged = await json(await f.graphql("mutation ($input: ChangeBatchChangesInput!) { changeBatchChanges(input: $input) { items { key status result } instructions { code required message } } }",
+    { input: { items: [{ key: "stage-1", action: "stage", input }] } }));
+  const { items, instructions } = staged.data.changeBatchChanges;
+  const advice = items[0].result.advice;
+  const cluster = advice.find((item: Json) => item.rule === "type.generic-cluster");
+  assert.deepEqual(cluster.refs, ["$shot-1", "$shot-2", "$shot-3"]);
+  assert.equal(cluster.stage.proposals[0].operation.type, "graph-type");
+  assert.deepEqual(instructions.map((item: Json) => [item.code, item.required]), [["CONSIDER_TYPES", false], ["SUBMIT_CHANGES", false]]);
+  const batchId = items[0].result.id;
+
+  // The draft is reviewed while open, and its finding carries the type as stageable proposals.
+  const { review } = (await f.reviewed(batchId)).batch;
+  assert.equal(review.state, "complete", review.error ?? undefined);
+  assert.equal(review.stage, "open");
+  const missing = review.findings.find((item: Json) => item.rule === "type.missing");
+  assert.deepEqual(missing.refs, ["$shot-1", "$shot-2", "$shot-3"]);
+  assert.deepEqual(missing.stage.move, ["$shot-1", "$shot-2", "$shot-3"]);
+  const [shotType, shotOf] = missing.stage.proposals.map((proposal: Json) => proposal.operation.attributes);
+  assert.equal(shotType.name, "Shot");
+  assert.deepEqual(shotOf.ontology.endpoints, { from: [shotType.id], to: [core.document] });
+  // Agents read it beside the advice before submitting.
+  const read = await json(await f.action("graph.graphql", { query: "query ($ids: [ID!]) { changeBatches(ids: $ids) { nodes { review advice } } }", variables: { ids: [batchId] } }));
+  assert.equal(read.data.changeBatches.nodes[0].review.runId, review.runId);
+
+  // Restaging the same draft, then submitting it unchanged, reviews nothing again.
+  await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: { batchId, proposals: input.proposals.slice(0, 1) } }));
+  await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
+  const submitted = await f.reviewed(batchId);
+  assert.equal(submitted.batch.review.runId, review.runId);
+  assert.equal(f.calls.filter((call) => call.operation === "workflow.start").length, 1);
+  const jobs = await f.app.database.prepare("SELECT state FROM onto_review_jobs WHERE batchId = ?").bind(batchId).all();
+  assert.deepEqual(jobs.results.map((job) => job.state), ["complete"]);
 });

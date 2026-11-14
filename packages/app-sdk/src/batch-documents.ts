@@ -34,7 +34,8 @@ export function resultInstructions(key: string, value: unknown, url?: string): I
   else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: false, message: "Staged. The batch stays open: add more changes to it, or submit it when it is complete; a member can also review it from its page.", ...(url ? { url } : {}) });
   if ((result.state === "awaiting_review" || result.status === "awaiting_review") && !instructions.length) instructions.push({ code: "AWAIT_REVIEW", itemKey: key, actor: "human", required: true, message: "Wait for an authorized reviewer; submission does not grant approval.", ...(url ? { url } : {}) });
   instructions.push(...workInstructions(key, result));
-  return instructions;
+  // A result may carry the instructions its own resolver already derived; say each once.
+  return instructions.filter((instruction, index) => instructions.findIndex(other => other.code === instruction.code && other.message === instruction.message) === index);
 }
 
 function workInstructions(key: string, result: Record<string, any>): Instruction[] {

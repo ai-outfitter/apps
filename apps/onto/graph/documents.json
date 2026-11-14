@@ -41,7 +41,7 @@
       ]
     },
     "mcp": {
-      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue."
+      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
     },
     "inputSchema": {
       "type": "object",
@@ -904,8 +904,8 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "9275df16ea476ecc3a0f62248f86e5246a23d0e1154f00cfe06f5966f09de97e",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "f32a7ff3b948a3f01665aaa882345ad16e2646daac476ef0f532e121d08fa576",
     "variables": {
       "type": "object",
       "properties": {
@@ -1004,6 +1004,13 @@
                         }
                       }
                     }
+                  },
+                  "advice": {
+                    "description": "JSON"
+                  },
+                  "review": {
+                    "description": "JSON",
+                    "nullable": true
                   },
                   "operations": {
                     "type": "array",
@@ -1729,8 +1736,8 @@
     "name": "StageChanges",
     "kind": "mutation",
     "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
-    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n  }\n}",
-    "hash": "a49ec65b0b65794a30bce244d0f8df755b705d76fe0343b5a31c153ce5a34244",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n    advice\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n    }\n  }\n}",
+    "hash": "25969ca081bd3b5a253192066232f7641883fb4dbf952654592fd59e2a650550",
     "variables": {
       "type": "object",
       "properties": {

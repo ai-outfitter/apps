@@ -25,15 +25,18 @@ import { explorationArgs, pictureProviders, listExplorations, mutateExploration,
 import { readGraph, withRecordAddresses } from "./graph";
 import { listShares, mutateShareInput, mutateShare, readShare, shareSlug, sharesFor } from "./graph-shares";
 import { recordAddress } from "../lib/addresses";
+import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
-import { addToBatch, batchAddInput, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
+import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
   /** The workflow host, for live reads an exploration opens (pull requests); absent where there is none. */
   host?: () => PullRequestHost;
   /** Starts the ontology steward's review of a submitted batch in the background (graph.mutate only). */
-  afterSubmit?: (batchId: string) => void };
+  afterSubmit?: (batchId: string) => void;
+  /** Starts the steward's review of an open batch's current draft in the background (graph.mutate only). */
+  afterStage?: (batchId: string) => void };
 type MutationContext = ChangeContext & ActionContext;
 
 const nonNull = <T extends GraphQLNullableType>(type: T) => new GraphQLNonNull(type);
@@ -60,6 +63,16 @@ const batchValidation = (batch: { id: string }, context: ChangeContext) => {
   if (!validations.has(batch)) validations.set(batch, validateBatch(context.db(), context.identity, { batchId: batch.id }));
   return validations.get(batch)!;
 };
+// Advice is plain checks over the draft; compute it once per resolved batch too.
+const advices = new WeakMap<object, Promise<Finding[]>>();
+const draftAdvice = (batch: { id: string }, context: ChangeContext) => {
+  if (!advices.has(batch)) advices.set(batch, (async () => {
+    const db = context.db();
+    const [graph, rows] = await Promise.all([readGraph(db, context.identity), loadOperations(db, batch.id)]);
+    return batchAdvice(graph, live(rows) as unknown as AdviceRow[], batch.id);
+  })());
+  return advices.get(batch)!;
+};
 const ChangeBatch = new GraphQLObjectType({
   name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.",
   fields: {
@@ -75,11 +88,12 @@ const ChangeBatch = new GraphQLObjectType({
     policy: json, summary: { type: JSONScalar },
     reviewBy: { type: DateTimeScalar },
     reviewUrl: { type: GraphQLString, description: "The review page, relative to this installation (the platform returns it as a full link).", resolve: (batch) => batchReviewUrl(batch.id) },
-    review: { type: JSONScalar, description: "The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything." },
+    review: { type: JSONScalar, description: "The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. It never approves or blocks anything." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
     questions: { ...json, description: "Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: \"onto\", recordId: \"batch:<id>#<key>\"} when you revise those proposals.", resolve: (batch) => batch.questions ?? [] },
-    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context) }, batchReviewUrl(batch.id)) },
+    advice: { type: nonNull(JSONScalar), description: "Onto's built-in advice on the draft, with no model: records that need a type (type.generic-cluster, edge.generic-cluster, property.in-title), too many types (type.sprawl) and card quality (card.*, evidence.quote-too-long). Each finding names its refs; stage.proposals can be staged as they are and stage.move lists the refs to restage under them. Advisory: nothing is blocked.", resolve: (batch, _args, context: ChangeContext) => draftAdvice(batch, context) },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context), instructions: adviceInstructions(batch.id, await draftAdvice(batch, context)) }, batchReviewUrl(batch.id)) },
     operations: {
       type: nonNull(new GraphQLList(nonNull(StagedChange))),
       args: { refs: { type: new GraphQLList(nonNull(GraphQLString)), description: "Read only these proposal refs; omit for all. Use to inspect individual proposals when the whole batch exceeds the response limit." } },
@@ -233,13 +247,14 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     ...creativeAddressMutations,
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
-      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.",
+      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.",
       input: stageInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();
         const batchId = input.batchId ?? (await openBatch(db, context.identity, context.actor, { title: input.title ?? "", purpose: input.purpose ?? "", ...(input.source ? { source: input.source } : {}), ...(input.anchors ? { anchors: input.anchors } : {}), policy: { kind: "member" } })).batch.id;
         if (input.batchId && input.anchors) await configureBatch(db, context.identity, context.actor, { batchId, anchors: input.anchors });
         await addToBatch(db, context.identity, context.actor, { batchId, proposals: input.proposals, replace: input.replace });
+        context.afterStage?.(batchId);
         return view(await getBatch(db, context.identity, { batchId }));
       },
     }),

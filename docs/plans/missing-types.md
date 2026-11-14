@@ -1,6 +1,15 @@
 # When an agent brings a new kind of thing
 
-Status: partly built. Batch items read as pages (each proposal opens on its record's page with `?batch=`; the Changes batch page is the index); the video types live in `apps/video-production`. Companion to [Where agent questions go](agent-questions.md).
+Status: the review half is built, and batch items read as pages (each proposal opens on its
+record's page with `?batch=`; the Changes batch page is the index); the video types live in
+`apps/video-production`. Root node and default anchors (2a) shipped in #166. Also shipped: the
+type and card rules in the `ChangeBatchChanges` description and Onto's agent instructions (1);
+staging advice beside `validation` (`advice`, instruction `CONSIDER_TYPES`) with
+`type.generic-cluster`, `edge.generic-cluster`, `property.in-title`, `type.sprawl` and the card
+checks, each with stageable proposals where it can; the steward reviewing open drafts once per
+digest, judging new types first, with stageable `type.missing` fixes (2); and large batches read
+in parts under the 64 KB step cap. Not built: Onto's own evals (4), the Sunny follow-up batch.
+Companion to [Where agent questions go](agent-questions.md).
 
 ## What happened
 

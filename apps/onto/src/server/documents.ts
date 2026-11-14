@@ -18,12 +18,16 @@ const changeDocuments = defineDocuments({
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
     document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
   },
+  // Onto's receipt adds its advice on the draft and the instructions that go with it.
+  StageChanges: {...wikiChangeDocuments.StageChanges, document: `mutation StageChanges($input: StageChangesInput!) {
+      stageChanges(input: $input) { id title state counts anchors validation advice instructions { code itemKey actor required message } }
+    }`},
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions\n")},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
       changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message } advice @include(if:$details) review @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,
@@ -96,6 +100,6 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
     "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
   },
   "ChangeBatchChanges": {
-    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue."
+    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
   }
 });

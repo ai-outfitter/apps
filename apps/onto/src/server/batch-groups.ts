@@ -3,7 +3,7 @@ import { batchReviewUrl } from "./graphql";
 
 export const batchGroups = {
   "ChangeBatchChanges": {
-    "resultFields": ["id", "title", "state", "counts", "reviewBy", "reviewUrl", "anchors", "validation", "questions"],
+    "resultFields": ["id", "title", "state", "counts", "reviewBy", "reviewUrl", "anchors", "validation", "questions", "advice", "instructions"],
     reviewUrl: (_context, value) => value && typeof value === "object" && "id" in value ? batchReviewUrl(String(value.id)) : undefined,
     "description": "Apply changebatch changes using explicit actions",
     "actions": {
