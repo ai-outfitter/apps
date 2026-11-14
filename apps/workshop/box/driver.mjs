@@ -93,7 +93,8 @@ export async function graphTool(box, cookie, name, args) {
   if (reply.error) throw new Error(`${name}: ${reply.error.message}`);
   const text = reply.result?.content?.find((part) => part.type === "text")?.text ?? "";
   if (reply.result?.isError) throw new Error(`${args.document ?? name} was refused: ${text.slice(0, 500)}`);
-  const answer = JSON.parse(text);
+  let answer;
+  try { answer = JSON.parse(text); } catch { throw new Error(`${args.document ?? name} answered no JSON: ${text.slice(0, 300)}`); }
   if (answer?.errors?.length) throw new Error(`${args.document ?? name}: ${String(answer.errors[0].message).slice(0, 500)}`);
   return answer;
 }

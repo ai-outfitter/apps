@@ -35,17 +35,14 @@ export const startDesignInput = z
   .refine((value) => Boolean(value.projectId) === (value.revision !== undefined), "Project ID and revision must be supplied together");
 export const designRunInput = z.strictObject({ id: z.uuid() });
 
-/** A workshop-design run as a caller follows it. */
-function designRunView(run: { id: string; status: string; createdAt: number; updatedAt: number }, design: unknown = null) {
-  return { id: run.id, status: run.status, design, startedAt: new Date(run.createdAt).toISOString(), updatedAt: new Date(run.updatedAt).toISOString() };
-}
-
 /** One workshop-design run of this installation: its status and, once designed, the project revision it saved. */
 export async function designRun(context: WorkshopContext, { id }: z.output<typeof designRunInput>) {
   const read = await context.host().call("workflow.read", { id });
   if (!read || read.run.workflowId !== designWorkflow) throw new Response("Design run not found", { status: 404 });
-  const output = read.outputs[`${designStep}.outputs.design`];
-  return designRunView(read.run, output?.complete ? output.value : null);
+  const { run, outputs } = read;
+  const output = outputs[`${designStep}.outputs.design`];
+  return { id: run.id, status: run.status, design: output?.complete ? output.value : null,
+    startedAt: new Date(run.createdAt).toISOString(), updatedAt: new Date(run.updatedAt).toISOString() };
 }
 
 /** Start design work without waiting for the model: the request is checked as a design turn checks it, then
