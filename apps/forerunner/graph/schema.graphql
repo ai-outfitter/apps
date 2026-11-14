@@ -306,7 +306,7 @@ type Mutation {
   generateDailyBrief(input: GenerateDailyBriefInput!): JSON
 
   """
-  Save the personal research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
+  Save this scope's research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
   """
   setResearchReportSchedule(input: SetResearchReportScheduleInput!): JSON
 

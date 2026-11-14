@@ -33,17 +33,18 @@ const reports = z.array(report).min(1).max(3).refine(rows => new Set(rows.map(ro
 export const researchReportScheduleInput = z.strictObject({ enabled: z.boolean(), timezone, hour: z.number().int().min(0).max(23).default(7), reports });
 export const generateResearchReportsInput = z.strictObject({});
 
-function personal(who: AppIdentity) {
+/** An editor of the installation's owner: the member themself for a personal one, an organization editor otherwise. */
+function editor(who: AppIdentity) {
   requireEditor(who);
-  if (who.owner.kind !== "user" || who.owner.id !== who.userId) throw new Response("Research reports require your personal installation", { status: 403 });
+  if (who.owner.kind === "user" && who.owner.id !== who.userId) throw new Response("Research reports require your own installation", { status: 403 });
 }
 export async function setResearchReportSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, raw: z.input<typeof researchReportScheduleInput>) {
-  personal(who);
+  editor(who);
   const input = researchReportScheduleInput.parse(raw);
   return host.call("schedule.save", { workflow: researchReportWorkflow, cron: `0 ${input.hour} * * *`, timezone: input.timezone, enabled: input.enabled, inputs: { [reportsSlot]: input.reports } });
 }
 export async function researchReportSchedule(host: WorkflowHost<"interactive">, who: AppIdentity) {
-  personal(who);
+  editor(who);
   return (await host.call("schedules", {})).find(row => row.workflowId === researchReportWorkflow) ?? null;
 }
 
@@ -131,7 +132,6 @@ export function reportMarkdown(input: ResearchReport, date: string, summary: str
 type Receipt = { slug: string; status: "saved" | "unchanged" | "empty" | "failed"; page?: string; documentId?: string; revision?: number; items?: number; searches?: number; reason?: string };
 /** Searches, writes and saves one report as the date's Wiki document. */
 export async function captureResearchReport(who: AppIdentity, host: WorkflowHost<"interactive">, input: ResearchReport, run: { date: string; timezone: string; runId: string }, now = Date.now()): Promise<Receipt> {
-  personal(who);
   const { sources, searches } = await searchTopics(host, run.runId, input);
   // Without a single answered search there is nothing to report on, and an empty document would read as "nothing is on".
   if (!searches) return { slug: input.slug, status: "failed", searches, reason: "Web search was unavailable for every topic" };
@@ -180,7 +180,7 @@ async function captureAll(who: AppIdentity, host: WorkflowHost<"interactive">, r
   return { date: run.date, reports: receipts };
 }
 export async function scheduledResearchReports(who: AppIdentity, raw: PhaseInput, host: WorkflowHost<"schedule">): Promise<PhaseInput> {
-  personal(who);
+  // No editor check: an editor saved this schedule, and the platform runs it for the installation.
   const occurrence = scheduleInput.parse(raw);
   if (occurrence.schedule.workflowId !== researchReportWorkflow) return { outcome: "declined", reason: "Not a research report schedule" };
   const saved = (await host.call("schedules", {})).find(row => row.id === occurrence.schedule.id);
@@ -193,7 +193,7 @@ export async function scheduledResearchReports(who: AppIdentity, raw: PhaseInput
 }
 /** Runs the saved reports now, for today in the schedule's timezone. */
 export async function generateResearchReports(who: AppIdentity, host: WorkflowHost<"interactive">) {
-  personal(who);
+  editor(who);
   const saved = await researchReportSchedule(host, who);
   const rows = reports.safeParse(saved?.inputs[reportsSlot]);
   if (!saved || !rows.success) throw new Response("Save the research reports first", { status: 409 });

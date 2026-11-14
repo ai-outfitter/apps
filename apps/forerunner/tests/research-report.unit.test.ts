@@ -9,7 +9,7 @@ const report = { slug: "local-arts", title: "Local arts", subject: "Example Stud
 const run = { date: "2026-11-14", timezone: "America/Chicago", runId: "11111111-1111-4111-8111-111111111111" };
 const page = (name: string) => ({ title: `${name} title`, url: `https://example.org/${name}`, snippet: `${name} text`, topic: "artist events" });
 
-test("the schedule saves the reports as its inputs, at the chosen hour, for a personal installation only", async () => {
+test("the schedule saves the reports as its inputs, at the chosen hour, for an editor of the installation's owner", async () => {
   const calls: unknown[] = [];
   const host = { call: async (op: string, input: unknown) => { calls.push([op, input]); return op === "schedules" ? [] : input; } } as never;
   assert.equal(await researchReportSchedule(host, who), null);
@@ -19,7 +19,10 @@ test("the schedule saves the reports as its inputs, at the chosen hour, for a pe
   const workflow = parse(readFileSync(new URL("../workflows/forerunner-research-report/workflow.yaml", import.meta.url), "utf8"));
   assert.deepEqual(workflow.steps.find((row: { id: string }) => row.id === "research").inputs.reports.default, []);
   const input = { enabled: true, timezone: "America/Chicago", hour: 6, reports: [report] };
-  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, input), /./);
+  // An organization editor saves the organization's reports; a reader, or another member's personal installation, may not.
+  await setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, input);
+  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "organization", id: "org" }, canEdit: false, role: "member" } as never, input));
+  await assert.rejects(() => setResearchReportSchedule(host, { ...who, owner: { kind: "user", id: "bob" } }, input), (error: unknown) => error instanceof Response && error.status === 403);
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, timezone: "invalid/zone" }));
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, reports: [report, report] }));
   await assert.rejects(() => setResearchReportSchedule(host, who, { ...input, reports: [{ ...report, topics: [] }] }));
