@@ -89,11 +89,12 @@ async function actionsValidation(host: Finalize, api: Parameters<typeof actionsC
       summary: "Review skipped: existing independent approval still covers the unchanged commit.",
       reviewReuse: { status: "reused", reviewId: previous.review.id, headSha: verified.headSha } } };
   }
+  // Repositories skip their full CI on drafts, so the PR leaves draft before its checks are read.
+  await forge.ready(verified);
   const checks = await actionsChecks(api, repository, verified, target.checks.map(check => check.name));
   const passed = checks.every(check => check.passed);
   const previews = passed && repository.toLowerCase() === "ai-outfitter/webapp"
     ? await actionsPreview(api, repository, verified, gatewayPreviewRequest(input => host.call("workspace.control", input))) : undefined;
-  if (passed) await forge.ready(verified);
   return { result: { ...previous, candidate: verified, checks, passed,
     validationFailures: checks.filter(check => !check.passed), ...(previews ? { previews: { ...previews, verifier: "workspace-gateway" } } : {}) } };
 }

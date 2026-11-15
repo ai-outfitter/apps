@@ -33,6 +33,14 @@ test("code failures are repairable but cancelled infrastructure requires attenti
   }
 });
 
+test("a failed check starts repair without waiting for the rest", async () => {
+  const api = async () => ({ total_count: 2, check_runs: [{ ...check("check"), conclusion: "failure" }, { ...check("e2e", 2), status: "in_progress" }] });
+  const receipts = await actionsChecks(api, "acme/app", candidate, ["check", "e2e", "never-started"]);
+  assert.deepEqual(receipts.map((receipt) => [receipt.name, receipt.passed]), [["check", false]]);
+  const passing = async () => ({ total_count: 1, check_runs: [check("check")] });
+  await assert.rejects(actionsChecks(passing, "acme/app", candidate, ["check", "e2e"]), status(425));
+});
+
 test("preview receipts require Actions CI, its current-revision comment and matching live revision", async () => {
   const comment = { id: 4, user: { login: "github-actions[bot]" }, body: `<!-- app-previews -->\nRevision: \`${head}\`\n- [Chat](https://branch.ai-outfitter.dev)` };
   const api = async (path: string) => path.includes("check-runs") ? { total_count: 1, check_runs: [check("preview-links")] } : [comment];
