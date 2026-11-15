@@ -1,0 +1,178 @@
+{
+  "notes": "SNY-1 rev A enclosure from Workshop's starter assembly. Material values are datasheet figures for printed PETG; the thermal study is a first estimate with the sun overhead and no wind.",
+  "printer": {
+    "name": "220 mm bed (Ender-3 class)",
+    "bed": [
+      220,
+      220,
+      250
+    ]
+  },
+  "targets": [
+    {
+      "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a01",
+      "name": "base",
+      "source": "enclosure.scad",
+      "defines": {
+        "part": "base"
+      },
+      "print": {
+        "material": "PETG",
+        "materialProperties": {
+          "density": 1.27
+        },
+        "infill": 20,
+        "walls": 3,
+        "maxGrams": 150
+      }
+    },
+    {
+      "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a02",
+      "name": "lid",
+      "source": "enclosure.scad",
+      "defines": {
+        "part": "lid"
+      },
+      "print": {
+        "material": "PETG",
+        "materialProperties": {
+          "density": 1.27
+        },
+        "infill": 20,
+        "walls": 3
+      }
+    }
+  ],
+  "assembly": {
+    "rootId": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a00",
+    "items": [
+      {
+        "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a00",
+        "number": "SNY-A001",
+        "revision": "A",
+        "name": "SNY-1 soil sensor node",
+        "kind": "assembly",
+        "uses": [
+          {
+            "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1b01",
+            "itemId": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a01",
+            "quantity": 1
+          },
+          {
+            "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1b02",
+            "itemId": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a02",
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a01",
+        "number": "SNY-P001",
+        "revision": "A",
+        "name": "Enclosure base",
+        "kind": "printed",
+        "notes": "PETG"
+      },
+      {
+        "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a02",
+        "number": "SNY-P002",
+        "revision": "A",
+        "name": "Enclosure lid",
+        "kind": "printed",
+        "notes": "PETG"
+      }
+    ]
+  },
+  "interference": true,
+  "simulations": [
+    {
+      "name": "sun",
+      "title": "Closed enclosure in full sun",
+      "kind": "thermal",
+      "targets": [
+        "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a01",
+        "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a02"
+      ],
+      "meshSize": 3,
+      "material": {
+        "name": "PETG",
+        "conductivity": 0.2,
+        "source": "typical printed PETG, 0.19-0.21 W/(m K)"
+      },
+      "ambient": 40,
+      "filmWPerM2K": 15,
+      "fluxes": [
+        {
+          "note": "solar panel area: 1000 W/m2 at 90% absorbed",
+          "min": [
+            -44.1,
+            -44.6,
+            37.4
+          ],
+          "max": [
+            69.1,
+            44.6,
+            37.6
+          ],
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "wPerM2": 900
+        },
+        {
+          "note": "rest of the tan lid: 50% absorbed",
+          "min": [
+            -70.1,
+            -47.6,
+            37.4
+          ],
+          "max": [
+            -44.0,
+            47.6,
+            37.6
+          ],
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "wPerM2": 500
+        }
+      ],
+      "inside": [
+        {
+          "min": [
+            -67.6,
+            -45.1,
+            2.4
+          ],
+          "max": [
+            67.6,
+            45.1,
+            35.1
+          ]
+        }
+      ],
+      "limits": [
+        {
+          "name": "PETG heat deflection 68 C (Prusament datasheet)",
+          "max": 68
+        },
+        {
+          "name": "SCD41 operating limit 50 C inside",
+          "max": 50,
+          "where": "inside"
+        },
+        {
+          "name": "LiFePO4 charging limit 45 C inside",
+          "max": 45,
+          "where": "inside"
+        }
+      ],
+      "insideFilmWPerM2K": 3,
+      "note": "Sun overhead at 1000 W/m2, 40 C air, light wind: 15 W/(m2 K) outside counts convection and radiation together; 3 W/(m2 K) inside for still air."
+    }
+  ]
+}

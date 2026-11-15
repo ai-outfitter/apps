@@ -1,7 +1,8 @@
 # Quality checks, materials and simulation for Workshop models
 
-Status: research. Nothing here is built. Entities in section 3 are proposed and
-need a go before code.
+Status: checks and studies built in the workspace build (section 5), run on
+both models in a local Workshop box image. The entities in section 3 are still
+proposed: until they exist, material values live in each `workspace.json`.
 
 ## The question
 
@@ -128,23 +129,44 @@ stages already include Fit test and Measurement). Workshop's CAD plans are boxes
 and cylinders without fillets, so stress concentrations at sharp corners will
 read high.
 
+## 5. Built: checks and studies in the workspace build
+
+`apps/workshop/box/workspace/quality.py`, called from `build.py`, configured
+in `workspace.json` (keys in `apps/workshop/box/README.md`, "Quality checks and
+studies"). The Workshop box image gains PrusaSlicer, CalculiX, Gmsh and
+manifold3d in its existing Workshop-only step; other apps' images are unchanged.
+Every result is a `BuildManifest.tests` row, with the numbers in `quality.json`.
+
+Run on the two models (`examples/mini-itx-case`, `examples/sny-1-enclosure`):
+
+| Model | Check | Result |
+| --- | --- | --- |
+| Mini-ITX case | Bed fit, 220 mm bed | Fail: base, shell and top are each 224 mm wide (the README only flagged the shell) |
+| Mini-ITX case | Plastic | 384 g PETG (91 + 194 + 98), not 300 g; about 34 h of printing |
+| Mini-ITX case | Interference | Pass on 15 pairs, agreeing with the hand-written check; moving the PSU 10 mm fails it with the same overlap OpenSCAD measures (38,060 vs 38,044 mm3) |
+| Mini-ITX case | Standoff boss, 500 N clamp | Fail: 25 MPa under the screw head against 23.5 MPa allowed; a washer fixes it |
+| SNY-1 | Bed fit, plastic | Pass: 111 g PETG, about 9.5 h |
+| SNY-1 | Full sun at 40 C | Fail: lid about 93 C (PETG deflects at 68 C), inside air about 55 C (SCD41 limit 50 C, LiFePO4 charging 45 C) |
+
+`box/workspace/test_quality.py` checks the code against hand calculations
+(Fourier conduction through a slab, force over area in a column, overlap of two
+cubes, footprint rotation). The studies are first estimates: one film for wind
+and radiation, well-mixed inside air, derated datasheet strength.
+
 ## Recommended order
 
 1. Add a `WorkshopProjects` read document so agents can see the models and
    their build tests.
-2. Slicer check and data-driven interference in `build.py`, reported as build
-   tests. No data change.
+2. Done (section 5): slicer, interference and CalculiX studies in `build.py`.
 3. Agree the entities in section 3, then add Material, Item.material,
    Item.process and Item.physical.
-4. One pilot simulation: SNY-1 enclosure thermal in full sun with Elmer or
-   CalculiX in the box image, reported as a build test against a load case.
+4. Done as a pilot (section 5): SNY-1 in full sun with CalculiX. Next: read
+   load cases and materials from the records once section 3 exists.
 
 ## Decisions needed
 
 - Where Material records live: Workshop table or Onto records.
-- Which slicer: PrusaSlicer (recommended; one CLI, profiles for common
-  printers) or CuraEngine.
-- Which simulation pilot first: SNY-1 thermal (recommended; outdoor heat is the
-  likeliest real failure) or Mini-ITX case thermal.
-- Whether simulation runs in the existing Workshop box image or a separate
-  image, since CalculiX, Gmsh and Elmer add several hundred MB.
+- Which printer bed the checks assume. The examples use 220 x 220 mm (Ender-3
+  class); a printer record per organization would replace it.
+- What to do about SNY-1 in the sun: shade, a white lid, vents or a gap under
+  the panel. This is a product decision for Sunny, not a Workshop one.
