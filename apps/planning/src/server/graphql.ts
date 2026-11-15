@@ -282,7 +282,7 @@ const query = new GraphQLObjectType<unknown, Context>({
     dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
       const {first,start}=pageStart(args),id=context.identity.installationId;
       if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start);
-      const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone});
+      const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone},context.db());
       const row={id,name:"Daily report",ownerKind:context.identity.owner.kind,ownerId:context.identity.owner.id,planningInstallationId:id,organizationSlug:null,report};
       return page(context,info,[row],row=>row.id,first,start);
     }},
@@ -371,7 +371,7 @@ const query = new GraphQLObjectType<unknown, Context>({
       input: deliveryInput,
       run: (context, input) => projectDelivery(context, input),
     }),
-    dailyReport: mutationField<typeof dailyReportReadInput, Context>({name:"DailyReport",description:"Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.",input:dailyReportReadInput,output:JSONScalar,run:(context,input)=>readDailyReport(context.host(),context.identity,input)}),
+    dailyReport: mutationField<typeof dailyReportReadInput, Context>({name:"DailyReport",description:"Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.",input:dailyReportReadInput,output:JSONScalar,run:(context,input)=>readDailyReport(context.host(),context.identity,input,context.db())}),
     projectDigests: mutationField<typeof digestListInput, Context>({
       name: "ProjectDigests",
       description: "A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.",

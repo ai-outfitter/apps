@@ -285,3 +285,17 @@ export const partnerRequests = sqliteTable("planning_partner_requests", {
   ...audit(),
 }, (t) => [uniqueIndex("planning_partner_requests_request").on(t.installationId, t.partnerOrganizationId, t.requestId)]);
 export type PartnerRequest = typeof partnerRequests.$inferSelect;
+
+// Where each saved daily report lives in the Wiki, recorded when it is written, so a read
+// goes straight to that document instead of finding the Wiki and the page again.
+export const reportNotes = sqliteTable(
+  "planning_report_notes",
+  {
+    installationId: text().notNull(),
+    slug: text().notNull(),
+    wikiInstallationId: text().notNull(),
+    documentId: text().notNull(),
+    updatedAt: integer().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.installationId, t.slug] })],
+);

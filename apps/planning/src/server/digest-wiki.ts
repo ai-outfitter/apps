@@ -3,7 +3,10 @@ import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-protocol";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import type { PlanningDatabase } from "./planning";
+import { reportNotes } from "./schema";
 import {reportPeriodForDate,type ReportPeriod } from "./report-period";
 import {reportPreview,boundedReportMarkdown} from "./report-preview";
 import {reportMarkdown} from "./report-markdown";
@@ -18,7 +21,7 @@ const draft=z.object({id:z.string(),revision:z.number(),generatedBody:z.string()
 export async function saveReportNote(host:Host,actor:AppIdentity,input:{
  level:"project"|"organization"|"personal";subject:string;title:string;period:ReportPeriod;
  content:Record<string,unknown>;status:ReportRef["status"];runId:string;capturedAt:number;
-}):Promise<ReportRef>{
+},db?:PlanningDatabase):Promise<ReportRef>{
  const wiki=await documentWiki(host,wikiPackage);
  const slug=`${input.level}-daily-${await stableGraphId(actor.owner,actor.installationId,input.subject,input.period.date,input.period.timezone)}`;
  const call=async(action:"graph.graphql"|"graph.mutate",query:string,variables:Record<string,unknown>)=>{
@@ -42,10 +45,17 @@ export async function saveReportNote(host:Host,actor:AppIdentity,input:{
  const writeInput={...(current?{id:documentId!,revision:current.revision}:{slug,title:input.title}),generatedBody,provenance:source};
  if(new TextEncoder().encode(JSON.stringify({input:writeInput})).byteLength>32768)throw new Response("Daily report preview exceeds the bounded write size; no document was changed",{status:413});
  const ref={installationId:wiki.installationId,documentId:documentId??"",revision:current?.revision??1,slug,inputDigest,status:input.status};
- if(current?.generatedBody===generatedBody)return ref;
+ const record=async(saved:ReportRef)=>{
+  if(db && saved.documentId){
+   const row={installationId:actor.installationId,slug,wikiInstallationId:saved.installationId,documentId:saved.documentId,updatedAt:input.capturedAt};
+   await db.insert(reportNotes).values(row).onConflictDoUpdate({target:[reportNotes.installationId,reportNotes.slug],set:row});
+  }
+  return saved;
+ };
+ if(current?.generatedBody===generatedBody)return record(ref);
  const saved=await call("graph.mutate","mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}",{input:writeInput});
  const receipt=z.object({saveGeneratedDocument:z.object({id:z.string(),revision:z.number()})}).parse(saved).saveGeneratedDocument;
- return {...ref,documentId:receipt.id,revision:receipt.revision};
+ return record({...ref,documentId:receipt.id,revision:receipt.revision});
 }
 
 export const dailyReportReadInput=z.strictObject({
@@ -53,22 +63,30 @@ export const dailyReportReadInput=z.strictObject({
  date:z.iso.date(),timezone:z.string().min(1).max(64).default("America/Chicago"),
 });
 /** Reads the owner's exact generated draft; a missing report is absence, never successful no-change coverage. */
-export async function readDailyReport(host:Host,actor:AppIdentity,raw:z.input<typeof dailyReportReadInput>):Promise<Record<string,unknown>|null>{
+export async function readDailyReport(host:Host,actor:AppIdentity,raw:z.input<typeof dailyReportReadInput>,db?:PlanningDatabase):Promise<Record<string,unknown>|null>{
  const input=dailyReportReadInput.parse(raw),level=input.level??(actor.owner.kind==="organization"?"organization":"personal");
  if(level==="organization" && actor.owner.kind!=="organization" || level==="personal" && actor.owner.kind!=="user")throw new Response("Report owner does not match its scope",{status:403});
  const subject=level==="project"?input.subject:actor.owner.id;
  if(!subject)throw new Response("A project report needs a project ID",{status:400});
- const wiki=await documentWiki(host,wikiPackage);
  const slug=`${level}-daily-${await stableGraphId(actor.owner,actor.installationId,subject,input.date,input.timezone)}`;
- const execute=async(query:string,variables:Record<string,string>)=>{
-  const result=graphGraphqlResult.parse(await host.call("actions.call",{installationId:wiki.installationId,action:"graph.graphql",readOnly:true,input:{query,variables,maxBytes:262144}}));
+ const read=async(installationId:string,query:string,variables:Record<string,string>)=>{
+  const result=graphGraphqlResult.parse(await host.call("actions.call",{installationId,action:"graph.graphql",readOnly:true,input:{query,variables,maxBytes:262144}}));
   if(result.errors?.length||result.extensions?.truncated||!result.data)throw new Response("Daily report read was incomplete",{status:502});
   return result.data;
  };
- const page=await execute("query DailyReportPage($slug:String!){page(slug:$slug){documentId}}",{slug});
- if(page.page===null)return null;
- const {documentId}=z.object({documentId:z.string()}).parse(page.page);
- const document=draft.parse((await execute("query DailyReportDraft($id:ID!){document(id:$id){id revision generatedBody archived}}",{id:documentId})).document);
+ const draftQuery="query DailyReportDraft($id:ID!){document(id:$id){id revision generatedBody archived}}";
+ // A report this installation wrote is read straight from the Wiki document recorded at save time.
+ const [known]=db?await db.select().from(reportNotes).where(and(eq(reportNotes.installationId,actor.installationId),eq(reportNotes.slug,slug))):[];
+ let found=known?await read(known.wikiInstallationId,draftQuery,{id:known.documentId}).then(data=>({installationId:known.wikiInstallationId,document:draft.parse(data.document)})).catch(()=>undefined):undefined;
+ if(!found){
+  // Reports saved before locations were recorded: find the Wiki, then the page by its name.
+  const wiki=await documentWiki(host,wikiPackage);
+  const page=await read(wiki.installationId,"query DailyReportPage($slug:String!){page(slug:$slug){documentId}}",{slug});
+  if(page.page===null)return null;
+  const {documentId}=z.object({documentId:z.string()}).parse(page.page);
+  found={installationId:wiki.installationId,document:draft.parse((await read(wiki.installationId,draftQuery,{id:documentId})).document)};
+ }
+ const {document}=found,documentId=document.id,wiki={installationId:found.installationId};
  if(document.archived)return null;
  const match=/```json\n([\s\S]*)\n```(?:\n<\/details>)?$/.exec(document.generatedBody);
  if(!match)throw new Response("Daily report has no captured generated source",{status:409});

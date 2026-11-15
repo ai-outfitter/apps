@@ -4,13 +4,14 @@ import type {AppIdentity} from "@ai-outfitter/app-sdk/server";
 import type {WorkflowHost} from "@ai-outfitter/app-sdk/workflow-host";
 import {saveReportNote} from "./digest-wiki";
 import type {ReportChain} from "./report-chain";
+import type {PlanningDatabase} from "./planning";
 import {capturePersonalGoalContext} from "./personal-goal-context";
 import {sortByOrder} from "./priority-order";
 const reference=z.object({installationId:z.string().optional(),app:z.string().optional(),scope:z.unknown().optional(),documentId:z.string(),revision:z.number(),slug:z.string()});
 const organizationReport=z.object({owner:z.object({kind:z.literal("organization"),id:z.string()}),planningInstallationId:z.string(),reference,period:z.object({date:z.string(),timezone:z.string(),start:z.number(),end:z.number()}),status:z.enum(["complete","incomplete"]),inputDigest:z.string(),summary:z.string().optional(),dependencies:z.array(z.unknown())});
 const dailyReportSource=z.object({ownerKind:z.enum(["organization","user"]),ownerId:z.string(),planningInstallationId:z.string(),organizationSlug:z.string().nullable(),report:z.unknown()});
 /** Personal authority reads organization outcomes; organization workers never write the personal Wiki. */
-export async function savePersonalOverview(host:WorkflowHost<"interactive">,actor:AppIdentity,local:ReportChain,runId:string,now:number,order:{organizations:string[];projects:string[]}={organizations:[],projects:[]}):Promise<ReportChain>{
+export async function savePersonalOverview(host:WorkflowHost<"interactive">,actor:AppIdentity,local:ReportChain,runId:string,now:number,order:{organizations:string[];projects:string[]}={organizations:[],projects:[]},db?:PlanningDatabase):Promise<ReportChain>{
  if(actor.owner.kind!=="user")throw new Response("Personal overview requires a personal installation",{status:403});
  let organizations:Record<string,unknown>[]=[],status=local.status,reason:string|null=null;
  try{
@@ -35,6 +36,6 @@ export async function savePersonalOverview(host:WorkflowHost<"interactive">,acto
  if(!goalContext.complete){status="incomplete";reason=[reason,...goalContext.errors].filter(Boolean).join(" ");}
  organizations=sortByOrder(organizations,order.organizations,row=>String(row.organizationSlug));
  const personalProjects=sortByOrder(local.projects,order.projects,row=>`personal:${row.projectId}`);
- const overview=await saveReportNote(host,actor,{level:"personal",subject:actor.owner.id,title:`Personal daily overview — ${local.period.date}`,period:local.period,runId,capturedAt:now,status,content:{summary:`${organizationRollup(organizations)}${personalProjects.length ? ` ${projectRollup(personalProjects)}` : ""}`,outcome:status==="complete"?"source-reports-captured":"source-reports-incomplete",personalProjects,organizations,goalContext,reason,coverage:"Current member-authorized installed Planning organization sources plus personal Planning projects. Organizations without Planning, external connectors and conversation history are outside this capture.",completeness:{sourceReads:status,history:"limited"}}});
+ const overview=await saveReportNote(host,actor,{level:"personal",subject:actor.owner.id,title:`Personal daily overview — ${local.period.date}`,period:local.period,runId,capturedAt:now,status,content:{summary:`${organizationRollup(organizations)}${personalProjects.length ? ` ${projectRollup(personalProjects)}` : ""}`,outcome:status==="complete"?"source-reports-captured":"source-reports-incomplete",personalProjects,organizations,goalContext,reason,coverage:"Current member-authorized installed Planning organization sources plus personal Planning projects. Organizations without Planning, external connectors and conversation history are outside this capture.",completeness:{sourceReads:status,history:"limited"}}},db);
  return {...local,overview,status};
 }

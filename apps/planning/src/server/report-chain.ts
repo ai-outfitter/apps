@@ -55,7 +55,7 @@ export async function runReportChain(db:PlanningDatabase,host:Host,actor:AppIden
   const merged=repositoryEvidence.repositories.reduce((count,repo)=>count+repo.pullRequests.length,0);
   if(merged)content.summary=`${content.summary} ${merged} merged pull request observations were captured; a merge is not proof of deployment.`;
   let report:ReportRef|null=null;
-  try{report=await saveReportNote(host,actor,{level:"project",subject:target.id,title:`${target.name} — ${period.date}`,period,content,status,runId,capturedAt:now});}catch{status="incomplete";}
+  try{report=await saveReportNote(host,actor,{level:"project",subject:target.id,title:`${target.name} — ${period.date}`,period,content,status,runId,capturedAt:now},db);}catch{status="incomplete";}
   children.push({projectId:target.id,report,status,summary:z.record(z.string(),z.json()).parse({name:target.name,outcome:content.outcome,counts:(content.changes as {counts?:unknown}|undefined)?.counts??null,history:(content.completeness as {history?:unknown}|undefined)?.history??"unknown",summary:content.summary??null,decisions:content.decisions??[],decisionsTruncated:content.decisionsTruncated??false,
    completedIssues:((content.changes as {issues?:{id:string;title:string;currentStatus:string;updatedAt:number;updatedInWindow:boolean}[]}|undefined)?.issues??[]).filter(issue=>issue.currentStatus==="done"&&issue.updatedInWindow).map(issue=>({id:issue.id,title:issue.title,observedAt:issue.updatedAt})),
    omittedIssueObservations:(content.changes as {omittedIssues?:number}|undefined)?.omittedIssues??0,repositoryEvidence})});
@@ -64,6 +64,6 @@ export async function runReportChain(db:PlanningDatabase,host:Host,actor:AppIden
  if(!includeOverview)return {period,projects:children,overview:null,status};
  const level=actor.owner.kind==="organization"?"organization":"personal";
  let overview:ReportRef|null=null;
- try{overview=await saveReportNote(host,actor,{level,subject:actor.owner.id,title:`${level==="organization"?"Organization":"Personal"} daily overview — ${period.date}`,period,runId,capturedAt:now,status,content:{summary:projectRollup(children),outcome:status==="complete"?"project-reports-captured":"project-reports-incomplete",completeness:{projectReads:status,history:"limited"},dependencies:children,coverage:level==="personal"?"Personal Planning projects only; organization reports require a separate authorized cross-scope read.":"This organization's active Planning projects only."}});}catch{return {period,projects:children,overview:null,status:"incomplete"};}
+ try{overview=await saveReportNote(host,actor,{level,subject:actor.owner.id,title:`${level==="organization"?"Organization":"Personal"} daily overview — ${period.date}`,period,runId,capturedAt:now,status,content:{summary:projectRollup(children),outcome:status==="complete"?"project-reports-captured":"project-reports-incomplete",completeness:{projectReads:status,history:"limited"},dependencies:children,coverage:level==="personal"?"Personal Planning projects only; organization reports require a separate authorized cross-scope read.":"This organization's active Planning projects only."}},db);}catch{return {period,projects:children,overview:null,status:"incomplete"};}
  return {period,projects:children,overview,status};
 }

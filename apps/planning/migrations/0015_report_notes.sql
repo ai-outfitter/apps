@@ -1,0 +1,1 @@
+CREATE TABLE planning_report_notes (installationId TEXT NOT NULL, slug TEXT NOT NULL, wikiInstallationId TEXT NOT NULL, documentId TEXT NOT NULL, updatedAt INTEGER NOT NULL, PRIMARY KEY(installationId,slug));

@@ -342,7 +342,7 @@ export async function scheduledDigests(db: PlanningDatabase, host: WorkflowHost<
   // independent and may be slow or fail; it must not delay downstream owner
   // reports and the personal morning brief.
   let reports = await runReportChain(db, host, actor, active, runId, {...options,includeOverview:actor.owner.kind!=="user"});
-  if(actor.owner.kind==="user") reports=await savePersonalOverview(host,actor,reports,runId,options.now??Date.now(),await storedPersonalPriorities(db,actor));
+  if(actor.owner.kind==="user") reports=await savePersonalOverview(host,actor,reports,runId,options.now??Date.now(),await storedPersonalPriorities(db,actor),db);
   const digestIds: string[] = [];
   let unchanged = 0;
   const failedProjects: string[] = [];
