@@ -395,7 +395,7 @@
       ]
     },
     "mcp": {
-      "description": "Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, capturedAt, limitations and the screenshots in order as steps [{title, path, caption}]. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."
+      "description": "Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, limitations and the screenshots in order as steps [{title, path, caption}] (path or the receipt URL); capturedAt is optional. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."
     },
     "outputSchema": {
       "type": "object",

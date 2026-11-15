@@ -43,7 +43,7 @@ const legacyDocuments = defineDocuments({
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. Then call PublishEvidence to show the screenshots on a Planning project. No approval or deployment."},
-  PublishEvidence:{description:"Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, capturedAt, limitations and the screenshots in order as steps [{title, path, caption}]. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."},
+  PublishEvidence:{description:"Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, limitations and the screenshots in order as steps [{title, path, caption}] (path or the receipt URL); capturedAt is optional. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."
   },

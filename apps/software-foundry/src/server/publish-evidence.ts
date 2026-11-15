@@ -18,7 +18,7 @@ import type { IntakeContext } from "./intake";
 import { evidencePublications } from "./schema";
 
 export const publishEvidenceDescription =
-  "Show an uploaded evidence bundle on a Planning project's Evidence page. Name the bundle you uploaded with SubmitReleaseEvidence, the Planning project id, a Markdown body (result counts, environment, limits, how to reproduce) and the screenshots in step order by their bundle path. Foundry stages one Onto change batch (the bundle Document, one numbered Demonstration per screenshot, and their links to the project), submits it for a member's review and returns the review link and the Planning Evidence link. Nothing shows in Planning until a member approves the batch; this never approves it. Repeat with the same input to read the same batch.";
+  "Show an uploaded evidence bundle on a Planning project's Evidence page. Name the bundle you uploaded with SubmitReleaseEvidence, the Planning project id, a Markdown body (result counts, environment, limits, how to reproduce) and the screenshots in step order by their bundle path or receipt URL. Foundry stages one Onto change batch (the bundle Document, one numbered Demonstration per screenshot, and their links to the project), submits it for a member's review and returns the review link and the Planning Evidence link. Nothing shows in Planning until a member approves the batch; this never approves it. Repeat with the same input to read the same batch.";
 
 export const publishEvidenceInput = z.strictObject({
   bundle: evidencePublishInput.shape.bundle.describe("The bundle name the files were uploaded under."),
@@ -27,11 +27,11 @@ export const publishEvidenceInput = z.strictObject({
   summary: z.string().trim().max(280).default(""),
   body: z.string().trim().min(1).max(65536).describe("Markdown: the result (e.g. 1 passed, 0 failed), environment, limits and how to reproduce. Images in it are not shown; list screenshots as steps."),
   environment: z.string().trim().min(1).max(500).describe("Where it ran, e.g. 'iPhone 16 simulator, iOS 26, fixture API'."),
-  capturedAt: z.iso.datetime({ offset: true }),
+  capturedAt: z.iso.datetime({ offset: true }).optional().describe("When the run captured the screenshots (ISO 8601 with a time zone). Leave it out to use when they were uploaded."),
   limitations: z.array(z.string().trim().min(1).max(500)).min(1).max(20).describe("What this evidence does not show, e.g. 'Simulator only' or 'Checkout is mocked'."),
   steps: z.array(z.strictObject({
     title: evidenceStep.shape.title,
-    path: evidencePublishInput.shape.path.describe("The screenshot's path inside the bundle, as uploaded."),
+    path: z.string().trim().min(1).max(1000).describe("The screenshot's path inside the bundle as uploaded, or its URL from the upload receipt."),
     caption: evidenceStep.shape.caption,
   })).min(1).max(40).describe("Screenshots in step order; each becomes a numbered Demonstration."),
 });
@@ -75,10 +75,13 @@ export async function publishEvidence(context: IntakeContext, input: Input) {
   if (!context.storageLocals) throw refused("Evidence storage unavailable", 503);
   const files = storage(context.storageLocals, "main");
   const steps: { title: string; caption: string; url: string }[] = [];
+  let uploadedAt = 0;
   for (const step of input.steps) {
-    const file = await files.head({ space: "evidence", key: `${input.bundle}/${step.path}` });
-    if (!file) throw refused(`${input.bundle}/${step.path} is not uploaded; publish it with SubmitReleaseEvidence first.`, 404);
-    if (file.contentType !== "image/png") throw refused(`${step.path} is not a screenshot; steps take PNG files.`, 422);
+    const path = bundlePath(input.bundle, step.path);
+    const file = await files.head({ space: "evidence", key: `${input.bundle}/${path}` });
+    if (!file) throw refused(`${input.bundle}/${path} is not uploaded; publish it with SubmitReleaseEvidence first.`, 404);
+    if (file.contentType !== "image/png") throw refused(`${path} is not a screenshot; steps take PNG files.`, 422);
+    uploadedAt = Math.max(uploadedAt, file.createdAt);
     steps.push({ title: step.title, caption: step.caption, url: new URL(files.url(file), context.origin).href });
   }
 
@@ -101,11 +104,11 @@ export async function publishEvidence(context: IntakeContext, input: Input) {
   if (!existing && (!batch || batch.state === "open")) {
     const operations = await evidenceBundleOperations({
       types: snapshot.types.filter((type) => !type.archived),
-      document: { id: documentId, slug: slugFor(input.bundle), title: input.title, summary: input.summary, body: input.body },
+      document: { id: documentId, slug: slugFor(input.bundle), title: input.title, summary: input.summary, body: documentBody(input) },
       projectNodeId: project.id,
       subject: { id: project.id, revision: project.revision },
       environment: input.environment,
-      capturedAt: input.capturedAt,
+      capturedAt: input.capturedAt ?? new Date(uploadedAt).toISOString(),
       limitations: input.limitations,
       steps,
     });
@@ -135,8 +138,31 @@ export async function publishEvidence(context: IntakeContext, input: Input) {
     planningUrl,
     next: state === "committed"
       ? "The evidence shows on the Planning project's Evidence page."
-      : "A member reviews the batch at reviewUrl; the evidence shows on planningUrl only after they approve it. Do not approve it yourself.",
+      : "A member reviews the batch at reviewUrl; the evidence shows on planningUrl only after they approve it. Do not approve it yourself. If no Planning issue on this project holds the acceptance criteria this evidence proves, add one (Planning IssueChanges) listing them with their status and linking planningUrl; leave unrelated issues as they are.",
   };
+}
+
+/** The member reads the Document, not the Demonstrations' bodies: it always states where the run happened and its limits. */
+function documentBody(input: Input) {
+  const known = input.body.toLowerCase();
+  const missing = [input.environment, ...input.limitations].filter((line) => !known.includes(line.toLowerCase()));
+  if (!missing.length) return input.body;
+  return `${input.body}\n\n## Where it ran and its limits\n\n- Environment: ${input.environment}\n${input.limitations.map((line) => `- ${line}`).join("\n")}\n`;
+}
+
+/** A step's file inside the bundle: its path, or the URL the upload receipt returned for it. */
+function bundlePath(bundle: string, value: string) {
+  const marker = `/files/main/evidence/${bundle}/`;
+  let path = value;
+  if (/^https?:\/\//.test(value)) {
+    const pathname = decodeURIComponent(new URL(value).pathname);
+    const at = pathname.indexOf(marker);
+    if (at < 0) throw refused(`${value} is not a file of bundle ${bundle}.`, 422);
+    path = pathname.slice(at + marker.length);
+  }
+  const parsed = evidencePublishInput.shape.path.safeParse(path.replace(/^\/+/, ""));
+  if (!parsed.success) throw refused(`${value} is not a screenshot path in bundle ${bundle}.`, 422);
+  return parsed.data;
 }
 
 /** A Document slug from the bundle name (slugs are lower-case words joined by hyphens). */

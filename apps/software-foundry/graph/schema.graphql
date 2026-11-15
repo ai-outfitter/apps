@@ -109,7 +109,7 @@ input PublishEvidenceInput {
   summary: String
   body: String!
   environment: String!
-  capturedAt: String!
+  capturedAt: String
   limitations: [String!]!
   steps: [PublishEvidenceInputStepsItem!]!
 }
@@ -299,7 +299,7 @@ type Mutation {
   submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
 
   """
-  Show an uploaded evidence bundle on a Planning project's Evidence page. Name the bundle you uploaded with SubmitReleaseEvidence, the Planning project id, a Markdown body (result counts, environment, limits, how to reproduce) and the screenshots in step order by their bundle path. Foundry stages one Onto change batch (the bundle Document, one numbered Demonstration per screenshot, and their links to the project), submits it for a member's review and returns the review link and the Planning Evidence link. Nothing shows in Planning until a member approves the batch; this never approves it. Repeat with the same input to read the same batch.
+  Show an uploaded evidence bundle on a Planning project's Evidence page. Name the bundle you uploaded with SubmitReleaseEvidence, the Planning project id, a Markdown body (result counts, environment, limits, how to reproduce) and the screenshots in step order by their bundle path or receipt URL. Foundry stages one Onto change batch (the bundle Document, one numbered Demonstration per screenshot, and their links to the project), submits it for a member's review and returns the review link and the Planning Evidence link. Nothing shows in Planning until a member approves the batch; this never approves it. Repeat with the same input to read the same batch.
   """
   publishEvidence(input: PublishEvidenceInput!): JSON
 

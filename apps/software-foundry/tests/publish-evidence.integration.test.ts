@@ -100,6 +100,8 @@ test("PublishEvidence stages the bundle for review on the Planning project and a
     const operations = staged[0].proposals.map((proposal: any) => proposal.operation);
     const document = operations.find((op: any) => op.ref === "$evidence-bundle").attributes;
     assert.match(document.body, /1 passed/);
+    // Where it ran and what it does not show are always in the Document a member reads.
+    assert.match(document.body, /## Where it ran and its limits\n\n- Environment: iPhone simulator, fixture API\n- Simulator only\./);
     const shots = operations.filter((op: any) => op.ref.startsWith("$evidence-step-"));
     assert.deepEqual(shots.map((op: any) => op.attributes.title), ["1. Office collection", "2. Unconfirmed plant"]);
     assert.deepEqual(shots.map((op: any) => JSON.parse(op.attributes.body).media[0].replace(/^.*\/files\//, "")), paths.map((path) => `main/evidence/fernlight-ios-run/${path}`));
@@ -129,6 +131,28 @@ test("PublishEvidence refuses a project Planning cannot show evidence on", async
       await call("evidence.publish", { bundle: "fernlight-ios-run", path, contentType: "image/png", sha256: await sha256Hex(png), base64: png.toString("base64") });
     const result = await call("graph.mutate", { query: documentText(documents.PublishEvidence.document), variables: { input: input({ projectId: "0d9c3b1a-8e7f-4a6b-9c5d-4e3f2a1b0c9d" }) } });
     assert.match(result.errors?.[0]?.message ?? "", /No Onto Project references Planning project/);
+  } finally {
+    await app.dispose();
+  }
+});
+
+test("PublishEvidence takes the receipt's file URLs and dates the run from the upload when no capture time is given", async () => {
+  const staged: any[] = [];
+  const app = await appWorker("software-foundry", appArtifact(new URL("..", import.meta.url), "operational"), "foundry", { workflowHost: onto(staged, []) } as never);
+  try {
+    const call = async (action: string, body: unknown) =>
+      (await app.call(`${actionPath}/call`, who, { method: "POST", body: { action, input: body }, workflowHost: scope } as never)).json() as Promise<any>;
+    const urls: string[] = [];
+    for (const path of paths)
+      urls.push((await call("evidence.publish", { bundle: "fernlight-ios-run", path, contentType: "image/png", sha256: await sha256Hex(png), base64: png.toString("base64") })).url);
+    const { capturedAt: _omitted, ...rest } = input();
+    const result = await call("graph.mutate", { query: documentText(documents.PublishEvidence.document), variables: { input: { ...rest, steps: urls.map((url, i) => ({ title: `Step ${i + 1}`, path: url })) } } });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    const shots = staged[0].proposals.map((p: any) => p.operation).filter((op: any) => op.ref.startsWith("$evidence-step-")).map((op: any) => JSON.parse(op.attributes.body));
+    assert.deepEqual(shots.map((body: any) => body.media[0]), urls);
+    assert.ok(Math.abs(Date.parse(shots[0].capturedAt) - Date.now()) < 60_000, shots[0].capturedAt);
+    const foreign = await call("graph.mutate", { query: documentText(documents.PublishEvidence.document), variables: { input: { ...input({ bundle: "other-run" }), steps: [{ title: "Office", path: urls[0] }] } } });
+    assert.match(foreign.errors?.[0]?.message ?? "", /is not a file of bundle other-run/);
   } finally {
     await app.dispose();
   }
