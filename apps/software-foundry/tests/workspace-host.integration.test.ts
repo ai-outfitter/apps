@@ -176,6 +176,15 @@ test("Foundry's workspace policy runs over the platform's real prepare, finalize
     assert.match(repair.summary, /no review findings/);
     assert.equal(repair.sessionArtifact, undefined);
     assert.deepEqual({ width: repair.evidence[0].width, height: repair.evidence[0].height }, { width: 1, height: 1 });
+    // An implementer that returns its PR outside `result` still finishes on the accepted plan.
+    const bare = await phase("finalize", { node: { ...node, nodeId: "implement" },
+      inputs: { event, previous: { ready: true, summary: "Plan: preserve every cent" } },
+      outputs: { previous: {}, candidate: previous.candidate }, coordinator: false, session: {}, settings: settings("implement") });
+    assert.equal(bare.status, 200, await bare.clone().text());
+    const implemented = (await bare.json() as { outputs: { result: Record<string, any> } }).outputs.result;
+    assert.equal(implemented.summary, "Plan: preserve every cent");
+    assert.equal(implemented.candidate.number, 7);
+    assert.equal(implemented.previous, undefined);
     const validated = await phase("finalize", { node: { ...node, nodeId: "validate-final" },
       inputs: { event, previous: { ...previous, demo: { status: "needs-attention", missing: ["mobile"] } } },
       outputs: {}, coordinator: true, session: {}, settings: settings("validate") });
