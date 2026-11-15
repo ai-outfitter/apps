@@ -151,3 +151,23 @@ checks solids and project-supplied interference tests, and writes `manifest.json
 Customer models and eval inputs stay in customer repositories/private mounts.
 Unmeasured physical properties stay explicitly unverified. Animation and
 Kubernetes activation require subsequent work; this local harness proves neither.
+
+### Quality checks and studies
+
+`workspace.json` can also ask the build for printability, interference and
+simulation; `box/workspace/quality.py` runs them with existing tools and adds
+their rows to `manifest.json` `tests`, with the numbers in `quality.json`.
+`examples/mini-itx-case/workspace.json` and `examples/sny-1-enclosure/workspace.json`
+use every option.
+
+| Key | Tool | Test rows |
+| --- | --- | --- |
+| `printer` `{name, bed}` and a target's `print` `{material, materialProperties.density, infill, walls, layerHeight, orientation, maxGrams}` | trimesh bounds, PrusaSlicer CLI | Fits (either footprint on the bed), Overhangs (`unverified` above `maxOverhangMm2`), Slices (grams and print time) |
+| `interference: true` or `{allow, maxVolume}` | manifold3d | One row: every pair of placed solids in `assembly`; face contact has no volume |
+| `simulations[]` `{kind: thermal or static, targets, material, clip, meshSize, limits}` | Gmsh, CalculiX | One row per limit. Thermal takes `ambient`, `filmWPerM2K`, `fluxes` and `inside` (cavity faces, with the cavity air solved for); static takes `fixed`, `loads` and `probe` (the region whose mean von Mises meets the limit) |
+
+A target's `defines` passes `-D` values to OpenSCAD, so one `.scad` file can
+render each part. Regions are boxes in assembly coordinates with an optional
+outward `normal`. Results are estimates from datasheet values, never physical
+evidence. `python3 -m unittest discover -s /opt/workshop -p 'test_*.py'` checks
+`quality.py` against hand calculations inside the image.
