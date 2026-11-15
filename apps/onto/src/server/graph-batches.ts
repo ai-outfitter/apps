@@ -353,7 +353,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       evidence: Object.fromEntries(chunk.map((row) => [row.ref, row.evidence])),
       precondition: reviewedRowsUnchanged(batch, chunk),
       finalize: (saved, gate) => [
-        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "policy" ? null : who.userId}
+        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "member" ? who.userId : null}
           WHERE batchId=${batch.id} AND ref=${row.ref} AND ${gate}`),
         sql`UPDATE graph_batches SET commits=commits+1,updatedAt=${Date.now()} WHERE id=${batch.id} AND ${gate}`,
       ],
@@ -445,6 +445,9 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
+  // A draft review that carried over has already finished: the steward decides now.
+  const review = batch.review as StewardReview | null;
+  if (reused && draft.state === "complete" && review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, review);
   return getBatch(db, who, { batchId: batch.id });
 }
 
@@ -578,6 +581,63 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
+}
+
+/** What the steward's approval needs from its review. */
+type StewardReview = {
+  state: string; complete: boolean; runId: string | null; prompt: { digest: string };
+  findings: { ref: string | null; refs?: string[]; severity: string; rule: string }[];
+};
+/** What the steward decided after its review: how many operations it approved, and the
+ * refs it left for a member with why. Saved on the review. */
+export type StewardDecision = { approved: number; held: { ref: string; reason: string }[]; at: number };
+
+/** The ontology steward approves what its own review found clean (docs/batch-review.md,
+ * "Steward approval"). A finding of `error` or `warning` severity, a question on the batch,
+ * or anything depending on them waits for a member; so does every operation when the review
+ * failed, read the batch only in part, or flagged the batch as a whole. A batch-level
+ * finding or a question without refs holds everything. Approval is recorded as the
+ * steward's decision citing its review run, never as a member's. */
+export async function stewardApprove(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview): Promise<StewardDecision | null> {
+  const batch = await loadBatch(db, batchId);
+  if (batch.state !== "awaiting_review" || batch.reviewJobId !== jobId) return null;
+  const rows = live(await loadOperations(db, batch.id));
+  const waiting = rows.filter((row) => row.state === "awaiting_review");
+  if (!waiting.length) return null;
+  const reasons = new Map<string, string>();
+  const holdAll = (reason: string) => { for (const row of waiting) if (!reasons.has(row.ref)) reasons.set(row.ref, reason); };
+  if (review.state !== "complete") holdAll("the review did not finish");
+  else if (!review.complete) holdAll("the review read only part of the batch");
+  for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
+    const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];
+    if (!refs.length) holdAll(`${item.rule} on the whole batch`);
+    for (const ref of refs) if (!reasons.has(ref)) reasons.set(ref, item.rule);
+  }
+  for (const question of batch.questions ?? []) {
+    if (!question.refs.length) holdAll(`question ${question.key}`);
+    for (const ref of question.refs) if (!reasons.has(ref)) reasons.set(ref, `question ${question.key}`);
+  }
+  const flagged = new Set([...reasons.keys()].filter((ref) => waiting.some((row) => row.ref === ref)));
+  for (const ref of withDependents(rows, waiting, flagged)) if (!reasons.has(ref)) reasons.set(ref, "depends on a held proposal");
+  const graph = await readGraph(db, who);
+  const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
+  const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
+  for (const row of waiting) if (!chosen.has(row.ref) && !reasons.has(row.ref)) reasons.set(row.ref, "does not connect to an anchor without a held proposal");
+  const at = Date.now();
+  const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
+  const approved = await commitByPolicy(db, who, batch, rows, chosen, approval);
+  // A subset that no longer validates commits nothing; it all waits for a member.
+  if (!approved && chosen.size) for (const ref of chosen) reasons.set(ref, "the approved part would not apply");
+  await settle(db, batch.id);
+  return { approved, held: waiting.filter((row) => reasons.has(row.ref)).map((row) => ({ ref: row.ref, reason: reasons.get(row.ref)! })), at };
+}
+
+/** Run the steward's approval for a finished review and save its decision on that review. */
+export async function approveAfterReview(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview) {
+  const decision = await stewardApprove(db, who, batchId, jobId, review);
+  if (decision) await db.update(graphBatches).set({ review: { ...review, decision } as never })
+    .where(and(eq(graphBatches.id, batchId), eq(graphBatches.reviewJobId, jobId)));
+  return decision;
 }
 
 /** Rejecting an operation rejects the waiting operations that depend on it. */

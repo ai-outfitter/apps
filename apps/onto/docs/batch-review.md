@@ -1,10 +1,10 @@
 # Ontology review of change batches
 
-Every submitted Wiki change batch gets an advisory review from the Wiki's ontology
+Every submitted Wiki change batch gets a review from the Wiki's ontology
 steward ([prompt](../agent/ontology-steward.md), "Review one batch"). The review checks
 that what the batch adds belongs to the owner's graph and makes ontological sense, and
-attaches findings to the batch and its operations. It approves, rejects, holds and
-commits nothing. See [the knowledge graph](../../../../docs/architecture/knowledge-graph.md)
+attaches findings to the batch and its operations. It then approves what it found clean
+and leaves the rest for a member ([steward approval](#steward-approval)). See [the knowledge graph](../../../../docs/architecture/knowledge-graph.md)
 for how batches fit the Wiki's writes.
 
 ## Implemented
@@ -42,33 +42,34 @@ for how batches fit the Wiki's writes.
   workflows) or the model fails, the review is saved as `failed` with the built-in
   checks. Submitting never waits for or fails because of the review.
 
-The review is advisory by decision (2026-11-07): commit behavior is exactly what the
-batch's policy decides without it. A confidence or first-run batch still commits on
-submit, and a member still decides the rest.
+## Steward approval
 
-## Proposed, not implemented: gating as a governance control
+Members are not the only reviewers (decision 2026-11-15: "the onto agent should review and
+auto merge if it looks good"). When the review of a submitted batch finishes, the steward
+approves what it found clean, and the rest waits for a member on the Changes page. It
+applies to every batch policy and every Onto; there is no setting.
 
-Letting the steward's review change what commits is deferred. When it is built, it
-should be a Governance control that an organization adopts explicitly, not a Wiki
-default, because it moves decision weight from members and policies to an agent.
+- **Clean** means no `error` or `warning` finding names the operation (by `ref` or
+  `refs`), from the checks or the steward, and no question on the batch names it. A
+  `note` never holds anything.
+- **Held for a member:** each flagged or questioned operation, and every waiting operation
+  that depends on one (`withDependents`, as a rejection would). A batch-level `error` or
+  `warning`, a question without refs, a failed review, or a review that read only part of
+  the batch (`complete: false`) hold everything. A created record that would not reach an
+  anchor without a held operation is held too.
+- **Recorded as the steward's,** never a member's: each approved operation's decision and
+  its history row carry `{kind: "steward", runId, prompt, reason: "clean review", at}`, so
+  the review run that caused it is the audit trail. `decidedBy` stays empty.
+- **Saved on the review** as `decision: {approved, held: [{ref, reason}], at}`; the
+  Changes page says what the steward approved and why the rest waits.
+- **Guarded:** the steward approves only for the review job that is still the batch's
+  (`reviewJobId`), with the same row snapshot guard as a member's review, so an amendment
+  or a member's decision in between wins. A subset that no longer applies commits
+  nothing and waits for a member.
+- **Review again** on the Changes page runs the same approval after the new review.
 
-The proposed control:
-
-- **Hold policy commits until the review finishes.** A confidence or first-run batch
-  waits for its review before committing anything by policy, with a deadline after
-  which it either commits as today or waits for a member (the control chooses).
-- **Route errors to members.** An operation with an `error` finding is excluded from
-  policy commits and waits for a member, with the finding shown as the reason.
-- **Only stricter by default.** The steward can hold or route work to a member. Letting
-  it approve or reject on its own would be a separate, explicit grant under the same
-  control, recorded as the steward's decision, never as a member's.
-- **Duties.** The control names who holds the steward duty (a resident or the Wiki's own
-  workflow) through Governance role assignments, so Wiki stays domain-neutral.
-- **Audit.** Every decision the control causes cites the review run that caused it, and
-  the batch's history keeps each review (prompt digest, model or runtime, run ID, times,
-  coverage and findings) instead of only the latest one.
-
-Until then `requireMemberReview` stays as it is: decisions come from a member or the member's own connection, never from the steward, an app or a resident.
+The steward never rejects. Member review (`requireMemberReview`) is unchanged: a member, or
+the member's own connection, still approves or rejects whatever the steward held.
 
 ## Repairing a draft
 

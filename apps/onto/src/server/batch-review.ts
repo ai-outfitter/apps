@@ -3,9 +3,8 @@
 // batch-review workflow run: deterministic checks, then the steward prompt over
 // the batch's operations and the records they touch. Its findings are saved on
 // the batch with the run's ID; the run's logs are the audit trail, and a re-review
-// is a new run. The review is advisory: it never approves, rejects, holds or
-// commits anything, and the batch's policy decides exactly as it would without it
-// (gating is a deferred governance control, docs/batch-review.md).
+// is a new run. Once a submitted batch's review finishes, the steward approves what it
+// found clean and leaves the rest for a member (stewardApprove, docs/batch-review.md).
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { type WorkflowHost, workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq, lte, or, sql } from "drizzle-orm";
@@ -14,7 +13,7 @@ import stewardPrompt from "../../agent/ontology-steward.md?raw";
 import { core, type Graph } from "../lib/graph";
 import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
 import { readGraph } from "./graph";
-import { type Database, live, loadOperations, batchContentDigest } from "./graph-batches";
+import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
 import { wikiHome } from "./wiki-home";
 
@@ -108,6 +107,8 @@ export type BatchReview = {
   summary: string;
   findings: Finding[];
   error: string | null;
+  /** What the steward approved after this review, and what it left for a member. */
+  decision?: StewardDecision;
 };
 
 type Op = { ref: string; operation: string; type: string; id?: string; attributes: Record<string, unknown> };
@@ -392,7 +393,11 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
       nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
       .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`)).returning();
-    return settled.length ? review : null;
+    if (!settled.length) return null;
+    // A finished review of a batch that is (by now) submitted approves what it found clean.
+    if (review.state !== "complete") return review;
+    const decision = await approveAfterReview(db, who, job.batchId, job.id, review);
+    return decision ? { ...review, decision } : review;
   } catch (error) {
     await db.update(ontoReviewJobs).set({ state: job.attempts >= maxAttempts ? "failed" : "pending", leaseId: null, leaseUntil: null,
       nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: String(error).slice(0, 500) })

@@ -13,8 +13,8 @@ import { appUrl, call, demoMode, el, entityUrl, loadGraph } from "./data";
 
 // Changes: the batches agents proposed, what each found, its evidence and
 // confidence, and what happens if nobody reviews it. Reviewing is the member's
-// own action; the page never approves on its own. The ontology steward's
-// findings are advisory notes beside each proposal; they decide nothing. A batch
+// action or the ontology steward's: after its review the steward approves what it
+// found clean and leaves flagged proposals here for a member. A batch
 // page is the index; each proposal is read and decided on its record's page.
 
 const stateLabels: Record<string, string> = {
@@ -49,6 +49,16 @@ export function reviewLine(review: Review | null) {
   return `Steward: ${parts.length ? parts.join(", ") : "no problems found"}${review.state === "failed" ? " (built-in checks only; the steward did not finish)" : ""}`;
 }
 
+/** What the steward approved after its review, and why the rest waits for a member. */
+export function stewardLine(review: Review) {
+  const decision = review.decision;
+  if (!decision) return null;
+  const held = decision.held.length;
+  const reasons = [...new Set(decision.held.map((item) => item.reason))].slice(0, 3).join(", ");
+  const approved = decision.approved ? `The steward approved ${decision.approved} ${decision.approved === 1 ? "proposal" : "proposals"}.` : "The steward approved nothing.";
+  return el("p", { class: "change-meta" }, held ? `${approved} ${held} ${held === 1 ? "waits" : "wait"} for you: ${reasons}.` : approved);
+}
+
 /** The steward's latest review: its findings, coverage and the run that is its audit trail. */
 function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
   const { review } = detail.batch;
@@ -71,7 +81,7 @@ function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
       `prompt ${review.prompt.digest.slice(0, 12)}`,
     ].filter(Boolean).join(" · "),
       review.runId ? el("span", { title: "This review's batch-review workflow run, its audit trail" }, ` · run ${review.runId}`) : null),
-    el("p", { class: "change-meta" }, "These findings are advice for whoever reviews the batch. They don't approve, reject or hold anything."),
+    stewardLine(review),
     findingList(general),
     again,
   );
@@ -240,7 +250,7 @@ export function historySection(id: string) {
     try {
       const history = await call<{ revisions: { revision: number; batchId: string | null; batchTitle: string | null; approval: Record<string, unknown>; evidence: Citation[]; createdAt: number; created: boolean }[]; complete: boolean }>(`batches/history?id=${encodeURIComponent(id)}`);
       const approval = (value: Record<string, unknown>) =>
-        value.kind === "policy" ? `approved by policy (${String(value.reason ?? value.policy)})` : value.kind === "member" ? "approved by a member" : "edited directly";
+        value.kind === "policy" ? `approved by policy (${String(value.reason ?? value.policy)})` : value.kind === "member" ? "approved by a member" : value.kind === "steward" ? "approved by the ontology steward" : "edited directly";
       fill(section,
         el("summary", {}, "History"),
         history.revisions.length

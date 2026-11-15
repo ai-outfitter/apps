@@ -16,6 +16,7 @@ export type Finding = { ref: string | null; rule: string; severity: "error" | "w
 export type Review = {
   state: "complete" | "failed"; runId: string | null; prompt: { path: string; digest: string };
   startedAt: number; finishedAt: number; complete: boolean; summary: string; findings: Finding[]; error: string | null;
+  decision?: { approved: number; held: { ref: string; reason: string }[]; at: number };
 };
 export type Batch = {
   id: string; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
@@ -144,6 +145,7 @@ const policyReasons: Record<string, string> = {
 export function approvalText(op: BatchOperation) {
   if (op.state !== "committed") return opLabels[op.state] ?? op.state;
   const decision = op.decision as { kind?: string; reason?: string } | null;
+  if (decision?.kind === "steward") return "Approved by the ontology steward";
   if (decision?.kind !== "policy") return "Approved by a member";
   return policyReasons[decision.reason ?? ""] ?? policyReasons.confidence;
 }

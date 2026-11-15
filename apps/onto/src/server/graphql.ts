@@ -89,7 +89,7 @@ const ChangeBatch = new GraphQLObjectType({
     policy: json, summary: { type: JSONScalar },
     reviewBy: { type: DateTimeScalar },
     reviewUrl: { type: GraphQLString, description: "The review page, relative to this installation (the platform returns it as a full link).", resolve: (batch) => batchReviewUrl(batch.id) },
-    review: { type: JSONScalar, description: "The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. It never approves or blocks anything." },
+    review: { type: JSONScalar, description: "The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
     questions: { ...json, description: "Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: \"onto\", recordId: \"batch:<id>#<key>\"} when you revise those proposals.", resolve: (batch) => batch.questions ?? [] },
@@ -274,7 +274,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     }),
     submitBatch: mutationField({
       name: "SubmitBatch", output: nonNull(ChangeBatch),
-      description: "Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background and attaches advisory findings (review, empty until it finishes); its policy decides exactly as without them.",
+      description: "Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background (review, empty until it finishes) and approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member.",
       input: batchSubmitInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();

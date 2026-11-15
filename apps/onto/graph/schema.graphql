@@ -76,7 +76,7 @@ type ChangeBatch {
   reviewUrl: String
 
   """
-  The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. It never approves or blocks anything.
+  The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why.
   """
   review: JSON
   expiresAt: DateTime!
@@ -517,7 +517,7 @@ type Mutation {
   removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
 
   """
-  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background and attaches advisory findings (review, empty until it finishes); its policy decides exactly as without them.
+  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background (review, empty until it finishes) and approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member.
   """
   submitBatch(input: SubmitBatchInput!): ChangeBatch!
 

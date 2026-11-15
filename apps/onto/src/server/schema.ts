@@ -183,7 +183,7 @@ export const graphBatches = sqliteTable("graph_batches", {
   updatedAt: integer().notNull(),
   expiresAt: integer().notNull(),
   closedAt: integer(),
-  /** The ontology steward's latest advisory review (server/batch-review.ts). */
+  /** The ontology steward's latest review and what it approved (server/batch-review.ts). */
   review: text({ mode: "json" }).$type<BatchReview>(),
   reviewJobId: text(),
   /** Node ids every created node must connect to before the batch can be submitted. */
