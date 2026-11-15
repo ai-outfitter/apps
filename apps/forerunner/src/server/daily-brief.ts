@@ -8,6 +8,7 @@ import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEv
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { localDate, shiftDate } from "./review-period";
+import { briefLocations } from "./schema";
 import { latestOpenSuggestions, roleSnapshot, saveRoleSnapshot } from "./suggestions";
 
 export const dailyBriefWorkflow = "forerunner-daily-brief";
@@ -93,7 +94,12 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   if (current?.archived) throw new Response("This daily brief is archived", { status: 409 });
   // Missing provider adapters keep every receipt incomplete; unknown is not zero.
   const status = "incomplete" as const;
-  const saved = (doc: { id: string; revision: number }, outcome: BriefReceipt["outcome"]): BriefReceipt => ({ documentId: doc.id, revision: doc.revision, slug, date: input.date, status, outcome });
+  // Each outcome records where the brief is, so the page reads that document without looking it up.
+  const saved = async (doc: { id: string; revision: number }, outcome: BriefReceipt["outcome"]): Promise<BriefReceipt> => {
+    const location = { installationId: who.installationId, date: input.date, timezone: zone, wikiInstallationId: wiki.installationId, documentId: doc.id };
+    await db.insert(briefLocations).values(location).onConflictDoUpdate({ target: [briefLocations.installationId, briefLocations.date, briefLocations.timezone], set: location });
+    return { documentId: doc.id, revision: doc.revision, slug, date: input.date, status, outcome };
+  };
   // A rerun of a past date never combines today's priorities with a historical brief.
   if (input.date < localDate(now, zone)) {
     if (!current) throw new Response("Historical backfill needs historical priority snapshots", { status: 409 });

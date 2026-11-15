@@ -1,0 +1,1 @@
+CREATE TABLE forerunner_brief_locations (installationId TEXT NOT NULL, date TEXT NOT NULL, timezone TEXT NOT NULL, wikiInstallationId TEXT NOT NULL, documentId TEXT NOT NULL, PRIMARY KEY(installationId,date,timezone));

@@ -1,0 +1,1 @@
+Forerunner now records where each daily brief was saved in the Wiki when it writes it. Today's digest reads that document with a single Wiki request instead of first finding the Wiki and then looking the page up. Briefs saved before this change are still found the old way until the next daily brief is written. See `docs/daily-brief.md`.

@@ -182,6 +182,9 @@ test("capture writes one owner-scoped Wiki document with provenance, reuses unch
   try {
     const first = await captureDailyBrief(f.db, who, f.host, { ...run, runId: "run" }, now);
     assert.equal(first.outcome, "saved");
+    // The run records where the brief is, so the page reads that document without looking it up.
+    const { briefLocations } = await import("../src/server/schema");
+    assert.deepEqual((await f.db.select().from(briefLocations)).map(row => [row.date, row.documentId]), [[first.date, first.documentId]]);
     assert.equal(first.status, "incomplete");
     const doc = f.stored.get(first.slug);
     assert.match(doc?.generatedBody ?? "", /One priority is open\. \(source p1\)/);

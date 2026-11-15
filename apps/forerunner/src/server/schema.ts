@@ -3,6 +3,7 @@ import {
 	type AnySQLiteColumn,
 	index,
 	integer,
+	primaryKey,
 	sqliteTable,
 	text,
 } from "drizzle-orm/sqlite-core";
@@ -62,3 +63,10 @@ export const itemCompletions = sqliteTable("forerunner_item_completions", {
   id: text().primaryKey(), installationId: text().notNull(), ownerId: text().notNull(), itemId: text().notNull(),
   title: text().notNull(), category: text().notNull(), revision: integer().notNull(), completedAt: integer().notNull(),
 }, table => [index("forerunner_completions_owner_date").on(table.installationId, table.ownerId, table.completedAt)]);
+
+// Where each day's brief lives in the Wiki, recorded when it is written, so the page reads that
+// document directly instead of finding the Wiki and the page again on every load.
+export const briefLocations = sqliteTable("forerunner_brief_locations", {
+  installationId: text().notNull(), date: text().notNull(), timezone: text().notNull(),
+  wikiInstallationId: text().notNull(), documentId: text().notNull(),
+}, table => [primaryKey({ columns: [table.installationId, table.date, table.timezone] })]);

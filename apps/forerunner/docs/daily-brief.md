@@ -65,4 +65,6 @@ Only on a day with no readable personal overview does the page read each organiz
 
 Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `wikiProvider`, `briefLookup`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
 
+Forerunner records where it saved each brief (the Wiki installation and document) when it writes one. The digest then reads that document with one Wiki request and does not look the Wiki or the page up again, so `wikiProvider` and `briefLookup` only appear in `timings` when today's brief has no recorded location, for example a brief saved before this was recorded. The Wiki document stays the only copy of the brief.
+
 No section starts source collection, a model request, a workflow, a connector read or a schedule write.
