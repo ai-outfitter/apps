@@ -22,7 +22,11 @@ export type ProjectReleaseReview = {
   documents: Pick<GraphNode, "id" | "title" | "body" | "revision">[];
   /** Screenshots per bundle Document, from the Demonstrations it includes. */
   demonstrations: Record<string, Demonstration[]>;
+  /** Change batches awaiting a member's review that would link evidence to this project. */
+  pending?: PendingEvidence[];
 };
+
+export type PendingEvidence = { batchId: string; title: string };
 
 export type Demonstration = { id: string; title: string; media: string[] };
 
@@ -150,11 +154,41 @@ export async function readProjectReleases(
     if (error instanceof Response && [400, 404].includes(error.status)) return readWikiGraph(host);
     throw error;
   });
+  const graph = productGraph(records);
   return {
     project,
     wiki: records.wiki,
-    ...projectReleaseRecords(productGraph(records), installationId, projectId),
+    ...projectReleaseRecords(graph, installationId, projectId),
+    pending: await pendingEvidence(host, records.wiki.installationId, graph, installationId, projectId),
   };
+}
+
+const pendingBatches = `query PendingEvidence { changeBatches(state: ["awaiting_review"], first: 20) { nodes { id title operations { operation } } } }`;
+
+/** Batches awaiting review that link an evidence bundle to this project's Onto Project:
+ * a new Document with a `documents` edge to it (the bounded project graph may lack that
+ * type, so a bundle Document is also known by its includes_record edges). Shown on the
+ * Evidence page with the review link; a Wiki that cannot answer shows none. */
+export async function pendingEvidence(host: WorkflowHost<"interactive">, wikiId: string, graph: Graph, installationId: string, projectId: string): Promise<PendingEvidence[]> {
+  const anchor = graph.nodes.find((node) => !node.archived && node.source?.installationId === installationId && node.source.type === "project" && node.source.id === projectId);
+  if (!anchor) return [];
+  const projectType = graph.types.find((type) => type.id === anchor.typeId)?.name;
+  const names = new Set([anchor.id, ...(anchor.slug ? [`${projectType}:${anchor.slug}`] : [])]);
+  const documentsType = new Set(["documents", ...graph.types.filter((type) => type.name === "documents").map((type) => type.id)]);
+  let result: Record<string, unknown>;
+  try {
+    result = object(await host.call("actions.call", { installationId: wikiId, action: "graph.graphql", readOnly: true, input: { query: pendingBatches, variables: {} } }));
+  } catch {
+    return [];
+  }
+  return items(object(object(result.data).changeBatches).nodes).map(object).flatMap((batch) => {
+    const operations = items(batch.operations).map((row) => object(object(row).operation));
+    const edges = operations.filter((operation) => operation.type === "graph-edge").map((operation) => object(operation.attributes));
+    const created = new Set(operations.filter((operation) => operation.type === "graph-node").flatMap((operation) => [text(operation.ref), text(object(operation.attributes).id)]).filter(Boolean));
+    const bundle = (id: string) => created.has(id) && edges.some((edge) => text(edge.fromId) === id && "record_revision" in object(edge.properties));
+    const links = edges.some((edge) => names.has(text(edge.toId)) && (documentsType.has(text(edge.typeId)) || bundle(text(edge.fromId))));
+    return links ? [{ batchId: text(batch.id), title: text(batch.title) }] : [];
+  });
 }
 
 const object = (value: unknown): Record<string, unknown> =>

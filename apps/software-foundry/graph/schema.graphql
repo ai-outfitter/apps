@@ -102,6 +102,24 @@ enum SubmitReleaseEvidenceInputAssetsItemVisibility {
   public
 }
 
+input PublishEvidenceInput {
+  bundle: String!
+  projectId: ID!
+  title: String!
+  summary: String
+  body: String!
+  environment: String!
+  capturedAt: String!
+  limitations: [String!]!
+  steps: [PublishEvidenceInputStepsItem!]!
+}
+
+input PublishEvidenceInputStepsItem {
+  title: String!
+  path: String!
+  caption: String
+}
+
 """The request's GitHub issue and the Foundry run working it."""
 type SubmittedRequest {
   id: ID!
@@ -279,6 +297,11 @@ type Mutation {
   Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
   """
   submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
+
+  """
+  Show an uploaded evidence bundle on a Planning project's Evidence page. Name the bundle you uploaded with SubmitReleaseEvidence, the Planning project id, a Markdown body (result counts, environment, limits, how to reproduce) and the screenshots in step order by their bundle path. Foundry stages one Onto change batch (the bundle Document, one numbered Demonstration per screenshot, and their links to the project), submits it for a member's review and returns the review link and the Planning Evidence link. Nothing shows in Planning until a member approves the batch; this never approves it. Repeat with the same input to read the same batch.
+  """
+  publishEvidence(input: PublishEvidenceInput!): JSON
 
   """
   File a feature or bug request against a repository or Foundry project: kind, title, problem, acceptance criteria with ids, and for bugs steps to reproduce, expected and actual. Validated strictly against the work-request schema. Foundry opens the GitHub issue and starts its workflow, which triages, implements, reviews and merges. If execution is unavailable, returns the issue with run: null and execution details; the request is still recorded. Retry with the same requestId; changed content conflicts. Needs editor access.

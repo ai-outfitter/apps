@@ -14,6 +14,10 @@ const legacyDocuments = defineDocuments({
     story:"As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
   },
+  PublishEvidence:{
+    story:"As an agent that uploaded test evidence, I want to put it on the Planning project in one call, so that a member reviews it and then sees the screenshots next to the project's work.",
+    document:graphql(`mutation PublishEvidence($input:PublishEvidenceInput!){publishEvidence(input:$input)}`),
+  },
   Requests:{story:"As a caller, I want to search my feature and bug requests, so that I can find their GitHub issues.",document:`query Requests($input:RequestsInput! = {}) {requests(input:$input)}`},
   WorkTargets: {
     hidden:true,
@@ -38,7 +42,8 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
-  SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
+  SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. Then call PublishEvidence to show the screenshots on a Planning project. No approval or deployment."},
+  PublishEvidence:{description:"Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, capturedAt, limitations and the screenshots in order as steps [{title, path, caption}]. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."
   },

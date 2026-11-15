@@ -1,4 +1,5 @@
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
+import { publishEvidence, publishEvidenceDescription, publishEvidenceInput } from "./publish-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
@@ -146,6 +147,7 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
     submitReleaseEvidence:mutationField<typeof submitReleaseEvidenceInput,FoundryContext>({name:"SubmitReleaseEvidence",description:"Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.",input:submitReleaseEvidenceInput,run:submitReleaseEvidence}),
+    publishEvidence:mutationField<typeof publishEvidenceInput,FoundryContext>({name:"PublishEvidence",description:publishEvidenceDescription,input:publishEvidenceInput,run:publishEvidence}),
     submitRequest: mutationField<typeof requestInput, FoundryContext>({
       name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
       run: submitRequest,

@@ -73,3 +73,9 @@ export const releaseEvidenceUploads = sqliteTable("foundry_release_evidence_uplo
   actor:text().notNull(),originActor:text().notNull(),bundle:text().notNull(),path:text().notNull(),
   metadata:text().notNull(),fingerprint:text().notNull(),expiresAt:integer().notNull(),createdAt:integer().notNull(),
 },row=>[uniqueIndex("foundry_evidence_upload_token").on(row.token),uniqueIndex("foundry_evidence_upload_target").on(row.bundle,row.path)]);
+
+/** One Onto change batch per published evidence bundle (publish-evidence.ts), so a retry reads the same batch. */
+export const evidencePublications = sqliteTable("foundry_evidence_publications", {
+  bundle:text().primaryKey(), fingerprint:text().notNull(), batchId:text().notNull(), documentId:text().notNull(),
+  state:text().notNull(), createdBy:text().notNull(), createdAt:integer().notNull(),
+});

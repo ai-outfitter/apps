@@ -285,3 +285,41 @@ for (const width of [1440, 390])
       await app.dispose();
     }
   });
+
+// Before a member approves the batch, the Evidence page names it with its review link.
+for (const width of [1440, 390])
+  test(`see a test-evidence bundle awaiting review at ${width}px`, async ({ browser }, info) => {
+    const graph = evidenceGraph(evidenceStandardTypes);
+    const waiting = { id: "9b8f1c62-3c1e-4d1e-9c55-0d0a1e0b0001", title: "Evidence: iOS plant confirmation", operations: (await evidenceBundle(graph)).map((operation) => ({ operation })) };
+    const snapshot = () => ({ version: 1, installationId: "wiki", ...graph, selection: null, truncated: false, missingTypes: [] });
+    const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "operational"), "planning", {
+      workflowHost: () => ({
+        async call(operation, raw) {
+          const input = raw as { installationId: string; id: string; action: string; input?: unknown };
+          if (operation === "entities.types") return { ok: true, value: releaseProviders() };
+          if (operation === "entities.get") return projectResult(input);
+          if (operation === "entities.list") return { ok: true, value: [] };
+          if (input.action === "graph.graphql") return { ok: true as const, value: { data: { changeBatches: { nodes: [waiting] } } } };
+          if (input.action === "graph.query") return { ok: true as const, value: await queryGraph(snapshot() as never, input.input as never) };
+          return { ok: true as const, value: snapshot() };
+        },
+      }),
+    });
+    const context = await browser.newContext({ viewport: { width, height: 700 }, javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.route(`${origin}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      return fulfillFrom(route, await app.call(url.pathname + url.search, owner, {
+        workflowHost: { ...owner, installationId: "planning", packageHash: "fixture", phase: "interactive", expiresAt: Date.now() + 3600000 },
+      }));
+    });
+    try {
+      await page.goto(`${origin}/projects/${releaseId(9)}/evidence`);
+      await page.screenshot({ path: info.outputPath(`pending-evidence-${width}.png`), fullPage: true });
+      await expect(page.getByRole("link", { name: waiting.title })).toHaveAttribute("href", new RegExp(`changes/${waiting.id}$`));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    } finally {
+      await context.close();
+      await app.dispose();
+    }
+  });

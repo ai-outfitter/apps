@@ -378,6 +378,36 @@
     "hidden": true
   },
   {
+    "name": "PublishEvidence",
+    "kind": "mutation",
+    "story": "As an agent that uploaded test evidence, I want to put it on the Planning project in one call, so that a member reviews it and then sees the screenshots next to the project's work.",
+    "query": "mutation PublishEvidence($input: PublishEvidenceInput!) {\n  publishEvidence(input: $input)\n}",
+    "hash": "0af9f92c1f49c756895ca1c7acb8ba0ea31893b56343bc1ce7daf861b0cd4087",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Step 2 after SubmitReleaseEvidence: show the uploaded bundle on a Planning project's Evidence page. Give bundle, Planning projectId, title, a Markdown body with the result and limits, environment, capturedAt, limitations and the screenshots in order as steps [{title, path, caption}]. Stages and submits one Onto batch for a member's review and returns reviewUrl and planningUrl; it shows after they approve. Never approve it yourself."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "RepositoryChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to turn Foundry execution on for a repository, so that each change has a durable receipt and explicit next steps.",
@@ -938,7 +968,7 @@
       ]
     },
     "mcp": {
-      "description": "Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."
+      "description": "Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. Then call PublishEvidence to show the screenshots on a Planning project. No approval or deployment."
     },
     "outputSchema": {
       "type": "object",

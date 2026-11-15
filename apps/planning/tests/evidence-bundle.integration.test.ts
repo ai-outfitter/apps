@@ -13,7 +13,7 @@ import { canonicalReleaseProject, releaseId, releaseProviders } from "./fixtures
 // Planning → project → Review evidence shows the Document with its screenshots.
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
-async function evidencePage(graph: Graph, query = "") {
+async function evidencePage(graph: Graph, query = "", pending: unknown[] = []) {
   const snapshot = () => ({ version: 1, installationId: "wiki", ...graph, selection: null, truncated: false, missingTypes: [] });
   const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "operational"), "planning", {
     workflowHost: () => ({
@@ -26,6 +26,7 @@ async function evidencePage(graph: Graph, query = "") {
             : { ok: false, status: 404, message: "Project not found" };
         if (operation === "entities.list") return { ok: true, value: [] };
         assert.equal(operation, "actions.call");
+        if (input.action === "graph.graphql") return { ok: true, value: { data: { changeBatches: { nodes: pending } } } };
         if (input.action === "graph.query") return { ok: true, value: await queryGraph(snapshot() as never, input.input as never) };
         return { ok: true, value: snapshot() };
       },
@@ -78,5 +79,17 @@ test("Demonstrations without includes_record edges leave the Document without sc
   approve(graph, (await bundle(graph)).filter((op) => !op.ref.startsWith("$evidence-includes")));
   const { html } = await evidencePage(graph);
   assert.match(html, /1 XCUITest passed/);
+  assert.deepEqual(images(html), []);
+});
+
+test("a bundle awaiting review is named on the Evidence page with its review link, before anything is approved", async () => {
+  const graph = baseGraph(standard);
+  const ops = await bundle(graph);
+  const unrelated = { id: "batch-other", title: "Competitor research", operations: [{ operation: { type: "graph-node", attributes: { title: "Acme" } } }] };
+  const waiting = { id: "batch-evidence", title: "Evidence: iOS happy path", operations: ops.map((op) => ({ operation: op })) };
+  const { status, html } = await evidencePage(graph, "", [unrelated, waiting]);
+  assert.equal(status, 200);
+  assert.match(html, /Waiting for review, shown here once approved: <a href="[^"]*changes\/batch-evidence">Evidence: iOS happy path<\/a>/);
+  assert.doesNotMatch(html, /Competitor research/);
   assert.deepEqual(images(html), []);
 });

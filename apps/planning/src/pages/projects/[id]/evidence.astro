@@ -30,11 +30,13 @@ const project = !error && !document ? (demo ? demoProjectPage() : await projectP
 const legacy = project ? [project.demoInstructions, project.demoResults].filter(Boolean).join("\n\n") : "";
 const firstHeading = document?.body.match(/^\s*#{1,6}\s+(.+?)\s*#*\s*(?:\r?\n|$)/)?.[1]?.trim();
 const bodyHasTitle = firstHeading === document?.title.trim();
+const pending = (model?.pending ?? []).map(batch => ({ ...batch, href: model?.wiki ? wikiPageHref(model.wiki, requestPageURL(Astro.request), `changes/${batch.batchId}`) : "" }));
 ---
 <Layout title="Evidence" description={model?.project.title ?? "Review this project's supporting evidence."} wiki={model?.wiki ?? null}>
   <div slot="intro-actions"><Button href={appHref(Astro.url.pathname, `/projects/${projectId}`)} variant="secondary">← Back to project</Button></div>
   {demo && <p class="planning-notice">Read-only demo · These evidence records are synthetic.</p>}
   {error ? <p role="alert">{error}</p> : <>
+    {pending.length > 0 && <p class="muted planning-evidence-pending">Waiting for review, shown here once approved: {pending.map((batch, i) => <>{i > 0 && ", "}{batch.href ? <a href={batch.href}>{batch.title}</a> : batch.title}</>)}</p>}
     {documents.length > 1 && <nav class="planning-toolbar planning-release-records" aria-label="Evidence records">
       {documents.map(node => <Button href={`?bundle=${node.id}`} variant="secondary" aria-current={document?.id === node.id ? "page" : undefined}>{node.title}</Button>)}
     </nav>}
