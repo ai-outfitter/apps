@@ -1,4 +1,5 @@
 import { GraphQLEnumType, GraphQLError, GraphQLScalarType, Kind, valueFromASTUntyped } from "graphql";
+import type { Order } from "./graph-graphql-source";
 
 export const JSONScalar = new GraphQLScalarType({
   name: "JSON", description: "Any JSON value.",
@@ -23,4 +24,20 @@ export const ArchivedEnum = new GraphQLEnumType({
 });
 export const DirectionEnum = new GraphQLEnumType({
   name: "Direction", values: { OUTGOING: { value: "outgoing" }, INCOMING: { value: "incoming" }, BOTH: { value: "both" } },
+});
+
+/** orderBy values: a record column, ascending or descending, then the ID in the same direction.
+ * ID_ASC is the default, so cursors made before orderBy keep their meaning. */
+export const orders = {
+  ID_ASC: { field: "id", descending: false }, ID_DESC: { field: "id", descending: true },
+  CREATED_AT_ASC: { field: "createdAt", descending: false }, CREATED_AT_DESC: { field: "createdAt", descending: true },
+  UPDATED_AT_ASC: { field: "updatedAt", descending: false }, UPDATED_AT_DESC: { field: "updatedAt", descending: true },
+  TITLE_ASC: { field: "title", descending: false }, TITLE_DESC: { field: "title", descending: true },
+} as const satisfies Record<string, Order>;
+export type OrderName = keyof typeof orders;
+export const isOrderName = (value: unknown): value is OrderName => typeof value === "string" && Object.hasOwn(orders, value);
+/** An orderBy enum for one connection's records. */
+export const orderEnum = (name: string, records: string) => new GraphQLEnumType({
+  name, description: `How ${records} are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.`,
+  values: Object.fromEntries(Object.keys(orders).map(value => [value, { value }])),
 });

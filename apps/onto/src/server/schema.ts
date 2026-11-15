@@ -60,6 +60,11 @@ export const graphNodes = sqliteTable(
   (t) => [
     uniqueIndex("graph_nodes_type_slug").on(t.typeId, t.slug),
     uniqueIndex("graph_nodes_external_key").on(t.externalKey),
+    // A collection page reads its type in orderBy order (graph-source.ts), never the whole type.
+    index("graph_nodes_type_id").on(t.typeId, t.id),
+    index("graph_nodes_type_created").on(t.typeId, t.createdAt, t.id),
+    index("graph_nodes_type_updated").on(t.typeId, t.updatedAt, t.id),
+    index("graph_nodes_type_title").on(t.typeId, t.title, t.id),
   ],
 );
 

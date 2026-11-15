@@ -48,7 +48,12 @@ import { buildGraphSchema, type GraphSchemaOptions } from "./graph-graphql-schem
 import { type GraphSource, memorySource } from "./graph-graphql-source";
 
 export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-names";
-export { type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, memorySource, type NodeQuery, type PropertyFilter, sourceKey, type SourceRef } from "./graph-graphql-source";
+export {
+  type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
+  type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPageQuery,
+  type RelationRow, sourceKey, type SourceRef,
+} from "./graph-graphql-source";
+export { type OrderName, orders } from "./graph-graphql-scalars";
 export { type GraphContext, graphContext } from "./graph-graphql-resolve";
 export { buildGraphSchema, type GraphSchemaOptions, type KeyArgs } from "./graph-graphql-schema";
 export { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar } from "./graph-graphql-scalars";

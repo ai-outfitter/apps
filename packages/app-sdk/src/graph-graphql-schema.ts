@@ -1,13 +1,16 @@
 // Builds the GraphQL schema of one graph from its type rows. Naming rules are in
 // graph-graphql.ts; layout decisions in graph-graphql-names.ts.
 import {
-  GraphQLBoolean, GraphQLError, type GraphQLFieldConfig, type GraphQLFieldConfigArgumentMap, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID, GraphQLInt,
+  GraphQLBoolean, type GraphQLEnumType, GraphQLError, type GraphQLFieldConfig, type GraphQLFieldConfigArgumentMap, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID, GraphQLInt,
   GraphQLInterfaceType, GraphQLList, type GraphQLNamedType, GraphQLNonNull, GraphQLObjectType, type GraphQLOutputType, GraphQLSchema, GraphQLString, printSchema,
+  type GraphQLResolveInfo,
 } from "graphql";
 import { type EdgeLayout, type NodeLayout, type SchemaLayout, schemaLayout, type TypeRow } from "./graph-graphql-names";
-import { connection, type GraphContext, idList, meterFields, type PageArgs, pageStart, take, traverse, type TraverseArgs, validAt, validFrom, validUntil, visible } from "./graph-graphql-resolve";
-import { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar } from "./graph-graphql-scalars";
-import type { ArchivedFilter, GraphRow } from "./graph-graphql-source";
+import {
+  type GraphContext, idList, meterFields, type OrderedPageArgs, orderedPage, orderedStart, type PageArgs, take, traverse, type TraverseArgs, validFrom, validUntil, visible,
+} from "./graph-graphql-resolve";
+import { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar, orderEnum, orders } from "./graph-graphql-scalars";
+import { type ArchivedFilter, type GraphRow, keyOf, type NodeFilter, pageRows, type RelationCountAsk } from "./graph-graphql-source";
 
 type Fields = GraphQLFieldConfigMap<GraphRow, GraphContext>;
 type RootFields = GraphQLFieldConfigMap<unknown, GraphContext>;
@@ -47,6 +50,9 @@ const traverseArgs: GraphQLFieldConfigArgumentMap = {
   archived: { type: ArchivedEnum, defaultValue: "exclude" },
 };
 const pageArgs: GraphQLFieldConfigArgumentMap = { first: { type: GraphQLInt, defaultValue: 100 }, after: { type: GraphQLString } };
+/** first (default 100, at most 500), after and orderBy (default ID_ASC). */
+const orderedArgs = (order: GraphQLEnumType): GraphQLFieldConfigArgumentMap => ({ ...pageArgs, orderBy: { type: order, defaultValue: "ID_ASC" } });
+type RelationArgs = TraverseArgs & OrderedPageArgs;
 const strings = new GraphQLList(nonNull(GraphQLString));
 
 function propertyFields(properties: (NodeLayout | EdgeLayout)["properties"]): Fields {
@@ -141,7 +147,31 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   });
   const objects = new Map<string, GraphQLObjectType>();
   const connections = new Map<string, GraphQLObjectType>();
+  const orderEnums = new Map([...layout.nodes.values()].map(node => [node.type.id, orderEnum(node.order, `${node.name} records`)]));
+  const connectionOf = (name: string, item: GraphQLOutputType) => new GraphQLObjectType({ name, fields: () => ({
+    nodes: { type: list(item) }, pageInfo: { type: nonNull(PageInfo) }, aggregate: { type: nonNull(Aggregate) },
+  }) });
+  /** Shared and edge connections are made only when a field returns them. */
+  const lazy = <T>(make: () => T) => { let made: T | undefined; return () => (made ??= make()); };
+  const nodeConnection = lazy(() => connectionOf(layout.shared.nodeConnection, Node));
+  const nodeOrder = lazy(() => orderEnum(layout.shared.nodeOrder, "nodes"));
+  const edgeOrder = lazy(() => orderEnum(layout.shared.edgeOrder, "edges"));
+  const edgeConnections = new Map([...layout.edges.values()].map(edge => [edge.type.id, lazy(() => connectionOf(edge.connection, objects.get(edge.type.id) as GraphQLObjectType))]));
   const target = (ids: string[]) => (ids.length === 1 && objects.get(ids[0])) || Node;
+  /** The connection and orderBy of a field reaching these node types (the Node interface's for several). */
+  const reaching = (ids: string[]) => (ids.length === 1 && connections.has(ids[0])
+    ? { connection: connections.get(ids[0]) as GraphQLObjectType, order: orderEnums.get(ids[0]) as GraphQLEnumType }
+    : { connection: nodeConnection(), order: nodeOrder() });
+  const allNodeTypes = [...layout.nodes.keys()];
+  /** One parent's page of a relationship, batched with every other parent asking the same; counted only when aggregate is selected. */
+  async function relationConnection(context: GraphContext, info: GraphQLResolveInfo, parentId: string, ask: RelationCountAsk, args: RelationArgs) {
+    const start = orderedStart(args);
+    const rows = await context.loader.relation({ ...ask, order: start.order, first: start.first, after: start.after }, parentId);
+    const records = rows.map(row => (ask.rows === "node" ? row.node : row.edge));
+    return orderedPage(context, info, records, row => keyOf(row, start.order), start, args.after, () => context.loader.relationCount(ask, parentId));
+  }
+  /** What traversal keeps of a relationship: visible under `archived`, valid at `at`. */
+  const reach = (args: TraverseArgs) => ({ archived: args.archived ?? "exclude", ...(args.at ? { at: args.at } : {}) });
 
   for (const edge of layout.edges.values()) objects.set(edge.type.id, new GraphQLObjectType<GraphRow, GraphContext>({
     name: edge.name, interfaces: [Edge], description: String(edge.type.title ?? edge.type.name),
@@ -156,22 +186,31 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
         ...slotFields(node), ...relationshipFields(node), ...reverseFields(node), ...record,
       }),
     }));
-    connections.set(node.type.id, new GraphQLObjectType({ name: node.connection, fields: () => ({
-      nodes: { type: list(objects.get(node.type.id) as GraphQLObjectType) }, pageInfo: { type: nonNull(PageInfo) }, aggregate: { type: nonNull(Aggregate) },
-    }) }));
+    connections.set(node.type.id, connectionOf(node.connection, objects.get(node.type.id) as GraphQLObjectType));
   }
 
+  /** Relationships are connections: one bounded, ordered page per parent, read for every parent at once. */
   function relationshipFields(node: NodeLayout): Fields {
-    return Object.fromEntries(node.relationships.map(relation => [relation.field, {
-      type: list(relation.edges ? objects.get(relation.edgeType.id) as GraphQLObjectType : target(relation.targets)),
-      args: traverseArgs,
-      resolve: async (row: GraphRow, args: TraverseArgs, context: GraphContext, info) => {
-        if (relation.projection) return take(context, info, await projected(context, row, relation.projection, args));
-        const found = (await traverse(context, row.id, [relation.edgeType.id], relation.direction, args))
-          .filter(({ other }) => knownNode(other) && (!relation.targets.length || relation.targets.includes(other.typeId)));
-        return take(context, info, found.map(({ edge, other }) => (relation.edges ? edge : other)));
-      },
-    } satisfies GraphQLFieldConfig<GraphRow, GraphContext>]));
+    return Object.fromEntries(node.relationships.map(relation => {
+      const { connection, order } = relation.edges
+        ? { connection: (edgeConnections.get(relation.edgeType.id) as () => GraphQLObjectType)(), order: edgeOrder() }
+        : reaching(relation.targets);
+      return [relation.field, {
+        type: nonNull(connection),
+        args: { ...orderedArgs(order), ...traverseArgs },
+        resolve: async (row: GraphRow, args: RelationArgs, context: GraphContext, info) => {
+          if (relation.projection) {
+            // A projection walks two hops through the relator; it is paged over what that walk reached.
+            const start = orderedStart(args);
+            const reached = await projected(context, row, relation.projection, args);
+            return orderedPage(context, info, pageRows(reached, other => keyOf(other, start.order), start), other => keyOf(other, start.order), start, args.after,
+              async () => reached.length);
+          }
+          return relationConnection(context, info, row.id, { edgeTypeIds: [relation.edgeType.id], direction: relation.direction,
+            targetTypeIds: relation.targets.length ? relation.targets : allNodeTypes, rows: relation.edges ? "edge" : "node", ...reach(args) }, args);
+        },
+      } satisfies GraphQLFieldConfig<GraphRow, GraphContext>];
+    }));
   }
   /** Participants of `to` in the relators this row joins through `via`; never the row itself. */
   async function projected(context: GraphContext, row: GraphRow, { relatorTypeId, via, to }: NonNullable<NodeLayout["relationships"][number]["projection"]>, args: TraverseArgs) {
@@ -199,24 +238,29 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     return Object.fromEntries(node.reverse.map(({ field, relator, slots }) => [field, {
       type: nonNull(connections.get(relator.id) as GraphQLObjectType),
       description: `as: ${slots.map(slot => slot.name).join(", ")}`,
-      args: { as: { type: GraphQLString }, ...pageArgs, ...traverseArgs },
-      resolve: async (row: GraphRow, args: TraverseArgs & PageArgs & { as?: string }, context: GraphContext, info) => {
-        const lists = await Promise.all(slots.filter(slot => !args.as || slot.name === args.as)
-          .map(slot => traverse(context, row.id, [slot.edgeTypeId], "both", args)));
-        return connection(context, info, lists.flat().map(({ other }) => other).filter(other => other.typeId === relator.id), args);
+      args: { as: { type: GraphQLString }, ...orderedArgs(orderEnums.get(relator.id) as GraphQLEnumType), ...traverseArgs },
+      resolve: async (row: GraphRow, args: RelationArgs & { as?: string }, context: GraphContext, info) => {
+        const edgeTypeIds = [...new Set(slots.filter(slot => !args.as || slot.name === args.as).map(slot => slot.edgeTypeId))];
+        if (!edgeTypeIds.length) return collectionPage(null, args, context, info);
+        return relationConnection(context, info, row.id, { edgeTypeIds, direction: "both", targetTypeIds: [relator.id], rows: "node", ...reach(args) }, args);
       },
     } satisfies GraphQLFieldConfig<GraphRow, GraphContext>]));
   }
 
-  type CollectionArgs = PageArgs & { archived: ArchivedFilter; ids?: string[]; slugs?: string[]; text?: string; at?: string };
-  const searchConnection = new GraphQLObjectType({ name: "SearchConnection", fields: {
-    nodes: { type: list(Node) }, pageInfo: { type: nonNull(PageInfo) }, aggregate: { type: nonNull(Aggregate) },
-  } });
-  const searchRows = async (args: { text: string; types?: string[] }, context: GraphContext) => {
+  type CollectionArgs = OrderedPageArgs & { archived: ArchivedFilter; ids?: string[]; slugs?: string[]; text?: string; at?: string };
+  const searchConnection = connectionOf("SearchConnection", Node);
+  /** What a search matches, or null when it names no type of this schema. */
+  const searchFilter = (args: { text: string; types?: string[] }): NodeFilter | null => {
     const text = args.text.trim();
     if (!text || text.length > 256) throw new GraphQLError("text must be 1-256 characters", { extensions: { code: "BAD_USER_INPUT" } });
-    const ids = nodeTypes(args.types) ?? [...layout.nodes.keys()];
-    return ids.length ? (await context.loader.nodes({ typeIds: ids, text, archived: "exclude" })).filter(knownNode) : [];
+    const typeIds = nodeTypes(args.types) ?? allNodeTypes;
+    return typeIds.length ? { typeIds, text, archived: "exclude" } : null;
+  };
+  /** A collection's page, read bounded by the source; counted only when aggregate is selected. */
+  const collectionPage = async (filter: NodeFilter | null, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
+    const start = orderedStart(args);
+    const rows = filter ? await context.loader.nodePage({ ...filter, order: start.order, first: start.first, after: start.after }) : [];
+    return orderedPage(context, info, rows, row => keyOf(row, start.order), start, args.after, async () => (filter ? context.loader.nodeCount(filter) : 0));
   };
   const roots: RootFields = {
     sdl: { type: nonNull(GraphQLString), description: "This schema in SDL: a compact alternative to full introspection.", resolve: (_root, _args, _context, info) => printSchema(info.schema) },
@@ -227,7 +271,8 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
       args: { text: { type: nonNull(GraphQLString) }, types: { type: strings, description: "Node type names or IDs." }, first: { type: GraphQLInt, defaultValue: 20 } },
       resolve: async (_root, args: { text: string; types?: string[]; first: number }, context, info) => {
         if (args.first < 0 || args.first > 100) throw new GraphQLError("first must be between 0 and 100", { extensions: { code: "BAD_USER_INPUT" } });
-        return take(context, info, (await searchRows(args, context)).slice(0, args.first));
+        const filter = searchFilter(args);
+        return take(context, info, filter ? (await context.loader.nodePage({ ...filter, order: orders.ID_ASC, first: args.first, after: null })).slice(0, args.first) : []);
       },
     },
     searchConnection: {
@@ -235,8 +280,7 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
       description: "Case-insensitive text match over IDs, titles, bodies and stored data. Unarchived nodes in ID order, with a total count and cursor pagination. Continue with pageInfo.endCursor as after until hasNextPage is false; keep text, types and Wiki scope unchanged.",
       args: { text: { type: nonNull(GraphQLString) }, types: { type: strings, description: "Node type names or IDs." }, ...pageArgs },
       resolve: async (_root, args: { text: string; types?: string[] } & PageArgs, context, info) => {
-        pageStart(args);
-        return connection(context, info, await searchRows(args, context), args);
+        return collectionPage(searchFilter(args), args, context, info);
       },
     },
   };
@@ -245,15 +289,14 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     roots[node.single] = { ...byKey(row => row.typeId === node.type.id), type: object };
     roots[node.collection] = {
       type: nonNull(connections.get(node.type.id) as GraphQLObjectType),
-      args: { ...pageArgs, archived: traverseArgs.archived, ids: { type: new GraphQLList(nonNull(GraphQLID)) }, slugs: { type: strings, description: "Exact slugs." }, text: { type: GraphQLString }, at: traverseArgs.at },
-      resolve: async (_root, args: CollectionArgs, context, info) => {
-        const rows = await context.loader.nodes({ typeIds: [node.type.id], archived: args.archived, ...(args.ids ? { ids: idList(args.ids) } : {}),
-          ...(args.slugs ? { slugs: idList(args.slugs, "slugs") } : {}), ...(args.text?.trim() ? { text: args.text.trim() } : {}) });
-        return connection(context, info, rows.filter(row => visible(row, args.archived, false) && validAt(row, args.at)), args);
-      },
+      args: { ...orderedArgs(orderEnums.get(node.type.id) as GraphQLEnumType), archived: traverseArgs.archived, ids: { type: new GraphQLList(nonNull(GraphQLID)) },
+        slugs: { type: strings, description: "Exact slugs." }, text: { type: GraphQLString }, at: traverseArgs.at },
+      resolve: async (_root, args: CollectionArgs, context, info) => collectionPage({ typeIds: [node.type.id], archived: args.archived,
+        ...(args.ids ? { ids: idList(args.ids) } : {}), ...(args.slugs ? { slugs: idList(args.slugs, "slugs") } : {}),
+        ...(args.text?.trim() ? { text: args.text.trim() } : {}), ...(args.at ? { at: args.at } : {}) }, args, context, info),
     };
   }
-  for (const type of [Node, Edge, ...objects.values(), ...connections.values()]) generated.set(type.name, type);
+  for (const type of [Node, Edge, ...objects.values(), ...connections.values(), ...orderEnums.values()]) generated.set(type.name, type);
   const added = extensions ?? (options.rootExtensions as (generated: Map<string, GraphQLNamedType>) => RootFields)(generated);
   const taken = Object.keys(added).filter(name => Object.hasOwn(roots, name));
   if (taken.length) throw new Error(`rootExtensions ${taken.join(", ")} collide with generated root fields; list them in rootFieldNames`);

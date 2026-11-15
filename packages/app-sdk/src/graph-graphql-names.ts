@@ -58,8 +58,15 @@ export type Relationship = { field: string; edgeType: TypeRow; direction: "outgo
 export type SlotField = { field: string; slot: Slot; relator: TypeRow };
 export type ReverseSlot = { field: string; relator: TypeRow; slots: Slot[] };
 export type NodeLayout = { type: TypeRow; name: string; connection: string; single: string; collection: string;
+  /** The orderBy enum of this type's connections. */
+  order: string;
   properties: { field: string; property: Property }[]; relationships: Relationship[]; slots: SlotField[]; reverse: ReverseSlot[] };
-export type EdgeLayout = { type: TypeRow; name: string; properties: { field: string; property: Property }[] };
+export type EdgeLayout = { type: TypeRow; name: string; properties: { field: string; property: Property }[];
+  /** The connection of this type's edge objects (`…Edges` fields). */
+  connection: string };
+/** Names the generator shares across types: the connection and orderBy of fields that may reach
+ * several node types, and the orderBy of edge connections. */
+export type SharedNames = { nodeConnection: string; nodeOrder: string; edgeOrder: string };
 /** Names a caller adds to the schema, kept away from generated names. */
 export type ReservedNames = { rootFieldNames?: string[]; typeNames?: string[]; recordFieldNames?: string[] };
 
@@ -86,11 +93,11 @@ function addType(layout: Layout, type: TypeRow, typeScope: Scope, root: Scope, r
       return [];
     });
   };
-  if (type.category === "edge") { layout.edges.set(type.id, { type, name, properties: props(edgeBaseFields) }); return; }
+  if (type.category === "edge") { layout.edges.set(type.id, { type, name, properties: props(edgeBaseFields), connection: "" }); return; }
   const connection = typeScope(`${name}Connection`, type);
   const collection = root(collectionName(type.name), type);
   const single = root(collection === fieldName(type.name) ? `${fieldName(type.name)}ById` : fieldName(type.name), type);
-  layout.nodes.set(type.id, { type, name, connection, single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]),
+  layout.nodes.set(type.id, { type, name, connection, order: "", single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]),
     relationships: [], slots: [], reverse: [] });
 }
 
@@ -143,10 +150,15 @@ export function schemaLayout(rows: TypeRow[], reserved: ReservedNames = {}) {
   const root = nameScope([...reservedRootFields, ...reserved.rootFieldNames ?? []], layout.warnings, "root field");
   const types = rows.filter(type => !type.archived && (type.category === "node" || type.category === "edge")).sort(byAge);
   for (const type of types) addType(layout, type, typeScope, root, reserved.recordFieldNames ?? []);
+  // Orders and edge connections are named after every type, so a type's own name is never taken by them.
+  for (const node of layout.nodes.values()) node.order = typeScope(`${node.name}Order`, node.type);
+  for (const edge of layout.edges.values()) edge.connection = typeScope(`${edge.name}Connection`, edge.type);
+  const own = (name: string) => typeScope(name, { id: name, name });
+  const shared: SharedNames = { nodeConnection: own("NodeConnection"), nodeOrder: own("NodeOrder"), edgeOrder: own("EdgeOrder") };
   for (const node of layout.nodes.values())
     for (const slot of slotsOf(node.type)) node.slots.push({ field: scopeOf(layout, node.type.id)(slot.name, node.type), slot, relator: node.type });
   for (const { type } of layout.edges.values()) addRelationships(layout, type);
   for (const node of layout.nodes.values()) addReverseSlots(layout, node);
-  return { nodes: layout.nodes, edges: layout.edges, warnings: layout.warnings };
+  return { nodes: layout.nodes, edges: layout.edges, shared, warnings: layout.warnings };
 }
 export type SchemaLayout = ReturnType<typeof schemaLayout>;

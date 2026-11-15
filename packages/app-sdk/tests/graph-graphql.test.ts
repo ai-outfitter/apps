@@ -96,24 +96,26 @@ test("relator slots resolve participants and participants list their relators", 
 test("edge types give outgoing, incoming and edge-object fields; unconstrained edges go through edges()", async () => {
   const result = await run(`{
     person(id: "${uuid(101)}") {
-      reportsToIncoming { title }
-      reportsToIncomingEdges { __typename status evidence validFrom from { title } }
-      during: reportsToIncoming(at: "2026-07-01T00:00:00Z") { title }
-      withArchived: reportsToIncoming(archived: INCLUDE) { title }
-      archivedOnly: reportsToIncoming(archived: ONLY) { title }
+      reportsToIncoming { nodes { title } }
+      reportsToIncomingEdges { nodes { __typename status evidence validFrom from { title } } }
+      during: reportsToIncoming(at: "2026-07-01T00:00:00Z") { nodes { title } }
+      withArchived: reportsToIncoming(archived: INCLUDE) { nodes { title } aggregate { count } }
+      archivedEdges: reportsToIncomingEdges(archived: INCLUDE) { aggregate { count } }
+      archivedOnly: reportsToIncoming(archived: ONLY) { nodes { title } }
       edges(types: ["mentions"], direction: OUTGOING) { __typename typeId to { title } }
-      commitmentOwnerIncoming { title }
+      commitmentOwnerIncoming { nodes { title } }
     }
-    grace: person(id: "${uuid(102)}") { reportsTo { title } }
+    grace: person(id: "${uuid(102)}") { reportsTo { nodes { title } } }
   }`);
   assert.equal(result.errors, undefined);
+  const nodes = (...titles: string[]) => ({ nodes: titles.map(title => ({ title })) });
   assert.deepEqual(result.data, { person: {
-    reportsToIncoming: [{ title: "Grace" }],
-    reportsToIncomingEdges: [{ __typename: "ReportsTo", status: "active", evidence: "org chart", validFrom: "2026-01-01T00:00:00Z", from: { title: "Grace" } }],
-    during: [], withArchived: [{ title: "Grace" }, { title: "Gone" }, { title: "Retired" }, { title: "Grace" }], archivedOnly: [{ title: "Grace" }],
+    reportsToIncoming: nodes("Grace"),
+    reportsToIncomingEdges: { nodes: [{ __typename: "ReportsTo", status: "active", evidence: "org chart", validFrom: "2026-01-01T00:00:00Z", from: { title: "Grace" } }] },
+    during: nodes(), withArchived: { ...nodes("Grace", "Gone", "Retired"), aggregate: { count: 3 } }, archivedEdges: { aggregate: { count: 4 } }, archivedOnly: nodes("Grace"),
     edges: [{ __typename: "Mentions", typeId: uuid(14), to: { title: "Platform" } }],
-    commitmentOwnerIncoming: [{ title: "Ada reviews" }],
-  }, grace: { reportsTo: [{ title: "Ada" }] } }, "archived and retired records are hidden by default");
+    commitmentOwnerIncoming: nodes("Ada reviews"),
+  }, grace: { reportsTo: nodes("Ada") } }, "archived and retired records are hidden by default; a node reached twice is listed once");
 });
 
 test("archived records by ID only when asked for; ids are bounded", async () => {
@@ -127,7 +129,7 @@ test("by-key roots take a slug, an ID or a node address, never both; collections
   const result = await run(`{
     addressed: node(id: "Person:ada") { slug }
     wrongAddress: node(id: "Control:ada") { slug }
-    ada: person(slug: "ada") { id title reportsToIncoming { slug } }
+    ada: person(slug: "ada") { id title reportsToIncoming { nodes { slug } } }
     any: node(slug: "reviews") { __typename slug }
     wrongType: team(slug: "ada") { title }
     missing: person(slug: "nobody") { title }
@@ -138,7 +140,7 @@ test("by-key roots take a slug, an ID or a node address, never both; collections
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
   assert.deepEqual(result.data, {
     addressed: { slug: "ada" }, wrongAddress: null,
-    ada: { id: uuid(101), title: "Ada", reportsToIncoming: [{ slug: "grace" }] }, any: { __typename: "Control", slug: "reviews" },
+    ada: { id: uuid(101), title: "Ada", reportsToIncoming: { nodes: [{ slug: "grace" }] } }, any: { __typename: "Control", slug: "reviews" },
     wrongType: null, missing: null, gone: null, asked: { title: "Gone" },
     persons: { nodes: [{ slug: "ada" }, { slug: "grace" }], aggregate: { count: 2 } },
   });
@@ -167,23 +169,70 @@ test("caller names are reserved: record fields, root fields and type names", asy
 });
 
 test("projection edge types reach the other participants through the relator", async () => {
-  const result = await run(`{ person(id: "${uuid(101)}") { pairedWith { title } pairings(as: "member") { nodes { member { title } } } } }`);
-  assert.deepEqual(result.data, { person: { pairedWith: [{ title: "Grace" }], pairings: { nodes: [{ member: [{ title: "Ada" }, { title: "Grace" }] }] } } });
+  const result = await run(`{ person(id: "${uuid(101)}") { pairedWith { nodes { title } aggregate { count } } pairings(as: "member") { nodes { member { title } } } } }`);
+  assert.deepEqual(result.data, { person: { pairedWith: { nodes: [{ title: "Grace" }], aggregate: { count: 1 } }, pairings: { nodes: [{ member: [{ title: "Ada" }, { title: "Grace" }] }] } } });
 });
 
 test("resolvers batch source calls by level, not by record", async () => {
   const calls: string[] = [];
   const memory = memorySource(snapshot);
   const source: GraphSource = {
-    types: memory.types,
+    ...memory,
     nodes: query => { calls.push(`nodes:${query.ids ? "ids" : "type"}`); return memory.nodes(query); },
     edges: query => { calls.push(`edges:${query.typeIds?.join(",")}:${query.fromIds ? "from" : "to"}`); return memory.edges(query); },
+    nodePage: query => { calls.push(`nodePage:${query.first}`); return memory.nodePage(query); },
+    relationPage: query => { calls.push(`relationPage:${query.parentIds.length}`); return memory.relationPage(query); },
+    relationCount: query => { calls.push(`relationCount:${query.parentIds.length}`); return memory.relationCount(query); },
   };
   const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
-    query: `{ commitments { nodes { owner { title } control { title } } } }` });
+    query: `{ commitments { nodes { owner { title } control { title } commitmentOwnerEdges { nodes { id } aggregate { count } } } } }` });
   assert.equal(result.errors, undefined);
-  // One collection read, one edge read per (slot edge type, direction), one ID read for every participant.
-  assert.deepEqual(calls.sort(), ["edges:" + uuid(11) + ":from", "edges:" + uuid(11) + ":to", "edges:" + uuid(12) + ":from", "edges:" + uuid(12) + ":to", "nodes:ids", "nodes:type"]);
+  // One collection page, one edge read per (slot edge type, direction), one ID read for every participant,
+  // and one relationship page and count for both commitments.
+  assert.deepEqual(calls.sort(), ["edges:" + uuid(11) + ":from", "edges:" + uuid(11) + ":to", "edges:" + uuid(12) + ":from", "edges:" + uuid(12) + ":to", "nodePage:100", "nodes:ids",
+    "relationCount:2", "relationPage:2"]);
+});
+
+test("relationship connections page each parent in order, read for every parent at once", async () => {
+  // Three teams, each led by people created in a different order than their IDs.
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })],
+    nodes: [...snapshot.nodes, ...[0, 1, 2].map(n => node(40 + n, 2, `Team ${n}`)),
+      ...Array.from({ length: 9 }, (_, n) => node(50 + n, 1, `Lead ${n}`, { createdAt: 1_000 - n * 10 }))],
+    edges: [...snapshot.edges, ...Array.from({ length: 9 }, (_, n) => edge(50 + n, 30, 40 + (n % 3), 50 + n))] };
+  const relationPages: number[] = [];
+  const memory = memorySource(leads);
+  const source: GraphSource = { ...memory, relationPage: query => { relationPages.push(query.parentIds.length); return memory.relationPage(query); } };
+  type LeadPage = { nodes: { title: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null }; aggregate?: { count: number } };
+  const read = async (after: Record<string, string | null> = {}) => {
+    const result = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, variables: after,
+      query: `query($a: String, $b: String, $c: String) {
+        a: team(id: "${uuid(140)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $a) { nodes { title } pageInfo { hasNextPage endCursor } aggregate { count } } }
+        b: team(id: "${uuid(141)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $b) { nodes { title } pageInfo { hasNextPage endCursor } } }
+        c: team(id: "${uuid(142)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $c) { nodes { title } pageInfo { hasNextPage endCursor } } }
+      }` });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    return Object.fromEntries(Object.entries(result.data as Record<string, { leads: LeadPage }>).map(([key, value]) => [key, value.leads]));
+  };
+  const first = await read();
+  const titles = (page: LeadPage) => page.nodes.map(item => item.title);
+  // Team 0 leads 0, 3, 6 (created last to first: 6, 3, 0); team 1 leads 1, 4, 7; team 2 leads 2, 5, 8.
+  assert.deepEqual([titles(first.a), titles(first.b), titles(first.c)], [["Lead 6", "Lead 3"], ["Lead 7", "Lead 4"], ["Lead 8", "Lead 5"]]);
+  assert.ok([first.a, first.b, first.c].every(page => page.pageInfo.hasNextPage && page.pageInfo.endCursor));
+  assert.equal(first.a.aggregate?.count, 3);
+  assert.deepEqual(relationPages, [3], "one page read answers all three teams");
+  const next = await read({ a: first.a.pageInfo.endCursor, b: first.b.pageInfo.endCursor, c: first.c.pageInfo.endCursor });
+  assert.deepEqual([titles(next.a), titles(next.b), titles(next.c)], [["Lead 0"], ["Lead 1"], ["Lead 2"]]);
+  assert.ok([next.a, next.b, next.c].every(page => !page.pageInfo.hasNextPage));
+  // A cursor continues only the order it was made with.
+  const mixed = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, variables: { after: first.a.pageInfo.endCursor },
+    query: `query($after: String) { team(id: "${uuid(140)}") { leads(orderBy: TITLE_DESC, after: $after) { nodes { title } } } }` });
+  assert.equal(mixed.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+  const descending = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536,
+    query: `{ team(id: "${uuid(140)}") { leads(orderBy: TITLE_DESC, first: 500) { nodes { title } } } persons(orderBy: CREATED_AT_DESC, first: 2) { nodes { title } } }` });
+  assert.deepEqual(JSON.parse(JSON.stringify(descending.data)), { team: { leads: { nodes: [{ title: "Lead 6" }, { title: "Lead 3" }, { title: "Lead 0" }] } },
+    persons: { nodes: [{ title: "Lead 0" }, { title: "Lead 1" }] } });
+  const tooMany = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, query: `{ team(id: "${uuid(140)}") { leads(first: 501) { nodes { title } } } }` });
+  assert.equal(tooMany.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
 });
 
 test("node, search and privacy", async () => {
@@ -197,9 +246,11 @@ test("node, search and privacy", async () => {
 
 test("depth and field limits apply before execution; introspection is allowed", async () => {
   let reads = 0;
-  const source: GraphSource = { types: async () => types as TypeRow[], nodes: async () => { reads++; return []; }, edges: async () => { reads++; return []; } };
+  const none = async () => { reads++; return []; };
+  const source: GraphSource = { types: async () => types as TypeRow[], nodes: none, edges: none, nodePage: none, relationPage: none,
+    nodeCount: async () => { reads++; return 0; }, relationCount: async () => { reads++; return new Map(); } };
   const deep = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, maxDepth: 3,
-    query: `{ persons { nodes { reportsTo { reportsTo { title } } } } }` });
+    query: `{ persons { nodes { reportsTo { nodes { title } } } } }` });
   assert.equal(deep.errors?.[0]?.extensions?.code, "QUERY_TOO_DEEP");
   const wide = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, maxFields: 5,
     query: `fragment F on Person { id title summary } { a: persons { nodes { ...F } } b: persons { nodes { ...F } } }` });
@@ -372,15 +423,16 @@ test("record keys: a source keyed by more than the ID shows the ID and finds by-
       return row && keep(row) ? row : null;
     } } };
   const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, schemaOptions,
-    query: `{ persons { nodes { id } aggregate { count } } person(id: "${uuid(101)}", graph: "b") { id reportsToIncoming { title } reportsToIncomingEdges { fromId toId } }
-      bySlug: person(slug: "ada", graph: "b") { id reportsToIncoming { title } } }` });
+    query: `{ persons { nodes { id } aggregate { count } } person(id: "${uuid(101)}", graph: "b") { id reportsToIncoming { nodes { title } } reportsToIncomingEdges { nodes { fromId toId } } }
+      bySlug: person(slug: "ada", graph: "b") { id reportsToIncoming { nodes { title } } } }` });
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
-  const data = JSON.parse(JSON.stringify(result.data)) as { persons: { nodes: { id: string }[]; aggregate: { count: number } }; person: { id: string; reportsToIncoming: unknown[]; reportsToIncomingEdges: { fromId: string; toId: string }[] }; bySlug: unknown };
+  const data = JSON.parse(JSON.stringify(result.data)) as { persons: { nodes: { id: string }[]; aggregate: { count: number } };
+    person: { id: string; reportsToIncoming: { nodes: unknown[] }; reportsToIncomingEdges: { nodes: { fromId: string; toId: string }[] } }; bySlug: unknown };
   assert.equal(data.persons.aggregate.count, 6, "both copies of every person");
   assert.equal(new Set(data.persons.nodes.map(row => row.id)).size, 3);
   assert.equal(data.person.id, uuid(101));
-  assert.deepEqual(data.person.reportsToIncoming, [{ title: "Grace" }], "relationships stay inside their copy");
-  assert.deepEqual(data.person.reportsToIncomingEdges, [{ fromId: uuid(102), toId: uuid(101) }]);
-  assert.deepEqual(data.bySlug, { id: uuid(101), reportsToIncoming: [{ title: "Grace" }] });
+  assert.deepEqual(data.person.reportsToIncoming.nodes, [{ title: "Grace" }], "relationships stay inside their copy");
+  assert.deepEqual(data.person.reportsToIncomingEdges.nodes, [{ fromId: uuid(102), toId: uuid(101) }]);
+  assert.deepEqual(data.bySlug, { id: uuid(101), reportsToIncoming: { nodes: [{ title: "Grace" }] } });
   assert.deepEqual(asked, [["b/ada"]], "the keyed slug reaches the source, in one call");
 });
