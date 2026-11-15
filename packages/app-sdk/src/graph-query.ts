@@ -10,7 +10,7 @@ import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, t
 import {
   type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, sourceKey,
 } from "./graph-graphql-source";
-import { keysetCursor, orderNames, orders, cursorText, parseKeyset } from "./graph-order";
+import { cursorText, keysetCursor, type OrderName, orderNames, orders, parseKeyset } from "./graph-order";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
 import { wikiGraphRecords } from "./graph-records";
@@ -475,32 +475,62 @@ async function collectionPage(source: GraphSource, buffer: Buffer, query: GraphQ
   return { summary: { ...summary, total, complete: !more, cursor: last ? keysetCursor(orderBy, last) : summary.cursor }, exhausted };
 }
 
+type ParentPage = NonNullable<Summary["parents"]>[number];
+type ParentRead = { buffer: Buffer; query: GraphQuery; orderBy: OrderName; key: (row: RelationRow) => Keyset; counts: Map<string, number> | null; countOnly: boolean; stopped: boolean };
+
+/** One parent's rows admitted to the response in page order, until the byte budget stops them. */
+async function admitParent({ buffer, query, key }: ParentRead, rows: RelationRow[]) {
+  const kept: ParentPage["rows"] = [];
+  let last: Keyset | null = null;
+  for (const row of rows) {
+    const additions: Addition[] = [{ kind: "node", record: project("node", row.node as Row, query.fields) }, { kind: "edge", record: project("edge", row.edge as Row, query.fields) }];
+    if (!await buffer.admit(additions)) return { kept, last, stopped: true };
+    kept.push({ edgeId: row.edge.id, nodeId: row.node.id });
+    last = key(row);
+  }
+  return { kept, last, stopped: false };
+}
+
+/** A parent's entry: its admitted rows, whether more follow, its cursor and count. */
+async function parentPage(read: ParentRead, parentId: string, found: RelationRow[], exhausted: boolean) {
+  const admitted = exhausted ? { kept: [], last: null, stopped: true } : await admitParent(read, found.slice(0, read.query.limit));
+  const count = read.counts ? read.counts.get(parentId) ?? 0 : undefined;
+  // Counted without rows, a parent has more when it has any; read, when it held rows not returned.
+  const hasNextPage = read.countOnly ? !!count : read.stopped || found.length > admitted.kept.length;
+  const cursor = admitted.last ? keysetCursor(read.orderBy, admitted.last) : read.query.cursor ?? null;
+  const entry: ParentPage = { parentId, rows: admitted.kept, hasNextPage, cursor, ...(count === undefined ? {} : { count }) };
+  return { entry, exhausted: admitted.stopped };
+}
+
+/** Each parent's rows of one relation read, grouped. */
+function byParent(rows: RelationRow[]) {
+  const grouped = new Map<string, RelationRow[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.parentId);
+    if (list) list.push(row); else grouped.set(row.parentId, [row]);
+  }
+  return grouped;
+}
+
 /** One ordered page per parent of a relationship, every parent read together (relationPage). */
 async function relationPages(source: GraphSource, buffer: Buffer, query: GraphQuery, filter: RelationFilter, missingTypes: Set<string>, stopped: boolean) {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query);
-  const summary = emptySummary(query, missingTypes);
   const counts = query.count && !stopped ? await source.relationCount(filter) : null;
-  const rows = stopped || (query.limit === 0 && counts) ? [] : await source.relationPage({ ...filter, order, first: query.limit, after });
-  const byParent = new Map<string, RelationRow[]>();
-  for (const row of rows) byParent.set(row.parentId, [...byParent.get(row.parentId) ?? [], row]);
+  const countOnly = query.limit === 0 && counts !== null;
+  const grouped = byParent(stopped || countOnly ? [] : await source.relationPage({ ...filter, order, first: query.limit, after }));
+  const key = (row: RelationRow) => keyOf((filter.rows === "node" ? row.node : row.edge) as GraphRow, order);
+  const read: ParentRead = { buffer, query, orderBy, key, counts, countOnly, stopped };
   let exhausted = stopped;
-  const parents: NonNullable<Summary["parents"]> = [];
+  const parents: ParentPage[] = [];
   for (const parentId of filter.parentIds) {
-    const found = byParent.get(parentId) ?? [], kept: { edgeId: string; nodeId: string }[] = [];
-    let last: Keyset | null = null;
-    for (const row of exhausted ? [] : found.slice(0, query.limit)) {
-      const additions: Addition[] = [{ kind: "node", record: project("node", row.node as Row, query.fields) }, { kind: "edge", record: project("edge", row.edge as Row, query.fields) }];
-      if (!await buffer.admit(additions)) { exhausted = true; break; }
-      kept.push({ edgeId: row.edge.id, nodeId: row.node.id });
-      last = keyOf((filter.rows === "node" ? row.node : row.edge) as GraphRow, order);
-    }
-    const count = counts ? counts.get(parentId) ?? 0 : undefined;
-    const more = stopped || (query.limit === 0 && count !== undefined ? count > 0 : found.length > kept.length);
-    parents.push({ parentId, rows: kept, hasNextPage: more, cursor: last ? keysetCursor(orderBy, last) : query.cursor ?? null, ...(count !== undefined ? { count } : {}) });
+    const page = await parentPage(read, parentId, grouped.get(parentId) ?? [], exhausted);
+    exhausted = page.exhausted;
+    parents.push(page.entry);
   }
   buffer.spend(300 + 120 * parents.length);
   const total = counts ? [...counts.values()].reduce((sum, value) => sum + value, 0) : null;
-  return { summary: { ...summary, total, parents, complete: !stopped && parents.every(parent => !parent.hasNextPage), cursor: null }, exhausted };
+  const complete = !stopped && parents.every(parent => !parent.hasNextPage);
+  return { summary: { ...emptySummary(query, missingTypes), total, parents, complete, cursor: null }, exhausted };
 }
 
 /** An ordered page through `source`: a collection page, or a page per parent of a relationship. */
