@@ -10,6 +10,8 @@ import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema } from "../src/server/graphql";
 import type { PlanningContext } from "../src/server/intake";
 import { createProject } from "../src/server/planning";
+import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 
 // Each document runs through graph.mutate (or graph.graphql) as the platform's graph_mutate and
 // graph_query call it: the field's own policy admits or refuses the caller, invalid input is a
@@ -55,7 +57,7 @@ async function fixture() {
     "entities.types": () => ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "wiki", writable: true })),
     "entities.resolve": () => ({ installationId: "wiki" }),
     "identity.resolve": () => ({ holderId: state.holder }),
-    "entities.list": (input) => [...nodes.values()].slice(Number(input.offset ?? 0), Number(input.offset ?? 0) + Number(input.limit ?? 100)),
+    "entities.list": (input) => memoryEntityPage([...nodes.values()] as unknown as EntityRecord[], input),
     "entities.get": (input) => nodes.get(String(input.id)) ?? refuse("Not found", 404),
     "entities.create": (input) => {
       const attributes = input.attributes as Record<string, unknown>;

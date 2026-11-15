@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
+import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   executeGraphQuery,
   memorySource,
@@ -130,33 +132,16 @@ function productFixture() {
           writable: true,
         }));
       if (operation === "entities.list") {
-        if (input.type === "graph-type") {
-          if (input.filter?.name === "WeeklyReportSeal")
-            return seals.length
-              ? [
-                  {
-                    ref: { id: "seal-type" },
-                    attributes: {
-                      name: "WeeklyReportSeal",
-                      ontology: { version: 2, immutable: true },
-                    },
-                  },
-                ]
-              : [];
-          return [
-            {
-              ref: { id: typeId("Organization") },
-              attributes: { name: "Organization" },
-            },
-          ];
-        }
-        if (input.filter?.typeId === "seal-type") return seals;
-        return [
-          {
-            ref: { id: "artera" },
-            attributes: { properties: { organization_id: "org-artera" } },
-          },
-        ];
+        const row = (id: string, attributes: Record<string, unknown>) => ({ ref: { installationId: "wiki", type: String(input.type), id }, revision: 1, title: id, attributes, references: [] }) as EntityRecord;
+        if (input.type === "graph-type")
+          return memoryEntityPage([
+            row(typeId("Organization"), { name: "Organization" }),
+            ...(seals.length ? [row("seal-type", { name: "WeeklyReportSeal", ontology: { version: 2, immutable: true } })] : []),
+          ], input);
+        return memoryEntityPage([
+          row("artera", { typeId: typeId("Organization"), properties: { organization_id: "org-artera" } }),
+          ...seals.map((seal) => row(seal.ref.id, { typeId: "seal-type", ...seal.attributes })),
+        ], input);
       }
       if (
         operation === "actions.call" &&

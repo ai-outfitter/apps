@@ -20,8 +20,9 @@ test("project entities write the actual Planning records and preserve omitted fi
     assert.equal(listedTypes.find((item: { type: string }) => item.type === "project").collection, "projects");
     assert.equal(listedTypes.find((item: { type: string }) => item.type === "issue").collection, "issues");
     const scoped = await json(await app.call(`${base}/list`, owner, { method: "POST", body: { type: "issue", filter: { projectId: created.ref.id, status: "todo" }, order: { field: "title", direction: "desc" }, select: ["id", "projectId", "title"], limit: 1 } }));
-    assert.equal(scoped[0].ref.id, issue.ref.id);
-    assert.equal(scoped[0].references[0].id, created.ref.id);
+    assert.equal(scoped.records[0].ref.id, issue.ref.id);
+    assert.equal(scoped.records[0].references[0].id, created.ref.id);
+    assert.deepEqual(scoped.pageInfo, { hasNextPage: false, endCursor: null });
     assert.equal((await app.call(`${base}/list`, owner, { method: "POST", body: { type: "issue", filter: { installationId: "other" } } })).status, 400);
     const issueEdit = await json(await app.call(`${base}/update`, owner, { method: "POST", body: { type: "issue", id: issue.ref.id, revision: 1, attributes: { status: "done" }, references: [created.ref] } }));
     assert.equal(issueEdit.attributes.status, "done");

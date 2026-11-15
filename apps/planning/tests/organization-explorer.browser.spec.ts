@@ -4,6 +4,7 @@ import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { fulfillFrom, fulfillPlatformIdentity } from "@ai-outfitter/app-test/playwright";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 
 const origin = "https://planning.alpha.localhost";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
@@ -94,7 +95,7 @@ async function fixture(
   const requests: string[] = [];
   const calls: string[] = [];
   const discoveryInputs: unknown[] = [];
-  const listInputs: { type: string; filter?: Record<string, unknown> }[] = [];
+  const listInputs: { type: string; ids?: string[]; filter?: Record<string, unknown> }[] = [];
   const canonicalProjects: EntityRecord[] = [];
   const recordsFor = (type: string) =>
     (
@@ -159,12 +160,13 @@ async function fixture(
           if (operation === "entities.list") {
             const input = raw as {
               type: string;
+              ids?: string[];
               filter?: Record<string, unknown>;
-              offset?: number;
+              after?: string;
               limit?: number;
             };
             listInputs.push(input);
-            return { ok: true, value: fixturePage(recordsFor(input.type), input) };
+            return { ok: true, value: memoryEntityPage(recordsFor(input.type), { limit: 100, ...input }) };
           }
           throw new Error(`Unexpected read operation: ${operation}`);
         },
@@ -368,9 +370,10 @@ for (const width of [1440, 390])
         ["graph-node", "graph-edge"].includes(input.type),
       ))
         expect(
-          Object.keys(input.filter ?? {}).some((key) =>
-            ["typeId", "slug", "nodeId", "fromId", "toId"].includes(key),
-          ),
+          Array.isArray(input.ids) ||
+            Object.keys(input.filter ?? {}).some((key) =>
+              ["typeId", "slug", "nodeId", "nodeIds", "fromId", "toId"].includes(key),
+            ),
         ).toBe(true);
       expect(
         await page.evaluate(
@@ -426,19 +429,6 @@ for (const mode of ["empty", "failure", "anonymous", "unauthorized", "forbidden"
       await app.dispose();
     }
   });
-
-function matchesFixtureFilter(record: EntityRecord, filter: Record<string, unknown> = {}) {
-  return Object.entries(filter).every(([key, value]) => {
-    if (key === "nodeId") return record.attributes.fromId === value || record.attributes.toId === value;
-    if (key === "archived") return !!record.attributes.archived === value;
-    return record.attributes[key] === value;
-  });
-}
-
-function fixturePage(rows: EntityRecord[], input: { filter?: Record<string, unknown>; offset?: number; limit?: number }) {
-  const offset = input.offset ?? 0;
-  return rows.filter(record => matchesFixtureFilter(record, input.filter)).slice(offset, offset + (input.limit ?? 100));
-}
 
 function fixtureRecordResult(record: EntityRecord | undefined) {
   return record ? { ok: true as const, value: record } : { ok: false as const, status: 404, message: "Record not found" };

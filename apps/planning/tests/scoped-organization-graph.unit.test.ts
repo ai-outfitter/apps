@@ -3,6 +3,7 @@ import test from "node:test";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import { readScopedOrganizationGraph } from "../src/server/scoped-organization-graph";
 import { productGraphs } from "../src/server/product-graphs";
 const who = {
@@ -75,13 +76,10 @@ function fixture() {
             : edges;
       const filter = (input.filter ?? {}) as Record<string, unknown>;
       if (input.type !== "graph-type")
-        assert(Object.keys(filter).length, "No unfiltered graph reads");
-      return data
-        .filter((record) => matchesFixtureFilter(record, filter))
-        .slice(
-          Number(input.offset ?? 0),
-          Number(input.offset ?? 0) + Number(input.limit ?? 100),
-        ).map((record) => projectFixtureFields(record, input.select));
+        assert(Object.keys(filter).length || Array.isArray(input.ids), "No unfiltered graph reads");
+      // Known-ID reads are the batched form of a single record read.
+      if (Array.isArray(input.ids)) gets.push(...input.ids.map(String));
+      return memoryEntityPage(data, input);
   }
   const host = {
     async call(operation: string, value: unknown) {
@@ -170,18 +168,6 @@ test("dense neighborhoods surface truncation instead of false missing-context ga
     ),
   );
 });
-
-function matchesFixtureFilter(record: EntityRecord, filter: Record<string, unknown> = {}) {
-  return Object.entries(filter).every(([key, value]) => {
-    if (key === "nodeId") return record.attributes.fromId === value || record.attributes.toId === value;
-    return record.attributes[key] === value;
-  });
-}
-
-function projectFixtureFields(record: EntityRecord, selected: unknown) {
-  if (!Array.isArray(selected)) return record;
-  return { ...record, attributes: Object.fromEntries(selected.filter(key => key in record.attributes).map(key => [key, record.attributes[key]])) };
-}
 
 test("company lookup metadata does not consume the scoped traversal node budget", async () => {
   const f = fixture();

@@ -2,6 +2,7 @@ import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   demoDiscoveryPage,
   discoveryView,
@@ -163,20 +164,7 @@ test("Discovery scoped collections select relevant records and deduplicate neigh
               : { ok: false, status: 404, message: "Missing" };
           }
           if (operation === "entities.list")
-            return {
-              ok: true,
-              value: rows.filter((row) =>
-                Object.entries(input.filter as Record<string, unknown>).every(
-                  ([key, expected]) =>
-                    key === "nodeId"
-                      ? row.attributes.fromId === expected ||
-                        row.attributes.toId === expected
-                      : key === "archived"
-                        ? !!row.attributes.archived === expected
-                        : row.attributes[key] === expected,
-                ),
-              ),
-            };
+            return { ok: true, value: memoryEntityPage(rows, input) };
           return { ok: false, status: 403, message: "Outside scope" };
         },
       },
@@ -194,21 +182,30 @@ test("Discovery scoped collections select relevant records and deduplicate neigh
     [{ template: "onto", requireTypes: true }, { template: "wiki-map" }],
   );
   const lists = calls.filter((call) => call.operation === "entities.list");
+  const filtered = lists.filter((call) => !call.input.ids);
   assert.deepEqual(
-    lists.map((call) => call.input.filter),
+    filtered.map((call) => call.input.filter),
     [
       { name: "Problem", category: "node", archived: false },
       { typeId: "problem-type", archived: false },
-      { nodeId: "problem", archived: false },
+      { nodeIds: ["problem"], archived: false },
     ],
   );
-  assert(lists.every((call) => Array.isArray(call.input.select)));
-  assert(!calls.some((call) => call.input.id === "unrelated"));
-  assert.equal(
+  assert(filtered.every((call) => Array.isArray(call.input.select)));
+  // Neighbours and their definitions are known-ID reads, batched into one list each.
+  assert.deepEqual(
+    lists.filter((call) => call.input.ids).map((call) => [call.input.type, call.input.ids]),
+    [
+      ["graph-node", ["segment"]],
+      ["graph-type", ["segment-type"]],
+    ],
+  );
+  const reads = (id: string) =>
     calls.filter(
       (call) =>
-        call.operation === "entities.get" && call.input.id === "segment",
-    ).length,
-    1,
-  );
+        (call.operation === "entities.get" && call.input.id === id) ||
+        (Array.isArray(call.input.ids) && call.input.ids.includes(id)),
+    ).length;
+  assert.equal(reads("unrelated"), 0);
+  assert.equal(reads("segment"), 1);
 });

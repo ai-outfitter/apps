@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 
@@ -170,15 +171,13 @@ test("Planning freezes, recovers submission, evaluates exact evidence and accept
             );
           if (operation === "entities.list")
             return ok(
-              (
+              memoryEntityPage(
                 {
                   "graph-type": types,
                   "graph-node": nodes,
                   "graph-edge": edges,
-                }[String(input.type)] ?? []
-              ).slice(
-                Number(input.offset ?? 0),
-                Number(input.offset ?? 0) + Number(input.limit ?? 100),
+                }[String(input.type)] ?? [],
+                input,
               ),
             );
           if (operation === "entities.get") {
