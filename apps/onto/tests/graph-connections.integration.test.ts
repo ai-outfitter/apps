@@ -11,13 +11,16 @@ import { databaseSource } from "../src/server/graph-source";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const products = 8, revisions = 5;
+type D1Database = Parameters<typeof drizzle>[0];
+type D1PreparedStatement = ReturnType<D1Database["prepare"]>;
 
 /** The D1 binding, logging every statement it prepares and the rows each returned. */
 function counted(database: D1Database) {
-  const log: { sql: string; rows: number }[] = [];
-  const watch = (statement: D1PreparedStatement, entry: { sql: string; rows: number }): D1PreparedStatement => new Proxy(statement, {
+  type Entry = { sql: string; values: unknown[]; rows: number };
+  const log: Entry[] = [];
+  const watch = (statement: D1PreparedStatement, entry: Entry): D1PreparedStatement => new Proxy(statement, {
     get(target, key) {
-      if (key === "bind") return (...values: unknown[]) => watch(target.bind(...values), entry);
+      if (key === "bind") return (...values: unknown[]) => { entry.values = values; return watch(target.bind(...values), entry); };
       if (key === "all") return async () => { const result = await target.all(); entry.rows += result.results.length; return result; };
       if (key === "raw") return async (options?: { columnNames?: boolean }) => {
         const result = await target.raw(options as never) as unknown[];
@@ -30,7 +33,7 @@ function counted(database: D1Database) {
   });
   const wrapped = new Proxy(database, {
     get(target, key) {
-      if (key === "prepare") return (sql: string) => { const entry = { sql, rows: 0 }; log.push(entry); return watch(target.prepare(sql), entry); };
+      if (key === "prepare") return (sql: string) => { const entry: Entry = { sql, values: [], rows: 0 }; log.push(entry); return watch(target.prepare(sql), entry); };
       const value = Reflect.get(target, key);
       return typeof value === "function" ? value.bind(target) : value;
     },
@@ -93,7 +96,13 @@ test("products' revisions page per product in one bounded relationship statement
     assert.equal(all.statements.length, few.statements.length, JSON.stringify(all.statements.map(entry => entry.sql)));
     assert.ok(all.statements.length <= 3, `${all.statements.length} statements`);
     // Every statement is bounded: a LIMIT or the parents' edges; none reads a whole type.
-    for (const { sql } of all.statements) assert.match(sql, /LIMIT|e\."(fromId|toId)" IN \(SELECT value FROM json_each/i, sql);
+    for (const { sql, values } of all.statements) {
+      assert.match(sql, /LIMIT|e\."(fromId|toId)" IN \(SELECT value FROM json_each/i, sql);
+      // The plan agrees: no table scan, and a relationship reaches its nodes by ID, never through a type index.
+      const plan = (await app.database.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...values).all<{ detail: string }>()).results.map(row => row.detail);
+      assert.ok(plan.length && !plan.some(step => /^SCAN (n|e|graph_nodes|graph_edges)\b/.test(step)), plan.join("\n"));
+      if (/ROW_NUMBER|GROUP BY parent/.test(sql)) assert.ok(!plan.some(step => /graph_nodes_type_/.test(step)), plan.join("\n"));
+    }
     const pageRows = all.statements.find(entry => /ROW_NUMBER/.test(entry.sql));
     assert.equal(pageRows?.rows, products * 3, "first + 1 revisions per product, from one statement");
     console.log(`statements: ${few.statements.length} for 3 products, ${all.statements.length} for ${products}; rows: ${all.statements.map(entry => entry.rows).join(", ")}`);

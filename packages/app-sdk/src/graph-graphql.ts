@@ -8,8 +8,12 @@
 // - fieldName: the type name with its first letter lowercased (`reportsTo`).
 // - collectionName: fieldName + "s", unchanged when it already ends in "s".
 // - Root fields per node type: `fieldName(id, slug)` (exactly one of them: a slug is a
-//   node's address, unique across the Wiki's node types) and `collectionName(first, after,
+//   node's address, unique across the Wiki's node types) and `collectionName(first, after, orderBy,
 //   archived, ids, slugs, text[, at])` returning `<Type>Connection { nodes pageInfo aggregate }`.
+//   `orderBy: <Type>Order` is ID_ASC (default), ID_DESC, CREATED_AT_ASC/DESC, UPDATED_AT_ASC/DESC or
+//   TITLE_ASC/DESC, ties by ID; an ID_ASC cursor is the encoded ID, any other names its order, so a
+//   cursor continues only the order it was made with. `first` defaults to 100, at most 500. The source
+//   reads only the page (GraphSource.nodePage) and counts only when `aggregate` is selected.
 //   When the collection name equals fieldName, the singular is `fieldName + "ById"`.
 //   Also `node(id, slug)` (any node type), cursor-paginated `searchConnection(text, types, first, after)`,
 //   legacy capped `search(text, types, first)` and `sdl` (the schema
@@ -20,7 +24,10 @@
 //   per entry of the type's `properties` list, named as stored.
 // - Edge type E whose ontology.endpoints name types on both ends: on each `from` type `fieldName(E)` (targets) and
 //   `fieldName(E)Edges` (edge objects); on each `to` type `fieldName(E)Incoming` and
-//   `fieldName(E)IncomingEdges`. Args (at, archived). Edge types without endpoints get no
+//   `fieldName(E)IncomingEdges`. Each is a connection (`<Type>Connection`, `NodeConnection` for
+//   several target types, `<E>Connection` for edge objects) taking (first, after, orderBy, at, archived):
+//   a far node reached twice is listed once; edge objects order by `EdgeOrder`. Every parent of a
+//   level shares one GraphSource.relationPage call. Edge types without endpoints get no
 //   typed fields; read them through `edges(types:)`, which returns edge objects with from/to.
 // - A projection edge type (ontology.projection) is a field `fieldName(E)` on the fromSlot's
 //   participant types reaching the toSlot's participants through the relator (and
@@ -30,7 +37,8 @@
 //   archived updatedAt validFrom validUntil, plus one typed scalar per edge property.
 // - Relator slots (stereotype "relator"): a field per slot name, one participant when
 //   max is 1 else a list; participant types get `collectionName(relator)(as, first, after,
-//   archived, at)`.
+//   orderBy, archived, at)`.
+// - Orders and edge connections are named after every type, so they never take a type's name.
 // - Names go to the oldest type first (createdAt, then ID); collisions append `_` + the last 8
 //   alphanumerics of the type ID. Caller names (recordFields, rootExtensions/rootFieldNames,
 //   typeNames) are reserved first. Reported in `extensions.naming` on schema-reading queries
@@ -81,6 +89,7 @@ const failure = (message: string, code: string): GraphGraphqlResult => ({ data: 
 
 export type ExecuteGraphQueryArgs = {
   query: string; variables?: Record<string, unknown>; operationName?: string; maxBytes: number;
+  /** Default 10 over a Wiki's records (each relationship hop is a connection, two levels: field and nodes), else 8. */
   maxDepth?: number; maxFields?: number;
   /** The only operation kind this request may run (default query): graph.graphql reads, graph.mutate writes. */
   operation?: "query" | "mutation";
@@ -126,7 +135,7 @@ function wrongOperation(document: DocumentNode, { operationName, operation = "qu
  * schema with its own resolvers (whose fields meterFields must count). The whole
  * response, extensions included, stays within maxBytes (introspection: 448 KiB). */
 export async function executeGraphQuery(args: ExecuteGraphQueryArgs): Promise<GraphGraphqlResult> {
-  const { maxDepth = 8, maxFields = 2000 } = args;
+  const { maxDepth = args.source ? 10 : 8, maxFields = 2000 } = args;
   let schema: GraphQLSchema;
   try { schema = schemaOf(args); }
   catch (error) { return failure(`The schema could not be built: ${message(error, "unknown error")}`, "SCHEMA_BUILD_FAILED"); }

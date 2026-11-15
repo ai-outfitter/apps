@@ -264,8 +264,6 @@ export function graphLoader(source: GraphSource) {
     node: (id: string) => nodes.load(id),
     /** Every node with this slug, or slug key (at most one per graph), remembered for later ID lookups. */
     slug: (slug: string) => slugs.load(slug),
-    /** Nodes of a query (a collection), remembered for later ID lookups. */
-    async nodes(query: NodeQuery) { return prime((await source.nodes(query)).map(publicRow)); },
     /** One page of a collection, remembered for later ID lookups. */
     async nodePage(query: NodePageQuery) { return prime((await source.nodePage(query)).map(publicRow)); },
     nodeCount: (query: NodeFilter) => source.nodeCount(query),

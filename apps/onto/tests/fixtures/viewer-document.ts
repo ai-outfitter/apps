@@ -35,19 +35,19 @@ export const viewerWikiDocument = `query ViewerWiki($holder: ID!, $at: DateTime!
   }
 }
 fragment Owned on Node {
-  ... on Person { owns: commitmentOwnerIncoming(at: $at) { ...Commitment } }
-  ... on Role { owns: commitmentOwnerIncoming(at: $at) { ...Commitment } }
+  ... on Person { owns: commitmentOwnerIncoming(at: $at, first: 500) { nodes { ...Commitment } } }
+  ... on Role { owns: commitmentOwnerIncoming(at: $at, first: 500) { nodes { ...Commitment } } }
 }
 fragment Commitment on ControlCommitment {
   id slug properties control { title } subject { title }
-  obligations: obligationCommitmentIncoming(at: $at) { properties }
+  obligations: obligationCommitmentIncoming(at: $at) { nodes { properties } }
 }`;
 
 type Properties = Record<string, unknown> | null;
 type Titled = { title: string } | null;
 type Slugged = { id: string; slug?: string | null };
-type Commitment = Slugged & { properties: Properties; control: Titled; subject: Titled; obligations: { properties: Properties }[] };
-type Owner = { id: string; owns?: Commitment[] };
+type Commitment = Slugged & { properties: Properties; control: Titled; subject: Titled; obligations: { nodes: { properties: Properties }[] } };
+type Owner = { id: string; owns?: { nodes: Commitment[] } };
 /** What viewerWikiDocument answers. */
 export type ViewerWikiData = {
   goals: { nodes: (Slugged & { title: string; body: string | null; properties: Properties; pursuedBy: { from: Titled }[]; metrics: { properties: Properties; to: Titled }[] })[]; pageInfo: { hasNextPage: boolean } };
@@ -76,10 +76,10 @@ export function wikiView(data: ViewerWikiData): WikiView {
     metrics: goal.metrics.flatMap(edge => (edge.to ? [{ title: edge.to.title, status: text(edge.properties?.status) }] : [])).slice(0, NESTED),
   })).sort((a, b) => a.title.localeCompare(b.title));
   const owned = new Map<string, Commitment>();
-  for (const owner of [data.me, ...assignments.map(row => row.role)]) for (const row of owner?.owns ?? []) owned.set(row.id, row);
+  for (const owner of [data.me, ...assignments.map(row => row.role)]) for (const row of owner?.owns?.nodes ?? []) owned.set(row.id, row);
   const commitments = [...owned.values()].filter(row => row.properties?.state !== "ended").map(row => ({
     id: row.id, slug: row.slug ?? null, control: row.control?.title ?? null, subject: row.subject?.title ?? null, state: text(row.properties?.state),
-    openObligations: row.obligations.filter(item => openState(item.properties?.state)).length,
+    openObligations: row.obligations.nodes.filter(item => openState(item.properties?.state)).length,
   })).sort((a, b) => String(a.control).localeCompare(String(b.control)));
   return { roles, goals, commitments };
 }

@@ -42,7 +42,8 @@ const col = (alias: Alias, name: string) => sql.raw(`${alias}."${name}"`);
 /** Any number of IDs as one bound parameter. */
 const within = (values: string[]) => sql`(SELECT value FROM json_each(${JSON.stringify(values)}))`;
 const joined = (parts: SQL[], glue: string) => sql.join(parts, sql.raw(glue));
-const prop = (alias: Alias, path: string) => sql`json_extract(${col(alias, "properties")}, ${path})`;
+/** A stored property by a constant JSON path (inlined, so it binds no parameter). */
+const prop = (alias: Alias, path: `$.${string}`) => sql`json_extract(${col(alias, "properties")}, ${sql.raw(`'${path}'`)})`;
 
 /** The text predicate of collections and search: a case-insensitive literal substring (instr, so `%` and `_`
  * mean themselves) of a node's ID, title, slug, summary, body, website or stored properties, as graph.query
@@ -74,10 +75,12 @@ const all = (...parts: (SQL | undefined)[]) => {
   return kept.length ? joined(kept.map(part => sql`(${part})`), " AND ") : sql`1`;
 };
 /** ORDER BY and the keyset after the page's last row, for a page ordered by `order` over `value` (then `id`). */
-const ordering = (value: SQL, id: SQL, { order, after }: Page) => ({
-  by: sql`${value} ${sql.raw(order.descending ? "DESC" : "ASC")}, ${id} ${sql.raw(order.descending ? "DESC" : "ASC")}`,
-  after: after ? sql`(${value}, ${id}) ${sql.raw(order.descending ? "<" : ">")} (${after.value}, ${after.id})` : undefined,
-});
+const ordering = (value: SQL, id: SQL, { order, after }: Page) => {
+  const direction = sql.raw(order.descending ? "DESC" : "ASC"), beyond = sql.raw(order.descending ? "<" : ">");
+  // Ordered by the ID itself: one term, so the (typeId, id) index gives the order.
+  if (order.field === "id") return { by: sql`${id} ${direction}`, after: after ? sql`${id} ${beyond} ${after.id}` : undefined };
+  return { by: sql`${value} ${direction}, ${id} ${direction}`, after: after ? sql`(${value}, ${id}) ${beyond} (${after.value}, ${after.id})` : undefined };
+};
 const orderColumn = (alias: Alias, order: Order) => col(alias, order.field);
 
 const nodeColumns = Object.entries(getTableColumns(graphNodes)) as [string, Column][];
@@ -96,7 +99,8 @@ const edgeRow = (raw: Record<string, unknown>) => edgeView(mapped(raw, "e", edge
 /** A collection's WHERE over `n`, or null when it can match nothing. */
 function collectionWhere({ typeIds, ids, slugs, text, archived, at }: NodeFilter) {
   if (!typeIds.length || ids?.length === 0 || slugs?.length === 0) return null;
-  return all(sql`n."typeId" IN ${within(typeIds)}`, ids && sql`n."id" IN ${within(ids)}`, slugs && sql`n."slug" IN ${within(slugs)}`,
+  // One type compares with =, so its (typeId, order column) index also gives the order.
+  return all(typeIds.length === 1 ? sql`n."typeId" = ${typeIds[0]}` : sql`n."typeId" IN ${within(typeIds)}`, ids && sql`n."id" IN ${within(ids)}`, slugs && sql`n."slug" IN ${within(slugs)}`,
     text ? nodeTextMatches(text) : undefined, shown("n", archived, false), validAt("n", at));
 }
 
@@ -105,9 +109,11 @@ function relationHits({ parentIds, edgeTypeIds, direction, targetTypeIds, archiv
   const value = rows === "node" ? orderColumn("n", order) : orderColumn("e", order), id = rows === "node" ? col("n", "id") : col("e", "id");
   const arms = (direction === "both" ? ["outgoing", "incoming"] as const : [direction]).map(way => {
     const [parent, other] = way === "outgoing" ? ["fromId", "toId"] : ["toId", "fromId"];
+    // CROSS JOIN fixes the loop order: the parents' edges (graph_edges_out/in), then each far node by ID;
+    // the unary + keeps the target type test off the type indexes, so no statement scans a type.
     return sql`SELECT ${col("e", parent)} AS parent, e."id" AS edgeKey, n."id" AS nodeKey, ${value} AS orderValue, ${id} AS orderId
-      FROM graph_edges e JOIN graph_nodes n ON n."id" = ${col("e", other)}
-      WHERE ${all(sql`${col("e", parent)} IN ${within(parentIds)}`, sql`e."typeId" IN ${within(edgeTypeIds)}`, sql`n."typeId" IN ${within(targetTypeIds)}`,
+      FROM graph_edges e CROSS JOIN graph_nodes n ON n."id" = ${col("e", other)}
+      WHERE ${all(sql`${col("e", parent)} IN ${within(parentIds)}`, sql`e."typeId" IN ${within(edgeTypeIds)}`, sql`+n."typeId" IN ${within(targetTypeIds)}`,
         shown("e", archived, true), archived === "only" ? undefined : shown("n", archived, true), validAt("e", at), validAt("n", at))}`;
   });
   return joined(arms, " UNION ALL ");

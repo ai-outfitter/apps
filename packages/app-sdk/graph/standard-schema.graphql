@@ -1618,10 +1618,45 @@ type ArtifactDefinition implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  usesView(at: DateTime, archived: Archived = EXCLUDE): [KnowledgeGraph!]!
-  usesViewEdges(at: DateTime, archived: Archived = EXCLUDE): [UsesView!]!
-  hasArtifactDefinitionIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  hasArtifactDefinitionIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasArtifactDefinition!]!
+  usesView(first: Int = 100, after: String, orderBy: KnowledgeGraphOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): KnowledgeGraphConnection!
+  usesViewEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesViewConnection!
+  hasArtifactDefinitionIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  hasArtifactDefinitionIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasArtifactDefinitionConnection!
+}
+
+type UsesViewConnection {
+  nodes: [UsesView!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Aggregate {
+  count: Int!
+}
+
+"""
+How edges are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum EdgeOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+type HasArtifactDefinitionConnection {
+  nodes: [HasArtifactDefinition!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """User stories"""
@@ -1647,10 +1682,22 @@ type UserStory implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
-  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
-  valueStoryIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  valueStoryIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
+  hasRequirement(first: Int = 100, after: String, orderBy: RequirementOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RequirementConnection!
+  hasRequirementEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasRequirementConnection!
+  valueStoryIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  valueStoryIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ValueStoryConnection!
+}
+
+type HasRequirementConnection {
+  nodes: [HasRequirement!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ValueStoryConnection {
+  nodes: [ValueStory!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Issues"""
@@ -1676,12 +1723,30 @@ type Issue implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  includesIssueIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  includesIssueIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IncludesIssue!]!
-  hasIssueIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  hasIssueIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasIssue!]!
-  targetsRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
-  targetsRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [TargetsRequirement!]!
+  includesIssueIncoming(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  includesIssueIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IncludesIssueConnection!
+  hasIssueIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  hasIssueIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasIssueConnection!
+  targetsRequirement(first: Int = 100, after: String, orderBy: RequirementOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RequirementConnection!
+  targetsRequirementEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): TargetsRequirementConnection!
+}
+
+type IncludesIssueConnection {
+  nodes: [IncludesIssue!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type HasIssueConnection {
+  nodes: [HasIssue!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type TargetsRequirementConnection {
+  nodes: [TargetsRequirement!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Acceptance criteria"""
@@ -1707,8 +1772,34 @@ type AcceptanceCriterion implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  checksCriterionIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  checksCriterionIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
+  checksCriterionIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  checksCriterionIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ChecksCriterionConnection!
+}
+
+type NodeConnection {
+  nodes: [Node!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+"""
+How nodes are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum NodeOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+type ChecksCriterionConnection {
+  nodes: [ChecksCriterion!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Organizations"""
@@ -1735,45 +1826,147 @@ type Organization implements Node {
   validFrom: DateTime
   validUntil: DateTime
   organization_id: String
-  participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
-  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
-  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  manufacturedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  manufacturedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
-  suppliedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  suppliedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
-  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
-  customerOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  customerOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
-  inSegment(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
-  inSegmentEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
-  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
-  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
-  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  offeredByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
-  offeredByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [OfferedBy!]!
-  paysFor(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
-  paysForEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
-  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
-  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
-  owns(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
-  ownsEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
-  hasObligation(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
-  hasObligationEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
-  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
-  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+  participantIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  participantIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipantConnection!
+  uses(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  developedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  developedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DevelopedByConnection!
+  designedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  manufacturedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  manufacturedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ManufacturedByConnection!
+  suppliedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  suppliedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SuppliedByConnection!
+  customerOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  customerOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerOfConnection!
+  customerOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  customerOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerOfConnection!
+  inSegment(first: Int = 100, after: String, orderBy: CustomerSegmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerSegmentConnection!
+  inSegmentEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): InSegmentConnection!
+  experiences(first: Int = 100, after: String, orderBy: ProblemOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProblemConnection!
+  experiencesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ExperiencesConnection!
+  scopedToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  offeredByIncoming(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
+  offeredByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferedByConnection!
+  paysFor(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
+  paysForEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PaysForConnection!
+  participatesIn(first: Int = 100, after: String, orderBy: ActivityOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ActivityConnection!
+  participatesInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipatesInConnection!
+  owns(first: Int = 100, after: String, orderBy: AssetOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssetConnection!
+  ownsEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OwnsConnection!
+  hasObligation(first: Int = 100, after: String, orderBy: FinancialObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FinancialObligationConnection!
+  hasObligationEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasObligationConnection!
+  accountOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  accountOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
+  commitmentSubjectIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
 
   """as: subject"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+type ParticipantConnection {
+  nodes: [Participant!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type UsesConnection {
+  nodes: [Uses!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DevelopedByConnection {
+  nodes: [DevelopedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DesignedByConnection {
+  nodes: [DesignedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ManufacturedByConnection {
+  nodes: [ManufacturedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type SuppliedByConnection {
+  nodes: [SuppliedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CustomerOfConnection {
+  nodes: [CustomerOf!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type InSegmentConnection {
+  nodes: [InSegment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ExperiencesConnection {
+  nodes: [Experiences!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ScopedToConnection {
+  nodes: [ScopedTo!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OfferedByConnection {
+  nodes: [OfferedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PaysForConnection {
+  nodes: [PaysFor!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ParticipatesInConnection {
+  nodes: [ParticipatesIn!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type OwnsConnection {
+  nodes: [Owns!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type HasObligationConnection {
+  nodes: [HasObligation!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AccountOfConnection {
+  nodes: [AccountOf!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CommitmentSubjectConnection {
+  nodes: [CommitmentSubject!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Business Unit"""
@@ -1799,12 +1992,18 @@ type BusinessUnit implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  belongsToUnit(at: DateTime, archived: Archived = EXCLUDE): [BusinessUnit!]!
-  belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
-  belongsToUnitIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  belongsToUnitIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
-  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
+  belongsToUnit(first: Int = 100, after: String, orderBy: BusinessUnitOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): BusinessUnitConnection!
+  belongsToUnitEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): BelongsToUnitConnection!
+  belongsToUnitIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  belongsToUnitIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): BelongsToUnitConnection!
+  scopedToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+}
+
+type BelongsToUnitConnection {
+  nodes: [BelongsToUnit!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Projects"""
@@ -1830,34 +2029,52 @@ type Project implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
-  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
-  belongsToUnit(at: DateTime, archived: Archived = EXCLUDE): [BusinessUnit!]!
-  belongsToUnitEdges(at: DateTime, archived: Archived = EXCLUDE): [BelongsToUnit!]!
-  participantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  participantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
-  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
-  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
-  collectsTelemetryFrom(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  collectsTelemetryFromEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
-  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
-  produces(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  producesEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
-  customerOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  customerOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
-  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  valueStory(at: DateTime, archived: Archived = EXCLUDE): [UserStory!]!
-  valueStoryEdges(at: DateTime, archived: Archived = EXCLUDE): [ValueStory!]!
-  hasIssue(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
-  hasIssueEdges(at: DateTime, archived: Archived = EXCLUDE): [HasIssue!]!
-  hasArtifactDefinition(at: DateTime, archived: Archived = EXCLUDE): [ArtifactDefinition!]!
-  hasArtifactDefinitionEdges(at: DateTime, archived: Archived = EXCLUDE): [HasArtifactDefinition!]!
+  hasRequirement(first: Int = 100, after: String, orderBy: RequirementOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RequirementConnection!
+  hasRequirementEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasRequirementConnection!
+  belongsToUnit(first: Int = 100, after: String, orderBy: BusinessUnitOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): BusinessUnitConnection!
+  belongsToUnitEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): BelongsToUnitConnection!
+  participantIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  participantIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipantConnection!
+  uses(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  designedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  sourceIn(first: Int = 100, after: String, orderBy: RepositoryOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RepositoryConnection!
+  sourceInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceInConnection!
+  collectsTelemetryFrom(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  collectsTelemetryFromEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CollectsTelemetryFromConnection!
+  collectsTelemetryFromIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  collectsTelemetryFromIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CollectsTelemetryFromConnection!
+  produces(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  producesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProducesConnection!
+  customerOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  customerOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerOfConnection!
+  scopedToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  valueStory(first: Int = 100, after: String, orderBy: UserStoryOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UserStoryConnection!
+  valueStoryEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ValueStoryConnection!
+  hasIssue(first: Int = 100, after: String, orderBy: IssueOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IssueConnection!
+  hasIssueEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasIssueConnection!
+  hasArtifactDefinition(first: Int = 100, after: String, orderBy: ArtifactDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ArtifactDefinitionConnection!
+  hasArtifactDefinitionEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasArtifactDefinitionConnection!
+}
+
+type SourceInConnection {
+  nodes: [SourceIn!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CollectsTelemetryFromConnection {
+  nodes: [CollectsTelemetryFrom!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ProducesConnection {
+  nodes: [Produces!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """People"""
@@ -1883,56 +2100,92 @@ type Person implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
-  reportsTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  reportsToEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
-  reportsToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  reportsToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
-  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
-  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
-  inSegment(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
-  inSegmentEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
-  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
-  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
-  assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
-  assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
-  paysFor(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
-  paysForEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
-  madeByIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
-  madeByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
-  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
-  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
-  owns(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
-  ownsEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
-  hasObligation(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
-  hasObligationEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
-  interactsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
-  interactsWithEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
-  interactsWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
-  interactsWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [InteractsWith!]!
-  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
-  friendIncoming(at: DateTime, archived: Archived = EXCLUDE): [Friendship!]!
-  friendIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
-  friendsWith(at: DateTime, archived: Archived = EXCLUDE): [Person!]!
-  commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
-  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+  participant(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  participantEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipantConnection!
+  reportsTo(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  reportsToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReportsToConnection!
+  reportsToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  reportsToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReportsToConnection!
+  developedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  developedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DevelopedByConnection!
+  designedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  customerOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  customerOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerOfConnection!
+  inSegment(first: Int = 100, after: String, orderBy: CustomerSegmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerSegmentConnection!
+  inSegmentEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): InSegmentConnection!
+  experiences(first: Int = 100, after: String, orderBy: ProblemOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProblemConnection!
+  experiencesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ExperiencesConnection!
+  assignedToIncoming(first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  assignedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssignedToConnection!
+  paysFor(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
+  paysForEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PaysForConnection!
+  madeByIncoming(first: Int = 100, after: String, orderBy: DecisionRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionRecordConnection!
+  madeByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): MadeByConnection!
+  participatesIn(first: Int = 100, after: String, orderBy: ActivityOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ActivityConnection!
+  participatesInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipatesInConnection!
+  owns(first: Int = 100, after: String, orderBy: AssetOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssetConnection!
+  ownsEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OwnsConnection!
+  hasObligation(first: Int = 100, after: String, orderBy: FinancialObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FinancialObligationConnection!
+  hasObligationEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasObligationConnection!
+  interactsWith(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  interactsWithEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): InteractsWithConnection!
+  interactsWithIncoming(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  interactsWithIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): InteractsWithConnection!
+  accountOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  accountOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
+  friendIncoming(first: Int = 100, after: String, orderBy: FriendshipOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FriendshipConnection!
+  friendIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FriendConnection!
+  friendsWith(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  commitmentOwnerIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentOwnerIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentOwnerConnection!
+  commitmentSubjectIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
 
   """as: holder"""
-  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  roleAssignments(as: String, first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
 
   """as: friend"""
-  friendships(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): FriendshipConnection!
+  friendships(as: String, first: Int = 100, after: String, orderBy: FriendshipOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FriendshipConnection!
 
   """as: owner"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+type ReportsToConnection {
+  nodes: [ReportsTo!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AssignedToConnection {
+  nodes: [AssignedTo!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type MadeByConnection {
+  nodes: [MadeBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type InteractsWithConnection {
+  nodes: [InteractsWith!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type FriendConnection {
+  nodes: [Friend!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type CommitmentOwnerConnection {
+  nodes: [CommitmentOwner!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Agent"""
@@ -1958,27 +2211,27 @@ type Agent implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  participant(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  participantEdges(at: DateTime, archived: Archived = EXCLUDE): [Participant!]!
-  reportsTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  reportsToEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
-  reportsToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  reportsToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReportsTo!]!
-  developedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  developedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
-  designedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  assignedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
-  assignedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
-  madeByIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
-  madeByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
-  participatesIn(at: DateTime, archived: Archived = EXCLUDE): [Activity!]!
-  participatesInEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
-  accountOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  accountOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+  participant(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  participantEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipantConnection!
+  reportsTo(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  reportsToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReportsToConnection!
+  reportsToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  reportsToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReportsToConnection!
+  developedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  developedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DevelopedByConnection!
+  designedByIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  assignedToIncoming(first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  assignedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssignedToConnection!
+  madeByIncoming(first: Int = 100, after: String, orderBy: DecisionRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionRecordConnection!
+  madeByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): MadeByConnection!
+  participatesIn(first: Int = 100, after: String, orderBy: ActivityOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ActivityConnection!
+  participatesInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipatesInConnection!
+  accountOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  accountOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
 
   """as: holder"""
-  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  roleAssignments(as: String, first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
 }
 
 """Technologies"""
@@ -2004,26 +2257,32 @@ type Technology implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  usesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  developedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  developedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
-  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
-  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
-  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
-  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
-  producesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  producesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
-  integratesWith(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  integratesWithEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
-  integratesWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  integratesWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
+  uses(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  usesIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  developedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  developedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DevelopedByConnection!
+  designedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  suppliedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  suppliedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SuppliedByConnection!
+  sourceIn(first: Int = 100, after: String, orderBy: RepositoryOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RepositoryConnection!
+  sourceInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceInConnection!
+  collectsTelemetryFromIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  collectsTelemetryFromIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CollectsTelemetryFromConnection!
+  producesIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  producesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProducesConnection!
+  integratesWith(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  integratesWithEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IntegratesWithConnection!
+  integratesWithIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  integratesWithIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IntegratesWithConnection!
+}
+
+type IntegratesWithConnection {
+  nodes: [IntegratesWith!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Physical Component"""
@@ -2054,12 +2313,12 @@ type PhysicalComponent implements Node {
   manufacturer: String
   mpn: String
   datasheet: String
-  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  manufacturedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  manufacturedByEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
-  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
+  designedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  manufacturedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  manufacturedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ManufacturedByConnection!
+  suppliedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  suppliedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SuppliedByConnection!
 }
 
 """Goal"""
@@ -2085,10 +2344,22 @@ type Goal implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  establishesIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
-  establishesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Establishes!]!
-  controlGoalIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlDefinition!]!
-  controlGoalIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlGoal!]!
+  establishesIncoming(first: Int = 100, after: String, orderBy: DecisionRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionRecordConnection!
+  establishesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): EstablishesConnection!
+  controlGoalIncoming(first: Int = 100, after: String, orderBy: ControlDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlDefinitionConnection!
+  controlGoalIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlGoalConnection!
+}
+
+type EstablishesConnection {
+  nodes: [Establishes!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ControlGoalConnection {
+  nodes: [ControlGoal!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Metric Definition"""
@@ -2193,8 +2464,8 @@ type Repository implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  sourceInIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  sourceInIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
+  sourceInIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  sourceInIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceInConnection!
 }
 
 """Products"""
@@ -2220,47 +2491,83 @@ type Product implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  usesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  developedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  developedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DevelopedBy!]!
-  designedBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  designedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DesignedBy!]!
-  manufacturedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  manufacturedByEdges(at: DateTime, archived: Archived = EXCLUDE): [ManufacturedBy!]!
-  suppliedBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  suppliedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SuppliedBy!]!
-  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
-  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
-  collectsTelemetryFromIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  collectsTelemetryFromIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CollectsTelemetryFrom!]!
-  producesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Project!]!
-  producesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Produces!]!
-  integratesWith(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  integratesWithEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
-  integratesWithIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  integratesWithIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IntegratesWith!]!
-  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  packagesProductIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
-  packagesProductIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PackagesProduct!]!
-  revisionOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  revisionOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [RevisionOf!]!
-  specifiesIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductSpecification!]!
-  specifiesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Specifies!]!
-  announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
-  announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
-  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
-  issueSourceIncoming(at: DateTime, archived: Archived = EXCLUDE): [SourceIssueEpisode!]!
-  issueSourceIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [IssueSource!]!
-  controlSourceIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlDefinition!]!
-  controlSourceIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlSource!]!
+  uses(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  usesIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  developedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  developedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DevelopedByConnection!
+  designedBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  designedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DesignedByConnection!
+  manufacturedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  manufacturedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ManufacturedByConnection!
+  suppliedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  suppliedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SuppliedByConnection!
+  sourceIn(first: Int = 100, after: String, orderBy: RepositoryOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RepositoryConnection!
+  sourceInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceInConnection!
+  collectsTelemetryFromIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  collectsTelemetryFromIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CollectsTelemetryFromConnection!
+  producesIncoming(first: Int = 100, after: String, orderBy: ProjectOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProjectConnection!
+  producesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProducesConnection!
+  integratesWith(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  integratesWithEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IntegratesWithConnection!
+  integratesWithIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  integratesWithIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IntegratesWithConnection!
+  scopedToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  packagesProductIncoming(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
+  packagesProductIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PackagesProductConnection!
+  revisionOfIncoming(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  revisionOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RevisionOfConnection!
+  specifiesIncoming(first: Int = 100, after: String, orderBy: ProductSpecificationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductSpecificationConnection!
+  specifiesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SpecifiesConnection!
+  announcesIncoming(first: Int = 100, after: String, orderBy: ReleaseOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseConnection!
+  announcesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AnnouncesConnection!
+  commitmentSubjectIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
+  issueSourceIncoming(first: Int = 100, after: String, orderBy: SourceIssueEpisodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceIssueEpisodeConnection!
+  issueSourceIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IssueSourceConnection!
+  controlSourceIncoming(first: Int = 100, after: String, orderBy: ControlDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlDefinitionConnection!
+  controlSourceIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlSourceConnection!
 
   """as: subject"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+type PackagesProductConnection {
+  nodes: [PackagesProduct!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type RevisionOfConnection {
+  nodes: [RevisionOf!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type SpecifiesConnection {
+  nodes: [Specifies!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AnnouncesConnection {
+  nodes: [Announces!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type IssueSourceConnection {
+  nodes: [IssueSource!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ControlSourceConnection {
+  nodes: [ControlSource!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Customer segments"""
@@ -2286,14 +2593,20 @@ type CustomerSegment implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  customerOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  customerOfEdges(at: DateTime, archived: Archived = EXCLUDE): [CustomerOf!]!
-  inSegmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  inSegmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [InSegment!]!
-  experiences(at: DateTime, archived: Archived = EXCLUDE): [Problem!]!
-  experiencesEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
-  forCustomerIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  forCustomerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
+  customerOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  customerOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerOfConnection!
+  inSegmentIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  inSegmentIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): InSegmentConnection!
+  experiences(first: Int = 100, after: String, orderBy: ProblemOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProblemConnection!
+  experiencesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ExperiencesConnection!
+  forCustomerIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  forCustomerIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ForCustomerConnection!
+}
+
+type ForCustomerConnection {
+  nodes: [ForCustomer!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Customer problems"""
@@ -2319,8 +2632,8 @@ type Problem implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  experiencesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  experiencesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Experiences!]!
+  experiencesIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  experiencesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ExperiencesConnection!
 }
 
 """Roles"""
@@ -2346,20 +2659,38 @@ type Role implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  assignsRoleIncoming(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
-  assignsRoleIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
-  hasAuthorityGrant(at: DateTime, archived: Archived = EXCLUDE): [AuthorityGrant!]!
-  hasAuthorityGrantEdges(at: DateTime, archived: Archived = EXCLUDE): [HasAuthorityGrant!]!
-  pricedByRoleIncoming(at: DateTime, archived: Archived = EXCLUDE): [Offering!]!
-  pricedByRoleIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PricedByRole!]!
-  commitmentOwnerIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentOwnerIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
+  assignsRoleIncoming(first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  assignsRoleIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssignsRoleConnection!
+  hasAuthorityGrant(first: Int = 100, after: String, orderBy: AuthorityGrantOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AuthorityGrantConnection!
+  hasAuthorityGrantEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasAuthorityGrantConnection!
+  pricedByRoleIncoming(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
+  pricedByRoleIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PricedByRoleConnection!
+  commitmentOwnerIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentOwnerIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentOwnerConnection!
 
   """as: role"""
-  roleAssignments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  roleAssignments(as: String, first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
 
   """as: owner"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+type AssignsRoleConnection {
+  nodes: [AssignsRole!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type HasAuthorityGrantConnection {
+  nodes: [HasAuthorityGrant!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type PricedByRoleConnection {
+  nodes: [PricedByRole!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Role assignments"""
@@ -2387,12 +2718,18 @@ type RoleAssignment implements Node {
   validUntil: DateTime
   holder(archived: Archived = EXCLUDE): Node
   role(archived: Archived = EXCLUDE): Role
-  assignedToEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignedTo!]!
-  assignsRoleEdges(at: DateTime, archived: Archived = EXCLUDE): [AssignsRole!]!
-  scopedTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  underAssignmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
-  underAssignmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [UnderAssignment!]!
+  assignedToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssignedToConnection!
+  assignsRoleEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssignsRoleConnection!
+  scopedTo(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  underAssignmentIncoming(first: Int = 100, after: String, orderBy: DecisionRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionRecordConnection!
+  underAssignmentIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UnderAssignmentConnection!
+}
+
+type UnderAssignmentConnection {
+  nodes: [UnderAssignment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Decision types"""
@@ -2418,10 +2755,22 @@ type DecisionType implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  permitsIncoming(at: DateTime, archived: Archived = EXCLUDE): [AuthorityDefinition!]!
-  permitsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Permits!]!
-  decisionTypeIncoming(at: DateTime, archived: Archived = EXCLUDE): [DecisionRecord!]!
-  decisionTypeIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
+  permitsIncoming(first: Int = 100, after: String, orderBy: AuthorityDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AuthorityDefinitionConnection!
+  permitsIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PermitsConnection!
+  decisionTypeIncoming(first: Int = 100, after: String, orderBy: DecisionRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionRecordConnection!
+  decisionTypeIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionType_00000062Connection!
+}
+
+type PermitsConnection {
+  nodes: [Permits!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DecisionType_00000062Connection {
+  nodes: [DecisionType_00000062!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Authority definitions"""
@@ -2447,10 +2796,16 @@ type AuthorityDefinition implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  definedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [AuthorityGrant!]!
-  definedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DefinedBy!]!
-  permits(at: DateTime, archived: Archived = EXCLUDE): [DecisionType!]!
-  permitsEdges(at: DateTime, archived: Archived = EXCLUDE): [Permits!]!
+  definedByIncoming(first: Int = 100, after: String, orderBy: AuthorityGrantOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AuthorityGrantConnection!
+  definedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DefinedByConnection!
+  permits(first: Int = 100, after: String, orderBy: DecisionTypeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionTypeConnection!
+  permitsEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PermitsConnection!
+}
+
+type DefinedByConnection {
+  nodes: [DefinedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Authority grants"""
@@ -2476,10 +2831,10 @@ type AuthorityGrant implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasAuthorityGrantIncoming(at: DateTime, archived: Archived = EXCLUDE): [Role!]!
-  hasAuthorityGrantIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasAuthorityGrant!]!
-  definedBy(at: DateTime, archived: Archived = EXCLUDE): [AuthorityDefinition!]!
-  definedByEdges(at: DateTime, archived: Archived = EXCLUDE): [DefinedBy!]!
+  hasAuthorityGrantIncoming(first: Int = 100, after: String, orderBy: RoleOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleConnection!
+  hasAuthorityGrantIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasAuthorityGrantConnection!
+  definedBy(first: Int = 100, after: String, orderBy: AuthorityDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AuthorityDefinitionConnection!
+  definedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DefinedByConnection!
 }
 
 """Offerings"""
@@ -2511,20 +2866,20 @@ type Offering implements Node {
   pricing_notes: String
   pricing_model: String
   markup_percent: Float
-  uses(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  usesEdges(at: DateTime, archived: Archived = EXCLUDE): [Uses!]!
-  packagesProduct(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
-  packagesProductEdges(at: DateTime, archived: Archived = EXCLUDE): [PackagesProduct!]!
-  offeredBy(at: DateTime, archived: Archived = EXCLUDE): [Organization!]!
-  offeredByEdges(at: DateTime, archived: Archived = EXCLUDE): [OfferedBy!]!
-  paysForIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  paysForIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [PaysFor!]!
-  pricedByRole(at: DateTime, archived: Archived = EXCLUDE): [Role!]!
-  pricedByRoleEdges(at: DateTime, archived: Archived = EXCLUDE): [PricedByRole!]!
-  announcesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
-  announcesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
-  forCustomer(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
-  forCustomerEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
+  uses(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  usesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesConnection!
+  packagesProduct(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  packagesProductEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PackagesProductConnection!
+  offeredBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  offeredByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OfferedByConnection!
+  paysForIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  paysForIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PaysForConnection!
+  pricedByRole(first: Int = 100, after: String, orderBy: RoleOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleConnection!
+  pricedByRoleEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PricedByRoleConnection!
+  announcesIncoming(first: Int = 100, after: String, orderBy: ReleaseOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseConnection!
+  announcesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AnnouncesConnection!
+  forCustomer(first: Int = 100, after: String, orderBy: CustomerSegmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerSegmentConnection!
+  forCustomerEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ForCustomerConnection!
 }
 
 """Decision records"""
@@ -2551,16 +2906,16 @@ type DecisionRecord implements Node {
   validFrom: DateTime
   validUntil: DateTime
   status: String
-  scopedTo(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  decisionType(at: DateTime, archived: Archived = EXCLUDE): [DecisionType!]!
-  decisionTypeEdges(at: DateTime, archived: Archived = EXCLUDE): [DecisionType_00000062!]!
-  madeBy(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  madeByEdges(at: DateTime, archived: Archived = EXCLUDE): [MadeBy!]!
-  underAssignment(at: DateTime, archived: Archived = EXCLUDE): [RoleAssignment!]!
-  underAssignmentEdges(at: DateTime, archived: Archived = EXCLUDE): [UnderAssignment!]!
-  establishes(at: DateTime, archived: Archived = EXCLUDE): [Goal!]!
-  establishesEdges(at: DateTime, archived: Archived = EXCLUDE): [Establishes!]!
+  scopedTo(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  decisionType(first: Int = 100, after: String, orderBy: DecisionTypeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionTypeConnection!
+  decisionTypeEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DecisionType_00000062Connection!
+  madeBy(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  madeByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): MadeByConnection!
+  underAssignment(first: Int = 100, after: String, orderBy: RoleAssignmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RoleAssignmentConnection!
+  underAssignmentEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UnderAssignmentConnection!
+  establishes(first: Int = 100, after: String, orderBy: GoalOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): GoalConnection!
+  establishesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): EstablishesConnection!
 }
 
 """Knowledge graphs"""
@@ -2588,8 +2943,8 @@ type KnowledgeGraph implements Node {
   validUntil: DateTime
   root_type: String
   pattern: String
-  usesViewIncoming(at: DateTime, archived: Archived = EXCLUDE): [ArtifactDefinition!]!
-  usesViewIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [UsesView!]!
+  usesViewIncoming(first: Int = 100, after: String, orderBy: ArtifactDefinitionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ArtifactDefinitionConnection!
+  usesViewIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): UsesViewConnection!
 }
 
 """Activities"""
@@ -2615,8 +2970,8 @@ type Activity implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  participatesInIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  participatesInIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ParticipatesIn!]!
+  participatesInIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  participatesInIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ParticipatesInConnection!
 }
 
 """Assets"""
@@ -2642,10 +2997,16 @@ type Asset implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  ownsIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  ownsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Owns!]!
-  securedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [FinancialObligation!]!
-  securedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [SecuredBy!]!
+  ownsIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  ownsIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): OwnsConnection!
+  securedByIncoming(first: Int = 100, after: String, orderBy: FinancialObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FinancialObligationConnection!
+  securedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SecuredByConnection!
+}
+
+type SecuredByConnection {
+  nodes: [SecuredBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Financial obligations"""
@@ -2671,10 +3032,10 @@ type FinancialObligation implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasObligationIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  hasObligationIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasObligation!]!
-  securedBy(at: DateTime, archived: Archived = EXCLUDE): [Asset!]!
-  securedByEdges(at: DateTime, archived: Archived = EXCLUDE): [SecuredBy!]!
+  hasObligationIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  hasObligationIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasObligationConnection!
+  securedBy(first: Int = 100, after: String, orderBy: AssetOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssetConnection!
+  securedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SecuredByConnection!
 }
 
 """Outfitter users"""
@@ -2700,8 +3061,8 @@ type OutfitterUser implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+  accountOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  accountOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
 }
 
 """Outfitter organizations"""
@@ -2727,8 +3088,8 @@ type OutfitterOrganization implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  accountOf(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  accountOfEdges(at: DateTime, archived: Archived = EXCLUDE): [AccountOf!]!
+  accountOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  accountOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
 }
 
 """Product specifications"""
@@ -2754,12 +3115,18 @@ type ProductSpecification implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasRequirement(at: DateTime, archived: Archived = EXCLUDE): [Requirement!]!
-  hasRequirementEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
-  specifies(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
-  specifiesEdges(at: DateTime, archived: Archived = EXCLUDE): [Specifies!]!
-  governedByIncoming(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  governedByIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [GovernedBy!]!
+  hasRequirement(first: Int = 100, after: String, orderBy: RequirementOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RequirementConnection!
+  hasRequirementEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasRequirementConnection!
+  specifies(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  specifiesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SpecifiesConnection!
+  governedByIncoming(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  governedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): GovernedByConnection!
+}
+
+type GovernedByConnection {
+  nodes: [GovernedBy!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Product revisions"""
@@ -2785,26 +3152,56 @@ type ProductRevision implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  sourceIn(at: DateTime, archived: Archived = EXCLUDE): [Repository!]!
-  sourceInEdges(at: DateTime, archived: Archived = EXCLUDE): [SourceIn!]!
-  scopedToIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  scopedToIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ScopedTo!]!
-  revisionOf(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
-  revisionOfEdges(at: DateTime, archived: Archived = EXCLUDE): [RevisionOf!]!
-  includesIssue(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
-  includesIssueEdges(at: DateTime, archived: Archived = EXCLUDE): [IncludesIssue!]!
-  governedBy(at: DateTime, archived: Archived = EXCLUDE): [ProductSpecification!]!
-  governedByEdges(at: DateTime, archived: Archived = EXCLUDE): [GovernedBy!]!
-  demonstratesIncoming(at: DateTime, archived: Archived = EXCLUDE): [Demonstration!]!
-  demonstratesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Demonstrates!]!
-  evaluatesIncoming(at: DateTime, archived: Archived = EXCLUDE): [EvaluationRecord!]!
-  evaluatesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Evaluates!]!
-  assessesIncoming(at: DateTime, archived: Archived = EXCLUDE): [ReadinessAssessment!]!
-  assessesIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [Assesses!]!
-  releaseOfIncoming(at: DateTime, archived: Archived = EXCLUDE): [ReleaseRecord!]!
-  releaseOfIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ReleaseOf!]!
-  deliveredAsIncoming(at: DateTime, archived: Archived = EXCLUDE): [Release!]!
-  deliveredAsIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [DeliveredAs!]!
+  sourceIn(first: Int = 100, after: String, orderBy: RepositoryOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RepositoryConnection!
+  sourceInEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): SourceInConnection!
+  scopedToIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
+  revisionOf(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  revisionOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): RevisionOfConnection!
+  includesIssue(first: Int = 100, after: String, orderBy: IssueOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IssueConnection!
+  includesIssueEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IncludesIssueConnection!
+  governedBy(first: Int = 100, after: String, orderBy: ProductSpecificationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductSpecificationConnection!
+  governedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): GovernedByConnection!
+  demonstratesIncoming(first: Int = 100, after: String, orderBy: DemonstrationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DemonstrationConnection!
+  demonstratesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DemonstratesConnection!
+  evaluatesIncoming(first: Int = 100, after: String, orderBy: EvaluationRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): EvaluationRecordConnection!
+  evaluatesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): EvaluatesConnection!
+  assessesIncoming(first: Int = 100, after: String, orderBy: ReadinessAssessmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReadinessAssessmentConnection!
+  assessesIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssessesConnection!
+  releaseOfIncoming(first: Int = 100, after: String, orderBy: ReleaseRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseRecordConnection!
+  releaseOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseOfConnection!
+  deliveredAsIncoming(first: Int = 100, after: String, orderBy: ReleaseOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseConnection!
+  deliveredAsIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DeliveredAsConnection!
+}
+
+type DemonstratesConnection {
+  nodes: [Demonstrates!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type EvaluatesConnection {
+  nodes: [Evaluates!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type AssessesConnection {
+  nodes: [Assesses!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type ReleaseOfConnection {
+  nodes: [ReleaseOf!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
+}
+
+type DeliveredAsConnection {
+  nodes: [DeliveredAs!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Demonstrations"""
@@ -2830,8 +3227,8 @@ type Demonstration implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  demonstrates(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  demonstratesEdges(at: DateTime, archived: Archived = EXCLUDE): [Demonstrates!]!
+  demonstrates(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  demonstratesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DemonstratesConnection!
 }
 
 """Evaluation records"""
@@ -2857,10 +3254,10 @@ type EvaluationRecord implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  evaluates(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  evaluatesEdges(at: DateTime, archived: Archived = EXCLUDE): [Evaluates!]!
-  checksCriterion(at: DateTime, archived: Archived = EXCLUDE): [AcceptanceCriterion!]!
-  checksCriterionEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
+  evaluates(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  evaluatesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): EvaluatesConnection!
+  checksCriterion(first: Int = 100, after: String, orderBy: AcceptanceCriterionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AcceptanceCriterionConnection!
+  checksCriterionEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ChecksCriterionConnection!
 }
 
 """Readiness assessments"""
@@ -2886,8 +3283,8 @@ type ReadinessAssessment implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  assesses(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  assessesEdges(at: DateTime, archived: Archived = EXCLUDE): [Assesses!]!
+  assesses(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  assessesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AssessesConnection!
 }
 
 """Release records"""
@@ -2913,10 +3310,16 @@ type ReleaseRecord implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  releaseOf(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  releaseOfEdges(at: DateTime, archived: Archived = EXCLUDE): [ReleaseOf!]!
-  verifiesReleaseIncoming(at: DateTime, archived: Archived = EXCLUDE): [PostReleaseVerification!]!
-  verifiesReleaseIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [VerifiesRelease!]!
+  releaseOf(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  releaseOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseOfConnection!
+  verifiesReleaseIncoming(first: Int = 100, after: String, orderBy: PostReleaseVerificationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): PostReleaseVerificationConnection!
+  verifiesReleaseIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): VerifiesReleaseConnection!
+}
+
+type VerifiesReleaseConnection {
+  nodes: [VerifiesRelease!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """Post-release verifications"""
@@ -2942,10 +3345,10 @@ type PostReleaseVerification implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  checksCriterion(at: DateTime, archived: Archived = EXCLUDE): [AcceptanceCriterion!]!
-  checksCriterionEdges(at: DateTime, archived: Archived = EXCLUDE): [ChecksCriterion!]!
-  verifiesRelease(at: DateTime, archived: Archived = EXCLUDE): [ReleaseRecord!]!
-  verifiesReleaseEdges(at: DateTime, archived: Archived = EXCLUDE): [VerifiesRelease!]!
+  checksCriterion(first: Int = 100, after: String, orderBy: AcceptanceCriterionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AcceptanceCriterionConnection!
+  checksCriterionEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ChecksCriterionConnection!
+  verifiesRelease(first: Int = 100, after: String, orderBy: ReleaseRecordOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ReleaseRecordConnection!
+  verifiesReleaseEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): VerifiesReleaseConnection!
 }
 
 """Releases"""
@@ -2971,12 +3374,12 @@ type Release implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  announces(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  announcesEdges(at: DateTime, archived: Archived = EXCLUDE): [Announces!]!
-  forCustomer(at: DateTime, archived: Archived = EXCLUDE): [CustomerSegment!]!
-  forCustomerEdges(at: DateTime, archived: Archived = EXCLUDE): [ForCustomer!]!
-  deliveredAs(at: DateTime, archived: Archived = EXCLUDE): [ProductRevision!]!
-  deliveredAsEdges(at: DateTime, archived: Archived = EXCLUDE): [DeliveredAs!]!
+  announces(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  announcesEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): AnnouncesConnection!
+  forCustomer(first: Int = 100, after: String, orderBy: CustomerSegmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CustomerSegmentConnection!
+  forCustomerEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ForCustomerConnection!
+  deliveredAs(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
+  deliveredAsEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): DeliveredAsConnection!
 }
 
 """Requirements"""
@@ -3002,10 +3405,10 @@ type Requirement implements Node {
   ): [Edge!]!
   validFrom: DateTime
   validUntil: DateTime
-  hasRequirementIncoming(at: DateTime, archived: Archived = EXCLUDE): [Node!]!
-  hasRequirementIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [HasRequirement!]!
-  targetsRequirementIncoming(at: DateTime, archived: Archived = EXCLUDE): [Issue!]!
-  targetsRequirementIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [TargetsRequirement!]!
+  hasRequirementIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
+  hasRequirementIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): HasRequirementConnection!
+  targetsRequirementIncoming(first: Int = 100, after: String, orderBy: IssueOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IssueConnection!
+  targetsRequirementIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): TargetsRequirementConnection!
 }
 
 """Friendship"""
@@ -3032,12 +3435,12 @@ type Friendship implements Node {
   validFrom: DateTime
   validUntil: DateTime
   friend(archived: Archived = EXCLUDE): [Person!]!
-  friendEdges(at: DateTime, archived: Archived = EXCLUDE): [Friend!]!
-  commitmentSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  commitmentSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
+  friendEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): FriendConnection!
+  commitmentSubjectIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  commitmentSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
 
   """as: subject"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
 }
 
 """ControlDefinition"""
@@ -3077,15 +3480,21 @@ type ControlDefinition implements Node {
   source_requirements: String
   aggregation_formula: String
   aggregation: String
-  implementsControlIncoming(at: DateTime, archived: Archived = EXCLUDE): [ControlCommitment!]!
-  implementsControlIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ImplementsControl!]!
-  controlGoal(at: DateTime, archived: Archived = EXCLUDE): [Goal!]!
-  controlGoalEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlGoal!]!
-  controlSource(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
-  controlSourceEdges(at: DateTime, archived: Archived = EXCLUDE): [ControlSource!]!
+  implementsControlIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  implementsControlIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ImplementsControlConnection!
+  controlGoal(first: Int = 100, after: String, orderBy: GoalOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): GoalConnection!
+  controlGoalEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlGoalConnection!
+  controlSource(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  controlSourceEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlSourceConnection!
 
   """as: control"""
-  controlCommitments(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+  controlCommitments(as: String, first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
+}
+
+type ImplementsControlConnection {
+  nodes: [ImplementsControl!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """ControlCommitment"""
@@ -3115,14 +3524,20 @@ type ControlCommitment implements Node {
   owner(archived: Archived = EXCLUDE): Node
   control(archived: Archived = EXCLUDE): ControlDefinition
   subject(archived: Archived = EXCLUDE): Node
-  commitmentOwnerEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentOwner!]!
-  implementsControlEdges(at: DateTime, archived: Archived = EXCLUDE): [ImplementsControl!]!
-  commitmentSubjectEdges(at: DateTime, archived: Archived = EXCLUDE): [CommitmentSubject!]!
-  obligationCommitmentIncoming(at: DateTime, archived: Archived = EXCLUDE): [ResponseObligation!]!
-  obligationCommitmentIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationCommitment!]!
+  commitmentOwnerEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentOwnerConnection!
+  implementsControlEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ImplementsControlConnection!
+  commitmentSubjectEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
+  obligationCommitmentIncoming(first: Int = 100, after: String, orderBy: ResponseObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+  obligationCommitmentIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ObligationCommitmentConnection!
 
   """as: commitment"""
-  responseObligations(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+  responseObligations(as: String, first: Int = 100, after: String, orderBy: ResponseObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+}
+
+type ObligationCommitmentConnection {
+  nodes: [ObligationCommitment!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """ResponseObligation"""
@@ -3157,8 +3572,14 @@ type ResponseObligation implements Node {
   waived: Boolean
   commitment(archived: Archived = EXCLUDE): ControlCommitment
   issue(archived: Archived = EXCLUDE): SourceIssueEpisode
-  obligationCommitmentEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationCommitment!]!
-  obligationSubjectEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationSubject!]!
+  obligationCommitmentEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ObligationCommitmentConnection!
+  obligationSubjectEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ObligationSubjectConnection!
+}
+
+type ObligationSubjectConnection {
+  nodes: [ObligationSubject!]!
+  pageInfo: PageInfo!
+  aggregate: Aggregate!
 }
 
 """SourceIssueEpisode"""
@@ -3187,13 +3608,13 @@ type SourceIssueEpisode implements Node {
   source: String
   source_id: String
   synthetic: Boolean
-  obligationSubjectIncoming(at: DateTime, archived: Archived = EXCLUDE): [ResponseObligation!]!
-  obligationSubjectIncomingEdges(at: DateTime, archived: Archived = EXCLUDE): [ObligationSubject!]!
-  issueSource(at: DateTime, archived: Archived = EXCLUDE): [Product!]!
-  issueSourceEdges(at: DateTime, archived: Archived = EXCLUDE): [IssueSource!]!
+  obligationSubjectIncoming(first: Int = 100, after: String, orderBy: ResponseObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+  obligationSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ObligationSubjectConnection!
+  issueSource(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  issueSourceEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): IssueSourceConnection!
 
   """as: issue"""
-  responseObligations(as: String, first: Int = 100, after: String, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
+  responseObligations(as: String, first: Int = 100, after: String, orderBy: ResponseObligationOrder = ID_ASC, at: DateTime, archived: Archived = EXCLUDE): ResponseObligationConnection!
 }
 
 """CreativeBrief"""
@@ -3375,15 +3796,6 @@ type ArtifactDefinitionConnection {
   nodes: [ArtifactDefinition!]!
   pageInfo: PageInfo!
   aggregate: Aggregate!
-}
-
-type PageInfo {
-  endCursor: String
-  hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
 }
 
 type UserStoryConnection {
@@ -3698,6 +4110,748 @@ type CreativeFeedbackConnection {
   aggregate: Aggregate!
 }
 
+"""
+How ArtifactDefinition records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ArtifactDefinitionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How UserStory records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum UserStoryOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Issue records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum IssueOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How AcceptanceCriterion records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum AcceptanceCriterionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Organization records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum OrganizationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How BusinessUnit records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum BusinessUnitOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Project records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ProjectOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Person records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum PersonOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Agent records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum AgentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Technology records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum TechnologyOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How PhysicalComponent records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum PhysicalComponentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Goal records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum GoalOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How MetricDefinition records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum MetricDefinitionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Document records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum DocumentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Entity records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum EntityOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Repository records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum RepositoryOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Product records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ProductOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How CustomerSegment records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum CustomerSegmentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Problem records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ProblemOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Role records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum RoleOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How RoleAssignment records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum RoleAssignmentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How DecisionType records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum DecisionTypeOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How AuthorityDefinition records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum AuthorityDefinitionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How AuthorityGrant records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum AuthorityGrantOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Offering records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum OfferingOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How DecisionRecord records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum DecisionRecordOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How KnowledgeGraph records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum KnowledgeGraphOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Activity records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ActivityOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Asset records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum AssetOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How FinancialObligation records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum FinancialObligationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How OutfitterUser records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum OutfitterUserOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How OutfitterOrganization records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum OutfitterOrganizationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ProductSpecification records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ProductSpecificationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ProductRevision records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ProductRevisionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Demonstration records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum DemonstrationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How EvaluationRecord records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum EvaluationRecordOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ReadinessAssessment records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ReadinessAssessmentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ReleaseRecord records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ReleaseRecordOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How PostReleaseVerification records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum PostReleaseVerificationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Release records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ReleaseOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Requirement records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum RequirementOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Friendship records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum FriendshipOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ControlDefinition records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ControlDefinitionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ControlCommitment records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ControlCommitmentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How ResponseObligation records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum ResponseObligationOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How SourceIssueEpisode records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum SourceIssueEpisodeOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How CreativeBrief records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum CreativeBriefOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How PromptFragment records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum PromptFragmentOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How Storyboard records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum StoryboardOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How GenerationSnapshot records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum GenerationSnapshotOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How CreativeCandidate records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum CreativeCandidateOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How CreativeSelection records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum CreativeSelectionOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How CreativeFeedback records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum CreativeFeedbackOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
 type Query {
   """This schema in SDL: a compact alternative to full introspection."""
   sdl: String!
@@ -3743,6 +4897,7 @@ type Query {
   artifactDefinitions(
     first: Int = 100
     after: String
+    orderBy: ArtifactDefinitionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3762,6 +4917,7 @@ type Query {
   userStorys(
     first: Int = 100
     after: String
+    orderBy: UserStoryOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3781,6 +4937,7 @@ type Query {
   issues(
     first: Int = 100
     after: String
+    orderBy: IssueOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3800,6 +4957,7 @@ type Query {
   acceptanceCriterions(
     first: Int = 100
     after: String
+    orderBy: AcceptanceCriterionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3819,6 +4977,7 @@ type Query {
   organizations(
     first: Int = 100
     after: String
+    orderBy: OrganizationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3838,6 +4997,7 @@ type Query {
   businessUnits(
     first: Int = 100
     after: String
+    orderBy: BusinessUnitOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3857,6 +5017,7 @@ type Query {
   projects(
     first: Int = 100
     after: String
+    orderBy: ProjectOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3876,6 +5037,7 @@ type Query {
   persons(
     first: Int = 100
     after: String
+    orderBy: PersonOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3895,6 +5057,7 @@ type Query {
   agents(
     first: Int = 100
     after: String
+    orderBy: AgentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3914,6 +5077,7 @@ type Query {
   technologys(
     first: Int = 100
     after: String
+    orderBy: TechnologyOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3933,6 +5097,7 @@ type Query {
   physicalComponents(
     first: Int = 100
     after: String
+    orderBy: PhysicalComponentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3952,6 +5117,7 @@ type Query {
   goals(
     first: Int = 100
     after: String
+    orderBy: GoalOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3971,6 +5137,7 @@ type Query {
   metricDefinitions(
     first: Int = 100
     after: String
+    orderBy: MetricDefinitionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -3990,6 +5157,7 @@ type Query {
   documents(
     first: Int = 100
     after: String
+    orderBy: DocumentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4009,6 +5177,7 @@ type Query {
   entitys(
     first: Int = 100
     after: String
+    orderBy: EntityOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4028,6 +5197,7 @@ type Query {
   repositorys(
     first: Int = 100
     after: String
+    orderBy: RepositoryOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4047,6 +5217,7 @@ type Query {
   products(
     first: Int = 100
     after: String
+    orderBy: ProductOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4066,6 +5237,7 @@ type Query {
   customerSegments(
     first: Int = 100
     after: String
+    orderBy: CustomerSegmentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4085,6 +5257,7 @@ type Query {
   problems(
     first: Int = 100
     after: String
+    orderBy: ProblemOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4104,6 +5277,7 @@ type Query {
   roles(
     first: Int = 100
     after: String
+    orderBy: RoleOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4123,6 +5297,7 @@ type Query {
   roleAssignments(
     first: Int = 100
     after: String
+    orderBy: RoleAssignmentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4142,6 +5317,7 @@ type Query {
   decisionTypes(
     first: Int = 100
     after: String
+    orderBy: DecisionTypeOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4161,6 +5337,7 @@ type Query {
   authorityDefinitions(
     first: Int = 100
     after: String
+    orderBy: AuthorityDefinitionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4180,6 +5357,7 @@ type Query {
   authorityGrants(
     first: Int = 100
     after: String
+    orderBy: AuthorityGrantOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4199,6 +5377,7 @@ type Query {
   offerings(
     first: Int = 100
     after: String
+    orderBy: OfferingOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4218,6 +5397,7 @@ type Query {
   decisionRecords(
     first: Int = 100
     after: String
+    orderBy: DecisionRecordOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4237,6 +5417,7 @@ type Query {
   knowledgeGraphs(
     first: Int = 100
     after: String
+    orderBy: KnowledgeGraphOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4256,6 +5437,7 @@ type Query {
   activitys(
     first: Int = 100
     after: String
+    orderBy: ActivityOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4275,6 +5457,7 @@ type Query {
   assets(
     first: Int = 100
     after: String
+    orderBy: AssetOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4294,6 +5477,7 @@ type Query {
   financialObligations(
     first: Int = 100
     after: String
+    orderBy: FinancialObligationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4313,6 +5497,7 @@ type Query {
   outfitterUsers(
     first: Int = 100
     after: String
+    orderBy: OutfitterUserOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4332,6 +5517,7 @@ type Query {
   outfitterOrganizations(
     first: Int = 100
     after: String
+    orderBy: OutfitterOrganizationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4351,6 +5537,7 @@ type Query {
   productSpecifications(
     first: Int = 100
     after: String
+    orderBy: ProductSpecificationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4370,6 +5557,7 @@ type Query {
   productRevisions(
     first: Int = 100
     after: String
+    orderBy: ProductRevisionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4389,6 +5577,7 @@ type Query {
   demonstrations(
     first: Int = 100
     after: String
+    orderBy: DemonstrationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4408,6 +5597,7 @@ type Query {
   evaluationRecords(
     first: Int = 100
     after: String
+    orderBy: EvaluationRecordOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4427,6 +5617,7 @@ type Query {
   readinessAssessments(
     first: Int = 100
     after: String
+    orderBy: ReadinessAssessmentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4446,6 +5637,7 @@ type Query {
   releaseRecords(
     first: Int = 100
     after: String
+    orderBy: ReleaseRecordOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4465,6 +5657,7 @@ type Query {
   postReleaseVerifications(
     first: Int = 100
     after: String
+    orderBy: PostReleaseVerificationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4484,6 +5677,7 @@ type Query {
   releases(
     first: Int = 100
     after: String
+    orderBy: ReleaseOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4503,6 +5697,7 @@ type Query {
   requirements(
     first: Int = 100
     after: String
+    orderBy: RequirementOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4522,6 +5717,7 @@ type Query {
   friendships(
     first: Int = 100
     after: String
+    orderBy: FriendshipOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4541,6 +5737,7 @@ type Query {
   controlDefinitions(
     first: Int = 100
     after: String
+    orderBy: ControlDefinitionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4560,6 +5757,7 @@ type Query {
   controlCommitments(
     first: Int = 100
     after: String
+    orderBy: ControlCommitmentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4579,6 +5777,7 @@ type Query {
   responseObligations(
     first: Int = 100
     after: String
+    orderBy: ResponseObligationOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4598,6 +5797,7 @@ type Query {
   sourceIssueEpisodes(
     first: Int = 100
     after: String
+    orderBy: SourceIssueEpisodeOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4617,6 +5817,7 @@ type Query {
   creativeBriefs(
     first: Int = 100
     after: String
+    orderBy: CreativeBriefOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4636,6 +5837,7 @@ type Query {
   promptFragments(
     first: Int = 100
     after: String
+    orderBy: PromptFragmentOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4655,6 +5857,7 @@ type Query {
   storyboards(
     first: Int = 100
     after: String
+    orderBy: StoryboardOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4674,6 +5877,7 @@ type Query {
   generationSnapshots(
     first: Int = 100
     after: String
+    orderBy: GenerationSnapshotOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4693,6 +5897,7 @@ type Query {
   creativeCandidates(
     first: Int = 100
     after: String
+    orderBy: CreativeCandidateOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4712,6 +5917,7 @@ type Query {
   creativeSelections(
     first: Int = 100
     after: String
+    orderBy: CreativeSelectionOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
@@ -4731,6 +5937,7 @@ type Query {
   creativeFeedbacks(
     first: Int = 100
     after: String
+    orderBy: CreativeFeedbackOrder = ID_ASC
     archived: Archived = EXCLUDE
     ids: [ID!]
 
