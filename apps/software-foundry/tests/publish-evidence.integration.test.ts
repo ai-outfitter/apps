@@ -5,7 +5,7 @@ import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
-import standard from "../../../packages/app-sdk/graph/standard-types.json" with { type: "json" };
+import standard from "@ai-outfitter/app-sdk/graph/standard-types.json" with { type: "json" };
 import { documents } from "../src/server/documents";
 
 // The front door from uploaded evidence to Planning (gap 1 in webapp
