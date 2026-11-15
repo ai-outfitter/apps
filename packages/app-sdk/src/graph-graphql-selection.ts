@@ -6,7 +6,8 @@
 // document grows with rules times depth, not with the data or the number of types.
 // Each hop selects edge objects, so the result carries edge IDs as well as nodes:
 // - typed `<edge>Edges` / `<edge>IncomingEdges` connections, inside `... on <Type>`, where
-//   the edge type declares ontology endpoints: `first` from maxNodes, with `pageInfo { hasNextPage }`
+//   the edge type declares ontology endpoints: the largest page (500 edges per node; the walk applies
+//   maxNodes), with `pageInfo { hasNextPage }`
 //   so a parent with more edges than one page marks the selection incomplete;
 // - otherwise `edges(types: [...], direction: ...)`, aliased `<edge>Links` /
 //   `<edge>IncomingLinks`, inside `... on <Type>` when a guard names one source type,
@@ -158,7 +159,7 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   const first = Math.min(definition.maxNodes, 500);
   /** The fields reading hop `level` out of a node; past maxDepth only the far end's id and typeId. */
   const fields = (level: number, on: string) => hops.filter(hop => hop.on === on).map(hop => {
-    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}${hop.connection ? `(first: ${first})` : hop.args ?? ""}`;
+    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}${hop.connection ? `(first: 500)` : hop.args ?? ""}`;
     const expands = hops.length && hop.targets.some(target => !terminal.has(target));
     const edge = level > definition.maxDepth ? `...Link ${hop.end} { id typeId }` : `...Link ${hop.end} { ...Record${expands ? ` ...${step(level + 1)}` : ""} }`;
     return hop.connection ? `${head} { nodes { ${edge} } pageInfo { hasNextPage } }` : `${head} { ${edge} }`;

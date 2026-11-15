@@ -53,8 +53,8 @@ const titles = (selection: GraphSelection) => selection.nodes.map(item => item.t
 test("an incoming relationship, typed endpoint fields and generic edges read the same selection as selectGraph", async () => {
   const { compiled, direct } = await roundTrip(definition({ relationships: [{ type: "part_of", direction: "incoming" }, "produces", "addresses", { type: "experiences", direction: "incoming" }] }));
   assert.deepEqual(titles(direct), ["Acme", "Atlas", "Atlas app", "Beacon", "Beacon kit", "Pricing", "Slow onboarding", "Small teams"]);
-  assert.match(compiled.query, /\.\.\. on Project \{\s+producesEdges\(first: 100\) \{\s+nodes \{\s+\.\.\.Link\s+to \{/, "edge types with endpoints use their typed fields");
-  assert.match(compiled.query, /\.\.\. on Problem \{\s+experiencesIncomingEdges\(first: 100\) \{\s+nodes \{\s+\.\.\.Link\s+from/);
+  assert.match(compiled.query, /\.\.\. on Project \{\s+producesEdges\(first: 500\) \{\s+nodes \{\s+\.\.\.Link\s+to \{/, "edge types with endpoints use their typed fields");
+  assert.match(compiled.query, /\.\.\. on Problem \{\s+experiencesIncomingEdges\(first: 500\) \{\s+nodes \{\s+\.\.\.Link\s+from/);
   assert.match(compiled.query, /partOfIncomingLinks: edges\(types: \["part_of"\], direction: INCOMING\)/, "others read the edges connection");
   assert.match(compiled.query, /organizations\(ids: \$rootIds, first: 100\)/);
   assert.equal(print(parse(compiled.query)), compiled.query, "the text is graphql-js print output");
