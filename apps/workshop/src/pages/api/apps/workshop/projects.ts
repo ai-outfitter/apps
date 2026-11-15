@@ -1,12 +1,12 @@
 import type { APIRoute } from "astro";
-import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { readJSON, respond } from "@ai-outfitter/app-sdk/server";
 import { workshopContext } from "../../../../server/context";
 import { documents, runDocument } from "../../../../server/documents";
-import { createInput, createWorkshopProject, getWorkshopProject, listWorkshopProjects } from "../../../../server/projects";
+import { createInput, createWorkshopProject, getWorkshopProject } from "../../../../server/projects";
 
-export const GET: APIRoute = () =>
-  respond(() => listWorkshopProjects(installationDatabase()));
+/** The project list reads the same WorkshopProjects document agents run over MCP. */
+export const GET: APIRoute = ({ request, locals }) =>
+  respond(async () => (await runDocument(documents.WorkshopProjects.document, {}, workshopContext(request, locals))).workshopProjects.nodes);
 
 /** The page starts a project from a starter example through the same CreateWorkshopProject
  * document agents run with graph_mutate. A whole project is larger than a document's

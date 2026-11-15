@@ -82,3 +82,54 @@ test("a project's Wiki product revision is saved with it and served, filterable,
     await app.dispose();
   }
 });
+
+test("agents list projects and open one by slug with its assembly, BOM and builds through the published documents", async () => {
+  const { documents } = await import("../src/server/documents");
+  const { bomTotals } = await import("../src/lib/assembly");
+  const { projectSlug } = await import("../src/lib/sections");
+  const app = await appWorker("workshop", artifact(), "model-reads");
+  try {
+    const run = async (name: "WorkshopProjects" | "WorkshopProject", variables: Record<string, unknown>) => {
+      const response = await app.call(`${actionPath}/call`, member, {
+        method: "POST", body: { action: "graph.graphql", input: { query: documentText(documents[name].document), variables }, access: "read" },
+      });
+      assert.equal(response.status, 200, await response.clone().text());
+      const body = (await response.json()) as { data: Record<string, { nodes: Record<string, unknown>[] }>; errors?: unknown };
+      assert.equal(body.errors, undefined, JSON.stringify(body.errors));
+      return body.data.workshopProjects.nodes;
+    };
+    const node = (await (await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "node", name: "SNY-1 soil sensor node" } })).json()) as Project;
+    await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "cube" } });
+
+    const listed = await run("WorkshopProjects", { search: "soil" });
+    assert.deepEqual(listed.map(({ name, slug, phase, kind }) => ({ name, slug, phase, kind })),
+      [{ name: "SNY-1 soil sensor node", slug: projectSlug(node), phase: "concept", kind: "electronics" }]);
+    assert.equal((await run("WorkshopProjects", { phase: ["manufacturing"] })).length, 0);
+    // The page's project list is the same document.
+    const page = (await (await app.call("/api/apps/workshop/projects", member)).json()) as { slug: string; phase: string }[];
+    assert.deepEqual(page.map((row) => row.slug).sort(), (await run("WorkshopProjects", {})).map((row) => row.slug).sort());
+    assert.equal(page.length, 2);
+
+    // A renamed project keeps its old slug working: only the id's tail is matched.
+    const [model] = await run("WorkshopProject", { slug: `old-name-${node.id.slice(-12)}` });
+    assert.equal(model.slug, projectSlug(node));
+    assert.equal(model.requirements, node.requirements);
+    const assembly = model.assembly as { root: string; items: { number: string; kind: string; size: number[] | null; uses: { part: string; quantity: number }[] }[] };
+    const root = node.assembly.items.find((item) => item.id === node.assembly.rootId)!;
+    assert.equal(assembly.root, root.number);
+    assert.equal(assembly.items.length, node.assembly.items.length);
+    // Usage lines name contained items by part number, never by internal id.
+    const byNumber = new Map(node.assembly.items.map((item) => [item.number, item]));
+    for (const item of assembly.items) for (const use of item.uses) assert.ok(byNumber.has(use.part), use.part);
+    assert.ok(assembly.items.some((item) => item.kind === "firmware" && item.size === null));
+    assert.ok(assembly.items.some((item) => item.kind !== "firmware" && item.size?.length === 3));
+    const bom = model.bom as { cost: number; lines: { depth: number; part: string }[] };
+    assert.equal(bom.lines[0].part, root.number);
+    assert.equal(bom.lines[0].depth, 0);
+    assert.equal(bom.cost, bomTotals(node.assembly).cost);
+    assert.deepEqual(model.builds, []);
+    assert.deepEqual(await run("WorkshopProject", { slug: "no-such-project" }), []);
+  } finally {
+    await app.dispose();
+  }
+});

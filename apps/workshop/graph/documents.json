@@ -1679,6 +1679,542 @@
     }
   },
   {
+    "name": "WorkshopProject",
+    "kind": "query",
+    "story": "As a member or an agent working for one, I want to open one Workshop project by its slug with its requirements, product structure, indented BOM and cost, workspace builds with their tests, and bench evidence, so that I can review, check or simulate the model from stored state instead of the page.",
+    "query": "query WorkshopProject($slug: String!) {\n  workshopProjects(slugs: [$slug], first: 1) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      requirements\n      measurementNotes\n      circuitNotes\n      updatedAt\n      productRevision {\n        id\n        title\n        url\n      }\n      assembly {\n        root\n        items {\n          number\n          revision\n          name\n          kind\n          manufacturer\n          mpn\n          source\n          unitCost\n          priceKnown\n          provenance\n          trackBy\n          notes\n          size\n          mesh\n          geometry\n          firmware {\n            repository\n            path\n            ref\n            target\n          }\n          uses {\n            part\n            quantity\n            refdes\n            position\n            rotation\n            orientation\n          }\n        }\n      }\n      bom {\n        cost\n        pricesKnown\n        lines {\n          depth\n          part\n          revision\n          name\n          kind\n          quantity\n          refdes\n          unitCost\n          priceKnown\n        }\n      }\n      builds {\n        id\n        status\n        current\n        stale\n        repository\n        sourceDir\n        sourceCommit\n        runner\n        compiler\n        createdAt\n        finishedAt\n        error\n        tests {\n          name\n          status\n          detail\n        }\n        artifacts {\n          path\n          bytes\n          contentType\n        }\n        assembly {\n          root\n          items {\n            number\n            revision\n            name\n            kind\n            manufacturer\n            mpn\n            unitCost\n            priceKnown\n            provenance\n            notes\n            size\n            mesh\n            uses {\n              part\n              quantity\n              refdes\n              position\n              rotation\n              orientation\n            }\n          }\n        }\n        bom {\n          cost\n          pricesKnown\n          lines {\n            depth\n            part\n            revision\n            name\n            kind\n            quantity\n            refdes\n            unitCost\n            priceKnown\n          }\n        }\n      }\n      evidence {\n        stage\n        outcome\n        note\n        operator\n        at\n      }\n      research {\n        name\n        kind\n        url\n        notes\n        decision\n      }\n      concepts {\n        caption\n        model\n        createdAt\n      }\n    }\n  }\n}",
+    "hash": "61d62e8aa22b35be67c59272e4acffd5722cd5a4f226c2c980dc328d46d8ac8c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Read one project by slug: requirements, product structure (items with part numbers, kinds, sizes in mm, CAD plan geometry, usage lines with placements), indented BOM and cost, workspace builds with tests, artifacts and the assembly each built, bench evidence, research and concepts. Provisional items are envelopes, not measured parts."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "phase": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "brief": {
+                    "type": "string"
+                  },
+                  "requirements": {
+                    "type": "string"
+                  },
+                  "measurementNotes": {
+                    "type": "string"
+                  },
+                  "circuitNotes": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  },
+                  "productRevision": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "assembly": {
+                    "type": "object",
+                    "properties": {
+                      "root": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "number": {
+                              "type": "string"
+                            },
+                            "revision": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string"
+                            },
+                            "manufacturer": {
+                              "type": "string"
+                            },
+                            "mpn": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string"
+                            },
+                            "unitCost": {
+                              "type": "number"
+                            },
+                            "priceKnown": {
+                              "type": "boolean"
+                            },
+                            "provenance": {
+                              "type": "string"
+                            },
+                            "trackBy": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "string"
+                            },
+                            "size": {
+                              "type": "array",
+                              "items": {
+                                "type": "number"
+                              },
+                              "nullable": true
+                            },
+                            "mesh": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "geometry": {
+                              "description": "JSON",
+                              "nullable": true
+                            },
+                            "firmware": {
+                              "type": "object",
+                              "properties": {
+                                "repository": {
+                                  "type": "string"
+                                },
+                                "path": {
+                                  "type": "string"
+                                },
+                                "ref": {
+                                  "type": "string"
+                                },
+                                "target": {
+                                  "type": "string"
+                                }
+                              },
+                              "nullable": true
+                            },
+                            "uses": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "part": {
+                                    "type": "string"
+                                  },
+                                  "quantity": {
+                                    "type": "integer"
+                                  },
+                                  "refdes": {
+                                    "type": "string"
+                                  },
+                                  "position": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "rotation": {
+                                    "type": "number"
+                                  },
+                                  "orientation": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    },
+                                    "nullable": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "bom": {
+                    "type": "object",
+                    "properties": {
+                      "cost": {
+                        "type": "number"
+                      },
+                      "pricesKnown": {
+                        "type": "boolean"
+                      },
+                      "lines": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "depth": {
+                              "type": "integer"
+                            },
+                            "part": {
+                              "type": "string"
+                            },
+                            "revision": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "integer"
+                            },
+                            "refdes": {
+                              "type": "string"
+                            },
+                            "unitCost": {
+                              "type": "number"
+                            },
+                            "priceKnown": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "builds": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "current": {
+                          "type": "boolean"
+                        },
+                        "stale": {
+                          "type": "boolean"
+                        },
+                        "repository": {
+                          "type": "string"
+                        },
+                        "sourceDir": {
+                          "type": "string"
+                        },
+                        "sourceCommit": {
+                          "type": "string"
+                        },
+                        "runner": {
+                          "type": "string"
+                        },
+                        "compiler": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "description": "DateTime"
+                        },
+                        "finishedAt": {
+                          "description": "DateTime",
+                          "nullable": true
+                        },
+                        "error": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "artifacts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "bytes": {
+                                "type": "integer"
+                              },
+                              "contentType": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "assembly": {
+                          "type": "object",
+                          "properties": {
+                            "root": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "number": {
+                                    "type": "string"
+                                  },
+                                  "revision": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "manufacturer": {
+                                    "type": "string"
+                                  },
+                                  "mpn": {
+                                    "type": "string"
+                                  },
+                                  "unitCost": {
+                                    "type": "number"
+                                  },
+                                  "priceKnown": {
+                                    "type": "boolean"
+                                  },
+                                  "provenance": {
+                                    "type": "string"
+                                  },
+                                  "notes": {
+                                    "type": "string"
+                                  },
+                                  "size": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    },
+                                    "nullable": true
+                                  },
+                                  "mesh": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "uses": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "part": {
+                                          "type": "string"
+                                        },
+                                        "quantity": {
+                                          "type": "integer"
+                                        },
+                                        "refdes": {
+                                          "type": "string"
+                                        },
+                                        "position": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "rotation": {
+                                          "type": "number"
+                                        },
+                                        "orientation": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "number"
+                                          },
+                                          "nullable": true
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "bom": {
+                          "type": "object",
+                          "properties": {
+                            "cost": {
+                              "type": "number"
+                            },
+                            "pricesKnown": {
+                              "type": "boolean"
+                            },
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "depth": {
+                                    "type": "integer"
+                                  },
+                                  "part": {
+                                    "type": "string"
+                                  },
+                                  "revision": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "quantity": {
+                                    "type": "integer"
+                                  },
+                                  "refdes": {
+                                    "type": "string"
+                                  },
+                                  "unitCost": {
+                                    "type": "number"
+                                  },
+                                  "priceKnown": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "stage": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "type": "string"
+                        },
+                        "operator": {
+                          "type": "string"
+                        },
+                        "at": {
+                          "description": "DateTime"
+                        }
+                      }
+                    }
+                  },
+                  "research": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        },
+                        "decision": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "concepts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "caption": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "description": "DateTime"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "WorkshopProjectHandoff",
     "kind": "query",
     "story": "As a Planning agent or member, I want to read back one Workshop project's persisted brief, requirements, stage and whole assembly, so that I can verify a hardware handoff from stored state instead of a summary.",
@@ -1700,9 +2236,9 @@
   {
     "name": "WorkshopProjects",
     "kind": "query",
-    "story": "As a caller, I want to search workshopProjects with compact results, so that I can select records and continue through every page.",
-    "query": "query WorkshopProjects($first: Int = 20, $after: String, $ids: [ID!], $search: String, $createdBy: [ID!], $productRevisionId: [ID!]) {\n  workshopProjects(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    createdBy: $createdBy\n    productRevisionId: $productRevisionId\n  ) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "8ca08658e451a938830a589e8c854fa6de3d4f6aff595bf4ef2a3b8a2877c0e2",
+    "story": "As a member or an agent working for one, I want to list the organization's Workshop projects with their stage, brief and the product revision each builds, so that I can find the model to open without loading every model.",
+    "query": "query WorkshopProjects($first: Int = 100, $after: String, $search: String, $phase: [String!], $productRevisionId: [ID!]) {\n  workshopProjects(\n    first: $first\n    after: $after\n    search: $search\n    phase: $phase\n    productRevisionId: $productRevisionId\n  ) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      productRevisionId\n      productRevisionTitle\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "b9e297e075ce8f866bf1e2d092859970c49aac4918e3a56429ebd42f0a517029",
     "variables": {
       "type": "object",
       "properties": {
@@ -1714,17 +2250,13 @@
           "type": "string",
           "description": "GraphQL String"
         },
-        "ids": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
-        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
         },
-        "createdBy": {
+        "phase": {
           "type": "array",
-          "description": "GraphQL [ID!]"
+          "description": "GraphQL [String!]"
         },
         "productRevisionId": {
           "type": "array",
@@ -1733,14 +2265,85 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "List Workshop projects with slug, stage, brief and the Wiki product revision each builds; open one with WorkshopProject by slug.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "workshopProjects",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "phase": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "brief": {
+                    "type": "string"
+                  },
+                  "productRevisionId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "productRevisionTitle": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "WorkshopUnits",
     "kind": "query",
-    "story": "As a caller, I want to search workshopUnits with compact results, so that I can select records and continue through every page.",
-    "query": "query WorkshopUnits($first: Int = 20, $after: String, $ids: [ID!], $search: String, $partNumber: [String!], $mac: [String!], $status: [String!], $projectId: [ID!]) {\n  workshopUnits(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    partNumber: $partNumber\n    mac: $mac\n    status: $status\n    projectId: $projectId\n  ) {\n    nodes {\n      id\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "fc6b35bb410c0183c57fc8d5190f175e990b9ef96813fdaa5bac460e20d4514f",
+    "story": "As a member or an agent working for one, I want to list the physical units in stock by part number, MAC address, status or project with the firmware each last flashed, so that a build or test names the exact board it ran on.",
+    "query": "query WorkshopUnits($first: Int = 100, $after: String, $partNumber: [String!], $mac: [String!], $status: [String!], $projectId: [ID!]) {\n  workshopUnits(\n    first: $first\n    after: $after\n    partNumber: $partNumber\n    mac: $mac\n    status: $status\n    projectId: $projectId\n  ) {\n    nodes {\n      id\n      partNumber\n      mpn\n      mac\n      serial\n      status\n      location\n      projectId\n      firmware\n      notes\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "17eafd39e0b26ffa077b4e445980ff9ea8bb7c6ee47c82b88073f4d3bae1ca5f",
     "variables": {
       "type": "object",
       "properties": {
@@ -1749,14 +2352,6 @@
           "description": "GraphQL Int"
         },
         "after": {
-          "type": "string",
-          "description": "GraphQL String"
-        },
-        "ids": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
-        },
-        "search": {
           "type": "string",
           "description": "GraphQL String"
         },
@@ -1779,6 +2374,81 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "List physical units by part number, MAC, status or project, with location and the firmware last flashed.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "workshopUnits",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopUnits": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "partNumber": {
+                    "type": "string"
+                  },
+                  "mpn": {
+                    "type": "string"
+                  },
+                  "mac": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "serial": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "firmware": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 ]

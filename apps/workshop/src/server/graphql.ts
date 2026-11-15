@@ -15,7 +15,8 @@ import {
   assemblyInput, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
   getWorkshopProject, nameWorkshopProductRevision, projectFrom, saveWorkshopAssembly, type WorkshopDatabase, workshopProjectRow,
 } from "./projects";
-import { workshopProjects, workshopUnits } from "./schema";
+import { projects, WorkshopProject } from "./read";
+import { workshopUnits } from "./schema";
 import { createWorkshopUnit, deleteWorkshopUnit, UnitDelete, UnitInput, UnitUpdate, updateWorkshopUnit } from "./units";
 
 /** The services every action and document runs with (src/server/context.ts builds them). */
@@ -31,13 +32,6 @@ export type WorkshopServices = {
 /** What the actions route (and a page running a document in process) passes to every resolver. */
 export type WorkshopContext = ActionContext & WorkshopServices;
 
-const projects = tableType(workshopProjects, {
-  field: "workshopProjects", type: "WorkshopProject",
-  fields: ["name", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
-  dates: ["createdAt", "updatedAt"],
-  ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
-  filters: ["createdBy", "productRevisionId"],
-});
 /** The inventory: one row per physical unit, told apart by MAC address or serial. */
 const units = tableType(workshopUnits, {
   field: "workshopUnits", type: "WorkshopUnit",
@@ -49,7 +43,7 @@ const units = tableType(workshopUnits, {
 /** The row type a tableType collection pages (`<Type>Connection.nodes`), so a mutation returns the same record a read does. */
 const rowType = (collection: GraphQLFieldConfig<unknown, TableContext>) =>
   getNamedType((getNamedType(collection.type) as GraphQLObjectType).getFields().nodes.type) as GraphQLObjectType;
-const row = new GraphQLNonNull(rowType(projects.workshopProjects));
+const row = new GraphQLNonNull(WorkshopProject);
 const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 
 // Workshop's writes that fit a document: every member starts, describes, links and deletes
@@ -136,9 +130,8 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
 
 /** What this app serves over graph.graphql and graph.mutate (printed to graph/schema.graphql
  * by scripts/graph-schema.ts): its projects as the project list shows them, with the Wiki
- * ProductRevision each builds (filter by `productRevisionId`), its inventory of physical
- * units, and the writes its documents (documents.ts) run. The project document in `data`
- * (models, CAD plans, evidence) is not served. */
+ * ProductRevision each builds (filter by `productRevisionId`) and, per project, its model
+ * (read.ts), its inventory of physical units, and the writes its documents (documents.ts) run. */
 /** One project's persisted handoff: what a caller wrote with the documents above, read back whole. */
 const handoffInput = z.strictObject({ id: z.uuid() });
 const handoff = mutationField<typeof handoffInput, WorkshopContext>({

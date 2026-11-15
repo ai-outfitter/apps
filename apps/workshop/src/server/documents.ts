@@ -1,8 +1,7 @@
 import { withBatchDocuments } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
-// Workshop's documents: the mutations its page and agents run over graphqlSchema, each
-// with the user story that keeps it (reads need no document: the composed graph answers
-// them). scripts/graph-schema.ts writes them to graph/documents.json, which the platform
+// Workshop's documents: the reads and mutations its page and agents run over graphqlSchema,
+// each with the user story that keeps it. scripts/graph-schema.ts writes them to graph/documents.json, which the platform
 // lists (graph_documents) and runs by name (graph_mutate); the page's routes run the same
 // documents with runDocument.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
@@ -23,6 +22,54 @@ const legacyDocuments = defineDocuments({
   WorkshopDesignRun: {
     story: "As a member or an agent working for one, I want to read a design run I started, so that I know when the project revision it saved is ready and which project to open.",
     document: graphql(`query WorkshopDesignRun($input: WorkshopDesignRunInput!) { workshopDesignRun(input: $input) }`),
+  },
+  WorkshopProjects: {
+    story: "As a member or an agent working for one, I want to list the organization's Workshop projects with their stage, brief and the product revision each builds, so that I can find the model to open without loading every model.",
+    document: graphql(`query WorkshopProjects($first: Int = 100, $after: String, $search: String, $phase: [String!], $productRevisionId: [ID!]) {
+      workshopProjects(first: $first, after: $after, search: $search, phase: $phase, productRevisionId: $productRevisionId) {
+        nodes { id slug name revision phase kind brief productRevisionId productRevisionTitle updatedAt }
+        pageInfo { endCursor hasNextPage }
+      }
+    }`),
+  },
+  WorkshopProject: {
+    story: "As a member or an agent working for one, I want to open one Workshop project by its slug with its requirements, product structure, indented BOM and cost, workspace builds with their tests, and bench evidence, so that I can review, check or simulate the model from stored state instead of the page.",
+    document: graphql(`query WorkshopProject($slug: String!) {
+      workshopProjects(slugs: [$slug], first: 1) {
+        nodes {
+          id slug name revision phase kind brief requirements measurementNotes circuitNotes updatedAt
+          productRevision { id title url }
+          assembly {
+            root
+            items {
+              number revision name kind manufacturer mpn source unitCost priceKnown provenance trackBy notes size mesh geometry
+              firmware { repository path ref target }
+              uses { part quantity refdes position rotation orientation }
+            }
+          }
+          bom { cost pricesKnown lines { depth part revision name kind quantity refdes unitCost priceKnown } }
+          builds {
+            id status current stale repository sourceDir sourceCommit runner compiler createdAt finishedAt error
+            tests { name status detail }
+            artifacts { path bytes contentType }
+            assembly { root items { number revision name kind manufacturer mpn unitCost priceKnown provenance notes size mesh uses { part quantity refdes position rotation orientation } } }
+            bom { cost pricesKnown lines { depth part revision name kind quantity refdes unitCost priceKnown } }
+          }
+          evidence { stage outcome note operator at }
+          research { name kind url notes decision }
+          concepts { caption model createdAt }
+        }
+      }
+    }`),
+  },
+  WorkshopUnits: {
+    story: "As a member or an agent working for one, I want to list the physical units in stock by part number, MAC address, status or project with the firmware each last flashed, so that a build or test names the exact board it ran on.",
+    document: graphql(`query WorkshopUnits($first: Int = 100, $after: String, $partNumber: [String!], $mac: [String!], $status: [String!], $projectId: [ID!]) {
+      workshopUnits(first: $first, after: $after, partNumber: $partNumber, mac: $mac, status: $status, projectId: $projectId) {
+        nodes { id partNumber mpn mac serial status location projectId firmware notes updatedAt }
+        pageInfo { endCursor hasNextPage }
+      }
+    }`),
   },
   CreateWorkshopProject: {
     story: "As a member, I want to start a project from a starter example on the Workshop page or through an agent, named for the product revision it builds, so that I can refine a working model instead of a blank one.",
@@ -86,6 +133,9 @@ const legacyDocuments = defineDocuments({
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
+  WorkshopProjects: { description: "List Workshop projects with slug, stage, brief and the Wiki product revision each builds; open one with WorkshopProject by slug.", collection: true, provenance: "organizationSlug" },
+  WorkshopProject: { description: "Read one project by slug: requirements, product structure (items with part numbers, kinds, sizes in mm, CAD plan geometry, usage lines with placements), indented BOM and cost, workspace builds with tests, artifacts and the assembly each built, bench evidence, research and concepts. Provisional items are envelopes, not measured parts." },
+  WorkshopUnits: { description: "List physical units by part number, MAC, status or project, with location and the firmware last flashed.", collection: true, provenance: "organizationSlug" },
   WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
   AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },
   AttachCreativeResult: { description: "Link a committed result candidate back to its design request." },

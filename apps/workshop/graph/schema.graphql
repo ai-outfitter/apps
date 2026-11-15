@@ -1,11 +1,16 @@
 type Query {
+  """
+  Workshop's projects in ID order. Filter by slugs (as the project page addresses them), ids, phase, the Wiki product revision they build or who created them; search matches the name and brief.
+  """
   workshopProjects(
     first: Int = 100
     after: String
     ids: [ID!]
+    slugs: [String!]
 
-    """Match text across this collection’s text fields."""
+    """Match text in the name and brief."""
     search: String
+    phase: [String!]
     createdBy: [ID!]
     productRevisionId: [ID!]
   ): WorkshopProjectConnection!
@@ -39,10 +44,31 @@ type WorkshopProjectConnection {
   aggregate: Aggregate!
 }
 
+"""
+A Workshop project: a device or part on its way from concept to manufacture.
+"""
 type WorkshopProject {
   id: ID!
+
+  """
+  The address the project page and documents use; it ends with the last 12 hex digits of the id, so a rename keeps it working.
+  """
+  slug: String!
   name: String!
   revision: Float!
+
+  """concept, prototyping, validation, pilot or manufacturing."""
+  phase: String!
+
+  """mechanical or electronics."""
+  kind: String!
+
+  """What the project builds and for whom."""
+  brief: String!
+
+  """What the design must meet."""
+  requirements: String!
+  productRevision: WorkshopProductRevision
   wikiInstallationId: ID
   productRevisionId: ID
   productRevisionTitle: String
@@ -50,10 +76,239 @@ type WorkshopProject {
   updatedBy: ID!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """What was measured and what is still assumed."""
+  measurementNotes: String!
+  circuitNotes: String!
+
+  """
+  The saved product structure: items and the usage lines between them. A workspace build may produce its own (builds.assembly).
+  """
+  assembly: WorkshopAssembly!
+
+  """
+  The indented BOM and the cost of one top assembly, derived from the assembly.
+  """
+  bom: WorkshopBom!
+
+  """Workspace builds, newest first, with their tests and artifacts."""
+  builds: [WorkshopBuild!]!
+
+  """Bench observations, oldest first."""
+  evidence: [WorkshopEvidence!]!
+  research: [WorkshopResearch!]!
+  concepts: [WorkshopConcept!]!
+}
+
+"""The Wiki ProductRevision a project builds."""
+type WorkshopProductRevision {
+  id: ID!
+  title: String!
+  url: String!
+  wikiInstallationId: String
 }
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
+
+type WorkshopAssembly {
+  """The top assembly's part number."""
+  root: String
+  items: [WorkshopItem!]!
+}
+
+"""
+One item of the product structure: an assembly, printed or fabricated part, COTS part, PCB or firmware.
+"""
+type WorkshopItem {
+  """The part number, unique in the project."""
+  number: String!
+
+  """The revision letter."""
+  revision: String!
+  name: String!
+
+  """assembly, printed, fabricated, cots, pcb or firmware."""
+  kind: String!
+  manufacturer: String!
+  mpn: String!
+  source: String!
+  unitCost: Float!
+  priceKnown: Boolean!
+
+  """
+  provisional, manufacturer or measured: how far the dimensions and data can be trusted.
+  """
+  provenance: String!
+
+  """none, mac or serial: how the inventory tells units apart."""
+  trackBy: String!
+  color: String
+  notes: String!
+
+  """
+  [x, y, z] extent of the item's geometry or mesh in mm; none for items without a solid.
+  """
+  size: [Float!]
+
+  """
+  The CAD plan (features in the item's own coordinates, mm). For a COTS part it is an envelope, not the manufacturer's model.
+  """
+  geometry: JSON
+
+  """
+  The build artifact path of the item's mesh, when a workspace build supplied one.
+  """
+  mesh: String
+  firmware: WorkshopFirmware
+  uses: [WorkshopUsage!]!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type WorkshopFirmware {
+  repository: String!
+  path: String!
+
+  """The tag, branch or commit a build flashes."""
+  ref: String!
+
+  """The chip target, such as esp32s3."""
+  target: String!
+}
+
+"""
+A usage line: how many of an item an assembly holds, where and under which reference designator.
+"""
+type WorkshopUsage {
+  """The contained item's part number."""
+  part: String!
+  quantity: Int!
+  refdes: String!
+
+  """[x, y, z] in mm in the parent assembly."""
+  position: [Float!]!
+
+  """Turn about the parent's Z axis, in degrees."""
+  rotation: Float!
+
+  """[x, y, z] Euler angles in degrees, when set instead of rotation."""
+  orientation: [Float!]
+}
+
+type WorkshopBom {
+  lines: [WorkshopBomLine!]!
+
+  """Cost of one top assembly from unit costs, known or not."""
+  cost: Float!
+
+  """Whether every line below the top has a known price."""
+  pricesKnown: Boolean!
+}
+
+"""One line of the indented BOM, from the top assembly down."""
+type WorkshopBomLine {
+  """0 for the top assembly."""
+  depth: Int!
+  part: String!
+  revision: String!
+  name: String!
+  kind: String!
+
+  """Units per one top assembly."""
+  quantity: Int!
+  refdes: String!
+  unitCost: Float!
+  priceKnown: Boolean!
+}
+
+"""One workspace build: the pinned source it compiled and what it proved."""
+type WorkshopBuild {
+  id: ID!
+
+  """queued, running, succeeded or failed."""
+  status: String!
+
+  """Whether this build is the project's current one."""
+  current: Boolean!
+
+  """
+  Whether the project changed after the build, so its results no longer describe the model.
+  """
+  stale: Boolean!
+  repository: String!
+  sourceDir: String!
+  sourceCommit: String!
+  runner: String!
+  instructions: String!
+  parameters: JSON!
+  createdAt: DateTime!
+  finishedAt: DateTime
+  compiler: String
+  error: String
+  tests: [WorkshopBuildTest!]!
+
+  """
+  The product structure the build produced, with meshes, when it succeeded.
+  """
+  assembly: WorkshopAssembly
+
+  """The BOM of the built assembly."""
+  bom: WorkshopBom
+  artifacts: [WorkshopBuildArtifact!]!
+}
+
+type WorkshopBuildTest {
+  name: String!
+
+  """pass, fail or unverified."""
+  status: String!
+  detail: String!
+}
+
+type WorkshopBuildArtifact {
+  path: String!
+  bytes: Int!
+  contentType: String!
+  sha256: String!
+}
+
+"""
+A bench observation: a measurement, fit test, breadboard or PCB bring-up and its outcome.
+"""
+type WorkshopEvidence {
+  stage: String!
+
+  """Pass, Fail or Observation."""
+  outcome: String!
+  note: String!
+  operator: String!
+  at: DateTime!
+  serialLog: String!
+}
+
+type WorkshopResearch {
+  name: String!
+
+  """COTS, Open design or Prior art."""
+  kind: String!
+  url: String!
+  notes: String!
+
+  """Investigate, Use, Adapt or Reject."""
+  decision: String!
+}
+
+"""
+A concept mockup: what the product is meant to look like. The image is served by the project page.
+"""
+type WorkshopConcept {
+  caption: String!
+  prompt: String!
+  model: String!
+  createdAt: DateTime!
+}
 
 type PageInfo {
   endCursor: String
@@ -87,9 +342,6 @@ type WorkshopUnit {
   createdAt: DateTime!
   updatedAt: DateTime!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 input WorkshopProjectHandoffInput {
   id: ID!
