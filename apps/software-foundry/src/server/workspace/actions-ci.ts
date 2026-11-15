@@ -10,15 +10,20 @@ export async function actionsChecks(api: API, repository: string, candidate: Cha
   const result = await api(`/repos/${repository}/commits/${candidate.headSha}/check-runs?per_page=100`);
   if (!names.length || result.total_count > 100)
     throw new Response("CI check configuration or history needs attention", { status: 422 });
-  return names.map((name): CheckReceipt & { id: number; conclusion: string } => {
+  const receipts = names.map((name): (CheckReceipt & { id: number; conclusion: string }) | undefined => {
     const check = result.check_runs.filter((item: any) =>
       item.name === name && item.app?.id === githubActionsAppId && item.head_sha === candidate.headSha,
     ).sort((a: any, b: any) => b.id - a.id)[0];
-    if (!check || check.status !== "completed") throw waiting("Waiting for current GitHub Actions checks");
+    if (!check || check.status !== "completed") return undefined;
     if (["cancelled", "timed_out", "action_required", "stale"].includes(check.conclusion))
       throw new Response(`CI infrastructure needs attention: ${name}`, { status: 422 });
     return { id: check.id, name, headSha: candidate.headSha, passed: check.conclusion === "success", conclusion: check.conclusion, url: check.html_url };
   });
+  const done = receipts.filter((receipt) => receipt !== undefined);
+  // A failed check is enough to start repair; waiting on the rest only spends the lease.
+  if (done.length < names.length && !done.some((receipt) => !receipt.passed))
+    throw waiting("Waiting for current GitHub Actions checks");
+  return done;
 }
 
 /** Preview links are trusted only from the Actions bot's current-revision marker. */
