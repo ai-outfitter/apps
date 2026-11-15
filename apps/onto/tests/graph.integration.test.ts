@@ -66,7 +66,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     const projection = await json(await app.call(path + "list", member, { method: "POST", body: {
       type: "graph-node", filter: { source: { installationId: "planning", type: "project", id: "canonical-meze" } },
     } }));
-    assert.deepEqual(projection.map((node: { ref: { id: string } }) => node.ref.id), [project.ref.id]);
+    assert.deepEqual(projection.records.map((node: { ref: { id: string } }) => node.ref.id), [project.ref.id]);
     const unit = await create("graph-node", {
       typeId: core.unit,
       title: "Life Sciences",
@@ -477,7 +477,7 @@ test("agents find exact types, nodes and incident edges without listing the wiki
         method: "POST",
         body: { type, ...(filter ? { filter } : {}), ...paging },
       }),
-    );
+    ).then((page) => page.records);
   const create = async (type: string, attributes: object) =>
     json(
       await app.call(path + "create", owner, {
@@ -524,12 +524,14 @@ test("agents find exact types, nodes and incident edges without listing the wiki
     assert.deepEqual(ids(await list("graph-node", { titleContains: "%_" })), [
       first.ref.id,
     ]);
+    const firstPage = await json(await app.call(path + "list", member, { method: "POST", body: {
+      type: "graph-node", filter: { titleContains: "KEYSTONE", typeId: core.software, archived: false }, limit: 1 } }));
     assert.deepEqual(
       ids(
         await list(
           "graph-node",
           { titleContains: "KEYSTONE", typeId: core.software, archived: false },
-          { offset: 1, limit: 1 },
+          { after: firstPage.pageInfo.endCursor, limit: 1 },
         ),
       ),
       [second.ref.id],
@@ -591,10 +593,10 @@ test("agents find exact types, nodes and incident edges without listing the wiki
       type: "graph-node", filter: { titleContains: "Keystone", archived: false },
       order: { field: "title", direction: "desc" }, select: ["id", "summary"], limit: 1,
     } }));
-    assert.equal(selected.length, 1);
-    assert.equal(selected[0].title, "Keystone other");
-    assert.deepEqual(Object.keys(selected[0].attributes), ["id", "summary"]);
-    assert.equal(selected[0].ref.type, "graph-node");
+    assert.equal(selected.records.length, 1);
+    assert.equal(selected.records[0].title, "Keystone other");
+    assert.deepEqual(Object.keys(selected.records[0].attributes), ["id", "summary"]);
+    assert.equal(selected.records[0].ref.type, "graph-node");
     assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", order: { field: "externalId", direction: "asc" } } })).status, 400);
     const discovery = await json(await app.call(path + "types", member));
     assert.ok(

@@ -57,34 +57,16 @@ export async function readProductPage(
     throw new Response("An organization scope is required", { status: 400 });
   const wiki = await defaultWiki(host);
   const db = await appDataContext(host).apps.installation(wiki.installationId);
-  const types = await db
+  const { records: types } = await db
     .collection("types")
     .list({ where: { name: "Organization", archived: false }, limit: 2 });
   if (types.length !== 1)
     throw new Response("Organization definition unavailable", { status: 409 });
-  const bound: string[] = [];
-  for (let offset = 0; offset < 10000; offset += 100) {
-    const page = await db.collection("nodes").list({
-      where: { typeId: types[0].ref.id, archived: false },
-      select: ["properties"],
-      limit: 100,
-      offset,
-    });
-    bound.push(
-      ...page
-        .filter(
-          (node) =>
-            (node.attributes.properties as Record<string, unknown>)
-              ?.organization_id === identity.organizationId,
-        )
-        .map((node) => node.ref.id),
-    );
-    if (page.length < 100) break;
-    if (offset === 9900)
-      throw new Response("Organization lookup exceeds its bound", {
-        status: 413,
-      });
-  }
+  const bound = (await db.collection("nodes").list({
+    where: { typeId: types[0].ref.id, archived: false, properties: { organization_id: identity.organizationId } },
+    select: ["id"],
+    limit: 2,
+  })).records.map((node) => node.ref.id);
   if (bound.length !== 1)
     throw new Response("Bind exactly one Wiki organization to this scope", {
       status: 409,
@@ -185,7 +167,7 @@ export async function readProductPage(
       : [];
   });
   // A sealed report is authoritative independently of its mutable working copy.
-  const sealTypes = await db.collection("types").list({
+  const { records: sealTypes } = await db.collection("types").list({
     where: { name: "WeeklyReportSeal", archived: false },
     limit: 2,
   });
@@ -199,12 +181,10 @@ export async function readProductPage(
         status: 409,
       });
     const sealed = new Map<string, Record<string, any> & RecordRef>();
-    for (let offset = 0; offset < 2000; offset += 100) {
-      const rows = await db.collection("nodes").list({
+    {
+      const rows = await db.collection("nodes").all({
         where: { typeId: sealTypes[0].ref.id, archived: false },
-        limit: 100,
-        offset,
-      });
+      }, 2000);
       for (const row of rows) {
         let seal: any;
         try {
@@ -243,9 +223,6 @@ export async function readProductPage(
           title: `product-roadmap ${period.start}`,
         });
       }
-      if (rows.length < 100) break;
-      if (offset === 1900)
-        throw new Response("Seal lookup exceeds its bound", { status: 413 });
     }
     for (const [id, seal] of sealed) {
       const index = reports.findIndex((report) => report.id === id);

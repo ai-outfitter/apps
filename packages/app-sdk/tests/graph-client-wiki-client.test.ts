@@ -315,8 +315,11 @@ test("Wiki setup keeps a type the Wiki already has under its own ID and points l
         const found = records.get(input.id);
         return found ? { ok: true, value: found } : { ok: false, status: 404, message: "Missing" };
       }
-      if (operation === "entities.list")
-        return { ok: true, value: [...records.values()].filter((row) => row.ref.type === input.type) };
+      if (operation === "entities.list") {
+        const filter = (value as { filter?: Record<string, unknown> }).filter ?? {};
+        const matching = [...records.values()].filter((row) => row.ref.type === input.type && Object.entries(filter).every(([key, wanted]) => (row.attributes[key] ?? false) === wanted));
+        return { ok: true, value: { records: matching, pageInfo: { hasNextPage: false, endCursor: null } } };
+      }
       assert.equal(operation, "entities.create");
       const taken = [...records.values()].some(
         (row) => row.ref.type === "graph-type" && input.type === "graph-type" && row.attributes.name === input.attributes.name,

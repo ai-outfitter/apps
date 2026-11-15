@@ -31,16 +31,11 @@ export async function readScopedOrganizationGraph(
     collection: ReturnType<Database["collection"]>,
     options: Parameters<ReturnType<Database["collection"]>["list"]>[0],
   ) {
-    const result: EntityRecord[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const page = await collection.list({ ...options, offset, limit: 100 });
-      result.push(...page);
-      if (result.length > 10000)
-        throw new Response("Selected graph exceeds its read bound", {
-          status: 413,
-        });
-      if (page.length < 100) return result;
-    }
+    const { after: _after, limit: _limit, ...rest } = options ?? {};
+    return collection.all(rest).catch((error) => {
+      if (error instanceof Response && error.status === 413) throw new Response("Selected graph exceeds its read bound", { status: 413 });
+      throw error;
+    }) as Promise<EntityRecord[]>;
   }
   // Types are small registry metadata; retain archived definitions to validate saved rules.
   const types = await list(database.collection("types"), {
@@ -91,12 +86,8 @@ export async function readScopedOrganizationGraph(
         ?.organization_id === who.organizationId,
   );
   const anchors: EntityRecord[] = [];
-  for (let offset = 0; offset < boundOrganizations.length; offset += 8) {
-    const records = await Promise.all(boundOrganizations.slice(offset, offset + 8).map(
-      (record) => database.collection("nodes").get(record.ref.id),
-    ));
-    anchors.push(...records.filter(eligible));
-  }
+  const loaded = await Promise.all(boundOrganizations.map((record) => database.collection("nodes").load(record.ref.id)));
+  anchors.push(...loaded.filter((record): record is NonNullable<typeof record> => !!record && eligible(record)));
   const lenses = lensCandidates.filter(
     (record) => eligible(record) && typeName(record) === "KnowledgeGraph",
   );
@@ -138,9 +129,9 @@ export async function readScopedOrganizationGraph(
     if (!read) {
       read = database
         .collection("nodes")
-        .get(id)
+        .load(id)
         .then((record) => {
-          if (!eligible(record)) return undefined;
+          if (!record || !eligible(record)) return undefined;
           if (nodes.size >= 1000) {
             truncated = true;
             return undefined;
@@ -233,8 +224,7 @@ export async function readScopedOrganizationGraph(
     const endpointIds = [...new Set(candidates.map((edge) => otherEndpoint(current, edge)))];
     // Fetch only the opposite endpoint of a direction/type-matching rule. Nodes
     // at the depth limit supply solely the required project/product provenance.
-    for (let offset = 0; offset < endpointIds.length; offset += 8)
-      await Promise.all(endpointIds.slice(offset, offset + 8).map(node));
+    await Promise.all(endpointIds.map(node));
     const relevant = candidates.filter((edge) => matchesLoadedTarget(current, edge));
     if (productTypes.includes(String(typeName(current.record))))
       await readOfferingProviders(current, relevant);

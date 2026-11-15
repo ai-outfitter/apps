@@ -7,8 +7,6 @@ import {
 } from "@ai-outfitter/app-sdk/entities";
 import {
   and,
-  asc,
-  desc,
   eq,
   inArray,
   or,
@@ -17,6 +15,7 @@ import {
   type SQLWrapper,
 } from "drizzle-orm";
 import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
+import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
 import {
   edgeInput,
   type GraphEdge,
@@ -45,7 +44,6 @@ import { recordAddress } from "../lib/addresses";
 const textFilter = z.string().min(1).max(200);
 const identifiers = z.array(textFilter).min(1).max(100);
 const commonFilter = {
-  query: z.string().trim().max(256).optional(),
   ids: identifiers.optional(),
   titleContains: textFilter.optional(),
   archived: z.boolean().optional(),
@@ -54,7 +52,8 @@ const commonFilter = {
 function filterBinds(key: string, value: unknown) {
   if (value === undefined) return 0;
   if (Array.isArray(value)) return value.length * (key === "nodeIds" ? 2 : 1);
-  return ({ query: 10, nodeId: 2 } as Record<string, number>)[key] ?? 1;
+  if (key === "properties" && value && typeof value === "object") return Object.keys(value).length * 2;
+  return key === "nodeId" ? 2 : 1;
 }
 const filterBudget = (filter: Record<string, unknown>) => Object.entries(filter).reduce((count, [key, value]) => count + filterBinds(key, value), 0) <= 90;
 const filterBudgetMessage = "Filter exceeds 90 query parameters; split into smaller batches";
@@ -70,6 +69,8 @@ const nodeFilter = z.strictObject({
   typeIds: identifiers.optional(),
   slug: textFilter.optional(),
   source: entityRef.optional(),
+  properties: z.record(z.string().regex(/^[A-Za-z0-9_]{1,64}$/), z.union([z.string().max(200), z.number(), z.boolean()])).refine(value => Object.keys(value).length >= 1 && Object.keys(value).length <= 8, "Match 1 to 8 properties").optional()
+    .describe("Stored property values that must match exactly."),
 }).refine(filterBudget, filterBudgetMessage);
 const edgeFilter = z.strictObject({
   ...commonFilter,
@@ -86,8 +87,6 @@ const titleCondition = (column: SQLWrapper, value?: string) =>
   value === undefined
     ? undefined
     : sql`instr(lower(${column}), lower(${value})) > 0`;
-
-const queryCondition = (columns: AnyColumn[], query?: string) => !query ? undefined : or(...columns.map(column => titleCondition(column, query)));
 
 const among = (column: AnyColumn, values?: string[]) => values === undefined ? undefined : inArray(column, values);
 
@@ -138,6 +137,7 @@ export function graphEntities(
     collection: "types",
     orderFields: ["id", "title", "name"],
     selectFields: ["id", ...Object.keys(typeInput.shape)],
+    searchFields: ["name", "title", "body"],
     title: "Wiki type definition",
     description:
       "Documented node or directed relationship type. Definitions declare scalar properties, optional body jsonSchema and a versioned ontology contract. Relators declare participation; projections are read-only. Read that schema before authoring a structured node body. Existing records must remain valid when definitions change. Provenance and seedVersion are read-only. Archive unused definitions with archived:true. No semantic relationship grants authorization.",
@@ -146,15 +146,16 @@ export function graphEntities(
     filterSchema: typeFilter,
     // A type is named by the name addresses use (Person, supplied_by), not its display title (People).
     name: (row) => row.name || row.title,
-    list: async (_who, offset, limit, filter, order) => {
-      const f = filter ?? {};
+    list: async (_who, query) => {
+      const f = query.filter ?? {};
+      const page = pageCondition(query, { id: graphTypes.id, order: { title: graphTypes.title, name: graphTypes.name }, search: [graphTypes.name, graphTypes.title, graphTypes.body] });
       return (
         await db
           .select()
           .from(graphTypes)
           .where(
             and(
-              queryCondition([graphTypes.id, graphTypes.name, graphTypes.title, graphTypes.body, graphTypes.properties, graphTypes.category], f.query),
+              page.where,
               titleCondition(graphTypes.title, f.titleContains),
               among(graphTypes.id, f.ids),
               equals(graphTypes.archived, f.archived),
@@ -163,9 +164,8 @@ export function graphEntities(
               equals(graphTypes.category, f.category),
             ),
           )
-          .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "name" ? graphTypes.name : order.field === "title" ? graphTypes.title : graphTypes.id) : asc(graphTypes.id), asc(graphTypes.id))
-          .offset(offset)
-          .limit(limit)
+          .orderBy(...page.orderBy)
+          .limit(query.limit)
       ).map(readType);
     },
     get: (_who, id) => getType(db, id),
@@ -181,8 +181,9 @@ export function graphEntities(
   const nodes = defineEntity<GraphNode, typeof nodeInput, typeof nodeFilter>({
     type: "graph-node",
     collection: "nodes",
-    orderFields: ["id", "title"],
+    orderFields: ["id", "title", "createdAt", "updatedAt"],
     selectFields: ["id", ...Object.keys(nodeInput.shape)],
+    searchFields: ["title", "slug", "summary", "body"],
     title: "Wiki graph node",
     description:
       "Typed node documenting an identifiable thing or relator. Create a complete relator with its participation links in graph.apply. Assertion nodes use the SDK assertionBody schema; authenticated confirmation is a separate receipt. Discover graph-type for permitted properties and the optional body jsonSchema. Structured bodies are JSON serialized into the body string. Projects may document external work without an app reference; optionally link a canonical Planning project. Read-only provenance records writers; no private contact fields or external identifiers are exposed. When updating a sourced node, include its current canonical reference. archived:true reversibly removes a node from active views.",
@@ -191,15 +192,16 @@ export function graphEntities(
     filterSchema: nodeFilter,
     name: (row) => row.title,
     references: (row) => (row.source ? [row.source] : []),
-    list: async (_who, offset, limit, filter, order) => {
-      const f = filter ?? {};
+    list: async (_who, query) => {
+      const f = query.filter ?? {};
+      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
       return addressed(db, (
         await db
           .select()
           .from(graphNodes)
           .where(
             and(
-              queryCondition([graphNodes.id, graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body, graphNodes.properties, graphNodes.website], f.query),
+              page.where,
               titleCondition(graphNodes.title, f.titleContains),
               among(graphNodes.id, f.ids),
               equals(graphNodes.archived, f.archived),
@@ -207,11 +209,11 @@ export function graphEntities(
               among(graphNodes.typeId, f.typeIds),
               equals(graphNodes.slug, f.slug),
               f.source === undefined ? undefined : eq(graphNodes.externalKey, appRecordKey(f.source)),
+              ...Object.entries(f.properties ?? {}).map(([name, value]) => sql`json_extract(${graphNodes.properties}, ${`$.${name}`}) = ${value}`),
             ),
           )
-          .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "title" ? graphNodes.title : graphNodes.id) : asc(graphNodes.id), asc(graphNodes.id))
-          .offset(offset)
-          .limit(limit)
+          .orderBy(...page.orderBy)
+          .limit(query.limit)
       ).map(nodeView));
     },
     get: async (_who, id) => { const node = await getNode(db, id); return node ? (await addressed(db, [node]))[0] : node; },
@@ -223,8 +225,9 @@ export function graphEntities(
   const edges = defineEntity<GraphEdge, typeof edgeInput, typeof edgeFilter>({
     type: "graph-edge",
     collection: "edges",
-    orderFields: ["id", "title"],
+    orderFields: ["id", "title", "createdAt", "updatedAt"],
     selectFields: ["id", ...Object.keys(edgeInput.shape)],
+    searchFields: ["title", "body"],
     title: "Wiki directed relationship",
     description:
       "Stored relationship with its own identity, revision, properties, narrative and read-only provenance. Use graph.relationships for direction-independent symmetric lookup and read-only derived views. Discover graph-type for meaning and property definitions. archived:true reversibly deletes a relationship.",
@@ -233,15 +236,16 @@ export function graphEntities(
     filterSchema: edgeFilter,
     // An untitled edge is named by its address, never its UUID.
     name: (row) => row.title || (row as Named).address || row.id,
-    list: async (_who, offset, limit, filter, order) => {
-      const f = filter ?? {};
+    list: async (_who, query) => {
+      const f = query.filter ?? {};
+      const page = pageCondition(query, { id: graphEdges.id, order: { title: graphEdges.title, createdAt: graphEdges.createdAt, updatedAt: graphEdges.updatedAt }, search: [graphEdges.title, graphEdges.body] });
       return named(db, (
         await db
           .select()
           .from(graphEdges)
           .where(
             and(
-              queryCondition([graphEdges.id, graphEdges.title, graphEdges.body, graphEdges.properties, graphEdges.typeId, graphEdges.fromId, graphEdges.toId], f.query),
+              page.where,
               titleCondition(graphEdges.title, f.titleContains),
               among(graphEdges.id, f.ids),
               equals(graphEdges.archived, f.archived),
@@ -260,9 +264,8 @@ export function graphEntities(
                   ),
             ),
           )
-          .orderBy(order ? (order.direction === "desc" ? desc : asc)(order.field === "title" ? graphEdges.title : graphEdges.id) : asc(graphEdges.id), asc(graphEdges.id))
-          .offset(offset)
-          .limit(limit)
+          .orderBy(...page.orderBy)
+          .limit(query.limit)
       ).map(edgeView));
     },
     get: async (_who, id) => { const edge = await getEdge(db, id); return edge ? (await named(db, [edge]))[0] : edge; },

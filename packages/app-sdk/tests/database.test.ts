@@ -9,15 +9,15 @@ test("collections resolve scoped discovery and route bounded queries through ent
     calls.push({ operation, input });
     if (operation === "entities.types") return [{ template: "wiki-map", installationId: "wiki-1", type: "graph-node", collection: "nodes" }];
     const record = { ref: { installationId: "wiki-1", type: "graph-node", id: "one" }, revision: 3, title: "Product", attributes: { summary: "Summary" }, references: [] };
-    return operation === "entities.get" ? record : [record];
+    return operation === "entities.get" ? record : { records: [record], pageInfo: { hasNextPage: false, endCursor: null } };
   } } as unknown as WorkflowHost<"interactive">;
   const context = appDataContext(host);
   const wiki = await context.apps.database("wiki-map");
   assert.deepEqual(calls[0], { operation: "entities.types", input: { template: "wiki-map" } });
   assert.equal(wiki.installationId, "wiki-1");
   assert.equal(wiki.hostname, null);
-  const rows = await wiki.collection("nodes").list({ where: { typeId: "product" }, select: ["id", "summary"], limit: 5 });
-  assert.deepEqual(calls[1], { operation: "entities.list", input: { installationId: "wiki-1", type: "graph-node", filter: { typeId: "product" }, select: ["id", "summary"], offset: 0, limit: 5 } });
+  const { records: rows } = await wiki.collection("nodes").list({ where: { typeId: "product" }, select: ["id", "summary"], limit: 5 });
+  assert.deepEqual(calls[1], { operation: "entities.list", input: { installationId: "wiki-1", type: "graph-node", filter: { typeId: "product" }, select: ["id", "summary"], limit: 5 } });
   assert.equal(rows[0].id, "one");
   assert.equal(rows[0].ref.installationId, "wiki-1");
   assert.equal(rows[0].revision, 3);
@@ -38,7 +38,7 @@ test("collections resolve scoped discovery and route bounded queries through ent
 test("a non-engineering provider filters and orders before pagination", async () => {
   const { createClient } = await import("@libsql/client");
   const { z } = await import("zod");
-  const { defineEntity, entityOperations, entityRecord } = await import("../src/entities");
+  const { defineEntity, entityOperations, entityPage } = await import("../src/entities");
   const db = createClient({ url: "file::memory:" });
   await db.execute("create table staff (id text, revision integer, name text, department text)");
   for (const [id, name, department] of [["a", "Ada", "IT"], ["b", "Bea", "HR"], ["c", "Cleo", "HR"]])
@@ -49,9 +49,9 @@ test("a non-engineering provider filters and orders before pagination", async ()
     type: "staff", collection: "people", title: "Staff", description: "People", schema,
     filterSchema: z.strictObject({ department: z.string().optional() }), orderFields: ["name"], selectFields: ["id", "name"],
     name: row => row.name,
-    list: async (_who, offset, limit, filter, order) => {
+    list: async (_who, { limit, filter, order }) => {
       executed++;
-      const rows = await db.execute({ sql: `select * from staff where department = ? order by name ${order?.direction === "desc" ? "desc" : "asc"} limit ? offset ?`, args: [String(filter?.department ?? "HR"), limit, offset] });
+      const rows = await db.execute({ sql: `select * from staff where department = ? order by name ${order.direction === "desc" ? "desc" : "asc"}, id limit ?`, args: [String(filter?.department ?? "HR"), limit] });
       return rows.rows.map(row => ({ id: String(row.id), revision: Number(row.revision), name: String(row.name), department: String(row.department) }));
     },
     get: async () => ({ id: "a", revision: 1, name: "Ada", department: "IT" }),
@@ -59,7 +59,8 @@ test("a non-engineering provider filters and orders before pagination", async ()
   const operations = entityOperations([provider]);
   const who = { userId: "owner", installationId: "hr", owner: { kind: "user" as const, id: "owner" }, role: "owner", canEdit: true };
   const invoke = (body: object) => operations.list.execute(new Request("https://app/list", { method: "POST", body: JSON.stringify(body) }), who);
-  const rows = z.array(entityRecord).parse(await invoke({ type: "staff", filter: { department: "HR" }, order: { field: "name", direction: "desc" }, select: ["name"], limit: 1 }));
+  const { records: rows, pageInfo } = entityPage.parse(await invoke({ type: "staff", filter: { department: "HR" }, order: { field: "name", direction: "desc" }, select: ["name"], limit: 1 }));
+  assert.equal(pageInfo.hasNextPage, true);
   assert.equal(rows[0].ref.id, "c");
   assert.deepEqual(rows[0].attributes, { name: "Cleo" });
   await assert.rejects(invoke({ type: "staff", filter: { owner: "other" } }));

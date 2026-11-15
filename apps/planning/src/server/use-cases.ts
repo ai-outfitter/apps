@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -85,24 +86,8 @@ export async function listUseCases(
 ) {
   if (projectId) await checkProject(db, who, projectId);
   const { installationId } = await defaultWiki(host);
-  const result: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await host.call("entities.list", {
-      installationId,
-      type: "graph-node",
-      offset,
-      limit: 100,
-    });
-    result.push(
-      ...page.filter(
-        (r) =>
-          r.attributes.typeId === useCaseTypeId &&
-          !r.attributes.archived &&
-          (!projectId || belongs(r, who, projectId)),
-      ),
-    );
-    if (page.length < 100) return result;
-  }
+  const records = await listEntities(host, { installationId, type: "graph-node", filter: { typeId: useCaseTypeId, archived: false } });
+  return records.filter((r) => !projectId || belongs(r, who, projectId));
 }
 export const useCaseInput = z.strictObject({
   projectId: z.uuid(),

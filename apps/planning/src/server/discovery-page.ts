@@ -134,18 +134,7 @@ async function listAll(
   select: string[],
   order?: { field: string; direction: "asc" | "desc" },
 ) {
-  const result: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await collection.list({
-      where,
-      select,
-      order,
-      offset,
-      limit: 100,
-    });
-    result.push(...page);
-    if (page.length < 100) return result;
-  }
+  return collection.all({ where, select, order });
 }
 async function optionalGet(collection: WikiCollection, id: string) {
   try {
@@ -164,22 +153,9 @@ async function discoveryNeighborhood(
   types: WikiCollection,
 ) {
   const relatedEdges: EntityRecord[] = [];
-  // The SDK currently supports one incident node per edge query. Bound parallel
-  // reads while retaining every matching record; never download the whole Wiki.
-  for (let offset = 0; offset < records.length; offset += 8) {
-    const pages = await Promise.all(
-      records
-        .slice(offset, offset + 8)
-        .map((record) =>
-          listAll(edges, { nodeId: record.ref.id, archived: false }, [
-            "typeId",
-            "fromId",
-            "toId",
-          ]),
-        ),
-    );
-    relatedEdges.push(...pages.flat());
-  }
+  // Edges touching any of these nodes, 40 nodes a query (each binds twice); never the whole Wiki.
+  for (let offset = 0; offset < records.length; offset += 40)
+    relatedEdges.push(...await listAll(edges, { nodeIds: records.slice(offset, offset + 40).map((record) => record.ref.id), archived: false }, ["typeId", "fromId", "toId"]));
   const uniqueEdges = [
     ...new Map(relatedEdges.map((edge) => [edge.ref.id, edge])).values(),
   ];
@@ -194,28 +170,16 @@ async function discoveryNeighborhood(
       ]),
     ),
   ].filter((id) => !relatedNodes.has(id));
-  for (let offset = 0; offset < missingIds.length; offset += 8) {
-    const found = await Promise.all(
-      missingIds.slice(offset, offset + 8).map((id) => optionalGet(nodes, id)),
-    );
-    for (const node of found)
-      if (node && !node.attributes.archived)
-        relatedNodes.set(node.ref.id, node);
-  }
+  for (const node of await Promise.all(missingIds.map((id) => nodes.load(id))))
+    if (node && !node.attributes.archived) relatedNodes.set(node.ref.id, node);
   const relatedTypes = new Map<string, EntityRecord>([[type.ref.id, type]]);
   const typeIds = [
     ...new Set(
       [...relatedNodes.values()].map((node) => String(node.attributes.typeId)),
     ),
   ].filter((id) => !relatedTypes.has(id));
-  for (let offset = 0; offset < typeIds.length; offset += 8) {
-    const found = await Promise.all(
-      typeIds.slice(offset, offset + 8).map((id) => optionalGet(types, id)),
-    );
-    for (const definition of found)
-      if (definition && !definition.attributes.archived)
-        relatedTypes.set(definition.ref.id, definition);
-  }
+  for (const definition of await Promise.all(typeIds.map((id) => types.load(id))))
+    if (definition && !definition.attributes.archived) relatedTypes.set(definition.ref.id, definition);
   return {
     nodes: [...relatedNodes.values()],
     types: [...relatedTypes.values()],
@@ -237,7 +201,7 @@ export async function readDiscoveryPage(
   const types = database.collection("types");
   const nodes = database.collection("nodes");
   const edges = database.collection("edges");
-  const candidates = await types.list({
+  const { records: candidates } = await types.list({
     where: {
       name: kind === "opportunities" ? "Problem" : "CustomerSegment",
       category: "node",

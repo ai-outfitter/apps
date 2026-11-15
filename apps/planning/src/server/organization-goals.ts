@@ -31,30 +31,22 @@ type Projection = {
 
 /** The one active Organization page bound to `organizationId`; none when missing or ambiguous. */
 async function boundOrganization(wiki: GraphDatabase, organizationId: string) {
-  const [type] = await wiki.collection("types").list({ where: { name: "Organization", category: "node", archived: false }, select: ["name"], limit: 2 });
+  const [type] = (await wiki.collection("types").list({ where: { name: "Organization", category: "node", archived: false }, select: ["name"], limit: 2 })).records;
   if (!type) return null;
-  const bound: string[] = [];
-  for (let offset = 0; offset <= 1000; offset += 100) {
-    const page = await wiki.collection("nodes").list({ where: { typeId: type.ref.id, archived: false }, select: ["properties"], offset, limit: 100 });
-    for (const node of page) {
-      const properties = node.attributes.properties as { organization_id?: unknown } | undefined;
-      if (properties?.organization_id === organizationId) bound.push(node.ref.id);
-    }
-    if (page.length < 100) break;
-  }
-  return bound.length === 1 ? bound[0] : null;
+  const { records: bound } = await wiki.collection("nodes").list({ where: { typeId: type.ref.id, archived: false, properties: { organization_id: organizationId } }, select: ["id"], limit: 2 });
+  return bound.length === 1 ? bound[0].ref.id : null;
 }
 
 /** `measured_by` metrics of these goals, by goal id. */
 async function metricsOf(wiki: GraphDatabase, goalIds: string[]) {
   const metrics = new Map<string, GoalMetric[]>(goalIds.map((id) => [id, []]));
   if (!goalIds.length) return metrics;
-  const [relation] = await wiki.collection("types").list({ where: { name: "measured_by", category: "edge", archived: false }, select: ["name"], limit: 2 });
+  const [relation] = (await wiki.collection("types").list({ where: { name: "measured_by", category: "edge", archived: false }, select: ["name"], limit: 2 })).records;
   if (!relation) return metrics;
-  const edges = await wiki.collection("edges").list({ where: { typeId: relation.ref.id, nodeIds: goalIds.slice(0, 30), archived: false }, select: ["fromId", "toId"], limit: 100 });
+  const { records: edges } = await wiki.collection("edges").list({ where: { typeId: relation.ref.id, nodeIds: goalIds.slice(0, 30), archived: false }, select: ["fromId", "toId"], limit: 100 });
   const targets = [...new Set(edges.map((edge) => String(edge.attributes.toId)))];
   const nodes = targets.length
-    ? await wiki.collection("nodes").list({ where: { ids: targets.slice(0, 100), archived: false }, select: ["title", "summary"], limit: 100 })
+    ? (await wiki.collection("nodes").list({ ids: targets.slice(0, 100), where: { archived: false }, select: ["title", "summary"], limit: 100 })).records
     : [];
   const byId = new Map(nodes.map((node) => [node.ref.id, { id: node.ref.id, title: node.title, summary: String(node.attributes.summary ?? "") }]));
   for (const edge of edges) {

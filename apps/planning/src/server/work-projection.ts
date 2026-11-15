@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
@@ -98,17 +99,7 @@ export async function projectWork(
   const wiki = await defaultWiki(host);
   if (!wiki.writable)
     throw new Response("Wiki projection is not writable", { status: 403 });
-  const types: EntityRecord[] = [];
-  for (let offset = 0; offset < 100000; offset += 100) {
-    const page = await host.call("entities.list", {
-      installationId: wiki.installationId,
-      type: "graph-type",
-      offset,
-      limit: 100,
-    });
-    types.push(...page.filter((record) => !record.attributes.archived));
-    if (page.length < 100) break;
-  }
+  const types = await listEntities(host, { installationId: wiki.installationId, type: "graph-type", filter: { archived: false } });
   const typeId = (name: string) => {
     const record = types.find((record) => record.attributes.name === name);
     if (!record)

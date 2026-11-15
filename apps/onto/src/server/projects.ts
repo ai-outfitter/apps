@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { entityRef } from "@ai-outfitter/app-sdk/entities";
 import { type AppIdentity, requireEditor } from "@ai-outfitter/app-sdk/server";
@@ -17,16 +18,7 @@ export async function projectChoices(host: Host) {
   const installations = [...new Set(publishers.map((t) => t.installationId))];
   const projects: EntityRecord[] = [];
   for (const installationId of installations) {
-    for (let offset = 0; ; offset += 100) {
-      const page = await host.call("entities.list", {
-        installationId,
-        type: "project",
-        offset,
-        limit: 100,
-      });
-      projects.push(...page);
-      if (page.length < 100) break;
-    }
+    projects.push(...await listEntities(host, { installationId, type: "project" }));
   }
   return { installations, projects };
 }

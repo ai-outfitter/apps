@@ -16,15 +16,7 @@ function sections(value: unknown) {
 
 /** Follow the quarterly product control's projected occurrence to its own plan. */
 export async function readProductRoadmap(db: GraphDatabase, organizationId: string) {
-  async function list(collection: "types" | "nodes", where: Record<string, unknown>) {
-    const records: EntityRecord[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const page = await db.collection(collection).list({ where, offset, limit: 100 });
-      records.push(...page);
-      if (page.length < 100) return records;
-      if (records.length >= 10000) throw new Response("Roadmap context exceeds its read bound", { status: 413 });
-    }
-  }
+  const list = (collection: "types" | "nodes", where: Record<string, unknown>): Promise<EntityRecord[]> => db.collection(collection).all({ where });
   const types = await list("types", { archived: false });
   const typeIds = (names: string[]) => types.filter(t => active(t) && names.includes(String(t.attributes.name))).map(t => t.ref.id);
   const controls = (await Promise.all(typeIds(["DecisionControlV3", "DecisionControlV5"]).map(typeId => list("nodes", { typeId, archived: false })))).flat()

@@ -2,7 +2,7 @@ import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
 import { actionDescriptor, actionName, workContextInput, workContextResult } from "./actions";
-import { entityGet, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
+import { entityGet, entityPage, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
 import { hostPhases } from "./host-operation";
 import { platformRecordOperations } from "./platform-records";
 import { appActor, readJSON } from "./server";
@@ -266,7 +266,7 @@ const coreOperations = {
   "identity.link": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id, principalId: z.string().min(1).max(300), kind: z.enum(["human", "agent"]) }), z.object({ linked: z.boolean() })),
   "identity.unlink": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id }), z.object({ removed: z.boolean() })),
   "entities.types": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(entityType.extend({ installationId: id, hostname: z.string().nullable().optional(), template: z.string().optional(), slug: z.string().optional() }))),
-  "entities.list": operation(running, entityQuery.extend({ installationId: id }), z.array(entityRecord)),
+  "entities.list": operation(running, entityQuery.extend({ installationId: id }), entityPage),
   "entities.get": operation(running, entityGet.extend({ installationId: id }), entityRecord),
   "entities.create": operation(running, entityWrite.extend({ installationId: id }), entityRecord),
   "entities.update": operation(running, entityUpdate.extend({ installationId: id }), entityRecord),

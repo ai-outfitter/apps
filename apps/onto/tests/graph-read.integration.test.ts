@@ -36,18 +36,18 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
     await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$root.id).run();
-    const entitySearch = async (type: string, query: string, filter = {}) => {
-      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, filter: { ...filter, query }, limit: 100 } });
+    const entitySearch = async (type: string, search: string, filter = {}) => {
+      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, ...(Object.keys(filter).length ? { filter } : {}), ...(search.trim() ? { search } : {}), limit: 100 } });
       assert.equal(response.status, 200, await response.clone().text());
-      return response.json() as Promise<{ ref: { id: string } }[]>;
+      return (await response.json() as { records: { ref: { id: string } }[] }).records;
     };
     assert.deepEqual((await entitySearch("graph-node", "  MARKDOWN  ")).map(row => row.ref.id), [ids.$root.id]);
     assert.ok((await entitySearch("graph-type", "synthetic directed")).some(row => row.ref.id === ids.$relation.id));
-    assert.ok((await entitySearch("graph-edge", ids.$root.id)).some(row => row.ref.id === ids.$edge.id));
-    const edgeRow = (await entitySearch("graph-edge", ids.$root.id)).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
+    assert.ok((await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).some(row => row.ref.id === ids.$edge.id));
+    const edgeRow = (await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
     assert.equal(edgeRow?.title, "reader_link(ReaderEntity:root → ReaderEntity:child)", "an untitled edge is named by its address, not its UUID");
     assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "external ids are neither searched nor returned");
-    assert.deepEqual(await entitySearch("graph-node", "' OR 1=1 --"), []);
+    assert.deepEqual(await entitySearch("graph-node", '"\' OR 1=1 --"'), []);
     assert.deepEqual(await entitySearch("graph-node", "%_"), []);
     assert.deepEqual(await entitySearch("graph-node", "markdown", { typeId: ids.$relation.id }), []);
     assert.ok((await entitySearch("graph-node", "")).some(row => row.ref.id === ids.$root.id));

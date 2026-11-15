@@ -137,18 +137,8 @@ function remapFields(fields: SetupRow["fields"], mapped: (id: string) => string)
 }
 /** The ID of the active type with this category and name, when the Wiki has one. */
 async function typeByName(host: Host, installationId: string, fields: SetupRow["fields"]) {
-  for (let offset = 0; offset < 10_000; offset += 100) {
-    const page = await host.call("entities.list", { installationId, type: "graph-type", offset, limit: 100 });
-    const match = page.find(
-      (type) =>
-        !type.attributes.archived &&
-        type.attributes.category === fields.category &&
-        type.attributes.name === fields.name,
-    );
-    if (match) return match.ref.id;
-    if (page.length < 100) return undefined;
-  }
-  return undefined;
+  const { records } = await host.call("entities.list", { installationId, type: "graph-type", filter: { name: String(fields.name), category: fields.category, archived: false }, limit: 1 });
+  return records[0]?.ref.id;
 }
 /** A UUID-shaped ID derived from `parts`: the same parts always name the same record. */
 export async function stableGraphId(...parts: unknown[]) {
@@ -226,17 +216,14 @@ export function wikiAdapter(host: Host, installationId: string) {
     /** Active type IDs by name. */
     async typeIds() {
       const ids = new Map<string, string>();
-      for (let offset = 0; offset < 10_000; offset += 100) {
-        const page = await host.call("entities.list", {
-          installationId,
-          type: "graph-type",
-          offset,
-          limit: 100,
+      let after: string | undefined;
+      for (let pages = 0; pages < 100; pages++) {
+        const { records, pageInfo } = await host.call("entities.list", {
+          installationId, type: "graph-type", filter: { archived: false }, limit: 100, ...(after ? { after } : {}),
         });
-        for (const type of page)
-          if (!type.attributes.archived)
-            ids.set(String(type.attributes.name), type.ref.id);
-        if (page.length < 100) return ids;
+        for (const type of records) ids.set(String(type.attributes.name), type.ref.id);
+        if (!pageInfo.hasNextPage || !pageInfo.endCursor) return ids;
+        after = pageInfo.endCursor;
       }
       throw new Response("Wiki has too many types", { status: 413 });
     },

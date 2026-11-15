@@ -1,3 +1,4 @@
+import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
 import {
   defineEntity,
   type EntityRef,
@@ -127,14 +128,14 @@ export function organizationGoalsEntity(db: Database) {
       goals,
       truncated,
     }),
-    list: async (who, offset, limit) => {
+    list: async (who, query) => {
+      const page = pageCondition(query, { id: graphNodes.id });
       const roots = await db
         .select(rootColumns)
         .from(graphNodes)
-        .where(activeOrganization)
-        .orderBy(asc(graphNodes.id))
-        .offset(offset)
-        .limit(limit);
+        .where(and(activeOrganization, page.where))
+        .orderBy(...page.orderBy)
+        .limit(query.limit);
       return Promise.all(
         roots.map((root) => project(db, who.installationId, root)),
       );

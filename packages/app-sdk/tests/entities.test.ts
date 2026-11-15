@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
-import { defineEntity, entityAPI, entityOperations } from "../src/entities";
+import { defineEntity, entityAPI, entityOperations, type EntityListQuery } from "../src/entities";
+import { pageCondition } from "../src/entity-query";
 import { defineOperation, operationAPI } from "../src/operations";
 import { identityHeaderValues, type AppIdentity } from "../src/server";
 
@@ -88,9 +89,9 @@ test("filters are advertised, validated and forwarded only to supporting provide
     type: "item", title: "Item", description: "Fixture", schema: z.strictObject({ name: z.string() }),
     name: (row: { id: string; revision: number; name: string }) => row.name,
     get: async () => ({ id: "one", revision: 1, name: "One" }),
-    list: async (_who: AppIdentity, offset: number, limit: number, filter?: Record<string, unknown>) => {
+    list: async (_who: AppIdentity, query: EntityListQuery<Record<string, unknown>>) => {
       calls++;
-      assert.deepEqual({ offset, limit, filter }, { offset: 1, limit: 2, filter: { name: "One" } });
+      assert.deepEqual({ limit: query.limit, filter: query.filter }, { limit: 3, filter: { name: "One" } });
       return [{ id: "one", revision: 1, name: "One" }];
     },
   };
@@ -98,16 +99,81 @@ test("filters are advertised, validated and forwarded only to supporting provide
   const api = (operation: string, body?: unknown, provider = filtered) => entityAPI(request(operation, body), operation, [provider]);
   const discovery = await (await api("types")).json() as { filterSchema?: unknown }[];
   assert.equal((discovery[0].filterSchema as { additionalProperties: boolean }).additionalProperties, false);
-  assert.equal((await api("list", { type: "item", offset: 1, limit: 2, filter: { name: "One" } })).status, 200);
+  assert.equal((await api("list", { type: "item", limit: 2, filter: { name: "One" } })).status, 200);
   for (const filter of [{ unknown: "One" }, { name: "One", unknown: "ignored" }, { name: 1 }]) {
     assert.equal((await api("list", { type: "item", filter })).status, 400);
   }
   assert.equal((await api("list", { type: "item", filter: { name: "One" } }, defineEntity(definition))).status, 400);
   assert.equal(calls, 1);
-  const plain = defineEntity({ ...definition, list: async (_who, _offset, _limit, filter) => {
-    assert.equal(filter, undefined);
+  const plain = defineEntity({ ...definition, list: async (_who, query) => {
+    assert.equal(query.filter, undefined);
     return [{ id: "one", revision: 1, name: "One" }];
   } });
   assert.equal((await api("list", { type: "item" }, plain)).status, 200);
   assert.equal((await api("list", { type: "item", filter: {} }, plain)).status, 400);
+  // Search needs declared searchFields; offset paging is gone.
+  assert.equal((await api("list", { type: "item", search: "One" }, plain)).status, 400);
+  assert.equal((await api("list", { type: "item", offset: 1 }, plain)).status, 400);
+});
+
+test("a drizzle provider reads known IDs, searches declared fields and pages by keyset in its own database", async () => {
+  const { createClient } = await import("@libsql/client");
+  const { drizzle } = await import("drizzle-orm/libsql");
+  const { sqliteTable, text, integer } = await import("drizzle-orm/sqlite-core");
+  const { and } = await import("drizzle-orm");
+  const client = createClient({ url: ":memory:" });
+  await client.execute("CREATE TABLE parts (id TEXT PRIMARY KEY, revision INTEGER NOT NULL, name TEXT NOT NULL, notes TEXT, created_at INTEGER NOT NULL)");
+  const parts = sqliteTable("parts", { id: text("id").primaryKey(), revision: integer("revision").notNull(), name: text("name").notNull(), notes: text("notes"), createdAt: integer("created_at").notNull() });
+  const db = drizzle(client);
+  const rows = Array.from({ length: 25 }, (_, index) => ({ id: `p${String(index).padStart(2, "0")}`, revision: 1, name: index % 2 ? `Bracket ${index}` : `Bolt ${index}`, notes: index === 7 ? "titanium 100%" : null, createdAt: 1000 - (index % 5) }));
+  await db.insert(parts).values(rows);
+  const statements: string[] = [];
+  const counted = drizzle(client, { logger: { logQuery: query => statements.push(query) } });
+  const provider = defineEntity({
+    type: "part", title: "Part", description: "Fixture", schema: z.strictObject({ name: z.string(), notes: z.string().nullable(), createdAt: z.number() }),
+    collection: "parts", orderFields: ["name", "createdAt"], searchFields: ["name", "notes"], name: row => row.name,
+    get: async () => rows[0],
+    list: async (_who, query) => {
+      const page = pageCondition(query, { id: parts.id, order: { name: parts.name, createdAt: parts.createdAt }, search: [parts.name, parts.notes] });
+      return counted.select().from(parts).where(and(page.where)).orderBy(...page.orderBy).limit(query.limit);
+    },
+  });
+  const list = async (body: Record<string, unknown>) => {
+    const response = await entityAPI(request("list", { type: "part", ...body }), "list", [provider]);
+    assert.equal(response.status, 200, await response.clone().text());
+    return await response.json() as { records: { ref: { id: string }; attributes: Record<string, unknown> }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+  };
+  const types = await (await entityAPI(request("types"), "types", [provider])).json() as { searchFields: string[] }[];
+  assert.deepEqual(types[0].searchFields, ["name", "notes"]);
+
+  const known = await list({ ids: ["p03", "p20", "missing"] });
+  assert.deepEqual(known.records.map(record => record.ref.id), ["p03", "p20"]);
+  assert.equal(known.pageInfo.hasNextPage, false);
+
+  // Boolean search over the declared fields; % is literal.
+  assert.deepEqual((await list({ search: 'bracket NOT "1"' })).records.map(record => record.ref.id), ["p03", "p05", "p09", "p23"]);
+  assert.deepEqual((await list({ search: "100%" })).records.map(record => record.ref.id), ["p07"]);
+
+  // Every page is one bounded statement; following the cursor visits each row once, in order.
+  for (const order of [{ field: "createdAt", direction: "desc" }, { field: "name", direction: "asc" }, { field: "id", direction: "desc" }] as const) {
+    statements.length = 0;
+    const seen: string[] = [];
+    let after: string | undefined;
+    do {
+      const page = await list({ order, limit: 4, ...(after ? { after } : {}) });
+      seen.push(...page.records.map(record => record.ref.id));
+      after = page.pageInfo.endCursor ?? undefined;
+      assert.equal(page.pageInfo.hasNextPage, !!after);
+    } while (after);
+    const key = (row: typeof rows[number]) => order.field === "id" ? row.id : row[order.field];
+    const expected = [...rows].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.id < b.id ? -1 : 1) * (order.direction === "desc" && order.field !== "createdAt" ? -1 : 1))
+      .map(row => row.id);
+    if (order.field === "createdAt") expected.splice(0, expected.length, ...[...rows].sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1)).map(row => row.id));
+    assert.deepEqual(seen, expected);
+    assert.equal(statements.length, 7);
+    assert.ok(statements.every(statement => /limit \?$/i.test(statement.trim())));
+  }
+  const first = await list({ order: { field: "name", direction: "asc" }, limit: 2 });
+  const refused = await entityAPI(request("list", { type: "part", order: { field: "createdAt", direction: "asc" }, after: first.pageInfo.endCursor }), "list", [provider]);
+  assert.equal(refused.status, 400);
 });

@@ -287,17 +287,15 @@ async function deliveryDocumentEdges(
   const edges = database.collection("edges");
   const ids = new Set<string>();
   const documentEdges: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await edges.list({
+  {
+    const page = await edges.all({
       where: {
         typeId: documentsType,
         toId: organization.ref.id,
         archived: false,
       },
       select: ["typeId", "fromId", "toId", "archived"],
-      offset,
-      limit: 100,
-    });
+    }, 1100);
     for (const edge of page)
       if (
         active(edge) &&
@@ -312,7 +310,6 @@ async function deliveryDocumentEdges(
         "Organization delivery context exceeds its read bound",
         { status: 413 },
       );
-    if (page.length < 100) break;
   }
   return { ids, documentEdges };
 }
@@ -337,18 +334,9 @@ export async function readOrganizationProgress(
   const cached = new Map(graph.nodes.map((record) => [record.ref.id, record]));
   const documents: EntityRecord[] = [];
   const pending = [...ids];
-  for (let offset = 0; offset < pending.length; offset += 8) {
+  {
     const records = await Promise.all(
-      pending.slice(offset, offset + 8).map(async (id) => {
-        if (cached.has(id)) return cached.get(id);
-        try {
-          return await database.collection("nodes").get(id);
-        } catch (error) {
-          if (error instanceof Response && error.status === 404)
-            return undefined;
-          throw error;
-        }
-      }),
+      pending.map((id) => cached.get(id) ?? database.collection("nodes").load(id)),
     );
     for (const record of records) if (record) documents.push(record);
   }

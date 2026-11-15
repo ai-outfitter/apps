@@ -3,6 +3,7 @@ import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { requireAccess,type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { z } from "zod";
 import {getDocument,type Document} from "./store";
+import {searchClause} from "@ai-outfitter/app-sdk/entity-query";
 
 const fields=z.strictObject({title:z.string().max(300),summary:z.string().max(4000),body:z.string().max(200000),generatedBody:z.string().max(200000),publishedRevision:z.number().int().positive().nullable()});
 function requireDocumentReader(identity:AppIdentity){
@@ -15,9 +16,15 @@ export function documentEntities(db:AgentDatabase):EntityProvider[]{
   type:"document",title:"Wiki document",description:"Current authorized Wiki draft, including authored and generated sections, at its exact revision. Read-only; saved/publication changes use the document contract.",schema:fields,
   can:(identity,operation)=>{requireDocumentReader(identity);return operation==="get"||operation==="list";},
   name:row=>row.title.slice(0,200),
-  list:async(identity,offset,limit)=>{
+  searchFields:["title","summary","body"],
+  list:async(identity,query)=>{
    requireDocumentReader(identity);
-   return await db.query({sql:"SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=d.revision WHERE d.archived=0 ORDER BY d.id LIMIT ? OFFSET ?",params:[limit,offset]}) as Document[];
+   const desc=query.order.direction==="desc";
+   const where=["d.archived=0"],params:unknown[]=[];
+   if(query.ids){where.push(`d.id IN (${query.ids.map(()=>"?").join(",")})`);params.push(...query.ids);}
+   if(query.after){where.push(desc?"d.id<?":"d.id>?");params.push(query.after.id);}
+   if(query.search){const search=searchClause(query.search,["r.title","r.summary","r.body"]);where.push(search.sql);params.push(...search.params);}
+   return await db.query({sql:`SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=d.revision WHERE ${where.join(" AND ")} ORDER BY d.id ${desc?"DESC":"ASC"} LIMIT ?`,params:[...params,query.limit]}) as Document[];
   },
   get:async(identity,id)=>{
    requireDocumentReader(identity);const document=await getDocument(db,id);

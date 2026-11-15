@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requestIdentity, type AppIdentity } from "./server";
 import { defineOperation, operationAPI, type AppOperation } from "./operations";
 import { schemaJSON } from "./agent-schema";
+import { type SearchExpression, searchBinds, searchExpression } from "./entity-query";
 
 /** App-owned records, addressed independently of browser routes or database tables. */
 export const entityPath = "/api/internal/entities/v1";
@@ -26,17 +27,24 @@ export const entityType = z.strictObject({
   collection: key.optional(),
   orderFields: z.array(key).optional(),
   selectFields: z.array(key).optional(),
+  searchFields: z.array(key).optional(),
   writable: z.boolean(),
   operations: z.array(z.enum(["list", "get", "create", "update"])).optional(),
 });
+export const entityOrder = z.strictObject({ field: key, direction: z.enum(["asc", "desc"]) });
 export const entityQuery = z.strictObject({
   type: key,
+  ids: z.array(key).min(1).max(100).optional().describe("Known record IDs, read in one indexed lookup."),
+  search: z.string().trim().min(1).max(512).optional().describe("Text over the type's searchFields: terms, quoted phrases, AND, OR, NOT and parentheses; adjacent terms mean AND."),
   filter: z.record(z.string().min(1).max(128), z.json()).optional().describe("Match the provider filterSchema from entities.types. Unsupported or unknown filters are errors."),
-  order: z.strictObject({ field: key, direction: z.enum(["asc", "desc"]) }).optional(),
+  order: entityOrder.optional().describe("One of the type's orderFields, or id; ties break by id. Default id ascending."),
   select: z.array(key).min(1).max(32).refine(fields => new Set(fields).size === fields.length).optional(),
-  offset: z.number().int().nonnegative().max(100000).default(0),
+  after: z.string().min(1).max(1024).optional().describe("pageInfo.endCursor of the previous page, with the same query."),
   limit: z.number().int().min(1).max(100).default(50),
 });
+export const entityPageInfo = z.strictObject({ hasNextPage: z.boolean(), endCursor: z.string().nullable() });
+export const entityPage = z.strictObject({ records: z.array(entityRecord).max(100), pageInfo: entityPageInfo });
+export type EntityPage = z.infer<typeof entityPage>;
 export const entityWrite = z.strictObject({
   type: key,
   attributes: z.record(z.string(), z.json()),
@@ -46,6 +54,29 @@ export const entityUpdate = entityWrite.extend({ id: key, revision: z.number().i
 export const entityGet = z.strictObject({ type: key, id: key });
 
 export type EntityOperation = "list" | "get" | "create" | "update";
+type CursorValue = string | number | boolean | null;
+/** One page a provider reads in its own database: at most `limit` rows (the page plus one, so the SDK
+ * knows whether more follow) of the known `ids`, matching `search` over its searchFields and its
+ * typed `filter`, in `order` then ID, strictly after the row `after` names. */
+export type EntityListQuery<Filter = Record<string, unknown>> = {
+  limit: number;
+  ids?: string[];
+  search?: SearchExpression;
+  filter?: Filter;
+  order: z.output<typeof entityOrder>;
+  after?: { value: CursorValue; id: string };
+};
+/** What entityOperations hands a provider: the cursor still encoded, since only the provider knows its rows. */
+export type EntityProviderQuery = Omit<EntityListQuery, "after"> & { after?: string };
+const cursorKey = z.strictObject({ f: key, d: z.enum(["asc", "desc"]), v: z.union([z.string(), z.number(), z.boolean(), z.null()]), i: key });
+const encodeCursor = (value: z.infer<typeof cursorKey>) => btoa(encodeURIComponent(JSON.stringify(value))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+function decodeCursor(cursor: string, order: z.output<typeof entityOrder>): EntityListQuery["after"] {
+  let parsed: z.infer<typeof cursorKey>;
+  try { parsed = cursorKey.parse(JSON.parse(decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))))); }
+  catch { throw new Response("Invalid entity cursor", { status: 400 }); }
+  if (parsed.f !== order.field || parsed.d !== order.direction) throw new Response("This cursor belongs to another ordering; keep order unchanged while paging", { status: 400 });
+  return { value: parsed.v, id: parsed.i };
+}
 export type EntityProvider = {
   type: string;
   title: string;
@@ -55,9 +86,12 @@ export type EntityProvider = {
   collection?: string;
   orderFields?: readonly string[];
   selectFields?: readonly string[];
+  /** The fields `search` matches; a type without them refuses search. */
+  searchFields?: readonly string[];
   /** Additional app policy; defaults to members reading and editors writing. */
   can?: (identity: AppIdentity, operation: EntityOperation) => boolean;
-  list: (identity: AppIdentity, offset: number, limit: number, filter?: Record<string, unknown>, order?: z.output<typeof entityQuery>["order"]) => Promise<EntityRecord[]>;
+  /** One page in the provider's own database; the query's `limit` is the page size (defineEntity reads one more). */
+  list: (identity: AppIdentity, query: EntityProviderQuery) => Promise<EntityPage>;
   get: (identity: AppIdentity, id: string) => Promise<EntityRecord>;
   create?: (identity: AppIdentity, attributes: Record<string, unknown>, references: EntityRef[]) => Promise<EntityRecord>;
   update?: (identity: AppIdentity, id: string, revision: number, attributes: Record<string, unknown>, references: EntityRef[]) => Promise<EntityRecord>;
@@ -95,16 +129,22 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
         type: p.type, title: p.title, description: p.description, schema: schemaJSON(p.schema),
         ...(p.filterSchema ? { filterSchema: schemaJSON(p.filterSchema.strict()) } : {}),
         ...(p.collection ? { collection: p.collection, orderFields: p.orderFields ?? [], selectFields: p.selectFields ?? [] } : {}),
+        ...(p.searchFields?.length ? { searchFields: [...p.searchFields] } : {}),
         writable: allowed(p, who, "create") || allowed(p, who, "update"),
         operations: (["list", "get", "create", "update"] as const).filter(op => allowed(p, who, op)),
       })),
     }),
     list: defineOperation({
-      method: "POST", input: entityQuery, output: z.array(entityRecord).max(100), authorize: authorize("list"),
+      method: "POST", input: entityQuery, output: entityPage, authorize: authorize("list"),
       run: async (who, input) => {
         const provider = find(input.type);
-        if (input.order && !provider.orderFields?.includes(input.order.field)) throw new Response("Unsupported entity ordering", { status: 400 });
+        const order = input.order ?? { field: "id", direction: "asc" as const };
+        if (order.field !== "id" && !provider.orderFields?.includes(order.field)) throw new Response("Unsupported entity ordering", { status: 400 });
         if (input.select?.some(field => !provider.selectFields?.includes(field))) throw new Response("Unsupported entity selection", { status: 400 });
+        if (input.search !== undefined && !provider.searchFields?.length) throw new Response(`${input.type} does not support search; filter it instead`, { status: 400 });
+        const search = input.search ? searchExpression(input.search) : undefined;
+        // D1 binds at most 100 parameters a statement: each term binds once per searchable field.
+        if (search && searchBinds(search, provider.searchFields?.length ?? 0) > 60) throw new Response("Search has too many terms for this type; use fewer", { status: 400 });
         let filter: Record<string, unknown> | undefined;
         if (input.filter !== undefined) {
           if (!provider.filterSchema) throw new Response("This entity type does not support filters", { status: 400 });
@@ -112,9 +152,12 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
           if (!parsed.success) throw new Response(`Invalid entity filter: ${z.prettifyError(parsed.error).slice(0, 1000)}`, { status: 400 });
           filter = parsed.data;
         }
-        const records = await provider.list(who, input.offset, input.limit, filter, input.order);
+        const page = await provider.list(who, {
+          limit: input.limit, order, filter, ...(input.ids ? { ids: input.ids } : {}),
+          ...(search ? { search } : {}), ...(input.after ? { after: input.after } : {}),
+        });
         const select = input.select;
-        return select ? records.map(record => ({ ...record, attributes: Object.fromEntries(select.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) })) : records;
+        return select ? { ...page, records: page.records.map(record => ({ ...record, attributes: Object.fromEntries(select.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) })) } : page;
       },
     }),
     get: defineOperation({
@@ -160,12 +203,15 @@ export function defineEntity<Row extends { id: string; revision: number }, Schem
   collection?: string;
   orderFields?: readonly string[];
   selectFields?: readonly string[];
+  searchFields?: readonly string[];
   name(row: Row): string;
   attributes?(row: Row): unknown;
   outputAttributes?(row: Row): Record<string, z.output<typeof z.json>>;
   references?(row: Row, identity: AppIdentity): EntityRef[];
   can?: EntityProvider["can"];
-  list(identity: AppIdentity, offset: number, limit: number, filter?: z.output<Filter>, order?: z.output<typeof entityQuery>["order"]): Promise<Row[]>;
+  /** At most `query.limit` rows, in `query.order` then ID, after `query.after` (pageCondition builds
+   * that for a drizzle table). */
+  list(identity: AppIdentity, query: EntityListQuery<z.output<Filter>>): Promise<Row[]>;
   get(identity: AppIdentity, id: string): Promise<Row>;
   create?(identity: AppIdentity, attributes: z.output<Schema>, references: EntityRef[]): Promise<Row>;
   update?(identity: AppIdentity, current: Row, attributes: z.output<Schema>, revision: number, references: EntityRef[]): Promise<Row>;
@@ -178,8 +224,20 @@ export function defineEntity<Row extends { id: string; revision: number }, Schem
   });
   const { create, update } = definition;
   return {
-    type: definition.type, title: definition.title, description: definition.description, schema: definition.schema, filterSchema: definition.filterSchema, collection: definition.collection, orderFields: definition.orderFields, selectFields: definition.selectFields, can: definition.can,
-    list: async (who, offset, limit, filter, order) => (await definition.list(who, offset, limit, filter as z.output<Filter> | undefined, order)).map(row => record(who, row)),
+    type: definition.type, title: definition.title, description: definition.description, schema: definition.schema, filterSchema: definition.filterSchema, collection: definition.collection, orderFields: definition.orderFields, selectFields: definition.selectFields, searchFields: definition.searchFields, can: definition.can,
+    list: async (who, { after, ...query }) => {
+      const rows = await definition.list(who, { ...query, filter: query.filter as z.output<Filter> | undefined, limit: query.limit + 1, ...(after ? { after: decodeCursor(after, query.order) } : {}) });
+      const kept = rows.slice(0, query.limit);
+      const last = kept.at(-1);
+      const value = (row: Row): CursorValue => {
+        const field = (row as Record<string, unknown>)[query.order.field];
+        return field === undefined ? null : field as CursorValue;
+      };
+      return {
+        records: kept.map(row => record(who, row)),
+        pageInfo: { hasNextPage: rows.length > query.limit, endCursor: rows.length > query.limit && last ? encodeCursor({ f: query.order.field, d: query.order.direction, v: value(last), i: last.id }) : null },
+      };
+    },
     get: async (who, id) => record(who, await definition.get(who, id)),
     ...(create ? { create: async (who: AppIdentity, attributes: Record<string, unknown>, references: EntityRef[]) =>
       record(who, await create(who, definition.schema.parse(attributes), references)) } : {}),
