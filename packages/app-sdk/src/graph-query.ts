@@ -1,12 +1,16 @@
 // Bulk, byte-bounded reads over one Wiki graph: several named queries in one
 // request, compact projections, counts by type and bounded expansion through the
 // shared selection traversal (`selectGraph`). Domain-neutral: queries name types,
-// never domain concepts. Pure and in memory over records Wiki already read, so
-// retrieval can move into SQL later without changing callers.
+// never domain concepts. Pure and in memory over records Wiki already read, except
+// ordered pages (orderBy or relation), which read only their page through a
+// GraphSource: the Wiki's database where it has one, else the snapshot in memory.
 import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
-import { matchesSourceAndProperties, sourceKey } from "./graph-graphql-source";
+import {
+  type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, sourceKey,
+} from "./graph-graphql-source";
+import { keysetCursor, orderNames, orders, cursorText, parseKeyset } from "./graph-order";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
 import { wikiGraphRecords } from "./graph-records";
@@ -24,6 +28,22 @@ export const savedSelection = graphSelectionDefinition.omit({ id: true, version:
   maxNodes: z.number().int().min(1).max(500).default(100),
 });
 export type SavedSelection = z.infer<typeof savedSelection>;
+
+/** What an ordered page (orderBy or relation) cannot be combined with, with the message for each one misused. */
+function pageRules(query: { entity: string; orderBy?: unknown; relation?: unknown; at?: unknown; count?: unknown; limit: number } & Record<string, unknown>) {
+  const paged = query.orderBy !== undefined || query.relation !== undefined;
+  if (!paged) return [
+    ...(query.at !== undefined ? [["at", "Only ordered pages (orderBy or relation) take at"]] : []),
+    ...(query.count !== undefined ? [["count", "Only ordered pages (orderBy or relation) take count"]] : []),
+    ...(query.limit === 0 ? [["limit", "limit 0 is only for ordered pages (orderBy or relation)"]] : []),
+  ] as [string, string][];
+  const entity = query.relation ? query.entity === "node" || query.entity === "edge" : query.entity === "node";
+  const refused = ["expand", "aggregate", "touching", "sources", "properties", ...(query.relation ? ["types", "ids", "slugs", "text"] : [])];
+  return [
+    ...(entity ? [] : [["entity", query.relation ? "A relation page lists entity \"node\" or \"edge\"" : "An ordered collection page lists entity \"node\""]]),
+    ...refused.filter(field => query[field] !== undefined).map(field => [field, `Ordered pages take no ${field}`]),
+  ] as [string, string][];
+}
 
 /** The filters only a node query may carry, with the message for each one misused. */
 function nodeOnlyFilters(query: { entity: string; slugs?: unknown; sources?: unknown; properties?: Record<string, unknown> }) {
@@ -67,9 +87,24 @@ export const graphQuery = z.strictObject({
   fields: z.union([z.enum(["compact", "full"]), z.array(fieldName).min(1).max(32)]).default("compact")
     .describe("compact (default): IDs, type, title, summary, revision, validity, updatedAt. full: stored records. A list picks attributes; IDs, type IDs, endpoints and revisions are always kept, and retired records carry retired: true."),
   aggregate: z.literal("type").optional().describe("Return counts grouped by entity kind and type instead of records."),
-  limit: z.number().int().min(1).max(500).default(100).describe("Most matched records in one page; maxBytes may stop the page sooner."),
-  cursor: z.string().min(1).max(512).optional().describe("Continue this query from a previous result's cursor. Keep every other field identical and select only that Wiki (installationIds)."),
+  orderBy: z.enum(orderNames).optional().describe("Read one ordered page, as GraphQL connections do: a record column (ID, CREATED_AT, UPDATED_AT, TITLE) ascending or descending, ties by ID. "
+    + "A node query lists that collection page (types, ids, slugs, text, archived, at); with relation, a page per parent. Its cursors continue only this order."),
+  relation: z.strictObject({
+    parentIds: z.array(z.string().min(1).max(200)).min(1).max(500).describe("The nodes each page starts from."),
+    edgeTypes: z.array(typeRef).min(1).max(32).describe("Edge type names or IDs of the relationship."),
+    direction: z.enum(["outgoing", "incoming", "both"]).default("both"),
+    targetTypes: z.array(typeRef).min(1).max(32).describe("Node type names or IDs at the far end."),
+  }).optional().describe("A page per parent of an ordered page (orderBy defaults to ID_ASC): entity \"node\" lists each far node once (through its lowest edge ID) ordered by the node, "
+    + "entity \"edge\" each edge ordered by the edge; edge and far node both visible under archived (exclude also hides retired records) and valid at `at`. "
+    + "Each parent gets up to `limit` rows with its own cursor and hasNextPage; the query's cursor starts every parent's page after it."),
+  at: z.string().min(1).max(64).refine(value => !Number.isNaN(Date.parse(value)), "at is an ISO-8601 date or date-time").optional()
+    .describe("Ordered pages only: records valid at this time (validity from inclusive, until exclusive)."),
+  count: z.boolean().optional().describe("Ordered pages only: also count every match, as total (and each parent's count)."),
+  limit: z.number().int().min(0).max(500).default(100).describe("Most matched records in one page (per parent for a relation); maxBytes may stop the page sooner. 0 only counts or tests for rows, on ordered pages."),
+  cursor: z.string().min(1).max(2048).optional().describe("Continue this query from a previous result's cursor. Keep every other field identical and select only that Wiki (installationIds). "
+    + "An ordered page's cursor names its order and record, and continues that order only."),
 }).superRefine((query, context) => {
+  for (const [field, message] of pageRules(query)) context.addIssue({ code: "custom", path: [field], message });
   if (query.entity === "all" && !query.aggregate) context.addIssue({ code: "custom", path: ["entity"], message: "entity \"all\" requires aggregate" });
   if (query.touching && query.entity !== "edge") context.addIssue({ code: "custom", path: ["touching"], message: "Only edge queries filter by touching nodes" });
   for (const [field, message] of nodeOnlyFilters(query)) context.addIssue({ code: "custom", path: [field], message });
@@ -95,17 +130,24 @@ export const graphQueryResult = z.strictObject({
   nodes: z.array(row), edges: z.array(row), types: z.array(row),
   queries: z.record(z.string(), z.strictObject({
     entity: z.enum([...kinds, "all"]),
-    /** Every record matching the filters, across all pages. */
-    total: z.number().int().nonnegative(),
-    /** Records matched in this page, in ID order. */
+    /** Every record matching the filters, across all pages; null for an ordered page read without count. */
+    total: z.number().int().nonnegative().nullable(),
+    /** Records matched in this page, in ID order (an ordered page: in its order; a relation page: none, see parents). */
     matches: z.array(z.string()),
     /** Records reached beyond the matches: edge endpoints and expansion. */
     related: z.array(z.string()),
     omitted: z.array(z.string()), unresolved: z.array(z.string()),
     missingTypes: z.array(z.string()),
     counts: z.array(count).optional(),
+    /** A relation page: each parent's rows (edge and far node, both in nodes/edges) in page order. `cursor` continues
+     * after the last row (or where this page started: null is from the start) while hasNextPage. */
+    parents: z.array(z.strictObject({
+      parentId: z.string(), rows: z.array(z.strictObject({ edgeId: z.string(), nodeId: z.string() })),
+      hasNextPage: z.boolean(), cursor: z.string().nullable(), count: z.number().int().nonnegative().optional(),
+    })).optional(),
     /** True when this page holds the last match and expansion hit no bound. */
     complete: z.boolean(),
+    /** Where the next page starts. An ordered page that is not complete continues here; null is from the start. */
     cursor: z.string().nullable(),
   })),
   /** True when every query is complete. */
@@ -377,19 +419,125 @@ async function pageQuery(index: Index, buffer: Buffer, query: GraphQuery, key: s
   return { summary, exhausted };
 }
 
+/** Whether a query reads an ordered page through the GraphSource. */
+export const isOrderedPage = (query: Pick<GraphQuery, "orderBy" | "relation">) => query.orderBy !== undefined || query.relation !== undefined;
+
+/** Where an ordered page resumes: its cursor's record, refused unless the cursor names this order. */
+function pageAfter(query: GraphQuery): Keyset | null {
+  if (!query.cursor) return null;
+  const orderBy = query.orderBy ?? "ID_ASC";
+  const text = cursorText(query.cursor);
+  const keyed = text === null ? null : parseKeyset(text);
+  if (!keyed) throw new Response(`Invalid cursor for query ${query.name}`, { status: 400 });
+  if (keyed.orderBy !== orderBy) throw new Response(`Cursor for query ${query.name} does not continue orderBy ${orderBy}; keep orderBy unchanged when paging`, { status: 400 });
+  return keyed.key;
+}
+
+/** An ordered page's filters in GraphSource terms, its type names resolved in this Wiki. */
+function pageFilters(index: Index, query: GraphQuery, missingTypes: Set<string>) {
+  const resolve = (refs: string[], category: "node" | "edge") => {
+    const found = index.typeIds(refs, category);
+    for (const name of found.missing) missingTypes.add(name);
+    return [...found.ids];
+  };
+  const shared = { archived: query.archived, ...(query.at ? { at: query.at } : {}) };
+  if (query.relation) {
+    const relation: Omit<RelationFilter, "parentIds"> & { parentIds: string[] } = {
+      ...shared, parentIds: [...new Set(query.relation.parentIds)], edgeTypeIds: resolve(query.relation.edgeTypes, "edge"),
+      direction: query.relation.direction, targetTypeIds: resolve(query.relation.targetTypes, "node"), rows: query.entity === "edge" ? "edge" : "node",
+    };
+    return { relation } as const;
+  }
+  const typeIds = query.types ? resolve(query.types, "node") : index.rows.type.filter(type => type.category === "node").map(type => type.id);
+  const collection: NodeFilter = { ...shared, typeIds, ...(query.ids ? { ids: query.ids } : {}), ...(query.slugs ? { slugs: query.slugs } : {}), ...(query.text ? { text: query.text } : {}) };
+  return { collection } as const;
+}
+
+type Summary = GraphQueryResult["queries"][string];
+const emptySummary = (query: GraphQuery, missingTypes: Set<string>): Summary =>
+  ({ entity: query.entity, total: null, matches: [], related: [], omitted: [], unresolved: [], missingTypes: [...missingTypes], complete: false, cursor: query.cursor ?? null });
+
+/** One ordered collection page: `limit` records read with ORDER BY and LIMIT limit + 1 where the source keeps them. */
+async function collectionPage(source: GraphSource, buffer: Buffer, query: GraphQuery, filter: NodeFilter, missingTypes: Set<string>, stopped: boolean) {
+  const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query);
+  const summary = emptySummary(query, missingTypes);
+  if (stopped) return { summary, exhausted: true };
+  const total = query.count ? await source.nodeCount(filter) : null;
+  const rows = query.limit === 0 && total !== null ? [] : await source.nodePage({ ...filter, order, first: query.limit, after });
+  let last: Keyset | null = null, exhausted = false;
+  for (const row of rows.slice(0, query.limit)) {
+    if (!await buffer.admit([{ kind: "node", record: project("node", row as Row, query.fields) }])) { exhausted = true; break; }
+    summary.matches.push(row.id);
+    last = keyOf(row, order);
+  }
+  const more = query.limit === 0 && total !== null ? total > 0 : rows.length > summary.matches.length;
+  buffer.spend(300);
+  return { summary: { ...summary, total, complete: !more, cursor: last ? keysetCursor(orderBy, last) : summary.cursor }, exhausted };
+}
+
+/** One ordered page per parent of a relationship, every parent read together (relationPage). */
+async function relationPages(source: GraphSource, buffer: Buffer, query: GraphQuery, filter: RelationFilter, missingTypes: Set<string>, stopped: boolean) {
+  const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query);
+  const summary = emptySummary(query, missingTypes);
+  const counts = query.count && !stopped ? await source.relationCount(filter) : null;
+  const rows = stopped || (query.limit === 0 && counts) ? [] : await source.relationPage({ ...filter, order, first: query.limit, after });
+  const byParent = new Map<string, RelationRow[]>();
+  for (const row of rows) byParent.set(row.parentId, [...byParent.get(row.parentId) ?? [], row]);
+  let exhausted = stopped;
+  const parents: NonNullable<Summary["parents"]> = [];
+  for (const parentId of filter.parentIds) {
+    const found = byParent.get(parentId) ?? [], kept: { edgeId: string; nodeId: string }[] = [];
+    let last: Keyset | null = null;
+    for (const row of exhausted ? [] : found.slice(0, query.limit)) {
+      const additions: Addition[] = [{ kind: "node", record: project("node", row.node as Row, query.fields) }, { kind: "edge", record: project("edge", row.edge as Row, query.fields) }];
+      if (!await buffer.admit(additions)) { exhausted = true; break; }
+      kept.push({ edgeId: row.edge.id, nodeId: row.node.id });
+      last = keyOf((filter.rows === "node" ? row.node : row.edge) as GraphRow, order);
+    }
+    const count = counts ? counts.get(parentId) ?? 0 : undefined;
+    const more = stopped || (query.limit === 0 && count !== undefined ? count > 0 : found.length > kept.length);
+    parents.push({ parentId, rows: kept, hasNextPage: more, cursor: last ? keysetCursor(orderBy, last) : query.cursor ?? null, ...(count !== undefined ? { count } : {}) });
+  }
+  buffer.spend(300 + 120 * parents.length);
+  const total = counts ? [...counts.values()].reduce((sum, value) => sum + value, 0) : null;
+  return { summary: { ...summary, total, parents, complete: !stopped && parents.every(parent => !parent.hasNextPage), cursor: null }, exhausted };
+}
+
+/** An ordered page through `source`: a collection page, or a page per parent of a relationship. */
+function orderedPage(index: Index, source: GraphSource, buffer: Buffer, query: GraphQuery, missingTypes: Set<string>, stopped: boolean) {
+  const filters = pageFilters(index, query, missingTypes);
+  return filters.relation
+    ? relationPages(source, buffer, query, filters.relation, missingTypes, stopped)
+    : collectionPage(source, buffer, query, filters.collection, missingTypes, stopped);
+}
+
+export type QueryGraphOptions = {
+  knowledgeGraph?: KnowledgeGraphResolver;
+  /** Where ordered pages read; defaults to the snapshot in memory. */
+  source?: GraphSource;
+};
+
 /** Run a batch of named queries over one Wiki snapshot within a byte budget. */
-export async function queryGraph(snapshot: Snapshot, raw: GraphQueryInput, { knowledgeGraph }: { knowledgeGraph?: KnowledgeGraphResolver } = {}): Promise<GraphQueryResult> {
+export async function queryGraph(snapshot: Snapshot, raw: GraphQueryInput, { knowledgeGraph, source }: QueryGraphOptions = {}): Promise<GraphQueryResult> {
   const input = graphQueryInput.parse(raw);
   const index = indexSnapshot(snapshot);
   const buffer = responseBuffer(index, input);
+  let pages = source;
   const queries: GraphQueryResult["queries"] = {};
   // Once the budget runs out, later queries keep their place with a cursor.
   let exhausted = false;
   for (const query of input.queries) {
+    const missingTypes = new Set<string>();
+    if (isOrderedPage(query)) {
+      pages ??= memorySource(snapshot);
+      const page = await orderedPage(index, pages, buffer, query, missingTypes, exhausted);
+      queries[query.name] = page.summary;
+      exhausted = page.exhausted;
+      continue;
+    }
     const key = await queryKey(query, snapshot.installationId);
     const cursor = query.cursor ? readCursor(query.cursor) : null;
     if (cursor && cursor.key !== key) throw new Response(`Cursor for query ${query.name} belongs to different filters or another Wiki; continue with installationIds set to that Wiki`, { status: 400 });
-    const missingTypes = new Set<string>();
     if (query.aggregate) {
       const matching = matcher(index, query, missingTypes);
       const counts = countGroups(index, query.entity === "all" ? [...kinds] : [query.entity], matching);

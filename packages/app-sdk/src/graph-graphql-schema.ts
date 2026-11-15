@@ -9,7 +9,8 @@ import { type EdgeLayout, type NodeLayout, type SchemaLayout, schemaLayout, type
 import {
   type GraphContext, idList, meterFields, type OrderedPageArgs, orderedPage, orderedStart, type PageArgs, take, traverse, type TraverseArgs, validFrom, validUntil, visible,
 } from "./graph-graphql-resolve";
-import { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar, orderEnum, orders } from "./graph-graphql-scalars";
+import { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar, orderEnum } from "./graph-graphql-scalars";
+import { orders } from "./graph-order";
 import { type ArchivedFilter, type GraphRow, keyOf, type NodeFilter, pageRows, type RelationCountAsk } from "./graph-graphql-source";
 
 type Fields = GraphQLFieldConfigMap<GraphRow, GraphContext>;

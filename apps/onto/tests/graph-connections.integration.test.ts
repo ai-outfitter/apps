@@ -8,6 +8,8 @@ import { executeGraphQuery, graphGraphqlResult, memorySource, type TypeRow } fro
 import { drizzle } from "drizzle-orm/d1";
 import { readGraph } from "../src/server/graph";
 import { databaseSource } from "../src/server/graph-source";
+import { queryGraphRecords } from "../src/server/graph-query";
+import { graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const products = 8, revisions = 5;
@@ -121,6 +123,42 @@ test("products' revisions page per product in one bounded relationship statement
     const expected = await executeGraphQuery({ types, source: memorySource({ installationId: "onto-installation", ...graph }), query, variables, maxBytes: 262144 });
     const actual = await executeGraphQuery({ types, source: databaseSource(db), query, variables, maxBytes: 262144 });
     assert.deepEqual(JSON.parse(JSON.stringify(actual)), JSON.parse(JSON.stringify(expected)));
+
+    // graph.query's relation page: the same statements, for 3 products as for 8, and each product's own cursor.
+    const identity = { ...owner, installationId: "onto-installation", canEdit: true } as never;
+    const relation = (parentIds: string[]) => ({ parentIds, edgeTypes: ["revisions"], direction: "outgoing" as const, targetTypes: ["GadgetRevision"] });
+    const graphQuery = async (parentIds: string[], cursor?: string) => {
+      log.length = 0;
+      const result = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [
+        { name: "revisions", relation: relation(parentIds), orderBy: "CREATED_AT_ASC", limit: 2, count: true, fields: ["title"], ...(cursor ? { cursor } : {}) },
+      ] }));
+      return { result, statements: log.map(entry => ({ ...entry })) };
+    };
+    const threeParents = await graphQuery(productIds.slice(0, 3)), eightParents = await graphQuery(productIds);
+    const parents = eightParents.result.queries.revisions.parents ?? [];
+    const titles = new Map(eightParents.result.nodes.map(row => [row.id, row.title]));
+    assert.deepEqual(parents.map(parent => [parent.rows.map(row => titles.get(row.nodeId)), parent.hasNextPage, parent.count]),
+      productIds.map((_, p) => [[`Product ${p} revision 0`, `Product ${p} revision 1`], true, revisions]));
+    // The types, one relationship page and one count, for three products as for eight.
+    assert.equal(eightParents.statements.length, threeParents.statements.length, JSON.stringify(eightParents.statements.map(entry => entry.sql)));
+    assert.equal(eightParents.statements.length, 3, JSON.stringify(eightParents.statements.map(entry => entry.sql)));
+    for (const { sql, values } of eightParents.statements.filter(entry => !/from "graph_types"/i.test(entry.sql))) {
+      assert.match(sql, /e\."fromId" IN \(SELECT value FROM json_each/i, sql);
+      const plan = (await app.database.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...values).all<{ detail: string }>()).results.map(row => row.detail);
+      assert.ok(plan.length && !plan.some(step => /^SCAN (n|e|graph_nodes|graph_edges)\b/.test(step) || /graph_nodes_type_/.test(step)), plan.join("\n"));
+    }
+    assert.equal(eightParents.statements.find(entry => /ROW_NUMBER/.test(entry.sql))?.rows, products * 3, "limit + 1 revisions per product");
+    console.log(`graph.query statements: ${threeParents.statements.length} for 3 products, ${eightParents.statements.length} for ${products}; rows: ${eightParents.statements.map(entry => entry.rows).join(", ")}`);
+    // One product's next page from its own cursor reads only the rows after it.
+    const continued = await graphQuery([productIds[4]], parents[4].cursor ?? undefined);
+    const nextTitles = new Map(continued.result.nodes.map(row => [row.id, row.title]));
+    assert.deepEqual(continued.result.queries.revisions.parents?.[0].rows.map(row => nextTitles.get(row.nodeId)), ["Product 4 revision 2", "Product 4 revision 3"]);
+    assert.equal(continued.statements.find(entry => /ROW_NUMBER/.test(entry.sql))?.rows, 3);
+    // An ordered collection page is one LIMIT statement.
+    log.length = 0;
+    const page = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [{ name: "gadgets", types: ["Gadget"], orderBy: "TITLE_DESC", limit: 3 }] }));
+    assert.equal(page.queries.gadgets.matches.length, 3);
+    assert.deepEqual(log.filter(entry => !/from "graph_types"/i.test(entry.sql)).map(entry => [/LIMIT/.test(entry.sql), entry.rows]), [[true, 4]]);
   } finally {
     await app.dispose();
   }

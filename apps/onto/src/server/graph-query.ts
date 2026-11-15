@@ -1,5 +1,5 @@
 import { compareIds, type EdgeRow, type GraphRow, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
-import { type GraphQuery, graphQueryInput, type GraphQueryInput, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
+import { type GraphQuery, graphQueryInput, type GraphQueryInput, isOrderedPage, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { normalizeRule } from "@ai-outfitter/app-sdk/graph-selection";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
@@ -93,13 +93,18 @@ function candidates(db: Database, installationId: string, types: TypeRow[]) {
  * walk inspects that hop to report omitted records) with their endpoints.
  * `queryGraph` then runs unchanged over that partial snapshot; rows another query
  * brought in fail this query's filters or were among its candidates anyway.
- * A query filtered only by type or text reads every row of those types. */
+ * A query filtered only by type or text reads every row of those types.
+ *
+ * An ordered page (orderBy or relation) maps straight onto the database source: nodePage and nodeCount
+ * for a collection, relationPage and relationCount for a page per parent, each one bounded statement
+ * (per 500 parents), the same SQL GraphQL connections run. */
 export async function queryGraphRecords(db: Database, identity: AppIdentity, raw: GraphQueryInput) {
   const input = graphQueryInput.parse(raw);
   const types = (await db.select().from(graphTypes).orderBy(asc(graphTypes.name))).map(readType) as unknown as TypeRow[];
   const rows = candidates(db, identity.installationId, types);
   const plans = [];
-  for (const query of input.queries) plans.push(await rows.read(query));
+  // Ordered pages read only their page (and counts), through the database source.
+  for (const query of input.queries) if (!isOrderedPage(query)) plans.push(await rows.read(query));
   await rows.reachAll(plans);
-  return queryGraph(rows.snapshot() as never, input, { knowledgeGraph: id => savedDefinition(rows.node(id)) });
+  return queryGraph(rows.snapshot() as never, input, { knowledgeGraph: id => savedDefinition(rows.node(id)), source: databaseSource(db) });
 }

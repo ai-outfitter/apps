@@ -61,7 +61,7 @@ export {
   type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPageQuery,
   type RelationRow, sourceKey, type SourceRef,
 } from "./graph-graphql-source";
-export { type OrderName, orders } from "./graph-graphql-scalars";
+export { type OrderName, orders } from "./graph-order";
 export { type GraphContext, graphContext } from "./graph-graphql-resolve";
 export { buildGraphSchema, type GraphSchemaOptions, type KeyArgs } from "./graph-graphql-schema";
 export { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar } from "./graph-graphql-scalars";

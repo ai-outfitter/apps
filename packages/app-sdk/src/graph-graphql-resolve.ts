@@ -2,7 +2,7 @@
 // archived/retired rules), validity at a time, traversal and paging.
 import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
 import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphRow, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
-import { isOrderName, type OrderName, orders } from "./graph-graphql-scalars";
+import { cursorOf, cursorText, keysetCursor, type OrderName, orders, parseKeyset } from "./graph-order";
 
 export { validAt, validFrom, validUntil, visible };
 export type GraphContext = {
@@ -48,10 +48,10 @@ export async function traverse(context: GraphContext, nodeId: string, edgeTypeId
   });
 }
 
-export const cursorOf = (id: string) => btoa(encodeURIComponent(id)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 function decode(cursor: string) {
-  try { return decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))); }
-  catch { throw badInput("Invalid cursor"); }
+  const text = cursorText(cursor);
+  if (text === null) throw badInput("Invalid cursor");
+  return text;
 }
 const badInput = (message: string) => new GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 /** At most 200 IDs (or slugs) per argument, as graph.query takes. */
@@ -82,15 +82,12 @@ export type OrderedPageArgs = PageArgs & { orderBy?: OrderName | null };
 /** An ID_ASC cursor is the record's encoded ID (as before orderBy); any other order's names the order
  * with the record's (value, ID), so it continues only the order it was made with. */
 export function orderCursor(orderBy: OrderName, key: Keyset) {
-  return orderBy === "ID_ASC" ? cursorOf(key.id) : cursorOf(JSON.stringify([orderBy, key.value, key.id]));
+  return orderBy === "ID_ASC" ? cursorOf(key.id) : keysetCursor(orderBy, key);
 }
 function readKeyset(orderBy: OrderName, cursor: string): Keyset {
   const text = decode(cursor);
-  let parsed: unknown[] | null = null;
-  if (text.startsWith("[")) try { parsed = JSON.parse(text); } catch { /* an ID */ }
-  const keyed = Array.isArray(parsed) && parsed.length === 3 && isOrderName(parsed[0]) && typeof parsed[2] === "string"
-    && (parsed[1] === null || typeof parsed[1] === "string" || typeof parsed[1] === "number");
-  if (keyed && parsed?.[0] === orderBy) return { value: parsed[1] as Keyset["value"], id: parsed[2] as string };
+  const keyed = parseKeyset(text);
+  if (keyed?.orderBy === orderBy) return keyed.key;
   if (keyed || orderBy !== "ID_ASC") throw badInput(`This cursor does not continue orderBy ${orderBy}; keep orderBy unchanged when paging`);
   return { value: text, id: text };
 }

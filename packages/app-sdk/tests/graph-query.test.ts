@@ -187,3 +187,47 @@ test("compact and picked projections say a record is retired, wherever its statu
     assert.deepEqual(result.nodes.filter(record => record.retired).map(record => record.title), ["Former", "Ex"]);
   }
 });
+
+test("ordered pages: a collection in any order, a page per parent with its cursor, counts, and cursors bound to their order", async () => {
+  // Three assignments, each with a role edge to a Role created in reverse of its ID order.
+  const roles = [node(11, 1, "Role A", { createdAt: 30 }), node(12, 1, "Role B", { createdAt: 20 }), node(13, 1, "Role C", { createdAt: 10 })];
+  const owners = [node(21, 2, "First"), node(22, 2, "Second"), node(23, 2, "Lonely")];
+  const links = [edge(11, 5, 21, 11), edge(12, 5, 21, 12), edge(13, 5, 21, 13), edge(14, 5, 22, 12), edge(15, 5, 22, 12, { title: "twice" })];
+  const graph = { ...snapshot, nodes: [...snapshot.nodes, ...roles, ...owners], edges: [...snapshot.edges, ...links] };
+  const relation = { parentIds: [uuid(121), uuid(122), uuid(123)], edgeTypes: ["assigns_role"], direction: "outgoing" as const, targetTypes: ["Role"] };
+  const result = graphQueryResult.parse(await queryGraph(graph, { includeTypes: "none", queries: [
+    { name: "roles", types: ["Role"], ids: roles.map(row => row.id), orderBy: "CREATED_AT_ASC", limit: 2, count: true },
+    { name: "held", relation, orderBy: "CREATED_AT_ASC", limit: 2, count: true },
+    { name: "links", entity: "edge", relation, orderBy: "ID_DESC", limit: 1 },
+  ] }));
+  const { roles: page, held, links: edges } = result.queries;
+  assert.deepEqual([page.matches, page.total, page.complete], [[uuid(113), uuid(112)], 3, false]);
+  assert.deepEqual(held.parents?.map(parent => [parent.parentId, parent.rows.map(row => row.nodeId), parent.hasNextPage, parent.count]), [
+    [uuid(121), [uuid(113), uuid(112)], true, 3],
+    // A far node reached by two edges is listed once, through its lowest edge ID.
+    [uuid(122), [uuid(112)], false, 1],
+    [uuid(123), [], false, 0],
+  ]);
+  assert.deepEqual(held.parents?.[1].rows, [{ edgeId: uuid(214), nodeId: uuid(112) }]);
+  assert.deepEqual(edges.parents?.map(parent => parent.rows.map(row => row.edgeId)), [[uuid(213)], [uuid(215)], []]);
+  assert.equal(held.total, 4);
+  assert.equal(edges.total, null, "no count asked");
+  assert.ok(result.edges.some(row => row.id === uuid(214)) && result.nodes.some(row => row.id === uuid(112)), "rows carry their edge and far node");
+
+  // Each parent continues from its own cursor; the next page starts after it.
+  const next = await queryGraph(graph, { queries: [
+    { name: "held", relation: { ...relation, parentIds: [uuid(121)] }, orderBy: "CREATED_AT_ASC", limit: 2, cursor: held.parents?.[0].cursor ?? undefined },
+    { name: "roles", types: ["Role"], ids: roles.map(row => row.id), orderBy: "CREATED_AT_ASC", limit: 2, cursor: page.cursor ?? undefined },
+  ] });
+  assert.deepEqual(next.queries.held.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.hasNextPage]), [[[uuid(111)], false]]);
+  assert.deepEqual([next.queries.roles.matches, next.queries.roles.complete], [[uuid(111)], true]);
+
+  // A cursor continues only its order; limit 0 counts without reading rows.
+  await assert.rejects(queryGraph(graph, { queries: [{ name: "held", relation, orderBy: "TITLE_ASC", cursor: held.parents?.[0].cursor ?? undefined }] }),
+    (error: Response) => error.status === 400);
+  const counted = await queryGraph(graph, { queries: [{ name: "held", relation, limit: 0, count: true }] });
+  assert.deepEqual(counted.queries.held.parents?.map(parent => [parent.rows.length, parent.count, parent.hasNextPage]), [[0, 3, true], [0, 1, true], [0, 0, false]]);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", relation, expand: { edgeTypes: ["assigns_role"] } }] }), /Ordered pages take no expand/);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: ["Role"], count: true }] }), /Only ordered pages/);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", entity: "edge", orderBy: "ID_ASC" }] }), /ordered collection page lists entity/);
+});
