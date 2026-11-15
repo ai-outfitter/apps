@@ -234,10 +234,14 @@ async function finalizeWorkspaceOutputs(
   // The node's own slot inputs, as the platform sent them for this attempt.
   const event = inputs.event as { issue: { number: number }; sourceRunId?: string };
   let previous = (inputs.previous ?? {}) as Record<string, any>;
+  // An implementer only has to name its PR: the plan it was given fills in a
+  // result it returned bare or partly (e.g. `{ previous: {}, candidate }`).
+  const implementing = ["implement", "repair"].includes(target.role);
+  const returned = (outputs.result ?? (implementing ? outputs : undefined)) as Record<string, unknown> | undefined;
   const produced = z
     .object({ ready: z.boolean(), summary: z.string().min(1).max(32000) })
     .passthrough()
-    .parse(outputs.result);
+    .parse(implementing ? { ...previous, ...returned, previous: undefined } : returned);
   const repo = await host.call("repository.read", {});
   const api = hostAPI((request) => host.call("repository.request", request));
   const forge = foundryForge(api, repo, target.ci === "actions" ? githubActionsAppId : repo.appId);
@@ -270,11 +274,7 @@ async function finalizeWorkspaceOutputs(
       url: z.string(),
       branch: z.string(),
     })
-    .parse(
-      ["implement", "repair"].includes(target.role)
-        ? produced.candidate
-        : previous.candidate,
-    );
+    .parse(implementing ? produced.candidate : previous.candidate);
   const sourceRunId = z.string().uuid().parse(inputs.sourceRunId ?? scope.runId);
   const verified = await forge.change(
     candidate,
@@ -286,7 +286,7 @@ async function finalizeWorkspaceOutputs(
     const { evidence, ...demo } = await verifyFoundryDemo(locals, origin, api, repo.name, verified, sourceRunId);
     previous = { ...previous, evidence, demo };
   }
-  if (["implement", "repair"].includes(target.role))
+  if (implementing)
     return implementationResult(target.role, previous, produced, verified);
   if (coordinatedRole(target, previous) && target.role !== "land")
     return actionsValidation(host, api, repo.name, forge, target, previous, verified);
