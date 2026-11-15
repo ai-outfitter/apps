@@ -7,41 +7,48 @@ export type SearchExpression = { term: string } | { and: SearchExpression[] } | 
 
 const invalid = (message: string) => new Response(message, { status: 400 });
 
-/** Uppercase NOT, AND, OR in that precedence; adjacent terms mean AND. */
-export function searchExpression(source: string): SearchExpression {
-  const tokens = source.match(/"(?:[^"\\]|\\.)*"|\(|\)|[^\s()]+/g) ?? [];
-  if (tokens.length > 100) throw invalid("Search exceeds 100 tokens.");
-  let index = 0;
-  function atom(depth: number): SearchExpression {
-    if (depth > 12) throw invalid("Search nesting exceeds 12 levels.");
-    const token = tokens[index++];
-    if (!token || [")", "AND", "OR"].includes(token)) throw invalid("Expected a search term.");
-    if (token === "NOT") return { not: atom(depth + 1) };
-    if (token === "(") {
-      const expression = either(depth + 1);
-      if (tokens[index++] !== ")") throw invalid("Unclosed search parenthesis.");
-      return expression;
-    }
-    if (token.startsWith('"')) return { term: JSON.parse(token) as string };
-    if (token.includes('"')) throw invalid("Unclosed quoted phrase.");
-    return { term: token };
+/** Reads tokens left to right: OR of ANDs of atoms. */
+class SearchParser {
+  index = 0;
+  constructor(readonly tokens: string[]) {}
+  either(depth: number): SearchExpression {
+    const values = [this.both(depth)];
+    while (this.tokens[this.index] === "OR") { this.index++; values.push(this.both(depth)); }
+    return values.length === 1 ? values[0] : { or: values };
   }
-  function both(depth: number): SearchExpression {
-    const values = [atom(depth)];
-    while (index < tokens.length && tokens[index] !== ")" && tokens[index] !== "OR") {
-      if (tokens[index] === "AND") index++;
-      values.push(atom(depth));
+  both(depth: number): SearchExpression {
+    const values = [this.atom(depth)];
+    while (this.index < this.tokens.length && this.tokens[this.index] !== ")" && this.tokens[this.index] !== "OR") {
+      if (this.tokens[this.index] === "AND") this.index++;
+      values.push(this.atom(depth));
     }
     return values.length === 1 ? values[0] : { and: values };
   }
-  function either(depth: number): SearchExpression {
-    const values = [both(depth)];
-    while (tokens[index] === "OR") { index++; values.push(both(depth)); }
-    return values.length === 1 ? values[0] : { or: values };
+  atom(depth: number): SearchExpression {
+    if (depth > 12) throw invalid("Search nesting exceeds 12 levels.");
+    const token = this.tokens[this.index++];
+    if (!token || [")", "AND", "OR"].includes(token)) throw invalid("Expected a search term.");
+    if (token === "NOT") return { not: this.atom(depth + 1) };
+    if (token !== "(") return term(token);
+    const expression = this.either(depth + 1);
+    if (this.tokens[this.index++] !== ")") throw invalid("Unclosed search parenthesis.");
+    return expression;
   }
+}
+function term(token: string): SearchExpression {
+  if (token.startsWith('"')) return { term: JSON.parse(token) as string };
+  if (token.includes('"')) throw invalid("Unclosed quoted phrase.");
+  return { term: token };
+}
+
+/** Uppercase NOT, AND, OR in that precedence; adjacent terms mean AND. */
+export function searchExpression(source: string): SearchExpression {
+  const tokens = source.match(/"(?:[^"\\]|\\.)*"|\(|\)|[^\s()]+/g) ?? [];
   if (!tokens.length) throw invalid("Search is empty.");
-  const expression = either(0);
-  if (index !== tokens.length) throw invalid("Unexpected search token.");
+  if (tokens.length > 100) throw invalid("Search exceeds 100 tokens.");
+  const parser = new SearchParser(tokens);
+  const expression = parser.either(0);
+  if (parser.index !== tokens.length) throw invalid("Unexpected search token.");
   return expression;
 }
 
@@ -80,17 +87,18 @@ export function pageCondition(query: EntityListQuery<unknown>, columns: { id: An
   const column = query.order.field === "id" ? columns.id : columns.order?.[query.order.field];
   if (!column) throw new Response("Unsupported entity ordering", { status: 400 });
   const direction = query.order.direction === "desc" ? desc : asc;
-  const beyond = query.order.direction === "desc" ? lt : gt;
-  const after = query.after;
-  const keyset = !after ? undefined : column === columns.id ? beyond(columns.id, after.id)
-    // SQLite sorts NULL first ascending and last descending.
-    : after.value === null
-      ? query.order.direction === "desc" ? and(isNull(column), beyond(columns.id, after.id)) : or(isNotNull(column), and(isNull(column), gt(columns.id, after.id)))
-      : or(beyond(column, after.value), and(eq(column, after.value), beyond(columns.id, after.id)), ...(query.order.direction === "desc" ? [isNull(column)] : []));
   return {
-    where: and(query.ids ? inArray(columns.id, query.ids) : undefined, keyset, query.search && columns.search ? searchCondition(query.search, columns.search) : undefined),
+    where: and(query.ids ? inArray(columns.id, query.ids) : undefined, query.after && keyset(column, columns.id, query.order.direction, query.after),
+      query.search && columns.search ? searchCondition(query.search, columns.search) : undefined),
     orderBy: column === columns.id ? [direction(columns.id)] : [direction(column), direction(columns.id)],
   };
+}
+/** Rows strictly after `after` in (column, id) order. SQLite sorts NULL first ascending and last descending. */
+function keyset(column: AnyColumn, id: AnyColumn, direction: "asc" | "desc", after: NonNullable<EntityListQuery["after"]>) {
+  const beyond = direction === "desc" ? lt : gt;
+  if (column === id) return beyond(id, after.id);
+  if (after.value === null) return direction === "desc" ? and(isNull(column), lt(id, after.id)) : or(isNotNull(column), and(isNull(column), gt(id, after.id)));
+  return or(beyond(column, after.value), and(eq(column, after.value), beyond(id, after.id)), ...(direction === "desc" ? [isNull(column)] : []));
 }
 
 /** searchCondition for a provider writing SQL text: `columns` are trusted column expressions. */

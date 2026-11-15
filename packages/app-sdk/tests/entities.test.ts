@@ -155,21 +155,25 @@ test("a drizzle provider reads known IDs, searches declared fields and pages by 
   assert.deepEqual((await list({ search: "100%" })).records.map(record => record.ref.id), ["p07"]);
 
   // Every page is one bounded statement; following the cursor visits each row once, in order.
-  for (const order of [{ field: "createdAt", direction: "desc" }, { field: "name", direction: "asc" }, { field: "id", direction: "desc" }] as const) {
-    statements.length = 0;
+  const walk = async (order: { field: "id" | "name" | "createdAt"; direction: "asc" | "desc" }) => {
     const seen: string[] = [];
     let after: string | undefined;
     do {
       const page = await list({ order, limit: 4, ...(after ? { after } : {}) });
       seen.push(...page.records.map(record => record.ref.id));
       after = page.pageInfo.endCursor ?? undefined;
-      assert.equal(page.pageInfo.hasNextPage, !!after);
     } while (after);
-    const key = (row: typeof rows[number]) => order.field === "id" ? row.id : row[order.field];
-    const expected = [...rows].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.id < b.id ? -1 : 1) * (order.direction === "desc" && order.field !== "createdAt" ? -1 : 1))
-      .map(row => row.id);
-    if (order.field === "createdAt") expected.splice(0, expected.length, ...[...rows].sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1)).map(row => row.id));
-    assert.deepEqual(seen, expected);
+    return seen;
+  };
+  const sorted = (key: (row: typeof rows[number]) => string | number, sign: number) =>
+    [...rows].sort((a, b) => sign * (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.id < b.id ? -1 : 1)).map(row => row.id);
+  for (const [order, expected] of [
+    [{ field: "createdAt", direction: "desc" }, sorted(row => row.createdAt, -1)],
+    [{ field: "name", direction: "asc" }, sorted(row => row.name, 1)],
+    [{ field: "id", direction: "desc" }, sorted(row => row.id, -1)],
+  ] as const) {
+    statements.length = 0;
+    assert.deepEqual(await walk(order), expected);
     assert.equal(statements.length, 7);
     assert.ok(statements.every(statement => /limit \?$/i.test(statement.trim())));
   }

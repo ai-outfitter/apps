@@ -138,26 +138,8 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
       method: "POST", input: entityQuery, output: entityPage, authorize: authorize("list"),
       run: async (who, input) => {
         const provider = find(input.type);
-        const order = input.order ?? { field: "id", direction: "asc" as const };
-        if (order.field !== "id" && !provider.orderFields?.includes(order.field)) throw new Response("Unsupported entity ordering", { status: 400 });
-        if (input.select?.some(field => !provider.selectFields?.includes(field))) throw new Response("Unsupported entity selection", { status: 400 });
-        if (input.search !== undefined && !provider.searchFields?.length) throw new Response(`${input.type} does not support search; filter it instead`, { status: 400 });
-        const search = input.search ? searchExpression(input.search) : undefined;
-        // D1 binds at most 100 parameters a statement: each term binds once per searchable field.
-        if (search && searchBinds(search, provider.searchFields?.length ?? 0) > 60) throw new Response("Search has too many terms for this type; use fewer", { status: 400 });
-        let filter: Record<string, unknown> | undefined;
-        if (input.filter !== undefined) {
-          if (!provider.filterSchema) throw new Response("This entity type does not support filters", { status: 400 });
-          const parsed = provider.filterSchema.strict().safeParse(input.filter);
-          if (!parsed.success) throw new Response(`Invalid entity filter: ${z.prettifyError(parsed.error).slice(0, 1000)}`, { status: 400 });
-          filter = parsed.data;
-        }
-        const page = await provider.list(who, {
-          limit: input.limit, order, filter, ...(input.ids ? { ids: input.ids } : {}),
-          ...(search ? { search } : {}), ...(input.after ? { after: input.after } : {}),
-        });
-        const select = input.select;
-        return select ? { ...page, records: page.records.map(record => ({ ...record, attributes: Object.fromEntries(select.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) })) } : page;
+        const page = await provider.list(who, providerQuery(provider, input));
+        return input.select ? { ...page, records: page.records.map(record => selected(record, input.select as string[])) } : page;
       },
     }),
     get: defineOperation({
@@ -173,6 +155,35 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
       run: (who, input) => mutateEntity(find(input.type), who, input),
     }),
   };
+}
+
+const refuse = (message: string) => new Response(message, { status: 400 });
+const selected = (record: EntityRecord, fields: string[]) =>
+  ({ ...record, attributes: Object.fromEntries(fields.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) });
+/** The provider's view of a list request, refusing what the type does not advertise. */
+function providerQuery(provider: EntityProvider, input: z.output<typeof entityQuery>): EntityProviderQuery {
+  const order = input.order ?? { field: "id", direction: "asc" as const };
+  if (order.field !== "id" && !provider.orderFields?.includes(order.field)) throw refuse("Unsupported entity ordering");
+  if (input.select?.some(field => !provider.selectFields?.includes(field))) throw refuse("Unsupported entity selection");
+  const query: EntityProviderQuery = { limit: input.limit, order, filter: providerFilter(provider, input.filter) };
+  if (input.ids) query.ids = input.ids;
+  if (input.after) query.after = input.after;
+  if (input.search) query.search = providerSearch(provider, input.type, input.search);
+  return query;
+}
+function providerSearch(provider: EntityProvider, type: string, search: string) {
+  if (!provider.searchFields?.length) throw refuse(`${type} does not support search; filter it instead`);
+  const expression = searchExpression(search);
+  // D1 binds at most 100 parameters a statement: each term binds once per searchable field.
+  if (searchBinds(expression, provider.searchFields.length) > 60) throw refuse("Search has too many terms for this type; use fewer");
+  return expression;
+}
+function providerFilter(provider: EntityProvider, filter: Record<string, unknown> | undefined) {
+  if (filter === undefined) return undefined;
+  if (!provider.filterSchema) throw refuse("This entity type does not support filters");
+  const parsed = provider.filterSchema.strict().safeParse(filter);
+  if (!parsed.success) throw refuse(`Invalid entity filter: ${z.prettifyError(parsed.error).slice(0, 1000)}`);
+  return parsed.data;
 }
 
 /** Mount behind the outfitterApp() middleware. The platform alone calls this reserved route. */
