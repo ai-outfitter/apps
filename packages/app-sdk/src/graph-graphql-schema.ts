@@ -12,7 +12,7 @@ import {
 import { ArchivedEnum, DateTimeScalar, DirectionEnum, filterInput, JSONScalar, operatorInput, orderEnum } from "./graph-graphql-scalars";
 import { edgeFilterFields, nodeFilterFields } from "./graph-filter";
 import { orders } from "./graph-order";
-import { type ArchivedFilter, type GraphRow, keyOf, type NodeFilter, type RelationCountAsk } from "./graph-graphql-source";
+import { type ArchivedFilter, type GraphRow, keyOf, type NodeFilter, noRows, type PageRows, type RelationCountAsk } from "./graph-graphql-source";
 
 type Fields = GraphQLFieldConfigMap<GraphRow, GraphContext>;
 type RootFields = GraphQLFieldConfigMap<unknown, GraphContext>;
@@ -114,6 +114,13 @@ async function findByKey(keys: GraphSchemaOptions["recordKeys"], args: KeyArgs, 
   }
   return (await context.loader.slug(args.slug as string)).find(keep) ?? null;
 }
+/** What a connection reads: its page, or, counted without rows (`first: 0` selecting totalCount), its count alone, with
+ * no page read: more follow when it counts any record. */
+async function pageOrCount<T>(first: number, counted: boolean, page: () => Promise<PageRows<T>>, count: () => Promise<number>): Promise<PageRows<T>> {
+  if (first !== 0 || !counted) return page();
+  const total = await count();
+  return { ...noRows, hasNextPage: total > 0, count: total };
+}
 /** How record keys show and which extra arguments by-key roots take. */
 const keyed = (keys: GraphSchemaOptions["recordKeys"]) => ({ shown: keys?.shownId ?? ((key: string) => key), idArgs: keys?.args ?? {} });
 
@@ -182,12 +189,12 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     ? { connection: connections.get(ids[0]) as GraphQLObjectType, order: orderEnums.get(ids[0]) as GraphQLEnumType, filter: filters.get(ids[0]) as GraphQLInputObjectType }
     : { connection: nodeConnection(), order: nodeOrder(), filter: nodeFilter() });
   const allNodeTypes = [...layout.nodes.keys()], allEdgeTypes = [...layout.edges.keys()];
-  /** A connection that selects totalCount asks its page for the count too, so a source may answer both in one read. */
-  const countedPage = (info: GraphQLResolveInfo) => (selects(info, "totalCount") ? { count: true } : {});
-  /** One parent's page of a relationship, batched with every other parent asking the same; counted only when totalCount is selected. */
+  /** One parent's page of a relationship, batched with every other parent asking the same. A connection that selects
+   * totalCount asks its page for the count too, so a source may answer both in one read. */
   async function relationConnection(context: GraphContext, info: GraphQLResolveInfo, parentId: string, ask: RelationCountAsk, args: RelationArgs) {
-    const start = orderedStart(args);
-    const page = await context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after, ...countedPage(info) }, parentId);
+    const start = orderedStart(args), count = selects(info, "totalCount");
+    const page = await pageOrCount(start.first, count, () => context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after, count }, parentId),
+      () => context.loader.relationCount(ask, parentId));
     const records = page.rows.map(row => (ask.rows === "node" ? row.node : row.edge));
     return orderedPage(context, info, records, row => keyOf(row, orders[start.orderBy]), start, args.after, () => page.count ?? context.loader.relationCount(ask, parentId), page.hasNextPage);
   }
@@ -264,10 +271,12 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     if (!text || text.length > 256) throw new GraphQLError("text must be 1-256 characters", { extensions: { code: "BAD_USER_INPUT" } });
     return { typeIds: nodeTypes(args.types) ?? allNodeTypes, text, archived: "exclude" };
   };
-  /** A collection's page, read bounded by the source; counted only when totalCount is selected. */
+  /** A collection's page, read bounded by the source; counted only when totalCount is selected, in the page's own read
+   * when its source answers both. */
   const collectionPage = async (filter: NodeFilter, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
-    const start = orderedStart(args);
-    const page = await context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after, ...countedPage(info) });
+    const start = orderedStart(args), count = selects(info, "totalCount");
+    const page = await pageOrCount(start.first, count, () => context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after, count }),
+      () => context.loader.nodeCount(filter));
     return orderedPage(context, info, page.rows, row => keyOf(row, orders[start.orderBy]), start, args.after, () => page.count ?? context.loader.nodeCount(filter), page.hasNextPage);
   };
   const roots: RootFields = {

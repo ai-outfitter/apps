@@ -73,7 +73,7 @@ export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-
 export {
   type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
   type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, pageOf, type PageRows, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPage, type RelationPageQuery,
-  type RelationRow, relationBudgeted, RelationTooLarge, sourceKey, type SourceRef, withRelationBudget,
+  type RelationRow, RelationTooLarge, sourceKey, type SourceRef, withRelationBudget,
 } from "./graph-graphql-source";
 export { type OrderName, orders } from "./graph-order";
 export { edgeFilterFields, type FieldOperators, type FilterFields, type FilterKind, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";

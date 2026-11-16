@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { graphQueryMaxLength } from "./knowledge-graph";
+import { graphQueryMaxLength } from "./graph-limits";
 
 /** Provider-neutral GraphQL wire contract; no ontology, client or persistence dependency. */
 export const graphGraphqlAction = "graph.graphql";

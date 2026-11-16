@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphQueryMaxLength } from "./graph-limits";
 export type GraphNode = { id: string; typeId: string; archived?: boolean; body?: string; properties?: Record<string, unknown> };
 export type GraphEdge = { id: string; typeId: string; fromId: string; toId: string; archived?: boolean; body?: string; properties?: Record<string, unknown> };
 export type Graph = { types: { id: string; name: string; category: "node" | "edge"; archived?: boolean }[]; nodes: GraphNode[]; edges: GraphEdge[] };
@@ -9,9 +10,6 @@ export function isRetired(record: { body?: unknown; properties?: unknown }) {
   try { return JSON.parse(String(record.body ?? "{}"))?.status === "retired"; }
   catch { return false; }
 }
-
-/** The longest GraphQL document text a request, a selection or a stored KnowledgeGraph carries, in characters. */
-export const graphQueryMaxLength = 65_536;
 
 const reference = z.string().trim().min(1).max(120);
 const relationship = z

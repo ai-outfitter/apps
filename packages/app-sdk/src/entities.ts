@@ -164,7 +164,7 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
 export const selected = (record: EntityRecord, fields: string[]) =>
   ({ ...record, attributes: Object.fromEntries(fields.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) });
 /** The bound parameters one list statement may spend on its known IDs (one), cursor (two), search (each term
- * once per search field) and filter (`filterBinds`). D1 takes 100 a statement; the rest is the provider's own
+ * once) and filter (`filterBinds`). D1 takes 100 a statement; the rest is the provider's own
  * scope and limit. */
 export const entityBindBudget = 80;
 /** The provider's view of a list request, refusing what the type does not advertise. */
@@ -176,8 +176,8 @@ function providerQuery(provider: EntityProvider, input: z.output<typeof entityQu
   if (input.ids) query.ids = input.ids;
   if (input.after) query.after = input.after;
   if (input.search) query.search = providerSearch(provider, input.type, input.search);
-  const binds = (query.ids ? 1 : 0) + (query.after ? 2 : 0) + (query.search ? searchBinds(query.search, provider.searchFields?.length ?? 0) : 0) + filterBinds(query.filter);
-  if (binds > entityBindBudget) throw refuse(`This query exceeds ${entityBindBudget} bound parameters (it needs ${binds}: each search term once per search field, each filter value twice); use fewer search terms or filter values`);
+  const binds = (query.ids ? 1 : 0) + (query.after ? 2 : 0) + (query.search ? searchBinds(query.search) : 0) + filterBinds(query.filter);
+  if (binds > entityBindBudget) throw refuse(`This query exceeds ${entityBindBudget} bound parameters (it needs ${binds}: each search term once, each filter value twice); use fewer search terms or filter values`);
   return query;
 }
 function providerSearch(provider: EntityProvider, type: string, search: string) {

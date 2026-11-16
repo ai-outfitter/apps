@@ -103,8 +103,8 @@ type Tri = boolean | null;
 const every = (values: Tri[]): Tri => (values.includes(false) ? false : values.includes(null) ? null : true);
 const some = (values: Tri[]): Tri => (values.includes(true) ? true : values.includes(null) ? null : false);
 const negate = (value: Tri): Tri => (value === null ? null : !value);
-/** SQLite's lower(): ASCII letters only. */
-const asciiLower = (text: string) => text.replace(/[A-Z]/g, letter => letter.toLowerCase());
+/** What SQLite's lower() folds: A to Z only, so a match in memory is the match SQL makes. */
+export const foldCase = (text: string) => text.replace(/[A-Z]+/g, letters => letters.toLowerCase());
 const compare = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** A stored value as its field compares it; null when the record holds none. */
@@ -120,7 +120,7 @@ function test(kind: FilterKind, value: string | number | null, operator: string,
   if ((operator === "in" || operator === "notIn") && !(operand as unknown[]).length) return operator === "notIn";
   if (value === null) return null;
   if (textual.has(operator)) {
-    const fold = operator.endsWith("Insensitive") ? asciiLower : (text: string) => text;
+    const fold = operator.endsWith("Insensitive") ? foldCase : (text: string) => text;
     const [text, part] = [fold(String(value)), fold(String(operand))];
     return operator.startsWith("includes") ? text.includes(part) : text.startsWith(part);
   }

@@ -238,11 +238,11 @@ test("a page of 100 known IDs with search and a list filter binds each list once
   const second = await list({ ids, search: "bolt AND steel", filter: { names: rows.map(row => row.name).slice(0, 100) }, order: { field: "name", direction: "asc" }, limit: 100, after: first.pageInfo.endCursor });
   assert.equal(second.records.length, 20);
   assert.equal(statements.length, 2);
-  // IDs: one. Cursor: two. Search: two terms over two fields. Filter list: one. Limit: one.
-  assert.deepEqual(statements.map(statement => statement.params.length), [7, 9]);
+  // IDs: one. Cursor: two. Search: two terms, each once whatever the fields. Filter list: one. Limit: one.
+  assert.deepEqual(statements.map(statement => statement.params.length), [5, 7]);
   for (const statement of statements) assert.match(statement.sql, /"id" in \(select value from json_each\(\?\)\)/i);
-  // One budget covers IDs, cursor, search and filter together: 39 terms over two fields fit alone, not beside a filter.
-  const terms = Array.from({ length: 39 }, (_, index) => `t${index}`).join(" OR ");
+  // One budget covers IDs, cursor, search and filter together: 78 terms fit alone, not beside known IDs and a filter.
+  const terms = Array.from({ length: 78 }, (_, index) => `t${index}`).join(" ");
   assert.equal((await call({ search: terms })).status, 200);
   const refused = await call({ ids, search: terms, filter: { names: ["Bolt 1"] } });
   assert.equal(refused.status, 400);
@@ -263,6 +263,13 @@ test("search folds ASCII case only, the same in SQLite and in memory", async () 
   const clause = searchClause(searchExpression("Élodie"), ["name"]);
   assert.equal(clause.sql, "(instr(lower(coalesce(name, '')), lower(?)) > 0)");
   assert.deepEqual(clause.params, ["Élodie"]);
+  // Each term binds once, matched in every column at once; the separator keeps a term within one column.
+  const both = searchClause(searchExpression("bolt NOT steel"), ["name", "notes"]);
+  assert.equal(both.sql, "((instr(lower(coalesce(name, '') || char(31) || coalesce(notes, '')), lower(?)) > 0) AND (NOT (instr(lower(coalesce(name, '') || char(31) || coalesce(notes, '')), lower(?)) > 0)))");
+  assert.deepEqual(both.params, ["bolt", "steel"]);
+  const { list: parts } = await partsProvider([{ id: "p1", revision: 1, name: "Bolt", notes: "steel" }, { id: "p2", revision: 1, name: "Nut", notes: null }]);
+  assert.deepEqual((await parts({ search: "ltst" })).records, [], "no term spans two columns");
+  assert.deepEqual((await parts({ search: "STEEL OR nut" })).records.map(record => record.title), ["Bolt", "Nut"]);
 });
 
 test("a cursor over a 160-character CJK order value stays within the after limit and round-trips", async () => {

@@ -87,13 +87,6 @@ export class RelationTooLarge extends Error {
     super(`This request read more than ${graphQueryLimits.relationRows} relationship rows (the relationRows limit); ask for fewer parents, a smaller page or a narrower filter`);
   }
 }
-const budgeted = new WeakSet<GraphSource>();
-/** Marks `source` as keeping its own relation row budget, so no reader adds one over it: withRelationBudget's own
- * answer, and a source composed over several databases that budgets each of them. */
-export function relationBudgeted<S extends GraphSource>(source: S): S {
-  budgeted.add(source);
-  return source;
-}
 /** `source` with its relation pages inside one row budget for the request (`graphQueryLimits.relationRows`), whatever the
  * source. Every parent may cost `first + 1` whole rows (its page, and the row past it that says more follow), so the
  * parents are read in runs of at most relationRows / (first + 1), one after another: no read can cost more rows than
@@ -101,10 +94,10 @@ export function relationBudgeted<S extends GraphSource>(source: S): S {
  * hasNextPage counts that one row more, whether its source read it or was told so.
  * The budget is one owning database's: a source already budgeted (`relationBudgeted`) is returned as it is. */
 export function withRelationBudget(source: GraphSource): GraphSource {
-  if (budgeted.has(source)) return source;
+  if (source.relationBudgeted) return source;
   const limit = graphQueryLimits.relationRows;
   let read = 0;
-  return relationBudgeted({ ...source, async relationPage(query) {
+  return { ...source, relationBudgeted: true, async relationPage(query) {
     const run = Math.max(1, Math.floor(limit / (query.first + 1)));
     const pages: RelationPage[] = [];
     for (let start = 0; start < query.parentIds.length; start += run) {
@@ -114,7 +107,7 @@ export function withRelationBudget(source: GraphSource): GraphSource {
       pages.push(...found);
     }
     return pages;
-  } });
+  } };
 }
 export interface GraphSource {
   /** The type rows to build the schema from. executeGraphQuery takes them as `types`
@@ -125,14 +118,18 @@ export interface GraphSource {
   /** One ordered page of a collection, read bounded where the records live. */
   nodePage(query: NodePageQuery): Promise<PageRows<GraphRow>>;
   nodeCount(query: NodeFilter): Promise<number>;
-  /** One ordered page of a relationship for every parent at once. A parent with no row after `after` may be left out,
-   * and only such a parent, whatever `first`: left out of a page that starts at the beginning, a parent has no rows. */
+  /** One ordered page of a relationship for every parent at once. A parent with no row after `after` may be left out
+   * of a page that is not counted. A page asked for its `count` that carries it answers every parent asked for, each
+   * with its count: 0 and no rows for a parent without any, and the count of all its rows wherever the cursor is. */
   relationPage(query: RelationPageQuery): Promise<RelationPage[]>;
   /** How many rows each parent's relationship holds (a parent with none may be left out). */
   relationCount(query: RelationFilter): Promise<Map<string, number>>;
   /** For a source keyed by more than the ID (a schema composed over several graphs): the key a row's slug is
    * also found under, so a lookup of that key (one graph's slug) answers only that graph's row. */
   slugKey?(row: GraphRow): string;
+  /** Set by a source that keeps its own relation row budget, so no reader adds one over it: withRelationBudget's
+   * own answer, and a source composed over several databases that budgets each of them. */
+  relationBudgeted?: true;
 }
 
 /** Never leave the Wiki, whatever a source hands over. */
@@ -265,7 +262,7 @@ function edgeBatch(source: GraphSource, typeIds: string[] | null, direction: "ou
 
 export type RelationAsk = Omit<RelationPageQuery, "parentIds">;
 /** A page of nothing, with nothing after it. */
-const noRows: PageRows<never> = { rows: [], hasNextPage: false };
+export const noRows: PageRows<never> = { rows: [], hasNextPage: false };
 export type RelationCountAsk = Omit<RelationFilter, "parentIds">;
 
 /** Per-request loader: nodes by ID or slug, edges touching a node by (types, direction), and relationship
@@ -307,9 +304,6 @@ export function graphLoader(unbounded: GraphSource) {
     /** One parent's page of a relationship; every parent asked for with the same query shares one source call. */
     async relation(ask: RelationAsk, parentId: string) {
       if (emptyRelation(ask)) return { ...noRows, count: 0 };
-      // A parent a source leaves out has no row after the cursor; with no cursor it has none at all, so a counted page
-      // answers its count (0) and no count is read for it.
-      const absent = ask.count && !ask.after ? { ...noRows, count: 0 } : noRows;
       return keyed(pages, JSON.stringify(ask), () => batch<PageRows<RelationRow>>(async parentIds => {
         const found = await source.relationPage({ ...ask, parentIds });
         return new Map(found.map(({ parentId, ...page }) => {
@@ -317,7 +311,7 @@ export function graphLoader(unbounded: GraphSource) {
           prime(rows.map(row => row.node));
           return [parentId, { ...page, rows }];
         }));
-      }, absent)).load(parentId);
+      }, noRows)).load(parentId);
     },
     async relationCount(ask: RelationCountAsk, parentId: string) {
       if (emptyRelation(ask)) return 0;

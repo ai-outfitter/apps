@@ -31,17 +31,23 @@ A request reads at most 20,000 relationship rows (`graphQueryLimits.relationRows
 in runs of at most 20,000 / (`first` + 1), so no statement can read more rows than that, and a
 request that has read more is refused (`RELATION_TOO_LARGE` in GraphQL, a 400 in `graph.query`); ask
 for fewer parents, a smaller page or a narrower filter. The budget belongs to one database: a source
-composed over several marks itself `relationBudgeted` and budgets each of them.
+composed over several sets `relationBudgeted: true` and budgets each of them.
 
 A GraphQL document may be 65,536 characters wherever it is carried (`graph.graphql`, `graph.mutate`,
 `knowledge-graph.select`, a stored KnowledgeGraph), up from 32,768 for requests; the bound is exported
-as `graphQueryMaxLength`. Variables stay at 32 KiB (256 KiB for `graph.mutate`).
+as `graphQueryMaxLength` from `@ai-outfitter/app-sdk/graph-limits`. Variables stay at 32 KiB (256 KiB for `graph.mutate`).
 
 An archive export's cursor uses the same encoding as every other cursor; one made before this change
 is refused as invalid.
 
-`@ai-outfitter/app-sdk/app-graphql` exports `filterInput`, `tableOperators` and `checkedFilter`, so a
-collection written by hand takes the same `filter` as a table.
+`@ai-outfitter/app-sdk/app-graphql` exports `fieldsFilter` and `checkedFilter`, so a collection written
+by hand takes the same `filter` as a table; `page()` takes whether more rows follow, and `selects` says
+whether a request asks for a field such as `totalCount`. A `totalCount` that `@skip` or `@include`
+leaves out of a request is not counted.
+
+A connection counted without rows (`first: 0` selecting `totalCount`) reads its count and no page. A
+counted relationship page answers every parent with its count, wherever its cursor is. An entity list
+`search` binds each term once, whatever the number of search fields.
 
 `search` on app tables matches a literal substring ignoring ASCII case, so `%` and `_` mean
 themselves. Wiki nodes offer `title`, `createdAt` and `updatedAt` as entity list orders.

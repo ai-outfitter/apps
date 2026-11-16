@@ -2,6 +2,7 @@
  * Providers run it in their own database over the fields they declare searchable. */
 import { type AnyColumn, and, asc, desc, not, or, type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { EntityListQuery } from "./entities";
+import { foldCase } from "./graph-filter";
 import { containsInsensitive, rowsAfter, within } from "./graph-filter-sql";
 
 export type SearchExpression = { term: string } | { and: SearchExpression[] } | { or: SearchExpression[] } | { not: SearchExpression };
@@ -56,8 +57,6 @@ export function searchExpression(source: string): SearchExpression {
   return expression;
 }
 
-/** Lowercase A to Z only, as SQLite's lower() folds, so a provider in memory matches what one in SQL does. */
-export const foldCase = (text: string) => text.replace(/[A-Z]+/g, letters => letters.toLowerCase());
 /** Whether `text` matches: a term is a literal substring, ignoring ASCII case. For a provider without SQL. */
 export function matchesSearch(expression: SearchExpression, text: string): boolean {
   if ("term" in expression) return foldCase(text).includes(foldCase(expression.term));
@@ -66,20 +65,28 @@ export function matchesSearch(expression: SearchExpression, text: string): boole
   return !matchesSearch(expression.not, text);
 }
 
+/** Between the columns a term is searched in: they are read as one string (a missing column as empty, the unit separator
+ * between two), so a term binds once however many columns there are and matches within one column. */
+const separator = " || char(31) || ";
+
 /** The SQL condition for `expression` over `columns`: a term matches when any column holds it as a
  * literal substring ('%' and '_' mean themselves), ignoring ASCII case: SQLite folds both sides. */
 export function searchCondition(expression: SearchExpression, columns: SQLWrapper[]): SQL {
-  if ("term" in expression) return or(...columns.map(column => containsInsensitive(sql`coalesce(${column}, '')`, expression.term))) as SQL;
-  if ("and" in expression) return and(...expression.and.map(item => searchCondition(item, columns))) as SQL;
-  if ("or" in expression) return or(...expression.or.map(item => searchCondition(item, columns))) as SQL;
-  return not(searchCondition(expression.not, columns));
+  const searched = sql.join(columns.map(column => sql`coalesce(${column}, '')`), sql.raw(separator));
+  const condition = (item: SearchExpression): SQL => {
+    if ("term" in item) return containsInsensitive(searched, item.term);
+    if ("and" in item) return and(...item.and.map(condition)) as SQL;
+    if ("or" in item) return or(...item.or.map(condition)) as SQL;
+    return not(condition(item.not));
+  };
+  return condition(expression);
 }
 
-/** Bind parameters `searchCondition` uses: each term once per column. */
-export function searchBinds(expression: SearchExpression, columns: number): number {
-  if ("term" in expression) return columns;
-  if ("not" in expression) return searchBinds(expression.not, columns);
-  return ("and" in expression ? expression.and : expression.or).reduce((sum, item) => sum + searchBinds(item, columns), 0);
+/** Bind parameters `searchCondition` uses: one per term. */
+export function searchBinds(expression: SearchExpression): number {
+  if ("term" in expression) return 1;
+  if ("not" in expression) return searchBinds(expression.not);
+  return ("and" in expression ? expression.and : expression.or).reduce((sum, item) => sum + searchBinds(item), 0);
 }
 /** Bind parameters a parsed filter may cost its provider: a list is one JSON parameter (`within`, graph-filter-sql), and a
  * value binds at most twice (either end of an edge, or a JSON path beside its value). */
@@ -106,11 +113,15 @@ export function pageCondition(query: EntityListQuery<unknown>, columns: { id: An
 /** searchCondition for a provider writing SQL text: `columns` are trusted column expressions. The term's SQL is
  * `containsInsensitive` spelled as text. */
 export function searchClause(expression: SearchExpression, columns: string[]): { sql: string; params: string[] } {
-  if ("term" in expression) return { sql: `(${columns.map(column => `instr(lower(coalesce(${column}, '')), lower(?)) > 0`).join(" OR ")})`, params: columns.map(() => expression.term) };
-  if ("not" in expression) {
-    const inner = searchClause(expression.not, columns);
-    return { sql: `(NOT ${inner.sql})`, params: inner.params };
-  }
-  const parts = ("and" in expression ? expression.and : expression.or).map(item => searchClause(item, columns));
-  return { sql: `(${parts.map(part => part.sql).join("and" in expression ? " AND " : " OR ")})`, params: parts.flatMap(part => part.params) };
+  const searched = columns.map(column => `coalesce(${column}, '')`).join(separator);
+  const clause = (item: SearchExpression): { sql: string; params: string[] } => {
+    if ("term" in item) return { sql: `(instr(lower(${searched}), lower(?)) > 0)`, params: [item.term] };
+    if ("not" in item) {
+      const inner = clause(item.not);
+      return { sql: `(NOT ${inner.sql})`, params: inner.params };
+    }
+    const parts = ("and" in item ? item.and : item.or).map(clause);
+    return { sql: `(${parts.map(part => part.sql).join("and" in item ? " AND " : " OR ")})`, params: parts.flatMap(part => part.params) };
+  };
+  return clause(expression);
 }

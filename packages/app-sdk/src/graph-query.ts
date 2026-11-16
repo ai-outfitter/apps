@@ -8,7 +8,7 @@ import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
 import {
-  emptyCollection, emptyRelation, type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type PageRows, type RelationFilter, type RelationRow, RelationTooLarge, sourceKey, withRelationBudget,
+  emptyCollection, emptyRelation, type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, noRows, type PageRows, type RelationFilter, type RelationRow, RelationTooLarge, sourceKey, withRelationBudget,
 } from "./graph-graphql-source";
 import { checkFilter, edgeFilterFields, maxFilterConditions, nodeFilterFields, type RecordFilter, recordFilterInput } from "./graph-filter";
 import { cursorOf, cursorText, keysetCursor, type OrderName, orderNames, orders, readKeyset } from "./graph-order";
@@ -501,8 +501,6 @@ type Admit = (buffer: Buffer, stopped: boolean) => Promise<Outcome>;
 /** Counted without rows: `limit: 0` with `count` reads no page. */
 const countOnly = (query: GraphQuery) => query.limit === 0 && !!query.count;
 
-/** A page of nothing: what is read for a filter that matches nothing, or counted without rows. */
-const noRows: PageRows<never> = { rows: [], hasNextPage: false };
 /** One ordered collection page: `limit` records read where the source keeps them, beside its count. */
 async function collectionPage(source: GraphSource, query: GraphQuery, filter: NodeFilter, missingTypes: Set<string>): Promise<Admit> {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query, orderBy);

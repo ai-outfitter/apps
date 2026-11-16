@@ -19,9 +19,9 @@ import type { TadaDocumentNode } from "gql.tada";
 import { z } from "zod";
 import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
-import type { FilterKind } from "./graph-filter";
+import type { FilterFields, FilterKind } from "./graph-filter";
 import { containsInsensitive, type FilterColumns, filterSql, rowsAfter, within } from "./graph-filter-sql";
-import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, orderedStart, type PageArgs, page, pageStart } from "./graph-graphql-resolve";
+import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, orderedStart, type PageArgs, page, pageStart, selects } from "./graph-graphql-resolve";
 import { DateTimeScalar, filterInput, JSONScalar, orderEnum, tableOperators } from "./graph-graphql-scalars";
 import { connectionOf } from "./graph-graphql-schema";
 import type { Keyset } from "./graph-graphql-source";
@@ -212,11 +212,16 @@ const scalars: Record<string, GraphQLScalarType> = { string: GraphQLString, numb
 const nonNull = <T extends GraphQLScalarType | GraphQLObjectType>(type: T) => new GraphQLNonNull(type);
 
 // A collection tableType cannot express (a join, a computed field) is written by hand
-// with these, so it takes the same arguments and pages and truncates the same way.
-export { idList, orderedPage, page, type PageArgs, pageStart };
-/** For a collection written by hand that takes a `filter` as a table's does: its input (filterInput over the schema's one
- * operator input per kind, tableOperators) and its check (checkedFilter: BAD_USER_INPUT for a filter its fields do not serve). */
-export { checkedFilter, filterInput, tableOperators };
+// with these, so it takes the same arguments and pages and truncates the same way; `selects` says whether the request
+// asks for a field (totalCount), for a collection that reads it beside its page.
+export { idList, orderedPage, page, type PageArgs, pageStart, selects };
+/** For a collection written by hand that takes a `filter` as a table's does: its input (fieldsFilter) and its check
+ * (checkedFilter: BAD_USER_INPUT for a filter its fields do not serve). */
+export { checkedFilter };
+/** The `filter` input named `name` over `fields` (each field with the operators of its kind, from the schema's one
+ * operator input per kind), with and, or and not. */
+export const fieldsFilter = (name: string, fields: FilterFields) =>
+  filterInput(name, Object.fromEntries(Object.entries(fields).map(([field, kind]) => [field, tableOperators[kind]])));
 /** `first`, `after` and `ids`, the arguments every collection takes. */
 export const pageArgs = (): GraphQLFieldConfigArgumentMap =>
   ({ first: { type: GraphQLInt, defaultValue: 100 }, after: { type: GraphQLString }, ids: { type: new GraphQLList(nonNull(GraphQLID)) } });
@@ -261,7 +266,7 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
   const args: GraphQLFieldConfigArgumentMap = {
     ...pageArgs(),
     orderBy: { defaultValue: "ID_ASC", type: orderEnum(`${type}Order`, `How ${type} records are ordered, ties by ID.`, Object.keys(orderings)) },
-    ...(filters.length ? { filter: { type: filterInput(`${type}Filter`, Object.fromEntries(filters.map(key => [key, tableOperators[filterFields[key]]]))) } } : {}),
+    ...(filters.length ? { filter: { type: fieldsFilter(`${type}Filter`, filterFields) } } : {}),
     search: {type:GraphQLString,description:"Match text across this collection’s text fields."},
   };
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));

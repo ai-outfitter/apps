@@ -9,7 +9,8 @@
 // Authorization stays with Wiki's dispatch; a selection grants nothing.
 import { z } from "zod";
 import { type EntityRecord, type EntityRef, entityRecord, entityRef } from "./entities";
-import { exploreKnowledgeGraph, graphQueryMaxLength, isRetired, resolveKnowledgeGraph } from "./knowledge-graph";
+import { graphQueryMaxLength } from "./graph-limits";
+import { exploreKnowledgeGraph, isRetired, resolveKnowledgeGraph } from "./knowledge-graph";
 
 const typeName = z.string().trim().min(1).max(120);
 export const graphSelectionRule = z.union([

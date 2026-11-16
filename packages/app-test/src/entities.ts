@@ -2,7 +2,8 @@
  * already in memory, returned as the SDK's cursor page. Tests that stub the host use it instead of
  * returning arrays, so code under test sees the same page shape and filtering a real provider gives. */
 import { type EntityPage, type EntityRecord, selected } from "@ai-outfitter/app-sdk/entities";
-import { foldCase, matchesSearch, searchExpression } from "@ai-outfitter/app-sdk/entity-query";
+import { matchesSearch, searchExpression } from "@ai-outfitter/app-sdk/entity-query";
+import { foldCase } from "@ai-outfitter/app-sdk/graph-filter";
 
 type Input = { ids?: string[]; filter?: Record<string, unknown>; search?: string; order?: { field: string; direction: "asc" | "desc" }; after?: string; limit?: number; select?: string[] };
 const attribute = (record: EntityRecord, key: string) => record.attributes[key];

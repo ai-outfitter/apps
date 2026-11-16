@@ -3,9 +3,10 @@ import test from "node:test";
 import { getIntrospectionQuery, GraphQLObjectType, GraphQLString } from "graphql";
 import { keysetCursor, readKeyset } from "../src/graph-order";
 import { graphQueryLimits } from "../src/graph-query";
-import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, relationBudgeted, type TypeRow, withRelationBudget } from "../src/graph-graphql";
+import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, type TypeRow, withRelationBudget } from "../src/graph-graphql";
 import { knowledgeGraphSelectInput } from "../src/graph-selection";
-import { graphQueryMaxLength, knowledgeGraphDefinitionSchema } from "../src/knowledge-graph";
+import { graphQueryMaxLength } from "../src/graph-limits";
+import { knowledgeGraphDefinitionSchema } from "../src/knowledge-graph";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (n: number, name: string, category: "node" | "edge", extra: Record<string, unknown> = {}) =>
@@ -661,7 +662,7 @@ test("a source that budgets its own relationship rows is given no second budget"
   const read = (source: GraphSource) => executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144, query });
   assert.equal((await read(memorySource(leads))).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
   // A source over several databases that budgets each of them says so, and the loader reads it as it is.
-  const composed = relationBudgeted({ ...memorySource(leads) });
+  const composed: GraphSource = { ...memorySource(leads), relationBudgeted: true };
   assert.equal(withRelationBudget(composed), composed);
   assert.equal((await read(composed)).errors, undefined);
   // A budgeted source keeps its one budget however often it is wrapped.
@@ -670,29 +671,67 @@ test("a source that budgets its own relationship rows is given no second budget"
   assert.equal((await read(once)).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
 });
 
-test("a parent a counted page leaves out has no rows: its count is 0 with no count read, unless the page started after a cursor", async () => {
+test("a counted relationship page answers every parent with its count wherever the cursor is; a parent a source leaves out is counted apart", async () => {
   const calls: string[] = [];
   const memory = memorySource(snapshot);
-  // A database source: a parent with no row after the cursor is not in the answer, and each page carries its count.
-  const source: GraphSource = {
+  const counting = (relationPage: GraphSource["relationPage"]): GraphSource => ({
     ...memory,
-    relationPage: async query => { calls.push("relationPage"); return (await memory.relationPage(query)).filter(page => page.rows.length); },
+    relationPage: query => { calls.push("relationPage"); return relationPage(query); },
     relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
-  };
+  });
   type Owned = { nodes: { title: string; commitmentOwnerIncoming: { totalCount: number; nodes: unknown[]; pageInfo: { endCursor: string | null } } }[] };
-  const query = "query($after: String) { persons { nodes { title commitmentOwnerIncoming(first: 1, after: $after) { totalCount nodes { id } pageInfo { endCursor } } } } }";
-  const first = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query });
-  assert.equal(first.errors, undefined, JSON.stringify(first.errors));
-  const owners = (first.data as { persons: Owned }).persons.nodes;
-  assert.deepEqual(owners.map(person => [person.title, person.commitmentOwnerIncoming.totalCount]), [["Ada", 1], ["Grace", 0], ["Retired", 0]]);
+  const query = "query($after: String, $first: Int = 1) { persons { nodes { title commitmentOwnerIncoming(first: $first, after: $after) { totalCount nodes { id } pageInfo { endCursor } } } } }";
+  const read = async (source: GraphSource, variables: Record<string, unknown> = {}) => {
+    calls.length = 0;
+    const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query, variables });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    return (result.data as { persons: Owned }).persons.nodes;
+  };
+  const counts = (owners: Owned["nodes"]) => owners.map(person => [person.title, person.commitmentOwnerIncoming.totalCount, person.commitmentOwnerIncoming.nodes.length]);
+  const source = counting(memory.relationPage);
+  const owners = await read(source);
+  assert.deepEqual(counts(owners), [["Ada", 1, 1], ["Grace", 0, 0], ["Retired", 0, 0]]);
   assert.deepEqual(calls, ["relationPage"]);
-  // After Ada's only commitment no parent has a row, so nothing carries a count and each is read.
-  calls.length = 0;
+  // After Ada's only commitment no parent has a row, and each still carries its count: nothing more is read.
   const after = owners[0].commitmentOwnerIncoming.pageInfo.endCursor;
-  const second = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query, variables: { after } });
-  assert.equal(second.errors, undefined, JSON.stringify(second.errors));
-  assert.deepEqual((second.data as { persons: Owned }).persons.nodes.map(person => [person.title, person.commitmentOwnerIncoming.totalCount, person.commitmentOwnerIncoming.nodes]), [["Ada", 1, []], ["Grace", 0, []], ["Retired", 0, []]]);
+  assert.deepEqual(counts(await read(source, { after })), [["Ada", 1, 0], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationPage"]);
+  // Counted without rows, no page is read at all.
+  assert.deepEqual(counts(await read(source, { first: 0 })), [["Ada", 1, 0], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationCount"]);
+  // A source that leaves parents out of a counted page says nothing of them, so their counts are read.
+  const sparse = counting(async page => (await memory.relationPage(page)).filter(entry => entry.rows.length));
+  assert.deepEqual(counts(await read(sparse)), [["Ada", 1, 1], ["Grace", 0, 0], ["Retired", 0, 0]]);
   assert.deepEqual(calls, ["relationPage", "relationCount"]);
+});
+
+test("a collection counted without rows reads its count and no page", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  const source: GraphSource = { ...memory,
+    nodePage: query => { calls.push(`nodePage:${query.first}`); return memory.nodePage(query); },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); } };
+  const read = (query: string) => executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query });
+  const all = await memory.nodeCount({ typeIds: [uuid(1)] });
+  const counted = await read("{ persons(first: 0) { totalCount nodes { id } pageInfo { hasNextPage endCursor } } }");
+  assert.equal(counted.errors, undefined, JSON.stringify(counted.errors));
+  assert.deepEqual(JSON.parse(JSON.stringify(counted.data)), { persons: { totalCount: all, nodes: [], pageInfo: { hasNextPage: true, endCursor: null } } });
+  assert.deepEqual(calls, ["nodeCount"]);
+  // Uncounted, the page is still read for whether records follow.
+  calls.length = 0;
+  const uncounted = await read("{ persons(first: 0) { pageInfo { hasNextPage } } }");
+  assert.deepEqual(JSON.parse(JSON.stringify(uncounted.data)), { persons: { pageInfo: { hasNextPage: true } } });
+  assert.deepEqual(calls, ["nodePage:0"]);
+  // A totalCount that @include or @skip leaves out of the request is not selected: its page is not counted.
+  const counts: boolean[] = [];
+  const counting: GraphSource = { ...memory, nodePage: query => { counts.push(!!query.count); return memory.nodePage(query); } };
+  for (const variables of [{ count: false, skip: false }, { count: true, skip: true }, { count: true, skip: false }]) {
+    const result = await executeGraphQuery({ types: types as TypeRow[], source: counting, maxBytes: 65536, variables,
+      query: "query($count: Boolean!, $skip: Boolean!) { persons(first: 1) { nodes { id } ... @skip(if: $skip) { totalCount @include(if: $count) } } }" });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    assert.equal("totalCount" in (result.data as { persons: object }).persons, variables.count && !variables.skip);
+  }
+  assert.deepEqual(counts, [false, false, true]);
 });
 
 test("a cursor is base64url of UTF-8 JSON: a 160-character CJK title stays within the cursor limit", async () => {

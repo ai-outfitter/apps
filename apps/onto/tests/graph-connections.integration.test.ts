@@ -116,12 +116,12 @@ test("products' revisions page per product in one bounded relationship statement
     assert.deepEqual((second.pages.get(productIds[4]) as Page).nodes.map(node => node.title), ["Product 4 revision 2", "Product 4 revision 3"]);
     // The count is of every revision, whatever the cursor, still from the page's statement.
     assert.deepEqual([(second.pages.get(productIds[4]) as Page).totalCount, second.statements.length], [revisions, 2]);
-    // A page past the last revision returns no row to carry the count, so the count is read on its own.
+    // A page past the last revision holds no row and still carries the count: the products and the one page.
     const third = await read([productIds[4]], (second.pages.get(productIds[4]) as Page).pageInfo.endCursor);
     const last = await read([productIds[4]], (third.pages.get(productIds[4]) as Page).pageInfo.endCursor);
-    assert.deepEqual([(last.pages.get(productIds[4]) as Page).nodes, (last.pages.get(productIds[4]) as Page).totalCount, last.statements.length], [[], revisions, 3]);
-    // A product with no revision is left out of the relationship page; counted from the start, that says its count is 0,
-    // so no count is read for it: the products and the one page, as for products that have revisions.
+    assert.deepEqual([(last.pages.get(productIds[4]) as Page).nodes, (last.pages.get(productIds[4]) as Page).totalCount, last.statements.length], [[], revisions, 2]);
+    // A product with no revision has no row in the relationship; a counted page answers it too, with count 0, so no
+    // count is read for it: the products and the one page, as for products that have revisions.
     const bare = await read([bareId, productIds[0]]);
     assert.deepEqual([(bare.pages.get(bareId) as Page).nodes, (bare.pages.get(bareId) as Page).totalCount, (bare.pages.get(bareId) as Page).pageInfo.hasNextPage], [[], 0, false]);
     assert.equal((bare.pages.get(productIds[0]) as Page).totalCount, revisions);
@@ -232,6 +232,18 @@ test("products' revisions page per product in one bounded relationship statement
       const plan = await explain(statement);
       assert.ok(plan.some(step => /SEARCH n USING (COVERING )?INDEX graph_nodes_type_/.test(step)) && !plan.some(step => scans.test(step)), plan.join("\n"));
     }
+    // Counted without rows, a connection reads its count and no page: one statement for a collection, the products and
+    // one count for a relationship.
+    log.length = 0;
+    const countOnly = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536, query: "{ gadgets(first: 0) { totalCount nodes { id } pageInfo { hasNextPage } } }" });
+    assert.deepEqual(JSON.parse(JSON.stringify(countOnly.data)), { gadgets: { totalCount: products + 1, nodes: [], pageInfo: { hasNextPage: true } } });
+    assert.deepEqual(log.map(entry => /COUNT\(\*\)/.test(entry.sql) && !/LIMIT/.test(entry.sql)), [true], JSON.stringify(log.map(entry => entry.sql)));
+    log.length = 0;
+    const countedRelation = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536, variables: { ids: [productIds[0], bareId] },
+      query: "query($ids: [ID!]) { gadgets(ids: $ids) { nodes { id revisions(first: 0) { totalCount nodes { id } } } } }" });
+    assert.deepEqual((countedRelation.data as { gadgets: { nodes: { id: string; revisions: unknown }[] } }).gadgets.nodes.map(node => [node.id, JSON.parse(JSON.stringify(node.revisions))]).sort(),
+      [[productIds[0], { totalCount: revisions, nodes: [] }], [bareId, { totalCount: 0, nodes: [] }]].sort());
+    assert.deepEqual(log.map(entry => /ROW_NUMBER/.test(entry.sql)), [false, false], JSON.stringify(log.map(entry => entry.sql)));
     // graph.query carries the same filter to the same statement.
     const filteredRelation = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [
       { name: "late", relation: relation(productIds), orderBy: "CREATED_AT_DESC", limit: 2, count: true, fields: ["title"], filter: { not: { title: { includesInsensitive: "REVISION 4" } } } },

@@ -87,11 +87,9 @@ const equals = (column: AnyColumn, value: string | boolean | undefined) =>
 
 const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(among(graphEdges.fromId, ids), among(graphEdges.toId, ids));
 
-/** The type a listed row has and the nodes at an edge's ends, joined by ID beside the row: search reads each once per
- * row, whatever the number of terms, and a list that does not search never reads them (nothing else names them). */
+/** The type a listed row has and the nodes at an edge's ends, joined by ID beside the row only when the list searches:
+ * search reads each once per row, whatever the number of terms. */
 const rowType = alias(graphTypes, "row_type"), fromNode = alias(graphNodes, "from_node"), toNode = alias(graphNodes, "to_node");
-/** The title and slug of the node at one end of an edge, as one search column. */
-const endName = (node: typeof fromNode | typeof toNode) => sql`${node.title} || ' ' || ${node.slug}`;
 
 type Named = { address?: string };
 /** Edges with their address, such as works_on(Person:ada → Project:sunny), for naming. */
@@ -193,11 +191,9 @@ export function graphEntities(
     list: async (_who, query) => {
       const f = query.filter ?? {};
       const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body, graphNodes.properties, rowType.name] });
+      const rows = db.select(getTableColumns(graphNodes)).from(graphNodes).$dynamic();
       return addressed(db, (
-        await db
-          .select(getTableColumns(graphNodes))
-          .from(graphNodes)
-          .leftJoin(rowType, eq(rowType.id, graphNodes.typeId))
+        await (query.search ? rows.leftJoin(rowType, eq(rowType.id, graphNodes.typeId)) : rows)
           .where(
             and(
               page.where,
@@ -237,14 +233,13 @@ export function graphEntities(
     name: (row) => row.title || (row as Named).address || row.id,
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body, graphEdges.properties, rowType.name, endName(fromNode), endName(toNode)] });
+      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body, graphEdges.properties, rowType.name, fromNode.title, fromNode.slug, toNode.title, toNode.slug] });
+      const rows = db.select(getTableColumns(graphEdges)).from(graphEdges).$dynamic();
+      const searched = query.search
+        ? rows.leftJoin(rowType, eq(rowType.id, graphEdges.typeId)).leftJoin(fromNode, eq(fromNode.id, graphEdges.fromId)).leftJoin(toNode, eq(toNode.id, graphEdges.toId))
+        : rows;
       return named(db, (
-        await db
-          .select(getTableColumns(graphEdges))
-          .from(graphEdges)
-          .leftJoin(rowType, eq(rowType.id, graphEdges.typeId))
-          .leftJoin(fromNode, eq(fromNode.id, graphEdges.fromId))
-          .leftJoin(toNode, eq(toNode.id, graphEdges.toId))
+        await searched
           .where(
             and(
               page.where,

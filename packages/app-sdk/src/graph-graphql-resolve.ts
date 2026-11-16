@@ -1,6 +1,9 @@
 // Record-level rules the generated resolvers share: visibility (graph.query's
 // archived/retired rules), validity at a time, traversal and paging.
-import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, Kind, responsePathAsArray, type SelectionSetNode } from "graphql";
+import {
+  defaultFieldResolver, getDirectiveValues, type GraphQLField, GraphQLError, GraphQLIncludeDirective, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, GraphQLSkipDirective, Kind,
+  responsePathAsArray, type SelectionNode, type SelectionSetNode,
+} from "graphql";
 import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
 import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
 import { keysetCursor, type OrderName, readKeyset } from "./graph-order";
@@ -95,9 +98,13 @@ export function orderedPage<T>(context: GraphContext, info: GraphQLResolveInfo, 
     totalCount: count,
   };
 }
-/** Whether the field being resolved selects `name` directly (through fragments too): what a resolver may read ahead for. */
+/** Whether the field being resolved selects `name` directly (through fragments too, and not under a @skip or @include that
+ * leaves it out of this request): what a resolver may read ahead for. */
 export function selects(info: GraphQLResolveInfo, name: string) {
+  const left = (node: SelectionNode) => getDirectiveValues(GraphQLSkipDirective, node, info.variableValues)?.if === true
+    || getDirectiveValues(GraphQLIncludeDirective, node, info.variableValues)?.if === false;
   const within = (set: SelectionSetNode | undefined, seen: Set<string>): boolean => !!set?.selections.some(node => {
+    if (left(node)) return false;
     if (node.kind === Kind.FIELD) return node.name.value === name;
     if (node.kind === Kind.INLINE_FRAGMENT) return within(node.selectionSet, seen);
     if (seen.has(node.name.value)) return false;
@@ -106,9 +113,10 @@ export function selects(info: GraphQLResolveInfo, name: string) {
   });
   return info.fieldNodes.some(node => within(node.selectionSet, new Set()));
 }
-/** A connection over the ID-ordered `rows` after `start` (one past the page), for a collection written by hand. */
-export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null, count: () => number | Promise<number>) {
-  return orderedPage(context, info, rows, row => idKey(idOf(row)), { orderBy: "ID_ASC", first }, start === null ? null : keysetCursor("ID_ASC", idKey(start)), count);
+/** A connection over the ID-ordered `rows` after `start` (one past the page, or `more` when their reader was told more
+ * follow), for a collection written by hand. */
+export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null, count: () => number | Promise<number>, more = false) {
+  return orderedPage(context, info, rows, row => idKey(idOf(row)), { orderBy: "ID_ASC", first }, start === null ? null : keysetCursor("ID_ASC", idKey(start)), count, more);
 }
 
 export const responseTooLarge = () => new GraphQLError("The query resolves more than this request may return; select fewer fields, aliases or records", { extensions: { code: "RESPONSE_TOO_LARGE" } });
