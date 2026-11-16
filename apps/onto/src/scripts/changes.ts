@@ -5,7 +5,7 @@ import { livePoll } from "@ai-outfitter/ui/live";
 import { recordAddress } from "../lib/addresses";
 import type { Graph } from "../lib/graph";
 import {
-  approvalText, type Batch, label, type BatchDetail, type BatchItem, type BatchOperation, batchItems, batchUrl, type Citation, citation,
+  approvalLabel, approvalText, type Batch, label, type BatchDetail, type BatchItem, type BatchOperation, batchItems, batchUrl, type Citation, citation,
   edgeTitle, findingList, findingsFor, getBatch, itemUrl, lineSummary, nameIndex, proposalAnchor, proposedGraph, proposedView,
   questionSection, resolveOperations, type Review, review,
 } from "./batch-pages";
@@ -249,8 +249,7 @@ export function historySection(id: string) {
     section.dataset.loaded = "true";
     try {
       const history = await call<{ revisions: { revision: number; batchId: string | null; batchTitle: string | null; approval: Record<string, unknown>; evidence: Citation[]; createdAt: number; created: boolean }[]; complete: boolean }>(`batches/history?id=${encodeURIComponent(id)}`);
-      const approval = (value: Record<string, unknown>) =>
-        value.kind === "policy" ? `approved by policy (${String(value.reason ?? value.policy)})` : value.kind === "member" ? "approved by a member" : value.kind === "steward" ? "approved by the ontology steward" : "edited directly";
+      const approval = (value: Record<string, unknown>) => approvalLabel(value).toLowerCase();
       fill(section,
         el("summary", {}, "History"),
         history.revisions.length

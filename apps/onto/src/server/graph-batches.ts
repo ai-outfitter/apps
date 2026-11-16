@@ -435,7 +435,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
       .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
     db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId, ...(reused ? {} : { review: null }) })
       .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
-    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() })]),
+    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now })]),
   ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
@@ -447,7 +447,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   }
   await settle(db, batch.id);
   // A draft review that carried over has already finished: the steward decides now.
-  const review = batch.review as StewardReview | null;
+  const review = batch.review;
   if (reused && draft.state === "complete" && review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, review);
   return getBatch(db, who, { batchId: batch.id });
 }
@@ -586,7 +586,7 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
 
 /** What the steward's approval needs from its review. */
 type StewardReview = {
-  state: string; complete: boolean; runId: string | null; prompt: { digest: string };
+  complete: boolean; runId: string | null; prompt: { digest: string };
   findings: { ref: string | null; refs?: string[]; severity: string; rule: string }[];
 };
 /** What the steward decided after its review: how many operations it approved, and the
@@ -605,25 +605,26 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   if (!waiting.length) return null;
+  // The first reason that holds an operation is the one a member sees.
   const reasons = new Map<string, string>();
-  const holdAll = (reason: string) => { for (const row of waiting) if (!reasons.has(row.ref)) reasons.set(row.ref, reason); };
-  if (review.state !== "complete") holdAll("the review did not finish");
-  else if (!review.complete) holdAll("the review read only part of the batch");
+  const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
+  const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
+  if (!review.complete) holdAll("the review read only part of the batch");
   for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
     const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];
     if (!refs.length) holdAll(`${item.rule} on the whole batch`);
-    for (const ref of refs) if (!reasons.has(ref)) reasons.set(ref, item.rule);
+    for (const ref of refs) hold(ref, item.rule);
   }
   for (const question of batch.questions ?? []) {
     if (!question.refs.length) holdAll(`question ${question.key}`);
-    for (const ref of question.refs) if (!reasons.has(ref)) reasons.set(ref, `question ${question.key}`);
+    for (const ref of question.refs) hold(ref, `question ${question.key}`);
   }
-  const flagged = new Set([...reasons.keys()].filter((ref) => waiting.some((row) => row.ref === ref)));
-  for (const ref of withDependents(rows, waiting, flagged)) if (!reasons.has(ref)) reasons.set(ref, "depends on a held proposal");
+  const flagged = new Set(waiting.filter((row) => reasons.has(row.ref)).map((row) => row.ref));
+  for (const ref of withDependents(rows, waiting, flagged)) hold(ref, "depends on a held proposal");
   const graph = await readGraph(db, who);
   const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
   const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
-  for (const row of waiting) if (!chosen.has(row.ref) && !reasons.has(row.ref)) reasons.set(row.ref, "does not connect to an anchor without a held proposal");
+  for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
   const at = Date.now();
   const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
   const approved = await commitByPolicy(db, who, batch, rows, chosen, approval);
@@ -633,7 +634,7 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   return { approved, held: waiting.filter((row) => reasons.has(row.ref)).map((row) => ({ ref: row.ref, reason: reasons.get(row.ref)! })), at };
 }
 
-/** Run the steward's approval for a finished review and save its decision on that review. */
+/** Run the steward's approval for a finished (complete-state) review and save its decision on that review. */
 export async function approveAfterReview(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview) {
   // An admin can keep every decision with members (Settings, "After the steward reviews").
   if ((await readSettings(db)).stewardApproval !== "approve") return null;

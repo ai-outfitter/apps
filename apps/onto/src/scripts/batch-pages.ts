@@ -141,13 +141,17 @@ const policyReasons: Record<string, string> = {
   "review-window": "Approved when the review window ended",
   confidence: "Approved automatically: high confidence",
 };
+/** Who or what approved a change, from its recorded decision. */
+export function approvalLabel(decision: { kind?: unknown; reason?: unknown } | null) {
+  if (decision?.kind === "steward") return "Approved by the ontology steward";
+  if (decision?.kind === "member") return "Approved by a member";
+  if (decision?.kind === "policy") return policyReasons[String(decision.reason ?? "")] ?? policyReasons.confidence;
+  return "Edited directly";
+}
 /** How a committed operation was approved, or its state. */
 export function approvalText(op: BatchOperation) {
   if (op.state !== "committed") return opLabels[op.state] ?? op.state;
-  const decision = op.decision as { kind?: string; reason?: string } | null;
-  if (decision?.kind === "steward") return "Approved by the ontology steward";
-  if (decision?.kind !== "policy") return "Approved by a member";
-  return policyReasons[decision.reason ?? ""] ?? policyReasons.confidence;
+  return approvalLabel(op.decision as { kind?: string; reason?: string } | null);
 }
 
 const time = (at: number) => new Date(at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });

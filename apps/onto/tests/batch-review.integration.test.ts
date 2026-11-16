@@ -65,23 +65,17 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
   const page = (path: string, init: { method?: string; body?: unknown } = {}) =>
     app.call(`/api/apps/onto/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
   /** The batch once its background review has been saved. */
-  const reviewed = async (batchId: string) => {
+  const waitFor = async (batchId: string, done: (read: Json) => boolean, failure: string) => {
     for (let attempt = 0; attempt < 100; attempt++) {
       const read = await json(await action("batch.get", { batchId }));
-      if (read.batch.review) return read;
+      if (done(read)) return read;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    throw new Error("The review was not saved");
+    throw new Error(failure);
   };
+  const reviewed = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review, "The review was not saved");
   /** The batch once the steward has decided after its review. */
-  const decided = async (batchId: string) => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const read = await json(await action("batch.get", { batchId }));
-      if (read.batch.review?.decision) return read;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    throw new Error("The steward did not decide");
-  };
+  const decided = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review?.decision, "The steward did not decide");
   return { app, calls, action, graphql, page, reviewed, decided };
 }
 
@@ -409,7 +403,7 @@ test("submitting names the steward's review run to wait on, and that run is the 
   const run = items[0].result.reviewRun;
   assert.ok(["pending", "running"].includes(run.state));
   assert.match(run.runId, /^[0-9a-f-]{36}$/);
-  const wait = instructions.find((item: Json) => item.code === "WAIT_FOR_STEWARD");
+  const wait = instructions.find((item: Json) => item.code === "WAIT_FOR_RUN");
   assert.equal(wait.taskId, run.runId);
   assert.equal(wait.required, true);
   assert.match(wait.message, /approves what it found clean/);
@@ -420,7 +414,7 @@ test("submitting names the steward's review run to wait on, and that run is the 
   assert.equal(f.calls.find((call) => call.operation === "workflow.start")!.input.id, run.runId);
   const read = await json(await f.action("graph.graphql", { query: "query ($id: ID!) { changeBatch(id: $id) { reviewRun instructions { code } } }", variables: { id: batch.id } }));
   assert.equal(read.data.changeBatch.reviewRun, null);
-  assert.ok(!read.data.changeBatch.instructions.some((item: Json) => item.code === "WAIT_FOR_STEWARD"));
+  assert.ok(!read.data.changeBatch.instructions.some((item: Json) => item.code === "WAIT_FOR_RUN"));
 });
 
 test("an admin can keep every decision with members: the steward then only reviews", async (t) => {

@@ -56,8 +56,9 @@ with `SaveSettings {stewardApproval: "approve" | "review"}`; `OntoSettings` read
   `note` never holds anything.
 - **Held for a member:** each flagged or questioned operation, and every waiting operation
   that depends on one (`withDependents`, as a rejection would). A batch-level `error` or
-  `warning`, a question without refs, a failed review, or a review that read only part of
-  the batch (`complete: false`) hold everything. A created record that would not reach an
+  `warning`, a question without refs, or a review that read only part of the batch
+  (`complete: false`) hold everything. A failed review decides nothing; it is retried, and
+  a member can decide meanwhile. A created record that would not reach an
   anchor without a held operation is held too.
 - **Recorded as the steward's,** never a member's: each approved operation's decision and
   its history row carry `{kind: "steward", runId, prompt, reason: "clean review", at}`, so
@@ -71,8 +72,8 @@ with `SaveSettings {stewardApproval: "approve" | "review"}`; `OntoSettings` read
 - **Review again** on the Changes page runs the same approval after the new review.
 - **Waiting on it.** Each review job reserves its workflow run ID when it is queued. While
   the review is queued or running, the batch's `reviewRun` is `{runId, state}` and its
-  receipt (`SubmitBatch`, `ChangeBatchChanges` submit) carries a required
-  `WAIT_FOR_STEWARD` instruction with that run as `taskId`. The agent waits on the run
+  receipt (`SubmitBatch`, `ChangeBatchChanges` submit) carries the SDK's required
+  `WAIT_FOR_RUN` instruction with that run as `taskId`. The agent waits on the run
   (WorkflowRuns at scope platform) or reads the batch again; once the review finishes,
   `reviewRun` is null and `review.decision` says what was approved and what waits. A retry
   or a scheduled pickup starts a run of its own and saves its ID on the job.

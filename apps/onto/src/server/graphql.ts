@@ -75,9 +75,21 @@ const draftAdvice = (batch: { id: string }, context: ChangeContext) => {
   })());
   return advices.get(batch)!;
 };
-/** What an agent does while the steward reviews its submitted batch. */
-const stewardInstruction = (batchId: string, runId: string, mode: StewardApproval) => ({
-  code: "WAIT_FOR_STEWARD", itemKey: batchId, actor: "system" as const, required: true, taskId: runId, url: batchReviewUrl(batchId),
+// The steward's review run and this Onto's settings: read once per resolved batch and request.
+const reviewRuns = new WeakMap<object, ReturnType<typeof pendingReview>>();
+const reviewRun = (batch: { id: string; state: string }, context: ChangeContext) => {
+  if (batch.state !== "awaiting_review") return Promise.resolve(null);
+  if (!reviewRuns.has(batch)) reviewRuns.set(batch, pendingReview(context.db(), batch.id));
+  return reviewRuns.get(batch)!;
+};
+const settingsReads = new WeakMap<object, ReturnType<typeof readSettings>>();
+const requestSettings = (context: ChangeContext) => {
+  if (!settingsReads.has(context)) settingsReads.set(context, readSettings(context.db()));
+  return settingsReads.get(context)!;
+};
+/** The run an agent waits on while the steward reviews its submitted batch (the SDK's WAIT_FOR_RUN). */
+const stewardRun = (runId: string, state: string, mode: StewardApproval) => ({
+  id: runId, status: state,
   message: mode === "approve"
     ? "The ontology steward is reviewing this batch in workflow run taskId. When it finishes it approves what it found clean; read the batch again (review, review.decision) to see what it approved and what waits for a member."
     : "The ontology steward is reviewing this batch in workflow run taskId. Read the batch again when it finishes for its findings; a member decides every proposal.",
@@ -91,7 +103,7 @@ const OntoSettings = new GraphQLObjectType({
 });
 
 const ChangeBatch = new GraphQLObjectType({
-  name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.",
+  name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until they commit: by policy, by the ontology steward after its review, or by a member on the Changes page.",
   fields: {
     id: { type: nonNull(GraphQLID) }, title: text, purpose: text,
     state: { ...text, description: "open, awaiting_review, committed, rejected or discarded." },
@@ -105,16 +117,16 @@ const ChangeBatch = new GraphQLObjectType({
     policy: json, summary: { type: JSONScalar },
     reviewBy: { type: DateTimeScalar },
     reviewUrl: { type: GraphQLString, description: "The review page, relative to this installation (the platform returns it as a full link).", resolve: (batch) => batchReviewUrl(batch.id) },
-    review: { type: JSONScalar, description: "The ontology steward's latest advisory review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why." },
+    review: { type: JSONScalar, description: "The ontology steward's latest review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
     questions: { ...json, description: "Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: \"onto\", recordId: \"batch:<id>#<key>\"} when you revise those proposals.", resolve: (batch) => batch.questions ?? [] },
     advice: { type: nonNull(JSONScalar), description: "Onto's built-in advice on the draft, with no model: records that need a type (type.generic-cluster, edge.generic-cluster, property.in-title), too many types (type.sprawl) and card quality (card.*, evidence.quote-too-long). Each finding names its refs; stage.proposals can be staged as they are and stage.move lists the refs to restage under them. Advisory: nothing is blocked.", resolve: (batch, _args, context: ChangeContext) => draftAdvice(batch, context) },
-    reviewRun: { type: JSONScalar, description: "While the ontology steward reviews a submitted batch: {runId, state}, the batch-review workflow run to wait on (WorkflowRuns at scope platform). Null once the review has finished; read review then.", resolve: (batch, _args, context: ChangeContext) => batch.state === "awaiting_review" ? pendingReview(context.db(), batch.id) : null },
+    reviewRun: { type: JSONScalar, description: "While the ontology steward reviews a submitted batch: {runId, state}, the batch-review workflow run to wait on (WorkflowRuns at scope platform). Null once the review has finished; read review then.", resolve: (batch, _args, context: ChangeContext) => reviewRun(batch, context) },
     instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (batch, _args, context: ChangeContext) => {
-      const run = batch.state === "awaiting_review" ? await pendingReview(context.db(), batch.id) : null;
-      const waiting = run ? [stewardInstruction(batch.id, run.runId, (await readSettings(context.db())).stewardApproval)] : [];
-      return resultInstructions(batch.id, { ...batch, validation: await batchValidation(batch, context), instructions: [...waiting, ...adviceInstructions(batch.id, await draftAdvice(batch, context))] }, batchReviewUrl(batch.id));
+      const [run, validation, advice] = await Promise.all([reviewRun(batch, context), batchValidation(batch, context), draftAdvice(batch, context)]);
+      const mode = run ? (await requestSettings(context)).stewardApproval : null;
+      return resultInstructions(batch.id, { ...batch, validation, instructions: adviceInstructions(batch.id, advice), ...(run && mode ? { run: stewardRun(run.runId, run.state, mode) } : {}) }, batchReviewUrl(batch.id));
     } },
     operations: {
       type: nonNull(new GraphQLList(nonNull(StagedChange))),
@@ -304,7 +316,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     }),
     submitBatch: mutationField({
       name: "SubmitBatch", output: nonNull(ChangeBatch),
-      description: "Submit an open batch for review. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background: reviewRun and the WAIT_FOR_STEWARD instruction name the workflow run to wait on. Unless an admin set stewardApproval to review, it then approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member (review.decision says which and why).",
+      description: "Submit an open batch for review. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background: reviewRun and the WAIT_FOR_RUN instruction (taskId) name the workflow run to wait on. Unless an admin set stewardApproval to review, it then approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member (review.decision says which and why).",
       input: batchSubmitInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();

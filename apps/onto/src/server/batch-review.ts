@@ -322,7 +322,7 @@ const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
  * that cannot run is recorded as failed, and the batch is unaffected either way.
  * The steward reads it in parts that each fit the platform's step cap, one model
  * call per part; the built-in checks cover the whole batch. */
-async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId?: string): Promise<BatchReview> {
+async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string): Promise<BatchReview> {
   const startedAt = Date.now();
   const prompt = { path: promptPath, digest: await sha256Hex(stewardPrompt) };
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
@@ -337,7 +337,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   let runId: string | null = null;
   let review: BatchReview;
   try {
-    const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId ?? crypto.randomUUID(), inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
+    const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
     const answers = await pooled(parts, partConcurrency, async (part) => {
       const { output } = await host.call("inference.generate", {
@@ -418,7 +418,7 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
   const contentDigest = await batchContentDigest(await loadOperations(db, batchId));
   await db.batch([
     db.update(graphBatches).set({ reviewJobId: id }).where(eq(graphBatches.id, batchId)),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() }),
+    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
   ]);
   const review = await processReviewJob(db, who, host, id);
   if (!review) throw new Response("Review could not be claimed", { status: 409 });
@@ -452,7 +452,7 @@ export async function queueDraftReview(db: Database, batchId: string) {
   const id = crypto.randomUUID(), now = Date.now();
   await db.batch([
     db.update(graphBatches).set({ reviewJobId: id, review: null }).where(and(eq(graphBatches.id, batchId), eq(graphBatches.state, "open"))),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() }),
+    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
   ]);
   return id;
 }

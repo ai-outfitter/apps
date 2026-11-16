@@ -204,7 +204,7 @@ export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
   createdAt: integer().notNull(),
   error: text(),
   /** The batch-review run reserved for this job's first attempt; a retry or a schedule saves its own. */
-  runId: text(),
+  runId: text().$defaultFn(() => crypto.randomUUID()),
 }, (t) => [index("onto_review_jobs_due").on(t.state, t.nextAttemptAt, t.leaseUntil)]);
 
 export const graphBatchOperations = sqliteTable(

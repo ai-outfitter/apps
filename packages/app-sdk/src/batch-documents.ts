@@ -43,7 +43,7 @@ function workInstructions(key: string, result: Record<string, any>): Instruction
   for (const waiting of result.openWork?.awaiting ?? []) instructions.push({ code: `GOVERNANCE_${String(waiting.step).toUpperCase()}`, itemKey: key,
     actor: waiting.kind === "Agent" ? "agent" : "human", required: waiting.required !== false, message: `${waiting.holder}: ${waiting.step}${waiting.blockedBy ? ` (${waiting.blockedBy})` : ""}.` });
   const run = result.run;
-  if (run?.id && !["complete", "completed", "failed", "cancelled"].includes(run.status)) instructions.push({ code: "WAIT_FOR_RUN", itemKey: key, actor: "system", required: true, message: "Read the retained run before retrying.", taskId: run.id });
+  if (run?.id && !["complete", "completed", "failed", "cancelled"].includes(run.status)) instructions.push({ code: "WAIT_FOR_RUN", itemKey: key, actor: "system", required: true, message: typeof run.message === "string" ? run.message : "Read the retained run before retrying.", taskId: run.id });
   return instructions;
 }
 
