@@ -233,3 +233,85 @@ test("products' revisions page per product in one bounded relationship statement
     await app.dispose();
   }
 });
+
+test("a projection through a relator pages, filters and counts in one statement each, whatever the number of parents", async () => {
+  const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
+  try {
+    assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
+    const call = async (action: string, input: object) => {
+      const response = await app.call("/api/internal/actions/v1/call", owner, { method: "POST", body: { action, input } });
+      assert.equal(response.status, 200, await response.clone().text());
+      return response.json();
+    };
+    const create = (ref: string, type: string, attributes: object) => ({ operation: "create", ref, type, attributes });
+    const update = (ref: string, id: string, ontology: object) => ({ operation: "update", ref, type: "graph-type", id, revision: 1, attributes: { ontology } });
+    // Gadgets pair up through a GadgetPairing relator; `paired_gadget` projects each gadget onto the others it is paired with.
+    const made = await call("graph.apply", { requestKey: "projection-types", operations: [
+      create("$gadget", "graph-type", { category: "node", name: "PairedGadget", title: "Paired gadgets", body: "Synthetic." }),
+      create("$pairing", "graph-type", { category: "node", name: "GadgetPairing", title: "Gadget pairings", body: "Synthetic." }),
+      create("$member", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "pairing_member", title: "Pairing members", body: "Synthetic." }),
+      create("$paired", "graph-type", { category: "edge", ontology: { version: 2, endpoints: { from: "any", to: "any" } }, name: "paired_gadget", title: "Paired gadgets", body: "Synthetic." }),
+    ] }) as Record<string, { id: string }>;
+    await call("graph.apply", { requestKey: "projection-ontology", operations: [
+      update("$member", made.$member.id, { version: 2, endpoints: { from: [made.$pairing.id], to: [made.$gadget.id] } }),
+      update("$pairing", made.$pairing.id, { version: 2, stereotype: "relator", participation: { slots: [{ name: "member", edgeTypeId: made.$member.id, participantTypes: [made.$gadget.id], min: 2, max: 2 }] } }),
+      update("$paired", made.$paired.id, { version: 2, projection: { relatorTypeId: made.$pairing.id, fromSlot: "member", toSlot: "member", symmetric: true } }),
+    ] });
+    // Gadget 0 is paired with each of the other seven; each other gadget also with its next neighbour.
+    const gadgetIds = Array.from({ length: products }, () => crypto.randomUUID());
+    const pairs = [...gadgetIds.slice(1).map((_, n) => [0, n + 1]), ...gadgetIds.slice(1, -1).map((_, n) => [n + 1, n + 2])];
+    await call("graph.apply", { requestKey: "projection-records", operations: [
+      ...gadgetIds.map((id, g) => create(`$g${g}`, "graph-node", { id, typeId: made.$gadget.id, title: `Gadget ${g}` })),
+      ...pairs.flatMap(([a, b], n) => {
+        const id = crypto.randomUUID();
+        return [create(`$pair${n}`, "graph-node", { id, typeId: made.$pairing.id, title: `Pair ${a}-${b}` }),
+          create(`$a${n}`, "graph-edge", { typeId: made.$member.id, fromId: id, toId: gadgetIds[a] }),
+          create(`$b${n}`, "graph-edge", { typeId: made.$member.id, fromId: id, toId: gadgetIds[b] })];
+      }),
+    ] });
+
+    const { db, log } = counted(app.database);
+    const types = await databaseSource(db).types() as unknown as TypeRow[];
+    const query = `query($ids: [ID!]) { pairedGadgets(ids: $ids) { nodes { title
+      pairedGadget(first: 2, orderBy: TITLE_DESC, filter: { title: { notEqualTo: "Gadget 7" } }) { nodes { title } pageInfo { hasNextPage } totalCount } } } }`;
+    type Row = { title: string; pairedGadget: { nodes: { title: string }[]; pageInfo: { hasNextPage: boolean }; totalCount: number } };
+    const read = async (ids: string[]) => {
+      log.length = 0;
+      const result = graphGraphqlResult.parse(await executeGraphQuery({ types, source: databaseSource(db), query, variables: { ids }, maxBytes: 262144 }));
+      assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+      return { rows: (result.data as { pairedGadgets: { nodes: Row[] } }).pairedGadgets.nodes, statements: log.map(entry => ({ ...entry })) };
+    };
+    const few = await read(gadgetIds.slice(0, 3)), all = await read(gadgetIds);
+    const byTitle = new Map(all.rows.map(row => [row.title, row.pairedGadget]));
+    // Gadget 0 reaches the other seven, never itself; Gadget 7 is filtered out in SQL, leaving six.
+    assert.deepEqual([byTitle.get("Gadget 0")?.nodes, byTitle.get("Gadget 0")?.pageInfo.hasNextPage, byTitle.get("Gadget 0")?.totalCount], [[{ title: "Gadget 6" }, { title: "Gadget 5" }], true, 6]);
+    // Gadget 3 is paired with 0, 2 and 4.
+    assert.deepEqual([byTitle.get("Gadget 3")?.nodes, byTitle.get("Gadget 3")?.pageInfo.hasNextPage, byTitle.get("Gadget 3")?.totalCount], [[{ title: "Gadget 4" }, { title: "Gadget 2" }], true, 3]);
+    // The gadgets, one projection page and one count: three statements for three gadgets as for eight.
+    assert.equal(all.statements.length, few.statements.length, JSON.stringify(all.statements.map(entry => entry.sql)));
+    assert.equal(all.statements.length, 3, JSON.stringify(all.statements.map(entry => entry.sql)));
+    for (const statement of all.statements) {
+      assert.ok(statement.values.length <= 40, `${statement.values.length} parameters`);
+      const plan = (await app.database.prepare(`EXPLAIN QUERY PLAN ${statement.sql}`).bind(...statement.values).all<{ detail: string }>()).results.map(row => row.detail);
+      assert.ok(plan.length && !plan.some(step => /^SCAN (n|r|e|e1|graph_nodes|graph_edges)\b/.test(step)), plan.join("\n"));
+    }
+    const pageStatement = all.statements.find(entry => /ROW_NUMBER/.test(entry.sql));
+    assert.match(pageStatement?.sql ?? "", /"f_title"/, "the filter and the order run in the statement");
+    // Five gadgets have three or more paired gadgets that pass (first + 1 rows each); gadgets 1, 6 and 7 have two.
+    assert.equal(pageStatement?.rows, 5 * 3 + 3 * 2);
+    console.log(`projection statements: ${few.statements.length} for 3 gadgets, ${all.statements.length} for ${products}; rows: ${all.statements.map(entry => entry.rows).join(", ")}; parameters: ${all.statements.map(entry => entry.values.length).join(", ")}`);
+    // The same answers as memorySource over the whole-graph read.
+    const graph = await readGraph(drizzle(app.database), { ...owner, installationId: "onto-installation", canEdit: true } as never);
+    const expected = await executeGraphQuery({ types, source: memorySource({ installationId: "onto-installation", ...graph }), query, variables: { ids: gadgetIds }, maxBytes: 262144 });
+    assert.deepEqual(JSON.parse(JSON.stringify({ pairedGadgets: { nodes: all.rows } })), JSON.parse(JSON.stringify(expected.data)));
+    // graph.query carries the projection's first hop to the same statement.
+    const through = graphQueryResult.parse(await queryGraphRecords(db, { ...owner, installationId: "onto-installation", canEdit: true } as never, { includeTypes: "none", queries: [
+      { name: "paired", relation: { parentIds: [gadgetIds[0]], edgeTypes: ["pairing_member"], direction: "both", targetTypes: ["PairedGadget"], through: { edgeTypes: ["pairing_member"], nodeTypes: ["GadgetPairing"] } },
+        orderBy: "TITLE_DESC", limit: 2, count: true, fields: ["title"], filter: { title: { notEqualTo: "Gadget 7" } } },
+    ] }));
+    const titles = new Map(through.nodes.map(row => [row.id, row.title]));
+    assert.deepEqual(through.queries.paired.parents?.map(parent => [parent.rows.map(row => titles.get(row.nodeId)), parent.hasNextPage, parent.count]), [[["Gadget 6", "Gadget 5"], true, 6]]);
+  } finally {
+    await app.dispose();
+  }
+});
