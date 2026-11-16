@@ -14,7 +14,14 @@ Filtering, sorting, paging and counting run in the database of the app that owns
   page for all parents of a request.
 - App tables (`tableType`) take `orderBy` over the indexed columns the app declares and `filter` over
   its filter columns.
-- `graph.query` ordered pages carry the same `filter`, and `relation.through` for projections.
+- `graph.query` ordered pages carry the same `filter`, and `relation.through` for projections. `types`
+  and `relation.targetTypes` take up to 500 names, as `relation.edgeTypes` does; the bounds are
+  exported as `graphQueryLimits`.
+- `startsWith` is an index range. A page over every node type reads from an index on its order column.
+
+Cursors have one format: the order's name with the record's order value and ID, for the default
+`ID_ASC` too. A cursor made before this change (an encoded ID) is refused as invalid; start the page
+again.
 
 Removed, with no alias: `aggregate { count }` (use `totalCount`), the `slugs` argument of collections
 (use `filter: { slug: { in: [...] } }`), the per-column list arguments of app tables (use `filter`),
