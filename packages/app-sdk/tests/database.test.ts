@@ -139,3 +139,21 @@ test("failed broad discovery allows a scoped read through the validated host con
   assert.ok(wiki.collection("nodes"), "host validation preserves collection metadata");
   assert.deepEqual(inputs, [{ template: "wiki-map" }, { installationId: "wiki" }]);
 });
+
+test("loads through re-obtained collections share one indexed read per 100 IDs", async () => {
+  const dispatches: string[][] = [];
+  const host = { call: async (operation: string, input: { ids?: string[]; limit?: number }) => {
+    if (operation === "entities.types") return [{ template: "wiki-map", installationId: "wiki-1", type: "graph-node", collection: "nodes" }];
+    assert.equal(operation, "entities.list");
+    dispatches.push(input.ids ?? []);
+    return { records: (input.ids ?? []).filter(id => id !== "n7").map(id => ({ ref: { installationId: "wiki-1", type: "graph-node", id }, revision: 1, title: id, attributes: {}, references: [] })), pageInfo: { hasNextPage: false, endCursor: null } };
+  } } as unknown as WorkflowHost<"interactive">;
+  const wiki = await appDataContext(host).apps.database("wiki-map");
+  assert.equal(wiki.collection("nodes"), (await appDataContext(host).apps.installation("wiki-1")).collection("nodes"));
+  const ids = Array.from({ length: 250 }, (_, index) => `n${index}`);
+  const records = await Promise.all([...ids, "n3"].map(id => wiki.collection("nodes").load(id)));
+  assert.deepEqual(dispatches.map(chunk => chunk.length), [100, 100, 50]);
+  assert.equal(records[3]?.id, "n3");
+  assert.equal(records[7], undefined);
+  assert.equal(records[250]?.id, "n3");
+});
