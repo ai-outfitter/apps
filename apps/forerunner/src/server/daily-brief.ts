@@ -1,6 +1,5 @@
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
-import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-protocol";
+import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
 import { scheduleInput, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
@@ -71,20 +70,8 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const zone = timezone.parse(input.timezone);
   z.iso.date().parse(input.date);
   if (input.date > localDate(now, zone)) throw new Response("Cannot capture a future brief", { status: 400 });
-  const wiki = await documentWiki(host);
-  const call = async (query: string, variables: Record<string, unknown>, write = false) => {
-    const result = graphGraphqlResult.parse(await host.call("actions.call", { installationId: wiki.installationId, action: write ? "graph.mutate" : "graph.graphql", ...(!write ? { readOnly: true } : {}), input: { query, variables: JSON.parse(JSON.stringify(variables)), maxBytes: 65536 } }));
-    if (result.errors?.length || result.extensions?.truncated || !result.data) throw new Error("Daily brief Wiki read/write was incomplete");
-    return result.data;
-  };
   const slugFor = async (date: string) => `forerunner-brief-${date}-${await stableGraphId(who.owner, who.installationId, zone)}`;
-  const read = async (slug: string) => {
-    const page = await call("query BriefPage($slug:String!){page(slug:$slug){documentId}}", { slug });
-    if (page.page === null) return null;
-    const { documentId } = z.object({ documentId: z.string() }).parse(page.page);
-    const data = await call("query BriefDraft($id:ID!){document(id:$id){id revision generatedBody archived}}", { id: documentId });
-    return z.object({ id: z.string(), revision: z.number(), generatedBody: z.string(), archived: z.boolean() }).parse(data.document);
-  };
+  const read = (slug: string) => readWikiPage(host, slug);
   const slug = await slugFor(input.date), previousSlug = await slugFor(shiftDate(input.date, -1));
   const [current, prior, review, items, role, discovery] = await Promise.all([
     read(slug), read(previousSlug), readDayReview(db, who, host, { date: shiftDate(input.date, -1), timezone: zone }, now), listItems(db, who),
@@ -120,7 +107,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
       gaps: gaps.length, previous: prior && !prior.archived ? { documentId: prior.id, revision: prior.revision } : null } };
   if (new TextEncoder().encode(JSON.stringify(write)).byteLength > 32768) throw new BriefGenerationFailed("The brief exceeds the Wiki write limit. Nothing was saved.", 413);
   try {
-    const result = await call("mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}", { input: write }, true);
+    const result = await wikiDocuments(host, "graph.mutate", "mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}", { input: write }, 65536);
     return saved(z.object({ saveGeneratedDocument: z.object({ id: z.string(), revision: z.number() }) }).parse(result).saveGeneratedDocument, "saved");
   } catch (error) {
     // Another run for the same day may have saved first. Its revision stands; this one writes nothing over it.

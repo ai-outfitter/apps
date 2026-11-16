@@ -17,6 +17,7 @@ type WikiDocument {
   editorId: String
   createdAt: String
   id: ID
+  installationId: ID
   publishedRevision: Int
   archived: Boolean
 }
@@ -37,6 +38,7 @@ type WikiPage {
   id: ID
   slug: String
   documentId: ID
+  document(revision: Int): WikiDocument
   entityRef: String
   parentId: ID
   revision: Int

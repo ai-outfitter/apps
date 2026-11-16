@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `actions.call` accepts `template` in place of `installationId`: the host finds the owner's one installation of that package. `wiki-documents` uses it: `readWikiPage`, `readWikiPages` and `wikiDocuments` replace `documentWiki` and `readWikiDocument`, and no longer discover the Wiki.
 - Route personal GitHub pull request reads by account ownership, retaining the actual connection ID instead of requiring a synthetic ID.
 
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.3...app-sdk-v0.1.4) (2026-11-09)

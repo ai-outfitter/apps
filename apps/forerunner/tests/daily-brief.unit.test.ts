@@ -151,12 +151,11 @@ async function fixture(model: (data: ReturnType<typeof modelData>, instructions:
     if (op === "workflow.start") { log.started.push(args.id); return {}; }
     if (op === "workflow.collect") { assert.equal(args.complete, true); log.collected.push(args.value); return {}; }
     if (op === "inference.generate") { log.inferences.push({ data: args.data, instructions: args.instructions, runId: args.runId }); return { output: await model(args.data, args.instructions) }; }
-    if (op === "actions.list") return [{ installationId: "personal-wiki", actions: [{ name: "graph.describe", access: "read", permitted: true }] }];
-    if (op === "actions.call" && args.installationId === "personal-wiki") {
-      if (args.action === "graph.describe") return { version: 1, contracts: [{ id: "outfitter.wiki-documents", version: 1 }], capabilities: ["documents"], types: [], queryAction: "graph.graphql" };
+    // The platform finds the owner's Wiki from its package name.
+    if (op === "actions.call" && args.template === "wiki-map") {
       const { query, variables } = args.input;
-      if (query.includes("BriefPage")) return { data: { page: stored.has(variables.slug) ? { documentId: stored.get(variables.slug)?.id } : null } };
-      if (query.includes("BriefDraft")) return { data: { document: [...stored.values()].find(doc => doc.id === variables.id) } };
+      if (query.includes("SavedPages")) return { data: Object.fromEntries(Object.entries(variables as Record<string, string>).map(([name, slug]) =>
+        [`p${name.slice(1)}`, stored.has(slug) ? { document: { ...stored.get(slug), installationId: "personal-wiki" } } : null])) };
       if (query.includes("SaveGeneratedDocument")) {
         await beforeWrite();
         const write = variables.input, existing = [...stored.entries()].find(([slug, doc]) => write.id ? doc.id === write.id : slug === write.slug);

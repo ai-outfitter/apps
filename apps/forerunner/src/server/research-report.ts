@@ -1,6 +1,5 @@
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
-import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-protocol";
+import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
 import { scheduleInput, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
@@ -145,22 +144,14 @@ export async function captureResearchReport(who: AppIdentity, host: WorkflowHost
   }
   const items = sections.reduce((count, section) => count + section.items.length, 0);
   const generatedBody = reportMarkdown(input, run.date, summary, sections, { searches, sources: sources.length });
-  const wiki = await documentWiki(host);
-  const call = async (query: string, variables: Record<string, unknown>, write = false) => {
-    const result = graphGraphqlResult.parse(await host.call("actions.call", { installationId: wiki.installationId, action: write ? "graph.mutate" : "graph.graphql", ...(!write ? { readOnly: true } : {}), input: { query, variables: JSON.parse(JSON.stringify(variables)), maxBytes: 65536 } }));
-    if (result.errors?.length || result.extensions?.truncated || !result.data) throw new Error("Research report Wiki read/write was incomplete");
-    return result.data;
-  };
   const page = `forerunner-research-${input.slug}-${run.date}-${await stableGraphId(who.owner, who.installationId, input.slug)}`;
-  const found = await call("query ResearchReportPage($slug:String!){page(slug:$slug){documentId}}", { slug: page });
-  const current = found.page === null ? null : z.object({ id: z.string(), revision: z.number(), generatedBody: z.string(), archived: z.boolean() }).parse(
-    (await call("query ResearchReportDraft($id:ID!){document(id:$id){id revision generatedBody archived}}", { id: z.object({ documentId: z.string() }).parse(found.page).documentId })).document);
+  const current = await readWikiPage(host, page);
   if (current?.archived) return { slug: input.slug, status: "failed", searches, reason: "This report's document for the day is archived" };
   if (current?.generatedBody === generatedBody) return { slug: input.slug, status: "unchanged", page, documentId: current.id, revision: current.revision, items, searches };
   const write = { ...(current ? { id: current.id, revision: current.revision } : { slug: page, title: `${input.title} — ${run.date}` }), generatedBody,
     provenance: { kind: "forerunner.research-report", owner: who.owner, installationId: who.installationId, report: input.slug, date: run.date, timezone: run.timezone, runId: run.runId, capturedAt: now, searches, sources: sources.map(source => source.url) } };
   if (new TextEncoder().encode(JSON.stringify(write)).byteLength > 32768) throw new Error("Research report exceeds the write limit; no document changed");
-  const saved = await call("mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}", { input: write }, true);
+  const saved = await wikiDocuments(host, "graph.mutate", "mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}", { input: write }, 65536);
   const receipt = z.object({ saveGeneratedDocument: z.object({ id: z.string(), revision: z.number() }) }).parse(saved).saveGeneratedDocument;
   return { slug: input.slug, status: items ? "saved" : "empty", page, documentId: receipt.id, revision: receipt.revision, items, searches };
 }

@@ -129,6 +129,14 @@ test("nullable page lookup distinguishes absence from a failed document read",as
 });
 
 
+test("a page returns its document and that document's address in one request",async()=>{
+ const {db}=fixture();
+ const saved=await saveGeneratedDocument(db,who,{slug:"daily-one",title:"Daily",generatedBody:"Frozen snapshot",provenance:{kind:"test"}});
+ const read=await graphql({schema:graphqlSchema,source:'query {page(slug:"daily-one"){document{id installationId revision generatedBody archived}}}',contextValue:{database:db,identity:who}});
+ assert.equal(read.errors,undefined);
+ assert.deepEqual(JSON.parse(JSON.stringify(read.data?.page)),{document:{id:saved.id,installationId:who.installationId,revision:1,generatedBody:"Frozen snapshot",archived:false}});
+});
+
 test("generated drafts revise changed source while preserving authored body, publication and optimistic revision",async()=>{
  const {db}=fixture();
  const created=await saveDocument(db,who,{title:"Daily note",body:"Member authored notes"});

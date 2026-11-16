@@ -57,12 +57,12 @@ The `digest` section is the minimal current-brief read. It reads the saved sched
 - `latestBrief`: only when today's is missing, the newest earlier brief within the seven-day lookback, with its own `date`. A page shows it as that day's snapshot, never as today's.
 - `previousBrief`: yesterday's reference (revision and link, no body), which keeps first-time setup detection without reading a second document body. The combined read still returns its body for older callers.
 
-The digest does not wait on the schedule to begin: the Wiki is resolved while the schedule loads. Discovery names the Wiki package (`wiki-map`), so the platform lists and describes that one installation instead of every installed app; the `outfitter.wiki-documents` contract still decides, and a Wiki under another package name is found by asking every provider as before.
+The digest reads today's and yesterday's briefs with one Wiki request: each dated page with its document. The Wiki is named by its package (`wiki-map`) and the platform finds the member's installation, so nothing is listed, described or looked up first. Only a day with neither brief makes a second request for the five days before.
 
 The `review` and `history` sections show the member's saved personal overview as the snapshot of the day. Planning captures each organization's report into that overview when it writes it, in the member's priority order, so the page takes the organizations from it and reads no organization at page load. Each row links to the pinned Wiki revision of that organization's report.
 
 Only on a day with no readable personal overview does the page read each organization's saved report from Planning's published `DailyReports` document (`platform.document` with `app: "planning"` and that organization as the only scope), as the member. One read per organization keeps a failing organization from hiding the others. In production on 2026-11-14 that path took about 10 seconds for five organizations.
 
-Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `wikiProvider`, `briefLookup`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
+Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
 
 No section starts source collection, a model request, a workflow, a connector read or a schedule write.

@@ -1,5 +1,4 @@
 ---
-import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
 import { requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { appHref } from "../app-href";
 import { projectNextAction } from "../project-next-action";
@@ -25,11 +24,11 @@ if(demo) {
   if(results[0].status==="fulfilled")delivery=results[0].value.projectDelivery;else questionsError=true;
   if(results[1].status==="fulfilled")report=results[1].value.dailyReport;else reportError=true;
   if(report)try {
-    const wiki=await documentWiki(context.host());
+    // The saved report names the Wiki that holds it.
     const reference=projectNextAction(delivery,report).reference;
-    const types=await context.host().call("entities.types",{installationId:wiki.installationId});
+    const types=typeof reference.installationId==="string"?await context.host().call("entities.types",{installationId:reference.installationId}):[];
     const source=types.find(type=>type.slug || type.template);
-    if(reference.installationId===wiki.installationId && typeof reference.slug==="string" && source)reportHref=wikiPageHref({slug:source.slug ?? source.template!,hostname:source.hostname ?? null},requestPageURL(Astro.request),`p/${encodeURIComponent(reference.slug)}?revision=${encodeURIComponent(String(reference.revision))}`);
+    if(typeof reference.slug==="string" && source)reportHref=wikiPageHref({slug:source.slug ?? source.template!,hostname:source.hostname ?? null},requestPageURL(Astro.request),`p/${encodeURIComponent(reference.slug)}?revision=${encodeURIComponent(String(reference.revision))}`);
   }catch{reportError=true;}
 }
 const view=projectNextAction(delivery,report);
