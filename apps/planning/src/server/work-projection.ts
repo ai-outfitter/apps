@@ -99,7 +99,7 @@ export async function projectWork(
   const wiki = await defaultWiki(host);
   if (!wiki.writable)
     throw new Response("Wiki projection is not writable", { status: 403 });
-  const types = await listEntities(host, { installationId: wiki.installationId, type: "graph-type", filter: { archived: false } });
+  const types = await listEntities(host, { installationId: wiki.installationId, type: "graph-type", filter: { names: ["Project", "Issue", "has_issue", "targets_requirement"], archived: false } });
   const typeId = (name: string) => {
     const record = types.find((record) => record.attributes.name === name);
     if (!record)

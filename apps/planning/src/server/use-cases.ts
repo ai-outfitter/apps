@@ -86,8 +86,15 @@ export async function listUseCases(
 ) {
   if (projectId) await checkProject(db, who, projectId);
   const { installationId } = await defaultWiki(host);
-  const records = await listEntities(host, { installationId, type: "graph-node", filter: { typeId: useCaseTypeId, archived: false } });
-  return records.filter((r) => !projectId || belongs(r, who, projectId));
+  return listEntities(host, {
+    installationId,
+    type: "graph-node",
+    filter: {
+      typeId: useCaseTypeId,
+      archived: false,
+      ...(projectId ? { properties: { planning_installation_id: who.installationId, project_id: projectId } } : {}),
+    },
+  });
 }
 export const useCaseInput = z.strictObject({
   projectId: z.uuid(),

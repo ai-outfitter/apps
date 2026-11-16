@@ -178,7 +178,11 @@ test("company lookup metadata does not consume the scoped traversal node budget"
   assert.equal(graph.truncated, false);
   assert(graph.nodes.some(node => node.ref.id === "our-product"));
   assert(!f.gets.some(id => id.startsWith("company-")));
-  const lookup = f.queries.find(input => (input.filter as Record<string, unknown>)?.typeId === "Organization");
+  // The company lookup pages carry no bodies; the binding is its own list, matched by the Wiki.
+  const organizations = f.queries.filter(input => JSON.stringify((input.filter as Record<string, unknown>)?.typeIds) === '["Organization"]');
+  const binding = organizations.filter(input => (input.filter as Record<string, unknown>).properties);
+  assert.deepEqual(binding.map(input => (input.filter as Record<string, unknown>).properties), [{ organization_id: "org" }]);
+  const lookup = organizations.find(input => !binding.includes(input));
   assert(lookup);
   assert(!(lookup.select as string[]).includes("body"));
 });
@@ -197,7 +201,7 @@ test("direction guards and the depth limit prevent irrelevant endpoint fanout", 
   }
   const graph = await readScopedOrganizationGraph(await f.context.apps.installation("wiki"), who);
   assert.equal(graph.truncated, false);
-  assert.deepEqual(f.gets.sort(), ["org-node", "scoped-problem"]);
+  assert.deepEqual(f.gets.sort(), ["scoped-problem"]);
   assert(!f.queries.some(input => (input.filter as Record<string, unknown>)?.nodeId === "scoped-problem"));
   assert.deepEqual(graph.edges.map(edge => edge.ref.id), ["our-problem"]);
 });
