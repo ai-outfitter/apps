@@ -34,9 +34,7 @@ export type SavedSelection = z.infer<typeof savedSelection>;
 function pageRules(query: { entity: string; orderBy?: unknown; relation?: { through?: unknown }; at?: unknown; count?: unknown; filter?: unknown; limit: number } & Record<string, unknown>) {
   const paged = query.orderBy !== undefined || query.relation !== undefined;
   if (!paged) return [
-    ...(query.at !== undefined ? [["at", "Only ordered pages (orderBy or relation) take at"]] : []),
-    ...(query.count !== undefined ? [["count", "Only ordered pages (orderBy or relation) take count"]] : []),
-    ...(query.filter !== undefined ? [["filter", "Only ordered pages (orderBy or relation) take filter"]] : []),
+    ...["at", "count", "filter"].filter(field => query[field] !== undefined).map(field => [field, `Only ordered pages (orderBy or relation) take ${field}`]),
     ...(query.limit === 0 ? [["limit", "limit 0 is only for ordered pages (orderBy or relation)"]] : []),
   ] as [string, string][];
   const entity = query.relation ? query.entity === "node" || (query.entity === "edge" && !query.relation.through) : query.entity === "node";

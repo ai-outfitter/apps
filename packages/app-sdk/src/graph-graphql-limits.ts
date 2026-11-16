@@ -63,6 +63,13 @@ function lists(value: unknown, path: (string | number)[] = [], parent: Record<st
 const isPageInfo = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value) && ("hasNextPage" in value || "endCursor" in value);
 
+/** A cut connection's pageInfo: more follows, from the last record kept. */
+function cutPageInfo(pageInfo: Record<string, unknown>, kept: number, endCursor: string | null) {
+  if ("hasNextPage" in pageInfo) pageInfo.hasNextPage = true;
+  if ("endCursor" in pageInfo) pageInfo.endCursor = endCursor;
+  if ("startCursor" in pageInfo && !kept) pageInfo.startCursor = null;
+}
+
 /** Cut the largest lists from the end until the response fits; records are never cut.
  * A cut connection's pageInfo (under any alias) continues after the last record kept;
  * `cursorAt(path, kept)` gives that cursor for the connection at `path`. */
@@ -78,11 +85,7 @@ export function fitResponse(response: { data: unknown }, maxBytes: number, curso
     while (keep > 0 && size - saved > maxBytes) saved += sizes[--keep];
     found.list.length = keep;
     paths.push(found.path);
-    for (const pageInfo of Object.values(found.parent ?? {}).filter(isPageInfo)) {
-      if ("hasNextPage" in pageInfo) pageInfo.hasNextPage = true;
-      if ("endCursor" in pageInfo) pageInfo.endCursor = cursorAt(found.path.slice(0, -1), keep);
-      if ("startCursor" in pageInfo && !keep) pageInfo.startCursor = null;
-    }
+    for (const pageInfo of Object.values(found.parent ?? {}).filter(isPageInfo)) cutPageInfo(pageInfo, keep, cursorAt(found.path.slice(0, -1), keep));
     size = bytes(response);
   }
   return paths;

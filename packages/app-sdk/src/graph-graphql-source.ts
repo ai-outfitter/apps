@@ -168,14 +168,15 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
       return !node || !targets.has(node.typeId) || !(archived === "only" || visible(node, archived)) || !validAt(node, at) ? [] : [{ edge, node }];
     });
     const types = new Set(edgeTypeIds), targets = new Set(targetTypeIds);
+    /** Whether the filter keeps the record the page lists: the far node, or the edge. */
+    const listed = ({ edge, node }: { edge: EdgeRow; node: GraphRow }) => (rows === "node" ? matchesFilter(node, filter, nodeFilterFields) : matchesFilter(edge, filter, edgeFilterFields));
     const first = through && { types: new Set(through.edgeTypeIds), targets: new Set(through.nodeTypeIds) };
     return [...new Set(parentIds)].map(parentId => {
       const seen = new Set<string>();
       const starts = first ? [...new Set(hop(parentId, first.types, "both", first.targets).map(({ node }) => node.id))] : [parentId];
       const found = starts.flatMap(start => hop(start, types, direction, targets)).filter(({ node }) => !first || node.id !== parentId)
-        .sort((a, b) => compareIds(a.edge.id, b.edge.id));
+        .filter(listed).sort((a, b) => compareIds(a.edge.id, b.edge.id));
       return found.flatMap(({ edge, node }): RelationRow[] => {
-        if (!(rows === "node" ? matchesFilter(node, filter, nodeFilterFields) : matchesFilter(edge, filter, edgeFilterFields))) return [];
         const key = rows === "node" ? node.id : edge.id;
         return seen.has(key) || !seen.add(key) ? [] : [{ parentId, edge, node }];
       });

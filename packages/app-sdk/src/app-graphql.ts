@@ -19,7 +19,7 @@ import type { TadaDocumentNode } from "gql.tada";
 import { z } from "zod";
 import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
-import { type FilterKind } from "./graph-filter";
+import type { FilterKind } from "./graph-filter";
 import { type FilterColumns, filterSql } from "./graph-filter-sql";
 import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, type PageArgs, page, pageStart, readKeyset } from "./graph-graphql-resolve";
 import { DateTimeScalar, filterInput, JSONScalar, tableOperators } from "./graph-graphql-scalars";
@@ -273,29 +273,33 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
     search: {type:GraphQLString,description:"Match text across this collection’s text fields."},
   };
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));
+  const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
+  const pageOrder = ({ key, descending }: Ordering) => { const direction = descending ? desc : asc; return [...(key ? [direction(columns[key])] : []), direction(columns[id])]; };
+  const pageAfter = ({ key, descending }: Ordering, after: Keyset) => afterKey(key ? columns[key] : null, columns[id], descending, after);
+  /** The rows the arguments ask for (ids, search, filter), as SQL. */
+  const matching = (args: Record<string, unknown>) => {
+    // At most 200 IDs, as a Wiki's ids take, bound as one parameter.
+    const list = idList(args.ids as string[] | null | undefined);
+    const search = typeof args.search === "string" ? args.search.trim() : "";
+    if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
+    return and(list ? among(columns[id], list) : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
+      filterSql(checkedFilter(args.filter, filterFields).filter, filterColumns));
+  };
   return {
     [field]: {
       type: nonNull(connectionType(row)), args,
       resolve: async (_source, args: Record<string, unknown> & PageArgs, context, info) => {
         const orderBy = typeof args.orderBy === "string" ? args.orderBy : "ID_ASC";
-        const { key: orderKey, descending } = orderings[orderBy];
+        const orderKey = orderings[orderBy].key;
         const { first } = pageStart({ first: args.first });
         const after = args.after ? readKeyset(orderBy, args.after) : null;
         const keyOf = (item: Record<string, unknown>): Keyset => ({ value: orderKey ? item[orderKey] as Keyset["value"] : String(item[id]), id: String(item[id]) });
         const visible = scope?.(context as TableContext & ActionContext);
         if (scope && !visible) return orderedPage(context, info, [], keyOf, { orderBy, first }, args.after, async () => 0);
-        // At most 200 IDs, as a Wiki's ids take, bound as one parameter.
-        const list = idList(args.ids as string[] | null | undefined);
-        const search = typeof args.search === "string" ? args.search.trim() : "";
-        if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
-        const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
-        const where = and(visible, list ? among(columns[id], list) : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
-          filterSql(checkedFilter(args.filter, filterFields).filter, filterColumns));
+        const where = and(visible, matching(args));
         const db = context.db();
-        const direction = descending ? desc : asc, orderColumn = orderKey ? columns[orderKey] : null;
-        const rows = await db.select(selection).from(table as SQLiteTable)
-          .where(and(where, after ? afterKey(orderColumn, columns[id], descending, after) : undefined))
-          .orderBy(...(orderColumn ? [direction(orderColumn)] : []), direction(columns[id])).limit(first + 1);
+        const rows = await db.select(selection).from(table as SQLiteTable).where(and(where, after ? pageAfter(orderings[orderBy], after) : undefined))
+          .orderBy(...pageOrder(orderings[orderBy])).limit(first + 1);
         // Rows the response could not hold are cut before they resolve, as maxBytes cuts a list,
         // so a page of large rows comes back truncated; a first row too large still is refused.
         const kept = rowsWithinBudget(rows, first, context.budget.maxBytes - context.budget.bytes);

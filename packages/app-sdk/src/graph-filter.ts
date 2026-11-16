@@ -58,21 +58,23 @@ export function filterOperand(kind: FilterKind, value: unknown): string | number
   return value;
 }
 
-function checkCondition(name: string, kind: FilterKind, operator: string, value: unknown) {
-  if (!known.has(operator)) throw new Error(`filter.${name} has no operator ${operator}`);
-  if (operator === "isNull") { if (typeof value !== "boolean") throw new Error(`filter.${name}.isNull takes true or false`); return; }
-  if (textual.has(operator)) {
-    if (kind !== "string") throw new Error(`filter.${name}.${operator} is only for text fields`);
-    if (typeof value !== "string" || value.length > 256) throw new Error(`filter.${name}.${operator} takes a string of at most 256 characters`);
-    return;
-  }
-  if (kind === "boolean" && operator !== "equalTo" && operator !== "notEqualTo") throw new Error(`filter.${name} takes isNull, equalTo and notEqualTo`);
-  const values = operator === "in" || operator === "notIn" ? value : [value];
+function checkText(name: string, kind: FilterKind, operator: string, value: unknown) {
+  if (kind !== "string") throw new Error(`filter.${name}.${operator} is only for text fields`);
+  if (typeof value !== "string" || value.length > 256) throw new Error(`filter.${name}.${operator} takes a string of at most 256 characters`);
+}
+function checkValues(name: string, kind: FilterKind, operator: string, values: unknown) {
   if (!Array.isArray(values) || values.length > maxFilterValues) throw new Error(`filter.${name}.${operator} takes a list of at most ${maxFilterValues} values`);
   for (const item of values) {
     filterOperand(kind, item);
     if (typeof item === "string" && item.length > 512) throw new Error(`filter.${name}.${operator} values are at most 512 characters`);
   }
+}
+function checkCondition(name: string, kind: FilterKind, operator: string, value: unknown) {
+  if (!known.has(operator)) throw new Error(`filter.${name} has no operator ${operator}`);
+  if (operator === "isNull") { if (typeof value !== "boolean") throw new Error(`filter.${name}.isNull takes true or false`); return; }
+  if (textual.has(operator)) return checkText(name, kind, operator, value);
+  if (kind === "boolean" && operator !== "equalTo" && operator !== "notEqualTo") throw new Error(`filter.${name} takes isNull, equalTo and notEqualTo`);
+  checkValues(name, kind, operator, operator === "in" || operator === "notIn" ? value : [value]);
 }
 function checkLevel(filter: unknown, fields: FilterFields, depth: number) {
   if (!isObject(filter)) throw new Error("filter is an object of fields, and, or and not");

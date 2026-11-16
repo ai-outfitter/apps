@@ -1,7 +1,7 @@
 // Record-level rules the generated resolvers share: visibility (graph.query's
 // archived/retired rules), validity at a time, traversal and paging.
 import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
-import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphRow, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
+import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
 import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
 import { cursorOf, cursorText, keysetCursor, type OrderName, orders, parseKeyset } from "./graph-order";
 

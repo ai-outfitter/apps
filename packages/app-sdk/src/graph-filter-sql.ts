@@ -24,15 +24,22 @@ function condition(column: SQL, kind: FilterKind, operator: string, operand: unk
   return sql`${column} ${sql.raw(comparisons[operator])} ${filterOperand(kind, operand)}`;
 }
 
+/** One field's conditions; a null operand is no condition. */
+const fieldConditions = ({ column, kind }: FilterColumns[string], field: FieldOperators) =>
+  Object.entries(field).filter(([, operand]) => operand !== null && operand !== undefined).map(([operator, operand]) => condition(column, kind, operator, operand));
+/** `and` of nothing holds; `or` of nothing does not. */
+function logical(name: "and" | "or", filters: RecordFilter[], columns: FilterColumns): SQL {
+  const parts = filters.map(child => compiled(child, columns));
+  if (!parts.length) return name === "and" ? sql`1` : sql`0`;
+  return joined(parts, name === "and" ? " AND " : " OR ");
+}
 function level(filter: RecordFilter, columns: FilterColumns): SQL[] {
   const parts: SQL[] = [];
   for (const [name, field] of Object.entries(filter)) {
     if (field === null || field === undefined) continue;
-    if (name === "and") { const all = (field as RecordFilter[]).map(child => compiled(child, columns)); parts.push(all.length ? joined(all, " AND ") : sql`1`); continue; }
-    if (name === "or") { const any = (field as RecordFilter[]).map(child => compiled(child, columns)); parts.push(any.length ? joined(any, " OR ") : sql`0`); continue; }
+    if (name === "and" || name === "or") { parts.push(logical(name, field as RecordFilter[], columns)); continue; }
     if (name === "not") { parts.push(sql`NOT (${compiled(field as RecordFilter, columns)})`); continue; }
-    const { column, kind } = columns[name];
-    for (const [operator, operand] of Object.entries(field as FieldOperators)) if (operand !== null && operand !== undefined) parts.push(condition(column, kind, operator, operand));
+    parts.push(...fieldConditions(columns[name], field as FieldOperators));
   }
   return parts;
 }
