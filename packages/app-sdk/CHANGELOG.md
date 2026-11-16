@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `snapshot` is allowed in the schedule phase, so a scheduled run (such as Planning's daily report) can find the GitHub connection of the member who saved it.
 - `actions.call` accepts `template` in place of `installationId`: the host finds the owner's one installation of that package. `wiki-documents` uses it: `readWikiPage`, `readWikiPages` and `wikiDocuments` replace `documentWiki` and `readWikiDocument`, and no longer discover the Wiki.
 - Route personal GitHub pull request reads by account ownership, retaining the actual connection ID instead of requiring a synthetic ID.
 
