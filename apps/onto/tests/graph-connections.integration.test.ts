@@ -63,8 +63,10 @@ test("products' revisions page per product in one bounded relationship statement
       attributes: { ontology: { version: 1, endpoints: { from: [created.$product.id], to: [created.$revision.id] } } } }] });
     const productIds = Array.from({ length: products }, () => crypto.randomUUID());
     const revisionIds = productIds.map(() => Array.from({ length: revisions }, () => crypto.randomUUID()));
+    const bareId = crypto.randomUUID();
     await call("graph.apply", { requestKey: "connection-records", operations: [
       ...productIds.map((id, p) => create(`$p${p}`, "graph-node", { id, typeId: created.$product.id, title: `Product ${p}` })),
+      create("$bare", "graph-node", { id: bareId, typeId: created.$product.id, title: "A product without revisions" }),
       ...revisionIds.flatMap((ids, p) => ids.flatMap((id, r) => [
         create(`$r${p}_${r}`, "graph-node", { id, typeId: created.$revision.id, title: `Product ${p} revision ${r}` }),
         create(`$e${p}_${r}`, "graph-edge", { typeId: created.$revisions.id, fromId: productIds[p], toId: id }),
@@ -118,6 +120,14 @@ test("products' revisions page per product in one bounded relationship statement
     const third = await read([productIds[4]], (second.pages.get(productIds[4]) as Page).pageInfo.endCursor);
     const last = await read([productIds[4]], (third.pages.get(productIds[4]) as Page).pageInfo.endCursor);
     assert.deepEqual([(last.pages.get(productIds[4]) as Page).nodes, (last.pages.get(productIds[4]) as Page).totalCount, last.statements.length], [[], revisions, 3]);
+    // A product with no revision is left out of the relationship page; counted from the start, that says its count is 0,
+    // so no count is read for it: the products and the one page, as for products that have revisions.
+    const bare = await read([bareId, productIds[0]]);
+    assert.deepEqual([(bare.pages.get(bareId) as Page).nodes, (bare.pages.get(bareId) as Page).totalCount, (bare.pages.get(bareId) as Page).pageInfo.hasNextPage], [[], 0, false]);
+    assert.equal((bare.pages.get(productIds[0]) as Page).totalCount, revisions);
+    assert.equal(bare.statements.length, 2, JSON.stringify(bare.statements.map(entry => entry.sql)));
+    const bareAlone = await read([bareId]);
+    assert.deepEqual([(bareAlone.pages.get(bareId) as Page).totalCount, bareAlone.statements.length], [0, 2]);
     const one = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536, variables: { productId: productIds[2] },
       query: `query($productId: ID) { gadget(id: $productId) { revisions(first: 10, orderBy: CREATED_AT_DESC) { nodes { id title } pageInfo { hasNextPage endCursor } } } }` });
     assert.equal(one.errors, undefined, JSON.stringify(one.errors));

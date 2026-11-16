@@ -8,12 +8,14 @@ import {
 import {
   and,
   eq,
+  getTableColumns,
   inArray,
   or,
   sql,
   type AnyColumn,
   type SQLWrapper,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
 import { containsInsensitive, within } from "@ai-outfitter/app-sdk/graph-filter-sql";
@@ -85,10 +87,11 @@ const equals = (column: AnyColumn, value: string | boolean | undefined) =>
 
 const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(among(graphEdges.fromId, ids), among(graphEdges.toId, ids));
 
-/** The name of the type a row has, read beside the row so search matches it in the same statement. */
-const typeName = (typeId: AnyColumn) => sql`(SELECT t.name FROM graph_types t WHERE t.id = ${typeId})`;
-/** The title and slug of the node at one end of an edge. */
-const endName = (nodeId: AnyColumn) => sql`(SELECT n.title || ' ' || n.slug FROM graph_nodes n WHERE n.id = ${nodeId})`;
+/** The type a listed row has and the nodes at an edge's ends, joined by ID beside the row: search reads each once per
+ * row, whatever the number of terms, and a list that does not search never reads them (nothing else names them). */
+const rowType = alias(graphTypes, "row_type"), fromNode = alias(graphNodes, "from_node"), toNode = alias(graphNodes, "to_node");
+/** The title and slug of the node at one end of an edge, as one search column. */
+const endName = (node: typeof fromNode | typeof toNode) => sql`${node.title} || ' ' || ${node.slug}`;
 
 type Named = { address?: string };
 /** Edges with their address, such as works_on(Person:ada → Project:sunny), for naming. */
@@ -189,11 +192,12 @@ export function graphEntities(
     references: (row) => (row.source ? [row.source] : []),
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body, graphNodes.properties, typeName(graphNodes.typeId)] });
+      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body, graphNodes.properties, rowType.name] });
       return addressed(db, (
         await db
-          .select()
+          .select(getTableColumns(graphNodes))
           .from(graphNodes)
+          .leftJoin(rowType, eq(rowType.id, graphNodes.typeId))
           .where(
             and(
               page.where,
@@ -233,11 +237,14 @@ export function graphEntities(
     name: (row) => row.title || (row as Named).address || row.id,
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body, graphEdges.properties, typeName(graphEdges.typeId), endName(graphEdges.fromId), endName(graphEdges.toId)] });
+      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body, graphEdges.properties, rowType.name, endName(fromNode), endName(toNode)] });
       return named(db, (
         await db
-          .select()
+          .select(getTableColumns(graphEdges))
           .from(graphEdges)
+          .leftJoin(rowType, eq(rowType.id, graphEdges.typeId))
+          .leftJoin(fromNode, eq(fromNode.id, graphEdges.fromId))
+          .leftJoin(toNode, eq(toNode.id, graphEdges.toId))
           .where(
             and(
               page.where,
