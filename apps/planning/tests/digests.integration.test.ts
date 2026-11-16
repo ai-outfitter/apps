@@ -168,7 +168,7 @@ test("retrying a saved run recovers Wiki export without another digest or infere
   await planning.createIssue(db,editor,issue(target.id,"Initial work"),[]);
   const original=host();
   const failing={call:async(operation:string,input:never)=>{
-   if(operation==="actions.list")throw new Error("Wiki unavailable");
+   if(operation==="actions.call"&&(input as {template?:string}).template==="wiki-map")throw new Error("Wiki unavailable");
    return original.host.call(operation as never,input);
   }} as WorkflowHost<"schedule">;
   await assert.rejects(scheduledDigests(db,failing,editor,"retry"),error=>error instanceof Response && error.status===502);
@@ -211,7 +211,7 @@ test("an incomplete Wiki lookup fails without creating a replacement page",async
   await planning.createProject(db,editor,project);
   const backing=host();
   const incomplete={call:async(operation:string,input:Record<string,unknown>)=>{
-   if(operation==="actions.call" && input.action==="graph.graphql")return {data:{page:null},extensions:{truncated:true}};
+   if(operation==="actions.call" && input.action==="graph.graphql")return {data:{p0:null},extensions:{truncated:true}};
    return backing.host.call(operation as never,input as never);
   }} as WorkflowHost<"schedule">;
   await assert.rejects(scheduledDigests(db,incomplete,editor,"incomplete"),error=>error instanceof Response && error.status===502);
