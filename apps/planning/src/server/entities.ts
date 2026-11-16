@@ -43,12 +43,14 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   };
   const portfolioSchema = z.strictObject({ kind: z.enum(["organizations", "projects"]), items: z.array(z.string()).max(500) });
   const portfolioKinds = ["portfolio-organizations", "portfolio-projects"] as const;
-  /** The saved portfolio orders: the database matches the kinds (planning_priority_order_scope), orders them by kind and pages them. */
-  const portfolio = async (who: AppIdentity, page: { kinds?: readonly (typeof portfolioKinds)[number][]; offset?: number; limit?: number } = {}) => {
+  const personalOnly = (who: AppIdentity) => {
     if (who.owner.kind !== "user" || who.organizationId) throw new Response("Personal portfolio only", { status: 403 });
+  };
+  /** The saved portfolio orders of these kinds, by kind: the database matches the kinds (planning_priority_order_scope). */
+  const portfolio = async (who: AppIdentity, kinds: readonly (typeof portfolioKinds)[number][] = portfolioKinds) => {
+    personalOnly(who);
     const rows = await db.select().from(priorityOrder)
-      .where(and(eq(priorityOrder.installationId, who.installationId), inArray(priorityOrder.kind, [...page.kinds ?? portfolioKinds])))
-      .orderBy(asc(priorityOrder.kind)).limit(page.limit ?? portfolioKinds.length).offset(page.offset ?? 0);
+      .where(and(eq(priorityOrder.installationId, who.installationId), inArray(priorityOrder.kind, [...kinds]))).orderBy(asc(priorityOrder.kind));
     return rows.map(row => ({
       id: row.kind.slice("portfolio-".length), revision: row.revision,
       kind: row.kind.slice("portfolio-".length) as "organizations" | "projects", items: z.array(z.string()).parse(JSON.parse(row.items)),
@@ -60,10 +62,11 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
     schema: portfolioSchema, name: row => row.kind,
     // Entity catalog enumeration is shared with organization projects. A
     // personal-only collection is empty there, while direct reads still refuse.
-    list: async (who, offset, limit) => who.owner.kind === "user" && !who.organizationId ? portfolio(who, { offset, limit }) : [],
+    list: async (who, offset, limit) => who.owner.kind === "user" && !who.organizationId ? (await portfolio(who)).slice(offset, offset + limit) : [],
     get: async (who, id) => {
+      personalOnly(who);
       const kind = portfolioKinds.find(item => item === `portfolio-${id}`);
-      const [row] = kind ? await portfolio(who, { kinds: [kind] }) : await portfolio(who, { limit: 0 });
+      const [row] = kind ? await portfolio(who, [kind]) : [];
       if (!row) throw new Response("Priority not saved", { status: 404 });
       return row;
     },
