@@ -46,6 +46,10 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.ok((await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).some(row => row.ref.id === ids.$edge.id));
     const edgeRow = (await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
     assert.equal(edgeRow?.title, "reader_link(ReaderEntity:root → ReaderEntity:child)", "an untitled edge is named by its address, not its UUID");
+    assert.ok((await entitySearch("graph-edge", "child")).some(row => row.ref.id === ids.$edge.id), "an edge is found by the slug of either end");
+    assert.ok((await entitySearch("graph-edge", "reader_link root")).some(row => row.ref.id === ids.$edge.id), "an edge is found by its type name and an end together");
+    assert.deepEqual(await entitySearch("graph-edge", "reader_link NOT child"), []);
+    assert.ok((await entitySearch("graph-node", "ReaderEntity")).some(row => row.ref.id === ids.$root.id), "a node is found by its type name");
     assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "external ids are neither searched nor returned");
     assert.deepEqual(await entitySearch("graph-node", '"\' OR 1=1 --"'), []);
     assert.deepEqual(await entitySearch("graph-node", "%_"), []);

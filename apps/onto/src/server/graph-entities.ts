@@ -85,6 +85,11 @@ const equals = (column: AnyColumn, value: string | boolean | undefined) =>
 
 const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(among(graphEdges.fromId, ids), among(graphEdges.toId, ids));
 
+/** The name of the type a row has, read beside the row so search matches it in the same statement. */
+const typeName = (typeId: AnyColumn) => sql`(SELECT t.name FROM graph_types t WHERE t.id = ${typeId})`;
+/** The title and slug of the node at one end of an edge. */
+const endName = (nodeId: AnyColumn) => sql`(SELECT n.title || ' ' || n.slug FROM graph_nodes n WHERE n.id = ${nodeId})`;
+
 type Named = { address?: string };
 /** Edges with their address, such as works_on(Person:ada → Project:sunny), for naming. */
 async function named(db: Database, edges: GraphEdge[]) {
@@ -172,7 +177,8 @@ export function graphEntities(
     // Each order has an index with the type and one without (migration 0004): (typeId, field, id) and (field, id).
     orderFields: ["id", "title", "createdAt", "updatedAt"],
     selectFields: ["id", ...Object.keys(nodeInput.shape)],
-    searchFields: ["title", "slug", "summary", "body"],
+    // A node is also found by its type's name, as its address (Product:fernlight) reads.
+    searchFields: ["title", "slug", "summary", "body", "properties", "type"],
     title: "Wiki graph node",
     description:
       "Typed node documenting an identifiable thing or relator. Create a complete relator with its participation links in graph.apply. Assertion nodes use the SDK assertionBody schema; authenticated confirmation is a separate receipt. Discover graph-type for permitted properties and the optional body jsonSchema. Structured bodies are JSON serialized into the body string. Projects may document external work without an app reference; optionally link a canonical Planning project. Read-only provenance records writers; no private contact fields or external identifiers are exposed. When updating a sourced node, include its current canonical reference. archived:true reversibly removes a node from active views.",
@@ -183,7 +189,7 @@ export function graphEntities(
     references: (row) => (row.source ? [row.source] : []),
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
+      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body, graphNodes.properties, typeName(graphNodes.typeId)] });
       return addressed(db, (
         await db
           .select()
@@ -215,7 +221,8 @@ export function graphEntities(
     collection: "edges",
     orderFields: ["id"],
     selectFields: ["id", ...Object.keys(edgeInput.shape)],
-    searchFields: ["title", "body"],
+    // An edge is also found by what its address names: its type and the title or slug of either end.
+    searchFields: ["title", "body", "properties", "type", "from", "to"],
     title: "Wiki directed relationship",
     description:
       "Stored relationship with its own identity, revision, properties, narrative and read-only provenance. Use graph.relationships for direction-independent symmetric lookup and read-only derived views. Discover graph-type for meaning and property definitions. archived:true reversibly deletes a relationship.",
@@ -226,7 +233,7 @@ export function graphEntities(
     name: (row) => row.title || (row as Named).address || row.id,
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body] });
+      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body, graphEdges.properties, typeName(graphEdges.typeId), endName(graphEdges.fromId), endName(graphEdges.toId)] });
       return named(db, (
         await db
           .select()
