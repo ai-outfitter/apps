@@ -34,6 +34,8 @@
     "./graph-selection": "./src/graph-selection.ts",
     "./graph-query": "./src/graph-query.ts",
     "./graph-order": "./src/graph-order.ts",
+    "./graph-filter": "./src/graph-filter.ts",
+    "./graph-filter-sql": "./src/graph-filter-sql.ts",
     "./graph-graphql": "./src/graph-graphql.ts",
     "./graph-graphql-typed": "./src/graph-graphql-typed.ts",
     "./graph-graphql-typegen": "./src/graph-graphql-typegen.ts",

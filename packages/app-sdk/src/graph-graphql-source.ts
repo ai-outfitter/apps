@@ -3,6 +3,7 @@
 // loader so each (type, field) costs one source call per level, never one per record.
 // Collections and relationships read ordered, bounded pages (`nodePage`, `relationPage`):
 // a database source runs them as SQL, memorySource emulates them over a snapshot.
+import { edgeFilterFields, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";
 import type { TypeRow } from "./graph-graphql-names";
 import { textMatch } from "./graph-query";
 import { isRetired } from "./knowledge-graph";
@@ -11,9 +12,9 @@ import type { WikiGraphSnapshot } from "./graph-contracts/index";
 export type ArchivedFilter = "exclude" | "include" | "only";
 export type GraphRow = Record<string, unknown> & { id: string; typeId: string; revision: number };
 export type EdgeRow = GraphRow & { fromId: string; toId: string };
-/** `slugs` are exact node slugs: a Wiki's addresses, unique across its node types (edges have none). */
 export type SourceRef = { installationId: string; type: string; id: string };
 export type PropertyFilter = Record<string, string | number | boolean>;
+/** A lookup of known records. `slugs` are exact node slugs: a Wiki's addresses, unique across its node types (edges have none). */
 export type NodeQuery = { typeIds?: string[]; ids?: string[]; slugs?: string[]; archived?: ArchivedFilter; text?: string;
   /** Pages whose canonical `source` is one of these records. */
   sources?: SourceRef[];
@@ -42,18 +43,23 @@ export type Order = { field: OrderField; descending: boolean };
 export type Keyset = { value: string | number | null; id: string };
 /** At most `first + 1` records after `after`, so the caller can tell whether more follow. */
 export type Page = { order: Order; first: number; after: Keyset | null };
-/** A collection's records: of these types, optionally of these IDs or slugs, matching `text` (a case-insensitive
+/** A collection's records: of these types, optionally of these IDs, matching `text` (a case-insensitive
  * literal substring of the ID, title, slug, summary, body, website or stored properties), visible under
- * `archived` (no retired rule, as graph.query matches) and valid at `at`. */
-export type NodeFilter = { typeIds: string[]; ids?: string[]; slugs?: string[]; text?: string; archived?: ArchivedFilter; at?: string };
+ * `archived` (no retired rule, as graph.query matches), valid at `at` and passing `filter` (nodeFilterFields). */
+export type NodeFilter = { typeIds: string[]; ids?: string[]; text?: string; archived?: ArchivedFilter; at?: string; filter?: RecordFilter };
 export type NodePageQuery = NodeFilter & Page;
 export type RelationDirection = "outgoing" | "incoming" | "both";
 /** What a relationship reaches from each parent: edges of `edgeTypeIds` in `direction` whose other end is a
  * node of `targetTypeIds`, both visible under `archived` (EXCLUDE also hides retired records; ONLY asks for
  * archived edges, whatever their far end) and valid at `at`. `rows: "node"` lists each far node once
- * (through its lowest edge ID), ordered by the node; `rows: "edge"` lists each edge, ordered by the edge. */
+ * (through its lowest edge ID), ordered by the node; `rows: "edge"` lists each edge, ordered by the edge.
+ * `filter` keeps the rows whose listed record (the far node, or the edge) passes it.
+ * With `through`, the relationship is two hops (a projection): each parent reaches nodes of `through.nodeTypeIds`
+ * over edges of `through.edgeTypeIds` in either direction, and from those the far nodes over `edgeTypeIds`;
+ * every edge and node on the way is visible and valid as above, and a parent never lists itself. */
 export type RelationFilter = { parentIds: string[]; edgeTypeIds: string[]; direction: RelationDirection; targetTypeIds: string[];
-  archived?: ArchivedFilter; at?: string; rows: "node" | "edge" };
+  archived?: ArchivedFilter; at?: string; rows: "node" | "edge"; filter?: RecordFilter;
+  through?: { edgeTypeIds: string[]; nodeTypeIds: string[] } };
 /** A page per parent: at most `first + 1` rows for each of `parentIds`. */
 export type RelationPageQuery = RelationFilter & Page;
 export type RelationRow = { parentId: string; edge: EdgeRow; node: GraphRow };
@@ -148,21 +154,28 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
     return nodes.filter(row => visible(row, query.archived, false) && (!types || types.has(row.typeId)) && (!ids || ids.has(row.id))
       && (!slugs || slugs.has(String(row.slug))) && (!needle || textMatch("node", row, needle)) && matchesSourceAndProperties(row, sources, query.properties));
   };
-  const collection = async ({ at, ...query }: NodeFilter) => (await read(query)).filter(row => validAt(row, at));
+  const collection = async ({ at, filter, ...query }: NodeFilter) => (await read(query)).filter(row => validAt(row, at) && matchesFilter(row, filter, nodeFilterFields));
   /** Each parent's rows in edge ID order; `rows: "node"` keeps each far node once. */
-  const relations = ({ parentIds, edgeTypeIds, direction, targetTypeIds, archived, at, rows }: RelationFilter) => {
+  const relations = ({ parentIds, edgeTypeIds, direction, targetTypeIds, archived, at, rows, filter, through }: RelationFilter) => {
+    /** One hop from a node: its edges of `types` with the node of `targets` at the other end, both visible and valid. */
+    const hop = (nodeId: string, types: Set<string>, way: RelationDirection, targets: Set<string>) => [
+      ...(way === "incoming" ? [] : outgoing.get(nodeId) ?? []).map(edge => ({ edge, otherId: edge.toId })),
+      ...(way === "outgoing" ? [] : incoming.get(nodeId) ?? []).map(edge => ({ edge, otherId: edge.fromId })),
+    ].flatMap(({ edge, otherId }) => {
+      if (!types.has(edge.typeId) || !visible(edge, archived) || !validAt(edge, at)) return [];
+      const node = byId.get(otherId);
+      // ONLY asks for archived edges; their endpoints may be active.
+      return !node || !targets.has(node.typeId) || !(archived === "only" || visible(node, archived)) || !validAt(node, at) ? [] : [{ edge, node }];
+    });
     const types = new Set(edgeTypeIds), targets = new Set(targetTypeIds);
+    const first = through && { types: new Set(through.edgeTypeIds), targets: new Set(through.nodeTypeIds) };
     return [...new Set(parentIds)].map(parentId => {
       const seen = new Set<string>();
-      const found = [
-        ...(direction === "incoming" ? [] : outgoing.get(parentId) ?? []).map(edge => ({ edge, otherId: edge.toId })),
-        ...(direction === "outgoing" ? [] : incoming.get(parentId) ?? []).map(edge => ({ edge, otherId: edge.fromId })),
-      ].sort((a, b) => compareIds(a.edge.id, b.edge.id));
-      return found.flatMap(({ edge, otherId }): RelationRow[] => {
-        if (!types.has(edge.typeId) || !visible(edge, archived) || !validAt(edge, at)) return [];
-        const node = byId.get(otherId);
-        // ONLY asks for archived edges; their endpoints may be active.
-        if (!node || !targets.has(node.typeId) || !(archived === "only" || visible(node, archived)) || !validAt(node, at)) return [];
+      const starts = first ? [...new Set(hop(parentId, first.types, "both", first.targets).map(({ node }) => node.id))] : [parentId];
+      const found = starts.flatMap(start => hop(start, types, direction, targets)).filter(({ node }) => !first || node.id !== parentId)
+        .sort((a, b) => compareIds(a.edge.id, b.edge.id));
+      return found.flatMap(({ edge, node }): RelationRow[] => {
+        if (!(rows === "node" ? matchesFilter(node, filter, nodeFilterFields) : matchesFilter(edge, filter, edgeFilterFields))) return [];
         const key = rows === "node" ? node.id : edge.id;
         return seen.has(key) || !seen.add(key) ? [] : [{ parentId, edge, node }];
       });

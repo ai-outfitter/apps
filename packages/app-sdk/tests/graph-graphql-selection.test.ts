@@ -55,7 +55,7 @@ test("an incoming relationship, typed endpoint fields and generic edges read the
   assert.deepEqual(titles(direct), ["Acme", "Atlas", "Atlas app", "Beacon", "Beacon kit", "Pricing", "Slow onboarding", "Small teams"]);
   assert.match(compiled.query, /\.\.\. on Project \{\s+producesEdges\(first: 500\) \{\s+nodes \{\s+\.\.\.Link\s+to \{/, "edge types with endpoints use their typed fields");
   assert.match(compiled.query, /\.\.\. on Problem \{\s+experiencesIncomingEdges\(first: 500\) \{\s+nodes \{\s+\.\.\.Link\s+from/);
-  assert.match(compiled.query, /partOfIncomingLinks: edges\(types: \["part_of"\], direction: INCOMING\)/, "others read the edges connection");
+  assert.match(compiled.query, /partOfIncomingLinks: edges\(types: \["part_of"\], direction: INCOMING, first: 500\) \{\s+nodes \{\s+\.\.\.Link\s+from \{[^}]+\}\s+\}\s+pageInfo \{\s+hasNextPage/, "others read the edges connection, one bounded page per node");
   assert.match(compiled.query, /organizations\(ids: \$rootIds, first: 100\)/);
   assert.equal(print(parse(compiled.query)), compiled.query, "the text is graphql-js print output");
   assert.match(compiled.query, /fragment Record on Node \{\s+id\s+typeId\s+title\s+slug\s+\}/, "every record carries its slug");
@@ -91,7 +91,7 @@ test("budgets and the depth limit report omitted records as selectGraph does", a
 
 test("a hand-written document selects what it returns, read through a derived definition", async () => {
   const query = `query($rootIds: [ID!]!) { organizations(ids: $rootIds) { nodes { id typeId title
-    edges(types: ["part_of"], direction: INCOMING) { id typeId fromId toId from { id typeId title ... on Project { producesEdges { nodes { id typeId fromId toId to { id typeId title } } } } } } } } }`;
+    edges(types: ["part_of"], direction: INCOMING) { nodes { id typeId fromId toId from { id typeId title ... on Project { producesEdges { nodes { id typeId fromId toId to { id typeId title } } } } } } } } } }`;
   const result = await executeGraphQuery({ types, source: memorySource(snapshot as never), query, variables: { rootIds: [uuid(101)] }, maxBytes: 1 << 20 });
   const derived = definitionFromResult(result.data, types, [uuid(101)], { maxNodes: 50 });
   assert.deepEqual(derived.relationships, [{ type: "part_of", direction: "incoming" }, { type: "produces", direction: "outgoing" }]);

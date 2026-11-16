@@ -10,6 +10,7 @@ import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, t
 import {
   type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, sourceKey,
 } from "./graph-graphql-source";
+import { checkFilter, edgeFilterFields, nodeFilterFields, type RecordFilter, recordFilterInput } from "./graph-filter";
 import { cursorText, keysetCursor, type OrderName, orderNames, orders, parseKeyset } from "./graph-order";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
@@ -30,19 +31,27 @@ export const savedSelection = graphSelectionDefinition.omit({ id: true, version:
 export type SavedSelection = z.infer<typeof savedSelection>;
 
 /** What an ordered page (orderBy or relation) cannot be combined with, with the message for each one misused. */
-function pageRules(query: { entity: string; orderBy?: unknown; relation?: unknown; at?: unknown; count?: unknown; limit: number } & Record<string, unknown>) {
+function pageRules(query: { entity: string; orderBy?: unknown; relation?: { through?: unknown }; at?: unknown; count?: unknown; filter?: unknown; limit: number } & Record<string, unknown>) {
   const paged = query.orderBy !== undefined || query.relation !== undefined;
   if (!paged) return [
     ...(query.at !== undefined ? [["at", "Only ordered pages (orderBy or relation) take at"]] : []),
     ...(query.count !== undefined ? [["count", "Only ordered pages (orderBy or relation) take count"]] : []),
+    ...(query.filter !== undefined ? [["filter", "Only ordered pages (orderBy or relation) take filter"]] : []),
     ...(query.limit === 0 ? [["limit", "limit 0 is only for ordered pages (orderBy or relation)"]] : []),
   ] as [string, string][];
-  const entity = query.relation ? query.entity === "node" || query.entity === "edge" : query.entity === "node";
-  const refused = ["expand", "aggregate", "touching", "sources", "properties", ...(query.relation ? ["types", "ids", "slugs", "text"] : [])];
+  const entity = query.relation ? query.entity === "node" || (query.entity === "edge" && !query.relation.through) : query.entity === "node";
+  const refused = ["expand", "aggregate", "touching", "sources", "properties", "slugs", ...(query.relation ? ["types", "ids", "text"] : [])];
   return [
-    ...(entity ? [] : [["entity", query.relation ? "A relation page lists entity \"node\" or \"edge\"" : "An ordered collection page lists entity \"node\""]]),
-    ...refused.filter(field => query[field] !== undefined).map(field => [field, `Ordered pages take no ${field}`]),
+    ...(entity ? [] : [["entity", query.relation ? "A relation page lists entity \"node\" or \"edge\" (through: \"node\" only)" : "An ordered collection page lists entity \"node\""]]),
+    ...refused.filter(field => query[field] !== undefined).map(field => [field, field === "slugs" ? "Ordered pages take no slugs; use filter: { slug: { in: [...] } }" : `Ordered pages take no ${field}`]),
+    ...filterRules(query),
   ] as [string, string][];
+}
+/** An ordered page's filter checked against the records it lists: nodes, or a relation's edges. */
+function filterRules(query: { entity: string; filter?: unknown }) {
+  if (query.filter === undefined) return [];
+  try { checkFilter(query.filter, query.entity === "edge" ? edgeFilterFields : nodeFilterFields); return []; }
+  catch (error) { return [["filter", error instanceof Error ? error.message : "Invalid filter"]] as [string, string][]; }
 }
 
 /** The filters only a node query may carry, with the message for each one misused. */
@@ -88,12 +97,19 @@ export const graphQuery = z.strictObject({
     .describe("compact (default): IDs, type, title, summary, revision, validity, updatedAt. full: stored records. A list picks attributes; IDs, type IDs, endpoints and revisions are always kept, and retired records carry retired: true."),
   aggregate: z.literal("type").optional().describe("Return counts grouped by entity kind and type instead of records."),
   orderBy: z.enum(orderNames).optional().describe("Read one ordered page, as GraphQL connections do: a record column (ID, CREATED_AT, UPDATED_AT, TITLE) ascending or descending, ties by ID. "
-    + "A node query lists that collection page (types, ids, slugs, text, archived, at); with relation, a page per parent. Its cursors continue only this order."),
+    + "A node query lists that collection page (types, ids, text, filter, archived, at); with relation, a page per parent. Its cursors continue only this order."),
+  filter: recordFilterInput.optional().describe("Ordered pages only: which records the page lists, as GraphQL connections filter them: { field: { operator: value }, and, or, not } with the operators "
+    + "equalTo, notEqualTo, in, notIn, isNull, lessThan, lessThanOrEqualTo, greaterThan, greaterThanOrEqualTo and, on text, includes, includesInsensitive, startsWith, startsWithInsensitive, "
+    + "over id, slug, title, createdAt and updatedAt (edges: no slug). At most 20 conditions; it runs in the Wiki's database. A relation page filters the records it lists (far nodes, or edges)."),
   relation: z.strictObject({
     parentIds: z.array(z.string().min(1).max(200)).min(1).max(500).describe("The nodes each page starts from."),
-    edgeTypes: z.array(typeRef).min(1).max(32).describe("Edge type names or IDs of the relationship."),
+    edgeTypes: z.array(typeRef).min(1).max(500).describe("Edge type names or IDs of the relationship."),
     direction: z.enum(["outgoing", "incoming", "both"]).default("both"),
     targetTypes: z.array(typeRef).min(1).max(32).describe("Node type names or IDs at the far end."),
+    through: z.strictObject({
+      edgeTypes: z.array(typeRef).min(1).max(32).describe("Edge type names or IDs of the first hop, followed in either direction."),
+      nodeTypes: z.array(typeRef).min(1).max(32).describe("Node type names or IDs the first hop must reach."),
+    }).optional().describe("Two hops (a projection through a relator): each parent first reaches these nodes, and from them the far nodes over edgeTypes. Entity \"node\" only; a parent never lists itself."),
   }).optional().describe("A page per parent of an ordered page (orderBy defaults to ID_ASC): entity \"node\" lists each far node once (through its lowest edge ID) ordered by the node, "
     + "entity \"edge\" each edge ordered by the edge; edge and far node both visible under archived (exclude also hides retired records) and valid at `at`. "
     + "Each parent gets up to `limit` rows with its own cursor and hasNextPage; the query's cursor starts every parent's page after it."),
@@ -445,11 +461,13 @@ function pageFilters(index: Index, query: GraphQuery, missingTypes: Set<string>)
     const relation: Omit<RelationFilter, "parentIds"> & { parentIds: string[] } = {
       ...shared, parentIds: [...new Set(query.relation.parentIds)], edgeTypeIds: resolve(query.relation.edgeTypes, "edge"),
       direction: query.relation.direction, targetTypeIds: resolve(query.relation.targetTypes, "node"), rows: query.entity === "edge" ? "edge" : "node",
+      ...(query.filter ? { filter: query.filter as RecordFilter } : {}),
+      ...(query.relation.through ? { through: { edgeTypeIds: resolve(query.relation.through.edgeTypes, "edge"), nodeTypeIds: resolve(query.relation.through.nodeTypes, "node") } } : {}),
     };
     return { relation } as const;
   }
   const typeIds = query.types ? resolve(query.types, "node") : index.rows.type.filter(type => type.category === "node").map(type => type.id);
-  const collection: NodeFilter = { ...shared, typeIds, ...(query.ids ? { ids: query.ids } : {}), ...(query.slugs ? { slugs: query.slugs } : {}), ...(query.text ? { text: query.text } : {}) };
+  const collection: NodeFilter = { ...shared, typeIds, ...(query.ids ? { ids: query.ids } : {}), ...(query.text ? { text: query.text } : {}), ...(query.filter ? { filter: query.filter as RecordFilter } : {}) };
   return { collection } as const;
 }
 

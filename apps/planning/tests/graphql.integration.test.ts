@@ -53,7 +53,7 @@ const activeProjects = graphql(`
     projects(first: 2, active: $active, after: $after) {
       nodes { id name githubRepository openIssues updatedAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
   }
 `);
@@ -89,14 +89,14 @@ test("members read active projects with open issue counts over graph.graphql, pa
     const active = await read({ active: true });
     assert.deepEqual(active.nodes.map(node => [node.id, node.githubRepository, node.openIssues]), [["a", "acme/web", 2], ["b", null, 1]]);
     assert.equal(active.nodes[0].updatedAt, new Date(3).toISOString());
-    assert.deepEqual([active.pageInfo.hasNextPage, active.aggregate.count], [false, 2]);
+    assert.deepEqual([active.pageInfo.hasNextPage, active.totalCount], [false, 2]);
     // Without `active`, every project of this installation, two at a time; never another installation's.
     const all = await read({});
     const rest = await read({ after: all.pageInfo.endCursor });
     assert.deepEqual([...all.nodes, ...rest.nodes].map(node => [node.id, node.openIssues]), [["a", 2], ["b", 1], ["c", 0], ["d", 0]]);
-    assert.deepEqual([all.aggregate.count, rest.pageInfo.hasNextPage], [4, false]);
+    assert.deepEqual([all.totalCount, rest.pageInfo.hasNextPage], [4, false]);
     assert.deepEqual((await read({ active: false })).nodes.map(node => node.id), ["c", "d"]);
-    const filtered = await call({ query: `{ issues(status: ["todo"]) { nodes { id projectId } } }` }, member);
+    const filtered = await call({ query: `{ issues(filter: { status: { in: ["todo"] } }) { nodes { id projectId } } }` }, member);
     assert.deepEqual(((await filtered.json()) as { data: unknown }).data, { issues: { nodes: [{ id: "i0", projectId: "a" }, { id: "i3", projectId: "b" }] } });
     // Only platform dispatch, with a member's identity, reaches it.
     assert.equal((await call({ query: "{ __typename }" }, undefined)).status, 401);
@@ -111,7 +111,7 @@ test("a read larger than maxBytes cuts the issue list and says where", async () 
     const issue = await seed((sql, values) => app.database.prepare(sql).bind(...values).run(), app.installationId);
     for (let n = 0; n < 40; n++) await issue("d", "todo", app.installationId, "t".repeat(400));
     const response = await app.call(`${actionPath}/call`, member, {
-      method: "POST", body: { action: "graph.graphql", input: { query: `{ issues(projectId: ["d"]) { nodes { id title } pageInfo { hasNextPage } } }`, maxBytes: 8192 }, access: "read" },
+      method: "POST", body: { action: "graph.graphql", input: { query: `{ issues(filter: { projectId: { in: ["d"] } }) { nodes { id title } pageInfo { hasNextPage } } }`, maxBytes: 8192 }, access: "read" },
     });
     const result = graphGraphqlResult.parse(await response.json());
     const nodes = (result.data as { issues: { nodes: { title: string }[] } }).issues.nodes;

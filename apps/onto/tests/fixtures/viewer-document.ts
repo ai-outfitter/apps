@@ -12,8 +12,8 @@ import { isRetired } from "@ai-outfitter/app-sdk/knowledge-graph";
 const goals = `goals(first: 100) {
     nodes {
       id slug title body properties
-      pursuedBy: edges(types: ["pursues"], direction: INCOMING, at: $at) { from { title } }
-      metrics: edges(types: ["measured_by"], direction: OUTGOING, at: $at) { properties to { title } }
+      pursuedBy: edges(types: ["pursues"], direction: INCOMING, at: $at, first: 10) { nodes { from { title } } }
+      metrics: edges(types: ["measured_by"], direction: OUTGOING, at: $at, first: 10) { nodes { properties to { title } } }
     }
     pageInfo { hasNextPage }
   }`;
@@ -29,8 +29,8 @@ export const viewerWikiDocument = `query ViewerWiki($holder: ID!, $at: DateTime!
   me: node(id: $holder) {
     id
     ...Owned
-    held: edges(types: ["assigned_to"], direction: INCOMING, at: $at) {
-      from { ... on RoleAssignment { validFrom role { id slug title ...Owned } } }
+    held: edges(types: ["assigned_to"], direction: INCOMING, at: $at, first: 500) {
+      nodes { from { ... on RoleAssignment { validFrom role { id slug title ...Owned } } } }
     }
   }
 }
@@ -50,8 +50,8 @@ type Commitment = Slugged & { properties: Properties; control: Titled; subject: 
 type Owner = { id: string; owns?: { nodes: Commitment[] } };
 /** What viewerWikiDocument answers. */
 export type ViewerWikiData = {
-  goals: { nodes: (Slugged & { title: string; body: string | null; properties: Properties; pursuedBy: { from: Titled }[]; metrics: { properties: Properties; to: Titled }[] })[]; pageInfo: { hasNextPage: boolean } };
-  me?: (Owner & { held: { from: { validFrom?: string | null; role?: (Owner & Slugged & { title: string }) | null } | null }[] }) | null;
+  goals: { nodes: (Slugged & { title: string; body: string | null; properties: Properties; pursuedBy: { nodes: { from: Titled }[] }; metrics: { nodes: { properties: Properties; to: Titled }[] } })[]; pageInfo: { hasNextPage: boolean } };
+  me?: (Owner & { held: { nodes: { from: { validFrom?: string | null; role?: (Owner & Slugged & { title: string }) | null } | null }[] } }) | null;
 };
 
 /** `slug` is the record's address in its Wiki (what to show people and look it up by); `id` is for writes. */
@@ -60,20 +60,19 @@ export type ViewerGoal = { id: string; slug: string | null; title: string; pursu
 export type ViewerCommitment = { id: string; slug: string | null; control: string | null; subject: string | null; state: string | null; openObligations: number };
 export type WikiView = { roles: ViewerRole[]; goals: ViewerGoal[]; commitments: ViewerCommitment[] };
 
-/** Nested lists per goal are capped so one goal never takes the whole budget. */
-const NESTED = 10;
+// Nested lists per goal are capped by the document (first: 10), in the Wiki's database, so one goal never takes the whole budget.
 const text = (value: unknown) => (typeof value === "string" ? value : null);
 /** An obligation is open until its state says otherwise (the seeds name no closed states yet). */
 const openState = (state: unknown) => state === undefined || state === null || state === "" || state === "open";
 
 /** The viewer's reading of one Wiki's answer to viewerWikiDocument. */
 export function wikiView(data: ViewerWikiData): WikiView {
-  const assignments = (data.me?.held ?? []).flatMap(edge => (edge.from?.role ? [{ role: edge.from.role, validFrom: edge.from.validFrom ?? null }] : []));
+  const assignments = (data.me?.held.nodes ?? []).flatMap(edge => (edge.from?.role ? [{ role: edge.from.role, validFrom: edge.from.validFrom ?? null }] : []));
   const roles = assignments.map(({ role, validFrom }) => ({ id: role.id, slug: role.slug ?? null, title: role.title || role.id, validFrom })).sort((a, b) => a.title.localeCompare(b.title));
   const goals = data.goals.nodes.filter(goal => !isRetired(goal)).map(goal => ({
     id: goal.id, slug: goal.slug ?? null, title: goal.title || goal.id,
-    pursuedBy: goal.pursuedBy.flatMap(edge => (edge.from ? [edge.from.title] : [])).slice(0, NESTED),
-    metrics: goal.metrics.flatMap(edge => (edge.to ? [{ title: edge.to.title, status: text(edge.properties?.status) }] : [])).slice(0, NESTED),
+    pursuedBy: goal.pursuedBy.nodes.flatMap(edge => (edge.from ? [edge.from.title] : [])),
+    metrics: goal.metrics.nodes.flatMap(edge => (edge.to ? [{ title: edge.to.title, status: text(edge.properties?.status) }] : [])),
   })).sort((a, b) => a.title.localeCompare(b.title));
   const owned = new Map<string, Commitment>();
   for (const owner of [data.me, ...assignments.map(row => row.role)]) for (const row of owner?.owns?.nodes ?? []) owned.set(row.id, row);

@@ -58,6 +58,8 @@ const issueFields = tableType(issues, {
   dates: ["createdAt", "updatedAt"],
   ids: ["projectId", "parentId"],
   filters: ["projectId", "status", "category"],
+  // planning_issues_project_order answers a project's category in position order.
+  orders: ["position"],
   // Every Planning read keeps to the caller's installation.
   scope: context => eq(issues.installationId, context.identity.installationId),
 });
@@ -120,7 +122,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
       const ids = idList(args.ids);
       const id = (row: { nodeId: string; edgeId?: string }) => row.edgeId ?? row.nodeId;
       const rows = (await repositories(context, project.id, project.githubRepository)).filter(row => !ids || ids.includes(id(row))).sort((a, b) => id(a).localeCompare(id(b)));
-      return { ...page(context, info, rows.filter(row => !start || id(row) > start), id, first, start), aggregate: { count: rows.length } };
+      return { ...page(context, info, rows.filter(row => !start || id(row) > start), id, first, start), totalCount: rows.length };
     } },
     goals: projectDocument("What the project must achieve"),
     userStories: projectDocument("Who it serves and what they need"),
@@ -281,10 +283,11 @@ const query = new GraphQLObjectType<unknown, Context>({
     },
     dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
       const {first,start}=pageStart(args),id=context.identity.installationId;
-      if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start);
+      // One record: this installation's report.
+      if(start && id<=start)return {...page(context,info,[] as {id:string}[],row=>row.id,first,start),totalCount:1};
       const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone});
       const row={id,name:"Daily report",ownerKind:context.identity.owner.kind,ownerId:context.identity.owner.id,planningInstallationId:id,organizationSlug:null,report};
-      return page(context,info,[row],row=>row.id,first,start);
+      return {...page(context,info,[row],row=>row.id,first,start),totalCount:1};
     }},
     priorityOrder: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>readOrder(context.db(),context.identity,z.enum(["projects","products"]).parse(args.kind))},
     personalPortfolio: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>personalPortfolio(context,z.enum(["organizations","projects"]).parse(args.kind))},
@@ -296,7 +299,7 @@ const query = new GraphQLObjectType<unknown, Context>({
     productPages: {type:nonNull(connectionType(productPageType)),args:{...pageArgs(),at:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{at?:string},context,info)=>{
       const {first,start}=pageStart(args);
       const row=await productsPage(context,args.at);
-      return page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start);
+      return {...page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start),totalCount:1};
     }},
 
     organizationGoals: {
@@ -308,7 +311,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const record = await readOrganizationGoals(context.host(), context.identity);
         const rows = record && (!ids || ids.includes(record.id)) ? [record] : [];
-        return { ...page(context, info, rows, (row) => row.id, first, start), aggregate: { count: rows.length } };
+        return { ...page(context, info, rows, (row) => row.id, first, start), totalCount: rows.length };
       },
     },
     projects: {
@@ -324,7 +327,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         return {
           ...page(context, info, rows, row => row.id, first, start),
           // Counted only when selected.
-          aggregate: { count: async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count },
+          totalCount: async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count,
         };
       },
     },
@@ -354,7 +357,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const service = new IntakeService(context);
         const rows = await service.page(first + 1, start, ids);
-        return { ...page(context, info, rows, row => row.id, first, start), aggregate: { count: () => service.count(ids) } };
+        return { ...page(context, info, rows, row => row.id, first, start), totalCount: () => service.count(ids) };
       },
     },
     intakeOptions: {

@@ -81,6 +81,7 @@ export function fitResponse(response: { data: unknown }, maxBytes: number, curso
     for (const pageInfo of Object.values(found.parent ?? {}).filter(isPageInfo)) {
       if ("hasNextPage" in pageInfo) pageInfo.hasNextPage = true;
       if ("endCursor" in pageInfo) pageInfo.endCursor = cursorAt(found.path.slice(0, -1), keep);
+      if ("startCursor" in pageInfo && !keep) pageInfo.startCursor = null;
     }
     size = bytes(response);
   }

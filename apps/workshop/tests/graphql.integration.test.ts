@@ -13,10 +13,10 @@ const member = { userId: "member", organizationId: "org", role: "member" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");
 const projectsQuery = graphql(`
   query Projects($createdBy: [ID!], $after: String) {
-    workshopProjects(first: 2, createdBy: $createdBy, after: $after) {
+    workshopProjects(first: 2, filter: { createdBy: { in: $createdBy } }, after: $after) {
       nodes { id name revision createdBy updatedAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
   }
 `);
@@ -38,7 +38,7 @@ test("members read projects over graph.graphql, paged and filtered, without the 
     const page = ((await first.json()) as { data: ResultOf<typeof projectsQuery> }).data.workshopProjects;
     assert.deepEqual(page.nodes.map((node) => [node.id, node.createdBy, node.revision]), [["p-0", "ada", 1], ["p-2", "ada", 3]]);
     assert.equal(page.nodes[0].updatedAt, updated);
-    assert.deepEqual([page.pageInfo.hasNextPage, page.aggregate.count], [true, 3]);
+    assert.deepEqual([page.pageInfo.hasNextPage, page.totalCount], [true, 3]);
     const next = ((await (await call(documentText(projectsQuery), { createdBy: ["ada"], after: page.pageInfo.endCursor })).json()) as { data: ResultOf<typeof projectsQuery> }).data.workshopProjects;
     assert.deepEqual([next.nodes.map((node) => node.id), next.pageInfo.hasNextPage], [["p-4"], false]);
     // The project document (models, CAD plans, evidence) is not in the schema.
@@ -64,7 +64,7 @@ test("a project's Wiki product revision is saved with it and served, filterable,
     await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "holder" } });
     const query = graphql(`
       query Linked($productRevisionId: [ID!]) {
-        workshopProjects(productRevisionId: $productRevisionId) {
+        workshopProjects(filter: { productRevisionId: { in: $productRevisionId } }) {
           nodes { id wikiInstallationId productRevisionId productRevisionTitle }
         }
       }

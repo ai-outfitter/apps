@@ -25,20 +25,21 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: ItemOrder = ID_ASC
+    filter: ItemFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    category: [String!]
-    status: [String!]
   ): ItemConnection!
   discoveryRecords(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: DiscoveryRecordOrder = ID_ASC
+    filter: DiscoveryRecordFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    kind: [String!]
   ): DiscoveryRecordConnection!
 
   """
@@ -73,9 +74,15 @@ input PlanningCandidatesInput {
 }
 
 type ItemConnection {
+  edges: [ItemConnectionEdge!]!
   nodes: [Item!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ItemConnectionEdge {
+  cursor: String!
+  node: Item!
 }
 
 type Item {
@@ -96,24 +103,76 @@ type Item {
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How Item records are ordered, ties by ID."""
+enum ItemOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
+}
+
+input ItemFilter {
+  category: StringFilter
+  status: StringFilter
+  and: [ItemFilter!]
+  or: [ItemFilter!]
+  not: ItemFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 type DiscoveryRecordConnection {
+  edges: [DiscoveryRecordConnectionEdge!]!
   nodes: [DiscoveryRecord!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type DiscoveryRecordConnectionEdge {
+  cursor: String!
+  node: DiscoveryRecord!
 }
 
 type DiscoveryRecord {
   id: ID!
   kind: String!
   createdAt: DateTime!
+}
+
+"""How DiscoveryRecord records are ordered, ties by ID."""
+enum DiscoveryRecordOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input DiscoveryRecordFilter {
+  kind: StringFilter
+  and: [DiscoveryRecordFilter!]
+  or: [DiscoveryRecordFilter!]
+  not: DiscoveryRecordFilter
 }
 
 """

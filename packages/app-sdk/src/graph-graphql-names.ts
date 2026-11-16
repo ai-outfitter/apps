@@ -47,8 +47,8 @@ export const endpointsOf = (type: TypeRow) => {
 export const slotsOf = (type: TypeRow): Slot[] => ontologyOf(type)?.stereotype === "relator" ? ontologyOf(type)?.participation?.slots ?? [] : [];
 
 /** Shared names the generator itself defines. */
-export const reservedTypeNames = ["Query", "Node", "Edge", "PageInfo", "Aggregate", "SearchConnection", "Archived", "Direction", "JSON", "DateTime", "String", "Int", "Float", "Boolean", "ID"];
-export const reservedRootFields = ["node", "search", "searchConnection", "sdl"];
+export const reservedTypeNames = ["Query", "Node", "Edge", "PageInfo", "SearchConnection", "Archived", "Direction", "JSON", "DateTime", "String", "Int", "Float", "Boolean", "ID"];
+export const reservedRootFields = ["node", "search", "sdl"];
 export const nodeBaseFields = ["id", "typeId", "revision", "title", "summary", "slug", "body", "archived", "updatedAt", "properties", "edges"];
 export const edgeBaseFields = ["id", "typeId", "revision", "title", "body", "fromId", "toId", "from", "to", "properties", "archived", "updatedAt", "validFrom", "validUntil"];
 
@@ -60,13 +60,18 @@ export type ReverseSlot = { field: string; relator: TypeRow; slots: Slot[] };
 export type NodeLayout = { type: TypeRow; name: string; connection: string; single: string; collection: string;
   /** The orderBy enum of this type's connections. */
   order: string;
+  /** The Relay edge wrapper of this type's connection (`{ cursor node }`), and its filter input. */
+  connectionEdge: string; filter: string;
   properties: { field: string; property: Property }[]; relationships: Relationship[]; slots: SlotField[]; reverse: ReverseSlot[] };
 export type EdgeLayout = { type: TypeRow; name: string; properties: { field: string; property: Property }[];
-  /** The connection of this type's edge objects (`…Edges` fields). */
-  connection: string };
-/** Names the generator shares across types: the connection and orderBy of fields that may reach
- * several node types, and the orderBy of edge connections. */
-export type SharedNames = { nodeConnection: string; nodeOrder: string; edgeOrder: string };
+  /** The connection of this type's edge objects (`…Edges` fields), and its Relay edge wrapper. */
+  connection: string; connectionEdge: string };
+/** Names the generator shares across types: the connection, orderBy and filter of fields that may reach
+ * several node types (NodeConnection) or any edge type (EdgeConnection, `Node.edges`), the Relay edge
+ * wrappers of those and of search, and the operator inputs filters are made of. */
+export type SharedNames = { nodeConnection: string; nodeOrder: string; edgeOrder: string;
+  nodeConnectionEdge: string; edgeConnection: string; edgeConnectionEdge: string; searchEdge: string;
+  nodeFilter: string; edgeFilter: string; idFilter: string; stringFilter: string; dateTimeFilter: string };
 /** Names a caller adds to the schema, kept away from generated names. */
 export type ReservedNames = { rootFieldNames?: string[]; typeNames?: string[]; recordFieldNames?: string[] };
 
@@ -93,11 +98,11 @@ function addType(layout: Layout, type: TypeRow, typeScope: Scope, root: Scope, r
       return [];
     });
   };
-  if (type.category === "edge") { layout.edges.set(type.id, { type, name, properties: props(edgeBaseFields), connection: "" }); return; }
+  if (type.category === "edge") { layout.edges.set(type.id, { type, name, properties: props(edgeBaseFields), connection: "", connectionEdge: "" }); return; }
   const connection = typeScope(`${name}Connection`, type);
   const collection = root(collectionName(type.name), type);
   const single = root(collection === fieldName(type.name) ? `${fieldName(type.name)}ById` : fieldName(type.name), type);
-  layout.nodes.set(type.id, { type, name, connection, order: "", single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]),
+  layout.nodes.set(type.id, { type, name, connection, order: "", connectionEdge: "", filter: "", single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]),
     relationships: [], slots: [], reverse: [] });
 }
 
@@ -154,7 +159,17 @@ export function schemaLayout(rows: TypeRow[], reserved: ReservedNames = {}) {
   for (const node of layout.nodes.values()) node.order = typeScope(`${node.name}Order`, node.type);
   for (const edge of layout.edges.values()) edge.connection = typeScope(`${edge.name}Connection`, edge.type);
   const own = (name: string) => typeScope(name, { id: name, name });
-  const shared: SharedNames = { nodeConnection: own("NodeConnection"), nodeOrder: own("NodeOrder"), edgeOrder: own("EdgeOrder") };
+  const first = { nodeConnection: own("NodeConnection"), nodeOrder: own("NodeOrder"), edgeOrder: own("EdgeOrder") };
+  // Named last, in this order, so none of them ever takes the name a type, order or connection already had:
+  // each connection's Relay edge wrapper (`<Connection>Edge`: `{ cursor node }`, apart from the graph's own
+  // Edge interface and edge types), each node type's filter, then the shared connection, wrappers and filters.
+  for (const node of layout.nodes.values()) node.connectionEdge = typeScope(`${node.connection}Edge`, node.type);
+  for (const edge of layout.edges.values()) edge.connectionEdge = typeScope(`${edge.connection}Edge`, edge.type);
+  for (const node of layout.nodes.values()) node.filter = typeScope(`${node.name}Filter`, node.type);
+  const shared: SharedNames = { ...first, nodeConnectionEdge: own(`${first.nodeConnection}Edge`), edgeConnection: own("EdgeConnection"), edgeConnectionEdge: "",
+    searchEdge: own("SearchConnectionEdge"), nodeFilter: own("NodeFilter"), edgeFilter: own("EdgeFilter"),
+    idFilter: own("IDFilter"), stringFilter: own("StringFilter"), dateTimeFilter: own("DateTimeFilter") };
+  shared.edgeConnectionEdge = own(`${shared.edgeConnection}Edge`);
   for (const node of layout.nodes.values())
     for (const slot of slotsOf(node.type)) node.slots.push({ field: scopeOf(layout, node.type.id)(slot.name, node.type), slot, relator: node.type });
   for (const { type } of layout.edges.values()) addRelationships(layout, type);

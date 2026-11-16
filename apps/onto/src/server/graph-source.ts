@@ -1,12 +1,15 @@
 // The GraphSource generated GraphQL resolvers read from: indexed queries on the
 // Wiki tables, the same rows (and the same filters) memorySource gives over a
 // whole-graph read. Rows go through nodeView/edgeView, so private fields never leave.
-// Collections and relationships read only their page: WHERE, ORDER BY and LIMIT
-// first + 1, and a relationship page for every parent of a level in one statement.
+// Collections and relationships read only their page: WHERE (the connection's filter
+// included), ORDER BY and LIMIT first + 1, and a relationship page for every parent of
+// a level in one statement, whether one hop, any edge type (Node.edges) or a projection's two.
 import {
-  compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type NodeFilter, type Order, type Page, type PropertyFilter,
+  compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type NodeFilter, type Page, type PropertyFilter,
   type RelationFilter, type RelationPageQuery, type RelationRow, sourceKey, type SourceRef, type TypeRow,
 } from "@ai-outfitter/app-sdk/graph-graphql";
+import { edgeFilterFields, type FilterFields, nodeFilterFields } from "@ai-outfitter/app-sdk/graph-filter";
+import { type FilterColumns, filterSql } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import { textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { and, type AnyColumn, type Column, eq, getTableColumns, inArray, type SQL, sql } from "drizzle-orm";
 import { appRecordKey, platformHost } from "@ai-outfitter/app-sdk/graph-contracts";
@@ -17,7 +20,8 @@ import { graphEdges, graphNodes, graphTypes } from "./schema";
 /** D1 binds at most 100 parameters per statement: an ID chunk (75), a type filter of
  * up to 20 IDs and the archived flag stay under it. A longer type filter is applied
  * after reading instead. Pages bind each ID list as one JSON array, so a statement
- * takes up to `parentChunk` parents. */
+ * takes up to `parentChunk` parents: a relationship page binds at most 6 lists (20 through
+ * a relator), a filter's conditions (at most 20), the keyset (2) and the limit. */
 const chunkSize = 75, typeLimit = 20, parentChunk = 500;
 /** D1 answers at most 1,000 queries per Worker invocation; a read stops before that
  * with an error that says why. */
@@ -36,8 +40,11 @@ const sourceIs = (sources: SourceRef[] | undefined) => sources === undefined ? u
 const propertiesAre = (properties: PropertyFilter | undefined) => properties === undefined ? undefined
   : and(...Object.entries(properties).slice(0, 8).map(([key, value]) => sql`json_extract(${graphNodes.properties}, ${`$.${key.replaceAll(/[^A-Za-z0-9_]/g, "_")}`}) = ${value}`));
 
-// Page statements name the tables `n` (graph_nodes) and `e` (graph_edges).
-type Alias = "n" | "e";
+// Page statements name graph_nodes `n` (a projection's relator `r`) and graph_edges `e` (a projection's first hop `e1`).
+type NodeAlias = "n" | "r";
+type EdgeAlias = "e" | "e1";
+type Alias = NodeAlias | EdgeAlias;
+const isNode = (alias: Alias): alias is NodeAlias => alias === "n" || alias === "r";
 const col = (alias: Alias, name: string) => sql.raw(`${alias}."${name}"`);
 /** Any number of IDs as one bound parameter. */
 const within = (values: string[]) => sql`(SELECT value FROM json_each(${JSON.stringify(values)}))`;
@@ -48,7 +55,7 @@ const prop = (alias: Alias, path: `$.${string}`) => sql`json_extract(${col(alias
 /** The text predicate of collections and search: a case-insensitive literal substring (instr, so `%` and `_`
  * mean themselves) of a node's ID, title, slug, summary, body, website or stored properties, as graph.query
  * matches. lower() folds ASCII only. Kept to this one function so an index can answer it instead. */
-export function nodeTextMatches(text: string, alias: Alias = "n") {
+export function nodeTextMatches(text: string, alias: NodeAlias = "n") {
   return sql`(${joined(["id", "title", "slug", "summary", "body", "website", "properties"]
     .map(name => sql`instr(lower(${col(alias, name)}), lower(${text})) > 0`), " OR ")})`;
 }
@@ -56,16 +63,25 @@ export function nodeTextMatches(text: string, alias: Alias = "n") {
 const notRetired = (alias: Alias) => sql`(${prop(alias, "$.status")} IS NOT 'retired'
   AND (CASE WHEN json_valid(${col(alias, "body")}) THEN json_extract(${col(alias, "body")}, '$.status') END) IS NOT 'retired')`;
 /** Validity columns win, then the conventional property names (validFrom/validUntil in graph-graphql). */
-const validity = {
-  n: { from: sql`COALESCE(json_extract(n."validity", '$.from'), ${prop("n", "$.valid_from")}, ${prop("n", "$.validFrom")})`,
-    until: sql`COALESCE(json_extract(n."validity", '$.to'), ${prop("n", "$.valid_until")}, ${prop("n", "$.validUntil")}, ${prop("n", "$.valid_to")})` },
-  e: { from: sql`COALESCE(e."validFrom", ${prop("e", "$.valid_from")}, ${prop("e", "$.validFrom")})`,
-    until: sql`COALESCE(e."validTo", ${prop("e", "$.valid_until")}, ${prop("e", "$.validUntil")}, ${prop("e", "$.valid_to")})` },
-};
+const validity = (alias: Alias) => isNode(alias)
+  ? { from: sql`COALESCE(json_extract(${col(alias, "validity")}, '$.from'), ${prop(alias, "$.valid_from")}, ${prop(alias, "$.validFrom")})`,
+    until: sql`COALESCE(json_extract(${col(alias, "validity")}, '$.to'), ${prop(alias, "$.valid_until")}, ${prop(alias, "$.validUntil")}, ${prop(alias, "$.valid_to")})` }
+  : { from: sql`COALESCE(${col(alias, "validFrom")}, ${prop(alias, "$.valid_from")}, ${prop(alias, "$.validFrom")})`,
+    until: sql`COALESCE(${col(alias, "validTo")}, ${prop(alias, "$.valid_until")}, ${prop(alias, "$.validUntil")}, ${prop(alias, "$.valid_to")})` };
+/** `at` as a SQL literal: its instant in canonical ISO-8601, which holds only digits and `-:.TZ`, so it is inlined
+ * and a statement spends no parameters on it however many records it tests. */
+function instant(at: string) {
+  const time = Date.parse(at);
+  const text = Number.isNaN(time) ? "" : new Date(time).toISOString();
+  if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(text)) throw new Response("at is an ISO-8601 date or date-time", { status: 400 });
+  return sql.raw(`'${text}'`);
+}
 /** Valid at `at`: from inclusive, until exclusive; an unreadable bound is never valid, as Date.parse's NaN. */
-const validAt = (alias: Alias, at: string | undefined) => at === undefined ? undefined
-  : sql`((${validity[alias].from}) IS NULL OR julianday(${validity[alias].from}) <= julianday(${at}))
-    AND ((${validity[alias].until}) IS NULL OR julianday(${at}) < julianday(${validity[alias].until}))`;
+const validAt = (alias: Alias, at: string | undefined) => {
+  if (at === undefined) return undefined;
+  const { from, until } = validity(alias), when = instant(at);
+  return sql`((${from}) IS NULL OR julianday(${from}) <= julianday(${when})) AND ((${until}) IS NULL OR julianday(${when}) < julianday(${until}))`;
+};
 /** graph.query's archived filter; `traversal` also hides retired records under EXCLUDE. */
 const shown = (alias: Alias, archived: string | undefined, traversal: boolean) => archived === "include" ? undefined
   : archived === "only" ? sql`${col(alias, "archived")} = 1`
@@ -81,7 +97,6 @@ const ordering = (value: SQL, id: SQL, { order, after }: Page) => {
   if (order.field === "id") return { by: sql`${id} ${direction}`, after: after ? sql`${id} ${beyond} ${after.id}` : undefined };
   return { by: sql`${value} ${direction}, ${id} ${direction}`, after: after ? sql`(${value}, ${id}) ${beyond} (${after.value}, ${after.id})` : undefined };
 };
-const orderColumn = (alias: Alias, order: Order) => col(alias, order.field);
 
 const nodeColumns = Object.entries(getTableColumns(graphNodes)) as [string, Column][];
 const edgeColumns = Object.entries(getTableColumns(graphEdges)) as [string, Column][];
@@ -96,28 +111,61 @@ function mapped<T>(raw: Record<string, unknown>, alias: Alias, columns: [string,
 const nodeRow = (raw: Record<string, unknown>) => nodeView(mapped(raw, "n", nodeColumns)) as unknown as GraphRow;
 const edgeRow = (raw: Record<string, unknown>) => edgeView(mapped(raw, "e", edgeColumns)) as unknown as EdgeRow;
 
+/** A connection filter's fields as columns: `name(field)` is the SQL that holds the field. Each condition binds
+ * one parameter and a checked filter has at most 20, so a page statement stays far below D1's 100. */
+const filterColumns = (fields: FilterFields, name: (field: string) => SQL): FilterColumns =>
+  Object.fromEntries(Object.entries(fields).map(([field, kind]) => [field, { column: name(field), kind }]));
+const nodeFilter = filterColumns(nodeFilterFields, field => col("n", field));
+/** The listed record's filter and order fields, carried out of a relationship's hits as `f_<field>`. */
+const carried = (fields: FilterFields) => filterColumns(fields, field => sql.raw(`"f_${field}"`));
+const carriedColumns = { node: carried(nodeFilterFields), edge: carried(edgeFilterFields) };
+/** Every field a page may filter or order by, selected from the listed record's alias. */
+const carry = (alias: "n" | "e", fields: FilterFields) => sql.raw(Object.keys(fields).map(field => `${alias}."${field}" AS "f_${field}"`).join(", "));
+
 /** A collection's WHERE over `n`, or null when it can match nothing. */
-function collectionWhere({ typeIds, ids, slugs, text, archived, at }: NodeFilter) {
-  if (!typeIds.length || ids?.length === 0 || slugs?.length === 0) return null;
-  // One type compares with =, so its (typeId, order column) index also gives the order.
-  return all(typeIds.length === 1 ? sql`n."typeId" = ${typeIds[0]}` : sql`n."typeId" IN ${within(typeIds)}`, ids && sql`n."id" IN ${within(ids)}`, slugs && sql`n."slug" IN ${within(slugs)}`,
-    text ? nodeTextMatches(text) : undefined, shown("n", archived, false), validAt("n", at));
+function collectionWhere({ typeIds, ids, text, archived, at, filter }: NodeFilter) {
+  if (!typeIds.length || ids?.length === 0) return null;
+  // One type compares with =, so its (typeId, order column) index also gives the order and answers the filter's fields.
+  return all(typeIds.length === 1 ? sql`n."typeId" = ${typeIds[0]}` : sql`n."typeId" IN ${within(typeIds)}`, ids && sql`n."id" IN ${within(ids)}`,
+    filterSql(filter, nodeFilter), text ? nodeTextMatches(text) : undefined, shown("n", archived, false), validAt("n", at));
 }
 
-/** Each parent's edges of the relationship with the node at the other end, both visible: one SELECT per direction. */
-function relationHits({ parentIds, edgeTypeIds, direction, targetTypeIds, archived, at, rows }: RelationFilter, order: Order) {
-  const value = rows === "node" ? orderColumn("n", order) : orderColumn("e", order), id = rows === "node" ? col("n", "id") : col("e", "id");
-  const arms = (direction === "both" ? ["outgoing", "incoming"] as const : [direction]).map(way => {
-    const [parent, other] = way === "outgoing" ? ["fromId", "toId"] : ["toId", "fromId"];
-    // CROSS JOIN fixes the loop order: the parents' edges (graph_edges_out/in), then each far node by ID;
-    // the unary + keeps the target type test off the type indexes, so no statement scans a type.
-    return sql`SELECT ${col("e", parent)} AS parent, e."id" AS edgeKey, n."id" AS nodeKey, ${value} AS orderValue, ${id} AS orderId
-      FROM graph_edges e CROSS JOIN graph_nodes n ON n."id" = ${col("e", other)}
-      WHERE ${all(sql`${col("e", parent)} IN ${within(parentIds)}`, sql`e."typeId" IN ${within(edgeTypeIds)}`, sql`+n."typeId" IN ${within(targetTypeIds)}`,
-        shown("e", archived, true), archived === "only" ? undefined : shown("n", archived, true), validAt("e", at), validAt("n", at))}`;
-  });
-  return joined(arms, " UNION ALL ");
+type Way = "outgoing" | "incoming";
+const ways = (direction: RelationFilter["direction"]): Way[] => (direction === "both" ? ["outgoing", "incoming"] : [direction]);
+/** The edge columns at the near and far end of an edge followed `way`. */
+const ends = (way: Way) => (way === "outgoing" ? { near: "fromId", far: "toId" } : { near: "toId", far: "fromId" });
+
+/** Each parent's edges of the relationship with the node at the other end, both visible: one SELECT per direction
+ * (per pair of directions through a relator). A row carries the listed record's filter and order fields. */
+function relationHits({ parentIds, edgeTypeIds, direction, targetTypeIds, archived, at, rows, through }: RelationFilter) {
+  const fields = rows === "node" ? carry("n", nodeFilterFields) : carry("e", edgeFilterFields);
+  // ONLY asks for archived edges; their endpoints may be active.
+  const node = (alias: NodeAlias) => (archived === "only" ? undefined : shown(alias, archived, true));
+  const far = (way: Way) => {
+    const { near, far: other } = ends(way);
+    return { near, join: sql`CROSS JOIN graph_nodes n ON n."id" = ${col("e", other)}`,
+      where: all(sql`e."typeId" IN ${within(edgeTypeIds)}`, sql`+n."typeId" IN ${within(targetTypeIds)}`, shown("e", archived, true), node("n"), validAt("e", at), validAt("n", at)) };
+  };
+  // CROSS JOIN fixes the loop order: the parents' edges (graph_edges_out/in), then each far node by ID;
+  // the unary + keeps the type tests off the type indexes, so no statement scans a type.
+  if (!through) return joined(ways(direction).map(way => {
+    const hop = far(way);
+    return sql`SELECT ${col("e", hop.near)} AS parent, e."id" AS edgeKey, n."id" AS nodeKey, ${fields}
+      FROM graph_edges e ${hop.join} WHERE ${all(sql`${col("e", hop.near)} IN ${within(parentIds)}`, hop.where)}`;
+  }), " UNION ALL ");
+  // Two hops: the parents' edges to their relators (by ID), each relator's edges (graph_edges_out/in), each far node by ID.
+  return joined(ways("both").flatMap(first => ways(direction).map(second => {
+    const start = ends(first), hop = far(second);
+    return sql`SELECT ${col("e1", start.near)} AS parent, e."id" AS edgeKey, n."id" AS nodeKey, ${fields}
+      FROM graph_edges e1 CROSS JOIN graph_nodes r ON r."id" = ${col("e1", start.far)}
+      CROSS JOIN graph_edges e ON ${col("e", hop.near)} = r."id" ${hop.join}
+      WHERE ${all(sql`${col("e1", start.near)} IN ${within(parentIds)}`, sql`e1."typeId" IN ${within(through.edgeTypeIds)}`, sql`+r."typeId" IN ${within(through.nodeTypeIds)}`,
+        shown("e1", archived, true), node("r"), validAt("e1", at), validAt("r", at), hop.where, sql`n."id" <> ${col("e1", start.near)}`)}`;
+  })), " UNION ALL ");
 }
+/** A relationship can reach nothing. */
+const noRelation = (query: RelationFilter) => !query.edgeTypeIds.length || !query.targetTypeIds.length || !query.parentIds.length
+  || (!!query.through && (!query.through.edgeTypeIds.length || !query.through.nodeTypeIds.length));
 
 export function databaseSource(db: Database): GraphSource {
   let statements = 0;
@@ -164,7 +212,7 @@ export function databaseSource(db: Database): GraphSource {
     async nodePage(query) {
       const filter = collectionWhere(query);
       if (!filter || query.first < 0) return [];
-      const { by, after } = ordering(orderColumn("n", query.order), col("n", "id"), query);
+      const { by, after } = ordering(col("n", query.order.field), col("n", "id"), query);
       spend(1);
       const rows = await rawRows(sql`SELECT ${selected("n", nodeColumns)} FROM graph_nodes n WHERE ${all(filter, after)} ORDER BY ${by} LIMIT ${query.first + 1}`);
       return rows.map(nodeRow);
@@ -177,12 +225,13 @@ export function databaseSource(db: Database): GraphSource {
       return Number(row?.count ?? 0);
     },
     async relationPage(query: RelationPageQuery) {
-      if (!query.edgeTypeIds.length || !query.targetTypeIds.length || !query.parentIds.length) return [];
+      if (noRelation(query) || query.first < 0) return [];
+      const key = sql.raw(query.rows === "node" ? "nodeKey" : "edgeKey");
       return chunked(query.parentIds, async parentIds => {
-        const { by, after } = ordering(sql.raw("orderValue"), sql.raw("orderId"), query);
-        // One row per far node (its lowest edge ID) or per edge, then each parent's first + 1 in page order.
-        const rows = await rawRows(sql`WITH hits AS (${relationHits({ ...query, parentIds: parentIds as string[] }, query.order)}),
-          once AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY parent, ${sql.raw(query.rows === "node" ? "nodeKey" : "edgeKey")} ORDER BY edgeKey) AS dup FROM hits),
+        const { by, after } = ordering(sql.raw(`"f_${query.order.field}"`), sql.raw(`"f_id"`), query);
+        // One row per far node (its lowest edge ID) or per edge that passes the filter, then each parent's first + 1 in page order.
+        const rows = await rawRows(sql`WITH hits AS (${relationHits({ ...query, parentIds: parentIds as string[] })}),
+          once AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY parent, ${key} ORDER BY edgeKey) AS dup FROM hits WHERE ${all(filterSql(query.filter, carriedColumns[query.rows]))}),
           ranked AS (SELECT parent, edgeKey, nodeKey, ROW_NUMBER() OVER (PARTITION BY parent ORDER BY ${by}) AS pos FROM once WHERE ${all(sql`dup = 1`, after)})
           SELECT ranked.parent AS parent, ${selected("e", edgeColumns)}, ${selected("n", nodeColumns)}
           FROM ranked JOIN graph_edges e ON e."id" = ranked.edgeKey JOIN graph_nodes n ON n."id" = ranked.nodeKey
@@ -191,9 +240,10 @@ export function databaseSource(db: Database): GraphSource {
       }, parentChunk);
     },
     async relationCount(query) {
-      if (!query.edgeTypeIds.length || !query.targetTypeIds.length || !query.parentIds.length) return new Map();
-      const rows = await chunked(query.parentIds, parentIds => rawRows(sql`WITH hits AS (${relationHits({ ...query, parentIds: parentIds as string[] }, { field: "id", descending: false })})
-        SELECT parent, COUNT(DISTINCT ${sql.raw(query.rows === "node" ? "nodeKey" : "edgeKey")}) AS count FROM hits GROUP BY parent`), parentChunk);
+      if (noRelation(query)) return new Map();
+      const key = sql.raw(query.rows === "node" ? "nodeKey" : "edgeKey");
+      const rows = await chunked(query.parentIds, parentIds => rawRows(sql`WITH hits AS (${relationHits({ ...query, parentIds: parentIds as string[] })})
+        SELECT parent, COUNT(DISTINCT ${key}) AS count FROM hits WHERE ${all(filterSql(query.filter, carriedColumns[query.rows]))} GROUP BY parent`), parentChunk);
       return new Map(rows.map(row => [String(row.parent), Number(row.count)]));
     },
   };

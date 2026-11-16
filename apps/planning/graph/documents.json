@@ -2290,8 +2290,8 @@
     "name": "Issues",
     "kind": "query",
     "story": "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
-    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    projectId: $projectId\n    status: $status\n    category: $category\n  ) {\n    nodes {\n      id\n      projectId\n      parentId\n      title\n      description\n      category\n      status\n      assigneeId\n      dueDate\n      position\n      revision\n      createdAt\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "f9969fdd40a7af3540809902cf8a259e500828605727c0e84d653c49750e16d3",
+    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!], $orderBy: IssueOrder = ID_ASC) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: {projectId: {in: $projectId}, status: {in: $status}, category: {in: $category}}\n  ) {\n    nodes {\n      id\n      projectId\n      parentId\n      title\n      description\n      category\n      status\n      assigneeId\n      dueDate\n      position\n      revision\n      createdAt\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "7317b20d9ac9fde190c17c944437e0b8ec9c80356098c5cf69d3736c22eb5a47",
     "variables": {
       "type": "object",
       "properties": {
@@ -2318,12 +2318,15 @@
         "category": {
           "type": "array",
           "description": "GraphQL [String!]"
+        },
+        "orderBy": {
+          "description": "GraphQL IssueOrder"
         }
       },
       "required": []
     },
     "mcp": {
-      "description": "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.",
+      "description": "Read issues in this installation, filtered by projectId, status or category. Results page in ID order, or in category order with orderBy POSITION_ASC (keep orderBy unchanged while paging). Use includeIdentifiers:true for IDs and revisions before changes.",
       "collection": true
     },
     "federation": {

@@ -230,4 +230,28 @@ test("ordered pages: a collection in any order, a page per parent with its curso
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", relation, expand: { edgeTypes: ["assigns_role"] } }] }), /Ordered pages take no expand/);
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: ["Role"], count: true }] }), /Only ordered pages/);
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", entity: "edge", orderBy: "ID_ASC" }] }), /ordered collection page lists entity/);
+
+  // filter is the connection filter, applied where the page is read: to a collection, to a relation's far nodes or to its edges.
+  const filtered = await queryGraph(graph, { includeTypes: "none", queries: [
+    { name: "roles", types: ["Role"], orderBy: "TITLE_DESC", count: true, filter: { title: { startsWith: "Role" }, not: { id: { in: [uuid(112)] } } } },
+    { name: "held", relation, count: true, filter: { or: [{ title: { equalTo: "Role A" } }, { createdAt: { lessThan: new Date(15).toISOString() } }] } },
+    { name: "links", entity: "edge", relation, filter: { title: { includesInsensitive: "TWICE" } } },
+  ] });
+  assert.deepEqual([filtered.queries.roles.matches, filtered.queries.roles.total], [[uuid(113), uuid(111)], 2]);
+  assert.deepEqual(filtered.queries.held.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.count]), [[[uuid(111), uuid(113)], 2], [[], 0], [[], 0]]);
+  assert.deepEqual(filtered.queries.links.parents?.map(parent => parent.rows.map(row => row.edgeId)), [[], [uuid(215)], []]);
+  // through: two hops as one page. Owners reach, through the roles they assign, the other owners of those roles; never themselves.
+  const through = await queryGraph(graph, { includeTypes: "none", queries: [{ name: "peers", count: true, orderBy: "TITLE_ASC",
+    relation: { parentIds: [uuid(121), uuid(122), uuid(123)], edgeTypes: ["assigns_role"], direction: "incoming", targetTypes: [String(owners[0].typeId)],
+      through: { edgeTypes: ["assigns_role"], nodeTypes: ["Role"] } } }] });
+  assert.deepEqual(through.queries.peers.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.count]), [[[uuid(122)], 1], [[uuid(121)], 1], [[], 0]]);
+  for (const [query, message] of [
+    [{ name: "q", types: ["Role"], filter: { title: { equalTo: "x" } } }, /Only ordered pages \(orderBy or relation\) take filter/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", slugs: ["x"] }, /Ordered pages take no slugs; use filter/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { body: { equalTo: "x" } } }, /filter has no field body/],
+    [{ name: "q", entity: "edge", relation, filter: { slug: { equalTo: "x" } } }, /filter has no field slug/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { title: { matches: "x" } } }, /no operator matches/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { or: Array.from({ length: 21 }, () => ({ slug: { equalTo: "x" } })) } }, /21 conditions; at most 20/],
+    [{ name: "q", entity: "edge", relation: { ...relation, through: { edgeTypes: ["assigns_role"], nodeTypes: ["Role"] } } }, /through: \\"node\\" only/],
+  ] as const) assert.throws(() => graphQueryInput.parse({ queries: [query] }), message);
 });

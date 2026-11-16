@@ -24,13 +24,13 @@ export function cursorText(cursor: string) {
   try { return decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))); } catch { return null; }
 }
 /** The cursor of a keyset page after `key` in `orderBy`. */
-export const keysetCursor = (orderBy: OrderName, key: Keyset) => cursorOf(JSON.stringify([orderBy, key.value, key.id]));
-/** A keyset cursor's order and key, or null when the text is not one. */
-export function parseKeyset(text: string): { orderBy: OrderName; key: Keyset } | null {
+export const keysetCursor = (orderBy: string, key: Keyset) => cursorOf(JSON.stringify([orderBy, key.value, key.id]));
+/** A keyset cursor's order (a graph order, or one an app's table declares) and key, or null when the text is not one. */
+export function parseKeyset(text: string): { orderBy: string; key: Keyset } | null {
   if (!text.startsWith("[")) return null;
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { return null; }
-  if (!Array.isArray(parsed) || parsed.length !== 3 || !isOrderName(parsed[0]) || typeof parsed[2] !== "string") return null;
+  if (!Array.isArray(parsed) || parsed.length !== 3 || typeof parsed[0] !== "string" || typeof parsed[2] !== "string") return null;
   const value = parsed[1];
   if (value !== null && typeof value !== "string" && typeof value !== "number") return null;
   return { orderBy: parsed[0], key: { value, id: parsed[2] } };

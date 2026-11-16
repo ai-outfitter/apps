@@ -8,7 +8,7 @@
 // which runs mutation operations only, as a write.
 // An app that serves it declares the `graph.serve` capability. A table whose rows
 // are not all readable by every member passes `scope`, which narrows every read of it.
-import { and, asc, count, getTableColumns, gt, inArray, like, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, gt, isNotNull, isNull, like, lt, or, type SQL, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase, SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import {
   GraphQLBoolean, GraphQLEnumType, GraphQLError, type GraphQLFieldConfig, type GraphQLFieldConfigArgumentMap, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID,
@@ -19,9 +19,12 @@ import type { TadaDocumentNode } from "gql.tada";
 import { z } from "zod";
 import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
-import { type GraphContext, idList, meterFields, type PageArgs, page, pageStart } from "./graph-graphql-resolve";
-import { DateTimeScalar, JSONScalar } from "./graph-graphql-scalars";
-import { Aggregate, PageInfo } from "./graph-graphql-schema";
+import { type FilterKind } from "./graph-filter";
+import { type FilterColumns, filterSql } from "./graph-filter-sql";
+import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, type PageArgs, page, pageStart, readKeyset } from "./graph-graphql-resolve";
+import { DateTimeScalar, filterInput, JSONScalar, tableOperators } from "./graph-graphql-scalars";
+import { connectionOf } from "./graph-graphql-schema";
+import type { Keyset } from "./graph-graphql-source";
 
 export { type GraphGraphqlError, type GraphGraphqlResult, graphGraphqlAction, graphGraphqlInput, graphGraphqlResult } from "./graph-graphql";
 /** The platform reads `graph.graphql` only from installations that declare this. */
@@ -81,7 +84,7 @@ export function documentRunner<Context extends object>(schema: () => GraphQLSche
   };
 }
 
-const description = "GraphQL read over this app's records; read the schema with __schema or __type. Each collection takes first (default 100, at most 500), after and ids and returns nodes, pageInfo and aggregate { count }, in ID order. Depth 8 and 2000 fields at most; the whole response stays within maxBytes: lists are cut (extensions.truncated, truncatedPaths), never records, and a response that cannot fit returns RESPONSE_TOO_LARGE. Read only.";
+const description = "GraphQL read over this app's records; read the schema with __schema or __type. Collections are Relay connections: they take first (default 100, at most 500), after, ids, orderBy and filter ({ field: { equalTo, in, ... }, and, or, not } over the fields the collection declares) and return edges { cursor node }, nodes, pageInfo { hasNextPage hasPreviousPage startCursor endCursor } and totalCount; filter, order, page and count run in the app's database. Depth 8 and 2000 fields at most; the whole response stays within maxBytes: lists are cut (extensions.truncated, truncatedPaths), never records, and a response that cannot fit returns RESPONSE_TOO_LARGE. Read only.";
 /** The `graph.graphql` action over `schema`, for the app's actionAPI. Resolvers get the action's context. */
 export function graphqlAction<Context extends ActionContext>(schema: GraphQLSchema) {
   return defineAction({
@@ -195,8 +198,11 @@ export type TableTypeOptions<T extends SQLiteTable> = {
   dates?: Key<T>[];
   /** Columns holding the IDs of other records (a foreign key such as `companyId`), served as ID. */
   ids?: Key<T>[];
-  /** Columns a request may match against a list of values, as arguments named like the column. */
+  /** Columns `filter: <type>Filter` may name, with PostGraphile connection-filter's operators; declare columns an index answers. */
   filters?: Key<T>[];
+  /** Text or number columns `orderBy: <type>Order` may order by (`<COLUMN>_ASC`/`_DESC`, ties by the primary key) besides the
+   * primary key itself (`ID_ASC`, the default, and `ID_DESC`); each must be a served field, and should lead an index. */
+  orders?: Key<T>[];
   /** The rows this request may read, ANDed into every query of the table (for example the
    * caller's own rows, from `context.identity`). Returning undefined serves no rows. */
   scope?: (context: TableContext & ActionContext) => SQL | undefined;
@@ -207,20 +213,32 @@ const nonNull = <T extends GraphQLScalarType | GraphQLObjectType>(type: T) => ne
 
 // A collection tableType cannot express (a join, a computed field) is written by hand
 // with these, so it takes the same arguments and pages and truncates the same way.
-export { idList, page, type PageArgs, pageStart };
+export { idList, orderedPage, page, type PageArgs, pageStart };
 /** `first`, `after` and `ids`, the arguments every collection takes. */
 export const pageArgs = (): GraphQLFieldConfigArgumentMap =>
   ({ first: { type: GraphQLInt, defaultValue: 100 }, after: { type: GraphQLString }, ids: { type: new GraphQLList(nonNull(GraphQLID)) } });
-/** `<row>Connection { nodes pageInfo aggregate }`. */
-export const connectionType = (row: GraphQLObjectType) => new GraphQLObjectType({
-  name: `${row.name}Connection`,
-  fields: { nodes: { type: new GraphQLNonNull(new GraphQLList(nonNull(row))) }, pageInfo: { type: nonNull(PageInfo) }, aggregate: { type: nonNull(Aggregate) } },
-});
+/** `<row>Connection { edges { cursor node } nodes pageInfo totalCount }`; its edge wrapper is `<row>ConnectionEdge`. */
+export const connectionType = (row: GraphQLObjectType) => connectionOf(`${row.name}Connection`, `${row.name}ConnectionEdge`, row);
 
-/** The root field `field(first, after, ids, ...filters)` over one table, returning
- * `<type>Connection { nodes pageInfo aggregate }` as a Wiki's collections do: ID-ordered
- * pages from the database, never the whole table. */
-export function tableType<T extends SQLiteTable>(table: T, { field, type, fields, dates = [], ids = [], filters = [], scope }: TableTypeOptions<T>): GraphQLFieldConfigMap<unknown, TableContext> {
+/** `createdAt` as an orderBy value's stem: `CREATED_AT`. */
+const constantCase = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
+/** Any number of values as one bound parameter. */
+const among = (column: SQLiteColumn, values: unknown[]) => sql`${column} IN (SELECT value FROM json_each(${JSON.stringify(values)}))`;
+type Ordering = { key: string | null; descending: boolean };
+/** The rows after `key` in an order by `column` (null: the primary key alone), then `id`. SQLite sorts NULL first, so
+ * ascending every value follows a NULL, and descending NULLs follow every value. */
+function afterKey(column: SQLiteColumn | null, id: SQLiteColumn, descending: boolean, key: Keyset) {
+  const beyond = descending ? lt : gt;
+  if (!column) return beyond(id, key.id);
+  if (key.value === null) return descending ? and(isNull(column), lt(id, key.id)) : or(isNotNull(column), gt(id, key.id));
+  const tie = and(eq(column, key.value), beyond(id, key.id));
+  return descending ? or(lt(column, key.value), tie, isNull(column)) : or(gt(column, key.value), tie);
+}
+
+/** The root field `field(first, after, ids, orderBy, filter, search)` over one table, returning
+ * `<type>Connection { edges nodes pageInfo totalCount }` as a Wiki's collections do: keyset pages in the
+ * order asked, filtered and counted by the database, never the whole table. */
+export function tableType<T extends SQLiteTable>(table: T, { field, type, fields, dates = [], ids = [], filters = [], orders = [], scope }: TableTypeOptions<T>): GraphQLFieldConfigMap<unknown, TableContext> {
   const columns = getTableColumns(table) as Record<string, SQLiteColumn>;
   const keys = Object.keys(columns).filter(key => columns[key].primary);
   if (keys.length !== 1) throw new Error(`${type} needs a table with one primary key column`);
@@ -232,40 +250,59 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
     name: type,
     fields: Object.fromEntries(served.map(key => [key, { type: columns[key].notNull ? nonNull(scalar(key)) : scalar(key) }])),
   });
+  const kindOf = (key: string): FilterKind => {
+    const stored = columns[key].dataType;
+    if (dates.includes(key)) return "datetime";
+    if (stored === "string") return isId(key) ? "id" : "string";
+    if (stored !== "number" && stored !== "boolean") throw new Error(`${type}.${key} cannot be filtered: only text, number and boolean columns can`);
+    return stored;
+  };
+  if (filters.some(key => ["and", "or", "not"].includes(key))) throw new Error(`${type} cannot filter a column named and, or or not`);
+  const filterFields = Object.fromEntries(filters.map(key => [key, kindOf(key)]));
+  const filterColumns: FilterColumns = Object.fromEntries(filters.map(key => [key, { column: sql`${columns[key]}`, kind: filterFields[key] }]));
+  const orderings: Record<string, Ordering> = { ID_ASC: { key: null, descending: false }, ID_DESC: { key: null, descending: true } };
+  for (const key of orders) {
+    if (!served.includes(key) || !["string", "number"].includes(columns[key].dataType)) throw new Error(`${type} can order by ${key} only if it is a served text or number column`);
+    orderings[`${constantCase(key)}_ASC`] = { key, descending: false };
+    orderings[`${constantCase(key)}_DESC`] = { key, descending: true };
+  }
   const args: GraphQLFieldConfigArgumentMap = {
     ...pageArgs(),
+    orderBy: { defaultValue: "ID_ASC", type: new GraphQLEnumType({ name: `${type}Order`, description: `How ${type} records are ordered, ties by ID.`, values: Object.fromEntries(Object.keys(orderings).map(value => [value, { value }])) }) },
+    ...(filters.length ? { filter: { type: filterInput(`${type}Filter`, Object.fromEntries(filters.map(key => [key, tableOperators[filterFields[key]]]))) } } : {}),
     search: {type:GraphQLString,description:"Match text across this collection’s text fields."},
-    ...Object.fromEntries(filters.map(key => [key, { type: new GraphQLList(nonNull(isId(key) ? GraphQLID : scalars[columns[key].dataType] ?? GraphQLString)) }])),
   };
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));
   return {
     [field]: {
       type: nonNull(connectionType(row)), args,
       resolve: async (_source, args: Record<string, unknown> & PageArgs, context, info) => {
-        const { first, start } = pageStart(args);
+        const orderBy = typeof args.orderBy === "string" ? args.orderBy : "ID_ASC";
+        const { key: orderKey, descending } = orderings[orderBy];
+        const { first } = pageStart({ first: args.first });
+        const after = args.after ? readKeyset(orderBy, args.after) : null;
+        const keyOf = (item: Record<string, unknown>): Keyset => ({ value: orderKey ? item[orderKey] as Keyset["value"] : String(item[id]), id: String(item[id]) });
         const visible = scope?.(context as TableContext & ActionContext);
-        if (scope && !visible) return { ...page(context, info, [], String, first, start), aggregate: { count: 0 } };
-        // At most 200 values per argument, as a Wiki's ids take.
-        const matching = (column: SQLiteColumn, values: unknown) => {
-          const list = idList(values as string[] | null | undefined);
-          return list ? inArray(column, list) : undefined;
-        };
+        if (scope && !visible) return orderedPage(context, info, [], keyOf, { orderBy, first }, args.after, async () => 0);
+        // At most 200 IDs, as a Wiki's ids take, bound as one parameter.
+        const list = idList(args.ids as string[] | null | undefined);
         const search = typeof args.search === "string" ? args.search.trim() : "";
         if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
         const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
-        const where = and(visible, matching(columns[id], args.ids), search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined, ...filters.map(key => matching(columns[key], args[key])));
+        const where = and(visible, list ? among(columns[id], list) : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
+          filterSql(checkedFilter(args.filter, filterFields).filter, filterColumns));
         const db = context.db();
+        const direction = descending ? desc : asc, orderColumn = orderKey ? columns[orderKey] : null;
         const rows = await db.select(selection).from(table as SQLiteTable)
-          .where(and(where, start === null ? undefined : gt(columns[id], start))).orderBy(asc(columns[id])).limit(first + 1);
+          .where(and(where, after ? afterKey(orderColumn, columns[id], descending, after) : undefined))
+          .orderBy(...(orderColumn ? [direction(orderColumn)] : []), direction(columns[id])).limit(first + 1);
         // Rows the response could not hold are cut before they resolve, as maxBytes cuts a list,
         // so a page of large rows comes back truncated; a first row too large still is refused.
         const kept = rowsWithinBudget(rows, first, context.budget.maxBytes - context.budget.bytes);
         if (kept < first) context.truncated.push([...responsePathAsArray(info.path), "nodes"]);
-        return {
-          ...page(context, info, rows, row => String(row[id]), kept, start),
-          // Counted only when selected.
-          aggregate: { count: async () => (await db.select({ count: count() }).from(table as SQLiteTable).where(where))[0].count },
-        };
+        // Counted only when selected.
+        return orderedPage(context, info, rows, keyOf, { orderBy, first: kept }, args.after,
+          async () => (await db.select({ count: count() }).from(table as SQLiteTable).where(where))[0].count);
       },
     },
   };

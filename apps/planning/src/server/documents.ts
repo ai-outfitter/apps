@@ -66,8 +66,8 @@ const legacyDocuments = defineDocuments({
   },
   Issues: {
     story: "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
-    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {
-      issues(first: $first, after: $after, ids: $ids, projectId: $projectId, status: $status, category: $category) {
+    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!], $orderBy: IssueOrder = ID_ASC) {
+      issues(first: $first, after: $after, ids: $ids, orderBy: $orderBy, filter: { projectId: { in: $projectId }, status: { in: $status }, category: { in: $category } }) {
         nodes { id projectId parentId title description category status assigneeId dueDate position revision createdAt updatedAt }
         pageInfo { endCursor hasNextPage }
       }
@@ -350,7 +350,7 @@ export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(
   DigestRuns:{description:"Read daily digest/report run progress and failures."},
   DigestSchedule:{description:"Read the existing daily owner report chain schedule."},
   ChangeDigestSchedule:{description:"Enable or disable the existing daily report chain schedule; editors only."},
-  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
+  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order, or in category order with orderBy POSITION_ASC (keep orderBy unchanged while paging). Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
   IssueChanges: {description: "Create, replace, delete or reorder project issues. Use stable UUID item keys for safe retries; read Issues with includeIdentifiers:true first for IDs, current revisions and every issue in a category before reordering. Updates replace fields, so preserve values from the read. Any member of the installation may write."},
   ProjectRepositories:{description:"Read project repositories and their recent GitHub pull requests.",collection:true,provenance:"organizationSlug"},
   PriorityOrder:{description:"Read an organization priority order and revision."},

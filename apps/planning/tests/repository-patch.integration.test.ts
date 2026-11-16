@@ -34,7 +34,7 @@ test("patchProject publishes multiple repositories, creates its canonical Wiki P
     'mutation($input:PatchProjectInput!){patchProject(input:$input){id revision githubRepository repositoryChanges}}',
     { input: { project: { id, revision }, mask: { repositories } } }, who, true);
   const read = async () => {
-    const result = await graphql('query($ids:[ID!]){projects(ids:$ids){nodes{id githubRepository repositories(first:50){nodes{id url path ref} aggregate{count}}}}}', { ids: [projectId] });
+    const result = await graphql('query($ids:[ID!]){projects(ids:$ids){nodes{id githubRepository repositories(first:50){nodes{id url path ref} totalCount}}}}', { ids: [projectId] });
     assert.equal(result.errors, undefined, JSON.stringify(result));
     return result.data.projects.nodes[0];
   };

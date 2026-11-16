@@ -6,12 +6,12 @@
 // document grows with rules times depth, not with the data or the number of types.
 // Each hop selects edge objects, so the result carries edge IDs as well as nodes:
 // - typed `<edge>Edges` / `<edge>IncomingEdges` connections, inside `... on <Type>`, where
-//   the edge type declares ontology endpoints: the largest page (500 edges per node; the walk applies
-//   maxNodes), with `pageInfo { hasNextPage }`
-//   so a parent with more edges than one page marks the selection incomplete;
-// - otherwise `edges(types: [...], direction: ...)`, aliased `<edge>Links` /
+//   the edge type declares ontology endpoints;
+// - otherwise the `edges(types: [...], direction: ...)` connection, aliased `<edge>Links` /
 //   `<edge>IncomingLinks`, inside `... on <Type>` when a guard names one source type,
 //   on Node otherwise.
+//   Either reads the largest page (500 edges per node; the walk applies maxNodes) with
+//   `pageInfo { hasNextPage }`, so a parent with more edges than one page marks the selection incomplete.
 // Roots come from each root type's collection (`ids: $rootIds`, `first` from
 // maxNodes). Each record carries id, typeId, title and slug (the address agents use).
 // Beyond selects the last hop's edges once more, with only the far end's id and typeId,
@@ -80,9 +80,7 @@ export const selectionQueryDepth = (maxDepth: number) => 3 * maxDepth + 6;
 
 type Rule = { edgeTypeId: string; direction: "outgoing" | "incoming"; fromType?: string; toType?: string };
 /** One edge field: where it is selected (a node type, or "" for every node), and the types it may reach. */
-type Hop = { on: string; field: string; alias?: string; args?: string; end: "to" | "from"; targets: string[];
-  /** A typed relationship connection, read one page deep. */
-  connection?: boolean };
+type Hop = { on: string; field: string; alias?: string; args?: string; end: "to" | "from"; targets: string[] };
 
 const quote = (value: string) => JSON.stringify(value);
 const layoutOf = (schema: SchemaLayout | TypeRow[]) => (Array.isArray(schema) ? schemaLayout(schema) : schema);
@@ -124,7 +122,7 @@ function groupRules(rules: Rule[]) {
   return [...groups.values()];
 }
 
-/** Typed `…Edges` fields on each endpoint type; otherwise `edges(types:, direction:)`, on every node unless a guard names the source types. */
+/** Typed `…Edges` connections on each endpoint type; otherwise the `edges(types:, direction:)` connection, on every node unless a guard names the source types. */
 function hopsOf(group: Group, layout: SchemaLayout, terminal: Set<string>): Hop[] {
   const end = group.direction === "outgoing" ? "to" : "from";
   const allowed = (ids: string[]) => ids.filter(id => !group.targets || group.targets.has(id));
@@ -132,12 +130,12 @@ function hopsOf(group: Group, layout: SchemaLayout, terminal: Set<string>): Hop[
     if (terminal.has(node.type.id) || (group.sources && !group.sources.has(node.type.id))) return [];
     const relation = node.relationships.find(item => item.edges && !item.projection && item.edgeType.id === group.edgeTypeId && item.direction === group.direction);
     const targets = relation ? allowed(relation.targets) : [];
-    return relation && targets.length ? [{ on: node.type.id, field: relation.field, end, targets, connection: true } satisfies Hop] : [];
+    return relation && targets.length ? [{ on: node.type.id, field: relation.field, end, targets } satisfies Hop] : [];
   });
   const edge = layout.edges.get(group.edgeTypeId);
   if (!edge || endpointsOf(edge.type)) return typed;
   const alias = `${graphqlNames.fieldName(edge.type.name)}${group.direction === "incoming" ? "Incoming" : ""}Links`;
-  const generic = { field: "edges", alias, args: `(types: [${quote(edge.type.name)}], direction: ${group.direction === "outgoing" ? "OUTGOING" : "INCOMING"})`, end,
+  const generic = { field: "edges", alias, args: `types: [${quote(edge.type.name)}], direction: ${group.direction === "outgoing" ? "OUTGOING" : "INCOMING"}, `, end,
     targets: allowed([...layout.nodes.keys()]) } as const;
   if (!generic.targets.length) return [];
   // One source type gets its own inline fragment; several share the field on Node (the walk applies the guard),
@@ -159,10 +157,10 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   const first = Math.min(definition.maxNodes, 500);
   /** The fields reading hop `level` out of a node; past maxDepth only the far end's id and typeId. */
   const fields = (level: number, on: string) => hops.filter(hop => hop.on === on).map(hop => {
-    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}${hop.connection ? `(first: 500)` : hop.args ?? ""}`;
+    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}(${hop.args ?? ""}first: 500)`;
     const expands = hops.length && hop.targets.some(target => !terminal.has(target));
     const edge = level > definition.maxDepth ? `...Link ${hop.end} { id typeId }` : `...Link ${hop.end} { ...Record${expands ? ` ...${step(level + 1)}` : ""} }`;
-    return hop.connection ? `${head} { nodes { ${edge} } pageInfo { hasNextPage } }` : `${head} { ${edge} }`;
+    return `${head} { nodes { ${edge} } pageInfo { hasNextPage } }`;
   });
   const placements = [...new Set(hops.map(hop => hop.on))].sort((a, b) => (a && b ? compare(nameOf(a), nameOf(b)) : a ? 1 : -1));
   const fragment = (level: number) => {

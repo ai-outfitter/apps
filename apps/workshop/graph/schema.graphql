@@ -3,23 +3,21 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: WorkshopProjectOrder = ID_ASC
+    filter: WorkshopProjectFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    createdBy: [ID!]
-    productRevisionId: [ID!]
   ): WorkshopProjectConnection!
   workshopUnits(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: WorkshopUnitOrder = ID_ASC
+    filter: WorkshopUnitFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    partNumber: [String!]
-    mac: [String!]
-    status: [String!]
-    projectId: [ID!]
   ): WorkshopUnitConnection!
 
   """
@@ -34,9 +32,15 @@ type Query {
 }
 
 type WorkshopProjectConnection {
+  edges: [WorkshopProjectConnectionEdge!]!
   nodes: [WorkshopProject!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkshopProjectConnectionEdge {
+  cursor: String!
+  node: WorkshopProject!
 }
 
 type WorkshopProject {
@@ -56,18 +60,53 @@ type WorkshopProject {
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How WorkshopProject records are ordered, ties by ID."""
+enum WorkshopProjectOrder {
+  ID_ASC
+  ID_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+}
+
+input WorkshopProjectFilter {
+  createdBy: IDFilter
+  productRevisionId: IDFilter
+  and: [WorkshopProjectFilter!]
+  or: [WorkshopProjectFilter!]
+  not: WorkshopProjectFilter
+}
+
+"""
+Conditions on one id field of a filter; every one given must hold, and a filter holds at most 20. They run in the database.
+"""
+input IDFilter {
+  isNull: Boolean
+  equalTo: ID
+  notEqualTo: ID
+  in: [ID!]
+  notIn: [ID!]
+  lessThan: ID
+  lessThanOrEqualTo: ID
+  greaterThan: ID
+  greaterThanOrEqualTo: ID
 }
 
 type WorkshopUnitConnection {
+  edges: [WorkshopUnitConnectionEdge!]!
   nodes: [WorkshopUnit!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkshopUnitConnectionEdge {
+  cursor: String!
+  node: WorkshopUnit!
 }
 
 type WorkshopUnit {
@@ -86,6 +125,41 @@ type WorkshopUnit {
   updatedBy: ID!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""How WorkshopUnit records are ordered, ties by ID."""
+enum WorkshopUnitOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input WorkshopUnitFilter {
+  partNumber: StringFilter
+  mac: StringFilter
+  status: StringFilter
+  projectId: IDFilter
+  and: [WorkshopUnitFilter!]
+  or: [WorkshopUnitFilter!]
+  not: WorkshopUnitFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 """Any JSON value."""

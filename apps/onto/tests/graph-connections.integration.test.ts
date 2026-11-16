@@ -77,8 +77,8 @@ test("products' revisions page per product in one bounded relationship statement
     const { db, log } = counted(app.database);
     const types = await databaseSource(db).types() as unknown as TypeRow[];
     const query = `query($ids: [ID!], $after: String) { gadgets(ids: $ids) { nodes { id
-      revisions(first: 2, orderBy: CREATED_AT_ASC, after: $after) { nodes { id title } pageInfo { hasNextPage endCursor } aggregate { count } } } } }`;
-    type Page = { nodes: { id: string; title: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null }; aggregate: { count: number } };
+      revisions(first: 2, orderBy: CREATED_AT_ASC, after: $after) { nodes { id title } pageInfo { hasNextPage endCursor } totalCount } } } }`;
+    type Page = { nodes: { id: string; title: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null }; totalCount: number };
     const read = async (ids: string[], after: string | null = null) => {
       log.length = 0;
       const result = graphGraphqlResult.parse(await executeGraphQuery({ types, source: databaseSource(db), query, variables: { ids, after }, maxBytes: 262144 }));
@@ -92,7 +92,7 @@ test("products' revisions page per product in one bounded relationship statement
       const page = all.pages.get(id) as Page;
       assert.deepEqual(page.nodes.map(node => node.title), [`Product ${p} revision 0`, `Product ${p} revision 1`]);
       assert.equal(page.pageInfo.hasNextPage, true);
-      assert.equal(page.aggregate.count, revisions);
+      assert.equal(page.totalCount, revisions);
     }
     // A products page, one relationship page and one count, for three products as for eight.
     assert.equal(all.statements.length, few.statements.length, JSON.stringify(all.statements.map(entry => entry.sql)));
@@ -154,6 +154,76 @@ test("products' revisions page per product in one bounded relationship statement
     const nextTitles = new Map(continued.result.nodes.map(row => [row.id, row.title]));
     assert.deepEqual(continued.result.queries.revisions.parents?.[0].rows.map(row => nextTitles.get(row.nodeId)), ["Product 4 revision 2", "Product 4 revision 3"]);
     assert.equal(continued.statements.find(entry => /ROW_NUMBER/.test(entry.sql))?.rows, 3);
+    // A filtered, ordered relationship page and every node's edges of any type: still one statement each, whatever the number of products.
+    const explain = async ({ sql, values }: { sql: string; values: unknown[] }) =>
+      (await app.database.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...values).all<{ detail: string }>()).results.map(row => row.detail);
+    const scans = /^SCAN (n|r|e|e1|graph_nodes|graph_edges)\b/;
+    const filteredQuery = `query($ids: [ID!]) { gadgets(ids: $ids) { nodes { id
+      late: revisions(first: 2, orderBy: CREATED_AT_DESC, filter: { title: { includes: "revision" }, not: { title: { includesInsensitive: "REVISION 4" } }, createdAt: { greaterThan: "2000-01-01T00:00:00Z" }, or: [{ title: { startsWith: "Product" } }, { slug: { isNull: true } }] }) {
+        edges { cursor node { title } } pageInfo { hasNextPage hasPreviousPage startCursor endCursor } totalCount }
+      links: edges(first: 3, orderBy: ID_ASC, direction: OUTGOING, filter: { createdAt: { lessThanOrEqualTo: "2999-01-01" } }) { nodes { id toId } pageInfo { hasNextPage } totalCount }
+    } } }`;
+    type Filtered = { id: string; late: { edges: { cursor: string; node: { title: string } }[]; pageInfo: { hasNextPage: boolean; hasPreviousPage: boolean; startCursor: string; endCursor: string }; totalCount: number };
+      links: { nodes: { id: string; toId: string }[]; pageInfo: { hasNextPage: boolean }; totalCount: number } };
+    const filtered = async (parentIds: string[]) => {
+      log.length = 0;
+      const result = graphGraphqlResult.parse(await executeGraphQuery({ types, source: databaseSource(db), query: filteredQuery, variables: { ids: parentIds }, maxBytes: 262144 }));
+      assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+      return { nodes: (result.data as { gadgets: { nodes: Filtered[] } }).gadgets.nodes, statements: log.map(entry => ({ ...entry })) };
+    };
+    const fewFiltered = await filtered(productIds.slice(0, 3)), allFiltered = await filtered(productIds);
+    for (const node of allFiltered.nodes) {
+      const p = productIds.indexOf(node.id);
+      // Revision 4 is filtered out in SQL, so the newest two left are 3 and 2, of the 4 that pass.
+      assert.deepEqual(node.late.edges.map(edge => edge.node.title), [`Product ${p} revision 3`, `Product ${p} revision 2`]);
+      assert.deepEqual([node.late.pageInfo.hasNextPage, node.late.pageInfo.hasPreviousPage, node.late.totalCount], [true, false, revisions - 1]);
+      assert.deepEqual([node.late.pageInfo.startCursor, node.late.pageInfo.endCursor], [node.late.edges[0].cursor, node.late.edges[1].cursor]);
+      assert.deepEqual([node.links.nodes.length, node.links.pageInfo.hasNextPage, node.links.totalCount], [3, true, revisions]);
+      assert.ok(node.links.nodes.every(edge => revisionIds[p].includes(edge.toId)));
+    }
+    // The products page, then a page and a count for each of the two connections: five statements for three products as for eight.
+    assert.equal(allFiltered.statements.length, fewFiltered.statements.length, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
+    assert.equal(allFiltered.statements.length, 5, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
+    for (const statement of allFiltered.statements) {
+      // Bounded by a LIMIT or by the parents' edges; the filter is in the statement, and it binds far fewer than D1's 100 parameters.
+      assert.match(statement.sql, /LIMIT|e\."(fromId|toId)" IN \(SELECT value FROM json_each/i, statement.sql);
+      assert.ok(statement.values.length <= 20, `${statement.values.length} parameters`);
+      const plan = await explain(statement);
+      assert.ok(plan.length && !plan.some(step => scans.test(step)), plan.join("\n"));
+      if (/ROW_NUMBER|GROUP BY parent/.test(statement.sql)) {
+        assert.match(statement.sql, /"f_(title|createdAt)"/, "the filter runs in the statement");
+        assert.ok(plan.some(step => /graph_edges_(out|in)/.test(step)) && !plan.some(step => /graph_nodes_type_/.test(step)), plan.join("\n"));
+      }
+    }
+    const relationPages = allFiltered.statements.filter(entry => /ROW_NUMBER/.test(entry.sql));
+    assert.deepEqual(relationPages.map(entry => entry.rows).sort(), [products * 3, products * 4], "first + 1 rows per product from each page statement");
+    console.log(`filtered relationship + Node.edges statements: ${fewFiltered.statements.length} for 3 products, ${allFiltered.statements.length} for ${products}; rows: ${allFiltered.statements.map(entry => entry.rows).join(", ")}; parameters: ${allFiltered.statements.map(entry => entry.values.length).join(", ")}`);
+    // The next page of one product's filtered revisions continues from any edge's cursor.
+    const after = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536, variables: { id: productIds[1], after: allFiltered.nodes.find(node => node.id === productIds[1])?.late.pageInfo.endCursor },
+      query: `query($id: ID, $after: String) { gadget(id: $id) { revisions(first: 5, orderBy: CREATED_AT_DESC, after: $after, filter: { not: { title: { includesInsensitive: "REVISION 4" } } }) { nodes { title } pageInfo { hasNextPage hasPreviousPage } } } }` });
+    assert.deepEqual(JSON.parse(JSON.stringify(after.data)), { gadget: { revisions: { nodes: [{ title: "Product 1 revision 1" }, { title: "Product 1 revision 0" }], pageInfo: { hasNextPage: false, hasPreviousPage: true } } } });
+    // The same answers as memorySource, filters included.
+    const filteredExpected = await executeGraphQuery({ types, source: memorySource({ installationId: "onto-installation", ...graph }), query: filteredQuery, variables: { ids: productIds }, maxBytes: 262144 });
+    const filteredActual = await executeGraphQuery({ types, source: databaseSource(db), query: filteredQuery, variables: { ids: productIds }, maxBytes: 262144 });
+    assert.deepEqual(JSON.parse(JSON.stringify(filteredActual)), JSON.parse(JSON.stringify(filteredExpected)));
+    // A filtered collection page is one LIMIT statement answered by the type's index, never a scan.
+    log.length = 0;
+    const collection = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536,
+      query: `{ gadgets(first: 3, orderBy: TITLE_ASC, filter: { title: { greaterThanOrEqualTo: "Product 2" }, slug: { notIn: ["nobody"] } }) { nodes { title } pageInfo { hasNextPage } totalCount } }` });
+    assert.deepEqual(JSON.parse(JSON.stringify(collection.data)), { gadgets: { nodes: [2, 3, 4].map(p => ({ title: `Product ${p}` })), pageInfo: { hasNextPage: true }, totalCount: products - 2 } });
+    assert.equal(log.length, 2, "the page and its count");
+    for (const statement of log) {
+      const plan = await explain(statement);
+      assert.ok(plan.some(step => /SEARCH n USING (COVERING )?INDEX graph_nodes_type_/.test(step)) && !plan.some(step => scans.test(step)), plan.join("\n"));
+    }
+    // graph.query carries the same filter to the same statement.
+    const filteredRelation = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [
+      { name: "late", relation: relation(productIds), orderBy: "CREATED_AT_DESC", limit: 2, count: true, fields: ["title"], filter: { not: { title: { includesInsensitive: "REVISION 4" } } } },
+    ] }));
+    const filteredTitles = new Map(filteredRelation.nodes.map(row => [row.id, row.title]));
+    assert.deepEqual(filteredRelation.queries.late.parents?.map(parent => [parent.rows.map(row => filteredTitles.get(row.nodeId)), parent.count]),
+      productIds.map((_, p) => [[`Product ${p} revision 3`, `Product ${p} revision 2`], revisions - 1]));
+
     // An ordered collection page is one LIMIT statement.
     log.length = 0;
     const page = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [{ name: "gadgets", types: ["Gadget"], orderBy: "TITLE_DESC", limit: 3 }] }));

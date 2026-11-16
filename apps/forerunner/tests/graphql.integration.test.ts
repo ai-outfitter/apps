@@ -13,12 +13,12 @@ const bob = { ...alice, userId: "bob" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");
 const board = graphql(`
   query Board($status: [String!], $after: String) {
-    items(first: 2, status: $status, after: $after) {
+    items(first: 2, filter: { status: { in: $status } }, after: $after) {
       nodes { id title category status updatedAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
-    discoveryRecords(kind: ["run"]) { nodes { id kind createdAt } aggregate { count } }
+    discoveryRecords(filter: { kind: { in: ["run"] } }) { nodes { id kind createdAt } totalCount }
   }
 `);
 type Board = ResultOf<typeof board>;
@@ -51,16 +51,16 @@ test("members read only their own items and discovery records, filtered and page
     const { items, discoveryRecords } = ((await first.json()) as { data: Board }).data;
     assert.deepEqual(items.nodes.map((node) => [node.id, node.status, node.category]), [["alice-000", "todo", "stone"], ["alice-002", "todo", "stone"]]);
     assert.equal(items.nodes[1].updatedAt, new Date(created + 2).toISOString());
-    assert.deepEqual([items.pageInfo.hasNextPage, items.aggregate.count], [true, 3]);
-    assert.deepEqual(discoveryRecords, { nodes: [{ id: "d-1", kind: "run", createdAt: new Date(created).toISOString() }], aggregate: { count: 1 } });
+    assert.deepEqual([items.pageInfo.hasNextPage, items.totalCount], [true, 3]);
+    assert.deepEqual(discoveryRecords, { nodes: [{ id: "d-1", kind: "run", createdAt: new Date(created).toISOString() }], totalCount: 1 });
     const next = ((await (await call(alice, documentText(board), { status: ["todo"], after: items.pageInfo.endCursor })).json()) as { data: Board }).data.items;
     assert.deepEqual([next.nodes.map((node) => node.id), next.pageInfo.hasNextPage], [["alice-003"], false]);
 
     // Another member names Alice's IDs and continues from her cursor, and still sees only their own rows and counts.
-    const theirs = await call(bob, `query($after: String) { items(ids: ["alice-003", "bob-009"], after: $after) { nodes { id } aggregate { count } } discoveryRecords(ids: ["d-1", "d-3"]) { nodes { id } aggregate { count } } }`, { after: items.pageInfo.endCursor });
+    const theirs = await call(bob, `query($after: String) { items(ids: ["alice-003", "bob-009"], after: $after) { nodes { id } totalCount } discoveryRecords(ids: ["d-1", "d-3"]) { nodes { id } totalCount } }`, { after: items.pageInfo.endCursor });
     assert.deepEqual(((await theirs.json()) as { data: unknown }).data, {
-      items: { nodes: [{ id: "bob-009" }], aggregate: { count: 1 } },
-      discoveryRecords: { nodes: [{ id: "d-3" }], aggregate: { count: 1 } },
+      items: { nodes: [{ id: "bob-009" }], totalCount: 1 },
+      discoveryRecords: { nodes: [{ id: "d-3" }], totalCount: 1 },
     });
     // The raw discovery data and the owner columns are not in the schema.
     const hidden = (await (await call(alice, "{ discoveryRecords { nodes { data ownerId } } }")).json()) as { errors?: { extensions?: { code?: string } }[] };

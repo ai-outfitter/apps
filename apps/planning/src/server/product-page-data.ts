@@ -20,12 +20,19 @@ type RecordRef = {
   revision: number;
   summary?: string;
 };
-type Product = RecordRef & { revisions: { from: RecordRef | null }[] };
+/** One bounded page of a node's edges; a page with more behind it makes the read incomplete. */
+type Edges<T> = { nodes: T[]; pageInfo: { hasNextPage: boolean } };
+type Product = RecordRef & { revisions: Edges<{ from: RecordRef | null }> };
 type Project = RecordRef & {
-  owners: { to: { id: string; __typename: string } | null }[];
-  products: { to: { id: string; __typename: string } | null }[];
-  goals: { to: RecordRef | null }[];
+  owners: Edges<{ to: { id: string; __typename: string } | null }>;
+  products: Edges<{ to: { id: string; __typename: string } | null }>;
+  goals: Edges<{ to: RecordRef | null }>;
 };
+/** The edges of a page that holds them all. */
+function all<T>(edges: Edges<T> | null | undefined): T[] {
+  if (edges?.pageInfo.hasNextPage) throw new Response("Product context is incomplete", { status: 502 });
+  return edges?.nodes ?? [];
+}
 type Plan = RecordRef & { body: string };
 type Answer = {
   organization: {
@@ -33,9 +40,9 @@ type Answer = {
     title: string;
     slug: string | null;
     revision: number;
-    developed: { from: Product | null; properties?: { rank?: unknown } | null }[];
-    offerings: { from: { products: { to: Product | null }[] } | null }[];
-    projects: { from: { products: { to: Product | null }[] } | null }[];
+    developed: Edges<{ from: Product | null; properties?: { rank?: unknown } | null }>;
+    offerings: Edges<{ from: { products?: Edges<{ to: Product | null }> } | null }>;
+    projects: Edges<{ from: { products?: Edges<{ to: Product | null }> } | null }>;
   } | null;
   projectRecords: { nodes: Project[]; pageInfo: { hasNextPage: boolean } };
   reports: {
@@ -130,15 +137,15 @@ export async function readProductPage(
     throw new Response("Bound organization needs a slug", { status: 409 });
   const organization = { slug: org.slug, name: org.title };
   const candidates = [
-    ...org.developed.map((edge) => edge.from),
-    ...org.offerings.flatMap(
-      (edge) => edge.from?.products?.map((item) => item.to) ?? [],
+    ...all(org.developed).map((edge) => edge.from),
+    ...all(org.offerings).flatMap(
+      (edge) => all(edge.from?.products).map((item) => item.to),
     ),
-    ...org.projects.flatMap(
-      (edge) => edge.from?.products?.map((item) => item.to) ?? [],
+    ...all(org.projects).flatMap(
+      (edge) => all(edge.from?.products).map((item) => item.to),
     ),
   ];
-  const ranks = new Map(org.developed.flatMap(edge => edge.from && typeof edge.properties?.rank === "string" ? [[edge.from.id, edge.properties.rank] as const] : []));
+  const ranks = new Map(all(org.developed).flatMap(edge => edge.from && typeof edge.properties?.rank === "string" ? [[edge.from.id, edge.properties.rank] as const] : []));
   const products = [
     ...new Map(
       candidates
@@ -151,19 +158,19 @@ export async function readProductPage(
     return left != null && right != null ? (left < right ? -1 : left > right ? 1 : a.id.localeCompare(b.id)) : left != null ? -1 : right != null ? 1 : a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
   }).map((item) => ({
     ...item,
-    revisions: item.revisions.flatMap((edge) => (edge.from ? [edge.from] : [])),
+    revisions: all(item.revisions).flatMap((edge) => (edge.from ? [edge.from] : [])),
     projects: data!.projectRecords.nodes
       .filter(
         (project) =>
-          project.owners.some(
+          all(project.owners).some(
             (owner) =>
               owner.to?.__typename === "Organization" &&
               owner.to.id === bound[0],
-          ) && project.products.some((edge) => edge.to?.id === item.id),
+          ) && all(project.products).some((edge) => edge.to?.id === item.id),
       )
       .map((project) => ({
         ...project,
-        goals: project.goals.flatMap((goal) => (goal.to ? [goal.to] : [])),
+        goals: all(project.goals).flatMap((goal) => (goal.to ? [goal.to] : [])),
       })),
   }));
   const reports: (Record<string, any> & RecordRef)[] = plans.flatMap((plan) => {

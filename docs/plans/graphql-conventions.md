@@ -1,7 +1,7 @@
 # GraphQL conventions
 
 We follow what the community already agreed on instead of our own shapes. This page says which
-convention each part of our GraphQL follows, where we differ today, and what changes.
+convention each part of our GraphQL follows and what we serve.
 
 One rule sits above all of it: **filtering, sorting, paging and counting run in the database of the
 app that owns the records.** The platform routes and merges. It never loads rows to filter or sort them.
@@ -19,17 +19,22 @@ GitHub, Shopify and GitLab all ship the same connection shape with `nodes` and `
 
 ## Where we stand
 
-| Part | Convention | Today | Change |
-|---|---|---|---|
-| Connection type | `edges { cursor node }`, `nodes`, `pageInfo`, `totalCount` | `nodes`, `pageInfo`, `aggregate { count }` | Add `edges`. Rename `aggregate { count }` to `totalCount`. |
-| `PageInfo` | four fields | `hasNextPage`, `endCursor` | Add `hasPreviousPage` and `startCursor`. |
-| Paging arguments | `first`/`after`, optionally `last`/`before` | `first`/`after` | Keep forward paging; the spec allows it. `hasPreviousPage` is true when `after` was given. |
-| Cursors | opaque strings | opaque, bound to the order they were made with | None. |
-| Ordering | `orderBy` enum, `FIELD_DIRECTION` | `orderBy: ID_ASC …` on graph types; app tables are ID order only | Add `orderBy` to app tables (`tableType`) over their indexed columns. |
-| Filtering | `filter` input with named operators | flat arguments (`ids`, `slugs`, `text`, one list argument per filter column) | Add `filter` with the connection-filter operator names over declared, indexed fields. `ids` stays as the batched known-ID read. `slugs` and the per-column list arguments go. |
-| Relationships | every relation is a connection | typed relationship fields are connections; `Node.edges(types:)` is an unbounded list; projection fields page in memory | Make `edges(types:)` a connection. Page projections in SQL. |
-| Old list fields | none | `search` (deprecated list) beside `searchConnection` | Delete `search`; rename `searchConnection` to `search`. |
-| Federation | owner resolves lists; others hold keys; one batched fetch per service | The platform composes each app's schema under its own root field in one process. Lists go to the owning app through `graph.query` and `graph.graphql`; known IDs are read in one batch per app. | None to the model. See below. |
+Every row below is built. Nothing replaced was kept: there is no alias, no deprecated field and no
+second spelling.
+
+| Part | Convention | What we serve |
+|---|---|---|
+| Connection type | `edges { cursor node }`, `nodes`, `pageInfo`, `totalCount` | Exactly that, on graph types, on app tables (`tableType`) and on hand-written app pages. `totalCount` is a `COUNT(*)` in the owning database, run only when selected. The edge wrapper of `XConnection` is `XConnectionEdge` (graph types named `…Edge` already exist, so the Relay name `XEdge` would collide). |
+| `PageInfo` | four fields | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor`. |
+| Paging arguments | `first`/`after`, optionally `last`/`before` | `first`/`after` only; the spec allows it. `hasPreviousPage` is true when `after` was given. A negative `first` is an error. |
+| Cursors | opaque strings | Opaque, bound to the order they were made with. Every edge carries its own. |
+| Ordering | `orderBy` enum, `FIELD_DIRECTION` | Graph types: `ID`, `TITLE`, `CREATED_AT`, `UPDATED_AT`. App tables: `ID_ASC`/`ID_DESC` plus the columns the app declares in `orders`, each backed by an index, keyset-paged in SQL. |
+| Filtering | `filter` input with named operators | `filter: { field: { … }, and, or, not }` with the connection-filter operator names (`isNull`, `equalTo`, `notEqualTo`, `in`, `notIn`, `lessThan`, `lessThanOrEqualTo`, `greaterThan`, `greaterThanOrEqualTo`; on text also `includes`, `includesInsensitive`, `startsWith`, `startsWithInsensitive`). Graph nodes filter on `id`, `slug`, `title`, `createdAt`, `updatedAt`; edges on `id`, `title`, `createdAt`, `updatedAt`; app tables on the columns the app declares in `filters`. `ids` stays as the batched known-ID read and `text` as the search argument. `slugs` and the per-column list arguments are gone. |
+| Filter bounds | only indexed columns; no open-ended filters | A filter holds at most 20 conditions, 6 levels and 200 values per `in` list. Each condition binds one parameter (a list binds as one JSON array), so a statement stays far below D1's 100 bound parameters. A larger filter is refused with a message that says so. |
+| Relationships | every relation is a connection | Typed relationship fields, projection fields and `Node.edges(types:, direction:)` are all connections with `first`/`after`/`orderBy`/`filter`. Each is one page statement (and one count statement when `totalCount` is selected) for all parents of a request. |
+| Search | one field | `search` is the connection. The old list is deleted. |
+| Between services | `graph.query` ordered pages | Carry the same `filter`, and `relation.through` for projections, so a Wiki reached over a binding runs the same SQL as a local one. |
+| Federation | owner resolves lists; others hold keys; one batched fetch per service | The platform composes each app's schema under its own root field in one process. Lists go to the owning app through `graph.query` and `graph.graphql`; known IDs are read in one batch per app. See below. |
 
 ### Federation
 
@@ -49,10 +54,12 @@ each Wiki's position.
 
 ## Still filtered or sorted outside the database
 
-These are the remaining places. Each one moves into SQL.
+What this change moved into SQL: `Node.edges`, projection relationship fields, app table ordering and
+filtering, Planning's portfolio priority list, and the platform's `WorkflowRuns` search.
 
-1. `Node.edges(types:)`: reads every touching edge. Becomes a connection.
-2. Projection relationship fields: walked two hops, then paged in memory. Becomes one SQL statement per page.
-3. App tables served with `tableType`: ID order only, so callers sort after reading. Gains `orderBy`.
-4. Planning's portfolio entity list: keyset applied in memory over a computed list.
-5. Platform `WorkflowRuns` search: filters run rows in JavaScript.
+What remains, and why:
+
+1. Slot fields (a relationship declared with a maximum, such as `owner`): at most that many records per parent, read with the request's edges in one batch. They are bounded lists, not connections.
+2. `graph.query` queries without `orderBy`: text and property matching over the bounded snapshot read. An ordered page (`orderBy`) always runs in SQL.
+3. Planning pages that are computed, not stored: single records assembled from several reads (served with `totalCount: 1`), and a project's `repositories`, which come from one bounded Wiki selection read plus the project's own repository setting and are keyed in memory. They have no table to page.
+4. The merge of already-sorted pages from several Wikis, described above.
