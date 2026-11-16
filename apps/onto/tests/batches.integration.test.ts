@@ -331,6 +331,25 @@ test("plural change documents append durably, submit explicitly, and preserve th
   assert.equal(first.instructions[0].url, expectedReviewUrl);
   const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
   assert.equal(listed.data.changeBatches.nodes.find((batch: { id: string }) => batch.id === first.items[0].result.id).reviewUrl, expectedReviewUrl);
+  // changeBatches is a connection like any other: edges with cursors, four-field pageInfo and a count, paged by cursor.
+  const second=(await send([{key:uuid(905),action:"stage",input:{title:"Another batch",proposals:[{operation:person("$other",906,"Other"),evidence:cite("other")}]}}])).items[0].result.id;
+  const batches=async(variables:object)=>{
+    const result=await json(await f.action("graph.graphql",{query:"query($first:Int,$after:String,$search:String){changeBatches(first:$first,after:$after,search:$search){totalCount edges{cursor node{id counts}} nodes{id} pageInfo{hasNextPage hasPreviousPage startCursor endCursor}}}",variables}));
+    assert.equal(result.errors,undefined,JSON.stringify(result.errors));
+    return result.data.changeBatches;
+  };
+  const ordered=[id,second].sort();
+  const firstPage=await batches({first:1});
+  assert.equal(firstPage.totalCount,2);
+  assert.deepEqual(firstPage.edges.map((edge:{node:{id:string}})=>edge.node.id),[ordered[0]]);
+  assert.deepEqual(firstPage.edges[0].node.counts,{pending:1});
+  assert.deepEqual(firstPage.nodes,[{id:ordered[0]}]);
+  assert.deepEqual(firstPage.pageInfo,{hasNextPage:true,hasPreviousPage:false,startCursor:firstPage.edges[0].cursor,endCursor:firstPage.edges[0].cursor});
+  const nextPage=await batches({first:1,after:firstPage.edges[0].cursor});
+  assert.deepEqual([nextPage.nodes,nextPage.pageInfo.hasNextPage,nextPage.pageInfo.hasPreviousPage,nextPage.totalCount],[[{id:ordered[1]}],false,true,2]);
+  assert.deepEqual([(await batches({search:"Another"})).totalCount,(await batches({first:0})).nodes],[1,[]]);
+  const old=await json(await f.action("graph.graphql",{query:"{changeBatches{aggregate{count}}}"}));
+  assert.equal(old.errors?.[0]?.extensions?.code,"GRAPHQL_VALIDATION_FAILED");
   const append={key:uuid(902),action:"stage",input:{batchId:id,proposals:[{operation:person("$second",903,"Second"),evidence:cite("second")}]}};
   await send([append]);await send([append]);
   const submitted=await send([{key:uuid(904),action:"submit",input:{batchId:id}}]);
