@@ -3,8 +3,8 @@
     "name": "Board",
     "kind": "query",
     "story": "As an agent, I want the member's unfinished board items with their revisions, so that I can add to, complete or reorder their board without overwriting a change they made.",
-    "query": "query Board {\n  items(first: 500, status: [\"todo\", \"in-progress\"]) {\n    nodes {\n      id\n      category\n      title\n      dueDate\n      status\n      position\n      parentId\n      revision\n    }\n  }\n}",
-    "hash": "ba301b9866220c48e3c4cc9bca8f1fc41890420bc985715ba1a30366869f71fe",
+    "query": "query Board {\n  items(first: 500, filter: {status: {in: [\"todo\", \"in-progress\"]}}) {\n    nodes {\n      id\n      category\n      title\n      dueDate\n      status\n      position\n      parentId\n      revision\n    }\n  }\n}",
+    "hash": "9a927153b08b4e19e525a8ee06c388344ac9e34abb5985dc7bd8402032a98ea1",
     "variables": {
       "type": "object",
       "properties": {},
@@ -174,8 +174,8 @@
     "name": "DiscoveryRecords",
     "kind": "query",
     "story": "As a caller, I want to search discoveryRecords with compact results, so that I can select records and continue through every page.",
-    "query": "query DiscoveryRecords($first: Int = 20, $after: String, $ids: [ID!], $search: String, $kind: [String!]) {\n  discoveryRecords(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    kind: $kind\n  ) {\n    nodes {\n      id\n      kind\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "cc0556a8367e79daf4a8fd18b8f48d1dae24d78e2e3f19b33235b20ea62d460f",
+    "query": "query DiscoveryRecords($first: Int = 20, $after: String, $ids: [ID!], $orderBy: DiscoveryRecordOrder, $filter: DiscoveryRecordFilter, $search: String) {\n  discoveryRecords(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      kind\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "d25f7fadd868d5f8fd88b56ec0c20541d8b11410e169da4f85a4cd989ae5af55",
     "variables": {
       "type": "object",
       "properties": {
@@ -191,13 +191,15 @@
           "type": "array",
           "description": "GraphQL [ID!]"
         },
+        "orderBy": {
+          "description": "GraphQL DiscoveryRecordOrder"
+        },
+        "filter": {
+          "description": "GraphQL DiscoveryRecordFilter"
+        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
-        },
-        "kind": {
-          "type": "array",
-          "description": "GraphQL [String!]"
         }
       },
       "required": []
@@ -587,8 +589,8 @@
     "name": "Items",
     "kind": "query",
     "story": "As a caller, I want to search items with compact results, so that I can select records and continue through every page.",
-    "query": "query Items($first: Int = 20, $after: String, $ids: [ID!], $search: String, $category: [String!], $status: [String!]) {\n  items(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    category: $category\n    status: $status\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "572c81eacda6b9bb8830d70d403d49137d4922de0e02a767dca4ef52122ef83d",
+    "query": "query Items($first: Int = 20, $after: String, $ids: [ID!], $orderBy: ItemOrder, $filter: ItemFilter, $search: String) {\n  items(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "2f0673d53f817a71191077a2ea7b859345b1c8224bfd1cff6e7b5b0bc9db4e34",
     "variables": {
       "type": "object",
       "properties": {
@@ -604,17 +606,15 @@
           "type": "array",
           "description": "GraphQL [ID!]"
         },
+        "orderBy": {
+          "description": "GraphQL ItemOrder"
+        },
+        "filter": {
+          "description": "GraphQL ItemFilter"
+        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
-        },
-        "category": {
-          "type": "array",
-          "description": "GraphQL [String!]"
-        },
-        "status": {
-          "type": "array",
-          "description": "GraphQL [String!]"
         }
       },
       "required": []

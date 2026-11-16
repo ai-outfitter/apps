@@ -27,9 +27,13 @@ const profileRows = tableType(contentProfile, { field: "contentProfiles", type: 
 const nodeRows = tableType(mapNodes, {
   field: "mapNodes", type: "MapNode", fields: ["parentId", "level", "title", "notes", "research", "position", "revision", "updatedAt"], dates: ["updatedAt"], ids: ["parentId"],
   filters: ["level", "parentId"],
+  // map_nodes_parent_idx answers a parent's children in position order.
+  orders: ["position"],
 });
 const draftRows = tableType(drafts, {
   field: "drafts", type: "Draft", fields: ["nodeId", "format", "title", "body", "status", "revision", "updatedAt"], dates: ["updatedAt"], ids: ["nodeId"], filters: ["status", "nodeId"],
+  // drafts_status_idx answers a status in updatedAt order.
+  orders: ["updatedAt"],
 });
 const row = (collection: Record<string, GraphQLFieldConfig<unknown, never>>) => nonNull(rowType(Object.values(collection)[0]));
 
@@ -48,7 +52,9 @@ const wikiBatch = new GraphQLObjectType({ name: "BrandWikiBatch", description: "
   proposals: { type: nonNull(GraphQLInt), description: "Records and links proposed." },
   wikiPath: { type: nonNull(GraphQLString), description: "The Wiki's address; its review page is changes/<batchId> there." },
 } });
-const batchRows = tableType(wikiBatches, { field: "brandWikiBatches", type: "BrandWikiBatchRow", fields: ["wikiInstallationId", "wikiPath", "state", "proposals", "createdAt", "updatedAt"], dates: ["createdAt", "updatedAt"] });
+const batchRows = tableType(wikiBatches, { field: "brandWikiBatches", type: "BrandWikiBatchRow", fields: ["wikiInstallationId", "wikiPath", "state", "proposals", "createdAt", "updatedAt"], dates: ["createdAt", "updatedAt"],
+  // wiki_batches_created_idx.
+  orders: ["createdAt"] });
 
 const editors = "Editors only: the owner of a personal installation, or an organization's owners and admins.";
 const field = <I extends z.ZodType>(name: string, description: string, input: I, output: GraphQLObjectType | GraphQLNonNull<GraphQLObjectType>, run: (context: CreativeContext, input: z.output<I>) => unknown) =>

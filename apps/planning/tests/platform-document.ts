@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { queryGraph } from "@ai-outfitter/app-sdk/graph-query";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import type { WorkflowHostResult, WorkflowHostScope, WorkflowHostStub } from "@ai-outfitter/app-sdk/workflow-host";
 
 type Member = { userId: string; organizationId?: string; role?: string };
@@ -26,7 +27,7 @@ export async function emptyOntoAnswer(operation: string, raw: unknown): Promise<
     })) };
   if (operation === "actions.call" && input.installationId === "wiki" && input.action === "graph.query")
     return { ok: true, value: await queryGraph(emptyOnto as never, input.input as never) };
-  if (operation === "entities.list" && input.installationId === "wiki") return { ok: true, value: [] };
+  if (operation === "entities.list" && input.installationId === "wiki") return { ok: true, value: memoryEntityPage([]) };
   if (operation === "entities.get" && input.installationId === "wiki") return { ok: false, status: 404, message: "Missing" };
   return undefined;
 }

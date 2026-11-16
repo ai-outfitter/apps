@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphQueryMaxLength } from "./graph-limits";
 export type GraphNode = { id: string; typeId: string; archived?: boolean; body?: string; properties?: Record<string, unknown> };
 export type GraphEdge = { id: string; typeId: string; fromId: string; toId: string; archived?: boolean; body?: string; properties?: Record<string, unknown> };
 export type Graph = { types: { id: string; name: string; category: "node" | "edge"; archived?: boolean }[]; nodes: GraphNode[]; edges: GraphEdge[] };
@@ -55,7 +56,7 @@ export const knowledgeGraphDefinitionSchema = z.object({
   rootTypes: z.array(reference).min(1).max(32).optional(),
   selection: selectionSchema.optional(),
   /** GraphQL document text (graphql-js print output). */
-  query: z.string().min(1).max(32768).optional(),
+  query: z.string().min(1).max(graphQueryMaxLength).optional(),
   /** sha256 hex of `query`. */
   hash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   /** JSON Schema of the query's variables. */

@@ -37,6 +37,8 @@ const projects = tableType(workshopProjects, {
   dates: ["createdAt", "updatedAt"],
   ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
   filters: ["createdBy", "productRevisionId"],
+  // workshop_projects_updated_idx.
+  orders: ["updatedAt"],
 });
 /** The inventory: one row per physical unit, told apart by MAC address or serial. */
 const units = tableType(workshopUnits, {

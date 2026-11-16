@@ -35,9 +35,15 @@ type Query {
 scalar JSON
 
 type ChangeBatchConnection {
+  edges: [ChangeBatchConnectionEdge!]!
   nodes: [ChangeBatch!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ChangeBatchConnectionEdge {
+  cursor: String!
+  node: ChangeBatch!
 }
 
 """
@@ -133,12 +139,10 @@ type StagedChange {
 }
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
 type ExplorationSummary {

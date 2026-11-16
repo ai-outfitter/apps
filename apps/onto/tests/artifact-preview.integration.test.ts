@@ -168,14 +168,15 @@ test("Wiki publishes read-only artifact.preview through real action dispatch", a
   try {
     await post("/api/internal/app-initialize", {});
     const all: { ref: { id: string }; attributes: { name: string } }[] = [];
-    for (let offset = 0; ; offset += 100) {
+    for (let after: string | null = null; ; ) {
       const page = (await post("/api/internal/entities/v1/list", {
         type: "graph-type",
         limit: 100,
-        offset,
-      })) as typeof all;
-      all.push(...page);
-      if (page.length < 100) break;
+        ...(after ? { after } : {}),
+      })) as { records: typeof all; pageInfo: { endCursor: string | null } };
+      all.push(...page.records);
+      after = page.pageInfo.endCursor;
+      if (!after) break;
     }
     const typeId = (name: string) =>
       all.find((t) => t.attributes.name === name)!.ref.id;

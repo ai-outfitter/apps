@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import type { EntityPage } from "@ai-outfitter/app-sdk/entities";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import * as adapter from "../scripts/local-seed";
@@ -43,7 +43,7 @@ test("personal projects become canonical Planning records with the Wiki page's I
       body: { type: "project", limit: 100 },
     });
     assert.equal(response.status, 200, await response.clone().text());
-    const records = (await response.json()) as EntityRecord[];
+    const { records } = (await response.json()) as EntityPage;
     // Exactly the references the personal Wiki's Project pages hold.
     assert.deepEqual(
       records.map((r) => [r.ref, r.title]),

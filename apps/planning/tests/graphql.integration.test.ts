@@ -53,7 +53,7 @@ const activeProjects = graphql(`
     projects(first: 2, active: $active, after: $after) {
       nodes { id name githubRepository openIssues updatedAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
   }
 `);
@@ -89,14 +89,14 @@ test("members read active projects with open issue counts over graph.graphql, pa
     const active = await read({ active: true });
     assert.deepEqual(active.nodes.map(node => [node.id, node.githubRepository, node.openIssues]), [["a", "acme/web", 2], ["b", null, 1]]);
     assert.equal(active.nodes[0].updatedAt, new Date(3).toISOString());
-    assert.deepEqual([active.pageInfo.hasNextPage, active.aggregate.count], [false, 2]);
+    assert.deepEqual([active.pageInfo.hasNextPage, active.totalCount], [false, 2]);
     // Without `active`, every project of this installation, two at a time; never another installation's.
     const all = await read({});
     const rest = await read({ after: all.pageInfo.endCursor });
     assert.deepEqual([...all.nodes, ...rest.nodes].map(node => [node.id, node.openIssues]), [["a", 2], ["b", 1], ["c", 0], ["d", 0]]);
-    assert.deepEqual([all.aggregate.count, rest.pageInfo.hasNextPage], [4, false]);
+    assert.deepEqual([all.totalCount, rest.pageInfo.hasNextPage], [4, false]);
     assert.deepEqual((await read({ active: false })).nodes.map(node => node.id), ["c", "d"]);
-    const filtered = await call({ query: `{ issues(status: ["todo"]) { nodes { id projectId } } }` }, member);
+    const filtered = await call({ query: `{ issues(filter: { status: { in: ["todo"] } }) { nodes { id projectId } } }` }, member);
     assert.deepEqual(((await filtered.json()) as { data: unknown }).data, { issues: { nodes: [{ id: "i0", projectId: "a" }, { id: "i3", projectId: "b" }] } });
     // Only platform dispatch, with a member's identity, reaches it.
     assert.equal((await call({ query: "{ __typename }" }, undefined)).status, 401);
@@ -111,7 +111,7 @@ test("a read larger than maxBytes cuts the issue list and says where", async () 
     const issue = await seed((sql, values) => app.database.prepare(sql).bind(...values).run(), app.installationId);
     for (let n = 0; n < 40; n++) await issue("d", "todo", app.installationId, "t".repeat(400));
     const response = await app.call(`${actionPath}/call`, member, {
-      method: "POST", body: { action: "graph.graphql", input: { query: `{ issues(projectId: ["d"]) { nodes { id title } pageInfo { hasNextPage } } }`, maxBytes: 8192 }, access: "read" },
+      method: "POST", body: { action: "graph.graphql", input: { query: `{ issues(filter: { projectId: { in: ["d"] } }) { nodes { id title } pageInfo { hasNextPage } } }`, maxBytes: 8192 }, access: "read" },
     });
     const result = graphGraphqlResult.parse(await response.json());
     const nodes = (result.data as { issues: { nodes: { title: string }[] } }).issues.nodes;
@@ -137,6 +137,46 @@ test("the project list with open issue counts is one SQL statement", async () =>
     assert.deepEqual(result.data, { projects: { nodes: [{ id: "a", name: "Project a", githubRepository: "acme/web", openIssues: 2 }, { id: "b", name: "Project b", githubRepository: null, openIssues: 1 }], pageInfo: { hasNextPage: false } } });
     assert.equal(statements.length, 1, statements.join("\n"));
     assert.match(statements[0], /left join "planning_issues"/);
+  } finally {
+    client.close();
+  }
+});
+
+test("issues in position order read the (installationId, position, id) index, page after page", async () => {
+  const client = createClient({ url: ":memory:" });
+  try {
+    const statements: { sql: string; params: unknown[] }[] = [];
+    const db = drizzle(client, { logger: { logQuery: (sql, params) => statements.push({ sql, params }) } });
+    await migrate(db, { migrationsFolder: fileURLToPath(new URL("../migrations", import.meta.url)) });
+    await seed((sql, args) => client.execute({ sql, args: args as never }), "planning");
+    statements.length = 0;
+    const read = async (orderBy: string, after: string | null) => {
+      const result = graphGraphqlResult.parse(await serveGraphql({
+        schema: graphqlSchema, variables: { after }, context: { db: () => db, identity: { installationId: "planning" } },
+        query: `query($after: String) { issues(orderBy: ${orderBy}, first: 2, after: $after) { nodes { id position } pageInfo { hasNextPage endCursor } } }`,
+      }));
+      assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+      return (result.data as { issues: { nodes: { id: string; position: number }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } }).issues;
+    };
+    for (const [orderBy, expected] of [["POSITION_ASC", ["i0", "i1", "i2", "i3", "i4"]], ["POSITION_DESC", ["i4", "i3", "i2", "i1", "i0"]]] as const) {
+      const seen: string[] = [];
+      for (let after: string | null = null, more = true; more;) {
+        const page = await read(orderBy, after);
+        seen.push(...page.nodes.map(node => node.id));
+        more = page.pageInfo.hasNextPage;
+        after = page.pageInfo.endCursor;
+      }
+      assert.deepEqual(seen, expected);
+    }
+    assert.equal(statements.length, 6);
+    for (const [index, statement] of statements.entries()) {
+      const plan = (await client.execute({ sql: `EXPLAIN QUERY PLAN ${statement.sql}`, args: statement.params as never })).rows.map(row => String(row.detail));
+      // One seek of the migration-0015 index gives the installation's rows already in (position, id) order: no scan, no sort.
+      assert.equal(plan.length, 1, plan.join("; "));
+      assert.match(plan[0], /^SEARCH planning_issues USING INDEX planning_issues_installation_position \(installationId=\?/, plan[0]);
+      // After a cursor the seek continues from its (position, id).
+      if (index % 3) assert.match(plan[0], /installationId=\? AND \(position,id\)[<>]\(\?,\?\)/, plan[0]);
+    }
   } finally {
     client.close();
   }

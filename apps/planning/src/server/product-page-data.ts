@@ -3,6 +3,7 @@ import { stableGraphId, defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { productContextQuery as query } from "../../queries/product-context";
+import { boundOrganization } from "./organization-goals";
 
 export function weeklyPeriod(at: string | Date = new Date()) {
   const date = new Date(at);
@@ -20,12 +21,19 @@ type RecordRef = {
   revision: number;
   summary?: string;
 };
-type Product = RecordRef & { revisions: { from: RecordRef | null }[] };
+/** One bounded page of a node's edges; a page with more behind it makes the read incomplete. */
+type Edges<T> = { nodes: T[]; pageInfo: { hasNextPage: boolean } };
+type Product = RecordRef & { revisions: Edges<{ from: RecordRef | null }> };
 type Project = RecordRef & {
-  owners: { to: { id: string; __typename: string } | null }[];
-  products: { to: { id: string; __typename: string } | null }[];
-  goals: { to: RecordRef | null }[];
+  owners: Edges<{ to: { id: string; __typename: string } | null }>;
+  products: Edges<{ to: { id: string; __typename: string } | null }>;
+  goals: Edges<{ to: RecordRef | null }>;
 };
+/** The edges of a page that holds them all. */
+function all<T>(edges: Edges<T> | null | undefined): T[] {
+  if (edges?.pageInfo.hasNextPage) throw new Response("Product context is incomplete", { status: 502 });
+  return edges?.nodes ?? [];
+}
 type Plan = RecordRef & { body: string };
 type Answer = {
   organization: {
@@ -33,9 +41,9 @@ type Answer = {
     title: string;
     slug: string | null;
     revision: number;
-    developed: { from: Product | null; properties?: { rank?: unknown } | null }[];
-    offerings: { from: { products: { to: Product | null }[] } | null }[];
-    projects: { from: { products: { to: Product | null }[] } | null }[];
+    developed: Edges<{ from: Product | null; properties?: { rank?: unknown } | null }>;
+    offerings: Edges<{ from: { products?: Edges<{ to: Product | null }> } | null }>;
+    projects: Edges<{ from: { products?: Edges<{ to: Product | null }> } | null }>;
   } | null;
   projectRecords: { nodes: Project[]; pageInfo: { hasNextPage: boolean } };
   reports: {
@@ -57,35 +65,8 @@ export async function readProductPage(
     throw new Response("An organization scope is required", { status: 400 });
   const wiki = await defaultWiki(host);
   const db = await appDataContext(host).apps.installation(wiki.installationId);
-  const types = await db
-    .collection("types")
-    .list({ where: { name: "Organization", archived: false }, limit: 2 });
-  if (types.length !== 1)
-    throw new Response("Organization definition unavailable", { status: 409 });
-  const bound: string[] = [];
-  for (let offset = 0; offset < 10000; offset += 100) {
-    const page = await db.collection("nodes").list({
-      where: { typeId: types[0].ref.id, archived: false },
-      select: ["properties"],
-      limit: 100,
-      offset,
-    });
-    bound.push(
-      ...page
-        .filter(
-          (node) =>
-            (node.attributes.properties as Record<string, unknown>)
-              ?.organization_id === identity.organizationId,
-        )
-        .map((node) => node.ref.id),
-    );
-    if (page.length < 100) break;
-    if (offset === 9900)
-      throw new Response("Organization lookup exceeds its bound", {
-        status: 413,
-      });
-  }
-  if (bound.length !== 1)
+  const organizationNode = await boundOrganization(db, identity.organizationId);
+  if (!organizationNode)
     throw new Response("Bind exactly one Wiki organization to this scope", {
       status: 409,
     });
@@ -98,7 +79,7 @@ export async function readProductPage(
       installationId: wiki.installationId,
       action: "graph.graphql",
       readOnly: true,
-      input: { query, variables: { root: bound[0], after }, maxBytes: 262144 },
+      input: { query, variables: { root: organizationNode, after }, maxBytes: 262144 },
     })) as {
       data?: Answer;
       errors?: { message: string }[];
@@ -130,15 +111,15 @@ export async function readProductPage(
     throw new Response("Bound organization needs a slug", { status: 409 });
   const organization = { slug: org.slug, name: org.title };
   const candidates = [
-    ...org.developed.map((edge) => edge.from),
-    ...org.offerings.flatMap(
-      (edge) => edge.from?.products?.map((item) => item.to) ?? [],
+    ...all(org.developed).map((edge) => edge.from),
+    ...all(org.offerings).flatMap(
+      (edge) => all(edge.from?.products).map((item) => item.to),
     ),
-    ...org.projects.flatMap(
-      (edge) => edge.from?.products?.map((item) => item.to) ?? [],
+    ...all(org.projects).flatMap(
+      (edge) => all(edge.from?.products).map((item) => item.to),
     ),
   ];
-  const ranks = new Map(org.developed.flatMap(edge => edge.from && typeof edge.properties?.rank === "string" ? [[edge.from.id, edge.properties.rank] as const] : []));
+  const ranks = new Map(all(org.developed).flatMap(edge => edge.from && typeof edge.properties?.rank === "string" ? [[edge.from.id, edge.properties.rank] as const] : []));
   const products = [
     ...new Map(
       candidates
@@ -151,19 +132,19 @@ export async function readProductPage(
     return left != null && right != null ? (left < right ? -1 : left > right ? 1 : a.id.localeCompare(b.id)) : left != null ? -1 : right != null ? 1 : a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
   }).map((item) => ({
     ...item,
-    revisions: item.revisions.flatMap((edge) => (edge.from ? [edge.from] : [])),
+    revisions: all(item.revisions).flatMap((edge) => (edge.from ? [edge.from] : [])),
     projects: data!.projectRecords.nodes
       .filter(
         (project) =>
-          project.owners.some(
+          all(project.owners).some(
             (owner) =>
               owner.to?.__typename === "Organization" &&
-              owner.to.id === bound[0],
-          ) && project.products.some((edge) => edge.to?.id === item.id),
+              owner.to.id === organizationNode,
+          ) && all(project.products).some((edge) => edge.to?.id === item.id),
       )
       .map((project) => ({
         ...project,
-        goals: project.goals.flatMap((goal) => (goal.to ? [goal.to] : [])),
+        goals: all(project.goals).flatMap((goal) => (goal.to ? [goal.to] : [])),
       })),
   }));
   const reports: (Record<string, any> & RecordRef)[] = plans.flatMap((plan) => {
@@ -178,14 +159,14 @@ export async function readProductPage(
       !Array.isArray(body) &&
       body.kind === "weekly_report" &&
       body.definition === "product-roadmap" &&
-      body.organization_id === bound[0] &&
+      body.organization_id === organizationNode &&
       body.period_start === period.start &&
       body.period_end === period.end
       ? [{ ...body, id: plan.id, revision: plan.revision, title: plan.title }]
       : [];
   });
   // A sealed report is authoritative independently of its mutable working copy.
-  const sealTypes = await db.collection("types").list({
+  const { records: sealTypes } = await db.collection("types").list({
     where: { name: "WeeklyReportSeal", archived: false },
     limit: 2,
   });
@@ -199,53 +180,46 @@ export async function readProductPage(
         status: 409,
       });
     const sealed = new Map<string, Record<string, any> & RecordRef>();
-    for (let offset = 0; offset < 2000; offset += 100) {
-      const rows = await db.collection("nodes").list({
-        where: { typeId: sealTypes[0].ref.id, archived: false },
-        limit: 100,
-        offset,
-      });
-      for (const row of rows) {
-        let seal: any;
-        try {
-          seal = JSON.parse(String(row.attributes.body));
-        } catch {
-          continue;
-        }
-        const report = seal?.report;
-        if (
-          seal?.kind !== "weekly_report_seal" ||
-          report?.kind !== "weekly_report" ||
-          report.organization_id !== bound[0] ||
-          report.definition !== "product-roadmap" ||
-          report.period_start !== period.start ||
-          report.period_end !== period.end
-        )
-          continue;
-        if (
-          report.status !== "sealed" ||
-          row.ref.id !==
-            (await stableGraphId(
-              "weekly-report-seal-v1",
-              wiki.installationId,
-              seal.report_id,
-            ))
-        )
-          throw new Response("Report seal identity is invalid", {
-            status: 409,
-          });
-        sealed.set(seal.report_id, {
-          ...report,
-          id: seal.report_id,
-          revision: report.seal.report_revision ?? 0,
-          seal_record_id: row.ref.id,
-          seal_record_revision: row.revision,
-          title: `product-roadmap ${period.start}`,
-        });
+    const rows = await db.collection("nodes").all({
+      where: { typeId: sealTypes[0].ref.id, archived: false },
+    }, 2000);
+    for (const row of rows) {
+      let seal: any;
+      try {
+        seal = JSON.parse(String(row.attributes.body));
+      } catch {
+        continue;
       }
-      if (rows.length < 100) break;
-      if (offset === 1900)
-        throw new Response("Seal lookup exceeds its bound", { status: 413 });
+      const report = seal?.report;
+      if (
+        seal?.kind !== "weekly_report_seal" ||
+        report?.kind !== "weekly_report" ||
+        report.organization_id !== organizationNode ||
+        report.definition !== "product-roadmap" ||
+        report.period_start !== period.start ||
+        report.period_end !== period.end
+      )
+        continue;
+      if (
+        report.status !== "sealed" ||
+        row.ref.id !==
+          (await stableGraphId(
+            "weekly-report-seal-v1",
+            wiki.installationId,
+            seal.report_id,
+          ))
+      )
+        throw new Response("Report seal identity is invalid", {
+          status: 409,
+        });
+      sealed.set(seal.report_id, {
+        ...report,
+        id: seal.report_id,
+        revision: report.seal.report_revision ?? 0,
+        seal_record_id: row.ref.id,
+        seal_record_revision: row.revision,
+        title: `product-roadmap ${period.start}`,
+      });
     }
     for (const [id, seal] of sealed) {
       const index = reports.findIndex((report) => report.id === id);
@@ -270,10 +244,10 @@ export async function readProductPage(
     products,
     sourceContext: {
       wikiInstallationId: wiki.installationId,
-      organizationId: bound[0],
+      organizationId: organizationNode,
       organizationRevision: org.revision,
       query,
-      variables: { root: bound[0] },
+      variables: { root: organizationNode },
       consistency: "live-paginated",
       complete: true,
     },

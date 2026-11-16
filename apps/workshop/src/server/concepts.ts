@@ -381,7 +381,7 @@ export async function publishConcepts(
     throw new Response("That product revision is not in your Wiki.", {
       status: 404,
     });
-  const evidenceForTypeId = types.find((row) => !row.attributes.archived)?.ref.id;
+  const evidenceForTypeId = types.records.find((row) => !row.attributes.archived)?.ref.id;
   if (!evidenceForTypeId)
     throw new Response("Your Wiki has no evidence_for type yet. Update the Wiki, then publish.", {
       status: 409,

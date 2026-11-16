@@ -1,7 +1,8 @@
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
-import { and, asc, eq, inArray, like, sql, gt } from "drizzle-orm";
+import { and, asc, count, gt, like, ne, sql } from "drizzle-orm";
 import { graphBatches, graphBatchOperations } from "./schema";
-import { connectionType, pageArgs } from "@ai-outfitter/app-sdk/app-graphql";
+import { connectionType, idList, type PageArgs, page, pageArgs, pageStart } from "@ai-outfitter/app-sdk/app-graphql";
+import { within } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import { instructionType, resultInstructions } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
@@ -12,7 +13,7 @@ import { batchGroups } from "./batch-groups";
 // printed schema (graph/schema.graphql) answers through both.
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
-import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
+import { DateTimeScalar, type GraphContext, groupBy, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
@@ -171,16 +172,18 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
   changeBatches: {
     type: nonNull(connectionType(ChangeBatch)), description: "Search saved change batches; operations and evidence are selected explicitly.",
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},
-    resolve: async (_root, args, context) => {
-      const first = Math.min(100, Math.max(1, args.first ?? 20));
-      const where = and(args.ids?.length ? inArray(graphBatches.id,args.ids) : undefined, args.state?.length ? inArray(graphBatches.state,args.state) : undefined, args.search ? like(graphBatches.title, `%${args.search}%`) : undefined);
-      const rows = await context.db().select().from(graphBatches).where(and(where,args.after ? gt(graphBatches.id,args.after) : undefined)).orderBy(asc(graphBatches.id)).limit(first+1);
-      const nodes = await Promise.all(rows.slice(0,first).map(async row => {
-        const counts = await context.db().select({state:graphBatchOperations.state,n:sql<number>`count(*)`}).from(graphBatchOperations).where(and(eq(graphBatchOperations.batchId,row.id),sql`${graphBatchOperations.state} <> 'removed'`)).groupBy(graphBatchOperations.state);
-        return {...row,counts:Object.fromEntries(counts.map(count => [count.state,Number(count.n)]))};
-      }));
-      const [total] = await context.db().select({n:sql<number>`count(*)`}).from(graphBatches).where(where);
-      return {nodes,pageInfo:{hasNextPage:rows.length>first,endCursor:rows.length>first ? nodes.at(-1)?.id : null},aggregate:{count:Number(total.n)}};
+    resolve: async (_root, args: PageArgs & { ids?: string[] | null; search?: string | null; state?: string[] | null }, context, info) => {
+      const { first, start } = pageStart(args), ids = idList(args.ids), db = context.db();
+      const where = and(ids ? sql`${graphBatches.id} IN ${within(ids)}` : undefined, args.state?.length ? sql`${graphBatches.state} IN ${within(args.state)}` : undefined,
+        args.search ? like(graphBatches.title, `%${args.search}%`) : undefined);
+      const rows = await db.select().from(graphBatches).where(and(where, start ? gt(graphBatches.id, start) : undefined)).orderBy(asc(graphBatches.id)).limit(first + 1);
+      // The page's operation counts by state, in one statement.
+      const counted = groupBy(await db.select({ batchId: graphBatchOperations.batchId, state: graphBatchOperations.state, n: count() }).from(graphBatchOperations)
+        .where(and(sql`${graphBatchOperations.batchId} IN ${within(rows.slice(0, first).map(row => row.id))}`, ne(graphBatchOperations.state, "removed")))
+        .groupBy(graphBatchOperations.batchId, graphBatchOperations.state), row => row.batchId);
+      const batches = rows.map(row => ({ ...row, counts: Object.fromEntries((counted.get(row.id) ?? []).map(item => [item.state, item.n])) }));
+      // Counted only when selected.
+      return page(context as unknown as GraphContext, info, batches, row => row.id, first, start, async () => (await db.select({ n: count() }).from(graphBatches).where(where))[0].n);
     },
   },
   explorations: {

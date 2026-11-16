@@ -37,7 +37,7 @@ test("an Outfitter account is an OutfitterUser node joined to its holder by acco
 
     // A Person is not an agent, and an account key is never public.
     await call(identity + "link", { holderId: bea.ref.id, principalId: "agent-1", kind: "agent" }, 409);
-    const listed = await call(entities + "list", { type: "graph-node", filter: { typeId: "71000000-0000-4000-8000-000000000120" } });
+    const listed = (await call(entities + "list", { type: "graph-node", filter: { typeId: "71000000-0000-4000-8000-000000000120" } })).records;
     assert.equal(listed.length, 1);
     assert.equal(JSON.stringify(listed).includes("ai-outfitter.com/users:"), false);
 

@@ -5,11 +5,13 @@
 // Compilation: one fragment on Node per hop (Step1…StepN, then Beyond), so the
 // document grows with rules times depth, not with the data or the number of types.
 // Each hop selects edge objects, so the result carries edge IDs as well as nodes:
-// - typed `<edge>Edges` / `<edge>IncomingEdges` fields, inside `... on <Type>`, where
+// - typed `<edge>Edges` / `<edge>IncomingEdges` connections, inside `... on <Type>`, where
 //   the edge type declares ontology endpoints;
-// - otherwise `edges(types: [...], direction: ...)`, aliased `<edge>Links` /
+// - otherwise the `edges(types: [...], direction: ...)` connection, aliased `<edge>Links` /
 //   `<edge>IncomingLinks`, inside `... on <Type>` when a guard names one source type,
 //   on Node otherwise.
+//   Either reads the largest page (500 edges per node; the walk applies maxNodes) with
+//   `pageInfo { hasNextPage }`, so a parent with more edges than one page marks the selection incomplete.
 // Roots come from each root type's collection (`ids: $rootIds`, `first` from
 // maxNodes). Each record carries id, typeId, title and slug (the address agents use).
 // Beyond selects the last hop's edges once more, with only the far end's id and typeId,
@@ -19,6 +21,7 @@
 // omitted, boundary edges) stays `selectGraph`, run over the records the result holds.
 // Text is graphql-js `print` output, so a definition always compiles to the same text.
 import { parse, print } from "graphql";
+import { isObject } from "./graph-filter";
 import { endpointsOf, graphqlNames, type NodeLayout, type SchemaLayout, schemaLayout, type TypeRow } from "./graph-graphql-names";
 import type { EdgeRow, GraphRow } from "./graph-graphql-source";
 import { type GraphSelection, type GraphSelectionDefinition, graphSelectionDefinition, normalizeRule, selectGraph } from "./graph-selection";
@@ -73,8 +76,8 @@ export function queryHash(query: string) {
   }
   return [...hash].map(word => word.toString(16).padStart(8, "0")).join("");
 }
-/** Query depth a compiled document of `maxDepth` hops needs (collection, nodes, two levels per hop, frontier). */
-export const selectionQueryDepth = (maxDepth: number) => 2 * maxDepth + 5;
+/** Query depth a compiled document of `maxDepth` hops needs (collection, nodes, up to three levels per hop, frontier). */
+export const selectionQueryDepth = (maxDepth: number) => 3 * maxDepth + 6;
 
 type Rule = { edgeTypeId: string; direction: "outgoing" | "incoming"; fromType?: string; toType?: string };
 /** One edge field: where it is selected (a node type, or "" for every node), and the types it may reach. */
@@ -120,7 +123,7 @@ function groupRules(rules: Rule[]) {
   return [...groups.values()];
 }
 
-/** Typed `…Edges` fields on each endpoint type; otherwise `edges(types:, direction:)`, on every node unless a guard names the source types. */
+/** Typed `…Edges` connections on each endpoint type; otherwise the `edges(types:, direction:)` connection, on every node unless a guard names the source types. */
 function hopsOf(group: Group, layout: SchemaLayout, terminal: Set<string>): Hop[] {
   const end = group.direction === "outgoing" ? "to" : "from";
   const allowed = (ids: string[]) => ids.filter(id => !group.targets || group.targets.has(id));
@@ -133,7 +136,7 @@ function hopsOf(group: Group, layout: SchemaLayout, terminal: Set<string>): Hop[
   const edge = layout.edges.get(group.edgeTypeId);
   if (!edge || endpointsOf(edge.type)) return typed;
   const alias = `${graphqlNames.fieldName(edge.type.name)}${group.direction === "incoming" ? "Incoming" : ""}Links`;
-  const generic = { field: "edges", alias, args: `(types: [${quote(edge.type.name)}], direction: ${group.direction === "outgoing" ? "OUTGOING" : "INCOMING"})`, end,
+  const generic = { field: "edges", alias, args: `types: [${quote(edge.type.name)}], direction: ${group.direction === "outgoing" ? "OUTGOING" : "INCOMING"}, `, end,
     targets: allowed([...layout.nodes.keys()]) } as const;
   if (!generic.targets.length) return [];
   // One source type gets its own inline fragment; several share the field on Node (the walk applies the guard),
@@ -152,12 +155,13 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   if (!roots.length) throw new Error("No root type of this selection is in the schema");
   const nameOf = (typeId: string) => (layout.nodes.get(typeId) as NodeLayout).name;
   const step = (level: number) => (level > definition.maxDepth ? "Beyond" : `Step${level}`);
+  const first = Math.min(definition.maxNodes, 500);
   /** The fields reading hop `level` out of a node; past maxDepth only the far end's id and typeId. */
   const fields = (level: number, on: string) => hops.filter(hop => hop.on === on).map(hop => {
-    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}${hop.args ?? ""}`;
-    if (level > definition.maxDepth) return `${head} { ...Link ${hop.end} { id typeId } }`;
+    const head = `${hop.alias ? `${hop.alias}: ` : ""}${hop.field}(${hop.args ?? ""}first: 500)`;
     const expands = hops.length && hop.targets.some(target => !terminal.has(target));
-    return `${head} { ...Link ${hop.end} { ...Record${expands ? ` ...${step(level + 1)}` : ""} } }`;
+    const edge = level > definition.maxDepth ? `...Link ${hop.end} { id typeId }` : `...Link ${hop.end} { ...Record${expands ? ` ...${step(level + 1)}` : ""} }`;
+    return `${head} { nodes { ${edge} } pageInfo { hasNextPage } }`;
   });
   const placements = [...new Set(hops.map(hop => hop.on))].sort((a, b) => (a && b ? compare(nameOf(a), nameOf(b)) : a ? 1 : -1));
   const fragment = (level: number) => {
@@ -165,7 +169,6 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
     return `fragment ${step(level)} on Node {\n  ${body.join("\n  ")}\n}`;
   };
   const operationName = options.operationName ?? "KnowledgeGraph";
-  const first = Math.min(definition.maxNodes, 500);
   const rootFields = roots.map(typeId => `  ${(layout.nodes.get(typeId) as NodeLayout).collection}(ids: $rootIds, first: ${first}) { nodes { ...Record${hops.length ? " ...Step1" : ""} } }`);
   const levels = hops.length ? Array.from({ length: definition.maxDepth + 1 }, (_, index) => fragment(index + 1)) : [];
   const document = [
@@ -177,10 +180,9 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   return { query: print(parse(document)), operationName, variables: selectionVariables, hops: definition.maxDepth };
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const isRecord = (value: Record<string, unknown>): value is GraphRow => typeof value.id === "string" && typeof value.typeId === "string";
 const isEdge = (value: GraphRow): value is EdgeRow => typeof value.fromId === "string" && typeof value.toId === "string";
-type Observed = { nodes: Map<string, GraphRow>; edges: Map<string, EdgeRow>; depth: Map<string, number>; steps: Set<string> };
+type Observed = { nodes: Map<string, GraphRow>; edges: Map<string, EdgeRow>; depth: Map<string, number>; steps: Set<string>; more: boolean };
 
 function noteEdge(edge: EdgeRow, observed: Observed, parent: GraphRow | null) {
   observed.edges.set(edge.id, { ...edge, ...observed.edges.get(edge.id) });
@@ -200,6 +202,8 @@ function noteNode(node: GraphRow, observed: Observed, parent: GraphRow | null, d
 function observe(value: unknown, observed: Observed, parent: GraphRow | null, depth: number) {
   if (Array.isArray(value)) { for (const item of value) observe(item, observed, parent, depth); return; }
   if (!isObject(value)) return;
+  // A connection with more pages than the document read: the result holds less than the graph.
+  if (value.hasNextPage === true) observed.more = true;
   let below = parent, next = depth;
   if (isRecord(value) && isEdge(value)) noteEdge(value, observed, parent);
   else if (isRecord(value)) { next = noteNode(value, observed, parent, depth); below = value; }
@@ -207,11 +211,12 @@ function observe(value: unknown, observed: Observed, parent: GraphRow | null, de
   for (const [key, item] of Object.entries(value)) if (key !== "properties") observe(item, observed, below, next);
 }
 
-/** The node and edge records a GraphQL result holds, merged by ID (fuller selections win field by field). */
+/** The node and edge records a GraphQL result holds, merged by ID (fuller selections win field by field),
+ * and whether any connection in it reported more pages. */
 export function resultRecords(data: unknown) {
-  const observed: Observed = { nodes: new Map(), edges: new Map(), depth: new Map(), steps: new Set() };
+  const observed: Observed = { nodes: new Map(), edges: new Map(), depth: new Map(), steps: new Set(), more: false };
   observe(data, observed, null, 0);
-  return { nodes: [...observed.nodes.values()], edges: [...observed.edges.values()], depth: observed.depth, steps: observed.steps };
+  return { nodes: [...observed.nodes.values()], edges: [...observed.edges.values()], depth: observed.depth, steps: observed.steps, more: observed.more };
 }
 
 /** A definition describing what a hand-written document read: the root records' types,
@@ -234,11 +239,13 @@ export function definitionFromResult(data: unknown, types: TypeRow[], rootIds: r
 }
 
 /** Run the selection walk over the records a result holds. `records` are fuller rows
- * (for example the roots as stored) that replace what the result selected of them. */
+ * (for example the roots as stored) that replace what the result selected of them.
+ * A connection cut to one page leaves the selection incomplete. */
 export function selectFromResult(args: { installationId: string; types: TypeRow[]; data: unknown; rootIds: readonly string[]; definition: GraphSelectionDefinition; records?: GraphRow[] }): GraphSelection {
   const found = resultRecords(args.data);
   const fuller = new Map((args.records ?? []).map(row => [row.id, row]));
   const rows = (list: GraphRow[]) => list.map((row): Record<string, unknown> => ({ title: "", body: "", properties: {}, archived: false, revision: 1, ...(row as Record<string, unknown>), ...fuller.get(row.id) }));
   const graph = wikiGraphRecords({ installationId: args.installationId, types: args.types as never, nodes: rows(found.nodes) as never, edges: rows(found.edges) as never }, true);
-  return selectGraph(graph, args.rootIds, args.definition);
+  const selection = selectGraph(graph, args.rootIds, args.definition);
+  return found.more ? { ...selection, incomplete: true } : selection;
 }

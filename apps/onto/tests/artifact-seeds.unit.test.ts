@@ -157,7 +157,7 @@ test("untouched seed knowledge graphs upgrade to the current seed; edited ones s
     assert.match(String(JSON.parse(String(row(overview.id).body)).query), /^query OrganizationOverview\(\$rootIds: \[ID!\]!\)/);
     assert.deepEqual({ ...row(decision.id) }, { body: "Owner notes", revision: 4, updatedBy: "owner" });
     // A document recompiled over this Wiki's types (another app added a type) is not reset to the seed's.
-    const recompiled = JSON.stringify({ ...JSON.parse(overview.body), query: "query OrganizationOverview($roots: [String!]!) { organizations(slugs: $roots) { nodes { id } } }", hash: "0".repeat(64) });
+    const recompiled = JSON.stringify({ ...JSON.parse(overview.body), query: "query OrganizationOverview($roots: [String!]!) { organizations(filter: { slug: { in: $roots } }) { nodes { id } } }", hash: "0".repeat(64) });
     db.prepare("UPDATE graph_nodes SET body=? WHERE id=?").run(recompiled, overview.id);
     await setupStandardData(adapter(db), owner);
     assert.deepEqual({ ...row(overview.id) }, { body: recompiled, revision: 4, updatedBy: "seed:wiki-standard-data" });

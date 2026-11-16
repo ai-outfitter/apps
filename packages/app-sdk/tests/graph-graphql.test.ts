@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getIntrospectionQuery, GraphQLObjectType, GraphQLString } from "graphql";
-import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, type TypeRow } from "../src/graph-graphql";
+import { keysetCursor, readKeyset } from "../src/graph-order";
+import { graphQueryLimits } from "../src/graph-query";
+import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, type TypeRow, withRelationBudget } from "../src/graph-graphql";
+import { knowledgeGraphSelectInput } from "../src/graph-selection";
+import { graphQueryMaxLength } from "../src/graph-limits";
+import { knowledgeGraphDefinitionSchema } from "../src/knowledge-graph";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (n: number, name: string, category: "node" | "edge", extra: Record<string, unknown> = {}) =>
@@ -65,30 +70,30 @@ test("every node type serves validFrom/validUntil and takes at, so one document 
 });
 
 test("collections page in ID order with counts, typed properties and interval validity", async () => {
-  const first = await run(`{ commitments(first: 1) { nodes { id title state validFrom validUntil } pageInfo { endCursor hasNextPage } aggregate { count } } }`);
+  const first = await run(`{ commitments(first: 1) { nodes { id title state validFrom validUntil } pageInfo { endCursor hasNextPage } totalCount } }`);
   assert.equal(first.errors, undefined);
-  const page = (first.data as { commitments: { nodes: { id: string }[]; pageInfo: { endCursor: string; hasNextPage: boolean }; aggregate: { count: number } } }).commitments;
+  const page = (first.data as { commitments: { nodes: { id: string }[]; pageInfo: { endCursor: string; hasNextPage: boolean }; totalCount: number } }).commitments;
   assert.deepEqual(page.nodes, [{ id: uuid(106), title: "Ada reviews", state: "active", validFrom: "2026-01-01T00:00:00Z", validUntil: null }]);
-  assert.deepEqual([page.pageInfo.hasNextPage, page.aggregate.count], [true, 2]);
+  assert.deepEqual([page.pageInfo.hasNextPage, page.totalCount], [true, 2]);
   const next = await run(`query($after: String) { commitments(after: $after) { nodes { title validFrom } pageInfo { hasNextPage } } }`, { variables: { after: page.pageInfo.endCursor } });
   assert.deepEqual(next.data, { commitments: { nodes: [{ title: "Team reviews", validFrom: "2027-01-01T00:00:00Z" }], pageInfo: { hasNextPage: false } } });
-  const at = await run(`{ commitments(at: "2026-06-01T00:00:00Z") { aggregate { count } } control(id: "${uuid(105)}") { threshold unit title title_00000003 properties } __type(name: "Control") { name } }`);
-  assert.deepEqual(at.data, { commitments: { aggregate: { count: 1 } }, control: { threshold: 1, unit: "reviews", title: "Reviews", title_00000003: "shadowed", properties: { threshold: 1, unit: "reviews", title: "shadowed" } }, __type: { name: "Control" } });
+  const at = await run(`{ commitments(at: "2026-06-01T00:00:00Z") { totalCount } control(id: "${uuid(105)}") { threshold unit title title_00000003 properties } __type(name: "Control") { name } }`);
+  assert.deepEqual(at.data, { commitments: { totalCount: 1 }, control: { threshold: 1, unit: "reviews", title: "Reviews", title_00000003: "shadowed", properties: { threshold: 1, unit: "reviews", title: "shadowed" } }, __type: { name: "Control" } });
   assert.ok(((at.extensions?.naming ?? []) as { graphqlName: string }[]).some(warning => warning.graphqlName === "title_00000003"), "collisions are reported");
-  const archived = await run(`{ only: persons(archived: ONLY) { nodes { title } } all: persons(archived: INCLUDE) { aggregate { count } } persons { aggregate { count } } }`);
-  assert.deepEqual(archived.data, { only: { nodes: [{ title: "Gone" }] }, all: { aggregate: { count: 4 } }, persons: { aggregate: { count: 3 } } }, "collections hide archived, not retired, as graph.query does");
+  const archived = await run(`{ only: persons(archived: ONLY) { nodes { title } } all: persons(archived: INCLUDE) { totalCount } persons { totalCount } }`);
+  assert.deepEqual(archived.data, { only: { nodes: [{ title: "Gone" }] }, all: { totalCount: 4 }, persons: { totalCount: 3 } }, "collections hide archived, not retired, as graph.query does");
 });
 
 test("relator slots resolve participants and participants list their relators", async () => {
   const result = await run(`{
     commitment(id: "${uuid(106)}") { owner { __typename id title } control { title threshold } }
-    control(id: "${uuid(105)}") { commitments(as: "control") { nodes { title owner { title } } aggregate { count } } owners: commitments(as: "owner") { aggregate { count } } }
+    control(id: "${uuid(105)}") { commitments(as: "control") { nodes { title owner { title } } totalCount } owners: commitments(as: "owner") { totalCount } }
     team(id: "${uuid(104)}") { commitments { nodes { title } } }
   }`);
   assert.equal(result.errors, undefined);
   assert.deepEqual(result.data, {
     commitment: { owner: { __typename: "Person", id: uuid(101), title: "Ada" }, control: { title: "Reviews", threshold: 1 } },
-    control: { commitments: { nodes: [{ title: "Ada reviews", owner: { title: "Ada" } }, { title: "Team reviews", owner: { title: "Platform" } }], aggregate: { count: 2 } }, owners: { aggregate: { count: 0 } } },
+    control: { commitments: { nodes: [{ title: "Ada reviews", owner: { title: "Ada" } }, { title: "Team reviews", owner: { title: "Platform" } }], totalCount: 2 }, owners: { totalCount: 0 } },
     team: { commitments: { nodes: [{ title: "Team reviews" }] } },
   });
 });
@@ -96,57 +101,65 @@ test("relator slots resolve participants and participants list their relators", 
 test("edge types give outgoing, incoming and edge-object fields; unconstrained edges go through edges()", async () => {
   const result = await run(`{
     person(id: "${uuid(101)}") {
-      reportsToIncoming { title }
-      reportsToIncomingEdges { __typename status evidence validFrom from { title } }
-      during: reportsToIncoming(at: "2026-07-01T00:00:00Z") { title }
-      withArchived: reportsToIncoming(archived: INCLUDE) { title }
-      archivedOnly: reportsToIncoming(archived: ONLY) { title }
-      edges(types: ["mentions"], direction: OUTGOING) { __typename typeId to { title } }
-      commitmentOwnerIncoming { title }
+      reportsToIncoming { nodes { title } }
+      reportsToIncomingEdges { nodes { __typename status evidence validFrom from { title } } }
+      during: reportsToIncoming(at: "2026-07-01T00:00:00Z") { nodes { title } }
+      withArchived: reportsToIncoming(archived: INCLUDE) { nodes { title } totalCount }
+      archivedEdges: reportsToIncomingEdges(archived: INCLUDE) { totalCount }
+      archivedOnly: reportsToIncoming(archived: ONLY) { nodes { title } }
+      edges(types: ["mentions"], direction: OUTGOING) { nodes { __typename typeId to { title } } edges { cursor node { id } } pageInfo { hasNextPage hasPreviousPage startCursor endCursor } totalCount }
+      none: edges(types: ["unknown"]) { nodes { id } totalCount }
+      commitmentOwnerIncoming { nodes { title } }
     }
-    grace: person(id: "${uuid(102)}") { reportsTo { title } }
+    grace: person(id: "${uuid(102)}") { reportsTo { nodes { title } } }
   }`);
-  assert.equal(result.errors, undefined);
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const nodes = (...titles: string[]) => ({ nodes: titles.map(title => ({ title })) });
+  const mention = (result.data as { person: { edges: { edges: { cursor: string; node: { id: string } }[] } } }).person.edges.edges[0];
   assert.deepEqual(result.data, { person: {
-    reportsToIncoming: [{ title: "Grace" }],
-    reportsToIncomingEdges: [{ __typename: "ReportsTo", status: "active", evidence: "org chart", validFrom: "2026-01-01T00:00:00Z", from: { title: "Grace" } }],
-    during: [], withArchived: [{ title: "Grace" }, { title: "Gone" }, { title: "Retired" }, { title: "Grace" }], archivedOnly: [{ title: "Grace" }],
-    edges: [{ __typename: "Mentions", typeId: uuid(14), to: { title: "Platform" } }],
-    commitmentOwnerIncoming: [{ title: "Ada reviews" }],
-  }, grace: { reportsTo: [{ title: "Ada" }] } }, "archived and retired records are hidden by default");
+    reportsToIncoming: nodes("Grace"),
+    reportsToIncomingEdges: { nodes: [{ __typename: "ReportsTo", status: "active", evidence: "org chart", validFrom: "2026-01-01T00:00:00Z", from: { title: "Grace" } }] },
+    during: nodes(), withArchived: { ...nodes("Grace", "Gone", "Retired"), totalCount: 3 }, archivedEdges: { totalCount: 4 }, archivedOnly: nodes("Grace"),
+    // Edges of any type are a connection too: each record with its cursor, the page's ends, and a count.
+    edges: { nodes: [{ __typename: "Mentions", typeId: uuid(14), to: { title: "Platform" } }], edges: [{ cursor: mention.cursor, node: { id: mention.node.id } }],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: mention.cursor, endCursor: mention.cursor }, totalCount: 1 },
+    none: { nodes: [], totalCount: 0 },
+    commitmentOwnerIncoming: nodes("Ada reviews"),
+  }, grace: { reportsTo: nodes("Ada") } }, "archived and retired records are hidden by default; a node reached twice is listed once");
 });
 
 test("archived records by ID only when asked for; ids are bounded", async () => {
   const result = await run(`{ gone: node(id: "${uuid(103)}") { title } asked: person(id: "${uuid(103)}", archived: INCLUDE) { title } active: node(id: "${uuid(101)}") { title } }`);
   assert.deepEqual(result.data, { gone: null, asked: { title: "Gone" }, active: { title: "Ada" } });
-  const many = await run(`query($ids: [ID!]) { persons(ids: $ids) { aggregate { count } } }`, { variables: { ids: Array.from({ length: 201 }, (_, n) => uuid(n)) } });
+  const many = await run(`query($ids: [ID!]) { persons(ids: $ids) { totalCount } }`, { variables: { ids: Array.from({ length: 201 }, (_, n) => uuid(n)) } });
   assert.equal(many.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
 });
 
-test("by-key roots take a slug, an ID or a node address, never both; collections filter by slugs", async () => {
+test("by-key roots take a slug, an ID or a node address, never both; collections filter by slug", async () => {
   const result = await run(`{
     addressed: node(id: "Person:ada") { slug }
     wrongAddress: node(id: "Control:ada") { slug }
-    ada: person(slug: "ada") { id title reportsToIncoming { slug } }
+    ada: person(slug: "ada") { id title reportsToIncoming { nodes { slug } } }
     any: node(slug: "reviews") { __typename slug }
     wrongType: team(slug: "ada") { title }
     missing: person(slug: "nobody") { title }
     gone: person(slug: "gone") { title }
     asked: person(slug: "gone", archived: INCLUDE) { title }
-    persons(slugs: ["grace", "ada", "nobody"]) { nodes { slug } aggregate { count } }
+    persons(filter: { slug: { in: ["grace", "ada", "nobody"] } }) { nodes { slug } totalCount }
   }`);
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
   assert.deepEqual(result.data, {
     addressed: { slug: "ada" }, wrongAddress: null,
-    ada: { id: uuid(101), title: "Ada", reportsToIncoming: [{ slug: "grace" }] }, any: { __typename: "Control", slug: "reviews" },
+    ada: { id: uuid(101), title: "Ada", reportsToIncoming: { nodes: [{ slug: "grace" }] } }, any: { __typename: "Control", slug: "reviews" },
     wrongType: null, missing: null, gone: null, asked: { title: "Gone" },
-    persons: { nodes: [{ slug: "ada" }, { slug: "grace" }], aggregate: { count: 2 } },
+    persons: { nodes: [{ slug: "ada" }, { slug: "grace" }], totalCount: 2 },
   });
   const both = await run(`{ both: person(id: "${uuid(101)}", slug: "ada") { title } neither: node { title } }`);
   assert.deepEqual(both.data, { both: null, neither: null });
   assert.deepEqual(both.errors?.map(error => [error.path?.[0], error.extensions?.code]), [["both", "BAD_USER_INPUT"], ["neither", "BAD_USER_INPUT"]]);
-  const many = await run(`query($slugs: [String!]) { persons(slugs: $slugs) { aggregate { count } } }`, { variables: { slugs: Array.from({ length: 201 }, (_, n) => `s${n}`) } });
+  const many = await run(`query($slugs: [String!]) { persons(filter: { slug: { in: $slugs } }) { totalCount } }`, { variables: { slugs: Array.from({ length: 201 }, (_, n) => `s${n}`) } });
   assert.equal(many.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+  assert.equal((await run(`{ persons(slugs: ["ada"]) { totalCount } }`)).errors?.[0]?.extensions?.code, "GRAPHQL_VALIDATION_FAILED", "the flat slugs argument is gone");
 });
 
 test("a relator slot over an edge type replaces that edge's target field", async () => {
@@ -157,9 +170,9 @@ test("a relator slot over an edge type replaces that edge's target field", async
 
 test("caller names are reserved: record fields, root fields and type names", async () => {
   const schemaOptions = { recordFields: { unit: { type: GraphQLString, resolve: () => "wiki-a" } }, rootFieldNames: ["persons"], typeNames: ["Team"] };
-  const reserved = await run(`{ control(id: "${uuid(105)}") { unit unit_00000003 } persons_00000001 { aggregate { count } } __type(name: "Team_00000002") { name } }`, { schemaOptions });
+  const reserved = await run(`{ control(id: "${uuid(105)}") { unit unit_00000003 } persons_00000001 { totalCount } __type(name: "Team_00000002") { name } }`, { schemaOptions });
   assert.equal(reserved.errors, undefined, JSON.stringify(reserved.errors));
-  assert.deepEqual(reserved.data, { control: { unit: "wiki-a", unit_00000003: "reviews" }, persons_00000001: { aggregate: { count: 3 } }, __type: { name: "Team_00000002" } });
+  assert.deepEqual(reserved.data, { control: { unit: "wiki-a", unit_00000003: "reviews" }, persons_00000001: { totalCount: 3 }, __type: { name: "Team_00000002" } });
   const clash = await run("{ node(id: \"x\") { id } }", { schemaOptions: { rootExtensions: () => ({ persons: { type: GraphQLString } }) } });
   assert.equal(clash.errors?.[0]?.extensions?.code, "SCHEMA_BUILD_FAILED");
   const twice = await run("{ node(id: \"x\") { id } }", { schemaOptions: { rootExtensions: { viewer: { type: new GraphQLObjectType({ name: "Person", fields: { id: { type: GraphQLString } } }) } } } });
@@ -167,29 +180,121 @@ test("caller names are reserved: record fields, root fields and type names", asy
 });
 
 test("projection edge types reach the other participants through the relator", async () => {
-  const result = await run(`{ person(id: "${uuid(101)}") { pairedWith { title } pairings(as: "member") { nodes { member { title } } } } }`);
-  assert.deepEqual(result.data, { person: { pairedWith: [{ title: "Grace" }], pairings: { nodes: [{ member: [{ title: "Ada" }, { title: "Grace" }] }] } } });
+  const result = await run(`{ person(id: "${uuid(101)}") { pairedWith { nodes { title } totalCount } pairings(as: "member") { nodes { member { title } } } } }`);
+  assert.deepEqual(result.data, { person: { pairedWith: { nodes: [{ title: "Grace" }], totalCount: 1 }, pairings: { nodes: [{ member: [{ title: "Ada" }, { title: "Grace" }] }] } } });
+});
+
+test("a connection that can match nothing asks no source, and every cursor names its order", async () => {
+  const memory = memorySource(snapshot);
+  const calls: string[] = [];
+  const source: GraphSource = {
+    ...memory,
+    nodePage: query => { calls.push(`nodePage:${query.typeIds?.length}`); return memory.nodePage(query); },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); },
+    relationPage: query => { calls.push("relationPage"); return memory.relationPage(query); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  };
+  const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
+    query: `{ search(text: "a", types: ["Nothing"]) { totalCount nodes { id } }
+      commitments(first: 1) { edges { cursor node { id edges(types: ["nothing"]) { totalCount nodes { id } pageInfo { hasNextPage } } } } } }` });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const data = JSON.parse(JSON.stringify(result.data)) as { search: unknown; commitments: { edges: { cursor: string; node: { id: string; edges: unknown } }[] } };
+  assert.deepEqual(data.search, { totalCount: 0, nodes: [] });
+  const [first] = data.commitments.edges;
+  assert.deepEqual(first.node.edges, { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false } });
+  assert.deepEqual(calls, ["nodePage:1"], "only the collection that can hold records is read");
+  assert.deepEqual(JSON.parse(decodeURIComponent(atob(first.cursor))), ["ID_ASC", first.node.id, first.node.id]);
 });
 
 test("resolvers batch source calls by level, not by record", async () => {
   const calls: string[] = [];
   const memory = memorySource(snapshot);
   const source: GraphSource = {
-    types: memory.types,
+    ...memory,
     nodes: query => { calls.push(`nodes:${query.ids ? "ids" : "type"}`); return memory.nodes(query); },
     edges: query => { calls.push(`edges:${query.typeIds?.join(",")}:${query.fromIds ? "from" : "to"}`); return memory.edges(query); },
+    nodePage: query => { calls.push(`nodePage:${query.first}`); return memory.nodePage(query); },
+    relationPage: query => { calls.push(`relationPage:${query.parentIds.length}${query.count ? ":counted" : ""}`); return memory.relationPage(query); },
+    relationCount: query => { calls.push(`relationCount:${query.parentIds.length}`); return memory.relationCount(query); },
   };
   const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
-    query: `{ commitments { nodes { owner { title } control { title } } } }` });
+    query: `{ commitments { nodes { owner { title } control { title } commitmentOwnerEdges { nodes { id } totalCount } } } }` });
   assert.equal(result.errors, undefined);
-  // One collection read, one edge read per (slot edge type, direction), one ID read for every participant.
-  assert.deepEqual(calls.sort(), ["edges:" + uuid(11) + ":from", "edges:" + uuid(11) + ":to", "edges:" + uuid(12) + ":from", "edges:" + uuid(12) + ":to", "nodes:ids", "nodes:type"]);
+  // One collection page, one edge read per (slot edge type, direction), one ID read for every participant,
+  // and one relationship page for both commitments: it selects totalCount, so the page is asked for its count too.
+  assert.deepEqual(calls.sort(), ["edges:" + uuid(11) + ":from", "edges:" + uuid(11) + ":to", "edges:" + uuid(12) + ":from", "edges:" + uuid(12) + ":to", "nodePage:100", "nodes:ids",
+    "relationPage:2:counted"]);
+});
+
+test("a page says whether more follow; a source that leaves the count out of its page is asked for it", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  // A source told its page's end (as a remote one is): exactly `first` rows with hasNextPage, and no count beside them.
+  const source: GraphSource = {
+    ...memory,
+    nodePage: async query => { calls.push(`nodePage:${query.first}`); const { count: _count, ...page } = await memory.nodePage(query); return page; },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); },
+    relationPage: async query => { calls.push("relationPage"); return (await memory.relationPage(query)).map(({ count: _count, ...page }) => page); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  };
+  const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
+    query: `{ persons(first: 1) { nodes { title } pageInfo { hasNextPage } totalCount } commitments(first: 1) { nodes { commitmentOwnerEdges(first: 1) { pageInfo { hasNextPage } ...Counted } } } }
+      fragment Counted on CommitmentOwnerConnection { totalCount }` });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const data = result.data as { persons: { nodes: unknown[]; pageInfo: { hasNextPage: boolean }; totalCount: number }; commitments: { nodes: { commitmentOwnerEdges: { totalCount: number } }[] } };
+  const all = await memory.nodeCount({ typeIds: [uuid(1)] });
+  assert.ok(all > 1);
+  assert.deepEqual([data.persons.nodes.length, data.persons.pageInfo.hasNextPage, data.persons.totalCount], [1, true, all]);
+  assert.equal(typeof data.commitments.nodes[0].commitmentOwnerEdges.totalCount, "number");
+  assert.deepEqual(calls.sort(), ["nodeCount", "nodePage:1", "nodePage:1", "relationCount", "relationPage"]);
+});
+
+test("relationship connections page each parent in order, read for every parent at once", async () => {
+  // Three teams, each led by people created in a different order than their IDs.
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })],
+    nodes: [...snapshot.nodes, ...[0, 1, 2].map(n => node(40 + n, 2, `Team ${n}`)),
+      ...Array.from({ length: 9 }, (_, n) => node(50 + n, 1, `Lead ${n}`, { createdAt: 1_000 - n * 10 }))],
+    edges: [...snapshot.edges, ...Array.from({ length: 9 }, (_, n) => edge(50 + n, 30, 40 + (n % 3), 50 + n))] };
+  const relationPages: number[] = [];
+  const memory = memorySource(leads);
+  const source: GraphSource = { ...memory, relationPage: query => { relationPages.push(query.parentIds.length); return memory.relationPage(query); } };
+  type LeadPage = { nodes: { title: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null }; totalCount?: number };
+  const read = async (after: Record<string, string | null> = {}) => {
+    const result = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, variables: after,
+      query: `query($a: String, $b: String, $c: String) {
+        a: team(id: "${uuid(140)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $a) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
+        b: team(id: "${uuid(141)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $b) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
+        c: team(id: "${uuid(142)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $c) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
+      }` });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    return Object.fromEntries(Object.entries(result.data as Record<string, { leads: LeadPage }>).map(([key, value]) => [key, value.leads]));
+  };
+  const first = await read();
+  const titles = (page: LeadPage) => page.nodes.map(item => item.title);
+  // Team 0 leads 0, 3, 6 (created last to first: 6, 3, 0); team 1 leads 1, 4, 7; team 2 leads 2, 5, 8.
+  assert.deepEqual([titles(first.a), titles(first.b), titles(first.c)], [["Lead 6", "Lead 3"], ["Lead 7", "Lead 4"], ["Lead 8", "Lead 5"]]);
+  assert.ok([first.a, first.b, first.c].every(page => page.pageInfo.hasNextPage && page.pageInfo.endCursor));
+  assert.equal(first.a.totalCount, 3);
+  assert.deepEqual(relationPages, [3], "one page read answers all three teams, each with its count");
+  const next = await read({ a: first.a.pageInfo.endCursor, b: first.b.pageInfo.endCursor, c: first.c.pageInfo.endCursor });
+  assert.deepEqual([titles(next.a), titles(next.b), titles(next.c)], [["Lead 0"], ["Lead 1"], ["Lead 2"]]);
+  assert.ok([next.a, next.b, next.c].every(page => !page.pageInfo.hasNextPage));
+  // A cursor continues only the order it was made with.
+  const mixed = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, variables: { after: first.a.pageInfo.endCursor },
+    query: `query($after: String) { team(id: "${uuid(140)}") { leads(orderBy: TITLE_DESC, after: $after) { nodes { title } } } }` });
+  assert.equal(mixed.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+  const descending = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536,
+    query: `{ team(id: "${uuid(140)}") { leads(orderBy: TITLE_DESC, first: 500) { nodes { title } } } persons(orderBy: CREATED_AT_DESC, first: 2) { nodes { title } } }` });
+  assert.deepEqual(JSON.parse(JSON.stringify(descending.data)), { team: { leads: { nodes: [{ title: "Lead 6" }, { title: "Lead 3" }, { title: "Lead 0" }] } },
+    persons: { nodes: [{ title: "Lead 0" }, { title: "Lead 1" }] } });
+  const tooMany = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, query: `{ team(id: "${uuid(140)}") { leads(first: 501) { nodes { title } } } }` });
+  assert.equal(tooMany.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
 });
 
 test("node, search and privacy", async () => {
-  const result = await run(`{ node(id: "${uuid(101)}") { __typename id ... on Person { properties body } } search(text: "reviews") { title typeId } }`);
-  assert.deepEqual(result.data, { node: { __typename: "Person", id: uuid(101), properties: {}, body: "" }, search: [{ title: "Reviews", typeId: uuid(3) }, { title: "Ada reviews", typeId: uuid(4) }, { title: "Team reviews", typeId: uuid(4) }] });
-  const everything = await run(`{ persons(archived: INCLUDE) { nodes { id properties edges(archived: INCLUDE) { properties from { properties } } } } }`);
+  const result = await run(`{ node(id: "${uuid(101)}") { __typename id ... on Person { properties body } } search(text: "reviews") { nodes { title typeId } } }`);
+  assert.deepEqual(result.data, { node: { __typename: "Person", id: uuid(101), properties: {}, body: "" }, search: { nodes: [{ title: "Reviews", typeId: uuid(3) }, { title: "Ada reviews", typeId: uuid(4) }, { title: "Team reviews", typeId: uuid(4) }] } });
+  const everything = await run(`{ persons(archived: INCLUDE) { nodes { id properties edges(archived: INCLUDE) { nodes { properties from { properties } } } } } }`);
   const text = JSON.stringify(everything);
   for (const secret of ["never-return", "externalKey"]) assert.ok(!text.includes(secret), secret);
   assert.equal((await run(`{ old(id: "${uuid(115)}") { id } }`)).errors?.[0]?.extensions?.code, "GRAPHQL_VALIDATION_FAILED", "archived types are not in the schema");
@@ -197,9 +302,11 @@ test("node, search and privacy", async () => {
 
 test("depth and field limits apply before execution; introspection is allowed", async () => {
   let reads = 0;
-  const source: GraphSource = { types: async () => types as TypeRow[], nodes: async () => { reads++; return []; }, edges: async () => { reads++; return []; } };
+  const none = async () => { reads++; return []; };
+  const source: GraphSource = { types: async () => types as TypeRow[], nodes: none, edges: none, nodePage: async () => { reads++; return { rows: [], hasNextPage: false }; }, relationPage: none,
+    nodeCount: async () => { reads++; return 0; }, relationCount: async () => { reads++; return new Map(); } };
   const deep = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, maxDepth: 3,
-    query: `{ persons { nodes { reportsTo { reportsTo { title } } } } }` });
+    query: `{ persons { nodes { reportsTo { nodes { title } } } } }` });
   assert.equal(deep.errors?.[0]?.extensions?.code, "QUERY_TOO_DEEP");
   const wide = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, maxFields: 5,
     query: `fragment F on Person { id title summary } { a: persons { nodes { ...F } } b: persons { nodes { ...F } } }` });
@@ -213,24 +320,24 @@ test("depth and field limits apply before execution; introspection is allowed", 
 type SearchPage = {
   nodes: { id: string; title?: string; body?: string; installationId?: string }[];
   pageInfo: { endCursor: string | null; hasNextPage: boolean };
-  aggregate: { count: number };
+  totalCount: number;
 };
 
-test("searchConnection pages all matches past 100 with stable IDs, counts and unchanged legacy search", async () => {
+test("search pages all matches past 100 with stable IDs, counts and no legacy list", async () => {
   const many = { ...snapshot, nodes: [
     ...Array.from({ length: 137 }, (_, n) => node(300 + n, n % 2 ? 1 : 2, `Roadmap evidence ${n}`)),
     node(999, 1, "Roadmap archived", { archived: true }),
   ] };
-  const query = `query($after: String) { searchConnection(text: "roadmap", first: 40, after: $after) {
-    nodes { id title } pageInfo { endCursor hasNextPage } aggregate { count }
+  const query = `query($after: String) { search(text: "roadmap", first: 40, after: $after) {
+    nodes { id title } pageInfo { endCursor hasNextPage } totalCount
   } }`;
   const found: string[] = [];
   let after: string | null = null;
   for (let n = 0; n < 4; n++) {
     const result = await run(query, { source: memorySource(many), variables: { after } });
     assert.equal(result.errors, undefined, JSON.stringify(result.errors));
-    const page = (result.data as Record<string, SearchPage>).searchConnection;
-    assert.equal(page.aggregate.count, 137);
+    const page = (result.data as Record<string, SearchPage>).search;
+    assert.equal(page.totalCount, 137);
     assert.equal(page.pageInfo.hasNextPage, n < 3);
     assert.ok(page.nodes.length > 0 && page.pageInfo.endCursor !== after);
     found.push(...page.nodes.map((item: { id: string }) => item.id));
@@ -239,22 +346,23 @@ test("searchConnection pages all matches past 100 with stable IDs, counts and un
   assert.equal(new Set(found).size, 137);
   assert.deepEqual(found, many.nodes.filter(row => !row.archived).map(row => row.id).sort());
   const legacy = await run(`{ search(text: "roadmap", first: 100) { id } }`, { source: memorySource(many) });
-  assert.equal((legacy.data as { search: { id: string }[] }).search.length, 100);
+  assert.equal(legacy.errors?.[0]?.extensions?.code, "GRAPHQL_VALIDATION_FAILED", "search is the connection; the capped list and searchConnection are gone");
+  assert.equal((await run(`{ searchConnection(text: "roadmap") { totalCount } }`)).errors?.[0]?.extensions?.code, "GRAPHQL_VALIDATION_FAILED");
   const terminal = await run(query, { source: memorySource(many), variables: { after } });
-  assert.deepEqual((terminal.data as Record<string, SearchPage>).searchConnection, { nodes: [], pageInfo: { endCursor: null, hasNextPage: false }, aggregate: { count: 137 } });
-  const filtered = await run(`{ searchConnection(text: "roadmap", types: ["Team"]) { aggregate { count } } empty: searchConnection(text: "roadmap", types: ["Unknown"]) { nodes { id } aggregate { count } } }`, { source: memorySource(many) });
-  assert.equal((filtered.data as Record<string, SearchPage>).searchConnection.aggregate.count, 69);
-  assert.deepEqual((filtered.data as Record<string, SearchPage>).empty, { nodes: [], aggregate: { count: 0 } });
+  assert.deepEqual((terminal.data as Record<string, SearchPage>).search, { nodes: [], pageInfo: { endCursor: null, hasNextPage: false }, totalCount: 137 });
+  const filtered = await run(`{ search(text: "roadmap", types: ["Team"]) { totalCount } empty: search(text: "roadmap", types: ["Unknown"]) { nodes { id } totalCount } }`, { source: memorySource(many) });
+  assert.equal((filtered.data as Record<string, SearchPage>).search.totalCount, 69);
+  assert.deepEqual((filtered.data as Record<string, SearchPage>).empty, { nodes: [], totalCount: 0 });
   for (const args of ['text: " "', 'text: "roadmap", first: 501', 'text: "roadmap", first: -1', 'text: "roadmap", after: "%"']) {
-    assert.equal((await run(`{ searchConnection(${args}) { nodes { id } } }`)).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+    assert.equal((await run(`{ search(${args}) { nodes { id } } }`)).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
   }
 });
 
-test("byte-bounded searchConnection pages resume without gaps and preserve caller-owned names", async () => {
+test("byte-bounded search pages resume without gaps and preserve caller-owned names", async () => {
   const added = [...types, type(40, "SearchConnection", "node"), type(41, "search_connection", "node")];
   const many = { ...snapshot, types: added, nodes: Array.from({ length: 25 }, (_, n) => node(500 + n, 2, `Roadmap ${n}`, { body: "x".repeat(600) })) };
-  const query = `query($after: String) { hits: searchConnection(text: "roadmap", first: 20, after: $after) {
-    nodes { id body } more: pageInfo { endCursor hasNextPage } aggregate { count }
+  const query = `query($after: String) { hits: search(text: "roadmap", first: 20, after: $after) {
+    nodes { id body } more: pageInfo { endCursor hasNextPage } totalCount
   } }`;
   const found: string[] = [];
   let after: string | null = null;
@@ -264,7 +372,7 @@ test("byte-bounded searchConnection pages resume without gaps and preserve calle
     const page = (result.data as Record<string, Omit<SearchPage, "pageInfo"> & { more: SearchPage["pageInfo"] }>).hits;
     assert.ok(page.nodes.length > 0);
     assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 4096);
-    assert.equal(page.aggregate.count, 25);
+    assert.equal(page.totalCount, 25);
     found.push(...page.nodes.map((item: { id: string }) => item.id));
     if (!page.more.hasNextPage) break;
     assert.notEqual(page.more.endCursor, after);
@@ -282,19 +390,19 @@ test("search cursors retain compound Wiki keys when shown record IDs are shared"
   ] };
   const schemaOptions = { recordKeys: { shownId: (key: string) => key.split("\u001f")[1], find: async () => null },
     recordFields: { installationId: { type: GraphQLString, resolve: (row: GraphRow) => row.id.split("\u001f")[0] } } };
-  const query = `query($after: String) { searchConnection(text: "roadmap", first: 1, after: $after) {
-    nodes { id installationId } pageInfo { endCursor hasNextPage } aggregate { count }
+  const query = `query($after: String) { search(text: "roadmap", first: 1, after: $after) {
+    nodes { id installationId } pageInfo { endCursor hasNextPage } totalCount
   } }`;
   const first = await run(query, { source: memorySource(composed), schemaOptions });
   assert.equal(first.errors, undefined);
-  const page = (first.data as Record<string, SearchPage>).searchConnection;
+  const page = (first.data as Record<string, SearchPage>).search;
   assert.deepEqual(page.nodes, [{ id: shared, installationId: "wiki-a" }]);
-  assert.equal(page.aggregate.count, 2);
+  assert.equal(page.totalCount, 2);
   assert.equal(page.pageInfo.hasNextPage, true);
   const next = await run(query, { source: memorySource(composed), schemaOptions, variables: { after: page.pageInfo.endCursor } });
   assert.equal(next.errors, undefined);
-  assert.deepEqual((next.data as Record<string, SearchPage>).searchConnection.nodes, [{ id: shared, installationId: "wiki-b" }]);
-  assert.equal((next.data as Record<string, SearchPage>).searchConnection.pageInfo.hasNextPage, false);
+  assert.deepEqual((next.data as Record<string, SearchPage>).search.nodes, [{ id: shared, installationId: "wiki-b" }]);
+  assert.equal((next.data as Record<string, SearchPage>).search.pageInfo.hasNextPage, false);
 });
 
 test("a type added at runtime appears in introspection on the next request", async () => {
@@ -311,12 +419,12 @@ test("a type added at runtime appears in introspection on the next request", asy
 test("responses over maxBytes cut lists, never records, and say where", async () => {
   const many = { ...snapshot, nodes: [...snapshot.nodes, ...Array.from({ length: 60 }, (_, n) => node(300 + n, 2, `Team ${n}`, { body: "b".repeat(400) }))] };
   const result = graphGraphqlResult.parse(await executeGraphQuery({ types: types as TypeRow[], source: memorySource(many), maxBytes: 8192,
-    query: `{ teams { nodes { title body } page: pageInfo { endCursor hasNextPage } aggregate { count } } }` }));
+    query: `{ teams { nodes { title body } page: pageInfo { endCursor hasNextPage } totalCount } }` }));
   assert.ok(new TextEncoder().encode(JSON.stringify(result)).length <= 8192);
-  const teams = (result.data as { teams: { nodes: { body: string }[]; page: { endCursor: string; hasNextPage: boolean }; aggregate: { count: number } } }).teams;
+  const teams = (result.data as { teams: { nodes: { body: string }[]; page: { endCursor: string; hasNextPage: boolean }; totalCount: number } }).teams;
   assert.ok(teams.nodes.length > 0 && teams.nodes.length < 61);
   assert.ok(teams.nodes.every(item => item.body === "" || item.body.length === 400));
-  assert.equal(teams.aggregate.count, 61);
+  assert.equal(teams.totalCount, 61);
   assert.equal(teams.page.hasNextPage, true, "an aliased pageInfo is fixed too");
   assert.deepEqual(result.extensions?.truncatedPaths, [["teams", "nodes"]]);
   assert.equal(result.extensions?.truncated, true);
@@ -343,10 +451,19 @@ test("input bounds", () => {
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", maxBytes: 1_000_000 }));
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", extra: 1 }));
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", variables: { big: "v".repeat(40_000) } }));
+  // One length for a document's text, wherever it is carried: a request, a selection's query, a stored KnowledgeGraph.
+  assert.equal(graphQueryMaxLength, 65_536);
+  const longest = "{x}".padEnd(graphQueryMaxLength, " #"), over = `${longest}#`;
+  assert.equal(graphGraphqlInput.parse({ query: longest }).query.length, graphQueryMaxLength);
+  assert.throws(() => graphGraphqlInput.parse({ query: over }));
+  assert.equal(knowledgeGraphSelectInput.safeParse({ rootIds: [uuid(104)], query: longest }).success, true);
+  assert.equal(knowledgeGraphSelectInput.safeParse({ rootIds: [uuid(104)], query: over }).success, false);
+  assert.equal(knowledgeGraphDefinitionSchema.safeParse({ name: "Wide", purpose: "A long saved query.", query: longest }).success, true);
+  assert.equal(knowledgeGraphDefinitionSchema.safeParse({ name: "Wide", purpose: "A long saved query.", query: over }).success, false);
 });
 
 test("naming warnings come with schema reads and with the renamed names a query uses, never with a plain data query", async () => {
-  const plain = await run(`{ persons { aggregate { count } } }`);
+  const plain = await run(`{ persons { totalCount } }`);
   assert.equal(plain.extensions, undefined);
   const renamed = await run(`{ control(id: "${uuid(105)}") { title_00000003 } }`);
   assert.deepEqual(((renamed.extensions?.naming ?? []) as { graphqlName: string }[]).map(warning => warning.graphqlName), ["title_00000003"]);
@@ -372,15 +489,272 @@ test("record keys: a source keyed by more than the ID shows the ID and finds by-
       return row && keep(row) ? row : null;
     } } };
   const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, schemaOptions,
-    query: `{ persons { nodes { id } aggregate { count } } person(id: "${uuid(101)}", graph: "b") { id reportsToIncoming { title } reportsToIncomingEdges { fromId toId } }
-      bySlug: person(slug: "ada", graph: "b") { id reportsToIncoming { title } } }` });
+    query: `{ persons { nodes { id } totalCount } person(id: "${uuid(101)}", graph: "b") { id reportsToIncoming { nodes { title } } reportsToIncomingEdges { nodes { fromId toId } } }
+      bySlug: person(slug: "ada", graph: "b") { id reportsToIncoming { nodes { title } } } }` });
   assert.equal(result.errors, undefined, JSON.stringify(result.errors));
-  const data = JSON.parse(JSON.stringify(result.data)) as { persons: { nodes: { id: string }[]; aggregate: { count: number } }; person: { id: string; reportsToIncoming: unknown[]; reportsToIncomingEdges: { fromId: string; toId: string }[] }; bySlug: unknown };
-  assert.equal(data.persons.aggregate.count, 6, "both copies of every person");
+  const data = JSON.parse(JSON.stringify(result.data)) as { persons: { nodes: { id: string }[]; totalCount: number };
+    person: { id: string; reportsToIncoming: { nodes: unknown[] }; reportsToIncomingEdges: { nodes: { fromId: string; toId: string }[] } }; bySlug: unknown };
+  assert.equal(data.persons.totalCount, 6, "both copies of every person");
   assert.equal(new Set(data.persons.nodes.map(row => row.id)).size, 3);
   assert.equal(data.person.id, uuid(101));
-  assert.deepEqual(data.person.reportsToIncoming, [{ title: "Grace" }], "relationships stay inside their copy");
-  assert.deepEqual(data.person.reportsToIncomingEdges, [{ fromId: uuid(102), toId: uuid(101) }]);
-  assert.deepEqual(data.bySlug, { id: uuid(101), reportsToIncoming: [{ title: "Grace" }] });
+  assert.deepEqual(data.person.reportsToIncoming.nodes, [{ title: "Grace" }], "relationships stay inside their copy");
+  assert.deepEqual(data.person.reportsToIncomingEdges.nodes, [{ fromId: uuid(102), toId: uuid(101) }]);
+  assert.deepEqual(data.bySlug, { id: uuid(101), reportsToIncoming: { nodes: [{ title: "Grace" }] } });
   assert.deepEqual(asked, [["b/ada"]], "the keyed slug reaches the source, in one call");
+});
+
+test("connections follow the Relay spec: edges with cursors, four-field pageInfo, forward paging and totalCount", async () => {
+  type Page = { edges: { cursor: string; node: { title: string } }[]; nodes: { title: string }[]; pageInfo: { hasNextPage: boolean; hasPreviousPage: boolean; startCursor: string | null; endCursor: string | null }; totalCount: number };
+  const query = `query($after: String) { persons(first: 1, orderBy: TITLE_ASC, after: $after) { edges { cursor node { title } } nodes { title } pageInfo { hasNextPage hasPreviousPage startCursor endCursor } totalCount } }`;
+  const page = async (after: string | null) => ((await run(query, { variables: { after } })).data as { persons: Page }).persons;
+  const first = await page(null);
+  assert.deepEqual(first.nodes, [{ title: "Ada" }]);
+  assert.deepEqual(first.edges.map(edge => edge.node), first.nodes, "edges hold the records nodes lists");
+  assert.deepEqual(first.pageInfo, { hasNextPage: true, hasPreviousPage: false, startCursor: first.edges[0].cursor, endCursor: first.edges[0].cursor });
+  assert.equal(first.totalCount, 3);
+  // Any record's cursor continues after it, as endCursor does.
+  const second = await page(first.edges[0].cursor);
+  assert.deepEqual([second.nodes, second.pageInfo.hasPreviousPage, second.pageInfo.hasNextPage], [[{ title: "Grace" }], true, true]);
+  const last = await page(second.pageInfo.endCursor);
+  assert.deepEqual([last.nodes, last.pageInfo.hasPreviousPage, last.pageInfo.hasNextPage], [[{ title: "Retired" }], true, false]);
+  const past = await page(last.pageInfo.endCursor);
+  assert.deepEqual(past, { edges: [], nodes: [], pageInfo: { hasNextPage: false, hasPreviousPage: true, startCursor: null, endCursor: null }, totalCount: 3 });
+  assert.equal((await run(`{ persons(first: -1) { nodes { id } } }`)).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+  const sdl = ((await run(`{ sdl }`)).data as { sdl: string }).sdl;
+  assert.match(sdl, /type PersonConnection \{\s+edges: \[PersonConnectionEdge!\]!\s+nodes: \[Person!\]!\s+pageInfo: PageInfo!\s+totalCount: Int!\s+\}/);
+  assert.match(sdl, /type PersonConnectionEdge \{\s+cursor: String!\s+node: Person!\s+\}/);
+  assert.match(sdl, /type ReportsToConnectionEdge \{\s+cursor: String!\s+node: ReportsTo!\s+\}/);
+  assert.match(sdl, /type EdgeConnection \{\s+edges: \[EdgeConnectionEdge!\]!\s+nodes: \[Edge!\]!/);
+  assert.match(sdl, /type SearchConnectionEdge \{\s+cursor: String!\s+node: Node!\s+\}/);
+  assert.match(sdl, /type PageInfo \{\s+hasNextPage: Boolean!\s+hasPreviousPage: Boolean!\s+startCursor: String\s+endCursor: String\s+\}/);
+  assert.doesNotMatch(sdl, /aggregate|Aggregate|searchConnection|slugs:/);
+});
+
+test("filter takes connection-filter operators with and, or and not on collections, relationships and edges", async () => {
+  const stamped = { ...snapshot, nodes: snapshot.nodes.map((row, index) => ({ ...row, createdAt: 1_800_000_000_000 + index * 1000 })) };
+  const source = memorySource(stamped);
+  const titles = async (filter: object, field = "persons", type = "PersonFilter", args = "archived: INCLUDE") => {
+    const result = await run(`query($filter: ${type}) { ${field}(${args}, filter: $filter) { nodes { title } totalCount } }`, { source, variables: { filter } });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    const page = (result.data as Record<string, { nodes: { title: string }[]; totalCount: number }>)[field];
+    assert.equal(page.totalCount, page.nodes.length, "totalCount counts what the filter keeps");
+    return page.nodes.map(row => row.title);
+  };
+  const at = (index: number) => new Date(1_800_000_000_000 + index * 1000).toISOString();
+  assert.deepEqual(await titles({ slug: { equalTo: "ada" } }), ["Ada"]);
+  assert.deepEqual(await titles({ slug: { notEqualTo: "ada" }, title: { lessThan: "H" } }), ["Grace", "Gone"]);
+  assert.deepEqual(await titles({ id: { in: [uuid(102), uuid(108), uuid(104)] } }), ["Grace", "Retired"]);
+  assert.deepEqual(await titles({ id: { notIn: [uuid(102)] }, title: { greaterThanOrEqualTo: "Gone" } }), ["Gone", "Retired"]);
+  assert.deepEqual(await titles({ or: [{ title: { startsWith: "A" } }, { title: { includesInsensitive: "RETI" } }] }), ["Ada", "Retired"]);
+  assert.deepEqual(await titles({ not: { title: { includes: "a" } } }), ["Gone", "Retired"], "includes is case-sensitive: Ada and Grace hold an a");
+  assert.deepEqual(await titles({ title: { startsWithInsensitive: "g" }, and: [{ slug: { isNull: false } }, { not: { slug: { in: ["gone"] } } }] }), ["Grace"]);
+  assert.deepEqual(await titles({ createdAt: { greaterThan: at(0), lessThanOrEqualTo: at(2) } }), ["Grace", "Gone"]);
+  assert.deepEqual(await titles({ updatedAt: { equalTo: new Date(1_700_000_000_000).toISOString() }, title: { equalTo: "Ada" } }), ["Ada"]);
+  assert.deepEqual(await titles({ slug: { isNull: true } }), []);
+  // A relationship filters the records it lists: far nodes, or the edges of an …Edges field.
+  const related = await run(`{ person(id: "${uuid(101)}") {
+    reports: reportsToIncoming(archived: INCLUDE, filter: { title: { startsWith: "G" } }, orderBy: TITLE_DESC) { nodes { title } totalCount }
+    edges: reportsToIncomingEdges(archived: INCLUDE, filter: { id: { in: ["${uuid(206)}", "${uuid(211)}"] } }) { nodes { id } totalCount }
+    any: edges(filter: { id: { greaterThan: "${uuid(207)}" } }) { nodes { id } totalCount }
+    commitments(filter: { title: { includes: "Ada" } }) { nodes { title } }
+  } }`, { source });
+  assert.equal(related.errors, undefined, JSON.stringify(related.errors));
+  assert.deepEqual(related.data, { person: {
+    reports: { nodes: [{ title: "Grace" }, { title: "Gone" }], totalCount: 2 },
+    edges: { nodes: [{ id: uuid(206) }, { id: uuid(211) }], totalCount: 2 },
+    any: { nodes: [{ id: uuid(208) }, { id: uuid(209) }], totalCount: 2 },
+    commitments: { nodes: [{ title: "Ada reviews" }] },
+  } });
+  // Only the indexed fields, the named operators and a bounded size: the rest is refused before any read.
+  const code = async (query: string, variables?: Record<string, unknown>) => (await run(query, { variables })).errors?.[0]?.extensions?.code;
+  assert.equal(await code(`{ persons(filter: { body: { equalTo: "x" } }) { totalCount } }`), "GRAPHQL_VALIDATION_FAILED");
+  assert.equal(await code(`{ persons(filter: { title: { like: "x" } }) { totalCount } }`), "GRAPHQL_VALIDATION_FAILED");
+  assert.equal(await code(`{ person(id: "${uuid(101)}") { reportsToIncomingEdges(filter: { slug: { equalTo: "x" } }) { totalCount } } }`), "GRAPHQL_VALIDATION_FAILED", "edges have no slug");
+  const wide = await run(`query($filter: PersonFilter) { persons(filter: $filter) { totalCount } }`, { variables: { filter: { or: Array.from({ length: 21 }, (_, n) => ({ slug: { equalTo: `s${n}` } })) } } });
+  assert.equal(wide.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
+  assert.match(String(wide.errors?.[0]?.message), /21 conditions; at most 20 fit one database statement/);
+  assert.equal(await code(`{ persons(filter: { createdAt: { lessThan: "NOW" } }) { totalCount } }`), undefined, "DateTime takes NOW");
+});
+
+test("projections page in the source: one relationship page per level, ordered, filtered and counted", async () => {
+  // Three pairings: Ada with Grace, Ada with Gone (archived, so hidden) and Ada with Retired (retired, so hidden under EXCLUDE).
+  const paired = { ...snapshot,
+    nodes: [...snapshot.nodes, node(20, 5, "Ada and Platform lead"), node(21, 1, "Linus"), node(22, 5, "Ada and Linus"), node(23, 1, "Margaret"), node(24, 5, "Ada and Margaret")],
+    edges: [...snapshot.edges, edge(20, 16, 22, 1), edge(21, 16, 22, 21), edge(22, 16, 24, 1), edge(23, 16, 24, 23), edge(24, 16, 20, 1)] };
+  const calls: string[] = [];
+  const inner = memorySource(paired);
+  const source: GraphSource = { ...inner,
+    edges: query => { calls.push("edges"); return inner.edges(query); },
+    relationPage: query => { calls.push(`relationPage:${query.through ? "through" : "direct"}:${query.parentIds.length}`); return inner.relationPage(query); },
+    relationCount: query => { calls.push(`relationCount:${query.through ? "through" : "direct"}`); return inner.relationCount(query); } };
+  const result = await run(`{ persons(ids: ["${uuid(101)}", "${uuid(102)}"]) { nodes { title
+    pairedWith(first: 2, orderBy: TITLE_DESC) { nodes { title } pageInfo { hasNextPage endCursor } totalCount }
+    named: pairedWith(filter: { title: { in: ["Linus", "Ada"] } }) { nodes { title } }
+  } } }`, { source });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const [ada, grace] = (result.data as { persons: { nodes: { title: string; pairedWith: { nodes: { title: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string }; totalCount: number }; named: { nodes: { title: string }[] } }[] } }).persons.nodes;
+  assert.deepEqual([ada.pairedWith.nodes, ada.pairedWith.pageInfo.hasNextPage, ada.pairedWith.totalCount], [[{ title: "Margaret" }, { title: "Linus" }], true, 3]);
+  assert.deepEqual([grace.pairedWith.nodes, grace.pairedWith.totalCount, grace.named.nodes], [[{ title: "Ada" }], 1, [{ title: "Ada" }]]);
+  assert.deepEqual(ada.named.nodes, [{ title: "Linus" }]);
+  // Both people's pages come from one two-hop relationPage per field (the counted one with its count); nothing walks edges hop by hop.
+  assert.deepEqual(calls.sort(), ["relationPage:through:2", "relationPage:through:2"]);
+  const next = await run(`query($after: String) { person(id: "${uuid(101)}") { pairedWith(first: 2, orderBy: TITLE_DESC, after: $after) { nodes { title } pageInfo { hasNextPage hasPreviousPage } } } }`,
+    { source, variables: { after: ada.pairedWith.pageInfo.endCursor } });
+  assert.deepEqual(next.data, { person: { pairedWith: { nodes: [{ title: "Grace" }], pageInfo: { hasNextPage: false, hasPreviousPage: true } } } });
+});
+
+test("edge wrappers and filters are named last: they never rename a type, an order or a connection", async () => {
+  const before = ((await run(`{ sdl }`)).data as { sdl: string }).sdl;
+  // Types that want the generator's new names keep their own; the generated ones take the ID suffix instead.
+  const taken = [...types, type(30, "PersonConnectionEdge", "node"), type(31, "PersonFilter", "node"), type(32, "NodeFilter", "node"), type(33, "StringFilter", "edge")];
+  const result = await run(`{ sdl personConnectionEdges { nodes { id } } personFilters { nodes { id } } persons(filter: { slug: { equalTo: "ada" } }) { edges { node { title } } } }`, { types: taken as TypeRow[] });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const sdl = (result.data as { sdl: string }).sdl;
+  for (const name of ["type PersonConnectionEdge implements Node", "type PersonFilter implements Node", "type NodeFilter implements Node", "type StringFilter implements Edge",
+    `type PersonConnectionEdge_${uuid(1).replaceAll("-", "").slice(-8)} {`, `input PersonFilter_${uuid(1).replaceAll("-", "").slice(-8)} {`]) assert.ok(sdl.includes(name), name);
+  // Every name the schema had before is still there, unchanged.
+  const names = (text: string) => [...text.matchAll(/^(?:type|input|enum|interface|scalar) (\w+)/gm)].map(match => match[1]);
+  const kept = new Set(names(sdl));
+  assert.deepEqual(names(before).filter(name => !kept.has(name) && !["NodeFilter", "StringFilter"].includes(name)), []);
+  assert.deepEqual((result.data as { persons: unknown }).persons, { edges: [{ node: { title: "Ada" } }] });
+});
+
+test("relationship rows have one budget a request: reads are bounded runs of parents, and a request past relationRows is refused", async () => {
+  // 200 squads, each led by the same 101 people.
+  const squads = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
+  const people = Array.from({ length: 101 }, (_, n) => node(2000 + n, 1, `Lead ${n}`));
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })], nodes: [...squads, ...people],
+    edges: squads.flatMap((_, s) => people.map((_, p) => edge(10_000 + s * 101 + p, 30, 1000 + s, 2000 + p))) };
+  const memory = memorySource(leads);
+  const reads: { parents: number; first: number; rows: number }[] = [];
+  const source: GraphSource = { ...memory, relationPage: async query => {
+    const pages = await memory.relationPage(query);
+    reads.push({ parents: query.parentIds.length, first: query.first, rows: pages.reduce((sum, page) => sum + page.rows.length + (page.hasNextPage ? 1 : 0), 0) });
+    return pages;
+  } };
+  const ask = (parents: number, first: number) => { reads.length = 0; return executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144,
+    query: `{ teams(first: ${parents}) { nodes { leads(first: ${first}) { pageInfo { hasNextPage } } } } }` }); };
+  assert.equal(graphQueryLimits.relationRows, 20_000);
+  // 198 squads × 101 rows (a page of 100 and one more) = 19,998 rows: one read, within the budget.
+  const under = await ask(198, 100);
+  assert.equal(under.errors, undefined, JSON.stringify(under.errors?.[0]));
+  assert.equal((under.data as { teams: { nodes: { leads: { pageInfo: { hasNextPage: boolean } } }[] } }).teams.nodes.filter(team => team.leads.pageInfo.hasNextPage).length, 198);
+  assert.deepEqual(reads, [{ parents: 198, first: 100, rows: 19_998 }]);
+  // The largest page for 60 squads could return 60 × 501 rows: read 39 parents at a time, so no read can pass the budget.
+  const wide = await ask(60, 500);
+  assert.equal(wide.errors, undefined, JSON.stringify(wide.errors?.[0]));
+  assert.deepEqual(reads, [{ parents: 39, first: 500, rows: 39 * 101 }, { parents: 21, first: 500, rows: 21 * 101 }]);
+  assert.ok(reads.every(read => read.parents * (read.first + 1) <= graphQueryLimits.relationRows));
+  // 200 squads × 101 rows = 20,200: refused, naming the limit, once the second read passes it.
+  const over = await ask(200, 100);
+  assert.equal(over.errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+  assert.match(String(over.errors?.[0]?.message), /read more than 20000 relationship rows \(the relationRows limit\)/);
+  assert.deepEqual(reads.map(read => read.parents), [198, 2]);
+});
+
+test("a source that budgets its own relationship rows is given no second budget", async () => {
+  // 200 squads, each led by the same 101 people: 20,200 rows a page of 100, over one budget.
+  const squads = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
+  const people = Array.from({ length: 101 }, (_, n) => node(2000 + n, 1, `Lead ${n}`));
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })], nodes: [...squads, ...people],
+    edges: squads.flatMap((_, s) => people.map((_, p) => edge(10_000 + s * 101 + p, 30, 1000 + s, 2000 + p))) };
+  const query = "{ teams(first: 200) { nodes { leads(first: 100) { pageInfo { hasNextPage } } } } }";
+  const read = (source: GraphSource) => executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144, query });
+  assert.equal((await read(memorySource(leads))).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+  // A source over several databases that budgets each of them says so, and the loader reads it as it is.
+  const composed: GraphSource = { ...memorySource(leads), relationBudgeted: true };
+  assert.equal(withRelationBudget(composed), composed);
+  assert.equal((await read(composed)).errors, undefined);
+  // A budgeted source keeps its one budget however often it is wrapped.
+  const once = withRelationBudget(memorySource(leads));
+  assert.equal(withRelationBudget(once), once);
+  assert.equal((await read(once)).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+});
+
+test("a counted relationship page answers every parent with its count wherever the cursor is; a parent a source leaves out is counted apart", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  const counting = (relationPage: GraphSource["relationPage"]): GraphSource => ({
+    ...memory,
+    relationPage: query => { calls.push("relationPage"); return relationPage(query); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  });
+  type Owned = { nodes: { title: string; commitmentOwnerIncoming: { totalCount: number; nodes: unknown[]; pageInfo: { endCursor: string | null } } }[] };
+  const query = "query($after: String, $first: Int = 1) { persons { nodes { title commitmentOwnerIncoming(first: $first, after: $after) { totalCount nodes { id } pageInfo { endCursor } } } } }";
+  const read = async (source: GraphSource, variables: Record<string, unknown> = {}) => {
+    calls.length = 0;
+    const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query, variables });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    return (result.data as { persons: Owned }).persons.nodes;
+  };
+  const counts = (owners: Owned["nodes"]) => owners.map(person => [person.title, person.commitmentOwnerIncoming.totalCount, person.commitmentOwnerIncoming.nodes.length]);
+  const source = counting(memory.relationPage);
+  const owners = await read(source);
+  assert.deepEqual(counts(owners), [["Ada", 1, 1], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationPage"]);
+  // After Ada's only commitment no parent has a row, and each still carries its count: nothing more is read.
+  const after = owners[0].commitmentOwnerIncoming.pageInfo.endCursor;
+  assert.deepEqual(counts(await read(source, { after })), [["Ada", 1, 0], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationPage"]);
+  // Counted without rows, no page is read at all.
+  assert.deepEqual(counts(await read(source, { first: 0 })), [["Ada", 1, 0], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationCount"]);
+  // A source that leaves parents out of a counted page says nothing of them, so their counts are read.
+  const sparse = counting(async page => (await memory.relationPage(page)).filter(entry => entry.rows.length));
+  assert.deepEqual(counts(await read(sparse)), [["Ada", 1, 1], ["Grace", 0, 0], ["Retired", 0, 0]]);
+  assert.deepEqual(calls, ["relationPage", "relationCount"]);
+});
+
+test("a collection counted without rows reads its count and no page", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  const source: GraphSource = { ...memory,
+    nodePage: query => { calls.push(`nodePage:${query.first}`); return memory.nodePage(query); },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); } };
+  const read = (query: string) => executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query });
+  const all = await memory.nodeCount({ typeIds: [uuid(1)] });
+  const counted = await read("{ persons(first: 0) { totalCount nodes { id } pageInfo { hasNextPage endCursor } } }");
+  assert.equal(counted.errors, undefined, JSON.stringify(counted.errors));
+  assert.deepEqual(JSON.parse(JSON.stringify(counted.data)), { persons: { totalCount: all, nodes: [], pageInfo: { hasNextPage: true, endCursor: null } } });
+  assert.deepEqual(calls, ["nodeCount"]);
+  // Uncounted, the page is still read for whether records follow.
+  calls.length = 0;
+  const uncounted = await read("{ persons(first: 0) { pageInfo { hasNextPage } } }");
+  assert.deepEqual(JSON.parse(JSON.stringify(uncounted.data)), { persons: { pageInfo: { hasNextPage: true } } });
+  assert.deepEqual(calls, ["nodePage:0"]);
+  // A totalCount that @include or @skip leaves out of the request is not selected: its page is not counted.
+  const counts: boolean[] = [];
+  const counting: GraphSource = { ...memory, nodePage: query => { counts.push(!!query.count); return memory.nodePage(query); } };
+  for (const variables of [{ count: false, skip: false }, { count: true, skip: true }, { count: true, skip: false }]) {
+    const result = await executeGraphQuery({ types: types as TypeRow[], source: counting, maxBytes: 65536, variables,
+      query: "query($count: Boolean!, $skip: Boolean!) { persons(first: 1) { nodes { id } ... @skip(if: $skip) { totalCount @include(if: $count) } } }" });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    assert.equal("totalCount" in (result.data as { persons: object }).persons, variables.count && !variables.skip);
+  }
+  assert.deepEqual(counts, [false, false, true]);
+});
+
+test("a cursor is base64url of UTF-8 JSON: a 160-character CJK title stays within the cursor limit", async () => {
+  const title = "漢".repeat(160);
+  const cursor = keysetCursor("TITLE_ASC", { value: title, id: uuid(1) });
+  assert.ok(cursor.length <= graphQueryLimits.cursor && cursor.length < 800, String(cursor.length));
+  assert.match(cursor, /^[A-Za-z0-9_-]+$/);
+  assert.deepEqual(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")), ["TITLE_ASC", title, uuid(1)]);
+  assert.deepEqual(readKeyset("TITLE_ASC", cursor, message => new Error(message)), { value: title, id: uuid(1) });
+  for (const bad of ["%%%", Buffer.from([0xff, 0xfe]).toString("base64url"), Buffer.from("[1]").toString("base64url")])
+    assert.throws(() => readKeyset("TITLE_ASC", bad, message => new Error(message)), /Invalid cursor/);
+  // Paging people by title continues after a CJK title.
+  const people = { ...snapshot, nodes: ["一", "二", "三"].map((lead, n) => node(300 + n, 1, lead + "漢".repeat(159))) };
+  const seen: string[] = [];
+  for (let after: string | null = null, pages = 0; pages < 4; pages++) {
+    const result = await executeGraphQuery({ types: types as TypeRow[], source: memorySource(people), maxBytes: 65536, variables: { after },
+      query: `query($after: String) { persons(first: 1, orderBy: TITLE_ASC, after: $after) { nodes { id } pageInfo { hasNextPage endCursor } } }` });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    const page = (result.data as { persons: { nodes: { id: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }).persons;
+    seen.push(...page.nodes.map(row => row.id));
+    assert.ok(page.pageInfo.endCursor.length <= graphQueryLimits.cursor);
+    if (!page.pageInfo.hasNextPage) break;
+    after = page.pageInfo.endCursor;
+  }
+  assert.deepEqual(seen, [uuid(400), uuid(402), uuid(401)]);
 });

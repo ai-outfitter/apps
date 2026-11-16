@@ -1,7 +1,13 @@
 type WorkConnection {
+  edges: [WorkConnectionEdge!]!
   nodes: [Work!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkConnectionEdge {
+  cursor: String!
+  node: Work!
 }
 
 type Work {
@@ -19,18 +25,55 @@ scalar JSON
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How Work records are ordered, ties by ID."""
+enum WorkOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input WorkFilter {
+  repository: StringFilter
+  requestId: StringFilter
+  and: [WorkFilter!]
+  or: [WorkFilter!]
+  not: WorkFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 type FoundryProjectConnection {
+  edges: [FoundryProjectConnectionEdge!]!
   nodes: [FoundryProject!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type FoundryProjectConnectionEdge {
+  cursor: String!
+  node: FoundryProject!
 }
 
 type FoundryProject {
@@ -41,6 +84,14 @@ type FoundryProject {
   milestones: JSON!
   revision: Float!
   updatedAt: DateTime!
+}
+
+"""How FoundryProject records are ordered, ties by ID."""
+enum FoundryProjectOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
 }
 
 type ChangeList {
@@ -243,16 +294,17 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: WorkOrder = ID_ASC
+    filter: WorkFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    repository: [String!]
-    requestId: [String!]
   ): WorkConnection!
   foundryProjects(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: FoundryProjectOrder = ID_ASC
 
     """Match text across this collection’s text fields."""
     search: String

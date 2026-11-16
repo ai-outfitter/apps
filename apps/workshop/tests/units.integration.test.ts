@@ -39,7 +39,7 @@ test("inventory: ESP32-S3 units by MAC address, with firmware, over the API and 
 
     const graph = await app.call(`${actionPath}/call`, member, {
       method: "POST",
-      body: { action: "graph.graphql", input: { query: `{ workshopUnits(mac: ["34:85:18:7A:10:01"]) { nodes { partNumber mac status firmware projectId } } }` }, access: "read" },
+      body: { action: "graph.graphql", input: { query: `{ workshopUnits(filter: { mac: { equalTo: "34:85:18:7A:10:01" } }) { nodes { partNumber mac status firmware projectId } } }` }, access: "read" },
     });
     assert.equal(graph.status, 200, await graph.clone().text());
     assert.deepEqual(((await graph.json()) as { data: unknown }).data, {

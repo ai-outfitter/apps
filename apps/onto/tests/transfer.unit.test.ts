@@ -41,13 +41,14 @@ function fixture() {
   }
   const call: Call = async (name, args) => {
     if (name === "list_entities")
-      return rows
-        .filter(
+      return {
+        records: rows.filter(
           (row) =>
             row.ref.type === args.type &&
             row.ref.installationId === args.installationId,
-        )
-        .slice(Number(args.offset), Number(args.offset) + Number(args.limit));
+        ),
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
     if (name === "get_entity")
       return rows.find((row) => row.ref.id === args.id)!;
     writes.push(name);

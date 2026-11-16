@@ -30,10 +30,10 @@ const insert = async (app: Awaited<ReturnType<typeof appWorker>>, table: string,
 
 const readWork = graphql(`
   query ReadWork($repository: [String!], $ids: [ID!], $after: String) {
-    work(first: 2, repository: $repository, ids: $ids, after: $after) {
+    work(first: 2, filter: { repository: { in: $repository } }, ids: $ids, after: $after) {
       nodes { key repository issue createdAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
   }
 `);
@@ -66,16 +66,16 @@ test("members read Foundry work over graph.graphql only for repositories they ma
 
     // acme/secret is not among the member's repositories; Acme/Web matches acme/web.
     const all = await read("member");
-    assert.deepEqual([all.nodes.map((node) => node.key), all.aggregate.count, all.pageInfo.hasNextPage], [["w-0", "w-2"], 4, true]);
+    assert.deepEqual([all.nodes.map((node) => node.key), all.totalCount, all.pageInfo.hasNextPage], [["w-0", "w-2"], 4, true]);
     assert.deepEqual(all.nodes[0].issue, { number: 1, url: "https://github.com/acme/app/issues/1", created: true });
     assert.equal(all.nodes[0].createdAt, new Date(created).toISOString());
     assert.deepEqual(calls, ["snapshot"]);
 
     const first = await read("member", { repository: ["acme/app"] });
-    assert.deepEqual([first.nodes.map((node) => node.key), first.aggregate.count, first.pageInfo.hasNextPage], [["w-0", "w-3"], 3, true]);
+    assert.deepEqual([first.nodes.map((node) => node.key), first.totalCount, first.pageInfo.hasNextPage], [["w-0", "w-3"], 3, true]);
     const next = await read("member", { repository: ["acme/app"], after: first.pageInfo.endCursor });
     assert.deepEqual([next.nodes.map((node) => node.key), next.pageInfo.hasNextPage], [["w-4"], false]);
-    assert.deepEqual((await read("member", { ids: ["w-1"] })).aggregate.count, 0);
+    assert.deepEqual((await read("member", { ids: ["w-1"] })).totalCount, 0);
     // A member with no readable repository reads no work.
     assert.deepEqual((await read("outsider")).nodes, []);
 

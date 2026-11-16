@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AgentDatabase, AgentStatement } from "./agent-store";
 import { migrationLedger } from "./migrations";
+import { cursorOf, cursorText } from "./graph-order";
 import {
   readJSON,
   requestIdentity,
@@ -135,10 +136,10 @@ function exportedCell(value: unknown, table: string): z.infer<typeof cell> {
 /** Keyset cursor: the table being read and the last key sent, so rows written mid-export are neither skipped nor repeated. */
 const cursorSchema = z.strictObject({ table: z.string(), after: z.array(cell).nullable() });
 type Cursor = z.infer<typeof cursorSchema>;
-const encodeCursor = (value: Cursor) => btoa(encodeURIComponent(JSON.stringify(value)));
+const encodeCursor = (value: Cursor) => cursorOf(JSON.stringify(value));
 function decodeCursor(value: string | null | undefined): Cursor | undefined {
   if (!value) return undefined;
-  try { return cursorSchema.parse(JSON.parse(decodeURIComponent(atob(value)))); }
+  try { return cursorSchema.parse(JSON.parse(cursorText(value) ?? "")); }
   catch { throw new Response("Invalid cursor", { status: 400 }); }
 }
 

@@ -1,5 +1,6 @@
+import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
 import { z } from "zod";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { defineEntity, type EntityRef } from "@ai-outfitter/app-sdk/entities";
 import type { PlanningDatabase } from "./planning";
 import { workSubmissions, workEvaluations } from "./schema";
@@ -55,18 +56,19 @@ export function workEntities(db: PlanningDatabase) {
           id: row.projectId,
         } satisfies EntityRef,
       ],
-      list: async (who, offset, limit) =>
-        Promise.all(
+      list: async (who, query) => {
+        const page = pageCondition(query, { id: workSubmissions.id });
+        return Promise.all(
           (
             await db
               .select()
               .from(workSubmissions)
-              .where(eq(workSubmissions.installationId, who.installationId))
-              .orderBy(asc(workSubmissions.id))
-              .offset(offset)
-              .limit(limit)
+              .where(and(eq(workSubmissions.installationId, who.installationId), page.where))
+              .orderBy(...page.orderBy)
+              .limit(query.limit)
           ).map(hydrate),
-        ),
+        );
+      },
       get: async (who, id) => {
         const [row] = await db
           .select()

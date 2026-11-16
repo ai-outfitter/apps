@@ -11,12 +11,12 @@ export const personalGoalQuery = `query PersonalGoalContext {
   goals(first: 100) {
     nodes {
       id revision title body properties archived updatedAt
-      metrics: edges(types: ["measured_by"], direction: OUTGOING) {
+      metrics: edges(types: ["measured_by"], direction: OUTGOING, first: 100) { nodes {
         id revision fromId toId body properties archived
         to {
           __typename id revision title body properties archived updatedAt
         }
-      }
+      } pageInfo { hasNextPage } }
     }
     pageInfo { hasNextPage endCursor }
   }
@@ -26,7 +26,7 @@ const record = z.object({ id: z.string().min(1), revision: z.number().int().posi
 const metric = record.extend({ __typename: z.string(), calculation: z.string().nullable().optional(), unit: z.string().nullable().optional(), source: z.string().nullable().optional(), interval: z.string().nullable().optional() });
 const edge = z.object({ id: z.string().min(1), revision: z.number().int().positive(), fromId: z.string(), toId: z.string(),
   body: z.string().nullable(), properties: z.record(z.string(), z.json()).nullable(), archived: z.boolean(), to: metric.nullable() });
-const answer = z.object({ goals: z.object({ nodes: z.array(record.extend({ metrics: z.array(edge).max(100) })).max(100), pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }) }) });
+const answer = z.object({ goals: z.object({ nodes: z.array(record.extend({ metrics: z.object({ nodes: z.array(edge).max(100), pageInfo: z.object({ hasNextPage: z.boolean() }) }) })).max(100), pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }) }) });
 type Ref = { installationId: string; type: "graph-node" | "graph-edge"; id: string; revision: number };
 type Goal = z.output<typeof record> & { ref: Ref; metrics: (z.output<typeof metric> & { ref: Ref; relationship: Ref; observation: { status: "unknown"; value: null; reason: string } })[]; observation: { status: "unknown"; reason: string } };
 export type PersonalGoalContext = {
@@ -37,9 +37,10 @@ export type PersonalGoalContext = {
 };
 const unknownObservation = { status: "unknown" as const, value: null, reason: "A metric definition describes a measurement method. No supported observation value was read; formulas were not evaluated." };
 
-function goalView(goal: z.output<typeof record> & { metrics: z.output<typeof edge>[] }, reference: (type: Ref["type"], row: {id:string;revision:number}) => Ref, errors: string[]): Goal {
+function goalView(goal: z.output<typeof record> & { metrics: { nodes: z.output<typeof edge>[]; pageInfo: { hasNextPage: boolean } } }, reference: (type: Ref["type"], row: {id:string;revision:number}) => Ref, errors: string[]): Goal {
   const metrics: Goal["metrics"] = [];
-  for (const relation of goal.metrics.filter(row => !row.archived && !isRetired(row))) {
+  if (goal.metrics.pageInfo.hasNextPage) errors.push(`${goal.title}: metric relationships exceed the bounded first 100; the source is incomplete.`);
+  for (const relation of goal.metrics.nodes.filter(row => !row.archived && !isRetired(row))) {
     const target = relation.to;
     if (relation.fromId !== goal.id || !target || relation.toId !== target.id || target.__typename !== "MetricDefinition") {
       errors.push(`${goal.title}: a metric relationship has no valid MetricDefinition target.`); continue;
