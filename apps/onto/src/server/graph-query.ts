@@ -1,5 +1,5 @@
 import { compareIds, type EdgeRow, type GraphRow, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
-import { type GraphQuery, graphQueryInput, type GraphQueryInput, isOrderedPage, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
+import { type GraphQuery, graphQueryInput, type GraphQueryInput, graphQueryLimits, isOrderedPage, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { normalizeRule } from "@ai-outfitter/app-sdk/graph-selection";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
@@ -67,8 +67,8 @@ function candidates(db: Database, installationId: string, types: TypeRow[]) {
     // queryGraph resolves a saved KnowledgeGraph even when nothing matched.
     if (query.expand && "knowledgeGraphId" in query.expand) await nodesById([query.expand.knowledgeGraphId]);
     const reach = query.expand && roots.length ? followed(query.expand) : null;
-    // queryGraph expands at most 100 roots in a request; the reach is read once for every query (reachAll).
-    return reach ? { rootIds: roots.slice(0, 100).map(row => row.id), ...reach } : null;
+    // queryGraph expands only so many roots in a request; the reach is read once for every query (reachAll).
+    return reach ? { rootIds: roots.slice(0, graphQueryLimits.expandedRoots).map(row => row.id), ...reach } : null;
   }
   /** The expansions of every query in one pass: one indexed read per hop over all their roots and
    * followed types together, rather than a hop loop per query. A superset is harmless: queryGraph

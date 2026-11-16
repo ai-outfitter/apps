@@ -7,19 +7,37 @@ import { type FieldOperators, type FilterKind, filterOperand, type RecordFilter 
 /** Where a filter field lives: its column (any SQL expression) and how its values compare. */
 export type FilterColumns = Record<string, { column: SQL; kind: FilterKind }>;
 
-const joined = (parts: SQL[], glue: string) => sql.join(parts.map(part => sql`(${part})`), sql.raw(glue));
+/** Terms, each in parentheses, joined by `glue` (" AND ", " OR "). */
+export const joined = (parts: SQL[], glue: string) => sql.join(parts.map(part => sql`(${part})`), sql.raw(glue));
+/** Any number of values as one bound parameter (a JSON array), for `IN`. */
+export const within = (values: unknown[]) => sql`(SELECT value FROM json_each(${JSON.stringify(values)}))`;
+/** The least text greater than every text starting with `prefix` (code point order, as SQLite compares UTF-8),
+ * or null when there is none: the prefix is empty or holds only the last code point. */
+function prefixEnd(prefix: string) {
+  const points = [...prefix].map(character => character.codePointAt(0) as number);
+  while (points.at(-1) === 0x10ffff) points.pop();
+  const last = points.pop();
+  if (last === undefined) return null;
+  // No text holds a surrogate code point: after U+D7FF comes U+E000.
+  return String.fromCodePoint(...points, last === 0xd7ff ? 0xe000 : last + 1);
+}
+/** Text starting with `prefix` as a range, so an index on the column seeks it; unknown for a missing value, as any comparison. */
+function startsWith(column: SQL, prefix: string) {
+  const end = prefixEnd(prefix);
+  return end === null ? sql`${column} >= ${prefix}` : sql`${column} >= ${prefix} AND ${column} < ${end}`;
+}
 const comparisons: Record<string, string> = { equalTo: "=", notEqualTo: "<>", lessThan: "<", lessThanOrEqualTo: "<=", greaterThan: ">", greaterThanOrEqualTo: ">=" };
 
 function condition(column: SQL, kind: FilterKind, operator: string, operand: unknown): SQL {
   if (operator === "isNull") return operand ? sql`${column} IS NULL` : sql`${column} IS NOT NULL`;
   if (operator === "in" || operator === "notIn") {
-    const list = sql`(SELECT value FROM json_each(${JSON.stringify((operand as unknown[]).map(item => filterOperand(kind, item)))}))`;
+    const list = within((operand as unknown[]).map(item => filterOperand(kind, item)));
     return operator === "in" ? sql`${column} IN ${list}` : sql`${column} NOT IN ${list}`;
   }
-  // instr matches literally: `%` and `_` mean themselves. lower() folds ASCII only.
+  // instr and the startsWith range match literally: `%` and `_` mean themselves. lower() folds ASCII only.
   if (operator === "includes") return sql`instr(${column}, ${String(operand)}) > 0`;
   if (operator === "includesInsensitive") return sql`instr(lower(${column}), lower(${String(operand)})) > 0`;
-  if (operator === "startsWith") return sql`instr(${column}, ${String(operand)}) = 1`;
+  if (operator === "startsWith") return startsWith(column, String(operand));
   if (operator === "startsWithInsensitive") return sql`instr(lower(${column}), lower(${String(operand)})) = 1`;
   return sql`${column} ${sql.raw(comparisons[operator])} ${filterOperand(kind, operand)}`;
 }

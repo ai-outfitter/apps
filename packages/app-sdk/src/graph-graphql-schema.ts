@@ -67,6 +67,8 @@ const orderedArgs = (order: GraphQLEnumType, filter: GraphQLInputObjectType): Gr
   ({ ...pageArgs, orderBy: { type: order, defaultValue: "ID_ASC" }, filter: { type: filter } });
 type RelationArgs = TraverseArgs & OrderedPageArgs & { filter?: unknown };
 const strings = new GraphQLList(nonNull(GraphQLString));
+/** The orderBy enum of a graph connection listing `records`. */
+const recordOrder = (name: string, records: string) => orderEnum(name, `How ${records} are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.`);
 
 function propertyFields(properties: (NodeLayout | EdgeLayout)["properties"]): Fields {
   return Object.fromEntries(properties.map(({ field, property }) => [field, {
@@ -143,12 +145,9 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   const edgesField = (): GraphQLFieldConfig<GraphRow, GraphContext> => ({
     type: nonNull(edgeConnection()), description: "Edges of any type touching this node, each with from and to: one bounded, ordered page, read for every node of a level at once.",
     args: { types: { type: strings, description: "Edge type names or IDs." }, direction: { type: DirectionEnum, defaultValue: "both" }, ...orderedArgs(edgeOrder(), edgeFilter()), ...traverseArgs },
-    resolve: async (row, args: RelationArgs & { types?: string[]; direction: "outgoing" | "incoming" | "both" }, context, info) => {
-      const ids = edgeTypes(args.types) ?? allEdgeTypes;
-      if (!ids.length) return collectionPage(null, args, context, info);
-      return relationConnection(context, info, row.id, { edgeTypeIds: ids, direction: args.direction, targetTypeIds: allNodeTypes, rows: "edge", ...reach(args),
-        ...checkedFilter(args.filter, edgeFilterFields) }, args);
-    },
+    resolve: async (row, args: RelationArgs & { types?: string[]; direction: "outgoing" | "incoming" | "both" }, context, info) =>
+      relationConnection(context, info, row.id, { edgeTypeIds: edgeTypes(args.types) ?? allEdgeTypes, direction: args.direction, targetTypeIds: allNodeTypes, rows: "edge", ...reach(args),
+        ...checkedFilter(args.filter, edgeFilterFields) }, args),
   });
   const Node: GraphQLInterfaceType = new GraphQLInterfaceType({
     name: "Node", description: "Any graph node.", resolveType: row => nodeName(row as GraphRow),
@@ -160,7 +159,7 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   });
   const objects = new Map<string, GraphQLObjectType>();
   const connections = new Map<string, GraphQLObjectType>();
-  const orderEnums = new Map([...layout.nodes.values()].map(node => [node.type.id, orderEnum(node.order, `${node.name} records`)]));
+  const orderEnums = new Map([...layout.nodes.values()].map(node => [node.type.id, recordOrder(node.order, `${node.name} records`)]));
   /** Shared types are made only when a field uses them. */
   const lazy = <T>(make: () => T) => { let made: T | undefined; return () => (made ??= make()); };
   const { shared } = layout;
@@ -173,8 +172,8 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   const edgeFilter = lazy(() => recordFilter(shared.edgeFilter, edgeFilterFields));
   const nodeConnection = lazy(() => connectionOf(shared.nodeConnection, shared.nodeConnectionEdge, Node));
   const edgeConnection = lazy(() => connectionOf(shared.edgeConnection, shared.edgeConnectionEdge, Edge));
-  const nodeOrder = lazy(() => orderEnum(shared.nodeOrder, "nodes"));
-  const edgeOrder = lazy(() => orderEnum(shared.edgeOrder, "edges"));
+  const nodeOrder = lazy(() => recordOrder(shared.nodeOrder, "nodes"));
+  const edgeOrder = lazy(() => recordOrder(shared.edgeOrder, "edges"));
   const edgeConnections = new Map([...layout.edges.values()].map(edge => [edge.type.id, lazy(() => connectionOf(edge.connection, edge.connectionEdge, objects.get(edge.type.id) as GraphQLObjectType))]));
   const target = (ids: string[]) => (ids.length === 1 && objects.get(ids[0])) || Node;
   /** The connection, orderBy and filter of a field reaching these node types (the Node interface's for several). */
@@ -185,7 +184,7 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   /** One parent's page of a relationship, batched with every other parent asking the same; counted only when totalCount is selected. */
   async function relationConnection(context: GraphContext, info: GraphQLResolveInfo, parentId: string, ask: RelationCountAsk, args: RelationArgs) {
     const start = orderedStart(args);
-    const rows = await context.loader.relation({ ...ask, order: start.order, first: start.first, after: start.after }, parentId);
+    const rows = await context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after }, parentId);
     const records = rows.map(row => (ask.rows === "node" ? row.node : row.edge));
     return orderedPage(context, info, records, row => keyOf(row, start.order), start, args.after, () => context.loader.relationCount(ask, parentId));
   }
@@ -249,7 +248,6 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
       args: { as: { type: GraphQLString }, ...orderedArgs(orderEnums.get(relator.id) as GraphQLEnumType, filters.get(relator.id) as GraphQLInputObjectType), ...traverseArgs },
       resolve: async (row: GraphRow, args: RelationArgs & { as?: string }, context: GraphContext, info) => {
         const edgeTypeIds = [...new Set(slots.filter(slot => !args.as || slot.name === args.as).map(slot => slot.edgeTypeId))];
-        if (!edgeTypeIds.length) return collectionPage(null, args, context, info);
         return relationConnection(context, info, row.id, { edgeTypeIds, direction: "both", targetTypeIds: [relator.id], rows: "node", ...reach(args), ...checkedFilter(args.filter, nodeFilterFields) }, args);
       },
     } satisfies GraphQLFieldConfig<GraphRow, GraphContext>]));
@@ -257,18 +255,17 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
 
   type CollectionArgs = OrderedPageArgs & { archived: ArchivedFilter; ids?: string[]; filter?: unknown; text?: string; at?: string };
   const search = connectionOf("SearchConnection", shared.searchEdge, Node);
-  /** What a search matches, or null when it names no type of this schema. */
-  const searchFilter = (args: { text: string; types?: string[] }): NodeFilter | null => {
+  /** What a search matches (nothing when it names no type of this schema). */
+  const searchFilter = (args: { text: string; types?: string[] }): NodeFilter => {
     const text = args.text.trim();
     if (!text || text.length > 256) throw new GraphQLError("text must be 1-256 characters", { extensions: { code: "BAD_USER_INPUT" } });
-    const typeIds = nodeTypes(args.types) ?? allNodeTypes;
-    return typeIds.length ? { typeIds, text, archived: "exclude" } : null;
+    return { typeIds: nodeTypes(args.types) ?? allNodeTypes, text, archived: "exclude" };
   };
   /** A collection's page, read bounded by the source; counted only when totalCount is selected. */
-  const collectionPage = async (filter: NodeFilter | null, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
+  const collectionPage = async (filter: NodeFilter, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
     const start = orderedStart(args);
-    const rows = filter ? await context.loader.nodePage({ ...filter, order: start.order, first: start.first, after: start.after }) : [];
-    return orderedPage(context, info, rows, row => keyOf(row, start.order), start, args.after, async () => (filter ? context.loader.nodeCount(filter) : 0));
+    const rows = await context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after });
+    return orderedPage(context, info, rows, row => keyOf(row, start.order), start, args.after, () => context.loader.nodeCount(filter));
   };
   const roots: RootFields = {
     sdl: { type: nonNull(GraphQLString), description: "This schema in SDL: a compact alternative to full introspection.", resolve: (_root, _args, _context, info) => printSchema(info.schema) },

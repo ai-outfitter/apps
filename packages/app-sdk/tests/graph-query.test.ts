@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { graphQueryInput, graphQueryResult, queryGraph } from "../src/graph-query";
+import { type GraphSource, memorySource } from "../src/graph-graphql-source";
+import { graphQueryInput, graphQueryLimits, graphQueryResult, queryGraph } from "../src/graph-query";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (n: number, name: string, category: "node" | "edge", extra: Record<string, unknown> = {}) =>
@@ -254,4 +255,64 @@ test("ordered pages: a collection in any order, a page per parent with its curso
     [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { or: Array.from({ length: 21 }, () => ({ slug: { equalTo: "x" } })) } }, /21 conditions; at most 20/],
     [{ name: "q", entity: "edge", relation: { ...relation, through: { edgeTypes: ["assigns_role"], nodeTypes: ["Role"] } } }, /through: \\"node\\" only/],
   ] as const) assert.throws(() => graphQueryInput.parse({ queries: [query] }), message);
+});
+
+test("ordered pages of one request are read together, count beside page, and admitted in request order", async () => {
+  const roles = Array.from({ length: 6 }, (_, n) => node(30 + n, 1, `Role ${n}`, { createdAt: n, updatedAt: 100 - n }));
+  const graph = { ...snapshot, nodes: [...snapshot.nodes, ...roles] };
+  const memory = memorySource(graph);
+  const log: string[] = [];
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  /** Every read notes its start, then waits until all four of the request have started. */
+  const held = <A, R>(name: string, read: (query: A) => Promise<R>) => async (query: A) => {
+    log.push(name);
+    if (log.length === 4) release();
+    await gate;
+    return read(query);
+  };
+  const source: GraphSource = { ...memory, nodePage: held("page", memory.nodePage), nodeCount: held("count", memory.nodeCount) };
+  const queries = [
+    { name: "newest", orderBy: "UPDATED_AT_DESC" as const, limit: 2, count: true },
+    { name: "roles", types: ["Role"], orderBy: "CREATED_AT_DESC" as const, limit: 2, count: true },
+  ];
+  // Sequential reads would never release the gate: the request would hang here.
+  const together = await queryGraph(graph, { includeTypes: "none", queries }, { source });
+  assert.deepEqual(log.sort(), ["count", "count", "page", "page"]);
+  // Without `types` the page lists every node type, and the source is asked for no type test.
+  assert.deepEqual(together.queries.newest.matches, [roles[0].id, roles[1].id]);
+  assert.equal(together.queries.newest.total, 11);
+  assert.deepEqual([together.queries.roles.matches, together.queries.roles.total], [[roles[5].id, roles[4].id], 8]);
+  assert.deepEqual(together, await queryGraph(graph, { includeTypes: "none", queries }), "the same answer as reads over the snapshot");
+  // The byte budget still runs in request order: a later query keeps its place with nothing read into the response.
+  const large = { ...graph, nodes: graph.nodes.map(row => ({ ...row, body: "x".repeat(3000) })) };
+  const tight = await queryGraph(large, { includeTypes: "none", maxBytes: 8 * 1024, queries: [
+    { name: "first", types: ["Role"], orderBy: "ID_ASC", fields: "full", limit: 50 }, { name: "second", types: ["Role"], orderBy: "ID_DESC", count: true }] });
+  assert.ok(tight.queries.first.matches.length > 0 && !tight.queries.first.complete);
+  assert.deepEqual([tight.queries.second.matches, tight.queries.second.total, tight.queries.second.complete, tight.queries.second.cursor], [[], null, false, null]);
+  // A refusal belongs to its query's turn: an earlier query's error wins.
+  const refusal = (queries: object[]) => queryGraph(graph, { queries } as never).then(() => "", (error: Response) => error.text());
+  assert.equal(await refusal([{ name: "a", types: ["Role"], cursor: "garbage" }, { name: "b", orderBy: "ID_ASC", cursor: "garbage" }]), "Invalid cursor");
+  assert.equal(await refusal([{ name: "b", orderBy: "ID_ASC", cursor: "garbage" }]), "Query b: Invalid cursor");
+});
+
+test("a page that can match nothing asks no source, and type lists take as many as a relation's edge types", async () => {
+  const memory = memorySource(snapshot);
+  const refuse = () => { throw new Error("the source was asked"); };
+  const source: GraphSource = { ...memory, nodePage: refuse, nodeCount: refuse, relationPage: refuse, relationCount: refuse };
+  const relation = { parentIds: [uuid(103)], edgeTypes: ["assigns_role"], targetTypes: ["Role"] };
+  const result = await queryGraph(snapshot, { queries: [
+    { name: "unknown", types: ["Nothing"], orderBy: "ID_ASC", count: true },
+    { name: "noEdge", relation: { ...relation, edgeTypes: ["nothing"] }, count: true },
+    { name: "noTarget", relation: { ...relation, targetTypes: ["Nothing"] } },
+    { name: "noRelator", relation: { ...relation, through: { edgeTypes: ["assigns_role"], nodeTypes: ["Nothing"] } }, count: true },
+  ] }, { source });
+  assert.deepEqual([result.queries.unknown.matches, result.queries.unknown.total, result.queries.unknown.complete, result.queries.unknown.missingTypes], [[], 0, true, ["Nothing"]]);
+  for (const name of ["noEdge", "noTarget", "noRelator"]) assert.deepEqual(result.queries[name].parents?.map(parent => [parent.rows, parent.hasNextPage]), [[[], false]], name);
+  assert.equal(result.queries.noRelator.total, 0);
+  const many = Array.from({ length: graphQueryLimits.types }, (_, n) => `Type${n}`);
+  assert.equal(graphQueryLimits.types, 500);
+  assert.doesNotThrow(() => graphQueryInput.parse({ queries: [{ name: "q", types: many }, { name: "r", relation: { parentIds: [uuid(103)], edgeTypes: many, targetTypes: many } }] }));
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: [...many, "More"] }] }));
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "r", relation: { parentIds: [uuid(103)], edgeTypes: ["a"], targetTypes: [...many, "More"] } }] }));
 });

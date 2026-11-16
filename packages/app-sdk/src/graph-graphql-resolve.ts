@@ -3,7 +3,7 @@
 import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
 import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
 import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
-import { cursorOf, cursorText, keysetCursor, type OrderName, orders, parseKeyset } from "./graph-order";
+import { keysetCursor, type OrderName, orders, readKeyset } from "./graph-order";
 
 export { validAt, validFrom, validUntil, visible };
 export type GraphContext = {
@@ -49,11 +49,6 @@ export async function traverse(context: GraphContext, nodeId: string, edgeTypeId
   });
 }
 
-function decode(cursor: string) {
-  const text = cursorText(cursor);
-  if (text === null) throw badInput("Invalid cursor");
-  return text;
-}
 const badInput = (message: string) => new GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 /** At most 200 IDs (or slugs) per argument, as graph.query takes. */
 export function idList(ids: string[] | null | undefined, name = "ids") {
@@ -68,52 +63,39 @@ export function checkedFilter(filter: unknown, fields: FilterFields): { filter?:
   return filterConditions(filter) ? { filter } : {};
 }
 export type PageArgs = { first?: number | null; after?: string | null };
-/** The page size (default 100, at most 500) and the ID the page starts after. */
+export type OrderedPageArgs = PageArgs & { orderBy?: OrderName | null };
+/** Where a page ordered by `orderBy` resumes: its cursor's record (BAD_USER_INPUT unless the cursor names this order). */
+export const pageAfter = (orderBy: string, after: string | null | undefined) => (after ? readKeyset(orderBy, after, badInput) : null);
+const idKey = (id: string): Keyset => ({ value: id, id });
+/** The page size (default 100, at most 500) and, for a page in ID order, the ID it starts after. */
 export function pageStart({ first, after }: PageArgs) {
   const size = first ?? 100;
   if (size < 0 || size > 500) throw badInput("first must be between 0 and 500");
-  return { first: size, start: after ? decode(after) : null };
-}
-/** The first `first` of `rows` (read one past the page) as a Relay connection page: `nodes`, the same records as
- * `edges` with each one's cursor, and `pageInfo`. Paging is forward only, so a page has a previous one exactly
- * when it started after a cursor. Noted for fitResponse to continue from any record kept. */
-function cutPage<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], cursor: (row: T) => string, first: number, after: string | null) {
-  const nodes = take(context, info, rows.slice(0, first));
-  const cursors = nodes.map(cursor);
-  context.pages.set(pathKey(info.path), { after, cursors });
-  return {
-    nodes, edges: nodes.map((node, index) => ({ cursor: cursors[index], node })),
-    pageInfo: { hasNextPage: rows.length > nodes.length, hasPreviousPage: after !== null, startCursor: cursors[0] ?? null, endCursor: cursors.at(-1) ?? null },
-  };
-}
-/** The first `first` of the ID-ordered `rows` after `start`, noted for fitResponse to continue. */
-export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null) {
-  return cutPage(context, info, rows, row => cursorOf(idOf(row)), first, start === null ? null : cursorOf(start));
-}
-
-export type OrderedPageArgs = PageArgs & { orderBy?: OrderName | null };
-/** An ID_ASC cursor is the record's encoded ID (as before orderBy); any other order's names the order
- * with the record's (value, ID), so it continues only the order it was made with. */
-export function orderCursor(orderBy: string, key: Keyset) {
-  return orderBy === "ID_ASC" ? cursorOf(key.id) : keysetCursor(orderBy, key);
-}
-export function readKeyset(orderBy: string, cursor: string): Keyset {
-  const text = decode(cursor);
-  const keyed = parseKeyset(text);
-  if (keyed?.orderBy === orderBy) return keyed.key;
-  if (keyed || orderBy !== "ID_ASC") throw badInput(`This cursor does not continue orderBy ${orderBy}; keep orderBy unchanged when paging`);
-  return { value: text, id: text };
+  return { first: size, start: pageAfter("ID_ASC", after)?.id ?? null };
 }
 /** The page an ordered connection reads: its order, size and the record it resumes after. */
 export function orderedStart(args: OrderedPageArgs) {
   const orderBy = args.orderBy ?? "ID_ASC";
-  const { first } = pageStart({ first: args.first });
-  return { orderBy, order: orders[orderBy], first, after: args.after ? readKeyset(orderBy, args.after) : null };
+  return { orderBy, order: orders[orderBy], first: pageStart({ first: args.first }).first, after: pageAfter(orderBy, args.after) };
 }
-/** A connection over the ordered `rows` a source read (at most first + 1); `count` runs only when totalCount is selected. */
+/** A Relay connection over the ordered `rows` a source read (one past the page, to tell whether more follow): `nodes`,
+ * the same records as `edges` with each one's cursor, `pageInfo` and `totalCount` (`count` runs only when it is selected).
+ * Paging is forward only, so a page has a previous one exactly when it started after a cursor. Noted for fitResponse to
+ * continue from any record kept. */
 export function orderedPage<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], key: (row: T) => Keyset, start: { orderBy: string; first: number },
-  after: string | null | undefined, count: () => Promise<number>) {
-  return { ...cutPage(context, info, rows, row => orderCursor(start.orderBy, key(row)), start.first, after ?? null), totalCount: () => count() };
+  after: string | null | undefined, count: () => number | Promise<number>) {
+  const nodes = take(context, info, rows.slice(0, start.first));
+  const cursors = nodes.map(row => keysetCursor(start.orderBy, key(row)));
+  context.pages.set(pathKey(info.path), { after: after ?? null, cursors });
+  return {
+    nodes, edges: nodes.map((node, index) => ({ cursor: cursors[index], node })),
+    pageInfo: { hasNextPage: rows.length > nodes.length, hasPreviousPage: !!after, startCursor: cursors[0] ?? null, endCursor: cursors.at(-1) ?? null },
+    totalCount: count,
+  };
+}
+/** A connection over the ID-ordered `rows` after `start` (one past the page), for a collection written by hand. */
+export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null, count: () => number | Promise<number>) {
+  return orderedPage(context, info, rows, row => idKey(idOf(row)), { orderBy: "ID_ASC", first }, start === null ? null : keysetCursor("ID_ASC", idKey(start)), count);
 }
 
 export const responseTooLarge = () => new GraphQLError("The query resolves more than this request may return; select fewer fields, aliases or records", { extensions: { code: "RESPONSE_TOO_LARGE" } });

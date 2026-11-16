@@ -21,6 +21,7 @@
 // omitted, boundary edges) stays `selectGraph`, run over the records the result holds.
 // Text is graphql-js `print` output, so a definition always compiles to the same text.
 import { parse, print } from "graphql";
+import { isObject } from "./graph-filter";
 import { endpointsOf, graphqlNames, type NodeLayout, type SchemaLayout, schemaLayout, type TypeRow } from "./graph-graphql-names";
 import type { EdgeRow, GraphRow } from "./graph-graphql-source";
 import { type GraphSelection, type GraphSelectionDefinition, graphSelectionDefinition, normalizeRule, selectGraph } from "./graph-selection";
@@ -179,7 +180,6 @@ export function selectionDocument(input: GraphSelectionDefinition, schema: Schem
   return { query: print(parse(document)), operationName, variables: selectionVariables, hops: definition.maxDepth };
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const isRecord = (value: Record<string, unknown>): value is GraphRow => typeof value.id === "string" && typeof value.typeId === "string";
 const isEdge = (value: GraphRow): value is EdgeRow => typeof value.fromId === "string" && typeof value.toId === "string";
 type Observed = { nodes: Map<string, GraphRow>; edges: Map<string, EdgeRow>; depth: Map<string, number>; steps: Set<string>; more: boolean };

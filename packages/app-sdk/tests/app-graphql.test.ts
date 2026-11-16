@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@libsql/client";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { GraphQLObjectType, GraphQLSchema, GraphQLString, printSchema } from "graphql";
 import { graphGraphqlResult, graphqlAction, serveGraphql, tableType } from "../src/app-graphql";
+import { matchesFilter } from "../src/graph-filter";
+import { filterSql } from "../src/graph-filter-sql";
 
 // An app's own table, served the way a Wiki serves its records.
 const items = sqliteTable("items", {
@@ -67,6 +69,11 @@ test("a table serves ID-ordered pages with ids and column filters, and only the 
   assert.deepEqual(startPage.pageInfo, { hasPreviousPage: false, startCursor: startPage.edges[0].cursor, endCursor: startPage.edges[1].cursor });
   const fromFirst = await serve(db, `query($after: String) { items(first: 1, after: $after) { nodes { id } } }`, { variables: { after: startPage.edges[0].cursor } });
   assert.deepEqual(fromFirst.data, { items: { nodes: [{ id: "i-0001" }] } });
+  // One cursor format: every order's cursor names its order, the default ID_ASC included, and nothing else is a cursor.
+  const decoded = JSON.parse(decodeURIComponent(atob(startPage.edges[0].cursor)));
+  assert.deepEqual(decoded, ["ID_ASC", "i-0000", "i-0000"]);
+  const bare = await serve(db, `query($after: String) { items(after: $after) { nodes { id } } }`, { variables: { after: btoa("i-0000") } });
+  assert.deepEqual([bare.errors?.[0]?.message, bare.errors?.[0]?.extensions?.code], ["Invalid cursor", "BAD_USER_INPUT"]);
   // orderBy pages by keyset in the database: a declared column, then the ID; a cursor continues only its own order.
   const ordered = async (orderBy: string, after: string | null = null, first = 2) => {
     const result = await serve(db, `query($orderBy: ItemOrder, $after: String, $first: Int) { items(first: $first, orderBy: $orderBy, after: $after) { nodes { id } pageInfo { hasNextPage endCursor } } }`, { variables: { orderBy, after, first } });
@@ -181,4 +188,22 @@ test("graphqlAction is a read action with the Wiki's input and result", async ()
   const identity = { userId: "u", canEdit: false } as never;
   const result = await action.invoke({ identity, actor: {} as never, originActor: {} as never, db: () => db } as never, { query: "{ items { nodes { title } } }" }, true);
   assert.deepEqual(result, { data: { items: { nodes: [{ title: "Item 0" }] } } });
+});
+
+test("startsWith is a range an index seeks, and means what the in-memory filter means", async () => {
+  const db = await database(0);
+  const last = "\u{10FFFF}";
+  const titles = ["", "a", "ab", "a%", "a_c", "abc", "A", "b", `a${last}`, `a${last}b`, `a${last}${last}`, last, `${last}z`, "a\uD7FF", "a\uD7FFz", "a\uE000", "é", "éa"];
+  await db.insert(items).values(titles.map((title, index) => ({ id: `t-${String(index).padStart(2, "0")}`, title, status: "open", receivedAt: index })));
+  await db.run(sql`CREATE INDEX items_title ON items (title, id)`);
+  const columns = { title: { column: sql`${items.title}`, kind: "string" as const } };
+  for (const prefix of ["", "a", "ab", "a%", "a_", "A", "c", `a${last}`, `a${last}${last}`, last, `${last}${last}`, "a\uD7FF", "é"]) {
+    for (const filter of [{ title: { startsWith: prefix } }, { not: { title: { startsWith: prefix } } }]) {
+      const rows = await db.select({ title: items.title }).from(items).where(filterSql(filter, columns)).orderBy(items.id);
+      assert.deepEqual(rows.map(row => row.title), titles.filter(title => matchesFilter({ title }, filter, { title: "string" })), JSON.stringify(filter));
+    }
+  }
+  const plan = await db.all<{ detail: string }>(sql`EXPLAIN QUERY PLAN SELECT id FROM items WHERE ${filterSql({ title: { startsWith: "ab" } }, columns)} ORDER BY title, id LIMIT 3`);
+  assert.match(plan.map(row => row.detail).join("\n"), /SEARCH items USING (COVERING )?INDEX items_title \(title>\? AND title<\?\)/);
+  assert.doesNotMatch(plan.map(row => row.detail).join("\n"), /TEMP B-TREE|SCAN/);
 });

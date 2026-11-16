@@ -33,7 +33,8 @@ const logical = new Set(["and", "or", "not"]);
 const textual = new Set<string>(textOperators);
 const known = new Set<string>(filterOperators);
 
-const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+/** A JSON object: neither null nor a list. */
+export const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 /** The operators a field carries (null and undefined are no condition). */
 const conditions = (field: unknown) => (isObject(field) ? Object.entries(field).filter(([, value]) => value !== null && value !== undefined) : []);
 const children = (filter: RecordFilter): RecordFilter[] => [...filter.and ?? [], ...filter.or ?? [], ...(filter.not ? [filter.not] : [])];

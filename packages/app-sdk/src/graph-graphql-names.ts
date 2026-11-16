@@ -87,7 +87,10 @@ const createdAt = (type: TypeRow) => {
 /** Older types keep the clean name, so adding a type never renames an existing one. */
 const byAge = (a: TypeRow, b: TypeRow) => createdAt(a) - createdAt(b) || compareIds(a.id, b.id);
 
-function addType(layout: Layout, type: TypeRow, typeScope: Scope, root: Scope, recordFields: string[]) {
+type EdgeNames = Pick<EdgeLayout, "type" | "name" | "properties">;
+type NodeNames = Pick<NodeLayout, "type" | "name" | "properties" | "connection" | "single" | "collection">;
+/** A type's own names: its GraphQL name and property fields and, for a node type, its connection and root fields. */
+function ownNames(layout: Layout, type: TypeRow, typeScope: Scope, root: Scope, recordFields: string[]): EdgeNames | NodeNames {
   const name = typeScope(typeName(type.name), type);
   const props = (base: string[]) => {
     const scope = nameScope([...base, ...recordFields], layout.warnings, `field of ${name}`);
@@ -98,12 +101,11 @@ function addType(layout: Layout, type: TypeRow, typeScope: Scope, root: Scope, r
       return [];
     });
   };
-  if (type.category === "edge") { layout.edges.set(type.id, { type, name, properties: props(edgeBaseFields), connection: "", connectionEdge: "" }); return; }
+  if (type.category === "edge") return { type, name, properties: props(edgeBaseFields) };
   const connection = typeScope(`${name}Connection`, type);
   const collection = root(collectionName(type.name), type);
   const single = root(collection === fieldName(type.name) ? `${fieldName(type.name)}ById` : fieldName(type.name), type);
-  layout.nodes.set(type.id, { type, name, connection, order: "", connectionEdge: "", filter: "", single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]),
-    relationships: [], slots: [], reverse: [] });
+  return { type, name, connection, single, collection, properties: props([...nodeBaseFields, "validFrom", "validUntil"]) };
 }
 
 /** Fields of a projection edge type: participants of one relator slot reach those of the other. */
@@ -154,26 +156,32 @@ export function schemaLayout(rows: TypeRow[], reserved: ReservedNames = {}) {
   const typeScope = nameScope([...reservedTypeNames, ...reserved.typeNames ?? []], layout.warnings, "type name");
   const root = nameScope([...reservedRootFields, ...reserved.rootFieldNames ?? []], layout.warnings, "root field");
   const types = rows.filter(type => !type.archived && (type.category === "node" || type.category === "edge")).sort(byAge);
-  for (const type of types) addType(layout, type, typeScope, root, reserved.recordFieldNames ?? []);
-  // Orders and edge connections are named after every type, so a type's own name is never taken by them.
-  for (const node of layout.nodes.values()) node.order = typeScope(`${node.name}Order`, node.type);
-  for (const edge of layout.edges.values()) edge.connection = typeScope(`${edge.name}Connection`, edge.type);
-  const own = (name: string) => typeScope(name, { id: name, name });
-  const first = { nodeConnection: own("NodeConnection"), nodeOrder: own("NodeOrder"), edgeOrder: own("EdgeOrder") };
-  // Named last, in this order, so none of them ever takes the name a type, order or connection already had:
-  // each connection's Relay edge wrapper (`<Connection>Edge`: `{ cursor node }`, apart from the graph's own
-  // Edge interface and edge types), each node type's filter, then the shared connection, wrappers and filters.
-  for (const node of layout.nodes.values()) node.connectionEdge = typeScope(`${node.connection}Edge`, node.type);
-  for (const edge of layout.edges.values()) edge.connectionEdge = typeScope(`${edge.connection}Edge`, edge.type);
-  for (const node of layout.nodes.values()) node.filter = typeScope(`${node.name}Filter`, node.type);
-  const shared: SharedNames = { ...first, nodeConnectionEdge: own(`${first.nodeConnection}Edge`), edgeConnection: own("EdgeConnection"), edgeConnectionEdge: "",
-    searchEdge: own("SearchConnectionEdge"), nodeFilter: own("NodeFilter"), edgeFilter: own("EdgeFilter"),
-    idFilter: own("IDFilter"), stringFilter: own("StringFilter"), dateTimeFilter: own("DateTimeFilter") };
-  shared.edgeConnectionEdge = own(`${shared.edgeConnection}Edge`);
+  const own = types.map(type => ownNames(layout, type, typeScope, root, reserved.recordFieldNames ?? []));
+  const nodes = own.flatMap(item => ("connection" in item ? [item] : [])), edges = own.flatMap(item => ("connection" in item ? [] : [item]));
+  /** One more name per type, in type order. */
+  const each = <T extends { type: TypeRow }>(items: T[], name: (item: T) => string) => new Map(items.map(item => [item.type.id, typeScope(name(item), item.type)]));
+  const shared = (name: string) => typeScope(name, { id: name, name });
+  // Named after every type, and in this order, so none ever takes the name a type or an earlier kind already had: orders and
+  // edge connections, the shared connection and orders, each connection's Relay edge wrapper (`<Connection>Edge`: `{ cursor node }`,
+  // apart from the graph's own Edge interface and edge types), each node type's filter, then the shared wrappers and filters.
+  const orders = each(nodes, node => `${node.name}Order`);
+  const edgeConnections = each(edges, edge => `${edge.name}Connection`);
+  const nodeConnection = shared("NodeConnection"), nodeOrder = shared("NodeOrder"), edgeOrder = shared("EdgeOrder");
+  const nodeWrappers = each(nodes, node => `${node.connection}Edge`);
+  const edgeWrappers = each(edges, edge => `${edgeConnections.get(edge.type.id)}Edge`);
+  const filters = each(nodes, node => `${node.name}Filter`);
+  const nodeConnectionEdge = shared(`${nodeConnection}Edge`), edgeConnection = shared("EdgeConnection"), searchEdge = shared("SearchConnectionEdge");
+  const nodeFilter = shared("NodeFilter"), edgeFilter = shared("EdgeFilter"), idFilter = shared("IDFilter"), stringFilter = shared("StringFilter"), dateTimeFilter = shared("DateTimeFilter");
+  const names: SharedNames = { nodeConnection, nodeOrder, edgeOrder, nodeConnectionEdge, edgeConnection, edgeConnectionEdge: shared(`${edgeConnection}Edge`),
+    searchEdge, nodeFilter, edgeFilter, idFilter, stringFilter, dateTimeFilter };
+  const named = (map: Map<string, string>, type: TypeRow) => map.get(type.id) as string;
+  for (const node of nodes) layout.nodes.set(node.type.id, { ...node, order: named(orders, node.type), connectionEdge: named(nodeWrappers, node.type), filter: named(filters, node.type),
+    relationships: [], slots: [], reverse: [] });
+  for (const edge of edges) layout.edges.set(edge.type.id, { ...edge, connection: named(edgeConnections, edge.type), connectionEdge: named(edgeWrappers, edge.type) });
   for (const node of layout.nodes.values())
     for (const slot of slotsOf(node.type)) node.slots.push({ field: scopeOf(layout, node.type.id)(slot.name, node.type), slot, relator: node.type });
   for (const { type } of layout.edges.values()) addRelationships(layout, type);
   for (const node of layout.nodes.values()) addReverseSlots(layout, node);
-  return { nodes: layout.nodes, edges: layout.edges, shared, warnings: layout.warnings };
+  return { nodes: layout.nodes, edges: layout.edges, shared: names, warnings: layout.warnings };
 }
 export type SchemaLayout = ReturnType<typeof schemaLayout>;

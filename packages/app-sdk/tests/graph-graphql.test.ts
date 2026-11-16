@@ -179,6 +179,28 @@ test("projection edge types reach the other participants through the relator", a
   assert.deepEqual(result.data, { person: { pairedWith: { nodes: [{ title: "Grace" }], totalCount: 1 }, pairings: { nodes: [{ member: [{ title: "Ada" }, { title: "Grace" }] }] } } });
 });
 
+test("a connection that can match nothing asks no source, and every cursor names its order", async () => {
+  const memory = memorySource(snapshot);
+  const calls: string[] = [];
+  const source: GraphSource = {
+    ...memory,
+    nodePage: query => { calls.push(`nodePage:${query.typeIds?.length}`); return memory.nodePage(query); },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); },
+    relationPage: query => { calls.push("relationPage"); return memory.relationPage(query); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  };
+  const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
+    query: `{ search(text: "a", types: ["Nothing"]) { totalCount nodes { id } }
+      commitments(first: 1) { edges { cursor node { id edges(types: ["nothing"]) { totalCount nodes { id } pageInfo { hasNextPage } } } } } }` });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const data = JSON.parse(JSON.stringify(result.data)) as { search: unknown; commitments: { edges: { cursor: string; node: { id: string; edges: unknown } }[] } };
+  assert.deepEqual(data.search, { totalCount: 0, nodes: [] });
+  const [first] = data.commitments.edges;
+  assert.deepEqual(first.node.edges, { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false } });
+  assert.deepEqual(calls, ["nodePage:1"], "only the collection that can hold records is read");
+  assert.deepEqual(JSON.parse(decodeURIComponent(atob(first.cursor))), ["ID_ASC", first.node.id, first.node.id]);
+});
+
 test("resolvers batch source calls by level, not by record", async () => {
   const calls: string[] = [];
   const memory = memorySource(snapshot);

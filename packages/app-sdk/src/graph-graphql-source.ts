@@ -5,6 +5,7 @@
 // a database source runs them as SQL, memorySource emulates them over a snapshot.
 import { edgeFilterFields, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";
 import type { TypeRow } from "./graph-graphql-names";
+import { type OrderName, orders } from "./graph-order";
 import { textMatch } from "./graph-query";
 import { isRetired } from "./knowledge-graph";
 import type { WikiGraphSnapshot } from "./graph-contracts/index";
@@ -41,12 +42,12 @@ export type OrderField = "id" | "createdAt" | "updatedAt" | "title";
 export type Order = { field: OrderField; descending: boolean };
 /** Where a page resumes: after the record with this order value and ID. */
 export type Keyset = { value: string | number | null; id: string };
-/** At most `first + 1` records after `after`, so the caller can tell whether more follow. */
-export type Page = { order: Order; first: number; after: Keyset | null };
-/** A collection's records: of these types, optionally of these IDs, matching `text` (a case-insensitive
+/** At most `first + 1` records after `after` in the order `orderBy` names (`orders[orderBy]`), so the caller can tell whether more follow. */
+export type Page = { orderBy: OrderName; first: number; after: Keyset | null };
+/** A collection's records: of these types (left out: of every node type), optionally of these IDs, matching `text` (a case-insensitive
  * literal substring of the ID, title, slug, summary, body, website or stored properties), visible under
  * `archived` (no retired rule, as graph.query matches), valid at `at` and passing `filter` (nodeFilterFields). */
-export type NodeFilter = { typeIds: string[]; ids?: string[]; text?: string; archived?: ArchivedFilter; at?: string; filter?: RecordFilter };
+export type NodeFilter = { typeIds?: string[]; ids?: string[]; text?: string; archived?: ArchivedFilter; at?: string; filter?: RecordFilter };
 export type NodePageQuery = NodeFilter & Page;
 export type RelationDirection = "outgoing" | "incoming" | "both";
 /** What a relationship reaches from each parent: edges of `edgeTypeIds` in `direction` whose other end is a
@@ -63,6 +64,11 @@ export type RelationFilter = { parentIds: string[]; edgeTypeIds: string[]; direc
 /** A page per parent: at most `first + 1` rows for each of `parentIds`. */
 export type RelationPageQuery = RelationFilter & Page;
 export type RelationRow = { parentId: string; edge: EdgeRow; node: GraphRow };
+/** A collection that can match nothing, so no source is asked for it. */
+export const emptyCollection = (filter: NodeFilter) => filter.typeIds?.length === 0 || filter.ids?.length === 0;
+/** A relationship that can reach nothing, so no source is asked for it. */
+export const emptyRelation = (filter: Omit<RelationFilter, "parentIds"> & { parentIds?: string[] }) => !filter.edgeTypeIds.length || !filter.targetTypeIds.length
+  || filter.parentIds?.length === 0 || (!!filter.through && (!filter.through.edgeTypeIds.length || !filter.through.nodeTypeIds.length));
 export interface GraphSource {
   /** The type rows to build the schema from. executeGraphQuery takes them as `types`
    * instead, so a caller can read them once and cache the schema. */
@@ -94,6 +100,15 @@ export function visible(row: Record<string, unknown>, archived: ArchivedFilter =
   return !row.archived && !(traversal && isRetired(row as { body?: unknown; properties?: unknown }));
 }
 const setOf = (list: string[] | undefined) => (list ? new Set(list) : null);
+/** The rows under each key, in the order given. */
+export function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row), list = grouped.get(key);
+    if (list) list.push(row); else grouped.set(key, [row]);
+  }
+  return grouped;
+}
 
 const field = (row: GraphRow, key: string) => (row.properties as Record<string, unknown> | null | undefined)?.[key];
 /** Validity columns win; otherwise the conventional property names. */
@@ -118,7 +133,7 @@ export function keyOf(row: GraphRow, { field: column }: Order): Keyset {
 }
 /** SQLite's order: null, then numbers, then strings by code unit; ties by ID. */
 const kind = (value: Keyset["value"]) => (value === null ? 0 : typeof value === "number" ? 1 : 2);
-export function compareKeys(a: Keyset, b: Keyset) {
+function compareKeys(a: Keyset, b: Keyset) {
   const byKind = kind(a.value) - kind(b.value);
   if (byKind) return byKind;
   const byValue = a.value === b.value || a.value === null ? 0
@@ -126,8 +141,8 @@ export function compareKeys(a: Keyset, b: Keyset) {
   return byValue || compareIds(a.id, b.id);
 }
 /** In memory, what a database source reads with ORDER BY and LIMIT: the first `first + 1` rows after `after`. */
-export function pageRows<T>(rows: T[], key: (row: T) => Keyset, { order, first, after }: Page) {
-  const sign = order.descending ? -1 : 1;
+export function pageRows<T>(rows: T[], key: (row: T) => Keyset, { orderBy, first, after }: Page) {
+  const sign = orders[orderBy].descending ? -1 : 1;
   const keyed = rows.map(row => ({ row, key: key(row) })).sort((a, b) => sign * compareKeys(a.key, b.key));
   return (after ? keyed.filter(item => sign * compareKeys(item.key, after) > 0) : keyed).slice(0, first + 1).map(item => item.row);
 }
@@ -138,15 +153,7 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
   const nodes = sorted(snapshot.nodes as GraphRow[]);
   const edges = sorted(snapshot.edges as EdgeRow[]);
   const byId = new Map(nodes.map(row => [row.id, row]));
-  const touching = (end: "fromId" | "toId") => {
-    const index = new Map<string, EdgeRow[]>();
-    for (const row of edges) {
-      const list = index.get(row[end]);
-      if (list) list.push(row); else index.set(row[end], [row]);
-    }
-    return index;
-  };
-  const outgoing = touching("fromId"), incoming = touching("toId");
+  const outgoing = groupBy(edges, row => row.fromId), incoming = groupBy(edges, row => row.toId);
   const read: GraphSource["nodes"] = async query => {
     const needle = query.text?.toLowerCase();
     const types = setOf(query.typeIds), ids = setOf(query.ids), slugs = setOf(query.slugs);
@@ -190,9 +197,9 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
       return edges.filter(row => visible(row, query.archived, false) && (!types || types.has(row.typeId)) && (!ids || ids.has(row.id))
         && (!(from || to) || !!from?.has(row.fromId) || !!to?.has(row.toId)));
     },
-    nodePage: async query => pageRows(await collection(query), row => keyOf(row, query.order), query),
+    nodePage: async query => pageRows(await collection(query), row => keyOf(row, orders[query.orderBy]), query),
     nodeCount: async query => (await collection(query)).length,
-    relationPage: async query => relations(query).flatMap(list => pageRows(list, row => keyOf(query.rows === "node" ? row.node : row.edge, query.order), query)),
+    relationPage: async query => relations(query).flatMap(list => pageRows(list, row => keyOf(query.rows === "node" ? row.node : row.edge, orders[query.orderBy]), query)),
     relationCount: async query => new Map(relations(query).flatMap(list => (list.length ? [[list[0].parentId, list.length] as const] : []))),
   };
 }
@@ -228,15 +235,6 @@ function batch<V>(run: (keys: string[]) => Promise<Map<string, V>>, missing: V) 
   };
 }
 
-const groupBy = <T>(rows: T[], keyOf: (row: T) => string) => {
-  const grouped = new Map<string, T[]>();
-  for (const row of rows) {
-    const list = grouped.get(keyOf(row));
-    if (list) list.push(row); else grouped.set(keyOf(row), [row]);
-  }
-  return grouped;
-};
-
 /** One call answers every node asked for edges of these types in this direction. */
 function edgeBatch(source: GraphSource, typeIds: string[] | null, direction: "outgoing" | "incoming") {
   const end = direction === "outgoing" ? "fromId" : "toId";
@@ -256,14 +254,9 @@ export function graphLoader(source: GraphSource) {
   const prime = (rows: GraphRow[]) => { for (const row of rows) nodes.prime(row.id, row); return rows; };
   // A slug names one node in a Wiki; a source over several graphs may answer one row per graph, each also under its slugKey.
   const slugs = batch<GraphRow[]>(async wanted => {
-    const grouped = new Map<string, GraphRow[]>();
-    for (const row of prime((await source.nodes({ slugs: wanted, archived: "include" })).map(publicRow))) {
-      for (const key of new Set([String(row.slug), ...(source.slugKey ? [source.slugKey(row)] : [])])) {
-        const list = grouped.get(key);
-        if (list) list.push(row); else grouped.set(key, [row]);
-      }
-    }
-    return grouped;
+    const rows = prime((await source.nodes({ slugs: wanted, archived: "include" })).map(publicRow));
+    const keyed = rows.flatMap(row => [...new Set([String(row.slug), ...(source.slugKey ? [source.slugKey(row)] : [])])].map(key => ({ key, row })));
+    return new Map([...groupBy(keyed, item => item.key)].map(([key, items]) => [key, items.map(item => item.row)]));
   }, []);
   const touching = new Map<string, ReturnType<typeof edgeBatch>>();
   const pages = new Map<string, ReturnType<typeof batch<RelationRow[]>>>();
@@ -279,21 +272,23 @@ export function graphLoader(source: GraphSource) {
     /** Every node with this slug, or slug key (at most one per graph), remembered for later ID lookups. */
     slug: (slug: string) => slugs.load(slug),
     /** One page of a collection, remembered for later ID lookups. */
-    async nodePage(query: NodePageQuery) { return prime((await source.nodePage(query)).map(publicRow)); },
-    nodeCount: (query: NodeFilter) => source.nodeCount(query),
+    async nodePage(query: NodePageQuery) { return emptyCollection(query) ? [] : prime((await source.nodePage(query)).map(publicRow)); },
+    async nodeCount(query: NodeFilter) { return emptyCollection(query) ? 0 : source.nodeCount(query); },
     edges(typeIds: string[] | null, direction: "outgoing" | "incoming", nodeId: string) {
       const loader = keyed(touching, `${direction}:${typeIds?.join(",") ?? "*"}`, () => edgeBatch(source, typeIds, direction));
       return loader.load(nodeId);
     },
     /** One parent's page of a relationship; every parent asked for with the same query shares one source call. */
-    relation(ask: RelationAsk, parentId: string) {
+    async relation(ask: RelationAsk, parentId: string) {
+      if (emptyRelation(ask)) return [];
       return keyed(pages, JSON.stringify(ask), () => batch<RelationRow[]>(async parentIds => {
         const rows = (await source.relationPage({ ...ask, parentIds })).map(row => ({ parentId: row.parentId, edge: publicRow(row.edge), node: publicRow(row.node) }));
         prime(rows.map(row => row.node));
         return groupBy(rows, row => row.parentId);
       }, [])).load(parentId);
     },
-    relationCount(ask: RelationCountAsk, parentId: string) {
+    async relationCount(ask: RelationCountAsk, parentId: string) {
+      if (emptyRelation(ask)) return 0;
       return keyed(counts, JSON.stringify(ask), () => batch<number>(parentIds => source.relationCount({ ...ask, parentIds }), 0)).load(parentId);
     },
   };

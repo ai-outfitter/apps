@@ -17,7 +17,7 @@
 //   The `{ cursor node }` wrapper is `<Connection>Edge` (`ProductConnectionEdge`), apart from the graph's
 //   own `Edge` interface and edge types. `totalCount` is counted only when selected.
 //   `orderBy: <Type>Order` is ID_ASC (default), ID_DESC, CREATED_AT_ASC/DESC, UPDATED_AT_ASC/DESC or
-//   TITLE_ASC/DESC, ties by ID; an ID_ASC cursor is the encoded ID, any other names its order, so a
+//   TITLE_ASC/DESC, ties by ID; every cursor names its order with the record's (value, ID), so a
 //   cursor continues only the order it was made with.
 //   `filter: <Type>Filter` takes PostGraphile connection-filter's operators (equalTo, notEqualTo, in, notIn,
 //   isNull, lessThan, lessThanOrEqualTo, greaterThan, greaterThanOrEqualTo; on text also includes,
@@ -70,7 +70,7 @@ import { type GraphSource, memorySource } from "./graph-graphql-source";
 
 export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-names";
 export {
-  type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
+  type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
   type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPageQuery,
   type RelationRow, sourceKey, type SourceRef,
 } from "./graph-graphql-source";

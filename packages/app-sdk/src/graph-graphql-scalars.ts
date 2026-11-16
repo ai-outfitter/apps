@@ -3,7 +3,7 @@ import {
   GraphQLString, Kind, valueFromASTUntyped,
 } from "graphql";
 import { comparisonOperators, type FilterKind, textOperators } from "./graph-filter";
-import { orders } from "./graph-order";
+import { orderNames } from "./graph-order";
 
 export const JSONScalar = new GraphQLScalarType({
   name: "JSON", description: "Any JSON value.",
@@ -30,11 +30,9 @@ export const DirectionEnum = new GraphQLEnumType({
   name: "Direction", values: { OUTGOING: { value: "outgoing" }, INCOMING: { value: "incoming" }, BOTH: { value: "both" } },
 });
 
-/** An orderBy enum for one connection's records. */
-export const orderEnum = (name: string, records: string) => new GraphQLEnumType({
-  name, description: `How ${records} are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.`,
-  values: Object.fromEntries(Object.keys(orders).map(value => [value, { value }])),
-});
+/** An orderBy enum over `values` (a graph's records take the orders of graph-order.ts). */
+export const orderEnum = (name: string, description: string, values: readonly string[] = orderNames) =>
+  new GraphQLEnumType({ name, description, values: Object.fromEntries(values.map(value => [value, { value }])) });
 
 const filterScalars: Record<FilterKind, GraphQLScalarType> = { id: GraphQLID, string: GraphQLString, number: GraphQLFloat, boolean: GraphQLBoolean, datetime: DateTimeScalar };
 /** The operators one kind of field takes in a filter, named as PostGraphile's connection-filter names them. */

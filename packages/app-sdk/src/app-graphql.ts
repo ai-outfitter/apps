@@ -20,9 +20,9 @@ import { z } from "zod";
 import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
 import type { FilterKind } from "./graph-filter";
-import { type FilterColumns, filterSql } from "./graph-filter-sql";
-import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, type PageArgs, page, pageStart, readKeyset } from "./graph-graphql-resolve";
-import { DateTimeScalar, filterInput, JSONScalar, tableOperators } from "./graph-graphql-scalars";
+import { type FilterColumns, filterSql, within } from "./graph-filter-sql";
+import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, type PageArgs, page, pageAfter, pageStart } from "./graph-graphql-resolve";
+import { DateTimeScalar, filterInput, JSONScalar, orderEnum, tableOperators } from "./graph-graphql-scalars";
 import { connectionOf } from "./graph-graphql-schema";
 import type { Keyset } from "./graph-graphql-source";
 
@@ -222,8 +222,6 @@ export const connectionType = (row: GraphQLObjectType) => connectionOf(`${row.na
 
 /** `createdAt` as an orderBy value's stem: `CREATED_AT`. */
 const constantCase = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
-/** Any number of values as one bound parameter. */
-const among = (column: SQLiteColumn, values: unknown[]) => sql`${column} IN (SELECT value FROM json_each(${JSON.stringify(values)}))`;
 type Ordering = { key: string | null; descending: boolean };
 /** The rows after `key` in an order by `column` (null: the primary key alone), then `id`. SQLite sorts NULL first, so
  * ascending every value follows a NULL, and descending NULLs follow every value. */
@@ -268,37 +266,37 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
   }
   const args: GraphQLFieldConfigArgumentMap = {
     ...pageArgs(),
-    orderBy: { defaultValue: "ID_ASC", type: new GraphQLEnumType({ name: `${type}Order`, description: `How ${type} records are ordered, ties by ID.`, values: Object.fromEntries(Object.keys(orderings).map(value => [value, { value }])) }) },
+    orderBy: { defaultValue: "ID_ASC", type: orderEnum(`${type}Order`, `How ${type} records are ordered, ties by ID.`, Object.keys(orderings)) },
     ...(filters.length ? { filter: { type: filterInput(`${type}Filter`, Object.fromEntries(filters.map(key => [key, tableOperators[filterFields[key]]]))) } } : {}),
     search: {type:GraphQLString,description:"Match text across this collection’s text fields."},
   };
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));
   const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
   const pageOrder = ({ key, descending }: Ordering) => { const direction = descending ? desc : asc; return [...(key ? [direction(columns[key])] : []), direction(columns[id])]; };
-  const pageAfter = ({ key, descending }: Ordering, after: Keyset) => afterKey(key ? columns[key] : null, columns[id], descending, after);
+  const beyond = ({ key, descending }: Ordering, after: Keyset) => afterKey(key ? columns[key] : null, columns[id], descending, after);
   /** The rows the arguments ask for (ids, search, filter), as SQL. */
   const matching = (args: Record<string, unknown>) => {
     // At most 200 IDs, as a Wiki's ids take, bound as one parameter.
     const list = idList(args.ids as string[] | null | undefined);
     const search = typeof args.search === "string" ? args.search.trim() : "";
     if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
-    return and(list ? among(columns[id], list) : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
+    return and(list ? sql`${columns[id]} IN ${within(list)}` : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
       filterSql(checkedFilter(args.filter, filterFields).filter, filterColumns));
   };
   return {
     [field]: {
       type: nonNull(connectionType(row)), args,
       resolve: async (_source, args: Record<string, unknown> & PageArgs, context, info) => {
-        const orderBy = typeof args.orderBy === "string" ? args.orderBy : "ID_ASC";
+        const orderBy = args.orderBy as string;
         const orderKey = orderings[orderBy].key;
         const { first } = pageStart({ first: args.first });
-        const after = args.after ? readKeyset(orderBy, args.after) : null;
+        const after = pageAfter(orderBy, args.after);
         const keyOf = (item: Record<string, unknown>): Keyset => ({ value: orderKey ? item[orderKey] as Keyset["value"] : String(item[id]), id: String(item[id]) });
         const visible = scope?.(context as TableContext & ActionContext);
-        if (scope && !visible) return orderedPage(context, info, [], keyOf, { orderBy, first }, args.after, async () => 0);
+        if (scope && !visible) return orderedPage(context, info, [], keyOf, { orderBy, first }, args.after, () => 0);
         const where = and(visible, matching(args));
         const db = context.db();
-        const rows = await db.select(selection).from(table as SQLiteTable).where(and(where, after ? pageAfter(orderings[orderBy], after) : undefined))
+        const rows = await db.select(selection).from(table as SQLiteTable).where(and(where, after ? beyond(orderings[orderBy], after) : undefined))
           .orderBy(...pageOrder(orderings[orderBy])).limit(first + 1);
         // Rows the response could not hold are cut before they resolve, as maxBytes cuts a list,
         // so a page of large rows comes back truncated; a first row too large still is refused.
