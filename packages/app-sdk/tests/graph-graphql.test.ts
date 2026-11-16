@@ -584,28 +584,37 @@ test("edge wrappers and filters are named last: they never rename a type, an ord
   assert.deepEqual((result.data as { persons: unknown }).persons, { edges: [{ node: { title: "Ada" } }] });
 });
 
-test("a relationship read is refused past relationRows (parents × (first + 1)) before any source reads it", async () => {
-  const teams = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
-  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })],
-    nodes: [...teams, node(1, 1, "Ada")], edges: teams.map((_, n) => edge(1000 + n, 30, 1000 + n, 1)) };
-  const reads: number[] = [];
+test("relationship rows have one budget a request: reads are bounded runs of parents, and a request past relationRows is refused", async () => {
+  // 200 squads, each led by the same 101 people.
+  const squads = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
+  const people = Array.from({ length: 101 }, (_, n) => node(2000 + n, 1, `Lead ${n}`));
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })], nodes: [...squads, ...people],
+    edges: squads.flatMap((_, s) => people.map((_, p) => edge(10_000 + s * 101 + p, 30, 1000 + s, 2000 + p))) };
   const memory = memorySource(leads);
-  const source: GraphSource = { ...memory, relationPage: query => { reads.push(query.parentIds.length * (query.first + 1)); return memory.relationPage(query); } };
-  const ask = (teamsFirst: number, first: number) => executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144,
-    query: `{ teams(first: ${teamsFirst}, filter: { title: { startsWith: "Squad" } }) { nodes { leads(first: ${first}) { nodes { id } } } } }` });
+  const reads: { parents: number; first: number; rows: number }[] = [];
+  const source: GraphSource = { ...memory, relationPage: async query => {
+    const rows = await memory.relationPage(query);
+    reads.push({ parents: query.parentIds.length, first: query.first, rows: rows.length });
+    return rows;
+  } };
+  const ask = (parents: number, first: number) => { reads.length = 0; return executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144,
+    query: `{ teams(first: ${parents}) { nodes { leads(first: ${first}) { pageInfo { hasNextPage } } } } }` }); };
   assert.equal(graphQueryLimits.relationRows, 20_000);
-  // 198 parents × 101 rows = 19,998, and 200 × 100 = 20,000: within the limit.
-  for (const [parents, first] of [[198, 100], [200, 99]]) {
-    const under = await ask(parents, first);
-    assert.equal(under.errors, undefined, JSON.stringify(under.errors?.[0]));
-    assert.equal((under.data as { teams: { nodes: { leads: { nodes: unknown[] } }[] } }).teams.nodes.filter(team => team.leads.nodes.length === 1).length, parents);
-  }
-  assert.deepEqual(reads, [19_998, 20_000]);
-  // 200 × 101 = 20,200: refused, naming the limit, and nothing is read.
+  // 198 squads × 101 rows (a page of 100 and one more) = 19,998 rows: one read, within the budget.
+  const under = await ask(198, 100);
+  assert.equal(under.errors, undefined, JSON.stringify(under.errors?.[0]));
+  assert.equal((under.data as { teams: { nodes: { leads: { pageInfo: { hasNextPage: boolean } } }[] } }).teams.nodes.filter(team => team.leads.pageInfo.hasNextPage).length, 198);
+  assert.deepEqual(reads, [{ parents: 198, first: 100, rows: 19_998 }]);
+  // The largest page for 60 squads could return 60 × 501 rows: read 39 parents at a time, so no read can pass the budget.
+  const wide = await ask(60, 500);
+  assert.equal(wide.errors, undefined, JSON.stringify(wide.errors?.[0]));
+  assert.deepEqual(reads, [{ parents: 39, first: 500, rows: 39 * 101 }, { parents: 21, first: 500, rows: 21 * 101 }]);
+  assert.ok(reads.every(read => read.parents * (read.first + 1) <= graphQueryLimits.relationRows));
+  // 200 squads × 101 rows = 20,200: refused, naming the limit, once the second read passes it.
   const over = await ask(200, 100);
   assert.equal(over.errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
-  assert.match(String(over.errors?.[0]?.message), /20200 rows \(200 parents, 101 each\); one read takes at most 20000 \(relationRows\)/);
-  assert.equal(reads.length, 2);
+  assert.match(String(over.errors?.[0]?.message), /read more than 20000 relationship rows \(the relationRows limit\)/);
+  assert.deepEqual(reads.map(read => read.parents), [198, 2]);
 });
 
 test("a cursor is base64url of UTF-8 JSON: a 160-character CJK title stays within the cursor limit", async () => {

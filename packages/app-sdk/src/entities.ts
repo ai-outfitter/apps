@@ -3,6 +3,7 @@ import { requestIdentity, type AppIdentity } from "./server";
 import { defineOperation, operationAPI, type AppOperation } from "./operations";
 import { schemaJSON } from "./agent-schema";
 import { filterBinds, refuse, type SearchExpression, searchBinds, searchExpression } from "./entity-query";
+import { cursorOf, cursorText } from "./graph-order";
 
 /** App-owned records, addressed independently of browser routes or database tables. */
 export const entityPath = "/api/internal/entities/v1";
@@ -69,11 +70,11 @@ export type EntityListQuery<Filter = Record<string, unknown>> = {
 /** What entityOperations hands a provider: the cursor still encoded, since only the provider knows its rows. */
 export type EntityProviderQuery = Omit<EntityListQuery, "after"> & { after?: string };
 const cursorKey = z.strictObject({ f: key, d: z.enum(["asc", "desc"]), v: z.union([z.string(), z.number(), z.boolean(), z.null()]), i: key });
-/** base64url of the JSON's UTF-8 bytes. */
-const encodeCursor = (value: z.infer<typeof cursorKey>) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value)))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+/** The codec every cursor shares (graph-order): base64url of the JSON's UTF-8 bytes. */
+const encodeCursor = (value: z.infer<typeof cursorKey>) => cursorOf(JSON.stringify(value));
 function decodeCursor(cursor: string, order: z.output<typeof entityOrder>): EntityListQuery["after"] {
   let parsed: z.infer<typeof cursorKey>;
-  try { parsed = cursorKey.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(cursor.replaceAll("-", "+").replaceAll("_", "/")), character => character.charCodeAt(0))))); }
+  try { parsed = cursorKey.parse(JSON.parse(cursorText(cursor) ?? "")); }
   catch { throw new Response("Invalid entity cursor", { status: 400 }); }
   if (parsed.f !== order.field || parsed.d !== order.direction) throw new Response("This cursor belongs to another ordering; keep order unchanged while paging", { status: 400 });
   return { value: parsed.v, id: parsed.i };

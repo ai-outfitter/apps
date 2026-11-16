@@ -15,7 +15,8 @@ import {
   type SQLWrapper,
 } from "drizzle-orm";
 import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
-import { pageCondition, within } from "@ai-outfitter/app-sdk/entity-query";
+import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
+import { containsInsensitive, within } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import {
   edgeInput,
   type GraphEdge,
@@ -74,9 +75,7 @@ const edgeFilter = z.strictObject({
 });
 /** Literal, case-insensitive title substring: '%' and '_' have no wildcard meaning. */
 const titleCondition = (column: SQLWrapper, value?: string) =>
-  value === undefined
-    ? undefined
-    : sql`instr(lower(${column}), lower(${value})) > 0`;
+  value === undefined ? undefined : containsInsensitive(column, value);
 
 /** Lists bind as one JSON parameter, whatever their length. */
 const among = (column: AnyColumn, values?: string[]) => values === undefined ? undefined : sql`${column} IN ${within(values)}`;
@@ -170,8 +169,8 @@ export function graphEntities(
   const nodes = defineEntity<GraphNode, typeof nodeInput, typeof nodeFilter>({
     type: "graph-node",
     collection: "nodes",
-    // Title order serves Planning's discovery page, which reads one type (the typeId, title, id index).
-    orderFields: ["id", "title"],
+    // Each order has an index with the type and one without (migration 0004): (typeId, field, id) and (field, id).
+    orderFields: ["id", "title", "createdAt", "updatedAt"],
     selectFields: ["id", ...Object.keys(nodeInput.shape)],
     searchFields: ["title", "slug", "summary", "body"],
     title: "Wiki graph node",
@@ -184,7 +183,7 @@ export function graphEntities(
     references: (row) => (row.source ? [row.source] : []),
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
+      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
       return addressed(db, (
         await db
           .select()

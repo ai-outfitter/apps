@@ -37,7 +37,8 @@
 //   `fieldName(E)IncomingEdges`. Each is a connection (`<Type>Connection`, `NodeConnection` for
 //   several target types, `<E>Connection` for edge objects) taking (first, after, orderBy, filter, at, archived):
 //   a far node reached twice is listed once; edge objects order by `EdgeOrder` and filter by `EdgeFilter`.
-//   Every parent of a level shares one GraphSource.relationPage call. Edge types without endpoints get no
+//   Every parent of a level shares one GraphSource.relationPage call (several, one after another, when the parents
+//   could together return more rows than graphQueryLimits.relationRows: withRelationBudget). Edge types without endpoints get no
 //   typed fields; read them through `edges(types:)`, an `EdgeConnection` of edge objects with from/to,
 //   paged per node the same way.
 // - A projection edge type (ontology.projection) is a field `fieldName(E)` on the fromSlot's

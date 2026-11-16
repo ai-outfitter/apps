@@ -20,8 +20,16 @@ Filtering, sorting, paging and counting run in the database of the app that owns
 - `startsWith` is an index range. A page over every node type reads from an index on its order column.
 
 Cursors have one format: the order's name with the record's order value and ID, for the default
-`ID_ASC` too. A cursor made before this change (an encoded ID) is refused as invalid; start the page
-again.
+`ID_ASC` too, encoded as base64url of the JSON's UTF-8 bytes (at most 2048 characters). A cursor made
+before this change (an encoded ID) is refused as invalid; start the page again.
+
+A request reads at most 20,000 relationship rows (`graphQueryLimits.relationRows`). Parents are read
+in runs of at most 20,000 / (`first` + 1), so no statement can return more rows than that, and a
+request that has read more is refused (`RELATION_TOO_LARGE` in GraphQL, a 400 in `graph.query`); ask
+for fewer parents, a smaller page or a narrower filter.
+
+`search` on app tables matches a literal substring ignoring ASCII case, so `%` and `_` mean
+themselves. Wiki nodes offer `title`, `createdAt` and `updatedAt` as entity list orders.
 
 Removed, with no alias: `aggregate { count }` (use `totalCount`), the `slugs` argument of collections
 (use `filter: { slug: { in: [...] } }`), the per-column list arguments of app tables (use `filter`),

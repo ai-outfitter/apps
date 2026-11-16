@@ -70,12 +70,31 @@ export const emptyCollection = (filter: NodeFilter) => filter.typeIds?.length ==
 /** A relationship that can reach nothing, so no source is asked for it. */
 export const emptyRelation = (filter: Omit<RelationFilter, "parentIds"> & { parentIds?: string[] }) => !filter.edgeTypeIds.length || !filter.targetTypeIds.length
   || filter.parentIds?.length === 0 || (!!filter.through && (!filter.through.edgeTypeIds.length || !filter.through.nodeTypeIds.length));
-/** Why a relation page is refused before any source reads it, or null: every parent may return `first + 1` whole rows
- * in one read, so parents × (first + 1) stays within `graphQueryLimits.relationRows`. */
-export function relationRowsRefusal(parents: number, first: number) {
-  const rows = parents * (first + 1), limit = graphQueryLimits.relationRows;
-  return rows <= limit ? null
-    : `This relationship would read up to ${rows} rows (${parents} parents, ${first + 1} each); one read takes at most ${limit} (relationRows). Ask for fewer parents or a smaller page`;
+/** A request read more relationship rows than `graphQueryLimits.relationRows`. graphql-js carries `extensions` into the response. */
+export class RelationTooLarge extends Error {
+  readonly extensions = { code: "RELATION_TOO_LARGE" };
+  constructor() {
+    super(`This request read more than ${graphQueryLimits.relationRows} relationship rows (the relationRows limit); ask for fewer parents, a smaller page or a narrower filter`);
+  }
+}
+/** `source` with its relation pages inside one row budget for the request (`graphQueryLimits.relationRows`), whatever the
+ * source. Every parent may return `first + 1` whole rows, so the parents are read in runs of at most
+ * relationRows / (first + 1), one after another: no read can return more rows than the budget, and the request is
+ * refused (RelationTooLarge) as soon as the rows it has read pass it. */
+export function withRelationBudget(source: GraphSource): GraphSource {
+  const limit = graphQueryLimits.relationRows;
+  let read = 0;
+  return { ...source, async relationPage(query) {
+    const run = Math.max(1, Math.floor(limit / (query.first + 1)));
+    const rows: RelationRow[] = [];
+    for (let start = 0; start < query.parentIds.length; start += run) {
+      const found = await source.relationPage({ ...query, parentIds: query.parentIds.slice(start, start + run) });
+      read += found.length;
+      if (read > limit) throw new RelationTooLarge();
+      rows.push(...found);
+    }
+    return rows;
+  } };
 }
 export interface GraphSource {
   /** The type rows to build the schema from. executeGraphQuery takes them as `types`
@@ -226,7 +245,8 @@ export type RelationCountAsk = Omit<RelationFilter, "parentIds">;
 
 /** Per-request loader: nodes by ID or slug, edges touching a node by (types, direction), and relationship
  * pages and counts by (query, parent): each kind asked for in one tick is one source call. */
-export function graphLoader(source: GraphSource) {
+export function graphLoader(unbounded: GraphSource) {
+  const source = withRelationBudget(unbounded);
   const nodes = batch<GraphRow | undefined>(async ids => new Map((await source.nodes({ ids, archived: "include" })).map(row => [row.id, publicRow(row)])), undefined);
   const prime = (rows: GraphRow[]) => { for (const row of rows) nodes.prime(row.id, row); return rows; };
   // A slug names one node in a Wiki; a source over several graphs may answer one row per graph, each also under its slugKey.
@@ -259,9 +279,6 @@ export function graphLoader(source: GraphSource) {
     async relation(ask: RelationAsk, parentId: string) {
       if (emptyRelation(ask)) return [];
       return keyed(pages, JSON.stringify(ask), () => batch<RelationRow[]>(async parentIds => {
-        const refusal = relationRowsRefusal(parentIds.length, ask.first);
-        // graphql-js carries a thrown error's `extensions` into the response.
-        if (refusal) throw Object.assign(new Error(refusal), { extensions: { code: "RELATION_TOO_LARGE" } });
         const rows = (await source.relationPage({ ...ask, parentIds })).map(row => ({ parentId: row.parentId, edge: publicRow(row.edge), node: publicRow(row.node) }));
         prime(rows.map(row => row.node));
         return groupBy(rows, row => row.parentId);

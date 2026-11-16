@@ -317,15 +317,28 @@ test("a page that can match nothing asks no source, and type lists take as many 
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "r", relation: { parentIds: [uuid(103)], edgeTypes: ["a"], targetTypes: [...many, "More"] } }] }));
 });
 
-test("a relation page is refused past relationRows: parents × (limit + 1)", async () => {
-  const parents = Array.from({ length: 200 }, (_, n) => uuid(5000 + n));
+test("relation pages share the request's relationRows budget, read in bounded runs of parents", async () => {
+  // 200 assignments, each assigning the same 101 roles.
+  const owners = Array.from({ length: 200 }, (_, n) => node(5000 + n, 2, `Assignment ${n}`));
+  const roles = Array.from({ length: 101 }, (_, n) => node(7000 + n, 1, `Role ${n}`));
+  const graph = { ...snapshot, nodes: [...owners, ...roles], edges: owners.flatMap((_, o) => roles.map((_, r) => edge(20_000 + o * 101 + r, 5, 5000 + o, 7000 + r))) };
   const relation = { edgeTypes: ["assigns_role"], direction: "outgoing" as const, targetTypes: ["Role"] };
-  const ask = (parentIds: string[], limit: number, extra: Record<string, unknown> = {}) => queryGraph(snapshot, { queries: [{ name: "held", relation: { ...relation, parentIds }, limit, ...extra }] });
-  assert.equal((await ask(parents.slice(0, 198), 100)).queries.held.parents?.length, 198);
-  assert.equal((await ask(parents, 99)).queries.held.parents?.length, 200);
-  const refused = await ask(parents, 100).then(() => null, (error: Response) => error);
+  const memory = memorySource(graph);
+  const reads: number[] = [];
+  const source: GraphSource = { ...memory, relationPage: query => { reads.push(query.parentIds.length * (query.first + 1)); return memory.relationPage(query); } };
+  const ask = (parents: number, limit: number, extra: Record<string, unknown> = {}) => { reads.length = 0;
+    return queryGraph(graph, { queries: [{ name: "held", relation: { ...relation, parentIds: owners.slice(0, parents).map(row => row.id) }, limit, ...extra }] }, { source }); };
+  // 198 parents × 101 rows = 19,998: within the budget, in one read.
+  assert.equal((await ask(198, 100)).queries.held.parents?.length, 198);
+  assert.deepEqual(reads, [19_998]);
+  // The largest page: 39 parents a read, none able to return more than the budget.
+  assert.equal((await ask(60, 500)).queries.held.parents?.length, 60);
+  assert.deepEqual(reads, [39 * 501, 21 * 501]);
+  // 200 parents × 101 rows = 20,200: refused with the query's name and the limit's.
+  const refused = await ask(200, 100).then(() => null, (error: Response) => error);
   assert.equal(refused?.status, 400);
-  assert.match(await (refused as Response).text(), /^Query held: This relationship would read up to 20200 rows \(200 parents, 101 each\); one read takes at most 20000 \(relationRows\)/);
-  // Counting reads no rows, so it is not refused.
-  assert.equal((await ask(parents, 0, { count: true })).queries.held.total, 0);
+  assert.match(await (refused as Response).text(), /^Query held: This request read more than 20000 relationship rows \(the relationRows limit\)/);
+  // Counting reads no rows, so it is never refused.
+  assert.equal((await ask(200, 0, { count: true })).queries.held.total, 20_200);
+  assert.deepEqual(reads, []);
 });

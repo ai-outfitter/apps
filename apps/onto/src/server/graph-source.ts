@@ -9,7 +9,7 @@ import {
   type RelationFilter, type RelationPageQuery, type RelationRow, sourceKey, type SourceRef, type TypeRow,
 } from "@ai-outfitter/app-sdk/graph-graphql";
 import { edgeFilterFields, type FilterFields, nodeFilterFields } from "@ai-outfitter/app-sdk/graph-filter";
-import { type FilterColumns, filterSql, joined, within } from "@ai-outfitter/app-sdk/graph-filter-sql";
+import { containsInsensitive, type FilterColumns, filterSql, joined, rowsAfter, within } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import { textMatch } from "@ai-outfitter/app-sdk/graph-query";
 import { and, type AnyColumn, type Column, eq, getTableColumns, inArray, type SQL, sql } from "drizzle-orm";
 import { appRecordKey, platformHost } from "@ai-outfitter/app-sdk/graph-contracts";
@@ -54,7 +54,7 @@ const prop = (alias: Alias, path: `$.${string}`) => sql`json_extract(${col(alias
  * mean themselves) of a node's ID, title, slug, summary, body, website or stored properties, as graph.query
  * matches. lower() folds ASCII only. Kept to this one function so an index can answer it instead. */
 export function nodeTextMatches(text: string, alias: NodeAlias = "n") {
-  return joined(["id", "title", "slug", "summary", "body", "website", "properties"].map(name => sql`instr(lower(${col(alias, name)}), lower(${text})) > 0`), " OR ");
+  return joined(["id", "title", "slug", "summary", "body", "website", "properties"].map(name => containsInsensitive(col(alias, name), text)), " OR ");
 }
 /** Authored retirement (properties.status or a JSON body's status), which traversal hides under EXCLUDE. */
 const notRetired = (alias: Alias) => sql`(${prop(alias, "$.status")} IS NOT 'retired'
@@ -90,10 +90,10 @@ const all = (...parts: (SQL | undefined)[]) => {
 /** ORDER BY and the keyset after the page's last row, for a page in its order: the order's column as `column(field)`, then `id`. */
 const ordering = (column: (field: string) => SQL, { orderBy, after }: Page) => {
   const order = orders[orderBy], value = column(order.field), id = column("id");
-  const direction = sql.raw(order.descending ? "DESC" : "ASC"), beyond = sql.raw(order.descending ? "<" : ">");
-  // Ordered by the ID itself: one term, so the (typeId, id) index gives the order.
-  if (order.field === "id") return { by: sql`${id} ${direction}`, after: after ? sql`${id} ${beyond} ${after.id}` : undefined };
-  return { by: sql`${value} ${direction}, ${id} ${direction}`, after: after ? sql`(${value}, ${id}) ${beyond} (${after.value}, ${after.id})` : undefined };
+  const direction = sql.raw(order.descending ? "DESC" : "ASC"), byId = order.field === "id";
+  // Ordered by the ID itself: one term, so the (typeId, id) index gives the order. No order column holds NULL.
+  return { by: byId ? sql`${id} ${direction}` : sql`${value} ${direction}, ${id} ${direction}`,
+    after: after ? rowsAfter(byId ? null : value, id, order.descending, after, false) : undefined };
 };
 
 const nodeColumns = Object.entries(getTableColumns(graphNodes)) as [string, Column][];

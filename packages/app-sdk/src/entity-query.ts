@@ -1,14 +1,13 @@
 /** The text search an entity list takes: terms, quoted phrases, AND, OR, NOT and parentheses.
  * Providers run it in their own database over the fields they declare searchable. */
-import { type AnyColumn, and, asc, desc, gt, isNotNull, isNull, lt, not, or, type SQL, type SQLWrapper, sql } from "drizzle-orm";
+import { type AnyColumn, and, asc, desc, not, or, type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { EntityListQuery } from "./entities";
+import { containsInsensitive, rowsAfter, within } from "./graph-filter-sql";
 
 export type SearchExpression = { term: string } | { and: SearchExpression[] } | { or: SearchExpression[] } | { not: SearchExpression };
 
 /** A 400 for a list request the type does not support. */
 export const refuse = (message: string) => new Response(message, { status: 400 });
-/** A list as one bound parameter, for `column IN ${within(values)}`: D1 binds at most 100 a statement. */
-export const within = (values: unknown[]) => sql`(SELECT value FROM json_each(${JSON.stringify(values)}))`;
 
 /** Reads tokens left to right: OR of ANDs of atoms. */
 class SearchParser {
@@ -70,7 +69,7 @@ export function matchesSearch(expression: SearchExpression, text: string): boole
 /** The SQL condition for `expression` over `columns`: a term matches when any column holds it as a
  * literal substring ('%' and '_' mean themselves), ignoring ASCII case: SQLite folds both sides. */
 export function searchCondition(expression: SearchExpression, columns: SQLWrapper[]): SQL {
-  if ("term" in expression) return or(...columns.map(column => sql`instr(lower(coalesce(${column}, '')), lower(${expression.term})) > 0`)) as SQL;
+  if ("term" in expression) return or(...columns.map(column => containsInsensitive(sql`coalesce(${column}, '')`, expression.term))) as SQL;
   if ("and" in expression) return and(...expression.and.map(item => searchCondition(item, columns))) as SQL;
   if ("or" in expression) return or(...expression.or.map(item => searchCondition(item, columns))) as SQL;
   return not(searchCondition(expression.not, columns));
@@ -82,7 +81,7 @@ export function searchBinds(expression: SearchExpression, columns: number): numb
   if ("not" in expression) return searchBinds(expression.not, columns);
   return ("and" in expression ? expression.and : expression.or).reduce((sum, item) => sum + searchBinds(item, columns), 0);
 }
-/** Bind parameters a parsed filter may cost its provider: a list is one JSON parameter (`within`), and a
+/** Bind parameters a parsed filter may cost its provider: a list is one JSON parameter (`within`, graph-filter-sql), and a
  * value binds at most twice (either end of an edge, or a JSON path beside its value). */
 export function filterBinds(filter: unknown): number {
   if (filter === undefined) return 0;
@@ -91,7 +90,7 @@ export function filterBinds(filter: unknown): number {
 }
 
 /** The WHERE and ORDER BY a drizzle provider ANDs into its own query for one entity page: the known
- * `ids` (one bound parameter), the keyset after the cursor's row, and the requested order (then ID, so pages are stable).
+ * `ids` (one bound parameter), the rows after the cursor's row (`rowsAfter`), and the requested order (then ID, so pages are stable).
  * `order` maps each advertised order field to its column (`id` is always orderable); `search` lists the
  * columns behind the type's searchFields. */
 export function pageCondition(query: EntityListQuery<unknown>, columns: { id: AnyColumn; order?: Record<string, AnyColumn>; search?: SQLWrapper[] }) {
@@ -99,23 +98,13 @@ export function pageCondition(query: EntityListQuery<unknown>, columns: { id: An
   if (!column) throw new Response("Unsupported entity ordering", { status: 400 });
   const direction = query.order.direction === "desc" ? desc : asc;
   return {
-    where: and(query.ids ? sql`${columns.id} IN ${within(query.ids)}` : undefined, query.after && keyset(column, columns.id, query.order.direction, query.after),
+    where: and(query.ids ? sql`${columns.id} IN ${within(query.ids)}` : undefined, query.after && rowsAfter(column === columns.id ? null : column, columns.id, query.order.direction === "desc", query.after.value === null ? query.after : { value: column.mapToDriverValue(query.after.value), id: query.after.id }, !column.notNull),
       query.search && columns.search ? searchCondition(query.search, columns.search) : undefined),
     orderBy: column === columns.id ? [direction(columns.id)] : [direction(column), direction(columns.id)],
   };
 }
-/** Rows strictly after `after` in (column, id) order, as the row-value comparison SQLite seeks an index
- * on (column, id) with. SQLite sorts NULL first ascending and last descending, and no row value
- * compares with NULL, so a NULL cursor value and the NULL rows after a descending value are spelled out. */
-function keyset(column: AnyColumn, id: AnyColumn, direction: "asc" | "desc", after: NonNullable<EntityListQuery["after"]>) {
-  const beyond = direction === "desc" ? lt : gt;
-  if (column === id) return beyond(id, after.id);
-  if (after.value === null) return direction === "desc" ? and(isNull(column), lt(id, after.id)) : or(isNotNull(column), and(isNull(column), gt(id, after.id)));
-  const later = sql`(${column}, ${id}) ${sql.raw(direction === "desc" ? "<" : ">")} (${sql.param(after.value, column)}, ${sql.param(after.id, id)})`;
-  return direction === "desc" && !column.notNull ? or(later, isNull(column)) : later;
-}
-
-/** searchCondition for a provider writing SQL text: `columns` are trusted column expressions. */
+/** searchCondition for a provider writing SQL text: `columns` are trusted column expressions. The term's SQL is
+ * `containsInsensitive` spelled as text. */
 export function searchClause(expression: SearchExpression, columns: string[]): { sql: string; params: string[] } {
   if ("term" in expression) return { sql: `(${columns.map(column => `instr(lower(coalesce(${column}, '')), lower(?)) > 0`).join(" OR ")})`, params: columns.map(() => expression.term) };
   if ("not" in expression) {

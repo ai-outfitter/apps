@@ -8,7 +8,7 @@
 // which runs mutation operations only, as a write.
 // An app that serves it declares the `graph.serve` capability. A table whose rows
 // are not all readable by every member passes `scope`, which narrows every read of it.
-import { and, asc, count, desc, eq, getTableColumns, gt, isNotNull, isNull, like, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, getTableColumns, or, type SQL, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase, SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import {
   GraphQLBoolean, GraphQLEnumType, GraphQLError, type GraphQLFieldConfig, type GraphQLFieldConfigArgumentMap, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID,
@@ -20,7 +20,7 @@ import { z } from "zod";
 import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
 import type { FilterKind } from "./graph-filter";
-import { type FilterColumns, filterSql, within } from "./graph-filter-sql";
+import { containsInsensitive, type FilterColumns, filterSql, rowsAfter, within } from "./graph-filter-sql";
 import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, orderedStart, type PageArgs, page, pageStart } from "./graph-graphql-resolve";
 import { DateTimeScalar, filterInput, JSONScalar, orderEnum, tableOperators } from "./graph-graphql-scalars";
 import { connectionOf } from "./graph-graphql-schema";
@@ -223,15 +223,6 @@ export const connectionType = (row: GraphQLObjectType) => connectionOf(`${row.na
 /** `createdAt` as an orderBy value's stem: `CREATED_AT`. */
 const constantCase = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
 type Ordering = { key: string | null; descending: boolean };
-/** The rows after `key` in an order by `column` (null: the primary key alone), then `id`. SQLite sorts NULL first, so
- * ascending every value follows a NULL, and descending NULLs follow every value. */
-function afterKey(column: SQLiteColumn | null, id: SQLiteColumn, descending: boolean, key: Keyset) {
-  const beyond = descending ? lt : gt;
-  if (!column) return beyond(id, key.id);
-  if (key.value === null) return descending ? and(isNull(column), lt(id, key.id)) : or(isNotNull(column), gt(id, key.id));
-  const tie = and(eq(column, key.value), beyond(id, key.id));
-  return descending ? or(lt(column, key.value), tie, isNull(column)) : or(gt(column, key.value), tie);
-}
 
 /** The root field `field(first, after, ids, orderBy, filter, search)` over one table, returning
  * `<type>Connection { edges nodes pageInfo totalCount }` as a Wiki's collections do: keyset pages in the
@@ -273,14 +264,14 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
   const selection = Object.fromEntries(served.map(key => [key, columns[key]]));
   const textColumns = served.filter(key => columns[key].dataType === "string" && !isId(key));
   const pageOrder = ({ key, descending }: Ordering) => { const direction = descending ? desc : asc; return [...(key ? [direction(columns[key])] : []), direction(columns[id])]; };
-  const beyond = ({ key, descending }: Ordering, after: Keyset) => afterKey(key ? columns[key] : null, columns[id], descending, after);
+  const beyond = ({ key, descending }: Ordering, after: Keyset) => rowsAfter(key ? columns[key] : null, columns[id], descending, after, !!key && !columns[key].notNull);
   /** The rows the arguments ask for (ids, search, filter), as SQL. */
   const matching = (args: Record<string, unknown>) => {
     // At most 200 IDs, as a Wiki's ids take, bound as one parameter.
     const list = idList(args.ids as string[] | null | undefined);
     const search = typeof args.search === "string" ? args.search.trim() : "";
     if (search.length > 200) throw new GraphQLError("Search exceeds 200 characters");
-    return and(list ? sql`${columns[id]} IN ${within(list)}` : undefined, search && textColumns.length ? or(...textColumns.map(key => like(columns[key], `%${search}%`))) : undefined,
+    return and(list ? sql`${columns[id]} IN ${within(list)}` : undefined, search && textColumns.length ? or(...textColumns.map(key => containsInsensitive(columns[key], search))) : undefined,
       filterSql(checkedFilter(args.filter, filterFields).filter, filterColumns));
   };
   return {

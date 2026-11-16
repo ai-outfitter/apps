@@ -1,7 +1,10 @@
 // A connection filter (graph-filter.ts) as SQLite: one bound parameter per condition
 // (`in` lists bind as one JSON array), so a checked filter adds at most
 // maxFilterConditions parameters to its statement. Server only (drizzle-orm).
-import { type SQL, sql } from "drizzle-orm";
+// Also the SQL every page shares, GraphQL connection or entity list: a list as one
+// parameter (`within`), a case-insensitive substring (`containsInsensitive`) and the
+// rows after a keyset cursor (`rowsAfter`).
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import { type FieldOperators, type FilterKind, filterOperand, type RecordFilter } from "./graph-filter";
 
 /** Where a filter field lives: its column (any SQL expression) and how its values compare. */
@@ -9,8 +12,23 @@ export type FilterColumns = Record<string, { column: SQL; kind: FilterKind }>;
 
 /** Terms, each in parentheses, joined by `glue` (" AND ", " OR "). */
 export const joined = (parts: SQL[], glue: string) => sql.join(parts.map(part => sql`(${part})`), sql.raw(glue));
-/** Any number of values as one bound parameter (a JSON array), for `IN`. */
+/** Any number of values as one bound parameter (a JSON array), for `IN`: D1 binds at most 100 a statement. */
 export const within = (values: unknown[]) => sql`(SELECT value FROM json_each(${JSON.stringify(values)}))`;
+/** `column` holds `text` as a literal substring (`%` and `_` mean themselves), ignoring ASCII case: lower() folds
+ * A to Z only, on both sides. Unknown for a missing value, as any comparison. */
+export const containsInsensitive = (column: SQLWrapper, text: string) => sql`instr(lower(${column}), lower(${text})) > 0`;
+/** The rows strictly after `key` in an order by `column` then `id`, both ascending or both `descending` (`column`
+ * null: by the ID alone). A row-value comparison, so an index on (column, id) seeks it. No row value compares
+ * with NULL, and SQLite sorts NULL first ascending and last descending: after a NULL key come the later NULL rows
+ * and, ascending, every value; after a value, descending, come the NULL rows too (left out when the column is
+ * not `nullable`, which keeps the comparison one index range). */
+export function rowsAfter(column: SQLWrapper | null, id: SQLWrapper, descending: boolean, key: { value: unknown; id: string }, nullable = true): SQL {
+  const beyond = sql.raw(descending ? "<" : ">");
+  if (!column) return sql`${id} ${beyond} ${key.id}`;
+  if (key.value === null) return descending ? sql`(${column} IS NULL AND ${id} < ${key.id})` : sql`(${column} IS NOT NULL OR ${id} > ${key.id})`;
+  const later = sql`(${column}, ${id}) ${beyond} (${key.value}, ${key.id})`;
+  return descending && nullable ? sql`(${later} OR ${column} IS NULL)` : later;
+}
 /** The least text greater than every text starting with `prefix` (code point order, as SQLite compares UTF-8),
  * or null when there is none: the prefix is empty or holds only the last code point. */
 function prefixEnd(prefix: string) {
@@ -36,7 +54,7 @@ function condition(column: SQL, kind: FilterKind, operator: string, operand: unk
   }
   // instr and the startsWith range match literally: `%` and `_` mean themselves. lower() folds ASCII only.
   if (operator === "includes") return sql`instr(${column}, ${String(operand)}) > 0`;
-  if (operator === "includesInsensitive") return sql`instr(lower(${column}), lower(${String(operand)})) > 0`;
+  if (operator === "includesInsensitive") return containsInsensitive(column, String(operand));
   if (operator === "startsWith") return startsWith(column, String(operand));
   if (operator === "startsWithInsensitive") return sql`instr(lower(${column}), lower(${String(operand)})) = 1`;
   return sql`${column} ${sql.raw(comparisons[operator])} ${filterOperand(kind, operand)}`;

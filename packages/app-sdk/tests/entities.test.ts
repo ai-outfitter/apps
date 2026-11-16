@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
 import { defineEntity, entityAPI, entityOperations, type EntityListQuery } from "../src/entities";
-import { matchesSearch, pageCondition, searchClause, searchExpression, within } from "../src/entity-query";
+import { matchesSearch, pageCondition, searchClause, searchExpression } from "../src/entity-query";
+import { within } from "../src/graph-filter-sql";
 import { defineOperation, operationAPI } from "../src/operations";
 import { identityHeaderValues, type AppIdentity } from "../src/server";
 

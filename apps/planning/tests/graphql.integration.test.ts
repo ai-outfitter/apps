@@ -142,6 +142,46 @@ test("the project list with open issue counts is one SQL statement", async () =>
   }
 });
 
+test("issues in position order read the (installationId, position, id) index, page after page", async () => {
+  const client = createClient({ url: ":memory:" });
+  try {
+    const statements: { sql: string; params: unknown[] }[] = [];
+    const db = drizzle(client, { logger: { logQuery: (sql, params) => statements.push({ sql, params }) } });
+    await migrate(db, { migrationsFolder: fileURLToPath(new URL("../migrations", import.meta.url)) });
+    await seed((sql, args) => client.execute({ sql, args: args as never }), "planning");
+    statements.length = 0;
+    const read = async (orderBy: string, after: string | null) => {
+      const result = graphGraphqlResult.parse(await serveGraphql({
+        schema: graphqlSchema, variables: { after }, context: { db: () => db, identity: { installationId: "planning" } },
+        query: `query($after: String) { issues(orderBy: ${orderBy}, first: 2, after: $after) { nodes { id position } pageInfo { hasNextPage endCursor } } }`,
+      }));
+      assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+      return (result.data as { issues: { nodes: { id: string; position: number }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } }).issues;
+    };
+    for (const [orderBy, expected] of [["POSITION_ASC", ["i0", "i1", "i2", "i3", "i4"]], ["POSITION_DESC", ["i4", "i3", "i2", "i1", "i0"]]] as const) {
+      const seen: string[] = [];
+      for (let after: string | null = null, more = true; more;) {
+        const page = await read(orderBy, after);
+        seen.push(...page.nodes.map(node => node.id));
+        more = page.pageInfo.hasNextPage;
+        after = page.pageInfo.endCursor;
+      }
+      assert.deepEqual(seen, expected);
+    }
+    assert.equal(statements.length, 6);
+    for (const [index, statement] of statements.entries()) {
+      const plan = (await client.execute({ sql: `EXPLAIN QUERY PLAN ${statement.sql}`, args: statement.params as never })).rows.map(row => String(row.detail));
+      // One seek of the migration-0015 index gives the installation's rows already in (position, id) order: no scan, no sort.
+      assert.equal(plan.length, 1, plan.join("; "));
+      assert.match(plan[0], /^SEARCH planning_issues USING INDEX planning_issues_installation_position \(installationId=\?/, plan[0]);
+      // After a cursor the seek continues from its (position, id).
+      if (index % 3) assert.match(plan[0], /installationId=\? AND \(position,id\)[<>]\(\?,\?\)/, plan[0]);
+    }
+  } finally {
+    client.close();
+  }
+});
+
 test("legacy repository is exposed without fetching GitHub until pull requests are selected", async () => {
   const client = createClient({ url: ":memory:" });
   try {

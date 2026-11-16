@@ -8,10 +8,10 @@ import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
 import {
-  emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, relationRowsRefusal, sourceKey,
+  emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, RelationTooLarge, sourceKey, withRelationBudget,
 } from "./graph-graphql-source";
 import { checkFilter, edgeFilterFields, maxFilterConditions, nodeFilterFields, type RecordFilter, recordFilterInput } from "./graph-filter";
-import { keysetCursor, type OrderName, orderNames, orders, readKeyset } from "./graph-order";
+import { cursorOf, cursorText, keysetCursor, type OrderName, orderNames, orders, readKeyset } from "./graph-order";
 import { isRetired } from "./knowledge-graph";
 import { sha256Hex } from "./server";
 import { wikiGraphRecords } from "./graph-records";
@@ -33,7 +33,8 @@ export const graphQueryLimits = {
   ids: 200, slugs: 200, sources: 100, properties: 8, touchingNodeIds: 200,
   /** Nodes each relation page starts from. */
   parentIds: 500,
-  /** Rows one relation read may ask its source for: parents × (page size + 1), whether graph.query or a GraphQL relationship asks. */
+  /** Relationship rows one request may read, whether graph.query relation pages or GraphQL relationships read them. No single
+   * read can return more: parents are read in runs of at most relationRows / (page size + 1). */
   relationRows: 20_000,
   /** Characters in `text`. */
   text: 256,
@@ -257,12 +258,12 @@ async function queryKey(query: GraphQuery, installationId: string) {
 }
 function readCursor(value: string): Cursor {
   try {
-    const parsed = JSON.parse(atob(value.replaceAll("-", "+").replaceAll("_", "/")));
+    const parsed = JSON.parse(cursorText(value) ?? "");
     if (typeof parsed?.after === "string" && typeof parsed?.key === "string") return parsed;
   } catch { /* refused below */ }
   throw new Response("Invalid cursor", { status: 400 });
 }
-const writeCursor = (cursor: Cursor) => btoa(JSON.stringify(cursor)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+const writeCursor = (cursor: Cursor) => cursorOf(JSON.stringify(cursor));
 
 type Addition = { kind: Kind; record: Record<string, unknown> };
 /** Platform dispatch reads at most 512 KiB of an app response. */
@@ -554,11 +555,11 @@ async function parentPage(read: ParentRead, parentId: string, found: RelationRow
 async function relationPages(source: GraphSource, query: GraphQuery, filter: RelationFilter, missingTypes: Set<string>): Promise<Admit> {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query, orderBy);
   const none = emptyRelation(filter);
-  const refusal = none || countOnly(query) ? null : relationRowsRefusal(filter.parentIds.length, query.limit);
-  if (refusal) throw new Response(`Query ${query.name}: ${refusal}`, { status: 400 });
   const [counted, rows] = await Promise.all([
     query.count ? (none ? new Map<string, number>() : source.relationCount(filter)) : null,
-    none || countOnly(query) ? [] : source.relationPage({ ...filter, orderBy, first: query.limit, after }),
+    none || countOnly(query) ? [] : source.relationPage({ ...filter, orderBy, first: query.limit, after }).catch(error => {
+      throw error instanceof RelationTooLarge ? new Response(`Query ${query.name}: ${error.message}`, { status: 400 }) : error;
+    }),
   ]);
   const key = (row: RelationRow) => keyOf((filter.rows === "node" ? row.node : row.edge) as GraphRow, order);
   return async (buffer, stopped) => {
@@ -589,7 +590,8 @@ async function orderedPage(index: Index, source: GraphSource, query: GraphQuery)
  * (and its refusal thrown) at its query's turn. */
 function orderedPages(index: Index, snapshot: Snapshot, source: GraphSource | undefined, queries: GraphQuery[]) {
   const paged = queries.filter(isOrderedPage);
-  const from = source ?? (paged.length ? memorySource(snapshot) : undefined);
+  // One relation row budget for the request, whichever source reads.
+  const from = paged.length ? withRelationBudget(source ?? memorySource(snapshot)) : undefined;
   const reads = new Map(paged.map(query => [query.name, orderedPage(index, from as GraphSource, query)]));
   for (const read of reads.values()) read.catch(() => undefined);
   return (query: GraphQuery) => reads.get(query.name) as Promise<Admit>;

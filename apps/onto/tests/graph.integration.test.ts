@@ -601,6 +601,23 @@ test("agents find exact types, nodes and incident edges without listing the wiki
     assert.equal(selected.records[0].ref.type, "graph-node");
     assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", order: { field: "externalId", direction: "asc" } } })).status, 400);
     const discovery = await json(await app.call(path + "types", member));
+    // Nodes advertise the orders migration 0004 indexes; each pages by its cursor in the order SQLite gives.
+    const orderFields = (type: string) => discovery.find((item: { type: string }) => item.type === type).orderFields;
+    assert.deepEqual([orderFields("graph-node"), orderFields("graph-edge"), orderFields("graph-type")], [["id", "title", "createdAt", "updatedAt"], ["id"], ["id", "name"]]);
+    for (const field of ["createdAt", "updatedAt"]) for (const direction of ["asc", "desc"]) {
+      const walked: string[] = [];
+      for (let after: string | undefined, more = true; more;) {
+        const page = await json(await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { typeId: core.software }, order: { field, direction }, limit: 2, ...(after ? { after } : {}) } }));
+        walked.push(...page.records.map((record: { ref: { id: string } }) => record.ref.id));
+        more = page.pageInfo.hasNextPage;
+        after = page.pageInfo.endCursor;
+      }
+      const expected = (await app.database.prepare(`SELECT id FROM graph_nodes WHERE typeId = ? ORDER BY ${field} ${direction}, id ${direction}`).bind(core.software).all<{ id: string }>()).results.map(row => row.id);
+      assert.ok(expected.length > 1);
+      assert.deepEqual(walked, expected, `${field} ${direction}`);
+    }
+    const plan = (await app.database.prepare("EXPLAIN QUERY PLAN SELECT id FROM graph_nodes WHERE typeId = ? AND (createdAt, id) > (?, ?) ORDER BY createdAt, id LIMIT 3").bind(core.software, 0, "").all<{ detail: string }>()).results.map(row => row.detail);
+    assert.match(plan.join("; "), /^SEARCH graph_nodes USING (COVERING )?INDEX graph_nodes_type_created \(typeId=\? AND \(createdAt,id\)>\(\?,\?\)\)$/);
     assert.ok(
       discovery.find((type: { type: string }) => type.type === "graph-node")
         .filterSchema.properties.slug,
