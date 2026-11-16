@@ -3,7 +3,7 @@
 import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
 import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
 import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
-import { keysetCursor, type OrderName, orders, readKeyset } from "./graph-order";
+import { keysetCursor, type OrderName, readKeyset } from "./graph-order";
 
 export { validAt, validFrom, validUntil, visible };
 export type GraphContext = {
@@ -65,7 +65,7 @@ export function checkedFilter(filter: unknown, fields: FilterFields): { filter?:
 export type PageArgs = { first?: number | null; after?: string | null };
 export type OrderedPageArgs = PageArgs & { orderBy?: OrderName | null };
 /** Where a page ordered by `orderBy` resumes: its cursor's record (BAD_USER_INPUT unless the cursor names this order). */
-export const pageAfter = (orderBy: string, after: string | null | undefined) => (after ? readKeyset(orderBy, after, badInput) : null);
+const pageAfter = (orderBy: string, after: string | null | undefined) => (after ? readKeyset(orderBy, after, badInput) : null);
 const idKey = (id: string): Keyset => ({ value: id, id });
 /** The page size (default 100, at most 500) and, for a page in ID order, the ID it starts after. */
 export function pageStart({ first, after }: PageArgs) {
@@ -73,10 +73,11 @@ export function pageStart({ first, after }: PageArgs) {
   if (size < 0 || size > 500) throw badInput("first must be between 0 and 500");
   return { first: size, start: pageAfter("ID_ASC", after)?.id ?? null };
 }
-/** The page an ordered connection reads: its order, size and the record it resumes after. */
-export function orderedStart(args: OrderedPageArgs) {
-  const orderBy = args.orderBy ?? "ID_ASC";
-  return { orderBy, order: orders[orderBy], first: pageStart({ first: args.first }).first, after: pageAfter(orderBy, args.after) };
+/** The page an ordered connection reads: its order by name (a graph order, or one an app's table declares; ID_ASC when
+ * none is given), its size and the record it resumes after. */
+export function orderedStart<Name extends string = OrderName>(args: PageArgs & { orderBy?: Name | null }) {
+  const orderBy = args.orderBy ?? ("ID_ASC" as Name);
+  return { orderBy, first: pageStart({ first: args.first }).first, after: pageAfter(orderBy, args.after) };
 }
 /** A Relay connection over the ordered `rows` a source read (one past the page, to tell whether more follow): `nodes`,
  * the same records as `edges` with each one's cursor, `pageInfo` and `totalCount` (`count` runs only when it is selected).

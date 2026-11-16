@@ -21,7 +21,7 @@ import { type ActionContext, defineAction } from "./actions";
 import { executeGraphQuery, type GraphGraphqlError, type GraphGraphqlInput, graphGraphqlInput, graphGraphqlResult, graphqlNames } from "./graph-graphql";
 import type { FilterKind } from "./graph-filter";
 import { type FilterColumns, filterSql, within } from "./graph-filter-sql";
-import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, type PageArgs, page, pageAfter, pageStart } from "./graph-graphql-resolve";
+import { checkedFilter, type GraphContext, idList, meterFields, orderedPage, orderedStart, type PageArgs, page, pageStart } from "./graph-graphql-resolve";
 import { DateTimeScalar, filterInput, JSONScalar, orderEnum, tableOperators } from "./graph-graphql-scalars";
 import { connectionOf } from "./graph-graphql-schema";
 import type { Keyset } from "./graph-graphql-source";
@@ -287,10 +287,8 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
     [field]: {
       type: nonNull(connectionType(row)), args,
       resolve: async (_source, args: Record<string, unknown> & PageArgs, context, info) => {
-        const orderBy = args.orderBy as string;
+        const { orderBy, first, after } = orderedStart(args as PageArgs & { orderBy?: string | null });
         const orderKey = orderings[orderBy].key;
-        const { first } = pageStart({ first: args.first });
-        const after = pageAfter(orderBy, args.after);
         const keyOf = (item: Record<string, unknown>): Keyset => ({ value: orderKey ? item[orderKey] as Keyset["value"] : String(item[id]), id: String(item[id]) });
         const visible = scope?.(context as TableContext & ActionContext);
         if (scope && !visible) return orderedPage(context, info, [], keyOf, { orderBy, first }, args.after, () => 0);

@@ -11,6 +11,7 @@ import {
 } from "./graph-graphql-resolve";
 import { ArchivedEnum, DateTimeScalar, DirectionEnum, filterInput, JSONScalar, operatorInput, orderEnum } from "./graph-graphql-scalars";
 import { edgeFilterFields, nodeFilterFields } from "./graph-filter";
+import { orders } from "./graph-order";
 import { type ArchivedFilter, type GraphRow, keyOf, type NodeFilter, type RelationCountAsk } from "./graph-graphql-source";
 
 type Fields = GraphQLFieldConfigMap<GraphRow, GraphContext>;
@@ -186,7 +187,7 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     const start = orderedStart(args);
     const rows = await context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after }, parentId);
     const records = rows.map(row => (ask.rows === "node" ? row.node : row.edge));
-    return orderedPage(context, info, records, row => keyOf(row, start.order), start, args.after, () => context.loader.relationCount(ask, parentId));
+    return orderedPage(context, info, records, row => keyOf(row, orders[start.orderBy]), start, args.after, () => context.loader.relationCount(ask, parentId));
   }
   /** What traversal keeps of a relationship: visible under `archived`, valid at `at`. */
   const reach = (args: TraverseArgs) => ({ archived: args.archived ?? "exclude", ...(args.at ? { at: args.at } : {}) });
@@ -265,7 +266,7 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   const collectionPage = async (filter: NodeFilter, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
     const start = orderedStart(args);
     const rows = await context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after });
-    return orderedPage(context, info, rows, row => keyOf(row, start.order), start, args.after, () => context.loader.nodeCount(filter));
+    return orderedPage(context, info, rows, row => keyOf(row, orders[start.orderBy]), start, args.after, () => context.loader.nodeCount(filter));
   };
   const roots: RootFields = {
     sdl: { type: nonNull(GraphQLString), description: "This schema in SDL: a compact alternative to full introspection.", resolve: (_root, _args, _context, info) => printSchema(info.schema) },

@@ -87,6 +87,8 @@ test("a table serves ID-ordered pages with ids and column filters, and only the 
   assert.deepEqual(byStatus.nodes.map(node => node.id), ["i-0000", "i-0002"]);
   assert.deepEqual((await ordered("STATUS_ASC", byStatus.pageInfo.endCursor, 5)).nodes.map(node => node.id), ["i-0004", "i-0001", "i-0003"]);
   assert.deepEqual((await ordered("ID_DESC", (await ordered("ID_DESC")).pageInfo.endCursor, 5)).nodes.map(node => node.id), ["i-0002", "i-0001", "i-0000"]);
+  // An explicit null is no order given: the default, as when orderBy is left out.
+  assert.deepEqual((await serve(db, `{ items(first: 1, orderBy: null) { nodes { id } } }`)).data, { items: { nodes: [{ id: "i-0000" }] } });
   const crossed = await serve(db, `query($after: String) { items(orderBy: STATUS_ASC, after: $after) { nodes { id } } }`, { variables: { after: newest.pageInfo.endCursor } });
   assert.equal(crossed.errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
   assert.equal((await serve(db, `{ items(first: -1) { nodes { id } } }`)).errors?.[0]?.extensions?.code, "BAD_USER_INPUT");
