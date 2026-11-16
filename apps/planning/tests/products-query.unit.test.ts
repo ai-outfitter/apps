@@ -135,7 +135,7 @@ function productFixture() {
         const row = (id: string, attributes: Record<string, unknown>) => ({ ref: { installationId: "wiki", type: String(input.type), id }, revision: 1, title: id, attributes, references: [] }) as EntityRecord;
         if (input.type === "graph-type")
           return memoryEntityPage([
-            row(typeId("Organization"), { name: "Organization" }),
+            row(typeId("Organization"), { name: "Organization", category: "node" }),
             ...(seals.length ? [row("seal-type", { name: "WeeklyReportSeal", ontology: { version: 2, immutable: true } })] : []),
           ], input);
         return memoryEntityPage([

@@ -128,14 +128,6 @@ type WikiCollection =
   GraphDatabase extends { collection(name: string): infer C }
     ? C
     : never;
-async function listAll(
-  collection: WikiCollection,
-  where: Record<string, unknown>,
-  select: string[],
-  order?: { field: string; direction: "asc" | "desc" },
-) {
-  return collection.all({ where, select, order });
-}
 async function optionalGet(collection: WikiCollection, id: string) {
   try {
     return await collection.get(id);
@@ -152,10 +144,11 @@ async function discoveryNeighborhood(
   edges: WikiCollection,
   types: WikiCollection,
 ) {
-  const relatedEdges: EntityRecord[] = [];
   // Edges touching any of these nodes, 40 nodes a query (each binds twice); never the whole Wiki.
-  for (let offset = 0; offset < records.length; offset += 40)
-    relatedEdges.push(...await listAll(edges, { nodeIds: records.slice(offset, offset + 40).map((record) => record.ref.id), archived: false }, ["typeId", "fromId", "toId"]));
+  const chunks = Array.from({ length: Math.ceil(records.length / 40) }, (_, index) => records.slice(index * 40, index * 40 + 40));
+  const relatedEdges = (await Promise.all(chunks.map((chunk) =>
+    edges.all({ where: { nodeIds: chunk.map((record) => record.ref.id), archived: false }, select: ["typeId", "fromId", "toId"] }),
+  ))).flat();
   const uniqueEdges = [
     ...new Map(relatedEdges.map((edge) => [edge.ref.id, edge])).values(),
   ];
@@ -222,12 +215,11 @@ export async function readDiscoveryPage(
       !selected.attributes.archived
       ? [selected]
       : []
-    : await listAll(
-        nodes,
-        { typeId: type.ref.id, archived: false },
-        ["typeId", "summary", "archived"],
-        { field: "title", direction: "asc" },
-      );
+    : await nodes.all({
+        where: { typeId: type.ref.id, archived: false },
+        select: ["typeId", "summary", "archived"],
+        order: { field: "title", direction: "asc" },
+      });
   const graph = await discoveryNeighborhood(records, type, nodes, edges, types);
   return discoveryView(
     {

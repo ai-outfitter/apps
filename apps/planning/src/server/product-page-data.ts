@@ -3,6 +3,7 @@ import { stableGraphId, defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { productContextQuery as query } from "../../queries/product-context";
+import { boundOrganization } from "./organization-goals";
 
 export function weeklyPeriod(at: string | Date = new Date()) {
   const date = new Date(at);
@@ -57,17 +58,8 @@ export async function readProductPage(
     throw new Response("An organization scope is required", { status: 400 });
   const wiki = await defaultWiki(host);
   const db = await appDataContext(host).apps.installation(wiki.installationId);
-  const { records: types } = await db
-    .collection("types")
-    .list({ where: { name: "Organization", archived: false }, limit: 2 });
-  if (types.length !== 1)
-    throw new Response("Organization definition unavailable", { status: 409 });
-  const bound = (await db.collection("nodes").list({
-    where: { typeId: types[0].ref.id, archived: false, properties: { organization_id: identity.organizationId } },
-    select: ["id"],
-    limit: 2,
-  })).records.map((node) => node.ref.id);
-  if (bound.length !== 1)
+  const organizationNode = await boundOrganization(db, identity.organizationId);
+  if (!organizationNode)
     throw new Response("Bind exactly one Wiki organization to this scope", {
       status: 409,
     });
@@ -80,7 +72,7 @@ export async function readProductPage(
       installationId: wiki.installationId,
       action: "graph.graphql",
       readOnly: true,
-      input: { query, variables: { root: bound[0], after }, maxBytes: 262144 },
+      input: { query, variables: { root: organizationNode, after }, maxBytes: 262144 },
     })) as {
       data?: Answer;
       errors?: { message: string }[];
@@ -140,7 +132,7 @@ export async function readProductPage(
           project.owners.some(
             (owner) =>
               owner.to?.__typename === "Organization" &&
-              owner.to.id === bound[0],
+              owner.to.id === organizationNode,
           ) && project.products.some((edge) => edge.to?.id === item.id),
       )
       .map((project) => ({
@@ -160,7 +152,7 @@ export async function readProductPage(
       !Array.isArray(body) &&
       body.kind === "weekly_report" &&
       body.definition === "product-roadmap" &&
-      body.organization_id === bound[0] &&
+      body.organization_id === organizationNode &&
       body.period_start === period.start &&
       body.period_end === period.end
       ? [{ ...body, id: plan.id, revision: plan.revision, title: plan.title }]
@@ -181,48 +173,46 @@ export async function readProductPage(
         status: 409,
       });
     const sealed = new Map<string, Record<string, any> & RecordRef>();
-    {
-      const rows = await db.collection("nodes").all({
-        where: { typeId: sealTypes[0].ref.id, archived: false },
-      }, 2000);
-      for (const row of rows) {
-        let seal: any;
-        try {
-          seal = JSON.parse(String(row.attributes.body));
-        } catch {
-          continue;
-        }
-        const report = seal?.report;
-        if (
-          seal?.kind !== "weekly_report_seal" ||
-          report?.kind !== "weekly_report" ||
-          report.organization_id !== bound[0] ||
-          report.definition !== "product-roadmap" ||
-          report.period_start !== period.start ||
-          report.period_end !== period.end
-        )
-          continue;
-        if (
-          report.status !== "sealed" ||
-          row.ref.id !==
-            (await stableGraphId(
-              "weekly-report-seal-v1",
-              wiki.installationId,
-              seal.report_id,
-            ))
-        )
-          throw new Response("Report seal identity is invalid", {
-            status: 409,
-          });
-        sealed.set(seal.report_id, {
-          ...report,
-          id: seal.report_id,
-          revision: report.seal.report_revision ?? 0,
-          seal_record_id: row.ref.id,
-          seal_record_revision: row.revision,
-          title: `product-roadmap ${period.start}`,
-        });
+    const rows = await db.collection("nodes").all({
+      where: { typeId: sealTypes[0].ref.id, archived: false },
+    }, 2000);
+    for (const row of rows) {
+      let seal: any;
+      try {
+        seal = JSON.parse(String(row.attributes.body));
+      } catch {
+        continue;
       }
+      const report = seal?.report;
+      if (
+        seal?.kind !== "weekly_report_seal" ||
+        report?.kind !== "weekly_report" ||
+        report.organization_id !== organizationNode ||
+        report.definition !== "product-roadmap" ||
+        report.period_start !== period.start ||
+        report.period_end !== period.end
+      )
+        continue;
+      if (
+        report.status !== "sealed" ||
+        row.ref.id !==
+          (await stableGraphId(
+            "weekly-report-seal-v1",
+            wiki.installationId,
+            seal.report_id,
+          ))
+      )
+        throw new Response("Report seal identity is invalid", {
+          status: 409,
+        });
+      sealed.set(seal.report_id, {
+        ...report,
+        id: seal.report_id,
+        revision: report.seal.report_revision ?? 0,
+        seal_record_id: row.ref.id,
+        seal_record_revision: row.revision,
+        title: `product-roadmap ${period.start}`,
+      });
     }
     for (const [id, seal] of sealed) {
       const index = reports.findIndex((report) => report.id === id);
@@ -247,10 +237,10 @@ export async function readProductPage(
     products,
     sourceContext: {
       wikiInstallationId: wiki.installationId,
-      organizationId: bound[0],
+      organizationId: organizationNode,
       organizationRevision: org.revision,
       query,
-      variables: { root: bound[0] },
+      variables: { root: organizationNode },
       consistency: "live-paginated",
       complete: true,
     },

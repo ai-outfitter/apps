@@ -30,7 +30,7 @@ type Projection = {
 };
 
 /** The one active Organization page bound to `organizationId`; none when missing or ambiguous. */
-async function boundOrganization(wiki: GraphDatabase, organizationId: string) {
+export async function boundOrganization(wiki: GraphDatabase, organizationId: string) {
   const [type] = (await wiki.collection("types").list({ where: { name: "Organization", category: "node", archived: false }, select: ["name"], limit: 2 })).records;
   if (!type) return null;
   const { records: bound } = await wiki.collection("nodes").list({ where: { typeId: type.ref.id, archived: false, properties: { organization_id: organizationId } }, select: ["id"], limit: 2 });
