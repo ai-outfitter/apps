@@ -65,6 +65,10 @@ export const graphNodes = sqliteTable(
     index("graph_nodes_type_created").on(t.typeId, t.createdAt, t.id),
     index("graph_nodes_type_updated").on(t.typeId, t.updatedAt, t.id),
     index("graph_nodes_type_title").on(t.typeId, t.title, t.id),
+    // A page over every node type has no type test: it reads in orderBy order from these (the primary key gives ID order).
+    index("graph_nodes_created").on(t.createdAt, t.id),
+    index("graph_nodes_updated").on(t.updatedAt, t.id),
+    index("graph_nodes_title").on(t.title, t.id),
   ],
 );
 

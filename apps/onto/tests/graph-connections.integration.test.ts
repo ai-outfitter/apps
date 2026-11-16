@@ -229,6 +229,36 @@ test("products' revisions page per product in one bounded relationship statement
     const page = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [{ name: "gadgets", types: ["Gadget"], orderBy: "TITLE_DESC", limit: 3 }] }));
     assert.equal(page.queries.gadgets.matches.length, 3);
     assert.deepEqual(log.filter(entry => !/from "graph_types"/i.test(entry.sql)).map(entry => [/LIMIT/.test(entry.sql), entry.rows]), [[true, 4]]);
+
+    // startsWith is a range, so the type's title index seeks the prefix and gives the order: no scan of the type, no sort.
+    log.length = 0;
+    const prefixed = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536,
+      query: `{ gadgetRevisions(first: 2, orderBy: TITLE_ASC, filter: { title: { startsWith: "Product 3 rev" } }) { nodes { title } totalCount } }` });
+    assert.deepEqual(JSON.parse(JSON.stringify(prefixed.data)), { gadgetRevisions: { nodes: [0, 1].map(r => ({ title: `Product 3 revision ${r}` })), totalCount: revisions } });
+    assert.equal(log.length, 2, "the page and its count");
+    for (const statement of log) {
+      const plan = await explain(statement);
+      assert.ok(plan.some(step => /SEARCH n USING (COVERING )?INDEX graph_nodes_type_title \(typeId=\? AND title>\? AND title<\?\)/.test(step)), plan.join("\n"));
+      assert.ok(!plan.some(step => scans.test(step) || /TEMP B-TREE/.test(step)), plan.join("\n"));
+      assert.equal(statement.rows, /LIMIT/.test(statement.sql) ? 3 : 1, "only the page is read");
+    }
+
+    // A page over every node type has no type test: the (updatedAt, id) index gives the order, so it reads first + 1 rows and sorts nothing.
+    const newest = [...graph.nodes].sort((a, b) => b.updatedAt - a.updatedAt || (a.id < b.id ? 1 : -1)).map(node => node.id);
+    const recent = async (cursor?: string) => {
+      log.length = 0;
+      const result = graphQueryResult.parse(await queryGraphRecords(db, identity, { includeTypes: "none", queries: [{ name: "recent", orderBy: "UPDATED_AT_DESC", limit: 3, ...(cursor ? { cursor } : {}) }] }));
+      const [statement, ...rest] = log.filter(entry => !/from "graph_types"/i.test(entry.sql));
+      assert.equal(rest.length, 0, "one page statement");
+      assert.doesNotMatch(statement.sql, /"typeId" (=|IN)/, statement.sql);
+      assert.equal(statement.rows, 4);
+      const plan = await explain(statement);
+      assert.ok(plan.some(step => /^(SCAN|SEARCH) n USING INDEX graph_nodes_updated\b/.test(step)) && !plan.some(step => /TEMP B-TREE/.test(step)), plan.join("\n"));
+      return result.queries.recent;
+    };
+    const firstRecent = await recent();
+    assert.deepEqual(firstRecent.matches, newest.slice(0, 3));
+    assert.deepEqual((await recent(firstRecent.cursor ?? undefined)).matches, newest.slice(3, 6));
   } finally {
     await app.dispose();
   }
