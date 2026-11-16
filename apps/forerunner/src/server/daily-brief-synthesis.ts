@@ -104,7 +104,8 @@ export function answerSchema(evidence: Evidence[]) {
     highlights: z.array(z.strictObject({ text: z.string().min(1).max(360), kind: z.enum(["fact", "inference"]), evidence: cite })).max(8),
     attention: z.array(z.strictObject({
       text: z.string().min(1).max(240).describe("What to give attention to"), why: z.string().min(1).max(300), evidence: cite,
-      goal: (goals.length ? z.enum(goals as [string, ...string[]]) : z.never()).nullable().describe("The goal ref this serves, or null"),
+      // With no goal in the evidence the only answer is null. `never` has no JSON Schema a strict provider accepts.
+      goal: (goals.length ? z.enum(goals as [string, ...string[]]).nullable() : z.null()).describe("The goal ref this serves, or null"),
     })).max(5),
     unsupported: z.array(z.string().min(1).max(240)).max(6),
   });
