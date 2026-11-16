@@ -55,9 +55,9 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   }), defineEntity<Project, typeof projectFields, typeof projectFilter>({
     type: "project", title: "Planning project", description: "The canonical project record: goals, user stories, repository and acceptance documents. Wiki pages reference this record.",
     schema: projectFields, collection: "projects", filterSchema: projectFilter,
-    orderFields: ["id", "name", "createdAt", "updatedAt"], selectFields: ["id", ...Object.keys(projectFields.shape)], searchFields: ["name", "githubRepository", "goals", "userStories", "pressRelease", "demoInstructions", "demoResults"], name: row => row.name,
+    orderFields: ["id", "name"], selectFields: ["id", ...Object.keys(projectFields.shape)], searchFields: ["name", "githubRepository", "goals", "userStories", "pressRelease", "demoInstructions", "demoResults"], name: row => row.name,
     list: (who, query) => {
-      const page = pageCondition(query, { id: projects.id, order: { name: projects.name, createdAt: projects.createdAt, updatedAt: projects.updatedAt }, search: projectSearchColumns });
+      const page = pageCondition(query, { id: projects.id, order: { name: projects.name }, search: projectSearchColumns });
       return db.select().from(projects).where(and(eq(projects.installationId, who.installationId), eq(projects.archived, false), query.filter?.name === undefined ? undefined : eq(projects.name, query.filter.name), page.where)).orderBy(...page.orderBy).limit(query.limit);
     },
     get: project,
@@ -72,12 +72,12 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   }), defineEntity<Issue, typeof issueFields, typeof issueFilter>({
     type: "issue", title: "Planning issue", description: "Work in a Planning project. Include its project reference. Assignments require a current member of the owning organization.",
     schema: issueFields, collection: "issues", filterSchema: issueFilter,
-    orderFields: ["id", "title", "position", "createdAt", "updatedAt"], selectFields: ["id", "position", ...Object.keys(issueFields.shape)], searchFields: ["title", "description"], name: row => row.title,
+    orderFields: ["id", "position"], selectFields: ["id", "position", ...Object.keys(issueFields.shape)], searchFields: ["title", "description"], name: row => row.title,
     outputAttributes: row => ({ position: row.position }),
     references: (row, who) => [{ installationId: who.installationId, type: "project", id: row.projectId }],
     list: (who, query) => {
       const { filter } = query;
-      const page = pageCondition(query, { id: issues.id, order: { title: issues.title, position: issues.position, createdAt: issues.createdAt, updatedAt: issues.updatedAt }, search: [issues.title, issues.description] });
+      const page = pageCondition(query, { id: issues.id, order: { position: issues.position }, search: [issues.title, issues.description] });
       return db.select().from(issues).where(and(eq(issues.installationId, who.installationId), filter?.projectId === undefined ? undefined : eq(issues.projectId, filter.projectId), filter?.status === undefined ? undefined : eq(issues.status, filter.status), filter?.category === undefined ? undefined : eq(issues.category, filter.category), page.where)).orderBy(...page.orderBy).limit(query.limit);
     },
     get: issue,
