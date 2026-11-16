@@ -1,5 +1,4 @@
-import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
-import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-protocol";
+import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
 import { z } from "zod";
 import { localDate, reviewPeriod } from "./review-period";
 import type { ForerunnerContext } from "./context";
@@ -10,16 +9,10 @@ const brief = z.object({
 /** Owner-scoped Wiki previews remain separate from measured daily report evidence. */
 export async function readBriefPreview(context: ForerunnerContext, date: string, weekly = false, timezone = "America/Chicago") {
   const host = context.host();
-  const wiki = await documentWiki(host);
-  const query = async (query: string, variables: Record<string, string | number>) => {
-    const result = graphGraphqlResult.parse(await host.call("actions.call", { installationId: wiki.installationId, action: "graph.graphql", readOnly: true, input: { query, variables, maxBytes: 65536 } }));
-    if (query.includes("BriefPage(") && result.errors?.length && result.errors.every(error => /Page not found/.test(error.message))) return { page: null };
-    if (result.errors?.length || result.extensions?.truncated || !result.data) throw new Error("Brief unavailable");
-    return result.data;
-  };
-  const page = await query("query BriefPage($slug:String!){page(slug:$slug){documentId}}", { slug: `forerunner-${weekly ? "week" : "day"}-${date}` });
-  if (!page.page) return null;
-  const { documentId } = z.object({ documentId: z.string() }).parse(page.page);
+  const query = (query: string, variables: Record<string, string | number>) => wikiDocuments(host, "graph.graphql", query, variables, 65536);
+  const saved = await readWikiPage(host, `forerunner-${weekly ? "week" : "day"}-${date}`);
+  if (!saved) return null;
+  const documentId = saved.id;
   let revision: number | undefined;
   if (date < localDate(Date.now(), timezone)) {
     const history = await query("query BriefHistory($id:ID!){documentRevisions(id:$id){revision createdAt}}", { id: documentId });

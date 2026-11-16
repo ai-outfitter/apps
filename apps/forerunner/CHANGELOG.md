@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The daily brief also reads issues in progress in your organizations' Planning, each linked to its project. A failed read is listed as not known.
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/forerunner-v0.1.0...forerunner-v0.1.1) (2026-11-10)
 
 

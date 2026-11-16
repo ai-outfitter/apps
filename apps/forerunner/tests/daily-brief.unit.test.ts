@@ -85,6 +85,28 @@ test("evidence names every saved source with its revision, and every gap is expl
   assert.ok(gatherEvidence(inputs({ discovery: null })).gaps.some(gap => /mail and calendar were not read/.test(gap)));
 });
 
+test("in-progress Planning issues are evidence linked to their project, and an unread source is a stated gap", async () => {
+  const work = { status: "complete" as const, issues: [{ title: "Confirm a plant's identity", category: "pebble", dueDate: "2026-11-12", scope: "sunny", organization: "Sunny", href: "/o/sunny/planning/projects/p-2" }] };
+  const { evidence } = gatherEvidence(inputs({ work }));
+  const row = evidence.find(item => item.kind === "work");
+  assert.deepEqual([row?.ref, row?.scope, row?.href, row?.text], ["w1", "sunny", "/o/sunny/planning/projects/p-2", "Confirm a plant's identity (Sunny, pebble, in progress, due 2026-11-12)"]);
+  assert.ok(gatherEvidence(inputs()).gaps.some(gap => /in-progress issues in your organizations could not be read/.test(gap)));
+  assert.ok(gatherEvidence(inputs({ work: { status: "complete", issues: [] } })).gaps.some(gap => /no issue is in progress/.test(gap)));
+
+  const { readPlanningWork } = await import("../src/server/planning-work");
+  const calls: Record<string, unknown>[] = [];
+  const host = (issues: () => unknown) => ({ call: async (_op: string, args: Record<string, unknown>) => {
+    calls.push(args);
+    if (args.document === "Viewer") return { viewer: { orgs: [{ slug: "sunny", name: "Sunny", appSlugs: ["planning"] }, { slug: "solo", name: "Solo", appSlugs: ["wiki-map"] }] } };
+    return issues();
+  } }) as never;
+  const read = await readPlanningWork(host(() => ({ data: { issues: [{ projectId: "p-2", title: "Confirm", category: "pebble", status: "in-progress", dueDate: null, scope: "sunny", organization: { slug: "sunny", name: "Sunny" } }] } })));
+  assert.deepEqual(read, { status: "complete", issues: [{ title: "Confirm", category: "pebble", dueDate: null, scope: "sunny", organization: "Sunny", href: "/o/sunny/planning/projects/p-2" }] });
+  // Only organizations with Planning are asked, so a scope without it cannot fail the read.
+  assert.deepEqual(calls.at(-1)?.scopes, ["sunny"]);
+  assert.deepEqual(await readPlanningWork(host(() => { throw new Response("Scope sunny could not answer", { status: 502 }); })), { status: "unavailable", issues: [] });
+});
+
 test("the model's reading is bounded and what was left out is disclosed", () => {
   const many = Array.from({ length: 30 }, (_, index) => report(`org-${index}`, `Organization ${index}`, "complete", "x".repeat(1200), { projects: Array.from({ length: 12 }, (_, project) => ({ name: `Project ${project}`, update: "y".repeat(400) })) }));
   const { evidence, gaps } = gatherEvidence(inputs({ review: review({ organizations: many }) }));
@@ -151,12 +173,11 @@ async function fixture(model: (data: ReturnType<typeof modelData>, instructions:
     if (op === "workflow.start") { log.started.push(args.id); return {}; }
     if (op === "workflow.collect") { assert.equal(args.complete, true); log.collected.push(args.value); return {}; }
     if (op === "inference.generate") { log.inferences.push({ data: args.data, instructions: args.instructions, runId: args.runId }); return { output: await model(args.data, args.instructions) }; }
-    if (op === "actions.list") return [{ installationId: "personal-wiki", actions: [{ name: "graph.describe", access: "read", permitted: true }] }];
-    if (op === "actions.call" && args.installationId === "personal-wiki") {
-      if (args.action === "graph.describe") return { version: 1, contracts: [{ id: "outfitter.wiki-documents", version: 1 }], capabilities: ["documents"], types: [], queryAction: "graph.graphql" };
+    // The platform finds the owner's Wiki from its package name.
+    if (op === "actions.call" && args.template === "wiki-map") {
       const { query, variables } = args.input;
-      if (query.includes("BriefPage")) return { data: { page: stored.has(variables.slug) ? { documentId: stored.get(variables.slug)?.id } : null } };
-      if (query.includes("BriefDraft")) return { data: { document: [...stored.values()].find(doc => doc.id === variables.id) } };
+      if (query.includes("SavedPages")) return { data: Object.fromEntries(Object.entries(variables as Record<string, string>).map(([name, slug]) =>
+        [`p${name.slice(1)}`, stored.has(slug) ? { document: { ...stored.get(slug), installationId: "personal-wiki" } } : null])) };
       if (query.includes("SaveGeneratedDocument")) {
         await beforeWrite();
         const write = variables.input, existing = [...stored.entries()].find(([slug, doc]) => write.id ? doc.id === write.id : slug === write.slug);

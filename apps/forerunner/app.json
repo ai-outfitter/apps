@@ -111,7 +111,8 @@
     },
     "cover": "catalog/cover.png"
   },
-  "dependencies": [
-    "onto"
-  ]
+  "dependencies": {
+    "onto": "*",
+    "wiki-map": ">=0.1.5"
+  }
 }

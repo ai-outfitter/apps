@@ -12,8 +12,21 @@ import {storageMigration} from '@ai-outfitter/app-sdk/migrations';
 import {loadAppMigrations} from './migrations.mjs';
 import {readWorkflowPackage} from '@ai-outfitter/workflow-core/source';
 import {z} from 'zod';
+import semver from 'semver';
 import {catalogMetadata,catalogContract,catalogContractModule} from './catalog-metadata.mjs';
-const dependencies=z.array(z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)).max(16).refine(a=>new Set(a).size===a.length).parse;
+const dependencySlug=z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const declaredDependencies=z.union([
+ z.array(dependencySlug).max(16).refine(a=>new Set(a).size===a.length),
+ z.record(dependencySlug,z.string().min(1).max(64).refine(range=>semver.validRange(range)!==null,'Invalid app dependency version range')).refine(a=>Object.keys(a).length<=16),
+]);
+/** A manifest lists its dependencies, or maps each one to the semver range it
+ * needs. The package keeps the set and the ranges apart; "*" states no range. */
+export function appDependencies(declared=[]) {
+ const parsed=declaredDependencies.parse(declared);
+ if(Array.isArray(parsed)) return {dependencies:parsed};
+ const ranges=Object.fromEntries(Object.entries(parsed).filter(([,range])=>range!=='*'));
+ return {dependencies:Object.keys(parsed),...(Object.keys(ranges).length?{dependencyRanges:ranges}:{})};
+}
 function appWorkflows(directory) {
  const pkg=JSON.parse(readFileSync(join(directory,'package.json'),'utf8'));
  return Object.entries(pkg.dependencies || {}).flatMap(([name,version])=>{
@@ -59,7 +72,7 @@ export async function buildApp(directory, {mode,output}={}) {
     mode,
     capabilities: modes[mode].capabilities,
     workflows: appWorkflows(directory),
-    ...(mode === "operational" ? { dependencies: dependencies(base.dependencies ?? []), initialize: base.initialize ?? false } : {}),
+    ...(mode === "operational" ? { ...appDependencies(base.dependencies), initialize: base.initialize ?? false } : {}),
     dataLocation: base.dataLocation,
     // Demo packages serve fixtures and keep no records or files.
     ...(base.dataLocation === "installation-database" && mode === "operational"

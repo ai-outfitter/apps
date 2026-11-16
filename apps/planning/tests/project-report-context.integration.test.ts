@@ -34,7 +34,7 @@ test("real Wiki entity snapshots reach each thread reply while authored transcri
     return {ok:true,value:[{installationId:"wiki",actions:await response.json()}]};
    }
    if(operation==="actions.call"){
-    const request=input as {installationId:string;action:string;input:unknown};assert.equal(request.installationId,"wiki");
+    const request=input as {template?:string;action:string;input:unknown};assert.equal(request.template,"wiki-map");
     const response=await wiki.call("/api/internal/actions/v1/call",member,{method:"POST",body:{action:request.action,input:request.input,...((input as {readOnly?:boolean}).readOnly?{access:"read"}:{})}});
     if(!response.ok)return {ok:false,status:response.status,message:await response.text()};
     return {ok:true,value:await response.json()};

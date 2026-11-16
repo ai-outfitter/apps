@@ -22,13 +22,14 @@ test("previous-day windows remain bound to scheduled occurrence through DST and 
  assert.equal(fall.date,"2026-11-01");
 });
 
-test("a saved report read asks for the Wiki package before every provider",async()=>{
- const listed:unknown[]=[];
- const host={call:async(operation:string,input:unknown)=>{
-  if(operation==="actions.list")listed.push(input);
-  throw new Error("unavailable");
+test("a saved report is read with one request to the owner's Wiki, named by package",async()=>{
+ const calls:{operation:string;input:{template?:string;installationId?:string;action?:string}}[]=[];
+ const host={call:async(operation:string,input:never)=>{
+  calls.push({operation,input});
+  return {data:{p0:{document:{id:"doc",installationId:"wiki",revision:3,archived:false,generatedBody:"x"}}}};
  }};
- await assert.rejects(readDailyReport(host as never,{installationId:"planning",owner:{kind:"organization",id:"org"}} as never,{date:"2026-11-13",timezone:"America/Chicago"}));
- assert.equal((listed[0] as {template?:string}).template,"wiki-map");
- assert.equal(listed.length,2);
+ // The body here carries no captured source, so the read is refused after its single request.
+ await assert.rejects(readDailyReport(host as never,{installationId:"planning",owner:{kind:"organization",id:"org"}} as never,{date:"2026-11-13",timezone:"America/Chicago"}),error=>error instanceof Response&&error.status===409);
+ assert.equal(calls.length,1);
+ assert.deepEqual([calls[0].operation,calls[0].input.template,calls[0].input.installationId,calls[0].input.action],["actions.call","wiki-map",undefined,"graph.graphql"]);
 });

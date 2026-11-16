@@ -76,7 +76,7 @@ test("personal overview reads pinned organization outcomes, never writes org Wik
   assert.equal(personalHost.calls.at(-1)?.operation,"workflow.collect");
   const note=await readDailyReport(personalHost.host,personal,{date:local.period.date});
   assert.match(JSON.stringify(note),/org-wiki/);
-  assert.equal(personalHost.calls.filter(call=>call.operation==="actions.call").every(call=>call.input.installationId==="personal-wiki"),true);
+  assert.equal(personalHost.calls.filter(call=>call.operation==="actions.call").every(call=>call.input.template==="wiki-map"||call.input.installationId==="personal-wiki"),true);
   const absent=reportHost("personal-wiki",async()=>({data:{dailyReports:[{ownerKind:"organization",ownerId:"missing-org",planningInstallationId:"missing-planning",organizationSlug:"missing",report:null}]}}));
   const incomplete=await savePersonalOverview(absent.host,personal,local,"personal-run",now);
   assert.equal(incomplete.status,"incomplete");
