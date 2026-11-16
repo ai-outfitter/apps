@@ -18,7 +18,7 @@ const workContext = {
 // Contract-valid answers, so the SDK's output validation runs on every call.
 const answers: Record<string, unknown> = {
   "entities.types": [{ installationId: "provider", type: "record", title: "Record", description: "Fixture records", schema: { type: "object" }, writable: true }],
-  "entities.list": [entity],
+  "entities.list": { records: [entity], pageInfo: { hasNextPage: false, endCursor: null } },
   "entities.get": entity,
   "entities.create": entity,
   "entities.update": { ...entity, revision: 2, title: "Updated", attributes: { title: "Updated" } },

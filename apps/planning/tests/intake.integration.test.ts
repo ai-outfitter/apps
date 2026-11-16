@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient, type InValue } from "@libsql/client";
 import type { z } from "zod";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   releaseFitInput,
   setIntakeReleaseFit,
@@ -709,13 +710,13 @@ test("intake options read active work gates through the host's own input schemas
           { type: "graph-edge", collection: "edges", template: "onto", installationId: "wiki", writable: true },
         ].filter((item) => !input.template || item.template === input.template);
       if (name === "entities.list" && input.type === "graph-type")
-        return [{ ref: { installationId: "wiki", type: "graph-type", id: "control-type" }, title: "DecisionControlV4", revision: 1, attributes: {}, references: [] }];
+        return memoryEntityPage([{ ref: { installationId: "wiki", type: "graph-type", id: "control-type" }, title: "DecisionControlV4", revision: 1, attributes: { name: "DecisionControlV4" }, references: [] }], input);
       if (name === "entities.list" && input.type === "graph-node")
-        return [{
+        return memoryEntityPage([{
           ref: { installationId: "wiki", type: "graph-node", id: controlId },
           title: "Discovery and implementation gate", revision: 1, references: [],
-          attributes: { body: JSON.stringify({ kind: "work_gate", state: "active", work_kinds: ["research"] }) },
-        }];
+          attributes: { typeId: "control-type", body: JSON.stringify({ kind: "work_gate", state: "active", work_kinds: ["research"] }) },
+        }], input);
       if (name === "actions.list")
         return [{ installationId: "governance", actions: [{ name: "governance.gate-policy", permitted: true }] }];
       throw new Error(`Unexpected ${name}`);

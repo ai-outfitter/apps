@@ -21,6 +21,7 @@
     "./agent-store": "./src/agent-store.ts",
     "./workflow-host": "./src/workflow-host.ts",
     "./entities": "./src/entities.ts",
+    "./entity-query": "./src/entity-query.ts",
     "./database": "./src/database.ts",
     "./home-cards": "./src/home-cards.ts",
     "./operations": "./src/operations.ts",

@@ -33,7 +33,12 @@ export const projects = sqliteTable(
     demoResults: text().notNull().default(""),
     ...audit(),
   },
-  (t) => [index("planning_projects_installation").on(t.installationId)],
+  (t) => [
+    index("planning_projects_installation").on(t.installationId),
+    // Entity list pages: one installation's rows in an advertised order, then ID.
+    index("planning_projects_installation_id").on(t.installationId, t.id),
+    index("planning_projects_installation_name").on(t.installationId, t.name, t.id),
+  ],
 );
 export const issues = sqliteTable(
   "planning_issues",
@@ -65,6 +70,8 @@ export const issues = sqliteTable(
       t.position,
     ),
     index("planning_issues_parent").on(t.parentId),
+    index("planning_issues_installation_id").on(t.installationId, t.id),
+    index("planning_issues_installation_position").on(t.installationId, t.position, t.id),
   ],
 );
 export type Project = typeof projects.$inferSelect;

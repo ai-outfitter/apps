@@ -1,4 +1,5 @@
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import { test, expect } from "@playwright/test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
@@ -272,22 +273,15 @@ function discoveryFixture() {
   };
 }
 
-function matchesFixtureFilter(record: EntityRecord, filter: Record<string, unknown> = {}) {
-  return Object.entries(filter).every(([key, value]) => {
-    if (key === "nodeId") return record.attributes.fromId === value || record.attributes.toId === value;
-    if (key === "archived") return !!record.attributes.archived === value;
-    return record.attributes[key] === value;
-  });
-}
-
 function readFixtureRecords(operation: string, input: unknown, graph: ReturnType<typeof discoveryFixture>) {
               const body = input as {
                 installationId: string;
                 type: string;
                 id?: string;
                 filter?: Record<string, unknown>;
+                ids?: string[];
                 select?: string[];
-                offset?: number;
+                after?: string;
                 limit?: number;
               };
               if (body.installationId !== "wiki")
@@ -299,11 +293,5 @@ function readFixtureRecords(operation: string, input: unknown, graph: ReturnType
                   ? { ok: true as const, value: record }
                   : { ok: false as const, status: 404, message: "Missing" };
               }
-              return { ok: true as const, value: fixturePage(rows, body) };
-}
-function fixturePage(rows: EntityRecord[], input: { filter?: Record<string, unknown>; select?: string[]; offset?: number; limit?: number }) {
-  const offset = input.offset ?? 0;
-  return rows.filter(row => matchesFixtureFilter(row, input.filter))
-    .slice(offset, offset + (input.limit ?? 50))
-    .map(row => input.select ? { ...row, attributes: Object.fromEntries(input.select.map(key => [key, row.attributes[key]])) } : row);
+              return { ok: true as const, value: memoryEntityPage(rows, body) };
 }

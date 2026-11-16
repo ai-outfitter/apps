@@ -174,8 +174,8 @@ for (const width of [1440, 390])
       await fulfillFrom(route, response);
     });
     try {
-      const typesResponse = await wiki.call("/api/internal/entities/v1/list", owner, {method:"POST",body:{type:"graph-type",limit:100}});
-      const types = await typesResponse.json() as {ref:{id:string};attributes:{name:string}}[];
+      const typesResponse = await wiki.call("/api/internal/entities/v1/list", owner, {method:"POST",body:{type:"graph-type",filter:{names:["Person"]},limit:1}});
+      const types = (await typesResponse.json() as {records:{ref:{id:string};attributes:{name:string}}[]}).records;
       const personType = types.find(t=>t.attributes.name === "Person");
       if (!personType) throw new Error("Missing Person type");
       const contactId = "40000000-0000-4000-8000-000000000099";

@@ -481,26 +481,14 @@ export async function readProjectPage(
     select: string[],
     where?: Record<string, unknown>,
   ) {
-    const records: Awaited<
-      ReturnType<ReturnType<typeof db.collection>["list"]>
-    > = [];
-    for (let offset = 0; offset <= 1000; offset += 100) {
-      const page = await db.collection(collection).list({
-        select,
-        ...(where ? { where } : {}),
-        order: {
-          field: collection === "projects" ? "name" : "position",
-          direction: "asc",
-        },
-        offset,
-        limit: 100,
-      });
-      records.push(...page);
-      if (page.length < 100) return records;
-    }
-    throw new Response("Project view exceeds its supported size", {
-      status: 413,
-    });
+    return db.collection(collection).all({
+      select,
+      ...(where ? { where } : {}),
+      order: {
+        field: collection === "projects" ? "name" : "position",
+        direction: "asc",
+      },
+    }, 1100);
   }
   const projects = projectId
     ? [await db.collection("projects").get(projectId)]
