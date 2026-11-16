@@ -21,6 +21,7 @@ import { guardedGraphBatch } from "./graph-batch";
 import { resolveIdentity } from "./identity";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
+import { readSettings } from "./settings";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -353,7 +354,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       evidence: Object.fromEntries(chunk.map((row) => [row.ref, row.evidence])),
       precondition: reviewedRowsUnchanged(batch, chunk),
       finalize: (saved, gate) => [
-        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "policy" ? null : who.userId}
+        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "member" ? who.userId : null}
           WHERE batchId=${batch.id} AND ref=${row.ref} AND ${gate}`),
         sql`UPDATE graph_batches SET commits=commits+1,updatedAt=${Date.now()} WHERE id=${batch.id} AND ${gate}`,
       ],
@@ -445,6 +446,15 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
+  // A draft review that carried over and has finished (read after the submit, so one that
+  // finished meanwhile counts): the steward decides now. One still running decides when it ends.
+  if (reused) {
+    const [[job], [fresh]] = await Promise.all([
+      db.select({ state: ontoReviewJobs.state }).from(ontoReviewJobs).where(eq(ontoReviewJobs.id, jobId)),
+      db.select({ review: graphBatches.review }).from(graphBatches).where(eq(graphBatches.id, batch.id)),
+    ]);
+    if (job?.state === "complete" && fresh?.review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, fresh.review);
+  }
   return getBatch(db, who, { batchId: batch.id });
 }
 
@@ -550,7 +560,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   if (batch.state === "awaiting_review") {
     const summary = { ...summarize(rows, new Map(graph.types.map(type => [type.id, type.name]))), text: batch.summary ? JSON.parse(batch.summary).text ?? null : null };
     statements.push(sql`UPDATE graph_batches SET summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
-    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now})`);
+    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now},${crypto.randomUUID()})`);
   } else statements.push(sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`);
   statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`);
   await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before amending");
@@ -578,6 +588,71 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
+}
+
+/** What the steward's approval needs from its review. */
+type StewardReview = {
+  complete: boolean; runId: string | null; prompt: { digest: string };
+  findings: { ref: string | null; refs?: string[]; severity: string; rule: string }[];
+};
+/** What the steward decided after its review: how many operations it approved, and the
+ * refs it left for a member with why. Saved on the review. */
+export type StewardDecision = { approved: number; held: { ref: string; reason: string }[]; at: number };
+
+/** The ontology steward approves what its own review found clean (docs/batch-review.md,
+ * "Steward approval"). A finding of `error` or `warning` severity, a question on the batch,
+ * or anything depending on them waits for a member; so does every operation when the review
+ * failed, read the batch only in part, or flagged the batch as a whole. A batch-level
+ * finding or a question without refs holds everything. Approval is recorded as the
+ * steward's decision citing its review run, never as a member's. */
+export async function stewardApprove(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview): Promise<StewardDecision | null> {
+  const batch = await loadBatch(db, batchId);
+  if (batch.state !== "awaiting_review" || batch.reviewJobId !== jobId) return null;
+  const rows = live(await loadOperations(db, batch.id));
+  const waiting = rows.filter((row) => row.state === "awaiting_review");
+  if (!waiting.length) return null;
+  // The first reason that holds an operation is the one a member sees.
+  const reasons = new Map<string, string>();
+  const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
+  const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
+  if (!review.complete) holdAll("the review read only part of the batch");
+  for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
+    const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];
+    if (!refs.length) holdAll(`${item.rule} on the whole batch`);
+    for (const ref of refs) hold(ref, item.rule);
+  }
+  // An answered question no longer holds anything: the member has settled it.
+  for (const question of (batch.questions ?? []).filter((item) => !item.answer)) {
+    if (!question.refs.length) holdAll(`question ${question.key}`);
+    for (const ref of question.refs) hold(ref, `question ${question.key}`);
+  }
+  const flagged = new Set(waiting.filter((row) => reasons.has(row.ref)).map((row) => row.ref));
+  for (const ref of withDependents(rows, waiting, flagged)) hold(ref, "depends on a held proposal");
+  const graph = await readGraph(db, who);
+  const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
+  const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
+  for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
+  const at = Date.now();
+  const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
+  await commitByPolicy(db, who, batch, rows, chosen, approval);
+  await settle(db, batch.id);
+  // Report what actually happened: a part that no longer applied, or that a member decided
+  // meanwhile, is not counted as the steward's.
+  const after = new Map(live(await loadOperations(db, batch.id)).map((row) => [row.ref, row]));
+  const approved = waiting.filter((row) => after.get(row.ref)?.state === "committed" && (JSON.parse(after.get(row.ref)?.decision ?? "null") as { kind?: string } | null)?.kind === "steward").length;
+  const held = waiting.filter((row) => after.get(row.ref)?.state === "awaiting_review")
+    .map((row) => ({ ref: row.ref, reason: reasons.get(row.ref) ?? "the approved part would not apply" }));
+  return { approved, held, at };
+}
+
+/** Run the steward's approval for a finished (complete-state) review and save its decision on that review. */
+export async function approveAfterReview(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview) {
+  // An admin can keep every decision with members (Settings, "After the steward reviews").
+  if ((await readSettings(db)).stewardApproval !== "approve") return null;
+  const decision = await stewardApprove(db, who, batchId, jobId, review);
+  if (decision) await db.update(graphBatches).set({ review: { ...review, decision } as never })
+    .where(and(eq(graphBatches.id, batchId), eq(graphBatches.reviewJobId, jobId)));
+  return decision;
 }
 
 /** Rejecting an operation rejects the waiting operations that depend on it. */
@@ -691,4 +766,12 @@ export async function recordHistory(db: Database, _who: AppIdentity, input: z.in
     /** Revisions before batches were installed have no history row. */
     complete: rows.length > 0 && rows[rows.length - 1].prior === null,
   };
+}
+
+/** The steward's review of a batch while it is queued or running: the reserved workflow run
+ * an agent can wait on, and the job's state. Null once the review has finished. */
+export async function pendingReview(db: Database, batchId: string) {
+  const [row] = await db.select({ id: ontoReviewJobs.id, state: ontoReviewJobs.state, runId: ontoReviewJobs.runId })
+    .from(graphBatches).innerJoin(ontoReviewJobs, eq(ontoReviewJobs.id, graphBatches.reviewJobId)).where(eq(graphBatches.id, batchId));
+  return row && (row.state === "pending" || row.state === "running") && row.runId ? { runId: row.runId, state: row.state } : null;
 }

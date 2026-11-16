@@ -62,7 +62,7 @@ export const wikiActions = {
     run: ({ identity, actor }, input) => askBatch(installationDatabase(), identity, actor, input),
   }),
   "batch.submit": defineAction({
-    description: "Freeze an open batch and apply its policy: confidence or first-run commits what it may now; the rest waits for review. Refused while validation fails. Optional summary text for the person reviewing. The ontology steward then reviews it in the background and attaches advisory findings (batch.review, null until it finishes); they change no decision.",
+    description: "Freeze an open batch and apply its policy: confidence or first-run commits what it may now; the rest waits for review. Refused while validation fails. Optional summary text for the person reviewing. The ontology steward then reviews it in the background (batch.review, null until it finishes) and approves what it found clean; flagged proposals, questioned ones and what depends on them wait for a member.",
     access: "write", canInvoke: writer, input: batchSubmitInput, output: batchResult,
     run: async ({ identity, actor, afterSubmit }: { identity: AppIdentity; actor: AppActor; afterSubmit?: (batchId: string) => void }, input) => {
       const result = await submitBatch(installationDatabase(), identity, actor, input);
@@ -71,7 +71,7 @@ export const wikiActions = {
     },
   }),
   "batch.get": defineAction({
-    description: "Read one batch: its state, policy, summary, review deadline, the ontology steward's latest advisory review (findings by operation ref and its batch-review run) and every operation with evidence, confidence, reason, decision and committed record.",
+    description: "Read one batch: its state, policy, summary, review deadline, the ontology steward's latest review (findings by operation ref, its batch-review run, and decision: what it approved and what it held for a member) and every operation with evidence, confidence, reason, decision and committed record.",
     access: "read", input: batchIdInput, output: batchResult,
     run: ({ identity }, input) => getBatch(installationDatabase(), identity, input),
   }),
