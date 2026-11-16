@@ -372,7 +372,7 @@ for (const width of [1440, 390])
         expect(
           Array.isArray(input.ids) ||
             Object.keys(input.filter ?? {}).some((key) =>
-              ["typeId", "slug", "nodeId", "nodeIds", "fromId", "toId"].includes(key),
+              ["typeId", "typeIds", "slug", "nodeId", "nodeIds", "fromId", "toId"].includes(key),
             ),
         ).toBe(true);
       expect(
