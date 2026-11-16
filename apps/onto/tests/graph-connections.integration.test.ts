@@ -173,13 +173,13 @@ test("products' revisions page per product in one bounded relationship statement
     };
     const fewFiltered = await filtered(productIds.slice(0, 3)), allFiltered = await filtered(productIds);
     for (const node of allFiltered.nodes) {
-      const p = productIds.indexOf(node.id);
+      const p = (productIds as string[]).indexOf(node.id);
       // Revision 4 is filtered out in SQL, so the newest two left are 3 and 2, of the 4 that pass.
       assert.deepEqual(node.late.edges.map(edge => edge.node.title), [`Product ${p} revision 3`, `Product ${p} revision 2`]);
       assert.deepEqual([node.late.pageInfo.hasNextPage, node.late.pageInfo.hasPreviousPage, node.late.totalCount], [true, false, revisions - 1]);
       assert.deepEqual([node.late.pageInfo.startCursor, node.late.pageInfo.endCursor], [node.late.edges[0].cursor, node.late.edges[1].cursor]);
       assert.deepEqual([node.links.nodes.length, node.links.pageInfo.hasNextPage, node.links.totalCount], [3, true, revisions]);
-      assert.ok(node.links.nodes.every(edge => revisionIds[p].includes(edge.toId)));
+      assert.ok(node.links.nodes.every(edge => (revisionIds[p] as string[]).includes(edge.toId)));
     }
     // The products page, then a page and a count for each of the two connections: five statements for three products as for eight.
     assert.equal(allFiltered.statements.length, fewFiltered.statements.length, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
