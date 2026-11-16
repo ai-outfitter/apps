@@ -8,7 +8,7 @@ import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
 import {
-  emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, RelationTooLarge, sourceKey, withRelationBudget,
+  emptyCollection, emptyRelation, type GraphRow, type GraphSource, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type PageRows, type RelationFilter, type RelationRow, RelationTooLarge, sourceKey, withRelationBudget,
 } from "./graph-graphql-source";
 import { checkFilter, edgeFilterFields, maxFilterConditions, nodeFilterFields, type RecordFilter, recordFilterInput } from "./graph-filter";
 import { cursorOf, cursorText, keysetCursor, type OrderName, orderNames, orders, readKeyset } from "./graph-order";
@@ -501,24 +501,26 @@ type Admit = (buffer: Buffer, stopped: boolean) => Promise<Outcome>;
 /** Counted without rows: `limit: 0` with `count` reads no page. */
 const countOnly = (query: GraphQuery) => query.limit === 0 && !!query.count;
 
-/** One ordered collection page: `limit` records read with ORDER BY and LIMIT limit + 1 where the source keeps them, beside its count. */
+/** A page of nothing: what is read for a filter that matches nothing, or counted without rows. */
+const noRows: PageRows<never> = { rows: [], hasNextPage: false };
+/** One ordered collection page: `limit` records read where the source keeps them, beside its count. */
 async function collectionPage(source: GraphSource, query: GraphQuery, filter: NodeFilter, missingTypes: Set<string>): Promise<Admit> {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query, orderBy);
   const none = emptyCollection(filter);
-  const [total, rows] = await Promise.all([
+  const [total, page] = await Promise.all([
     query.count ? (none ? 0 : source.nodeCount(filter)) : null,
-    none || countOnly(query) ? [] : source.nodePage({ ...filter, orderBy, first: query.limit, after }),
+    none || countOnly(query) ? noRows : source.nodePage({ ...filter, orderBy, first: query.limit, after }),
   ]);
   return async (buffer, stopped) => {
     const summary = emptySummary(query, missingTypes);
     if (stopped) return { summary, exhausted: true };
     let last: Keyset | null = null, exhausted = false;
-    for (const row of rows.slice(0, query.limit)) {
+    for (const row of page.rows) {
       if (!await buffer.admit([{ kind: "node", record: project("node", row as Row, query.fields) }])) { exhausted = true; break; }
       summary.matches.push(row.id);
       last = keyOf(row, order);
     }
-    const more = countOnly(query) ? !!total : rows.length > summary.matches.length;
+    const more = countOnly(query) ? !!total : page.hasNextPage || page.rows.length > summary.matches.length;
     buffer.spend(300);
     return { summary: { ...summary, total, complete: !more, cursor: last ? keysetCursor(orderBy, last) : summary.cursor }, exhausted };
   };
@@ -541,11 +543,11 @@ async function admitParent({ buffer, query, key }: ParentRead, rows: RelationRow
 }
 
 /** A parent's entry: its admitted rows, whether more follow, its cursor and count. */
-async function parentPage(read: ParentRead, parentId: string, found: RelationRow[], exhausted: boolean) {
-  const admitted = exhausted ? { kept: [], last: null, stopped: true } : await admitParent(read, found.slice(0, read.query.limit));
+async function parentPage(read: ParentRead, parentId: string, found: PageRows<RelationRow>, exhausted: boolean) {
+  const admitted = exhausted ? { kept: [], last: null, stopped: true } : await admitParent(read, found.rows);
   const count = read.counts ? read.counts.get(parentId) ?? 0 : undefined;
   // Counted without rows, a parent has more when it has any; read, when it held rows not returned.
-  const hasNextPage = !read.stopped && countOnly(read.query) ? !!count : read.stopped || found.length > admitted.kept.length;
+  const hasNextPage = !read.stopped && countOnly(read.query) ? !!count : read.stopped || found.hasNextPage || found.rows.length > admitted.kept.length;
   const cursor = admitted.last ? keysetCursor(read.orderBy, admitted.last) : read.query.cursor ?? null;
   const entry: ParentPage = { parentId, rows: admitted.kept, hasNextPage, cursor, ...(count === undefined ? {} : { count }) };
   return { entry, exhausted: admitted.stopped };
@@ -555,7 +557,7 @@ async function parentPage(read: ParentRead, parentId: string, found: RelationRow
 async function relationPages(source: GraphSource, query: GraphQuery, filter: RelationFilter, missingTypes: Set<string>): Promise<Admit> {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query, orderBy);
   const none = emptyRelation(filter);
-  const [counted, rows] = await Promise.all([
+  const [counted, pages] = await Promise.all([
     query.count ? (none ? new Map<string, number>() : source.relationCount(filter)) : null,
     none || countOnly(query) ? [] : source.relationPage({ ...filter, orderBy, first: query.limit, after }).catch(error => {
       throw error instanceof RelationTooLarge ? new Response(`Query ${query.name}: ${error.message}`, { status: 400 }) : error;
@@ -564,12 +566,12 @@ async function relationPages(source: GraphSource, query: GraphQuery, filter: Rel
   const key = (row: RelationRow) => keyOf((filter.rows === "node" ? row.node : row.edge) as GraphRow, order);
   return async (buffer, stopped) => {
     // Out of budget, nothing read is reported: the query keeps its place.
-    const counts = stopped ? null : counted, grouped = groupBy(stopped ? [] : rows, row => row.parentId);
+    const counts = stopped ? null : counted, grouped = new Map((stopped ? [] : pages).map(page => [page.parentId, page]));
     const read: ParentRead = { buffer, query, orderBy, key, counts, stopped };
     let exhausted = stopped;
     const parents: ParentPage[] = [];
     for (const parentId of filter.parentIds) {
-      const page = await parentPage(read, parentId, grouped.get(parentId) ?? [], exhausted);
+      const page = await parentPage(read, parentId, grouped.get(parentId) ?? noRows, exhausted);
       exhausted = page.exhausted;
       parents.push(page.entry);
     }

@@ -2,11 +2,13 @@
 // Wiki tables, the same rows (and the same filters) memorySource gives over a
 // whole-graph read. Rows go through nodeView/edgeView, so private fields never leave.
 // Collections and relationships read only their page: WHERE (the connection's filter
-// included), ORDER BY and LIMIT first + 1, and a relationship page for every parent of
-// a level in one statement, whether one hop, any edge type (Node.edges) or a projection's two.
+// included), ORDER BY and LIMIT first + 1 (the row past the page says more follow), and a
+// relationship page for every parent of a level in one statement, whether one hop, any edge
+// type (Node.edges) or a projection's two. A relationship page asked for its count carries it
+// from the same statement.
 import {
-  compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type NodeFilter, orders, type Page, type PropertyFilter,
-  type RelationFilter, type RelationPageQuery, type RelationRow, sourceKey, type SourceRef, type TypeRow,
+  compareIds, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, type NodeFilter, orders, type Page, pageOf, type PropertyFilter,
+  type RelationFilter, type RelationPage, type RelationPageQuery, type RelationRow, sourceKey, type SourceRef, type TypeRow,
 } from "@ai-outfitter/app-sdk/graph-graphql";
 import { edgeFilterFields, type FilterFields, nodeFilterFields } from "@ai-outfitter/app-sdk/graph-filter";
 import { containsInsensitive, type FilterColumns, filterSql, joined, rowsAfter, within } from "@ai-outfitter/app-sdk/graph-filter-sql";
@@ -208,7 +210,8 @@ export function databaseSource(db: Database): GraphSource {
       const { by, after } = ordering(field => col("n", field), query);
       spend(1);
       const rows = await rawRows(sql`SELECT ${selected("n", nodeColumns)} FROM graph_nodes n WHERE ${all(collectionWhere(query), after)} ORDER BY ${by} LIMIT ${query.first + 1}`);
-      return rows.map(nodeRow);
+      // Its count is left to nodeCount: the page stops at its LIMIT, and a count reads every match.
+      return pageOf(rows.map(nodeRow), query.first);
     },
     async nodeCount(query) {
       spend(1);
@@ -220,13 +223,24 @@ export function databaseSource(db: Database): GraphSource {
       return chunked(query.parentIds, async parentIds => {
         const { by, after } = ordering(field => sql.raw(`"f_${field}"`), query);
         // One row per far node (its lowest edge ID) or per edge that passes the filter, then each parent's first + 1 in page order.
+        // Counted, each row also carries how many its parent has before the cursor is applied (the rows are already
+        // read to rank them). A parent with no row after the cursor returns none, so its count is left to relationCount.
+        const total = query.count ? sql`COUNT(*) OVER (PARTITION BY parent)` : sql`NULL`;
         const rows = await rawRows(sql`WITH hits AS (${relationHits({ ...query, parentIds: parentIds as string[] })}),
           once AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY parent, ${key} ORDER BY edgeKey) AS dup FROM hits WHERE ${all(filterSql(query.filter, carriedColumns[query.rows]))}),
-          ranked AS (SELECT parent, edgeKey, nodeKey, ROW_NUMBER() OVER (PARTITION BY parent ORDER BY ${by}) AS pos FROM once WHERE ${all(sql`dup = 1`, after)})
-          SELECT ranked.parent AS parent, ${selected("e", edgeColumns)}, ${selected("n", nodeColumns)}
+          firsts AS (SELECT *, ${total} AS total FROM once WHERE dup = 1),
+          ranked AS (SELECT parent, edgeKey, nodeKey, total, ROW_NUMBER() OVER (PARTITION BY parent ORDER BY ${by}) AS pos FROM firsts WHERE ${all(after)})
+          SELECT ranked.parent AS parent, ranked.total AS total, ${selected("e", edgeColumns)}, ${selected("n", nodeColumns)}
           FROM ranked JOIN graph_edges e ON e."id" = ranked.edgeKey JOIN graph_nodes n ON n."id" = ranked.nodeKey
           WHERE ranked.pos <= ${query.first + 1} ORDER BY ranked.parent, ranked.pos`);
-        return rows.map((raw): RelationRow => ({ parentId: String(raw.parent), edge: edgeRow(raw), node: nodeRow(raw) }));
+        const byParent = new Map<string, { rows: RelationRow[]; count: number | null }>();
+        for (const raw of rows) {
+          const parentId = String(raw.parent);
+          const found = byParent.get(parentId) ?? { rows: [], count: raw.total === null || raw.total === undefined ? null : Number(raw.total) };
+          byParent.set(parentId, found);
+          found.rows.push({ parentId, edge: edgeRow(raw), node: nodeRow(raw) });
+        }
+        return [...byParent].map(([parentId, found]): RelationPage => ({ parentId, ...pageOf(found.rows, query.first), ...(found.count === null ? {} : { count: found.count }) }));
       }, parentChunk);
     },
     async relationCount(query) {

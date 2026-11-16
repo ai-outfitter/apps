@@ -7,7 +7,7 @@ import {
 } from "graphql";
 import { type EdgeLayout, type NodeLayout, type SchemaLayout, schemaLayout, type TypeRow } from "./graph-graphql-names";
 import {
-  checkedFilter, type GraphContext, idList, meterFields, type OrderedPageArgs, orderedPage, orderedStart, type PageArgs, take, traverse, type TraverseArgs, validFrom, validUntil, visible,
+  checkedFilter, type GraphContext, idList, meterFields, type OrderedPageArgs, orderedPage, orderedStart, type PageArgs, selects, take, traverse, type TraverseArgs, validFrom, validUntil, visible,
 } from "./graph-graphql-resolve";
 import { ArchivedEnum, DateTimeScalar, DirectionEnum, filterInput, JSONScalar, operatorInput, orderEnum } from "./graph-graphql-scalars";
 import { edgeFilterFields, nodeFilterFields } from "./graph-filter";
@@ -182,12 +182,14 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
     ? { connection: connections.get(ids[0]) as GraphQLObjectType, order: orderEnums.get(ids[0]) as GraphQLEnumType, filter: filters.get(ids[0]) as GraphQLInputObjectType }
     : { connection: nodeConnection(), order: nodeOrder(), filter: nodeFilter() });
   const allNodeTypes = [...layout.nodes.keys()], allEdgeTypes = [...layout.edges.keys()];
+  /** A connection that selects totalCount asks its page for the count too, so a source may answer both in one read. */
+  const countedPage = (info: GraphQLResolveInfo) => (selects(info, "totalCount") ? { count: true } : {});
   /** One parent's page of a relationship, batched with every other parent asking the same; counted only when totalCount is selected. */
   async function relationConnection(context: GraphContext, info: GraphQLResolveInfo, parentId: string, ask: RelationCountAsk, args: RelationArgs) {
     const start = orderedStart(args);
-    const rows = await context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after }, parentId);
-    const records = rows.map(row => (ask.rows === "node" ? row.node : row.edge));
-    return orderedPage(context, info, records, row => keyOf(row, orders[start.orderBy]), start, args.after, () => context.loader.relationCount(ask, parentId));
+    const page = await context.loader.relation({ ...ask, orderBy: start.orderBy, first: start.first, after: start.after, ...countedPage(info) }, parentId);
+    const records = page.rows.map(row => (ask.rows === "node" ? row.node : row.edge));
+    return orderedPage(context, info, records, row => keyOf(row, orders[start.orderBy]), start, args.after, () => page.count ?? context.loader.relationCount(ask, parentId), page.hasNextPage);
   }
   /** What traversal keeps of a relationship: visible under `archived`, valid at `at`. */
   const reach = (args: TraverseArgs) => ({ archived: args.archived ?? "exclude", ...(args.at ? { at: args.at } : {}) });
@@ -265,8 +267,8 @@ export function buildGraphSchema(types: TypeRow[], options: GraphSchemaOptions =
   /** A collection's page, read bounded by the source; counted only when totalCount is selected. */
   const collectionPage = async (filter: NodeFilter, args: OrderedPageArgs, context: GraphContext, info: GraphQLResolveInfo) => {
     const start = orderedStart(args);
-    const rows = await context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after });
-    return orderedPage(context, info, rows, row => keyOf(row, orders[start.orderBy]), start, args.after, () => context.loader.nodeCount(filter));
+    const page = await context.loader.nodePage({ ...filter, orderBy: start.orderBy, first: start.first, after: start.after, ...countedPage(info) });
+    return orderedPage(context, info, page.rows, row => keyOf(row, orders[start.orderBy]), start, args.after, () => page.count ?? context.loader.nodeCount(filter), page.hasNextPage);
   };
   const roots: RootFields = {
     sdl: { type: nonNull(GraphQLString), description: "This schema in SDL: a compact alternative to full introspection.", resolve: (_root, _args, _context, info) => printSchema(info.schema) },

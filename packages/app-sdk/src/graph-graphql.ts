@@ -38,7 +38,7 @@
 //   several target types, `<E>Connection` for edge objects) taking (first, after, orderBy, filter, at, archived):
 //   a far node reached twice is listed once; edge objects order by `EdgeOrder` and filter by `EdgeFilter`.
 //   Every parent of a level shares one GraphSource.relationPage call (several, one after another, when the parents
-//   could together return more rows than graphQueryLimits.relationRows: withRelationBudget). Edge types without endpoints get no
+//   could together cost more rows than graphQueryLimits.relationRows: withRelationBudget). Edge types without endpoints get no
 //   typed fields; read them through `edges(types:)`, an `EdgeConnection` of edge objects with from/to,
 //   paged per node the same way.
 // - A projection edge type (ontology.projection) is a field `fieldName(E)` on the fromSlot's
@@ -72,8 +72,8 @@ import { type GraphSource, memorySource } from "./graph-graphql-source";
 export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-names";
 export {
   type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
-  type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPageQuery,
-  type RelationRow, sourceKey, type SourceRef,
+  type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, pageOf, type PageRows, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPage, type RelationPageQuery,
+  type RelationRow, RelationTooLarge, sourceKey, type SourceRef, withRelationBudget,
 } from "./graph-graphql-source";
 export { type OrderName, orders } from "./graph-order";
 export { edgeFilterFields, type FieldOperators, type FilterFields, type FilterKind, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";

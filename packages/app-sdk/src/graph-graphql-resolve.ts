@@ -1,6 +1,6 @@
 // Record-level rules the generated resolvers share: visibility (graph.query's
 // archived/retired rules), validity at a time, traversal and paging.
-import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
+import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, Kind, responsePathAsArray, type SelectionSetNode } from "graphql";
 import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
 import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
 import { keysetCursor, type OrderName, readKeyset } from "./graph-order";
@@ -79,20 +79,32 @@ export function orderedStart<Name extends string = OrderName>(args: PageArgs & {
   const orderBy = args.orderBy ?? ("ID_ASC" as Name);
   return { orderBy, first: pageStart({ first: args.first }).first, after: pageAfter(orderBy, args.after) };
 }
-/** A Relay connection over the ordered `rows` a source read (one past the page, to tell whether more follow): `nodes`,
- * the same records as `edges` with each one's cursor, `pageInfo` and `totalCount` (`count` runs only when it is selected).
+/** A Relay connection over the ordered `rows` a source read: `nodes`, the same records as `edges` with each one's cursor,
+ * `pageInfo` and `totalCount` (`count` runs only when it is selected). More follow when `rows` hold one past the page
+ * (a table read with LIMIT first + 1) or the source said so (`more`, a GraphSource page's hasNextPage).
  * Paging is forward only, so a page has a previous one exactly when it started after a cursor. Noted for fitResponse to
  * continue from any record kept. */
 export function orderedPage<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], key: (row: T) => Keyset, start: { orderBy: string; first: number },
-  after: string | null | undefined, count: () => number | Promise<number>) {
+  after: string | null | undefined, count: () => number | Promise<number>, more = false) {
   const nodes = take(context, info, rows.slice(0, start.first));
   const cursors = nodes.map(row => keysetCursor(start.orderBy, key(row)));
   context.pages.set(pathKey(info.path), { after: after ?? null, cursors });
   return {
     nodes, edges: nodes.map((node, index) => ({ cursor: cursors[index], node })),
-    pageInfo: { hasNextPage: rows.length > nodes.length, hasPreviousPage: !!after, startCursor: cursors[0] ?? null, endCursor: cursors.at(-1) ?? null },
+    pageInfo: { hasNextPage: more || rows.length > nodes.length, hasPreviousPage: !!after, startCursor: cursors[0] ?? null, endCursor: cursors.at(-1) ?? null },
     totalCount: count,
   };
+}
+/** Whether the field being resolved selects `name` directly (through fragments too): what a resolver may read ahead for. */
+export function selects(info: GraphQLResolveInfo, name: string) {
+  const within = (set: SelectionSetNode | undefined, seen: Set<string>): boolean => !!set?.selections.some(node => {
+    if (node.kind === Kind.FIELD) return node.name.value === name;
+    if (node.kind === Kind.INLINE_FRAGMENT) return within(node.selectionSet, seen);
+    if (seen.has(node.name.value)) return false;
+    seen.add(node.name.value);
+    return within(info.fragments[node.name.value]?.selectionSet, seen);
+  });
+  return info.fieldNodes.some(node => within(node.selectionSet, new Set()));
 }
 /** A connection over the ID-ordered `rows` after `start` (one past the page), for a collection written by hand. */
 export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null, count: () => number | Promise<number>) {

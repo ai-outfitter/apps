@@ -211,16 +211,39 @@ test("resolvers batch source calls by level, not by record", async () => {
     nodes: query => { calls.push(`nodes:${query.ids ? "ids" : "type"}`); return memory.nodes(query); },
     edges: query => { calls.push(`edges:${query.typeIds?.join(",")}:${query.fromIds ? "from" : "to"}`); return memory.edges(query); },
     nodePage: query => { calls.push(`nodePage:${query.first}`); return memory.nodePage(query); },
-    relationPage: query => { calls.push(`relationPage:${query.parentIds.length}`); return memory.relationPage(query); },
+    relationPage: query => { calls.push(`relationPage:${query.parentIds.length}${query.count ? ":counted" : ""}`); return memory.relationPage(query); },
     relationCount: query => { calls.push(`relationCount:${query.parentIds.length}`); return memory.relationCount(query); },
   };
   const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
     query: `{ commitments { nodes { owner { title } control { title } commitmentOwnerEdges { nodes { id } totalCount } } } }` });
   assert.equal(result.errors, undefined);
   // One collection page, one edge read per (slot edge type, direction), one ID read for every participant,
-  // and one relationship page and count for both commitments.
+  // and one relationship page for both commitments: it selects totalCount, so the page is asked for its count too.
   assert.deepEqual(calls.sort(), ["edges:" + uuid(11) + ":from", "edges:" + uuid(11) + ":to", "edges:" + uuid(12) + ":from", "edges:" + uuid(12) + ":to", "nodePage:100", "nodes:ids",
-    "relationCount:2", "relationPage:2"]);
+    "relationPage:2:counted"]);
+});
+
+test("a page says whether more follow; a source that leaves the count out of its page is asked for it", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  // A source told its page's end (as a remote one is): exactly `first` rows with hasNextPage, and no count beside them.
+  const source: GraphSource = {
+    ...memory,
+    nodePage: async query => { calls.push(`nodePage:${query.first}`); const { count: _count, ...page } = await memory.nodePage(query); return page; },
+    nodeCount: query => { calls.push("nodeCount"); return memory.nodeCount(query); },
+    relationPage: async query => { calls.push("relationPage"); return (await memory.relationPage(query)).map(({ count: _count, ...page }) => page); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  };
+  const result = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536,
+    query: `{ persons(first: 1) { nodes { title } pageInfo { hasNextPage } totalCount } commitments(first: 1) { nodes { commitmentOwnerEdges(first: 1) { pageInfo { hasNextPage } ...Counted } } } }
+      fragment Counted on CommitmentOwnerConnection { totalCount }` });
+  assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+  const data = result.data as { persons: { nodes: unknown[]; pageInfo: { hasNextPage: boolean }; totalCount: number }; commitments: { nodes: { commitmentOwnerEdges: { totalCount: number } }[] } };
+  const all = await memory.nodeCount({ typeIds: [uuid(1)] });
+  assert.ok(all > 1);
+  assert.deepEqual([data.persons.nodes.length, data.persons.pageInfo.hasNextPage, data.persons.totalCount], [1, true, all]);
+  assert.equal(typeof data.commitments.nodes[0].commitmentOwnerEdges.totalCount, "number");
+  assert.deepEqual(calls.sort(), ["nodeCount", "nodePage:1", "nodePage:1", "relationCount", "relationPage"]);
 });
 
 test("relationship connections page each parent in order, read for every parent at once", async () => {
@@ -237,8 +260,8 @@ test("relationship connections page each parent in order, read for every parent 
     const result = await executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 65536, variables: after,
       query: `query($a: String, $b: String, $c: String) {
         a: team(id: "${uuid(140)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $a) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
-        b: team(id: "${uuid(141)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $b) { nodes { title } pageInfo { hasNextPage endCursor } } }
-        c: team(id: "${uuid(142)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $c) { nodes { title } pageInfo { hasNextPage endCursor } } }
+        b: team(id: "${uuid(141)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $b) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
+        c: team(id: "${uuid(142)}") { leads(first: 2, orderBy: CREATED_AT_ASC, after: $c) { nodes { title } pageInfo { hasNextPage endCursor } totalCount } }
       }` });
     assert.equal(result.errors, undefined, JSON.stringify(result.errors));
     return Object.fromEntries(Object.entries(result.data as Record<string, { leads: LeadPage }>).map(([key, value]) => [key, value.leads]));
@@ -249,7 +272,7 @@ test("relationship connections page each parent in order, read for every parent 
   assert.deepEqual([titles(first.a), titles(first.b), titles(first.c)], [["Lead 6", "Lead 3"], ["Lead 7", "Lead 4"], ["Lead 8", "Lead 5"]]);
   assert.ok([first.a, first.b, first.c].every(page => page.pageInfo.hasNextPage && page.pageInfo.endCursor));
   assert.equal(first.a.totalCount, 3);
-  assert.deepEqual(relationPages, [3], "one page read answers all three teams");
+  assert.deepEqual(relationPages, [3], "one page read answers all three teams, each with its count");
   const next = await read({ a: first.a.pageInfo.endCursor, b: first.b.pageInfo.endCursor, c: first.c.pageInfo.endCursor });
   assert.deepEqual([titles(next.a), titles(next.b), titles(next.c)], [["Lead 0"], ["Lead 1"], ["Lead 2"]]);
   assert.ok([next.a, next.b, next.c].every(page => !page.pageInfo.hasNextPage));
@@ -277,7 +300,7 @@ test("node, search and privacy", async () => {
 test("depth and field limits apply before execution; introspection is allowed", async () => {
   let reads = 0;
   const none = async () => { reads++; return []; };
-  const source: GraphSource = { types: async () => types as TypeRow[], nodes: none, edges: none, nodePage: none, relationPage: none,
+  const source: GraphSource = { types: async () => types as TypeRow[], nodes: none, edges: none, nodePage: async () => { reads++; return { rows: [], hasNextPage: false }; }, relationPage: none,
     nodeCount: async () => { reads++; return 0; }, relationCount: async () => { reads++; return new Map(); } };
   const deep = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, maxDepth: 3,
     query: `{ persons { nodes { reportsTo { nodes { title } } } } }` });
@@ -561,8 +584,8 @@ test("projections page in the source: one relationship page per level, ordered, 
   assert.deepEqual([ada.pairedWith.nodes, ada.pairedWith.pageInfo.hasNextPage, ada.pairedWith.totalCount], [[{ title: "Margaret" }, { title: "Linus" }], true, 3]);
   assert.deepEqual([grace.pairedWith.nodes, grace.pairedWith.totalCount, grace.named.nodes], [[{ title: "Ada" }], 1, [{ title: "Ada" }]]);
   assert.deepEqual(ada.named.nodes, [{ title: "Linus" }]);
-  // Both people's pages come from one two-hop relationPage per field; nothing walks edges hop by hop.
-  assert.deepEqual(calls.sort(), ["relationCount:through", "relationPage:through:2", "relationPage:through:2"]);
+  // Both people's pages come from one two-hop relationPage per field (the counted one with its count); nothing walks edges hop by hop.
+  assert.deepEqual(calls.sort(), ["relationPage:through:2", "relationPage:through:2"]);
   const next = await run(`query($after: String) { person(id: "${uuid(101)}") { pairedWith(first: 2, orderBy: TITLE_DESC, after: $after) { nodes { title } pageInfo { hasNextPage hasPreviousPage } } } }`,
     { source, variables: { after: ada.pairedWith.pageInfo.endCursor } });
   assert.deepEqual(next.data, { person: { pairedWith: { nodes: [{ title: "Grace" }], pageInfo: { hasNextPage: false, hasPreviousPage: true } } } });
@@ -593,9 +616,9 @@ test("relationship rows have one budget a request: reads are bounded runs of par
   const memory = memorySource(leads);
   const reads: { parents: number; first: number; rows: number }[] = [];
   const source: GraphSource = { ...memory, relationPage: async query => {
-    const rows = await memory.relationPage(query);
-    reads.push({ parents: query.parentIds.length, first: query.first, rows: rows.length });
-    return rows;
+    const pages = await memory.relationPage(query);
+    reads.push({ parents: query.parentIds.length, first: query.first, rows: pages.reduce((sum, page) => sum + page.rows.length + (page.hasNextPage ? 1 : 0), 0) });
+    return pages;
   } };
   const ask = (parents: number, first: number) => { reads.length = 0; return executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144,
     query: `{ teams(first: ${parents}) { nodes { leads(first: ${first}) { pageInfo { hasNextPage } } } } }` }); };

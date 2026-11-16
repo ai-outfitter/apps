@@ -2,7 +2,8 @@
 // rows graph.query returns in fields:"full", loaded through a per-request batch
 // loader so each (type, field) costs one source call per level, never one per record.
 // Collections and relationships read ordered, bounded pages (`nodePage`, `relationPage`):
-// a database source runs them as SQL, memorySource emulates them over a snapshot.
+// a database source runs them as SQL, memorySource emulates them over a snapshot. A page says
+// whether more follow it (PageRows), so a source that is told so asks for no extra row.
 import { batch } from "./batch-load";
 import { edgeFilterFields, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";
 import type { TypeRow } from "./graph-graphql-names";
@@ -43,8 +44,15 @@ export type OrderField = "id" | "createdAt" | "updatedAt" | "title";
 export type Order = { field: OrderField; descending: boolean };
 /** Where a page resumes: after the record with this order value and ID. */
 export type Keyset = { value: string | number | null; id: string };
-/** At most `first + 1` records after `after` in the order `orderBy` names (`orders[orderBy]`), so the caller can tell whether more follow. */
-export type Page = { orderBy: OrderName; first: number; after: Keyset | null };
+/** The `first` records after `after` in the order `orderBy` names (`orders[orderBy]`). `count` also asks for the count of
+ * every match (whatever `after`), for a source that answers both in one read. */
+export type Page = { orderBy: OrderName; first: number; after: Keyset | null; count?: boolean };
+/** A page a source read: at most `first` rows in page order, whether more follow them, and, when the page asked for
+ * `count` and the source counted in the same read, the count of every match (left out, the caller asks
+ * nodeCount or relationCount). */
+export type PageRows<T> = { rows: T[]; hasNextPage: boolean; count?: number };
+/** What a source that read `first + 1` rows (ORDER BY, LIMIT first + 1) answers: the page, and whether a row follows it. */
+export const pageOf = <T>(rows: T[], first: number): PageRows<T> => ({ rows: rows.slice(0, first), hasNextPage: rows.length > first });
 /** A collection's records: of these types (left out: of every node type), optionally of these IDs, matching `text` (a case-insensitive
  * literal substring of the ID, title, slug, summary, body, website or stored properties), visible under
  * `archived` (no retired rule, as graph.query matches), valid at `at` and passing `filter` (nodeFilterFields). */
@@ -62,9 +70,11 @@ export type RelationDirection = "outgoing" | "incoming" | "both";
 export type RelationFilter = { parentIds: string[]; edgeTypeIds: string[]; direction: RelationDirection; targetTypeIds: string[];
   archived?: ArchivedFilter; at?: string; rows: "node" | "edge"; filter?: RecordFilter;
   through?: { edgeTypeIds: string[]; nodeTypeIds: string[] } };
-/** A page per parent: at most `first + 1` rows for each of `parentIds`. */
+/** A page per parent: at most `first` rows for each of `parentIds`. */
 export type RelationPageQuery = RelationFilter & Page;
 export type RelationRow = { parentId: string; edge: EdgeRow; node: GraphRow };
+/** One parent's page of a relationship. */
+export type RelationPage = PageRows<RelationRow> & { parentId: string };
 /** A collection that can match nothing, so no source is asked for it. */
 export const emptyCollection = (filter: NodeFilter) => filter.typeIds?.length === 0 || filter.ids?.length === 0;
 /** A relationship that can reach nothing, so no source is asked for it. */
@@ -78,22 +88,23 @@ export class RelationTooLarge extends Error {
   }
 }
 /** `source` with its relation pages inside one row budget for the request (`graphQueryLimits.relationRows`), whatever the
- * source. Every parent may return `first + 1` whole rows, so the parents are read in runs of at most
- * relationRows / (first + 1), one after another: no read can return more rows than the budget, and the request is
- * refused (RelationTooLarge) as soon as the rows it has read pass it. */
+ * source. Every parent may cost `first + 1` whole rows (its page, and the row past it that says more follow), so the
+ * parents are read in runs of at most relationRows / (first + 1), one after another: no read can cost more rows than
+ * the budget, and the request is refused (RelationTooLarge) as soon as the rows it has read pass it. A page with
+ * hasNextPage counts that one row more, whether its source read it or was told so. */
 export function withRelationBudget(source: GraphSource): GraphSource {
   const limit = graphQueryLimits.relationRows;
   let read = 0;
   return { ...source, async relationPage(query) {
     const run = Math.max(1, Math.floor(limit / (query.first + 1)));
-    const rows: RelationRow[] = [];
+    const pages: RelationPage[] = [];
     for (let start = 0; start < query.parentIds.length; start += run) {
       const found = await source.relationPage({ ...query, parentIds: query.parentIds.slice(start, start + run) });
-      read += found.length;
+      for (const page of found) read += page.rows.length + (page.hasNextPage ? 1 : 0);
       if (read > limit) throw new RelationTooLarge();
-      rows.push(...found);
+      pages.push(...found);
     }
-    return rows;
+    return pages;
   } };
 }
 export interface GraphSource {
@@ -103,10 +114,10 @@ export interface GraphSource {
   nodes(query: NodeQuery): Promise<GraphRow[]>;
   edges(query: EdgeQuery): Promise<EdgeRow[]>;
   /** One ordered page of a collection, read bounded where the records live. */
-  nodePage(query: NodePageQuery): Promise<GraphRow[]>;
+  nodePage(query: NodePageQuery): Promise<PageRows<GraphRow>>;
   nodeCount(query: NodeFilter): Promise<number>;
-  /** One ordered page of a relationship for every parent at once, each parent's rows in page order. */
-  relationPage(query: RelationPageQuery): Promise<RelationRow[]>;
+  /** One ordered page of a relationship for every parent at once (a parent with no rows may be left out). */
+  relationPage(query: RelationPageQuery): Promise<RelationPage[]>;
   /** How many rows each parent's relationship holds (a parent with none may be left out). */
   relationCount(query: RelationFilter): Promise<Map<string, number>>;
   /** For a source keyed by more than the ID (a schema composed over several graphs): the key a row's slug is
@@ -167,11 +178,13 @@ function compareKeys(a: Keyset, b: Keyset) {
     : typeof a.value === "number" ? Math.sign(a.value - (b.value as number)) : compareIds(a.value, b.value as string);
   return byValue || compareIds(a.id, b.id);
 }
-/** In memory, what a database source reads with ORDER BY and LIMIT: the first `first + 1` rows after `after`. */
-export function pageRows<T>(rows: T[], key: (row: T) => Keyset, { orderBy, first, after }: Page) {
+/** In memory, what a database source reads with ORDER BY and LIMIT: the page of `first` rows after `after`, whether more
+ * follow and, when asked, the count of all `rows`. */
+export function pageRows<T>(rows: T[], key: (row: T) => Keyset, { orderBy, first, after, count }: Page): PageRows<T> {
   const sign = orders[orderBy].descending ? -1 : 1;
   const keyed = rows.map(row => ({ row, key: key(row) })).sort((a, b) => sign * compareKeys(a.key, b.key));
-  return (after ? keyed.filter(item => sign * compareKeys(item.key, after) > 0) : keyed).slice(0, first + 1).map(item => item.row);
+  const page = pageOf((after ? keyed.filter(item => sign * compareKeys(item.key, after) > 0) : keyed).slice(0, first + 1).map(item => item.row), first);
+  return count ? { ...page, count: rows.length } : page;
 }
 
 /** A GraphSource over a snapshot Wiki already read (graph.read records). */
@@ -210,10 +223,10 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
       const starts = first ? [...new Set(hop(parentId, first.types, "both", first.targets).map(({ node }) => node.id))] : [parentId];
       const found = starts.flatMap(start => hop(start, types, direction, targets)).filter(({ node }) => !first || node.id !== parentId)
         .filter(listed).sort((a, b) => compareIds(a.edge.id, b.edge.id));
-      return found.flatMap(({ edge, node }): RelationRow[] => {
+      return { parentId, rows: found.flatMap(({ edge, node }): RelationRow[] => {
         const key = rows === "node" ? node.id : edge.id;
         return seen.has(key) || !seen.add(key) ? [] : [{ parentId, edge, node }];
-      });
+      }) };
     });
   };
   return {
@@ -226,8 +239,8 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
     },
     nodePage: async query => pageRows(await collection(query), row => keyOf(row, orders[query.orderBy]), query),
     nodeCount: async query => (await collection(query)).length,
-    relationPage: async query => relations(query).flatMap(list => pageRows(list, row => keyOf(query.rows === "node" ? row.node : row.edge, orders[query.orderBy]), query)),
-    relationCount: async query => new Map(relations(query).flatMap(list => (list.length ? [[list[0].parentId, list.length] as const] : []))),
+    relationPage: async query => relations(query).map(({ parentId, rows }) => ({ parentId, ...pageRows(rows, row => keyOf(query.rows === "node" ? row.node : row.edge, orders[query.orderBy]), query) })),
+    relationCount: async query => new Map(relations(query).flatMap(({ parentId, rows }) => (rows.length ? [[parentId, rows.length] as const] : []))),
   };
 }
 
@@ -241,6 +254,8 @@ function edgeBatch(source: GraphSource, typeIds: string[] | null, direction: "ou
 }
 
 export type RelationAsk = Omit<RelationPageQuery, "parentIds">;
+/** A page of nothing, with nothing after it. */
+const noRows: PageRows<never> = { rows: [], hasNextPage: false };
 export type RelationCountAsk = Omit<RelationFilter, "parentIds">;
 
 /** Per-request loader: nodes by ID or slug, edges touching a node by (types, direction), and relationship
@@ -256,7 +271,7 @@ export function graphLoader(unbounded: GraphSource) {
     return new Map([...groupBy(keyed, item => item.key)].map(([key, items]) => [key, items.map(item => item.row)]));
   }, []);
   const touching = new Map<string, ReturnType<typeof edgeBatch>>();
-  const pages = new Map<string, ReturnType<typeof batch<RelationRow[]>>>();
+  const pages = new Map<string, ReturnType<typeof batch<PageRows<RelationRow>>>>();
   const counts = new Map<string, ReturnType<typeof batch<number>>>();
   /** The batch for one query, made on first use. */
   const keyed = <V>(cache: Map<string, ReturnType<typeof batch<V>>>, key: string, make: () => ReturnType<typeof batch<V>>) => {
@@ -269,7 +284,11 @@ export function graphLoader(unbounded: GraphSource) {
     /** Every node with this slug, or slug key (at most one per graph), remembered for later ID lookups. */
     slug: (slug: string) => slugs.load(slug),
     /** One page of a collection, remembered for later ID lookups. */
-    async nodePage(query: NodePageQuery) { return emptyCollection(query) ? [] : prime((await source.nodePage(query)).map(publicRow)); },
+    async nodePage(query: NodePageQuery): Promise<PageRows<GraphRow>> {
+      if (emptyCollection(query)) return { ...noRows, count: 0 };
+      const page = await source.nodePage(query);
+      return { ...page, rows: prime(page.rows.map(publicRow)) };
+    },
     async nodeCount(query: NodeFilter) { return emptyCollection(query) ? 0 : source.nodeCount(query); },
     edges(typeIds: string[] | null, direction: "outgoing" | "incoming", nodeId: string) {
       const loader = keyed(touching, `${direction}:${typeIds?.join(",") ?? "*"}`, () => edgeBatch(source, typeIds, direction));
@@ -277,12 +296,15 @@ export function graphLoader(unbounded: GraphSource) {
     },
     /** One parent's page of a relationship; every parent asked for with the same query shares one source call. */
     async relation(ask: RelationAsk, parentId: string) {
-      if (emptyRelation(ask)) return [];
-      return keyed(pages, JSON.stringify(ask), () => batch<RelationRow[]>(async parentIds => {
-        const rows = (await source.relationPage({ ...ask, parentIds })).map(row => ({ parentId: row.parentId, edge: publicRow(row.edge), node: publicRow(row.node) }));
-        prime(rows.map(row => row.node));
-        return groupBy(rows, row => row.parentId);
-      }, [])).load(parentId);
+      if (emptyRelation(ask)) return { ...noRows, count: 0 };
+      return keyed(pages, JSON.stringify(ask), () => batch<PageRows<RelationRow>>(async parentIds => {
+        const found = await source.relationPage({ ...ask, parentIds });
+        return new Map(found.map(({ parentId, ...page }) => {
+          const rows = page.rows.map(row => ({ parentId, edge: publicRow(row.edge), node: publicRow(row.node) }));
+          prime(rows.map(row => row.node));
+          return [parentId, { ...page, rows }];
+        }));
+      }, noRows)).load(parentId);
     },
     async relationCount(ask: RelationCountAsk, parentId: string) {
       if (emptyRelation(ask)) return 0;

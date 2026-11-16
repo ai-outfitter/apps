@@ -94,9 +94,9 @@ test("products' revisions page per product in one bounded relationship statement
       assert.equal(page.pageInfo.hasNextPage, true);
       assert.equal(page.totalCount, revisions);
     }
-    // A products page, one relationship page and one count, for three products as for eight.
+    // A products page and one relationship page that carries each product's count, for three products as for eight.
     assert.equal(all.statements.length, few.statements.length, JSON.stringify(all.statements.map(entry => entry.sql)));
-    assert.ok(all.statements.length <= 3, `${all.statements.length} statements`);
+    assert.equal(all.statements.length, 2, JSON.stringify(all.statements.map(entry => entry.sql)));
     // Every statement is bounded: a LIMIT or the parents' edges; none reads a whole type.
     for (const { sql, values } of all.statements) {
       assert.match(sql, /LIMIT|e\."(fromId|toId)" IN \(SELECT value FROM json_each/i, sql);
@@ -112,6 +112,12 @@ test("products' revisions page per product in one bounded relationship statement
     // The owner's document: one product's revisions, continued after the first page.
     const second = await read([productIds[4]], (all.pages.get(productIds[4]) as Page).pageInfo.endCursor);
     assert.deepEqual((second.pages.get(productIds[4]) as Page).nodes.map(node => node.title), ["Product 4 revision 2", "Product 4 revision 3"]);
+    // The count is of every revision, whatever the cursor, still from the page's statement.
+    assert.deepEqual([(second.pages.get(productIds[4]) as Page).totalCount, second.statements.length], [revisions, 2]);
+    // A page past the last revision returns no row to carry the count, so the count is read on its own.
+    const third = await read([productIds[4]], (second.pages.get(productIds[4]) as Page).pageInfo.endCursor);
+    const last = await read([productIds[4]], (third.pages.get(productIds[4]) as Page).pageInfo.endCursor);
+    assert.deepEqual([(last.pages.get(productIds[4]) as Page).nodes, (last.pages.get(productIds[4]) as Page).totalCount, last.statements.length], [[], revisions, 3]);
     const one = await executeGraphQuery({ types, source: databaseSource(db), maxBytes: 65536, variables: { productId: productIds[2] },
       query: `query($productId: ID) { gadget(id: $productId) { revisions(first: 10, orderBy: CREATED_AT_DESC) { nodes { id title } pageInfo { hasNextPage endCursor } } } }` });
     assert.equal(one.errors, undefined, JSON.stringify(one.errors));
@@ -181,9 +187,9 @@ test("products' revisions page per product in one bounded relationship statement
       assert.deepEqual([node.links.nodes.length, node.links.pageInfo.hasNextPage, node.links.totalCount], [3, true, revisions]);
       assert.ok(node.links.nodes.every(edge => (revisionIds[p] as string[]).includes(edge.toId)));
     }
-    // The products page, then a page and a count for each of the two connections: five statements for three products as for eight.
+    // The products page, then one counted page for each of the two connections: three statements for three products as for eight.
     assert.equal(allFiltered.statements.length, fewFiltered.statements.length, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
-    assert.equal(allFiltered.statements.length, 5, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
+    assert.equal(allFiltered.statements.length, 3, JSON.stringify(allFiltered.statements.map(entry => entry.sql)));
     for (const statement of allFiltered.statements) {
       // Bounded by a LIMIT or by the parents' edges; the filter is in the statement, and it binds far fewer than D1's 100 parameters.
       assert.match(statement.sql, /LIMIT|e\."(fromId|toId)" IN \(SELECT value FROM json_each/i, statement.sql);
@@ -264,7 +270,7 @@ test("products' revisions page per product in one bounded relationship statement
   }
 });
 
-test("a projection through a relator pages, filters and counts in one statement each, whatever the number of parents", async () => {
+test("a projection through a relator pages, filters and counts in one statement, whatever the number of parents", async () => {
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"));
   try {
     assert.equal((await app.call("/api/internal/app-initialize", owner, { method: "POST", body: {} })).status, 200);
@@ -317,9 +323,9 @@ test("a projection through a relator pages, filters and counts in one statement 
     assert.deepEqual([byTitle.get("Gadget 0")?.nodes, byTitle.get("Gadget 0")?.pageInfo.hasNextPage, byTitle.get("Gadget 0")?.totalCount], [[{ title: "Gadget 6" }, { title: "Gadget 5" }], true, 6]);
     // Gadget 3 is paired with 0, 2 and 4.
     assert.deepEqual([byTitle.get("Gadget 3")?.nodes, byTitle.get("Gadget 3")?.pageInfo.hasNextPage, byTitle.get("Gadget 3")?.totalCount], [[{ title: "Gadget 4" }, { title: "Gadget 2" }], true, 3]);
-    // The gadgets, one projection page and one count: three statements for three gadgets as for eight.
+    // The gadgets and one projection page that carries each gadget's count: two statements for three gadgets as for eight.
     assert.equal(all.statements.length, few.statements.length, JSON.stringify(all.statements.map(entry => entry.sql)));
-    assert.equal(all.statements.length, 3, JSON.stringify(all.statements.map(entry => entry.sql)));
+    assert.equal(all.statements.length, 2, JSON.stringify(all.statements.map(entry => entry.sql)));
     for (const statement of all.statements) {
       assert.ok(statement.values.length <= 40, `${statement.values.length} parameters`);
       const plan = (await app.database.prepare(`EXPLAIN QUERY PLAN ${statement.sql}`).bind(...statement.values).all<{ detail: string }>()).results.map(row => row.detail);

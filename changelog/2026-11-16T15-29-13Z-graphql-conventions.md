@@ -11,7 +11,11 @@ Filtering, sorting, paging and counting run in the database of the app that owns
 - A Wiki compiles a filter to SQL over its indexed fields (`id`, `slug`, `title`, `createdAt`,
   `updatedAt`). A filter holds at most 20 conditions and binds one parameter for each.
 - `Node.edges(types:, direction:)` and projection fields are connections, read as one statement per
-  page for all parents of a request.
+  page for all parents of a request. A relationship that selects `totalCount` is counted in that same
+  statement.
+- A `GraphSource` page (`nodePage`, `relationPage`) is `{ rows, hasNextPage, count? }`: at most `first`
+  rows, whether more follow, and the count when the page asked for it and the source read it with the
+  page. `relationPage` answers one page per parent.
 - App tables (`tableType`) take `orderBy` over the indexed columns the app declares and `filter` over
   its filter columns.
 - `graph.query` ordered pages carry the same `filter`, and `relation.through` for projections. `types`
@@ -24,7 +28,7 @@ Cursors have one format: the order's name with the record's order value and ID, 
 before this change (an encoded ID) is refused as invalid; start the page again.
 
 A request reads at most 20,000 relationship rows (`graphQueryLimits.relationRows`). Parents are read
-in runs of at most 20,000 / (`first` + 1), so no statement can return more rows than that, and a
+in runs of at most 20,000 / (`first` + 1), so no statement can read more rows than that, and a
 request that has read more is refused (`RELATION_TOO_LARGE` in GraphQL, a 400 in `graph.query`); ask
 for fewer parents, a smaller page or a narrower filter.
 

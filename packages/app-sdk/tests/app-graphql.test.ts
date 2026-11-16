@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@libsql/client";
-import { eq, sql } from "drizzle-orm";
+import { eq, type SQL, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { GraphQLObjectType, GraphQLSchema, GraphQLString, printSchema } from "graphql";
@@ -220,28 +220,37 @@ test("search matches a literal substring ignoring ASCII case: % and _ mean thems
   }
 });
 
+const notes = sqliteTable("notes", { id: text().primaryKey(), rank: integer(), title: text().notNull() });
+type Note = { id: string; rank: number | null; title: string };
+/** The notes' IDs in one order, read whole and read two a page, each page after the last row of the one before. */
+async function notePages(db: ReturnType<typeof drizzle>, column: typeof notes.rank | typeof notes.title | null, descending: boolean) {
+  const direction = sql.raw(descending ? "DESC" : "ASC");
+  const by = column ? sql`${column} ${direction}, ${notes.id} ${direction}` : sql`${notes.id} ${direction}`;
+  const all = await db.all<Note>(sql`SELECT id, rank, title FROM notes ORDER BY ${by}`);
+  const value = (row: Note) => (column === notes.rank ? row.rank : column === notes.title ? row.title : row.id);
+  const seen: string[] = [];
+  let key: { value: unknown; id: string } | null = null;
+  while (seen.length < all.length) {
+    const after: SQL = key ? rowsAfter(column, notes.id, descending, key, column === notes.rank) : sql`1`;
+    const page: Note[] = await db.all<Note>(sql`SELECT id, rank, title FROM notes WHERE ${after} ORDER BY ${by} LIMIT 2`);
+    assert.ok(page.length, "a page before the end holds rows");
+    seen.push(...page.map(row => row.id));
+    const last = page[page.length - 1];
+    key = { value: value(last), id: last.id };
+  }
+  return { seen, all: all.map(row => row.id) };
+}
+
 test("rowsAfter continues any order in SQLite's own NULL placement, with one index range for a column that holds no NULL", async () => {
   const client = createClient({ url: ":memory:" });
   await client.execute("CREATE TABLE notes (id TEXT PRIMARY KEY, rank INTEGER, title TEXT NOT NULL)");
   await client.execute("CREATE INDEX notes_rank ON notes (rank, id)");
   await client.execute("CREATE INDEX notes_title ON notes (title, id)");
-  const notes = sqliteTable("notes", { id: text().primaryKey(), rank: integer(), title: text().notNull() });
   const db = drizzle(client);
   await db.insert(notes).values(Array.from({ length: 12 }, (_, n) => ({ id: `n${String(n).padStart(2, "0")}`, rank: n % 4 === 0 ? null : n % 3, title: `T${n % 5}` })));
   for (const column of [notes.rank, notes.title, null]) for (const descending of [false, true]) {
-    const direction = sql.raw(descending ? "DESC" : "ASC");
-    const by = column ? sql`${column} ${direction}, ${notes.id} ${direction}` : sql`${notes.id} ${direction}`;
-    const all = await db.all<{ id: string; rank: number | null; title: string }>(sql`SELECT id, rank, title FROM notes ORDER BY ${by}`);
-    const seen: string[] = [];
-    for (let key: { value: unknown; id: string } | null = null; seen.length < all.length;) {
-      const after = key ? rowsAfter(column, notes.id, descending, key, column === notes.rank) : sql`1`;
-      const page = await db.all<{ id: string; rank: number | null; title: string }>(sql`SELECT id, rank, title FROM notes WHERE ${after} ORDER BY ${by} LIMIT 2`);
-      assert.ok(page.length, "a page before the end holds rows");
-      seen.push(...page.map(row => row.id));
-      const last = page[page.length - 1];
-      key = { value: column === notes.rank ? last.rank : column === notes.title ? last.title : last.id, id: last.id };
-    }
-    assert.deepEqual(seen, all.map(row => row.id), `${column?.name ?? "id"} ${descending ? "desc" : "asc"}`);
+    const { seen, all } = await notePages(db, column, descending);
+    assert.deepEqual(seen, all, `${column?.name ?? "id"} ${descending ? "desc" : "asc"}`);
   }
   const plan = await db.all<{ detail: string }>(sql`EXPLAIN QUERY PLAN SELECT id FROM notes WHERE ${rowsAfter(notes.title, notes.id, true, { value: "T2", id: "n07" }, false)} ORDER BY title DESC, id DESC LIMIT 2`);
   assert.match(plan.map(row => row.detail).join("\n"), /^SEARCH notes USING (COVERING )?INDEX notes_title \(\(title,id\)<\(\?,\?\)\)$/);
