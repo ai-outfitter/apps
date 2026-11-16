@@ -55,7 +55,7 @@ export const knowledgeGraphDefinitionSchema = z.object({
   rootTypes: z.array(reference).min(1).max(32).optional(),
   selection: selectionSchema.optional(),
   /** GraphQL document text (graphql-js print output). */
-  query: z.string().min(1).max(32768).optional(),
+  query: z.string().min(1).max(65536).optional(),
   /** sha256 hex of `query`. */
   hash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   /** JSON Schema of the query's variables. */
