@@ -7,9 +7,20 @@ import Layout from "../components/Layout.astro";
     <p>Download documented types, entities, relationships and Obsidian-compatible Markdown notes. IDs preserve identity independently of note names.</p>
     <button id="export-graph" type="button">Download graph and notes</button>
   </Section>
+  <Section id="steward-approval" title="After the steward reviews a batch">
+    <form id="steward-approval-form" class="choice-list">
+      <label><input type="radio" name="stewardApproval" value="approve" /> Approve what it found clean. Proposals it flags or asks about wait for a member.</label>
+      <label><input type="radio" name="stewardApproval" value="review" /> Only review. A member decides every proposal.</label>
+    </form>
+  </Section>
   <Section id="types" title="Type administration">
     <p>Default types support the project workflows. Additional definitions are optional.</p>
     <div id="type-administration"></div>
   </Section>
 </Layout>
 <script>import "../scripts/settings.ts";</script>
+<style is:global>
+  #steward-approval-form { display: grid; gap: 0.5rem; }
+  #steward-approval-form label { display: flex; flex-direction: row; gap: 0.5rem; align-items: baseline; }
+  #steward-approval-form input { width: auto; margin: 0; flex: none; }
+</style>

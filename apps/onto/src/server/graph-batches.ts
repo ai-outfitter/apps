@@ -21,6 +21,7 @@ import { guardedGraphBatch } from "./graph-batch";
 import { resolveIdentity } from "./identity";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
+import { readSettings } from "./settings";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -434,7 +435,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
       .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
     db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId, ...(reused ? {} : { review: null }) })
       .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
-    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now })]),
+    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() })]),
   ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
@@ -553,7 +554,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   if (batch.state === "awaiting_review") {
     const summary = { ...summarize(rows, new Map(graph.types.map(type => [type.id, type.name]))), text: batch.summary ? JSON.parse(batch.summary).text ?? null : null };
     statements.push(sql`UPDATE graph_batches SET summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
-    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now})`);
+    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now},${crypto.randomUUID()})`);
   } else statements.push(sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`);
   statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`);
   await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before amending");
@@ -634,6 +635,8 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
 
 /** Run the steward's approval for a finished review and save its decision on that review. */
 export async function approveAfterReview(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview) {
+  // An admin can keep every decision with members (Settings, "After the steward reviews").
+  if ((await readSettings(db)).stewardApproval !== "approve") return null;
   const decision = await stewardApprove(db, who, batchId, jobId, review);
   if (decision) await db.update(graphBatches).set({ review: { ...review, decision } as never })
     .where(and(eq(graphBatches.id, batchId), eq(graphBatches.reviewJobId, jobId)));
@@ -751,4 +754,12 @@ export async function recordHistory(db: Database, _who: AppIdentity, input: z.in
     /** Revisions before batches were installed have no history row. */
     complete: rows.length > 0 && rows[rows.length - 1].prior === null,
   };
+}
+
+/** The steward's review of a batch while it is queued or running: the reserved workflow run
+ * an agent can wait on, and the job's state. Null once the review has finished. */
+export async function pendingReview(db: Database, batchId: string) {
+  const [row] = await db.select({ id: ontoReviewJobs.id, state: ontoReviewJobs.state, runId: ontoReviewJobs.runId })
+    .from(graphBatches).innerJoin(ontoReviewJobs, eq(ontoReviewJobs.id, graphBatches.reviewJobId)).where(eq(graphBatches.id, batchId));
+  return row && (row.state === "pending" || row.state === "running") && row.runId ? { runId: row.runId, state: row.state } : null;
 }

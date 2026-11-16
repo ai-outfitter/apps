@@ -36,7 +36,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
       calls.push({ operation, input: body });
       try {
         if (operation === "workflow.start") return { ok: true, value: { id: body.id, workflow: body.workflow, created: true } };
-        if (operation === "inference.generate") return { ok: true, value: { output: answer(body) } };
+        if (operation === "inference.generate") return { ok: true, value: { output: await answer(body) } };
         if (operation === "workflow.collect") return { ok: true, value: { run: "complete", steps: { review: "complete" } } };
         return { ok: false, status: 400, message: `Unexpected ${operation}` };
       } catch (error) {
@@ -390,4 +390,61 @@ test("an error on the whole batch approves nothing", async (t) => {
   assert.equal(read.batch.review.decision.approved, 0);
   assert.deepEqual(read.batch.review.decision.held.map((item: Json) => item.reason), ["owner.unreachable on the whole batch", "owner.unreachable on the whole batch"]);
   assert.equal(read.counts.awaiting_review, 2);
+});
+
+test("submitting names the steward's review run to wait on, and that run is the one the review starts", async (t) => {
+  // The steward answers only once the receipt has been read.
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const f = await fixture(async () => { await gate; return { summary: "No findings.", findings: [] }; });
+  t.after(() => { release(); return f.app.dispose(); });
+  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$crop", 80, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+    { operation: edge("$crop-artera", 81, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+  ] }));
+  const submitted = await json(await f.graphql("mutation ($input: ChangeBatchChangesInput!) { changeBatchChanges(input: $input) { items { key status result } instructions { code actor required taskId message } } }",
+    { input: { items: [{ key: "submit-1", action: "submit", input: { batchId: batch.id } }] } }));
+  const { items, instructions } = submitted.data.changeBatchChanges;
+  const run = items[0].result.reviewRun;
+  assert.ok(["pending", "running"].includes(run.state));
+  assert.match(run.runId, /^[0-9a-f-]{36}$/);
+  const wait = instructions.find((item: Json) => item.code === "WAIT_FOR_STEWARD");
+  assert.equal(wait.taskId, run.runId);
+  assert.equal(wait.required, true);
+  assert.match(wait.message, /approves what it found clean/);
+  // The review starts exactly that run; once it finishes the batch no longer names one.
+  release();
+  const done = await f.decided(batch.id);
+  assert.equal(done.batch.review.runId, run.runId);
+  assert.equal(f.calls.find((call) => call.operation === "workflow.start")!.input.id, run.runId);
+  const read = await json(await f.action("graph.graphql", { query: "query ($id: ID!) { changeBatch(id: $id) { reviewRun instructions { code } } }", variables: { id: batch.id } }));
+  assert.equal(read.data.changeBatch.reviewRun, null);
+  assert.ok(!read.data.changeBatch.instructions.some((item: Json) => item.code === "WAIT_FOR_STEWARD"));
+});
+
+test("an admin can keep every decision with members: the steward then only reviews", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const settings = await json(await f.action("graph.graphql", { query: "query { settings { stewardApproval } }", variables: {} }));
+  assert.equal(settings.data.settings.stewardApproval, "approve");
+  // A member without admin access cannot change it.
+  const member = { userId: "member", organizationId: "org", role: "member" };
+  const refused = await f.app.call("/api/apps/onto/settings", member as typeof owner, { method: "POST", body: { stewardApproval: "review" } });
+  assert.equal(refused.status, 403);
+  const saved = await json(await f.graphql("mutation ($input: SaveSettingsInput!) { saveSettings(input: $input) { stewardApproval updatedBy } }", { input: { stewardApproval: "review" } }));
+  assert.deepEqual(saved.data.saveSettings, { stewardApproval: "review", updatedBy: "owner" });
+
+  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$crop", 90, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+    { operation: edge("$crop-artera", 91, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+  ] }));
+  await json(await f.action("batch.submit", { batchId: batch.id }));
+  const read = await f.reviewed(batch.id);
+  assert.equal(read.batch.review.state, "complete");
+  assert.equal(read.batch.review.decision, undefined);
+  assert.equal(read.counts.awaiting_review, 2);
+  const page = await json(await f.app.call("/api/apps/onto/settings", owner, {}));
+  assert.equal(page.stewardApproval, "review");
 });

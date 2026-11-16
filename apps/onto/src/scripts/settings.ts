@@ -1,6 +1,24 @@
 import { graphBundle } from "../lib/graph-export";
-import { loadGraph, notice } from "./data";
+import { call, demoMode, loadGraph, notice } from "./data";
 import { typeAdministration } from "./graph";
+
+/** The steward approval choice: saved as soon as an admin picks one. */
+async function stewardApproval(form: HTMLFormElement) {
+  const inputs = [...form.querySelectorAll<HTMLInputElement>("input[name=stewardApproval]")];
+  if (demoMode) { for (const input of inputs) { input.disabled = true; input.checked = input.value === "approve"; } return; }
+  try {
+    const { stewardApproval: mode } = await call<{ stewardApproval: string }>("settings");
+    for (const input of inputs) input.checked = input.value === mode;
+  } catch (error) { notice(String(error)); }
+  form.onchange = async () => {
+    const mode = inputs.find((input) => input.checked)?.value;
+    if (!mode) return;
+    for (const input of inputs) input.disabled = true;
+    try { await call("settings", { stewardApproval: mode }); notice("Saved."); }
+    catch (error) { notice(String(error)); }
+    finally { for (const input of inputs) input.disabled = false; }
+  };
+}
 
 function renderSettings() {
   const download = document.getElementById("export-graph") as HTMLButtonElement;
@@ -21,6 +39,8 @@ function renderSettings() {
       notice(String(e));
     }
   };
+  const approval = document.getElementById("steward-approval-form") as HTMLFormElement | null;
+  if (approval) stewardApproval(approval);
   const administration = document.getElementById("type-administration");
   if (administration)
     loadGraph()

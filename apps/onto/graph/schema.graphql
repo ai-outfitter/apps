@@ -26,6 +26,11 @@ type Query {
   share(slug: String!): Share
 
   """
+  This Onto's settings, such as whether the ontology steward approves what it found clean.
+  """
+  settings: OntoSettings!
+
+  """
   One change batch, with every operation and its state; null when there is none.
   """
   changeBatch(id: ID!): ChangeBatch
@@ -94,6 +99,11 @@ type ChangeBatch {
   Onto's built-in advice on the draft, with no model: records that need a type (type.generic-cluster, edge.generic-cluster, property.in-title), too many types (type.sprawl) and card quality (card.*, evidence.quote-too-long). Each finding names its refs; stage.proposals can be staged as they are and stage.move lists the refs to restage under them. Advisory: nothing is blocked.
   """
   advice: JSON!
+
+  """
+  While the ontology steward reviews a submitted batch: {runId, state}, the batch-review workflow run to wait on (WorkflowRuns at scope platform). Null once the review has finished; read review then.
+  """
+  reviewRun: JSON
   instructions: [ChangeInstruction!]!
   operations(
     """
@@ -273,6 +283,16 @@ type ShareEdge {
   address: String!
 }
 
+"""This Onto's settings; admins change them with SaveSettings."""
+type OntoSettings {
+  """
+  approve: after its review of a submitted batch the ontology steward approves every proposal it found clean; the rest waits for a member. review: the steward only reviews and members decide everything.
+  """
+  stewardApproval: String!
+  updatedAt: DateTime
+  updatedBy: String
+}
+
 input ReviseBatchInput {
   batchId: ID!
   proposals: [ReviseBatchInputProposalsItem!]
@@ -322,6 +342,15 @@ input MutateShareInput {
   expectedRevision: Float!
   patch: JSON!
   archived: Boolean
+}
+
+input SaveSettingsInput {
+  stewardApproval: SaveSettingsInputStewardApproval!
+}
+
+enum SaveSettingsInputStewardApproval {
+  approve
+  review
 }
 
 input ReviewBatchInput {
@@ -483,6 +512,11 @@ type Mutation {
   mutateShare(input: MutateShareInput!): Share!
 
   """
+  Admins only: change this Onto's settings. stewardApproval approve lets the ontology steward approve what its review of a submitted batch found clean; review leaves every decision to a member.
+  """
+  saveSettings(input: SaveSettingsInput!): OntoSettings!
+
+  """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
@@ -517,7 +551,7 @@ type Mutation {
   removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
 
   """
-  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background (review, empty until it finishes) and approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member.
+  Submit an open batch for review. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background: reviewRun and the WAIT_FOR_STEWARD instruction name the workflow run to wait on. Unless an admin set stewardApproval to review, it then approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member (review.decision says which and why).
   """
   submitBatch(input: SubmitBatchInput!): ChangeBatch!
 

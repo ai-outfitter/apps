@@ -354,7 +354,10 @@ test("plural change documents append durably, submit explicitly, and preserve th
   await send([append]);await send([append]);
   const submitted=await send([{key:uuid(904),action:"submit",input:{batchId:id}}]);
   assert.equal(submitted.items[0].result.counts.awaiting_review,2);
-  assert.equal(submitted.instructions[0].actor,"human");
+  // The steward reviews first: the receipt names its run; a member decides what it holds.
+  assert.equal(submitted.instructions[0].code,"WAIT_FOR_STEWARD");
+  assert.equal(submitted.instructions[0].actor,"system");
+  assert.ok(submitted.instructions[0].taskId);
   assert.equal(submitted.instructions[0].url, expectedReviewUrl);
   assert.equal(await f.exists(uuid(901)),false);
   const personalIdentity = { ...agent, owner: { kind: "user" as const, id: "personal-owner" } };

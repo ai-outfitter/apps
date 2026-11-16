@@ -203,6 +203,8 @@ export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
   nextAttemptAt: integer().notNull(),
   createdAt: integer().notNull(),
   error: text(),
+  /** The batch-review run reserved for this job's first attempt; a retry or a schedule saves its own. */
+  runId: text(),
 }, (t) => [index("onto_review_jobs_due").on(t.state, t.nextAttemptAt, t.leaseUntil)]);
 
 export const graphBatchOperations = sqliteTable(
@@ -272,4 +274,12 @@ export const graphShares = sqliteTable("graph_shares", {
   createdAt: integer().notNull(),
   updatedBy: text().notNull(),
   updatedAt: integer().notNull(),
+});
+
+/** Onto's own settings (server/settings.ts), one row per key. */
+export const ontoSettings = sqliteTable("onto_settings", {
+  key: text().primaryKey(),
+  value: text().notNull(),
+  updatedAt: integer().notNull(),
+  updatedBy: text().notNull(),
 });

@@ -47,7 +47,9 @@ for how batches fit the Wiki's writes.
 Members are not the only reviewers (decision 2026-11-15: "the onto agent should review and
 auto merge if it looks good"). When the review of a submitted batch finishes, the steward
 approves what it found clean, and the rest waits for a member on the Changes page. It
-applies to every batch policy and every Onto; there is no setting.
+applies to every batch policy. An admin can turn it off on the Settings page ("After the
+steward reviews a batch": approve what it found clean, the default, or only review), or
+with `SaveSettings {stewardApproval: "approve" | "review"}`; `OntoSettings` reads it.
 
 - **Clean** means no `error` or `warning` finding names the operation (by `ref` or
   `refs`), from the checks or the steward, and no question on the batch names it. A
@@ -67,6 +69,13 @@ applies to every batch policy and every Onto; there is no setting.
   or a member's decision in between wins. A subset that no longer applies commits
   nothing and waits for a member.
 - **Review again** on the Changes page runs the same approval after the new review.
+- **Waiting on it.** Each review job reserves its workflow run ID when it is queued. While
+  the review is queued or running, the batch's `reviewRun` is `{runId, state}` and its
+  receipt (`SubmitBatch`, `ChangeBatchChanges` submit) carries a required
+  `WAIT_FOR_STEWARD` instruction with that run as `taskId`. The agent waits on the run
+  (WorkflowRuns at scope platform) or reads the batch again; once the review finishes,
+  `reviewRun` is null and `review.decision` says what was approved and what waits. A retry
+  or a scheduled pickup starts a run of its own and saves its ID on the job.
 
 The steward never rejects. Member review (`requireMemberReview`) is unchanged: a member, or
 the member's own connection, still approves or rejects whatever the steward held.

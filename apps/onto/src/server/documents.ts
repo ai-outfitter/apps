@@ -22,15 +22,27 @@ const changeDocuments = defineDocuments({
   StageChanges: {...wikiChangeDocuments.StageChanges, document: `mutation StageChanges($input: StageChangesInput!) {
       stageChanges(input: $input) { id title state counts anchors validation advice instructions { code itemKey actor required message } }
     }`},
-  ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions\n")},
+  ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions review reviewRun instructions { code itemKey actor required message taskId url }\n")},
+  // Onto's receipt names the steward's review run to wait on.
+  SubmitBatch: {...wikiChangeDocuments.SubmitBatch, document: `mutation SubmitBatch($input: SubmitBatchInput!) {
+      submitBatch(input: $input) { id state reviewBy counts reviewRun instructions { code itemKey actor required message taskId url } operations { ref state } }
+    }`},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
       changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message } advice @include(if:$details) review @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,
+  },
+  OntoSettings: {
+    story: "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
+    document: `query OntoSettings { settings { stewardApproval updatedAt updatedBy } }`,
+  },
+  SaveSettings: {
+    story: "As an admin, I want to choose whether the ontology steward approves what it found clean or only reviews, so that members review every batch only when we want that.",
+    document: `mutation SaveSettings($input: SaveSettingsInput!) { saveSettings(input:$input) { stewardApproval updatedAt updatedBy } }`,
   },
   Explorations: {
     story:"As a member or agent, I want to list the saved explorations of this Wiki, so that I can open one instead of rebuilding a view.",

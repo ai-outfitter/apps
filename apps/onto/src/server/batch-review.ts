@@ -388,7 +388,10 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
         .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
       return null;
     }
-    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, reservedRunId);
+    // The first attempt starts the run named when the job was queued, so a submit receipt can name it.
+    const runId = reservedRunId ?? (job.attempts === 1 && job.runId ? job.runId : crypto.randomUUID());
+    if (runId !== job.runId) await db.update(ontoReviewJobs).set({ runId }).where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId)));
+    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId);
     const failed = review.state === "failed";
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
       nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
@@ -415,7 +418,7 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
   const contentDigest = await batchContentDigest(await loadOperations(db, batchId));
   await db.batch([
     db.update(graphBatches).set({ reviewJobId: id }).where(eq(graphBatches.id, batchId)),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() }),
   ]);
   const review = await processReviewJob(db, who, host, id);
   if (!review) throw new Response("Review could not be claimed", { status: 409 });
@@ -449,7 +452,7 @@ export async function queueDraftReview(db: Database, batchId: string) {
   const id = crypto.randomUUID(), now = Date.now();
   await db.batch([
     db.update(graphBatches).set({ reviewJobId: id, review: null }).where(and(eq(graphBatches.id, batchId), eq(graphBatches.state, "open"))),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now, runId: crypto.randomUUID() }),
   ]);
   return id;
 }
