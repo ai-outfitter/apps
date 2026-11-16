@@ -6,6 +6,7 @@ import { z } from "zod";
 import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEvidence, modelData, renderBrief } from "./daily-brief-synthesis";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
+import { readPlanningWork } from "./planning-work";
 import { localDate, shiftDate } from "./review-period";
 import { latestOpenSuggestions, roleSnapshot, saveRoleSnapshot } from "./suggestions";
 
@@ -73,9 +74,9 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const slugFor = async (date: string) => `forerunner-brief-${date}-${await stableGraphId(who.owner, who.installationId, zone)}`;
   const read = (slug: string) => readWikiPage(host, slug);
   const slug = await slugFor(input.date), previousSlug = await slugFor(shiftDate(input.date, -1));
-  const [current, prior, review, items, role, discovery] = await Promise.all([
+  const [current, prior, review, items, role, discovery, work] = await Promise.all([
     read(slug), read(previousSlug), readDayReview(db, who, host, { date: shiftDate(input.date, -1), timezone: zone }, now), listItems(db, who),
-    roleSnapshot(db, who), latestOpenSuggestions(db, who),
+    roleSnapshot(db, who), latestOpenSuggestions(db, who), readPlanningWork(host),
   ]);
   if (current?.archived) throw new Response("This daily brief is archived", { status: 409 });
   // Missing provider adapters keep every receipt incomplete; unknown is not zero.
@@ -87,7 +88,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
     return saved(current, "unchanged");
   }
   const previous = prior && !prior.archived ? { slug: previousSlug, revision: prior.revision } : null;
-  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), role, discovery, previous, now };
+  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, role, discovery, previous, now };
   const { evidence, gaps } = gatherEvidence(inputs);
   const digest = await evidenceDigest(inputs, evidence, gaps);
   if (current?.generatedBody.includes(digestMarker(digest))) return saved(current, "unchanged");

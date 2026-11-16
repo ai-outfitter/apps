@@ -95,7 +95,7 @@ async function savedOrder(host: Host) {
   }
 }
 type Membership = z.infer<typeof memberships>["viewer"]["orgs"][number];
-const currentMemberships = async (host: Host) => memberships.parse(await host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" })).viewer.orgs;
+export const currentMemberships = async (host: Host) => memberships.parse(await host.call("platform.document", { document: "Viewer", query: "query { viewer { orgs { slug name appSlugs } } }" })).viewer.orgs;
 /**
  * The saved personal overview already holds each organization's report as Planning captured it,
  * in the member's priority order, so the page shows that snapshot and reads no organization.
