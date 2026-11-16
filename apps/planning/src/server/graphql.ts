@@ -58,7 +58,7 @@ const issueFields = tableType(issues, {
   dates: ["createdAt", "updatedAt"],
   ids: ["projectId", "parentId"],
   filters: ["projectId", "status", "category"],
-  // planning_issues_project_order answers a project's category in position order.
+  // planning_issues_position gives the installation's issues in position order, whatever the filter.
   orders: ["position"],
   // Every Planning read keeps to the caller's installation.
   scope: context => eq(issues.installationId, context.identity.installationId),
