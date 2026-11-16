@@ -214,6 +214,9 @@ const nonNull = <T extends GraphQLScalarType | GraphQLObjectType>(type: T) => ne
 // A collection tableType cannot express (a join, a computed field) is written by hand
 // with these, so it takes the same arguments and pages and truncates the same way.
 export { idList, orderedPage, page, type PageArgs, pageStart };
+/** For a collection written by hand that takes a `filter` as a table's does: its input (filterInput over the schema's one
+ * operator input per kind, tableOperators) and its check (checkedFilter: BAD_USER_INPUT for a filter its fields do not serve). */
+export { checkedFilter, filterInput, tableOperators };
 /** `first`, `after` and `ids`, the arguments every collection takes. */
 export const pageArgs = (): GraphQLFieldConfigArgumentMap =>
   ({ first: { type: GraphQLInt, defaultValue: 100 }, after: { type: GraphQLString }, ids: { type: new GraphQLList(nonNull(GraphQLID)) } });

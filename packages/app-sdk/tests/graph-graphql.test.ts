@@ -3,7 +3,9 @@ import test from "node:test";
 import { getIntrospectionQuery, GraphQLObjectType, GraphQLString } from "graphql";
 import { keysetCursor, readKeyset } from "../src/graph-order";
 import { graphQueryLimits } from "../src/graph-query";
-import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, type TypeRow } from "../src/graph-graphql";
+import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, relationBudgeted, type TypeRow, withRelationBudget } from "../src/graph-graphql";
+import { knowledgeGraphSelectInput } from "../src/graph-selection";
+import { graphQueryMaxLength, knowledgeGraphDefinitionSchema } from "../src/knowledge-graph";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (n: number, name: string, category: "node" | "edge", extra: Record<string, unknown> = {}) =>
@@ -448,6 +450,15 @@ test("input bounds", () => {
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", maxBytes: 1_000_000 }));
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", extra: 1 }));
   assert.throws(() => graphGraphqlInput.parse({ query: "{x}", variables: { big: "v".repeat(40_000) } }));
+  // One length for a document's text, wherever it is carried: a request, a selection's query, a stored KnowledgeGraph.
+  assert.equal(graphQueryMaxLength, 65_536);
+  const longest = "{x}".padEnd(graphQueryMaxLength, " #"), over = `${longest}#`;
+  assert.equal(graphGraphqlInput.parse({ query: longest }).query.length, graphQueryMaxLength);
+  assert.throws(() => graphGraphqlInput.parse({ query: over }));
+  assert.equal(knowledgeGraphSelectInput.safeParse({ rootIds: [uuid(104)], query: longest }).success, true);
+  assert.equal(knowledgeGraphSelectInput.safeParse({ rootIds: [uuid(104)], query: over }).success, false);
+  assert.equal(knowledgeGraphDefinitionSchema.safeParse({ name: "Wide", purpose: "A long saved query.", query: longest }).success, true);
+  assert.equal(knowledgeGraphDefinitionSchema.safeParse({ name: "Wide", purpose: "A long saved query.", query: over }).success, false);
 });
 
 test("naming warnings come with schema reads and with the renamed names a query uses, never with a plain data query", async () => {
@@ -638,6 +649,50 @@ test("relationship rows have one budget a request: reads are bounded runs of par
   assert.equal(over.errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
   assert.match(String(over.errors?.[0]?.message), /read more than 20000 relationship rows \(the relationRows limit\)/);
   assert.deepEqual(reads.map(read => read.parents), [198, 2]);
+});
+
+test("a source that budgets its own relationship rows is given no second budget", async () => {
+  // 200 squads, each led by the same 101 people: 20,200 rows a page of 100, over one budget.
+  const squads = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
+  const people = Array.from({ length: 101 }, (_, n) => node(2000 + n, 1, `Lead ${n}`));
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })], nodes: [...squads, ...people],
+    edges: squads.flatMap((_, s) => people.map((_, p) => edge(10_000 + s * 101 + p, 30, 1000 + s, 2000 + p))) };
+  const query = "{ teams(first: 200) { nodes { leads(first: 100) { pageInfo { hasNextPage } } } } }";
+  const read = (source: GraphSource) => executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144, query });
+  assert.equal((await read(memorySource(leads))).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+  // A source over several databases that budgets each of them says so, and the loader reads it as it is.
+  const composed = relationBudgeted({ ...memorySource(leads) });
+  assert.equal(withRelationBudget(composed), composed);
+  assert.equal((await read(composed)).errors, undefined);
+  // A budgeted source keeps its one budget however often it is wrapped.
+  const once = withRelationBudget(memorySource(leads));
+  assert.equal(withRelationBudget(once), once);
+  assert.equal((await read(once)).errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+});
+
+test("a parent a counted page leaves out has no rows: its count is 0 with no count read, unless the page started after a cursor", async () => {
+  const calls: string[] = [];
+  const memory = memorySource(snapshot);
+  // A database source: a parent with no row after the cursor is not in the answer, and each page carries its count.
+  const source: GraphSource = {
+    ...memory,
+    relationPage: async query => { calls.push("relationPage"); return (await memory.relationPage(query)).filter(page => page.rows.length); },
+    relationCount: query => { calls.push("relationCount"); return memory.relationCount(query); },
+  };
+  type Owned = { nodes: { title: string; commitmentOwnerIncoming: { totalCount: number; nodes: unknown[]; pageInfo: { endCursor: string | null } } }[] };
+  const query = "query($after: String) { persons { nodes { title commitmentOwnerIncoming(first: 1, after: $after) { totalCount nodes { id } pageInfo { endCursor } } } } }";
+  const first = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query });
+  assert.equal(first.errors, undefined, JSON.stringify(first.errors));
+  const owners = (first.data as { persons: Owned }).persons.nodes;
+  assert.deepEqual(owners.map(person => [person.title, person.commitmentOwnerIncoming.totalCount]), [["Ada", 1], ["Grace", 0], ["Retired", 0]]);
+  assert.deepEqual(calls, ["relationPage"]);
+  // After Ada's only commitment no parent has a row, so nothing carries a count and each is read.
+  calls.length = 0;
+  const after = owners[0].commitmentOwnerIncoming.pageInfo.endCursor;
+  const second = await executeGraphQuery({ types: types as TypeRow[], source, maxBytes: 65536, query, variables: { after } });
+  assert.equal(second.errors, undefined, JSON.stringify(second.errors));
+  assert.deepEqual((second.data as { persons: Owned }).persons.nodes.map(person => [person.title, person.commitmentOwnerIncoming.totalCount, person.commitmentOwnerIncoming.nodes]), [["Ada", 1, []], ["Grace", 0, []], ["Retired", 0, []]]);
+  assert.deepEqual(calls, ["relationPage", "relationCount"]);
 });
 
 test("a cursor is base64url of UTF-8 JSON: a 160-character CJK title stays within the cursor limit", async () => {

@@ -12,7 +12,7 @@ Filtering, sorting, paging and counting run in the database of the app that owns
   `updatedAt`). A filter holds at most 20 conditions and binds one parameter for each.
 - `Node.edges(types:, direction:)` and projection fields are connections, read as one statement per
   page for all parents of a request. A relationship that selects `totalCount` is counted in that same
-  statement.
+  statement; a parent with no rows is answered 0 from it too.
 - A `GraphSource` page (`nodePage`, `relationPage`) is `{ rows, hasNextPage, count? }`: at most `first`
   rows, whether more follow, and the count when the page asked for it and the source read it with the
   page. `relationPage` answers one page per parent.
@@ -30,7 +30,18 @@ before this change (an encoded ID) is refused as invalid; start the page again.
 A request reads at most 20,000 relationship rows (`graphQueryLimits.relationRows`). Parents are read
 in runs of at most 20,000 / (`first` + 1), so no statement can read more rows than that, and a
 request that has read more is refused (`RELATION_TOO_LARGE` in GraphQL, a 400 in `graph.query`); ask
-for fewer parents, a smaller page or a narrower filter.
+for fewer parents, a smaller page or a narrower filter. The budget belongs to one database: a source
+composed over several marks itself `relationBudgeted` and budgets each of them.
+
+A GraphQL document may be 65,536 characters wherever it is carried (`graph.graphql`, `graph.mutate`,
+`knowledge-graph.select`, a stored KnowledgeGraph), up from 32,768 for requests; the bound is exported
+as `graphQueryMaxLength`. Variables stay at 32 KiB (256 KiB for `graph.mutate`).
+
+An archive export's cursor uses the same encoding as every other cursor; one made before this change
+is refused as invalid.
+
+`@ai-outfitter/app-sdk/app-graphql` exports `filterInput`, `tableOperators` and `checkedFilter`, so a
+collection written by hand takes the same `filter` as a table.
 
 `search` on app tables matches a literal substring ignoring ASCII case, so `%` and `_` mean
 themselves. Wiki nodes offer `title`, `createdAt` and `updatedAt` as entity list orders.

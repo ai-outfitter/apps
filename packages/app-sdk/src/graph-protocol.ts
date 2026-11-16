@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { graphQueryMaxLength } from "./knowledge-graph";
 
 /** Provider-neutral GraphQL wire contract; no ontology, client or persistence dependency. */
 export const graphGraphqlAction = "graph.graphql";
 export const graphGraphqlInput = z.strictObject({
-  query: z.string().min(1).max(32768),
+  query: z.string().min(1).max(graphQueryMaxLength),
   variables: z
     .record(z.string(), z.json())
     .optional()

@@ -10,6 +10,9 @@ export function isRetired(record: { body?: unknown; properties?: unknown }) {
   catch { return false; }
 }
 
+/** The longest GraphQL document text a request, a selection or a stored KnowledgeGraph carries, in characters. */
+export const graphQueryMaxLength = 65_536;
+
 const reference = z.string().trim().min(1).max(120);
 const relationship = z
   .object({
@@ -55,7 +58,7 @@ export const knowledgeGraphDefinitionSchema = z.object({
   rootTypes: z.array(reference).min(1).max(32).optional(),
   selection: selectionSchema.optional(),
   /** GraphQL document text (graphql-js print output). */
-  query: z.string().min(1).max(65536).optional(),
+  query: z.string().min(1).max(graphQueryMaxLength).optional(),
   /** sha256 hex of `query`. */
   hash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   /** JSON Schema of the query's variables. */
