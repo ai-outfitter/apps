@@ -36,8 +36,8 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
     await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$root.id).run();
-    const entitySearch = async (type: string, search: string, filter = {}) => {
-      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, ...(Object.keys(filter).length ? { filter } : {}), ...(search.trim() ? { search } : {}), limit: 100 } });
+    const entitySearch = async (type: string, search: string, filter = {}, known: { ids?: string[] } = {}) => {
+      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, ...known, ...(Object.keys(filter).length ? { filter } : {}), ...(search.trim() ? { search } : {}), limit: 100 } });
       assert.equal(response.status, 200, await response.clone().text());
       return (await response.json() as { records: { ref: { id: string } }[] }).records;
     };
@@ -94,12 +94,12 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.equal(archived.status, 200, await archived.clone().text());
     const archivedRecord = await archived.json() as { revision: number; attributes: { archived: boolean } };
     assert.equal(archivedRecord.attributes.archived, true);
-    assert.deepEqual(await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: false }), []);
-    assert.equal((await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: true })).length, 1);
+    assert.deepEqual(await entitySearch("graph-node", "", { archived: false }, { ids: [ids.$other.id] }), []);
+    assert.equal((await entitySearch("graph-node", "", { archived: true }, { ids: [ids.$other.id] })).length, 1);
     assert.equal((await app.call("/api/internal/entities/v1/update", owner, { method: "POST", body: archiveInput })).status, 409);
     const restored = await app.call("/api/internal/entities/v1/update", owner, { method: "POST", body: { ...archiveInput, revision: archivedRecord.revision, attributes: { archived: false } } });
     assert.equal(restored.status, 200, await restored.clone().text());
-    assert.equal((await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: false })).length, 1);
+    assert.equal((await entitySearch("graph-node", "", { archived: false }, { ids: [ids.$other.id] })).length, 1);
     for (let i = 0; i < 30; i++) await app.database.prepare(
       "INSERT INTO graph_nodes(id,typeId,slug,title,body,createdAt,updatedAt) VALUES(?,?,?,?,?,1,1)",
     ).bind(crypto.randomUUID(), ids.$type.id, `large-${i}`, `Large ${i}`, "x".repeat(300000)).run();

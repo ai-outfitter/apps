@@ -44,7 +44,6 @@ import { recordAddress } from "../lib/addresses";
 const textFilter = z.string().min(1).max(200);
 const identifiers = z.array(textFilter).min(1).max(100);
 const commonFilter = {
-  ids: identifiers.optional(),
   titleContains: textFilter.optional(),
   archived: z.boolean().optional(),
 };
@@ -135,7 +134,8 @@ export function graphEntities(
   >({
     type: "graph-type",
     collection: "types",
-    orderFields: ["id", "title", "name"],
+    // Each advertised order has an index behind it: the primary key and the unique name.
+    orderFields: ["id", "name"],
     selectFields: ["id", ...Object.keys(typeInput.shape)],
     searchFields: ["name", "title", "body"],
     title: "Wiki type definition",
@@ -148,7 +148,7 @@ export function graphEntities(
     name: (row) => row.name || row.title,
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphTypes.id, order: { title: graphTypes.title, name: graphTypes.name }, search: [graphTypes.name, graphTypes.title, graphTypes.body] });
+      const page = pageCondition(query, { id: graphTypes.id, order: { name: graphTypes.name }, search: [graphTypes.name, graphTypes.title, graphTypes.body] });
       return (
         await db
           .select()
@@ -157,7 +157,6 @@ export function graphEntities(
             and(
               page.where,
               titleCondition(graphTypes.title, f.titleContains),
-              among(graphTypes.id, f.ids),
               equals(graphTypes.archived, f.archived),
               equals(graphTypes.name, f.name),
               among(graphTypes.name, f.names),
@@ -181,7 +180,8 @@ export function graphEntities(
   const nodes = defineEntity<GraphNode, typeof nodeInput, typeof nodeFilter>({
     type: "graph-node",
     collection: "nodes",
-    orderFields: ["id", "title", "createdAt", "updatedAt"],
+    // Title order serves Planning's discovery page, which reads one type (the typeId, title, id index).
+    orderFields: ["id", "title"],
     selectFields: ["id", ...Object.keys(nodeInput.shape)],
     searchFields: ["title", "slug", "summary", "body"],
     title: "Wiki graph node",
@@ -194,7 +194,7 @@ export function graphEntities(
     references: (row) => (row.source ? [row.source] : []),
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title, createdAt: graphNodes.createdAt, updatedAt: graphNodes.updatedAt }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
+      const page = pageCondition(query, { id: graphNodes.id, order: { title: graphNodes.title }, search: [graphNodes.title, graphNodes.slug, graphNodes.summary, graphNodes.body] });
       return addressed(db, (
         await db
           .select()
@@ -203,7 +203,6 @@ export function graphEntities(
             and(
               page.where,
               titleCondition(graphNodes.title, f.titleContains),
-              among(graphNodes.id, f.ids),
               equals(graphNodes.archived, f.archived),
               equals(graphNodes.typeId, f.typeId),
               among(graphNodes.typeId, f.typeIds),
@@ -225,7 +224,7 @@ export function graphEntities(
   const edges = defineEntity<GraphEdge, typeof edgeInput, typeof edgeFilter>({
     type: "graph-edge",
     collection: "edges",
-    orderFields: ["id", "title", "createdAt", "updatedAt"],
+    orderFields: ["id"],
     selectFields: ["id", ...Object.keys(edgeInput.shape)],
     searchFields: ["title", "body"],
     title: "Wiki directed relationship",
@@ -238,7 +237,7 @@ export function graphEntities(
     name: (row) => row.title || (row as Named).address || row.id,
     list: async (_who, query) => {
       const f = query.filter ?? {};
-      const page = pageCondition(query, { id: graphEdges.id, order: { title: graphEdges.title, createdAt: graphEdges.createdAt, updatedAt: graphEdges.updatedAt }, search: [graphEdges.title, graphEdges.body] });
+      const page = pageCondition(query, { id: graphEdges.id, search: [graphEdges.title, graphEdges.body] });
       return named(db, (
         await db
           .select()
@@ -247,7 +246,6 @@ export function graphEntities(
             and(
               page.where,
               titleCondition(graphEdges.title, f.titleContains),
-              among(graphEdges.id, f.ids),
               equals(graphEdges.archived, f.archived),
               equals(graphEdges.typeId, f.typeId),
               among(graphEdges.typeId, f.typeIds),

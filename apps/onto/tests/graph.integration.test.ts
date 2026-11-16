@@ -581,13 +581,15 @@ test("agents find exact types, nodes and incident edges without listing the wiki
       await list("graph-type", { name: "Product", category: "edge" }),
       [],
     );
-    assert.deepEqual(ids(await list("graph-node", { ids: [first.ref.id, archived.ref.id], archived: false })), [first.ref.id]);
+    assert.deepEqual(ids(await list("graph-node", { archived: false }, { ids: [first.ref.id, archived.ref.id] })), [first.ref.id]);
     assert.deepEqual(new Set(ids(await list("graph-edge", { nodeIds: [first.ref.id], typeIds: [core.uses] }))), new Set([edge.ref.id, reverse.ref.id]));
     assert.deepEqual(new Set(ids(await list("graph-edge", { nodeIds: [first.ref.id], typeIds: [core.uses], fromTypeIds: [core.software] }))), new Set([edge.ref.id, reverse.ref.id]));
     assert.deepEqual(await list("graph-edge", { nodeIds: [first.ref.id], fromTypeIds: [core.organization] }), []);
     assert.equal((await list("graph-type", { names: ["Product"], category: "node" })).length, 1);
+    // Known IDs are the top-level `ids`; the filter no longer takes them.
+    assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { ids: [first.ref.id] } } })).status, 400);
     for (const invalid of [[], Array(101).fill(first.ref.id)]) {
-      assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { ids: invalid } } })).status, 400);
+      assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", ids: invalid } })).status, 400);
     }
     const selected = await json(await app.call(path + "list", member, { method: "POST", body: {
       type: "graph-node", filter: { titleContains: "Keystone", archived: false },
