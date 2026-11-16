@@ -78,11 +78,21 @@ jobs:
           SELECTED_APPS: ${{ steps.plan.outputs.apps }}
           CATALOG_APPS: ${{ inputs.catalog-apps }}
           APP_SET: ${{ inputs.app-set }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || steps.baseline.outputs.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        # Only apps with files changed in their own directory are validated.
+        # Shared package, lockfile and CI changes no longer fan out to every
+        # app; apps pick them up and get extended tests at their next release.
         run: |
           node --input-type=module <<'NODE'
           import { appendFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
-          const affected = JSON.parse(process.env.SELECTED_APPS);
+          const {BASE_SHA: base, HEAD_SHA: head} = process.env;
+          const git = (...args) => execFileSync('git', args, {encoding: 'utf8'});
+          let paths = null;
+          try {if (base) paths = git('diff', '--no-renames', '--name-only', '-z', git('merge-base', base, head).trim(), head, '--').split('\0').filter(Boolean);} catch {}
+          const affected = JSON.parse(process.env.SELECTED_APPS).filter(app => !paths || paths.some(path => path.startsWith(`${app}/`)));
           const cohort = process.env.APP_SET;
           assert.ok(['all','catalog','source'].includes(cohort), 'Unknown validation cohort');
           const registered = JSON.parse(process.env.CATALOG_APPS);

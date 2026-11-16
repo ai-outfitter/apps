@@ -173,8 +173,13 @@ build artifact without checking out caller source or executing app build scripts
 It verifies `/api/health` against the exact repository, source SHA and app before
 posting the link on the PR. Closing the PR deletes only Workers in that PR's
 preview namespace. Reopening rebuilds them. Deployment environments also link to
-the verified URLs. A change only to shared packages or the lockfile still
-validates every dependent app in `check.yml` but publishes no previews.
+the verified URLs. A change only to shared packages, the lockfile or CI publishes
+no previews.
+
+`check.yml` likewise validates only apps with files changed in their own
+directory. Shared package, lockfile and CI changes no longer fan out to every
+app; the SDK job covers packages, and apps pick up shared changes, with their
+extended tests, at their next release.
 
 The normal `package` adapter uses a caller-owned npm lockfile and each app's
 `preview:build` script. That script produces `dist/preview.json` (override with
