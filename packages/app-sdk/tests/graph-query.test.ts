@@ -316,3 +316,16 @@ test("a page that can match nothing asks no source, and type lists take as many 
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: [...many, "More"] }] }));
   assert.throws(() => graphQueryInput.parse({ queries: [{ name: "r", relation: { parentIds: [uuid(103)], edgeTypes: ["a"], targetTypes: [...many, "More"] } }] }));
 });
+
+test("a relation page is refused past relationRows: parents × (limit + 1)", async () => {
+  const parents = Array.from({ length: 200 }, (_, n) => uuid(5000 + n));
+  const relation = { edgeTypes: ["assigns_role"], direction: "outgoing" as const, targetTypes: ["Role"] };
+  const ask = (parentIds: string[], limit: number, extra: Record<string, unknown> = {}) => queryGraph(snapshot, { queries: [{ name: "held", relation: { ...relation, parentIds }, limit, ...extra }] });
+  assert.equal((await ask(parents.slice(0, 198), 100)).queries.held.parents?.length, 198);
+  assert.equal((await ask(parents, 99)).queries.held.parents?.length, 200);
+  const refused = await ask(parents, 100).then(() => null, (error: Response) => error);
+  assert.equal(refused?.status, 400);
+  assert.match(await (refused as Response).text(), /^Query held: This relationship would read up to 20200 rows \(200 parents, 101 each\); one read takes at most 20000 \(relationRows\)/);
+  // Counting reads no rows, so it is not refused.
+  assert.equal((await ask(parents, 0, { count: true })).queries.held.total, 0);
+});

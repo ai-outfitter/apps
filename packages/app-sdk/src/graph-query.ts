@@ -8,7 +8,7 @@ import { z } from "zod";
 import { canonicalActionValue } from "./actions";
 import { graphSelectionDefinition, type GraphSelectionDefinition, selectGraph, type SelectableGraph } from "./graph-selection";
 import {
-  emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, sourceKey,
+  emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, keyOf, matchesSourceAndProperties, memorySource, type NodeFilter, type RelationFilter, type RelationRow, relationRowsRefusal, sourceKey,
 } from "./graph-graphql-source";
 import { checkFilter, edgeFilterFields, maxFilterConditions, nodeFilterFields, type RecordFilter, recordFilterInput } from "./graph-filter";
 import { keysetCursor, type OrderName, orderNames, orders, readKeyset } from "./graph-order";
@@ -33,6 +33,8 @@ export const graphQueryLimits = {
   ids: 200, slugs: 200, sources: 100, properties: 8, touchingNodeIds: 200,
   /** Nodes each relation page starts from. */
   parentIds: 500,
+  /** Rows one relation read may ask its source for: parents × (page size + 1), whether graph.query or a GraphQL relationship asks. */
+  relationRows: 20_000,
   /** Characters in `text`. */
   text: 256,
   /** Attributes a `fields` list picks. */
@@ -552,6 +554,8 @@ async function parentPage(read: ParentRead, parentId: string, found: RelationRow
 async function relationPages(source: GraphSource, query: GraphQuery, filter: RelationFilter, missingTypes: Set<string>): Promise<Admit> {
   const orderBy = query.orderBy ?? "ID_ASC", order = orders[orderBy], after = pageAfter(query, orderBy);
   const none = emptyRelation(filter);
+  const refusal = none || countOnly(query) ? null : relationRowsRefusal(filter.parentIds.length, query.limit);
+  if (refusal) throw new Response(`Query ${query.name}: ${refusal}`, { status: 400 });
   const [counted, rows] = await Promise.all([
     query.count ? (none ? new Map<string, number>() : source.relationCount(filter)) : null,
     none || countOnly(query) ? [] : source.relationPage({ ...filter, orderBy, first: query.limit, after }),

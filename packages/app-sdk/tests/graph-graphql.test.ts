@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getIntrospectionQuery, GraphQLObjectType, GraphQLString } from "graphql";
+import { keysetCursor, readKeyset } from "../src/graph-order";
+import { graphQueryLimits } from "../src/graph-query";
 import { executeGraphQuery, type GraphContext, type GraphRow, type GraphSource, graphGraphqlInput, graphGraphqlResult, graphqlNames, type KeyArgs, memorySource, type TypeRow } from "../src/graph-graphql";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -580,4 +582,53 @@ test("edge wrappers and filters are named last: they never rename a type, an ord
   const kept = new Set(names(sdl));
   assert.deepEqual(names(before).filter(name => !kept.has(name) && !["NodeFilter", "StringFilter"].includes(name)), []);
   assert.deepEqual((result.data as { persons: unknown }).persons, { edges: [{ node: { title: "Ada" } }] });
+});
+
+test("a relationship read is refused past relationRows (parents × (first + 1)) before any source reads it", async () => {
+  const teams = Array.from({ length: 200 }, (_, n) => node(1000 + n, 2, `Squad ${String(n).padStart(3, "0")}`));
+  const leads = { ...snapshot, types: [...types, type(30, "leads", "edge", { ontology: ends([2], [1]) })],
+    nodes: [...teams, node(1, 1, "Ada")], edges: teams.map((_, n) => edge(1000 + n, 30, 1000 + n, 1)) };
+  const reads: number[] = [];
+  const memory = memorySource(leads);
+  const source: GraphSource = { ...memory, relationPage: query => { reads.push(query.parentIds.length * (query.first + 1)); return memory.relationPage(query); } };
+  const ask = (teamsFirst: number, first: number) => executeGraphQuery({ types: leads.types as TypeRow[], source, maxBytes: 262144,
+    query: `{ teams(first: ${teamsFirst}, filter: { title: { startsWith: "Squad" } }) { nodes { leads(first: ${first}) { nodes { id } } } } }` });
+  assert.equal(graphQueryLimits.relationRows, 20_000);
+  // 198 parents × 101 rows = 19,998, and 200 × 100 = 20,000: within the limit.
+  for (const [parents, first] of [[198, 100], [200, 99]]) {
+    const under = await ask(parents, first);
+    assert.equal(under.errors, undefined, JSON.stringify(under.errors?.[0]));
+    assert.equal((under.data as { teams: { nodes: { leads: { nodes: unknown[] } }[] } }).teams.nodes.filter(team => team.leads.nodes.length === 1).length, parents);
+  }
+  assert.deepEqual(reads, [19_998, 20_000]);
+  // 200 × 101 = 20,200: refused, naming the limit, and nothing is read.
+  const over = await ask(200, 100);
+  assert.equal(over.errors?.[0]?.extensions?.code, "RELATION_TOO_LARGE");
+  assert.match(String(over.errors?.[0]?.message), /20200 rows \(200 parents, 101 each\); one read takes at most 20000 \(relationRows\)/);
+  assert.equal(reads.length, 2);
+});
+
+test("a cursor is base64url of UTF-8 JSON: a 160-character CJK title stays within the cursor limit", async () => {
+  const title = "漢".repeat(160);
+  const cursor = keysetCursor("TITLE_ASC", { value: title, id: uuid(1) });
+  assert.ok(cursor.length <= graphQueryLimits.cursor && cursor.length < 800, String(cursor.length));
+  assert.match(cursor, /^[A-Za-z0-9_-]+$/);
+  assert.deepEqual(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")), ["TITLE_ASC", title, uuid(1)]);
+  assert.deepEqual(readKeyset("TITLE_ASC", cursor, message => new Error(message)), { value: title, id: uuid(1) });
+  for (const bad of ["%%%", Buffer.from([0xff, 0xfe]).toString("base64url"), Buffer.from("[1]").toString("base64url")])
+    assert.throws(() => readKeyset("TITLE_ASC", bad, message => new Error(message)), /Invalid cursor/);
+  // Paging people by title continues after a CJK title.
+  const people = { ...snapshot, nodes: ["一", "二", "三"].map((lead, n) => node(300 + n, 1, lead + "漢".repeat(159))) };
+  const seen: string[] = [];
+  for (let after: string | null = null, pages = 0; pages < 4; pages++) {
+    const result = await executeGraphQuery({ types: types as TypeRow[], source: memorySource(people), maxBytes: 65536, variables: { after },
+      query: `query($after: String) { persons(first: 1, orderBy: TITLE_ASC, after: $after) { nodes { id } pageInfo { hasNextPage endCursor } } }` });
+    assert.equal(result.errors, undefined, JSON.stringify(result.errors));
+    const page = (result.data as { persons: { nodes: { id: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }).persons;
+    seen.push(...page.nodes.map(row => row.id));
+    assert.ok(page.pageInfo.endCursor.length <= graphQueryLimits.cursor);
+    if (!page.pageInfo.hasNextPage) break;
+    after = page.pageInfo.endCursor;
+  }
+  assert.deepEqual(seen, [uuid(400), uuid(402), uuid(401)]);
 });

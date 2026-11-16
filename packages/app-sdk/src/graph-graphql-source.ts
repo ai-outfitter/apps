@@ -6,7 +6,7 @@
 import { edgeFilterFields, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";
 import type { TypeRow } from "./graph-graphql-names";
 import { type OrderName, orders } from "./graph-order";
-import { textMatch } from "./graph-query";
+import { graphQueryLimits, textMatch } from "./graph-query";
 import { isRetired } from "./knowledge-graph";
 import type { WikiGraphSnapshot } from "./graph-contracts/index";
 
@@ -69,6 +69,13 @@ export const emptyCollection = (filter: NodeFilter) => filter.typeIds?.length ==
 /** A relationship that can reach nothing, so no source is asked for it. */
 export const emptyRelation = (filter: Omit<RelationFilter, "parentIds"> & { parentIds?: string[] }) => !filter.edgeTypeIds.length || !filter.targetTypeIds.length
   || filter.parentIds?.length === 0 || (!!filter.through && (!filter.through.edgeTypeIds.length || !filter.through.nodeTypeIds.length));
+/** Why a relation page is refused before any source reads it, or null: every parent may return `first + 1` whole rows
+ * in one read, so parents × (first + 1) stays within `graphQueryLimits.relationRows`. */
+export function relationRowsRefusal(parents: number, first: number) {
+  const rows = parents * (first + 1), limit = graphQueryLimits.relationRows;
+  return rows <= limit ? null
+    : `This relationship would read up to ${rows} rows (${parents} parents, ${first + 1} each); one read takes at most ${limit} (relationRows). Ask for fewer parents or a smaller page`;
+}
 export interface GraphSource {
   /** The type rows to build the schema from. executeGraphQuery takes them as `types`
    * instead, so a caller can read them once and cache the schema. */
@@ -282,6 +289,9 @@ export function graphLoader(source: GraphSource) {
     async relation(ask: RelationAsk, parentId: string) {
       if (emptyRelation(ask)) return [];
       return keyed(pages, JSON.stringify(ask), () => batch<RelationRow[]>(async parentIds => {
+        const refusal = relationRowsRefusal(parentIds.length, ask.first);
+        // graphql-js carries a thrown error's `extensions` into the response.
+        if (refusal) throw Object.assign(new Error(refusal), { extensions: { code: "RELATION_TOO_LARGE" } });
         const rows = (await source.relationPage({ ...ask, parentIds })).map(row => ({ parentId: row.parentId, edge: publicRow(row.edge), node: publicRow(row.node) }));
         prime(rows.map(row => row.node));
         return groupBy(rows, row => row.parentId);

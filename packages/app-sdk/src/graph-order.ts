@@ -13,11 +13,16 @@ export const orders = {
 export type OrderName = keyof typeof orders;
 export const orderNames = Object.keys(orders) as [OrderName, ...OrderName[]];
 
-/** URL-safe base64 of any text. */
-export const cursorOf = (text: string) => btoa(encodeURIComponent(text)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+/** A cursor: URL-safe base64, unpadded, of the text's UTF-8 bytes. */
+export function cursorOf(text: string) {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
 /** The text of a cursor, or null when it is not one. */
 export function cursorText(cursor: string) {
-  try { return decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))); } catch { return null; }
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(cursor.replaceAll("-", "+").replaceAll("_", "/")), character => character.charCodeAt(0))); }
+  catch { return null; }
 }
 /** The one cursor every page gives: `[orderBy, value, id]`, the record a page ordered by `orderBy`
  * (a graph order, or one an app's table declares) continues after. */
