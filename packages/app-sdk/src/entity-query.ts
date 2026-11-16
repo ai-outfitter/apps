@@ -1,11 +1,12 @@
 /** The text search an entity list takes: terms, quoted phrases, AND, OR, NOT and parentheses.
  * Providers run it in their own database over the fields they declare searchable. */
-import { type AnyColumn, and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, not, or, type SQL, type SQLWrapper, sql } from "drizzle-orm";
+import { type AnyColumn, and, asc, desc, gt, inArray, isNotNull, isNull, lt, not, or, type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { EntityListQuery } from "./entities";
 
 export type SearchExpression = { term: string } | { and: SearchExpression[] } | { or: SearchExpression[] } | { not: SearchExpression };
 
-const invalid = (message: string) => new Response(message, { status: 400 });
+/** A 400 for a list request the type does not support. */
+export const refuse = (message: string) => new Response(message, { status: 400 });
 
 /** Reads tokens left to right: OR of ANDs of atoms. */
 class SearchParser {
@@ -25,30 +26,30 @@ class SearchParser {
     return values.length === 1 ? values[0] : { and: values };
   }
   atom(depth: number): SearchExpression {
-    if (depth > 12) throw invalid("Search nesting exceeds 12 levels.");
+    if (depth > 12) throw refuse("Search nesting exceeds 12 levels.");
     const token = this.tokens[this.index++];
-    if (!token || [")", "AND", "OR"].includes(token)) throw invalid("Expected a search term.");
+    if (!token || [")", "AND", "OR"].includes(token)) throw refuse("Expected a search term.");
     if (token === "NOT") return { not: this.atom(depth + 1) };
     if (token !== "(") return term(token);
     const expression = this.either(depth + 1);
-    if (this.tokens[this.index++] !== ")") throw invalid("Unclosed search parenthesis.");
+    if (this.tokens[this.index++] !== ")") throw refuse("Unclosed search parenthesis.");
     return expression;
   }
 }
 function term(token: string): SearchExpression {
   if (token.startsWith('"')) return { term: JSON.parse(token) as string };
-  if (token.includes('"')) throw invalid("Unclosed quoted phrase.");
+  if (token.includes('"')) throw refuse("Unclosed quoted phrase.");
   return { term: token };
 }
 
 /** Uppercase NOT, AND, OR in that precedence; adjacent terms mean AND. */
 export function searchExpression(source: string): SearchExpression {
   const tokens = source.match(/"(?:[^"\\]|\\.)*"|\(|\)|[^\s()]+/g) ?? [];
-  if (!tokens.length) throw invalid("Search is empty.");
-  if (tokens.length > 100) throw invalid("Search exceeds 100 tokens.");
+  if (!tokens.length) throw refuse("Search is empty.");
+  if (tokens.length > 100) throw refuse("Search exceeds 100 tokens.");
   const parser = new SearchParser(tokens);
   const expression = parser.either(0);
-  if (parser.index !== tokens.length) throw invalid("Unexpected search token.");
+  if (parser.index !== tokens.length) throw refuse("Unexpected search token.");
   return expression;
 }
 
@@ -93,12 +94,15 @@ export function pageCondition(query: EntityListQuery<unknown>, columns: { id: An
     orderBy: column === columns.id ? [direction(columns.id)] : [direction(column), direction(columns.id)],
   };
 }
-/** Rows strictly after `after` in (column, id) order. SQLite sorts NULL first ascending and last descending. */
+/** Rows strictly after `after` in (column, id) order, as the row-value comparison SQLite seeks an index
+ * on (column, id) with. SQLite sorts NULL first ascending and last descending, and no row value
+ * compares with NULL, so a NULL cursor value and the NULL rows after a descending value are spelled out. */
 function keyset(column: AnyColumn, id: AnyColumn, direction: "asc" | "desc", after: NonNullable<EntityListQuery["after"]>) {
   const beyond = direction === "desc" ? lt : gt;
   if (column === id) return beyond(id, after.id);
   if (after.value === null) return direction === "desc" ? and(isNull(column), lt(id, after.id)) : or(isNotNull(column), and(isNull(column), gt(id, after.id)));
-  return or(beyond(column, after.value), and(eq(column, after.value), beyond(id, after.id)), ...(direction === "desc" ? [isNull(column)] : []));
+  const later = sql`(${column}, ${id}) ${sql.raw(direction === "desc" ? "<" : ">")} (${sql.param(after.value, column)}, ${sql.param(after.id, id)})`;
+  return direction === "desc" && !column.notNull ? or(later, isNull(column)) : later;
 }
 
 /** searchCondition for a provider writing SQL text: `columns` are trusted column expressions. */

@@ -127,8 +127,14 @@ test("a drizzle provider reads known IDs, searches declared fields and pages by 
   const db = drizzle(client);
   const rows = Array.from({ length: 25 }, (_, index) => ({ id: `p${String(index).padStart(2, "0")}`, revision: 1, name: index % 2 ? `Bracket ${index}` : `Bolt ${index}`, notes: index === 7 ? "titanium 100%" : null, createdAt: 1000 - (index % 5) }));
   await db.insert(parts).values(rows);
+  await client.execute("CREATE INDEX parts_name ON parts (name, id)");
+  await client.execute("CREATE INDEX parts_created ON parts (created_at, id)");
   const statements: string[] = [];
-  const counted = drizzle(client, { logger: { logQuery: query => statements.push(query) } });
+  const plans: Promise<string>[] = [];
+  const counted = drizzle(client, { logger: { logQuery: (query, params) => {
+    statements.push(query);
+    plans.push(client.execute({ sql: `EXPLAIN QUERY PLAN ${query}`, args: params as string[] }).then(plan => plan.rows.map(row => String(row.detail)).join("; ")));
+  } } });
   const provider = defineEntity({
     type: "part", title: "Part", description: "Fixture", schema: z.strictObject({ name: z.string(), notes: z.string().nullable(), createdAt: z.number() }),
     collection: "parts", orderFields: ["name", "createdAt"], searchFields: ["name", "notes"], name: row => row.name,
@@ -173,9 +179,15 @@ test("a drizzle provider reads known IDs, searches declared fields and pages by 
     [{ field: "id", direction: "desc" }, sorted(row => row.id, -1)],
   ] as const) {
     statements.length = 0;
+    plans.length = 0;
     assert.deepEqual(await walk(order), expected);
     assert.equal(statements.length, 7);
     assert.ok(statements.every(statement => /limit \?$/i.test(statement.trim())));
+    // Each page seeks the (order field, id) index from the cursor: no scan, no sort.
+    const index = { createdAt: "parts_created", name: "parts_name", id: "sqlite_autoindex_parts_1" }[order.field];
+    for (const plan of (await Promise.all(plans.splice(0))).slice(1)) {
+      assert.match(plan, new RegExp(`^SEARCH parts USING INDEX ${index} \\(.*[<>].*\\)$`), plan);
+    }
   }
   const first = await list({ order: { field: "name", direction: "asc" }, limit: 2 });
   const refused = await entityAPI(request("list", { type: "part", order: { field: "createdAt", direction: "asc" }, after: first.pageInfo.endCursor }), "list", [provider]);
