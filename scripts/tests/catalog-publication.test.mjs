@@ -125,3 +125,27 @@ test('transport errors after durable publication are reported as unverified, nev
  assert.equal(status.status,'activation-unverified');assert.equal(status.remaining,undefined);
  assert.equal(status.message,'OIDC service unavailable');
 });
+
+test('publication orders apps that declare dependency version ranges, and each range admits a release this repository can make',async()=>{
+  const {publishCatalogSet}=await import('../catalog-publication.mjs');
+  const order=[];
+  await publishCatalogSet([{slug:'forerunner',app:{dependencies:{onto:'*','wiki-map':'>=0.1.5'}}},{slug:'wiki-map',app:{dependencies:['onto']}},{slug:'onto',app:{}}],
+    {publish:async bundle=>{order.push(bundle.slug);return {sha256:'b'.repeat(64)};},reconcile:async()=>({remaining:0}),report:()=>{}});
+  assert.deepEqual(order,['onto','wiki-map','forerunner']);
+  // A range no version of the dependency could meet would hold the app forever.
+  const {readdir,readFile}=await import('node:fs/promises');
+  const {default:semver}=await import('semver');
+  const apps=new Map();
+  for(const name of await readdir('apps')) {
+    const app=JSON.parse(await readFile(join('apps',name,'app.json'),'utf8').catch(()=>'null'));
+    if(app) apps.set(app.id.split('/').pop(),app);
+  }
+  for(const [slug,app] of apps) for(const [dependency,range] of Array.isArray(app.dependencies ?? [])?[]:Object.entries(app.dependencies)) {
+    // An app from another repository is checked by the platform alone.
+    if(!apps.has(dependency)) { assert.equal(range,'*',`${slug} states a range for ${dependency}, which this repository cannot check`); continue; }
+    const current=apps.get(dependency).version;
+    assert.ok(semver.validRange(range),`${slug} states an invalid range for ${dependency}`);
+    assert.ok(semver.satisfies(current,range) || semver.satisfies(semver.inc(current,'patch'),range) || semver.satisfies(semver.inc(current,'minor'),range),
+      `${slug} needs ${dependency} ${range}, beyond the next release after ${current}`);
+  }
+});

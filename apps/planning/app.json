@@ -72,11 +72,11 @@
     },
     "cover": "catalog/cover.png"
   },
-  "dependencies": [
-    "onto",
-    "governance",
-    "wiki-map"
-  ],
+  "dependencies": {
+    "onto": "*",
+    "governance": "*",
+    "wiki-map": ">=0.1.5"
+  },
   "initialize": true,
   "storage": {
     "buckets": {

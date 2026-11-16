@@ -7,6 +7,8 @@ import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkApp} from './apps.mjs';
 import {catalogMetadata,catalogContract,catalogContractModule} from '../packages/app-build/src/catalog-metadata.mjs';
+/** A manifest lists its dependencies, or maps each to a version range. */
+const dependencySlugs=app=>Array.isArray(app.dependencies ?? [])?app.dependencies ?? []:Object.keys(app.dependencies);
 
 /** Repositories whose checked apps publish the platform catalog. The platform
  * separately accepts only registrations it reviewed for each repository. */
@@ -116,7 +118,7 @@ export async function selectCatalogArtifacts(directory,appPaths,{root=process.cw
     if(visited.has(slug)) return;
     assert.ok(!visiting.has(slug),'Cyclic catalog dependencies');visiting.add(slug);
     const bundle=selected.get(slug).bundle;
-    for(const dep of bundle.app.dependencies ?? []) if(selected.has(dep)) visit(dep);
+    for(const dep of dependencySlugs(bundle.app)) if(selected.has(dep)) visit(dep);
     visiting.delete(slug);visited.add(slug);ordered.push(bundle);
   }
   for(const slug of expected) visit(slug);
@@ -131,7 +133,7 @@ export async function publishCatalogSet(bundles,{publish=publishCatalog,reconcil
   function start(bundle) {
     if(pending.has(bundle.slug)) return pending.get(bundle.slug);
     const task=(async()=>{
-      for(const dependency of bundle.app.dependencies ?? [])
+      for(const dependency of dependencySlugs(bundle.app))
         if(bySlug.has(dependency)) await start(bySlug.get(dependency));
       return publish(bundle);
     })();
