@@ -144,8 +144,8 @@ async function discoveryNeighborhood(
   edges: WikiCollection,
   types: WikiCollection,
 ) {
-  // Edges touching any of these nodes, 40 nodes a query (each binds twice); never the whole Wiki.
-  const chunks = Array.from({ length: Math.ceil(records.length / 40) }, (_, index) => records.slice(index * 40, index * 40 + 40));
+  // Edges touching any of these nodes, 100 nodes (the filter's list limit) a query; never the whole Wiki.
+  const chunks = Array.from({ length: Math.ceil(records.length / 100) }, (_, index) => records.slice(index * 100, index * 100 + 100));
   const relatedEdges = (await Promise.all(chunks.map((chunk) =>
     edges.all({ where: { nodeIds: chunk.map((record) => record.ref.id), archived: false }, select: ["typeId", "fromId", "toId"] }),
   ))).flat();

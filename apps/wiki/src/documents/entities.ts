@@ -21,7 +21,7 @@ export function documentEntities(db:AgentDatabase):EntityProvider[]{
    requireDocumentReader(identity);
    const desc=query.order.direction==="desc";
    const where=["d.archived=0"],params:unknown[]=[];
-   if(query.ids){where.push(`d.id IN (${query.ids.map(()=>"?").join(",")})`);params.push(...query.ids);}
+   if(query.ids){where.push("d.id IN (SELECT value FROM json_each(?))");params.push(JSON.stringify(query.ids));}
    if(query.after){where.push(desc?"d.id<?":"d.id>?");params.push(query.after.id);}
    if(query.search){const search=searchClause(query.search,["r.title","r.summary","r.body"]);where.push(search.sql);params.push(...search.params);}
    return await db.query({sql:`SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=d.revision WHERE ${where.join(" AND ")} ORDER BY d.id ${desc?"DESC":"ASC"} LIMIT ?`,params:[...params,query.limit]}) as Document[];

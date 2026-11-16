@@ -156,4 +156,8 @@ test("loads through re-obtained collections share one indexed read per 100 IDs",
   assert.equal(records[3]?.id, "n3");
   assert.equal(records[7], undefined);
   assert.equal(records[250]?.id, "n3");
+  // Nothing is remembered between ticks: a later load reads the record again.
+  assert.equal((await wiki.collection("nodes").load("n3"))?.id, "n3");
+  assert.deepEqual(dispatches.at(-1), ["n3"]);
+  assert.equal(dispatches.length, 4);
 });

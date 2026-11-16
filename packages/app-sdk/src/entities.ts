@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requestIdentity, type AppIdentity } from "./server";
 import { defineOperation, operationAPI, type AppOperation } from "./operations";
 import { schemaJSON } from "./agent-schema";
-import { refuse, type SearchExpression, searchBinds, searchExpression } from "./entity-query";
+import { filterBinds, refuse, type SearchExpression, searchBinds, searchExpression } from "./entity-query";
 
 /** App-owned records, addressed independently of browser routes or database tables. */
 export const entityPath = "/api/internal/entities/v1";
@@ -39,7 +39,7 @@ export const entityQuery = z.strictObject({
   filter: z.record(z.string().min(1).max(128), z.json()).optional().describe("Match the provider filterSchema from entities.types. Unsupported or unknown filters are errors."),
   order: entityOrder.optional().describe("One of the type's orderFields, or id; ties break by id. Default id ascending."),
   select: z.array(key).min(1).max(32).refine(fields => new Set(fields).size === fields.length).optional(),
-  after: z.string().min(1).max(1024).optional().describe("pageInfo.endCursor of the previous page, with the same query."),
+  after: z.string().min(1).max(2048).optional().describe("pageInfo.endCursor of the previous page, with the same query."),
   limit: z.number().int().min(1).max(100).default(50),
 });
 export const entityPageInfo = z.strictObject({ hasNextPage: z.boolean(), endCursor: z.string().nullable() });
@@ -69,10 +69,11 @@ export type EntityListQuery<Filter = Record<string, unknown>> = {
 /** What entityOperations hands a provider: the cursor still encoded, since only the provider knows its rows. */
 export type EntityProviderQuery = Omit<EntityListQuery, "after"> & { after?: string };
 const cursorKey = z.strictObject({ f: key, d: z.enum(["asc", "desc"]), v: z.union([z.string(), z.number(), z.boolean(), z.null()]), i: key });
-const encodeCursor = (value: z.infer<typeof cursorKey>) => btoa(encodeURIComponent(JSON.stringify(value))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+/** base64url of the JSON's UTF-8 bytes. */
+const encodeCursor = (value: z.infer<typeof cursorKey>) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value)))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 function decodeCursor(cursor: string, order: z.output<typeof entityOrder>): EntityListQuery["after"] {
   let parsed: z.infer<typeof cursorKey>;
-  try { parsed = cursorKey.parse(JSON.parse(decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))))); }
+  try { parsed = cursorKey.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(cursor.replaceAll("-", "+").replaceAll("_", "/")), character => character.charCodeAt(0))))); }
   catch { throw new Response("Invalid entity cursor", { status: 400 }); }
   if (parsed.f !== order.field || parsed.d !== order.direction) throw new Response("This cursor belongs to another ordering; keep order unchanged while paging", { status: 400 });
   return { value: parsed.v, id: parsed.i };
@@ -90,7 +91,8 @@ export type EntityProvider = {
   searchFields?: readonly string[];
   /** Additional app policy; defaults to members reading and editors writing. */
   can?: (identity: AppIdentity, operation: EntityOperation) => boolean;
-  /** One page in the provider's own database; the query's `limit` is the page size (defineEntity reads one more). */
+  /** One page in the provider's own database; the query's `limit` is the page size (defineEntity reads one more).
+   * It runs as one statement within `entityBindBudget`: bind a list as one JSON parameter (`within`) and no filter value more than twice. */
   list: (identity: AppIdentity, query: EntityProviderQuery) => Promise<EntityPage>;
   get: (identity: AppIdentity, id: string) => Promise<EntityRecord>;
   create?: (identity: AppIdentity, attributes: Record<string, unknown>, references: EntityRef[]) => Promise<EntityRecord>;
@@ -160,6 +162,10 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
 /** `record` with only the `fields` attributes it has. */
 export const selected = (record: EntityRecord, fields: string[]) =>
   ({ ...record, attributes: Object.fromEntries(fields.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) });
+/** The bound parameters one list statement may spend on its known IDs (one), cursor (two), search (each term
+ * once per search field) and filter (`filterBinds`). D1 takes 100 a statement; the rest is the provider's own
+ * scope and limit. */
+export const entityBindBudget = 80;
 /** The provider's view of a list request, refusing what the type does not advertise. */
 function providerQuery(provider: EntityProvider, input: z.output<typeof entityQuery>): EntityProviderQuery {
   const order = input.order ?? { field: "id", direction: "asc" as const };
@@ -169,14 +175,13 @@ function providerQuery(provider: EntityProvider, input: z.output<typeof entityQu
   if (input.ids) query.ids = input.ids;
   if (input.after) query.after = input.after;
   if (input.search) query.search = providerSearch(provider, input.type, input.search);
+  const binds = (query.ids ? 1 : 0) + (query.after ? 2 : 0) + (query.search ? searchBinds(query.search, provider.searchFields?.length ?? 0) : 0) + filterBinds(query.filter);
+  if (binds > entityBindBudget) throw refuse(`This query exceeds ${entityBindBudget} bound parameters (it needs ${binds}: each search term once per search field, each filter value twice); use fewer search terms or filter values`);
   return query;
 }
 function providerSearch(provider: EntityProvider, type: string, search: string) {
   if (!provider.searchFields?.length) throw refuse(`${type} does not support search; filter it instead`);
-  const expression = searchExpression(search);
-  // D1 binds at most 100 parameters a statement: each term binds once per searchable field.
-  if (searchBinds(expression, provider.searchFields.length) > 60) throw refuse("Search has too many terms for this type; use fewer");
-  return expression;
+  return searchExpression(search);
 }
 function providerFilter(provider: EntityProvider, filter: Record<string, unknown> | undefined) {
   if (filter === undefined) return undefined;

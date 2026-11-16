@@ -1,6 +1,7 @@
 // Where generated GraphQL resolvers read records: a GraphSource over the same
 // rows graph.query returns in fields:"full", loaded through a per-request batch
 // loader so each (type, field) costs one source call per level, never one per record.
+import { batch } from "./batch-load";
 import type { TypeRow } from "./graph-graphql-names";
 import { textMatch } from "./graph-query";
 import { isRetired } from "./knowledge-graph";
@@ -76,37 +77,6 @@ export function memorySource(snapshot: Pick<WikiGraphSnapshot, "installationId" 
       return edges.filter(row => visible(row, query.archived, false) && (!types || types.has(row.typeId)) && (!ids || ids.has(row.id))
         && (!(from || to) || !!from?.has(row.fromId) || !!to?.has(row.toId)));
     },
-  };
-}
-
-const later = (run: () => void) => (typeof setImmediate === "function" ? setImmediate(run) : setTimeout(run, 0));
-
-/** Collects keys asked for in one tick and answers them with one call. */
-function batch<V>(run: (keys: string[]) => Promise<Map<string, V>>, missing: V) {
-  const cache = new Map<string, Promise<V>>();
-  let pending: Map<string, { resolve: (value: V) => void; reject: (error: unknown) => void }> | null = null;
-  const flush = async () => {
-    const waiting = pending as NonNullable<typeof pending>;
-    pending = null;
-    try {
-      const found = await run([...waiting.keys()]);
-      for (const [key, { resolve }] of waiting) resolve(found.get(key) ?? missing);
-    } catch (error) {
-      for (const [key, { reject }] of waiting) { cache.delete(key); reject(error); }
-    }
-  };
-  return {
-    load(key: string) {
-      const cached = cache.get(key);
-      if (cached) return cached;
-      const promise = new Promise<V>((resolve, reject) => {
-        if (!pending) { pending = new Map(); later(() => void flush()); }
-        pending.set(key, { resolve, reject });
-      });
-      cache.set(key, promise);
-      return promise;
-    },
-    prime(key: string, value: V) { if (!cache.has(key)) cache.set(key, Promise.resolve(value)); },
   };
 }
 

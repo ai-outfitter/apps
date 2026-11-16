@@ -2,7 +2,7 @@
  * already in memory, returned as the SDK's cursor page. Tests that stub the host use it instead of
  * returning arrays, so code under test sees the same page shape and filtering a real provider gives. */
 import { type EntityPage, type EntityRecord, selected } from "@ai-outfitter/app-sdk/entities";
-import { matchesSearch, searchExpression } from "@ai-outfitter/app-sdk/entity-query";
+import { foldCase, matchesSearch, searchExpression } from "@ai-outfitter/app-sdk/entity-query";
 
 type Input = { ids?: string[]; filter?: Record<string, unknown>; search?: string; order?: { field: string; direction: "asc" | "desc" }; after?: string; limit?: number; select?: string[] };
 const attribute = (record: EntityRecord, key: string) => record.attributes[key];
@@ -16,7 +16,7 @@ function matches(record: EntityRecord, filter: Record<string, unknown>) {
       case "names": return among(attribute(record, "name"), wanted);
       case "nodeId": return attribute(record, "fromId") === wanted || attribute(record, "toId") === wanted;
       case "nodeIds": return among(attribute(record, "fromId"), wanted) || among(attribute(record, "toId"), wanted);
-      case "titleContains": return record.title.toLowerCase().includes(String(wanted).toLowerCase());
+      case "titleContains": return foldCase(record.title).includes(foldCase(String(wanted)));
       case "archived": return !!attribute(record, "archived") === wanted;
       case "properties": {
         const properties = (attribute(record, "properties") ?? {}) as Record<string, unknown>;

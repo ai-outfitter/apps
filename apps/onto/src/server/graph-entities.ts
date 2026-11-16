@@ -15,7 +15,7 @@ import {
   type SQLWrapper,
 } from "drizzle-orm";
 import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
-import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
+import { pageCondition, within } from "@ai-outfitter/app-sdk/entity-query";
 import {
   edgeInput,
   type GraphEdge,
@@ -47,21 +47,12 @@ const commonFilter = {
   titleContains: textFilter.optional(),
   archived: z.boolean().optional(),
 };
-// D1 allows 100 bind parameters; pagination and scalar filters need room too.
-function filterBinds(key: string, value: unknown) {
-  if (value === undefined) return 0;
-  if (Array.isArray(value)) return value.length * (key === "nodeIds" ? 2 : 1);
-  if (key === "properties" && value && typeof value === "object") return Object.keys(value).length * 2;
-  return key === "nodeId" ? 2 : 1;
-}
-const filterBudget = (filter: Record<string, unknown>) => Object.entries(filter).reduce((count, [key, value]) => count + filterBinds(key, value), 0) <= 90;
-const filterBudgetMessage = "Filter exceeds 90 query parameters; split into smaller batches";
 const typeFilter = z.strictObject({
   ...commonFilter,
   name: textFilter.optional(),
   names: identifiers.optional(),
   category: z.enum(["node", "edge"]).optional(),
-}).refine(filterBudget, filterBudgetMessage);
+});
 const nodeFilter = z.strictObject({
   ...commonFilter,
   typeId: textFilter.optional(),
@@ -70,7 +61,7 @@ const nodeFilter = z.strictObject({
   source: entityRef.optional(),
   properties: z.record(z.string().regex(/^[A-Za-z0-9_]{1,64}$/), z.union([z.string().max(200), z.number(), z.boolean()])).refine(value => Object.keys(value).length >= 1 && Object.keys(value).length <= 8, "Match 1 to 8 properties").optional()
     .describe("Stored property values that must match exactly."),
-}).refine(filterBudget, filterBudgetMessage);
+});
 const edgeFilter = z.strictObject({
   ...commonFilter,
   typeId: textFilter.optional(),
@@ -80,30 +71,29 @@ const edgeFilter = z.strictObject({
   toId: textFilter.optional(),
   nodeId: textFilter.optional(),
   nodeIds: identifiers.optional(),
-}).refine(filterBudget, filterBudgetMessage);
+});
 /** Literal, case-insensitive title substring: '%' and '_' have no wildcard meaning. */
 const titleCondition = (column: SQLWrapper, value?: string) =>
   value === undefined
     ? undefined
     : sql`instr(lower(${column}), lower(${value})) > 0`;
 
-const among = (column: AnyColumn, values?: string[]) => values === undefined ? undefined : inArray(column, values);
+/** Lists bind as one JSON parameter, whatever their length. */
+const among = (column: AnyColumn, values?: string[]) => values === undefined ? undefined : sql`${column} IN ${within(values)}`;
 
 const equals = (column: AnyColumn, value: string | boolean | undefined) =>
   value === undefined ? undefined : eq(column, value);
 
-const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(inArray(graphEdges.fromId, ids), inArray(graphEdges.toId, ids));
+const nodesCondition = (ids?: string[]) => ids === undefined ? undefined : or(among(graphEdges.fromId, ids), among(graphEdges.toId, ids));
 
 type Named = { address?: string };
 /** Edges with their address, such as works_on(Person:ada → Project:sunny), for naming. */
 async function named(db: Database, edges: GraphEdge[]) {
   if (!edges.length) return edges;
   const nodeIds = [...new Set(edges.flatMap((edge) => [edge.fromId, edge.toId]))];
-  const nodes: { id: string; typeId: string; slug: string }[] = [];
-  for (let i = 0; i < nodeIds.length; i += 90)
-    nodes.push(...await db.select({ id: graphNodes.id, typeId: graphNodes.typeId, slug: graphNodes.slug }).from(graphNodes).where(inArray(graphNodes.id, nodeIds.slice(i, i + 90))));
+  const nodes = await db.select({ id: graphNodes.id, typeId: graphNodes.typeId, slug: graphNodes.slug }).from(graphNodes).where(among(graphNodes.id, nodeIds));
   const typeIds = [...new Set([...edges.map((edge) => edge.typeId), ...nodes.map((node) => node.typeId)])];
-  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, typeIds));
+  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(among(graphTypes.id, typeIds));
   const address = recordAddress({ types, nodes, edges } as unknown as Parameters<typeof recordAddress>[0]);
   return edges.map((edge): GraphEdge & Named => ({ ...edge, address: address("graph-edge", edge.id) ?? undefined }));
 }
@@ -111,7 +101,7 @@ async function named(db: Database, edges: GraphEdge[]) {
 /** Nodes with their address, such as Person:ada, so a reader can write about them without ids. */
 async function addressed(db: Database, nodes: GraphNode[]) {
   if (!nodes.length) return nodes;
-  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(inArray(graphTypes.id, [...new Set(nodes.map((node) => node.typeId))]));
+  const types = await db.select({ id: graphTypes.id, name: graphTypes.name }).from(graphTypes).where(among(graphTypes.id, [...new Set(nodes.map((node) => node.typeId))]));
   const names = new Map(types.map((type) => [type.id, type.name]));
   return nodes.map((node): GraphNode & Named => ({ ...node, address: names.has(node.typeId) ? `${names.get(node.typeId)}:${node.slug}` : undefined }));
 }
@@ -251,7 +241,7 @@ export function graphEntities(
               among(graphEdges.typeId, f.typeIds),
               equals(graphEdges.fromId, f.fromId),
               f.fromTypeIds === undefined ? undefined : inArray(graphEdges.fromId,
-                db.select({ id: graphNodes.id }).from(graphNodes).where(inArray(graphNodes.typeId, f.fromTypeIds))),
+                db.select({ id: graphNodes.id }).from(graphNodes).where(among(graphNodes.typeId, f.fromTypeIds))),
               equals(graphEdges.toId, f.toId),
               nodesCondition(f.nodeIds),
               f.nodeId === undefined

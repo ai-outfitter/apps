@@ -1,5 +1,6 @@
 import type { WorkflowHost } from "./workflow-host";
 import type { EntityRecord } from "./entities";
+import { batch } from "./batch-load";
 import { discoverEntityTypes } from "./entity-discovery";
 
 type Host = WorkflowHost<"interactive">;
@@ -45,26 +46,14 @@ function listInput(provider: { installationId: string; type: string }, { where, 
   for (const [key, value] of Object.entries(options)) if (value !== undefined) Object.assign(input, { [key]: value });
   return input;
 }
-/** Known IDs asked for in the same tick, read together: one indexed list per 100 IDs. */
+/** Known IDs asked for in the same tick, read together: one indexed list per 100 IDs. Nothing is kept
+ * between ticks, so a load after a write reads the record again. */
 function batchedLoads(host: Host, provider: { installationId: string; type: string }) {
-  let pending: Map<string, { resolve: (record: Record_ | undefined) => void; reject: (error: unknown) => void }[]> | null = null;
-  const read = async (ids: string[]) => {
+  return batch<Record_ | undefined>(async ids => {
     const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, index * 100 + 100));
     const pages = await Promise.all(chunks.map(chunk => host.call("entities.list", { installationId: provider.installationId, type: provider.type, ids: chunk, limit: 100 })));
     return new Map(pages.flatMap(page => page.records.map(record => [record.ref.id, collectionRecord(record)] as const)));
-  };
-  const flush = () => {
-    const waiting = pending as NonNullable<typeof pending>;
-    pending = null;
-    read([...waiting.keys()]).then(
-      found => { for (const [id, callers] of waiting) for (const { resolve } of callers) resolve(found.get(id)); },
-      error => { for (const callers of waiting.values()) for (const { reject } of callers) reject(error); },
-    );
-  };
-  return (id: string) => new Promise<Record_ | undefined>((resolve, reject) => {
-    if (!pending) { pending = new Map(); (typeof setImmediate === "function" ? setImmediate : setTimeout)(flush); }
-    pending.set(id, [...pending.get(id) ?? [], { resolve, reject }]);
-  });
+  }, undefined, { cache: false }).load;
 }
 function entityCollection(host: Host, provider: { installationId: string; type: string }) {
   return {
