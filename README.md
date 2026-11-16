@@ -166,14 +166,15 @@ validation and will be removed when public SDK packages support locked installs.
 
 ## Pull-request previews
 
-`preview.yml` discovers changed apps from the PR merge base, builds each selected
-app, and publishes an isolated read-only demo with a stable hostname per
+`preview.yml` discovers changed apps from the PR merge base, builds each app with
+files changed in its own directory, and publishes an isolated read-only demo with a stable hostname per
 repository ID, PR number and app path. A separate publication job downloads the
 build artifact without checking out caller source or executing app build scripts.
 It verifies `/api/health` against the exact repository, source SHA and app before
 posting the link on the PR. Closing the PR deletes only Workers in that PR's
 preview namespace. Reopening rebuilds them. Deployment environments also link to
-the verified URLs.
+the verified URLs. A change only to shared packages or the lockfile still
+validates every dependent app in `check.yml` but publishes no previews.
 
 The normal `package` adapter uses a caller-owned npm lockfile and each app's
 `preview:build` script. That script produces `dist/preview.json` (override with
