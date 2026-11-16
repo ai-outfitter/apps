@@ -6,17 +6,17 @@ import { typeAdministration } from "./graph";
 async function stewardApproval(form: HTMLFormElement) {
   const inputs = [...form.querySelectorAll<HTMLInputElement>("input[name=stewardApproval]")];
   if (demoMode) { for (const input of inputs) { input.disabled = true; input.checked = input.value === "approve"; } return; }
-  try {
-    const { stewardApproval: mode } = await call<{ stewardApproval: string }>("settings");
-    for (const input of inputs) input.checked = input.value === mode;
-  } catch (error) { notice(String(error)); }
+  const show = (mode: string) => { for (const input of inputs) input.checked = input.value === mode; };
+  let saved = "";
+  try { saved = (await call<{ stewardApproval: string }>("settings")).stewardApproval; show(saved); }
+  catch (error) { notice(String(error)); }
   form.onchange = async () => {
     const mode = inputs.find((input) => input.checked)?.value;
     if (!mode) return;
     for (const input of inputs) input.disabled = true;
-    try { await call("settings", { stewardApproval: mode }); notice("Saved."); }
+    try { saved = (await call<{ stewardApproval: string }>("settings", { stewardApproval: mode })).stewardApproval; notice("Saved."); }
     catch (error) { notice(String(error)); }
-    finally { for (const input of inputs) input.disabled = false; }
+    finally { show(saved); for (const input of inputs) input.disabled = false; }
   };
 }
 

@@ -362,6 +362,13 @@ test("the steward approves only the clean part: flagged and questioned proposals
     "$lamp": "does not connect to an anchor without a held proposal",
   });
   assert.equal(read.batch.review.decision.approved, 2);
+  // Once a member answers the question, a fresh review approves what it held.
+  await json(await f.page("answer", { method: "POST", body: { batchId: batch.id, key: "lamp-vendor", text: "The 400 W lamp." } }));
+  const again = await json(await f.page("steward-review", { method: "POST", body: { batchId: batch.id } }));
+  const after = Object.fromEntries(again.operations.map((op: Json) => [op.ref, op.state]));
+  assert.equal(after["$lamp"], "committed");
+  assert.equal(after["$lamp-crop"], "committed");
+  assert.equal(after["$tomato"], "awaiting_review");
   // A member still decides the rest, as a member.
   const done = await json(await f.page("review", { method: "POST", body: { batchId: batch.id, verdict: "approve" } }));
   assert.equal(done.batch.state, "committed");

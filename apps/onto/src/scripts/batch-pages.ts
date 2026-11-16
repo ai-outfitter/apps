@@ -142,11 +142,11 @@ const policyReasons: Record<string, string> = {
   confidence: "Approved automatically: high confidence",
 };
 /** Who or what approved a change, from its recorded decision. */
-export function approvalLabel(decision: { kind?: unknown; reason?: unknown } | null) {
+export function approvalLabel(decision: { kind?: unknown; reason?: unknown } | null, otherwise = "Approved by a member") {
   if (decision?.kind === "steward") return "Approved by the ontology steward";
   if (decision?.kind === "member") return "Approved by a member";
   if (decision?.kind === "policy") return policyReasons[String(decision.reason ?? "")] ?? policyReasons.confidence;
-  return "Edited directly";
+  return otherwise;
 }
 /** How a committed operation was approved, or its state. */
 export function approvalText(op: BatchOperation) {

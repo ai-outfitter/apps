@@ -52,8 +52,8 @@ steward reviews a batch": approve what it found clean, the default, or only revi
 with `SaveSettings {stewardApproval: "approve" | "review"}`; `OntoSettings` reads it.
 
 - **Clean** means no `error` or `warning` finding names the operation (by `ref` or
-  `refs`), from the checks or the steward, and no question on the batch names it. A
-  `note` never holds anything.
+  `refs`), from the checks or the steward, and no unanswered question on the batch names it.
+  A `note` never holds anything, and an answered question no longer holds.
 - **Held for a member:** each flagged or questioned operation, and every waiting operation
   that depends on one (`withDependents`, as a rejection would). A batch-level `error` or
   `warning`, a question without refs, or a review that read only part of the batch

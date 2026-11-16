@@ -446,9 +446,15 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
-  // A draft review that carried over has already finished: the steward decides now.
-  const review = batch.review;
-  if (reused && draft.state === "complete" && review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, review);
+  // A draft review that carried over and has finished (read after the submit, so one that
+  // finished meanwhile counts): the steward decides now. One still running decides when it ends.
+  if (reused) {
+    const [[job], [fresh]] = await Promise.all([
+      db.select({ state: ontoReviewJobs.state }).from(ontoReviewJobs).where(eq(ontoReviewJobs.id, jobId)),
+      db.select({ review: graphBatches.review }).from(graphBatches).where(eq(graphBatches.id, batch.id)),
+    ]);
+    if (job?.state === "complete" && fresh?.review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, fresh.review);
+  }
   return getBatch(db, who, { batchId: batch.id });
 }
 
@@ -615,7 +621,8 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
     if (!refs.length) holdAll(`${item.rule} on the whole batch`);
     for (const ref of refs) hold(ref, item.rule);
   }
-  for (const question of batch.questions ?? []) {
+  // An answered question no longer holds anything: the member has settled it.
+  for (const question of (batch.questions ?? []).filter((item) => !item.answer)) {
     if (!question.refs.length) holdAll(`question ${question.key}`);
     for (const ref of question.refs) hold(ref, `question ${question.key}`);
   }
@@ -627,11 +634,15 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
   const at = Date.now();
   const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
-  const approved = await commitByPolicy(db, who, batch, rows, chosen, approval);
-  // A subset that no longer validates commits nothing; it all waits for a member.
-  if (!approved && chosen.size) for (const ref of chosen) reasons.set(ref, "the approved part would not apply");
+  await commitByPolicy(db, who, batch, rows, chosen, approval);
   await settle(db, batch.id);
-  return { approved, held: waiting.filter((row) => reasons.has(row.ref)).map((row) => ({ ref: row.ref, reason: reasons.get(row.ref)! })), at };
+  // Report what actually happened: a part that no longer applied, or that a member decided
+  // meanwhile, is not counted as the steward's.
+  const after = new Map(live(await loadOperations(db, batch.id)).map((row) => [row.ref, row]));
+  const approved = waiting.filter((row) => after.get(row.ref)?.state === "committed" && (JSON.parse(after.get(row.ref)?.decision ?? "null") as { kind?: string } | null)?.kind === "steward").length;
+  const held = waiting.filter((row) => after.get(row.ref)?.state === "awaiting_review")
+    .map((row) => ({ ref: row.ref, reason: reasons.get(row.ref) ?? "the approved part would not apply" }));
+  return { approved, held, at };
 }
 
 /** Run the steward's approval for a finished (complete-state) review and save its decision on that review. */

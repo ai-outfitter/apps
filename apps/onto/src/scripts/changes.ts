@@ -249,7 +249,7 @@ export function historySection(id: string) {
     section.dataset.loaded = "true";
     try {
       const history = await call<{ revisions: { revision: number; batchId: string | null; batchTitle: string | null; approval: Record<string, unknown>; evidence: Citation[]; createdAt: number; created: boolean }[]; complete: boolean }>(`batches/history?id=${encodeURIComponent(id)}`);
-      const approval = (value: Record<string, unknown>) => approvalLabel(value).toLowerCase();
+      const approval = (value: Record<string, unknown>) => approvalLabel(value, "Edited directly").toLowerCase();
       fill(section,
         el("summary", {}, "History"),
         history.revisions.length

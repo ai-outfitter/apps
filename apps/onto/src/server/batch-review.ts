@@ -388,13 +388,15 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
         .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
       return null;
     }
-    // The first attempt starts the run named when the job was queued, so a submit receipt can name it.
-    const runId = reservedRunId ?? (job.attempts === 1 && job.runId ? job.runId : crypto.randomUUID());
+    // Each attempt starts the run the job names, so a receipt can name it; a scheduled pickup
+    // brings its own run and records it.
+    const runId = reservedRunId ?? job.runId ?? crypto.randomUUID();
     if (runId !== job.runId) await db.update(ontoReviewJobs).set({ runId }).where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId)));
     const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId);
     const failed = review.state === "failed";
+    // A retry gets a new run to name; the failed one stays in the run log.
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
-      nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
+      ...(failed ? { runId: crypto.randomUUID() } : {}), nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
       .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`)).returning();
     if (!settled.length) return null;
     // A finished review of a batch that is (by now) submitted approves what it found clean.
@@ -402,7 +404,7 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
     const decision = await approveAfterReview(db, who, job.batchId, job.id, review);
     return decision ? { ...review, decision } : review;
   } catch (error) {
-    await db.update(ontoReviewJobs).set({ state: job.attempts >= maxAttempts ? "failed" : "pending", leaseId: null, leaseUntil: null,
+    await db.update(ontoReviewJobs).set({ state: job.attempts >= maxAttempts ? "failed" : "pending", leaseId: null, leaseUntil: null, runId: crypto.randomUUID(),
       nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: String(error).slice(0, 500) })
       .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
     throw error;
