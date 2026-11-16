@@ -1,7 +1,7 @@
 /** An in-memory `entities.list` for host stubs: the filters Onto's providers support, applied to records
  * already in memory, returned as the SDK's cursor page. Tests that stub the host use it instead of
  * returning arrays, so code under test sees the same page shape and filtering a real provider gives. */
-import type { EntityPage, EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { type EntityPage, type EntityRecord, selected } from "@ai-outfitter/app-sdk/entities";
 import { matchesSearch, searchExpression } from "@ai-outfitter/app-sdk/entity-query";
 
 type Input = { ids?: string[]; filter?: Record<string, unknown>; search?: string; order?: { field: string; direction: "asc" | "desc" }; after?: string; limit?: number; select?: string[] };
@@ -12,7 +12,6 @@ function matches(record: EntityRecord, filter: Record<string, unknown>) {
   return Object.entries(filter).every(([key, wanted]) => {
     if (wanted === undefined) return true;
     switch (key) {
-      case "ids": return among(record.ref.id, wanted);
       case "typeIds": return among(attribute(record, "typeId"), wanted);
       case "names": return among(attribute(record, "name"), wanted);
       case "nodeId": return attribute(record, "fromId") === wanted || attribute(record, "toId") === wanted;
@@ -38,9 +37,8 @@ export function memoryEntityPage(records: EntityRecord[], input: Input = {}): En
     .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.ref.id < b.ref.id ? -1 : a.ref.id > b.ref.id ? 1 : 0) * (order.direction === "desc" ? -1 : 1));
   const start = input.after ? Number(atob(input.after)) : 0;
   const limit = input.limit ?? 50;
-  const page = sorted.slice(start, start + limit).map(record => input.select
-    ? { ...record, attributes: Object.fromEntries(input.select.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) }
-    : record);
+  const { select } = input;
+  const page = sorted.slice(start, start + limit).map(record => select ? selected(record, select) : record);
   const more = sorted.length > start + limit;
   return { records: page, pageInfo: { hasNextPage: more, endCursor: more ? btoa(String(start + limit)) : null } };
 }

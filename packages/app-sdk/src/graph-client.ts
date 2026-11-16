@@ -11,6 +11,7 @@ import {
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { discoverEntityTypes } from "@ai-outfitter/app-sdk/entity-discovery";
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import { type graphQueryInput, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 import {
@@ -215,17 +216,8 @@ export function wikiAdapter(host: Host, installationId: string) {
     },
     /** Active type IDs by name. */
     async typeIds() {
-      const ids = new Map<string, string>();
-      let after: string | undefined;
-      for (let pages = 0; pages < 100; pages++) {
-        const { records, pageInfo } = await host.call("entities.list", {
-          installationId, type: "graph-type", filter: { archived: false }, limit: 100, ...(after ? { after } : {}),
-        });
-        for (const type of records) ids.set(String(type.attributes.name), type.ref.id);
-        if (!pageInfo.hasNextPage || !pageInfo.endCursor) return ids;
-        after = pageInfo.endCursor;
-      }
-      throw new Response("Wiki has too many types", { status: 413 });
+      const types = await listEntities(host, { installationId, type: "graph-type", filter: { archived: false } });
+      return new Map(types.map((type) => [String(type.attributes.name), type.ref.id]));
     },
     /**
      * Adds the graph's missing records. A type the Wiki already has under its

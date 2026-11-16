@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requestIdentity, type AppIdentity } from "./server";
 import { defineOperation, operationAPI, type AppOperation } from "./operations";
 import { schemaJSON } from "./agent-schema";
-import { type SearchExpression, searchBinds, searchExpression } from "./entity-query";
+import { refuse, type SearchExpression, searchBinds, searchExpression } from "./entity-query";
 
 /** App-owned records, addressed independently of browser routes or database tables. */
 export const entityPath = "/api/internal/entities/v1";
@@ -157,8 +157,8 @@ export function entityOperations(providers: EntityProvider[]): Record<string, Ap
   };
 }
 
-const refuse = (message: string) => new Response(message, { status: 400 });
-const selected = (record: EntityRecord, fields: string[]) =>
+/** `record` with only the `fields` attributes it has. */
+export const selected = (record: EntityRecord, fields: string[]) =>
   ({ ...record, attributes: Object.fromEntries(fields.filter(field => Object.hasOwn(record.attributes, field)).map(field => [field, record.attributes[field]])) });
 /** The provider's view of a list request, refusing what the type does not advertise. */
 function providerQuery(provider: EntityProvider, input: z.output<typeof entityQuery>): EntityProviderQuery {
