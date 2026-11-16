@@ -37,7 +37,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "timeago.js": "4.0.2",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@ai-outfitter/creative-workflow": "*"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

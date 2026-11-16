@@ -1,0 +1,31 @@
+{
+  "name": "@ai-outfitter/creative-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./artera": "./src/artera.ts",
+    "./graph": "./src/graph.ts",
+    "./video-model": "./src/video-model.ts",
+    "./video-store": "./src/video-store.ts",
+    "./Review.astro": "./src/Review.astro",
+    "./video-transfer": "./src/video-transfer.ts",
+    "./media": "./src/media.ts",
+    "./import": "./src/import.ts"
+  },
+  "scripts": {
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "@types/node": "^26.6.3",
+    "@libsql/client": "^0.18.0"
+  }
+}

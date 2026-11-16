@@ -1,0 +1,48 @@
+{
+  "id": "outfitter/presentations",
+  "version": "0.1.0",
+  "runtime": "cloudflare-workers-for-platforms",
+  "dataLocation": "installation-database",
+  "modes": {
+    "demo": {
+      "capabilities": []
+    },
+    "operational": {
+      "capabilities": [
+        "api.serve",
+        "graph.serve",
+        "workflow.host",
+        "entities.read",
+        "actions.invoke",
+        "storage.buckets"
+      ]
+    }
+  },
+  "catalog": {
+    "access": "public",
+    "operational": {
+      "slug": "presentations",
+      "name": "Presentations",
+      "description": "Agent-created presentations with shared creative provenance."
+    },
+    "demo": {
+      "slug": "presentations",
+      "name": "Presentations",
+      "description": "Read-only creative review."
+    }
+  },
+  "dependencies": ["onto"],
+  "storage": {
+    "buckets": {
+      "video": {
+        "spaces": {
+          "productions": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
+          }
+        }
+      }
+    }
+  }
+}

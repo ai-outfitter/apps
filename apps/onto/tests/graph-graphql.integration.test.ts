@@ -45,8 +45,8 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     }
     const before = await app.database.prepare(totals).all();
     const query = `query Seats($id: ID!) {
-      querySeats { nodes { id title rank queryHolds { title } queryHoldsEdges { status to { title } } } aggregate { count } }
-      node(id: $id) { __typename title ... on QuerySeat { queryHoldsIncoming { title } } edges { typeId } }
+      querySeats { nodes { id title rank queryHolds { nodes { title } } queryHoldsEdges { nodes { status to { title } } } } totalCount }
+      node(id: $id) { __typename title ... on QuerySeat { queryHoldsIncoming { nodes { title } } } edges { nodes { typeId } } }
       __type(name: "QuerySeat") { name }
     }`;
     const response = await app.call(path, member, { method: "POST", body: { action: "graph.graphql", input: { query, variables: { id: ids.$b.id } } } });
@@ -55,10 +55,10 @@ test("graph.graphql answers generated-schema queries through the action dispatch
     assert.equal(result.errors, undefined, JSON.stringify(result.errors));
     assert.deepEqual(result.data, {
       querySeats: { nodes: [
-        { id: ids.$a.id, title: "Seat A", rank: 1, queryHolds: [{ title: "Seat B" }], queryHoldsEdges: [{ status: "active", to: { title: "Seat B" } }] },
-        { id: ids.$b.id, title: "Seat B", rank: 2, queryHolds: [], queryHoldsEdges: [] },
-      ].sort((x, y) => (x.id < y.id ? -1 : 1)), aggregate: { count: 2 } },
-      node: { __typename: "QuerySeat", title: "Seat B", queryHoldsIncoming: [{ title: "Seat A" }], edges: [{ typeId: ids.$holds.id }] },
+        { id: ids.$a.id, title: "Seat A", rank: 1, queryHolds: { nodes: [{ title: "Seat B" }] }, queryHoldsEdges: { nodes: [{ status: "active", to: { title: "Seat B" } }] } },
+        { id: ids.$b.id, title: "Seat B", rank: 2, queryHolds: { nodes: [] }, queryHoldsEdges: { nodes: [] } },
+      ].sort((x, y) => (x.id < y.id ? -1 : 1)), totalCount: 2 },
+      node: { __typename: "QuerySeat", title: "Seat B", queryHoldsIncoming: { nodes: [{ title: "Seat A" }] }, edges: { nodes: [{ typeId: ids.$holds.id }] } },
       __type: { name: "QuerySeat" },
     });
     const full = await app.call(path, member, { method: "POST", body: { action: "graph.graphql", input: { query: "{ querySeats { nodes { properties body } } }" } } });

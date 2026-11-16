@@ -351,8 +351,8 @@
     "name": "Projects",
     "kind": "query",
     "story": "As a caller, I want to search foundryProjects with compact results, so that I can select records and continue through every page.",
-    "query": "query Projects($first: Int = 20, $after: String, $ids: [ID!], $search: String) {\n  foundryProjects(first: $first, after: $after, ids: $ids, search: $search) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "7f0579bc844b8051d5d3b7752420a08bc03dc7675c29f3e751c94e285b6f71e0",
+    "query": "query Projects($first: Int = 20, $after: String, $ids: [ID!], $orderBy: FoundryProjectOrder, $search: String) {\n  foundryProjects(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    search: $search\n  ) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "dad7302552f724c270b34cc02b69cfb5f30afdcd7d6c36fcf09efcecf76fbfa3",
     "variables": {
       "type": "object",
       "properties": {
@@ -367,6 +367,9 @@
         "ids": {
           "type": "array",
           "description": "GraphQL [ID!]"
+        },
+        "orderBy": {
+          "description": "GraphQL FoundryProjectOrder"
         },
         "search": {
           "type": "string",

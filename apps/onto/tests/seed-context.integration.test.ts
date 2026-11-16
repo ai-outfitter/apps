@@ -28,12 +28,13 @@ test("fresh installations expose the shared type pages to readers and agents", a
     const initialized = await app.call("/api/internal/app-initialize", { userId: "installer", organizationId: "org", role: "owner" }, { method: "POST", body: {} });
     assert.equal(initialized.status, 200);
     const records: { attributes: { name: string; body: string; archived: boolean; jsonSchema?: unknown }; ref: { id: string } }[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type: "graph-type", offset, limit: 100 } });
+    for (let after: string | null = null; ; ) {
+      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type: "graph-type", limit: 100, ...(after ? { after } : {}) } });
       assert.equal(response.status, 200);
-      const page = await response.json() as typeof records;
-      records.push(...page);
-      if (page.length < 100) break;
+      const page = await response.json() as { records: typeof records; pageInfo: { endCursor: string | null } };
+      records.push(...page.records);
+      after = page.pageInfo.endCursor;
+      if (!after) break;
     }
     assert.ok(!records.some((record) => record.ref.id === "71000000-0000-4000-8000-000000000008"), "fresh JSON initialization omits retired legacy definitions");
     assert.deepEqual(records.filter((record) => !record.attributes.archived).map((record) => record.ref.id).sort(), defaultTypes.map((type) => type.id).sort());
@@ -48,7 +49,6 @@ test("fresh installations expose the shared type pages to readers and agents", a
       "Activity",
       "Asset",
       "FinancialObligation",
-      "Question",
       "Friendship",
       "ControlDefinition",
       "ControlCommitment",

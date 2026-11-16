@@ -25,7 +25,7 @@ async function workshopReadback(c: PlanningContext, pkg: PackageRow | null) {
   if (!pkg || !receipt?.installationId || !receipt.projectId) return null;
   try {
     const { workshopProjectHandoff } = await appCall(c, receipt.installationId, workshopDocuments.handoff, { input: { id: receipt.projectId } }) as { workshopProjectHandoff: Record<string, unknown> & { requirements: string } };
-    const units = await appCall(c, receipt.installationId, `query PlanningWorkshopUnits($projectId: [ID!]) { workshopUnits(projectId: $projectId, first: 100) { nodes { id partNumber status firmware } } }`, { projectId: [receipt.projectId] })
+    const units = await appCall(c, receipt.installationId, `query PlanningWorkshopUnits($projectId: [ID!]) { workshopUnits(filter: { projectId: { in: $projectId } }, first: 100) { nodes { id partNumber status firmware } } }`, { projectId: [receipt.projectId] })
       .then((data) => (data.workshopUnits as { nodes: Record<string, unknown>[] }).nodes).catch(() => null);
     return { ...workshopProjectHandoff, matchesPackage: workshopProjectHandoff.requirements.includes(packageMarker(pkg.digest)), units };
   } catch (error) {

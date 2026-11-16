@@ -1,4 +1,7 @@
 type Query {
+  creativeRecords(kind: String, after: String, limit: Int): JSON
+  creativeRecordViews(kind: String, after: String, limit: Int): JSON
+
   """
   Search saved change batches; operations and evidence are selected explicitly.
   """
@@ -23,19 +26,33 @@ type Query {
   share(slug: String!): Share
 
   """
+  This Onto's settings, such as whether the ontology steward approves what it found clean.
+  """
+  settings: OntoSettings!
+
+  """
   One change batch, with every operation and its state; null when there is none.
   """
   changeBatch(id: ID!): ChangeBatch
 }
 
+"""Any JSON value."""
+scalar JSON
+
 type ChangeBatchConnection {
+  edges: [ChangeBatchConnectionEdge!]!
   nodes: [ChangeBatch!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ChangeBatchConnectionEdge {
+  cursor: String!
+  node: ChangeBatch!
 }
 
 """
-Proposed Wiki changes, invisible to every read until a member commits them on the Changes page.
+Proposed Wiki changes, invisible to every read until they commit: by policy, by the ontology steward after its review, or by a member on the Changes page.
 """
 type ChangeBatch {
   id: ID!
@@ -64,7 +81,7 @@ type ChangeBatch {
   reviewUrl: String
 
   """
-  The ontology steward's latest advisory review: state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. It never approves or blocks anything.
+  The ontology steward's latest review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why.
   """
   review: JSON
   expiresAt: DateTime!
@@ -72,6 +89,21 @@ type ChangeBatch {
 
   """Operations by state."""
   counts: JSON!
+
+  """
+  Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: "onto", recordId: "batch:<id>#<key>"} when you revise those proposals.
+  """
+  questions: JSON!
+
+  """
+  Onto's built-in advice on the draft, with no model: records that need a type (type.generic-cluster, edge.generic-cluster, property.in-title), too many types (type.sprawl) and card quality (card.*, evidence.quote-too-long). Each finding names its refs; stage.proposals can be staged as they are and stage.move lists the refs to restage under them. Advisory: nothing is blocked.
+  """
+  advice: JSON!
+
+  """
+  While the ontology steward reviews a submitted batch: {runId, state}, the batch-review workflow run to wait on (WorkflowRuns at scope platform). Null once the review has finished; read review then.
+  """
+  reviewRun: JSON
   instructions: [ChangeInstruction!]!
   operations(
     """
@@ -80,9 +112,6 @@ type ChangeBatch {
     refs: [String!]
   ): [StagedChange!]!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -120,12 +149,10 @@ type StagedChange {
 }
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
 type ExplorationSummary {
@@ -256,6 +283,16 @@ type ShareEdge {
   address: String!
 }
 
+"""This Onto's settings; admins change them with SaveSettings."""
+type OntoSettings {
+  """
+  approve: after its review of a submitted batch the ontology steward approves every proposal it found clean; the rest waits for a member. review: the steward only reviews and members decide everything.
+  """
+  stewardApproval: String!
+  updatedAt: DateTime
+  updatedBy: String
+}
+
 input ReviseBatchInput {
   batchId: ID!
   proposals: [ReviseBatchInputProposalsItem!]
@@ -279,6 +316,19 @@ input ReviseBatchInputProposalsItemEvidenceItem {
   observedAt: String
 }
 
+input AskBatchInput {
+  batchId: ID!
+  questions: [AskBatchInputQuestionsItem!]
+  remove: [String!]
+}
+
+input AskBatchInputQuestionsItem {
+  key: String!
+  ask: String!
+  refs: [String!]
+  options: [String!]
+}
+
 input MutateExplorationInput {
   slug: String!
   expectedRevision: Float!
@@ -294,6 +344,15 @@ input MutateShareInput {
   archived: Boolean
 }
 
+input SaveSettingsInput {
+  stewardApproval: SaveSettingsInputStewardApproval!
+}
+
+enum SaveSettingsInputStewardApproval {
+  approve
+  review
+}
+
 input ReviewBatchInput {
   batchId: ID!
   refs: [String!]
@@ -304,6 +363,83 @@ input ReviewBatchInput {
 enum ReviewBatchInputVerdict {
   approve
   reject
+}
+
+input StageCreativeRecordInput {
+  id: ID!
+  revision: Float!
+  kind: StageCreativeRecordInputKind!
+  title: String!
+  body: JSON!
+  subjectId: ID!
+  batchId: ID
+  slug: String
+}
+
+enum StageCreativeRecordInputKind {
+  CreativeBrief
+  PromptFragment
+  Storyboard
+  GenerationSnapshot
+  CreativeCandidate
+  CreativeSelection
+  CreativeFeedback
+}
+
+input FreezeCreativeInputsInput {
+  id: ID!
+  rootId: ID!
+  subjectId: ID!
+  title: String!
+  inputs: [FreezeCreativeInputsInputInputsItem!]
+  settings: JSON
+  batchId: ID
+}
+
+input FreezeCreativeInputsInputInputsItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String!
+}
+
+input StageCreativeRecordAtAddressInput {
+  address: String!
+  revision: Float!
+  kind: StageCreativeRecordAtAddressInputKind!
+  title: String!
+  body: JSON!
+  subject: String!
+  batchId: ID
+}
+
+enum StageCreativeRecordAtAddressInputKind {
+  CreativeBrief
+  PromptFragment
+  Storyboard
+  GenerationSnapshot
+  CreativeCandidate
+  CreativeSelection
+  CreativeFeedback
+}
+
+input FreezeCreativeInputsAtAddressInput {
+  address: String!
+  root: String!
+  subject: String!
+  title: String!
+  inputs: [FreezeCreativeInputsAtAddressInputInputsItem!]
+  settings: JSON
+  batchId: ID
+}
+
+input FreezeCreativeInputsAtAddressInputInputsItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String!
 }
 
 input StageChangesInput {
@@ -361,6 +497,11 @@ type Mutation {
   reviseBatch(input: ReviseBatchInput!): ChangeBatch!
 
   """
+  Ask a member about proposals in an open batch, or one awaiting member review: [{key, ask, refs, options?}]. refs name the proposals that depend on the answer; options are choices the member can pick. The same key replaces a question; a reworded one loses its answer. remove takes questions back. Members answer on the Changes page; answering approves nothing, an unanswered question blocks nothing, and questions close with the batch.
+  """
+  askBatch(input: AskBatchInput!): ChangeBatch!
+
+  """
   Change what an exploration shows with a merge patch over its state and the revision you read: open a path from a node (steps), hide nodes, or start a new one at expectedRevision 0. Named paths: offerings, products, projects, competitors, issues, repositories, pullRequests (live from GitHub; state open by default); any Wiki edge type name also works. It writes no records: to add a record, stage a change batch. Answers with the new picture.
   """
   mutateExploration(input: MutateExplorationInput!): Exploration!
@@ -371,12 +512,33 @@ type Mutation {
   mutateShare(input: MutateShareInput!): Share!
 
   """
+  Admins only: change this Onto's settings. stewardApproval approve lets the ontology steward approve what its review of a submitted batch found clean; review leaves every decision to a member.
+  """
+  saveSettings(input: SaveSettingsInput!): OntoSettings!
+
+  """
   Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 
   """
-  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting.
+  Stage a typed creative record for ordinary graph review. No generation or approval occurs.
+  """
+  stageCreativeRecord(input: StageCreativeRecordInput!): JSON
+
+  """
+  Resolve committed prompt fragments and stage an immutable snapshot for review. Does not generate media.
+  """
+  freezeCreativeInputs(input: FreezeCreativeInputsInput!): JSON
+
+  """Stage a typed creative record named by Type:slug through graph review."""
+  stageCreativeRecordAtAddress(input: StageCreativeRecordAtAddressInput!): JSON
+
+  """Resolve a named committed prompt and stage a new immutable snapshot."""
+  freezeCreativeInputsAtAddress(input: FreezeCreativeInputsAtAddressInput!): JSON
+
+  """
+  Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {"operation":{"operation":"create","ref":"$ada","type":"graph-node","attributes":{"typeId":"Person","title":"Ada"}},"evidence":[{"provider":"gmail","recordId":"<account email>/<message id>","quote":"..."}],"reason":"..."}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.
   """
   stageChanges(input: StageChangesInput!): ChangeBatch!
 
@@ -389,7 +551,7 @@ type Mutation {
   removeStagedChanges(input: RemoveStagedChangesInput!): ChangeBatch!
 
   """
-  Submit an open batch for a member's review on the Changes page. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background and attaches advisory findings (review, empty until it finishes); its policy decides exactly as without them.
+  Submit an open batch for review. Refused, naming the problem, while an operation would not apply; the batch stays open to fix. The ontology steward then reviews it in the background: reviewRun and the WAIT_FOR_RUN instruction (taskId) name the workflow run to wait on. Unless an admin set stewardApproval to review, it then approves every proposal it found clean; proposals with an error or warning finding or a question, and what depends on them, wait for a member (review.decision says which and why).
   """
   submitBatch(input: SubmitBatchInput!): ChangeBatch!
 
@@ -423,6 +585,7 @@ enum ChangeBatchChangesInputItemsItemAction {
   amend
   stage
   configure
+  ask
   remove
   submit
   review

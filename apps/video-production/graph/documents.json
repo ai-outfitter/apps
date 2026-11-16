@@ -1,0 +1,827 @@
+[
+  {
+    "name": "StageStoryboard",
+    "kind": "mutation",
+    "story": "As a producer or an agent, I want to save a brief, a storyboard and its shots to our Onto as typed records, so that a member reviews them and every shot can be found by its storyboard and order.",
+    "query": "mutation StageStoryboard($input: StageStoryboardInput!) {\n  stageStoryboard(input: $input) {\n    batchId\n    state\n    proposals\n    storyboardId\n    ontoPath\n  }\n}",
+    "hash": "b147ed12b22c9e6b4c1170ab093da0c0f314c402b9165273e2882df8fa4b8e9f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageStoryboardInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "StoryboardChanges",
+    "kind": "mutation",
+    "story": "As an authorized caller, I want to stage a creative brief, a storyboard, its shots and their visual references in the organization's Onto as one change batch for review, so that each change has a durable receipt and explicit next steps.",
+    "query": "mutation StoryboardChanges($input: StoryboardChangesInput!) {\n  storyboardChanges(input: $input) {\n    items {\n      key\n      status\n      result\n      error\n    }\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      call\n      taskId\n      url\n    }\n  }\n}",
+    "hash": "84afa1e308504c9253fb7884dbecc7034eb38eab34ec3c202e26186122b16c60",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StoryboardChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Stage a creative brief, a storyboard, its shots and their visual references in the organization's Onto as one change batch a member reviews. Order and timing are properties, never title text."
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "items": {
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
+                        "const": "stageStoryboard"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "brief": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                "description": "Your short stable name for this record, e.g. find-your-spot-15. The same key names the same record on a later save."
+                              },
+                              "existingId": {
+                                "description": "An existing Onto record of this type to reuse instead of creating one (from Storyboards).",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "title": {
+                                "description": "Needed when creating the brief.",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 160
+                              },
+                              "summary": {
+                                "type": "string",
+                                "maxLength": 280
+                              },
+                              "audience": {
+                                "description": "Who it is for.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "single_message": {
+                                "description": "The one takeaway.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "claim_boundary": {
+                                "description": "What it may and may not claim.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "call_to_action": {
+                                "description": "What the audience should do next.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "success_metric": {
+                                "description": "How the team will know it worked.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "status": {
+                                "description": "draft, approved or retired.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "promotes": {
+                                "default": [],
+                                "description": "Existing Product or Offering records the brief promotes.",
+                                "maxItems": 20,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "storyboard": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                "description": "Your short stable name for this record, e.g. find-your-spot-15. The same key names the same record on a later save."
+                              },
+                              "existingId": {
+                                "description": "An existing Onto record of this type to reuse instead of creating one (from Storyboards).",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "title": {
+                                "description": "Needed when creating the storyboard. No length or variant in it.",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 160
+                              },
+                              "summary": {
+                                "type": "string",
+                                "maxLength": 280
+                              },
+                              "duration_seconds": {
+                                "description": "Planned length.",
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 36000
+                              },
+                              "aspect_ratio": {
+                                "description": "Such as 9:16.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "variant": {
+                                "description": "Which cut this is.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "opening": {
+                                "description": "What the first second shows.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "status": {
+                                "description": "draft, approved, in_production or published.",
+                                "type": "string",
+                                "maxLength": 4000
+                              },
+                              "cutFrom": {
+                                "description": "An existing Storyboard this one is a shorter cut of.",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              }
+                            },
+                            "required": [
+                              "key"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "references": {
+                            "default": [],
+                            "maxItems": 40,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                  "description": "Your short stable name for this record, e.g. find-your-spot-15. The same key names the same record on a later save."
+                                },
+                                "existingId": {
+                                  "description": "An existing Onto record of this type to reuse instead of creating one (from Storyboards).",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "summary": {
+                                  "type": "string",
+                                  "maxLength": 280
+                                },
+                                "status": {
+                                  "description": "needed, in_progress or locked.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "requirements": {
+                                  "description": "What it must show.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "file_uri": {
+                                  "description": "Where the file is. Leave out while it is a requirement.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "version": {
+                                  "description": "Revision to match.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                }
+                              },
+                              "required": [
+                                "key"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "shots": {
+                            "default": [],
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                  "description": "Your short stable name for this record, e.g. find-your-spot-15. The same key names the same record on a later save."
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "summary": {
+                                  "type": "string",
+                                  "maxLength": 280
+                                },
+                                "sequence": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 500
+                                },
+                                "start_seconds": {
+                                  "description": "Start, from the start of the video.",
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 36000
+                                },
+                                "duration_seconds": {
+                                  "description": "How long it runs.",
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 36000
+                                },
+                                "beat": {
+                                  "description": "hook, demo, payoff or close.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "action": {
+                                  "description": "What we see.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "camera": {
+                                  "description": "Framing and movement.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "voiceover": {
+                                  "description": "Word for word.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "overlay": {
+                                  "description": "On-screen text.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "sound": {
+                                  "description": "Music and effects.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "transition": {
+                                  "description": "Cut to the next shot.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "source_route": {
+                                  "description": "filmed, screen capture, render or stock.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "claim_status": {
+                                  "description": "ok, check or blocked.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "status": {
+                                  "description": "planned, blocked, ready or shot.",
+                                  "type": "string",
+                                  "maxLength": 4000
+                                },
+                                "references": {
+                                  "default": [],
+                                  "description": "Keys of the references (above) this shot must match.",
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                    "description": "Your short stable name for this record, e.g. find-your-spot-15. The same key names the same record on a later save."
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "title",
+                                "sequence"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "brief",
+                          "storyboard"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "storyboardChanges": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "error": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "itemKey": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "Storyboards",
+    "kind": "query",
+    "story": "As a producer or an agent, I want every storyboard with its brief, its shots in order and the references each shot needs, so that I can see what is planned and what is blocked.",
+    "query": "query Storyboards {\n  storyboards {\n    briefs {\n      id\n      address\n      title\n      summary\n      audience\n      singleMessage\n      claimBoundary\n      callToAction\n      successMetric\n      status\n      promotes {\n        id\n        address\n        title\n      }\n      storyboards {\n        id\n        address\n        title\n        summary\n        durationSeconds\n        aspectRatio\n        variant\n        opening\n        status\n        cutFrom {\n          id\n          address\n          title\n        }\n        shots {\n          id\n          address\n          title\n          sequence\n          startSeconds\n          durationSeconds\n          beat\n          action\n          camera\n          voiceover\n          overlay\n          sound\n          transition\n          sourceRoute\n          claimStatus\n          status\n          references {\n            id\n            address\n            title\n            status\n            requirements\n            fileUri\n            version\n            hasFile\n          }\n        }\n      }\n    }\n    unbriefed {\n      id\n      address\n      title\n      summary\n      durationSeconds\n      aspectRatio\n      variant\n      opening\n      status\n      cutFrom {\n        id\n        address\n        title\n      }\n      shots {\n        id\n        address\n        title\n        sequence\n        startSeconds\n        durationSeconds\n        beat\n        action\n        camera\n        voiceover\n        overlay\n        sound\n        transition\n        sourceRoute\n        claimStatus\n        status\n        references {\n          id\n          address\n          title\n          status\n          requirements\n          fileUri\n          version\n          hasFile\n        }\n      }\n    }\n  }\n}",
+    "hash": "5d1a5f781cf097eeac81437700f79ef3560cbee250ebae2433756d983beee5f5",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Read creative briefs, their storyboards, each storyboard's shots in sequence order (beat, timing, voiceover, status) and the visual references each shot needs. A reference without a file is still a requirement."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "storyboards": {
+          "type": "object",
+          "properties": {
+            "briefs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "audience": {
+                    "type": "string"
+                  },
+                  "singleMessage": {
+                    "type": "string"
+                  },
+                  "claimBoundary": {
+                    "type": "string"
+                  },
+                  "callToAction": {
+                    "type": "string"
+                  },
+                  "successMetric": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "promotes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "storyboards": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "summary": {
+                          "type": "string"
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "aspectRatio": {
+                          "type": "string"
+                        },
+                        "variant": {
+                          "type": "string"
+                        },
+                        "opening": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "cutFrom": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "address": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "shots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "sequence": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "startSeconds": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "durationSeconds": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "beat": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string"
+                              },
+                              "camera": {
+                                "type": "string"
+                              },
+                              "voiceover": {
+                                "type": "string"
+                              },
+                              "overlay": {
+                                "type": "string"
+                              },
+                              "sound": {
+                                "type": "string"
+                              },
+                              "transition": {
+                                "type": "string"
+                              },
+                              "sourceRoute": {
+                                "type": "string"
+                              },
+                              "claimStatus": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "references": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "address": {
+                                      "type": "string"
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    },
+                                    "requirements": {
+                                      "type": "string"
+                                    },
+                                    "fileUri": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "string"
+                                    },
+                                    "hasFile": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "unbriefed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "durationSeconds": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "aspectRatio": {
+                    "type": "string"
+                  },
+                  "variant": {
+                    "type": "string"
+                  },
+                  "opening": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "cutFrom": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "address": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "shots": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "sequence": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "startSeconds": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "beat": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string"
+                        },
+                        "camera": {
+                          "type": "string"
+                        },
+                        "voiceover": {
+                          "type": "string"
+                        },
+                        "overlay": {
+                          "type": "string"
+                        },
+                        "sound": {
+                          "type": "string"
+                        },
+                        "transition": {
+                          "type": "string"
+                        },
+                        "sourceRoute": {
+                          "type": "string"
+                        },
+                        "claimStatus": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "references": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "requirements": {
+                                "type": "string"
+                              },
+                              "fileUri": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "hasFile": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]

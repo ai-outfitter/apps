@@ -25,6 +25,7 @@ import { graphChangeInput } from "./graph-changes";
 import { documents } from "./documents";
 import { stageInput } from "./graphql";
 import { batchConfigureInput, configureBatch, validateBatch } from "./graph-batches";
+import { askBatch, batchAskInput } from "./batch-questions";
 import { assertionInspectInput, assertionInspection, inspectAssertion } from "./ontology-assertions";
 
 // The Wiki assistant's tools: named here and never mounted on the actions route, so they
@@ -65,6 +66,8 @@ const batchWrites = publishActionTools("onto", {
     run: (ctx, input) => wikiActions["graph.mutate"].invoke(ctx, { query: documents.StageChanges.document, operationName: "StageChanges", variables: { input } }) }),
   "batch.configure": defineAction({ description: "Edit anchor node addresses for an undecided batch and check connectivity without committing records.", access: "write", input: batchConfigureInput, output: z.unknown(),
     run: async (ctx, input) => { const db = installationDatabase(); const detail = await configureBatch(db, ctx.identity, ctx.actor, input); return { ...detail, validation: await validateBatch(db, ctx.identity, input) }; } }),
+  "batch.ask": defineAction({ description: "Ask the member about proposals in an undecided batch: questions [{key, ask, refs, options?}]. The member answers on the Changes page; answering approves nothing.", access: "write", input: batchAskInput, output: z.unknown(),
+    run: (ctx, input) => askBatch(installationDatabase(), ctx.identity, ctx.actor, input) }),
 });
 
 /** Pages the Wiki agent may open; `<type>/<id>` is a node's `path` in the context. */
@@ -117,11 +120,12 @@ export function agentRoute(
       label: "Onto",
       context,
       instructions:
-        "You are Onto, the agent managing this owner’s ontological knowledge graph. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and record/recordRevision for a committed record correction. Never guess missing records or revisions. For an open batch, iterate with batch.stage: use replace:true to correct a proposal at its existing ref, preserving its full operation, evidence and reason. Read the returned validation and fix errors until valid before explicit submission. Batches anchor to the organization or owner by default; change anchors with batch.configure only when the member asks. A passing dry run is not an approval. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
+        "You are Onto, the agent managing this owner’s ontological knowledge graph. Explain stored entities, ontology constraints and evidence. Prepare exact graph changes for review. Do not manufacture assertion confirmation or infer authority from relationships. To build or reshape a knowledge graph, open the entity's knowledge-graphs page with `rel`, `stop`, `after`, `depth` and `max` params; to change a saved graph, start from its `selectedGraph.query` and change only what the member asked; `currentPage.state.relationshipsHere` lists relationship types touching the entity. Read relationships with your tools before choosing params. On a Changes page, inspect its batch with batch.inspect (the predefined ChangeBatch query); pending suggestions are not saved entities. Use operation attributes and evidence to explain the project, and record/recordRevision for a committed record correction. Never guess missing records or revisions. For an open batch, iterate with batch.stage: use replace:true to correct a proposal at its existing ref, preserving its full operation, evidence and reason. Read the returned validation and fix errors until valid before explicit submission. Before staging, read the types: if three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Summaries say what a record is and why this owner cares; bodies hold only what the summary does not; reasons say why this record; evidence quotes the supporting sentence. Read advice in the result and the steward's review on the batch before submitting; they are advice, not approval. Batches anchor to the organization or owner by default; change anchors with batch.configure only when the member asks. Ask the member about a proposal you are unsure of with batch.ask, never as a record; read answers in the batch's questions. A passing dry run is not an approval. Submitted batches are frozen: explain that pending incorrect suggestions must be rejected by the member and replaced; do not apply them as saved records.",
       reads,
       actions: {
         "batch.stage": { action: batchWrites["batch.stage"], prepare: input => stageInput.parse(input) },
         "batch.configure": { action: batchWrites["batch.configure"], prepare: input => batchConfigureInput.parse(input) },
+        "batch.ask": { action: batchWrites["batch.ask"], prepare: input => batchAskInput.parse(input) },
         "graph.apply": {
           retry: "same-request",
           action: apply,

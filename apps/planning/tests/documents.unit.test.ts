@@ -10,6 +10,8 @@ import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema } from "../src/server/graphql";
 import type { PlanningContext } from "../src/server/intake";
 import { createProject } from "../src/server/planning";
+import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 
 // Each document runs through graph.mutate (or graph.graphql) as the platform's graph_mutate and
 // graph_query call it: the field's own policy admits or refuses the caller, invalid input is a
@@ -55,7 +57,7 @@ async function fixture() {
     "entities.types": () => ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "wiki", writable: true })),
     "entities.resolve": () => ({ installationId: "wiki" }),
     "identity.resolve": () => ({ holderId: state.holder }),
-    "entities.list": (input) => [...nodes.values()].slice(Number(input.offset ?? 0), Number(input.offset ?? 0) + Number(input.limit ?? 100)),
+    "entities.list": (input) => memoryEntityPage([...nodes.values()] as unknown as EntityRecord[], input),
     "entities.get": (input) => nodes.get(String(input.id)) ?? refuse("Not found", 404),
     "entities.create": (input) => {
       const attributes = input.attributes as Record<string, unknown>;
@@ -247,9 +249,9 @@ test("intake documents: editors capture and route, the assigned holder claims, r
     assert.deepEqual(node.routes.map((route) => [route.kind, route.blocker, route.claim?.principal ?? null]), [["research", null, "agent"], ["architecture", null, null]]);
     assert.deepEqual(field<{ pageInfo: { hasNextPage: boolean } }>(listed, "intakes").pageInfo.hasNextPage, false);
     // The field itself takes ids, as every collection does, for a read of one intake over the composed graph.
-    const byId = (ids: string[]) => query.invoke(holder, { query: "query ($ids: [ID!]) { intakes(ids: $ids) { nodes { id } aggregate { count } } }", variables: { ids } }) as Promise<Result>;
-    assert.deepEqual(field(await byId([saved.id]), "intakes"), { nodes: [{ id: saved.id }], aggregate: { count: 1 } });
-    assert.deepEqual(field(await byId(["20000000-0000-4000-8000-000000000009"]), "intakes"), { nodes: [], aggregate: { count: 0 } });
+    const byId = (ids: string[]) => query.invoke(holder, { query: "query ($ids: [ID!]) { intakes(ids: $ids) { nodes { id } totalCount } }", variables: { ids } }) as Promise<Result>;
+    assert.deepEqual(field(await byId([saved.id]), "intakes"), { nodes: [{ id: saved.id }], totalCount: 1 });
+    assert.deepEqual(field(await byId(["20000000-0000-4000-8000-000000000009"]), "intakes"), { nodes: [], totalCount: 0 });
 
     // Publishing writes the intake node and the finding to the Wiki, once.
     const publish = { intakeId: saved.id, childId: researchRoute.id };

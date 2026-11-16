@@ -11,7 +11,8 @@
     "./playwright": "./src/playwright.ts",
     "./workflow-fixture": "./src/workflow-fixture.ts",
     "./threads": "./src/threads.ts",
-    "./stories": "./src/stories.ts"
+    "./stories": "./src/stories.ts",
+    "./entities": "./src/entities.ts"
   },
   "dependencies": {
     "@ai-outfitter/app-sdk": "0.1.4",

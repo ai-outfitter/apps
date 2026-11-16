@@ -41,7 +41,7 @@ steps:
       Each issue you file starts an agent that opens one pull request and merges it once checks pass, so file as few issues as the work allows:
       - One combined issue for every minor and patch update, security fix and removal together, to land as a single pull request.
       - One separate issue per major version upgrade or replacement only, at most 3, most valuable first.
-      Before filing, read this repository's open issues. When an open issue already covers a change, leave it alone and do not file it again.
+      Before filing, read this repository's open issues. When an open issue already covers a change, leave it alone and do not file it again. While a combined dependency issue is open, never file a second one: comment your new findings on it (`gh issue comment`) instead; Foundry retries its fix.
       Each issue states the evidence (command output, usages found), the risk, and a plan a separate implementation agent can follow in one pull request, with the checks that prove it worked.
       Skip anything you cannot verify and say so in your final message rather than guessing. Filing no issues is a valid result.
     outputs:

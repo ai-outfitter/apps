@@ -1,0 +1,14 @@
+---
+import Layout from '../components/Layout.astro';
+import {context} from '../server/context';
+import {listMedia} from '@ai-outfitter/creative-workflow/media';
+import {appHref} from '../app-href';
+const page=import.meta.env.OUTFITTER_APP_MODE==='operational'?await listMedia(context(Astro.request,Astro.locals),Astro.url.searchParams.get('after')??undefined):{items:[],next:null};
+const href=(id:string)=>appHref(Astro.url.pathname,`/api/media/${encodeURIComponent(id)}`);
+---
+<Layout title="Decks and artifacts" description="Rendered Slidev decks, illustrations, and source bundles created by your agent.">
+{page.items.length===0&&<p>No rendered artifacts yet. Ask your agent to export the selected slide narrative with the project's Slidev renderer.</p>}
+{page.items.map((asset:any)=><article><h2>{asset.filename}</h2>{asset.contentType.startsWith('image/')&&<img src={href(asset.id)} alt={asset.filename}/>}<p>Source record: {asset.subjectId}</p><a href={href(asset.id)} target="_blank" rel="noreferrer">Open preview</a> · <a href={`${href(asset.id)}?download`}>Download {asset.contentType==='application/pdf'?'PDF':asset.filename}</a><details><summary>Artifact provenance</summary><p>{asset.sha256}</p></details></article>)}
+{page.next&&<a href={`?after=${encodeURIComponent(page.next)}`}>More artifacts</a>}
+</Layout>
+<style>article{margin-block:1.5rem;padding:1rem;border:1px solid #8885;border-radius:10px;overflow-wrap:anywhere}img{max-width:100%;max-height:50vh;object-fit:contain}</style>

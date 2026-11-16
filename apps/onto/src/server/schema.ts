@@ -13,6 +13,7 @@ import {
 import { sql } from "drizzle-orm";
 import type { StoredTypeMetadata } from "../lib/type-metadata";
 import type { BatchReview } from "./batch-review";
+import type { BatchQuestion } from "./batch-questions";
 
 export const graphTypes = sqliteTable("graph_types", {
   id: text().primaryKey(),
@@ -59,6 +60,15 @@ export const graphNodes = sqliteTable(
   (t) => [
     uniqueIndex("graph_nodes_type_slug").on(t.typeId, t.slug),
     uniqueIndex("graph_nodes_external_key").on(t.externalKey),
+    // A collection page reads its type in orderBy order (graph-source.ts), never the whole type.
+    index("graph_nodes_type_id").on(t.typeId, t.id),
+    index("graph_nodes_type_created").on(t.typeId, t.createdAt, t.id),
+    index("graph_nodes_type_updated").on(t.typeId, t.updatedAt, t.id),
+    index("graph_nodes_type_title").on(t.typeId, t.title, t.id),
+    // A page over every node type has no type test: it reads in orderBy order from these (the primary key gives ID order).
+    index("graph_nodes_created").on(t.createdAt, t.id),
+    index("graph_nodes_updated").on(t.updatedAt, t.id),
+    index("graph_nodes_title").on(t.title, t.id),
   ],
 );
 
@@ -173,11 +183,13 @@ export const graphBatches = sqliteTable("graph_batches", {
   updatedAt: integer().notNull(),
   expiresAt: integer().notNull(),
   closedAt: integer(),
-  /** The ontology steward's latest advisory review (server/batch-review.ts). */
+  /** The ontology steward's latest review and what it approved (server/batch-review.ts). */
   review: text({ mode: "json" }).$type<BatchReview>(),
   reviewJobId: text(),
   /** Node ids every created node must connect to before the batch can be submitted. */
   anchors: text({ mode: "json" }).$type<string[]>(),
+  /** Questions an agent asks a member about this batch, with their answers. */
+  questions: text({ mode: "json" }).$type<BatchQuestion[]>(),
 });
 
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
@@ -191,6 +203,8 @@ export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
   nextAttemptAt: integer().notNull(),
   createdAt: integer().notNull(),
   error: text(),
+  /** The batch-review run reserved for this job's first attempt; a retry or a schedule saves its own. */
+  runId: text().$defaultFn(() => crypto.randomUUID()),
 }, (t) => [index("onto_review_jobs_due").on(t.state, t.nextAttemptAt, t.leaseUntil)]);
 
 export const graphBatchOperations = sqliteTable(
@@ -260,4 +274,12 @@ export const graphShares = sqliteTable("graph_shares", {
   createdAt: integer().notNull(),
   updatedBy: text().notNull(),
   updatedAt: integer().notNull(),
+});
+
+/** Onto's own settings (server/settings.ts), one row per key. */
+export const ontoSettings = sqliteTable("onto_settings", {
+  key: text().primaryKey(),
+  value: text().notNull(),
+  updatedAt: integer().notNull(),
+  updatedBy: text().notNull(),
 });

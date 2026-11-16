@@ -103,7 +103,7 @@ test("saved portfolio priorities expose a private read-only entity to sibling ap
     assert.deepEqual(row.attributes.items, ["sunny", "keystone", "artera", "outfitter"]);
     assert.equal(entity.create, undefined);
     assert.equal(entity.update, undefined);
-    assert.deepEqual(await entity.list({ ...identity, installationId: "other" }, 0, 10), []);
+    assert.deepEqual((await entity.list({ ...identity, installationId: "other" }, { limit: 10, order: { field: "id", direction: "asc" } })).records, []);
     await assert.rejects(entity.get({ ...identity, installationId: "other" }, "organizations"), (error: any) => error.status === 404);
     await assert.rejects(entity.get({ ...identity, organizationId: "org", owner: { kind: "organization", id: "org" } }, "organizations"), (error: any) => error.status === 403);
   } finally { client.close(); }

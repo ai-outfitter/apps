@@ -9,6 +9,7 @@
 // Authorization stays with Wiki's dispatch; a selection grants nothing.
 import { z } from "zod";
 import { type EntityRecord, type EntityRef, entityRecord, entityRef } from "./entities";
+import { graphQueryMaxLength } from "./graph-limits";
 import { exploreKnowledgeGraph, isRetired, resolveKnowledgeGraph } from "./knowledge-graph";
 
 const typeName = z.string().trim().min(1).max(120);
@@ -176,7 +177,7 @@ export const knowledgeGraphSelectFields = {
   /** A GraphQL document to read with instead of the saved or compiled one (a result's `query`, possibly
    * edited; its variable is `$roots`, the roots' slugs). Alone, the selection is what it returns; with a definition,
    * that definition still bounds it. */
-  query: z.string().trim().min(1).max(32768).optional(),
+  query: z.string().trim().min(1).max(graphQueryMaxLength).optional(),
 };
 /** At most one of definitionId or definition, and one of them or a query. */
 export const oneDefinition = <T extends { definitionId?: string; definition?: unknown; query?: string }>(input: T) =>

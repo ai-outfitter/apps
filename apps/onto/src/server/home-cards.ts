@@ -10,6 +10,7 @@ import { plainText } from "../lib/plain-text";
 import type { Database } from "./graph";
 import { graphBatches, graphNodes, graphTypes } from "./schema";
 import { sealDueBatches } from "./graph-batches";
+import { type BatchQuestion, openQuestions } from "./batch-questions";
 
 export const recentDocumentCounts: Record<HomeCardSize, number> = {
   small: 3,
@@ -38,7 +39,7 @@ const day = (time: number) => new Date(time).toISOString().slice(0, 10);
 
 /** The installation is the scope: an organization's or a person's own Wiki
  * database, read as the forwarded viewer. Links stay inside this Wiki. */
-type CardBatch = { id: string; title: string; state: string; summary: string | null; reviewBy: number | null; policy: unknown; closedAt: number | null };
+type CardBatch = { id: string; title: string; state: string; summary: string | null; reviewBy: number | null; policy: unknown; closedAt: number | null; questions: BatchQuestion[] | null };
 
 function batchSummary(batch: CardBatch) {
   try {
@@ -54,7 +55,7 @@ function batchSummary(batch: CardBatch) {
 /** Batches waiting for review, and a first run's records created in the last day. */
 export async function reviewQueue(db: Database, limit: number, now = Date.now()) {
   const rows: CardBatch[] = await db
-    .select({ id: graphBatches.id, title: graphBatches.title, state: graphBatches.state, summary: graphBatches.summary, reviewBy: graphBatches.reviewBy, policy: graphBatches.policy, closedAt: graphBatches.closedAt })
+    .select({ id: graphBatches.id, title: graphBatches.title, state: graphBatches.state, summary: graphBatches.summary, reviewBy: graphBatches.reviewBy, policy: graphBatches.policy, closedAt: graphBatches.closedAt, questions: graphBatches.questions })
     .from(graphBatches)
     .where(or(eq(graphBatches.state, "awaiting_review"), and(eq(graphBatches.state, "committed"), gt(graphBatches.closedAt, now - 24 * 3600 * 1000))))
     .orderBy(desc(graphBatches.updatedAt))
@@ -156,7 +157,9 @@ export function wikiCards(db: Database) {
 function reviewItem(batch: Awaited<ReturnType<typeof reviewQueue>>[number]) {
   const summary = plainText(batchSummary(batch), 280);
   const first = batch.state === "committed";
-  const waiting = batch.reviewBy ? `Approves automatically at ${clockTime(batch.reviewBy, batch.policy)} unless you review it` : "Waiting for your approval";
+  const asked = openQuestions(batch);
+  const waiting = [batch.reviewBy ? `Approves automatically at ${clockTime(batch.reviewBy, batch.policy)} unless you review it` : "Waiting for your approval",
+    asked ? `${asked} ${asked === 1 ? "question" : "questions"}` : null].filter(Boolean).join(" · ");
   return {
     id: batch.id,
     title: plainText(first ? `Created from your sources: ${batch.title}` : batch.title, 120) || "Proposed changes",

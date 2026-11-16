@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   canonicalReleaseProject,
   projectReleasesFixture,
@@ -45,7 +46,7 @@ for (const width of [1440, 390])
             if (operation === "entities.types")
               return { ok: true, value: releaseProviders() };
             if (operation === "entities.get") return projectResult(input);
-            if (operation === "entities.list") return { ok: true, value: [] };
+            if (operation === "entities.list") return { ok: true, value: memoryEntityPage([]) };
             expect(operation).toBe("actions.call");
             expect(input).toMatchObject({
               installationId: "wiki",

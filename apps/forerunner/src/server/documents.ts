@@ -32,7 +32,7 @@ const legacyDocuments = defineDocuments({
     story: "As an agent, I want the member's unfinished board items with their revisions, so that I can add to, complete or reorder their board without overwriting a change they made.",
     // A board holds at most 500 items, so one page is the whole board.
     document: graphql(`query Board {
-      items(first: 500, status: ["todo", "in-progress"]) { nodes { id category title dueDate status position parentId revision } }
+      items(first: 500, filter: { status: { in: ["todo", "in-progress"] } }) { nodes { id category title dueDate status position parentId revision } }
     }`),
   },
   CreateItem: {

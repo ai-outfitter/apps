@@ -1,0 +1,26 @@
+---
+import ManagedAppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import { rootHref as rootHrefFor } from "../lib/root-href";
+import "../video.css";
+
+export type VideoPage = "storyboards" | "storyboard" | "settings";
+interface Props { title: string; description: string; page: VideoPage }
+const { title, description, page } = Astro.props;
+const root = rootHrefFor(Astro.url.pathname, page === "storyboards" ? 0 : page === "storyboard" ? 2 : 1);
+---
+<ManagedAppLayout
+  name="Video production"
+  {title}
+  {description}
+  active={page === "settings" ? "settings" : "home"}
+  settingsHref={`${root}settings`}
+  sidebarLinks={[{ label: "Storyboards", href: root, active: page !== "settings" }]}
+>
+  <div class="video">
+    <slot />
+  </div>
+</ManagedAppLayout>
+<script>
+  import { setOrganizationLink } from "../../navigation.js";
+  setOrganizationLink("video-production");
+</script>

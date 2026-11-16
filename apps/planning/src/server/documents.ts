@@ -12,6 +12,20 @@ import type { PlanningContext } from "./intake";
 
 // Selections are spelled out: gql.tada types a document only from a literal string.
 const legacyDocuments = defineDocuments({
+ VideoTransfer:{story:"As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",document:graphql(`query VideoTransfer($id:ID!){videoTransfer(id:$id)}`)},
+ VideoTransferReceipt:{story:"As an agent, I want to verify imported media, so that source links switch only after validation.",document:graphql(`query VideoTransferReceipt($id:ID!){videoTransferReceipt(id:$id)}`)},
+ BeginVideoTransfer:{story:"As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",document:graphql(`mutation BeginVideoTransfer($input:BeginVideoTransferInput!){beginVideoTransfer(input:$input)}`)},
+ ImportVideoTransfer:{story:"As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",document:graphql(`mutation ImportVideoTransfer($input:ImportVideoTransferInput!){importVideoTransfer(input:$input)}`)},
+ FinishVideoTransfer:{story:"As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",document:graphql(`mutation FinishVideoTransfer($input:FinishVideoTransferInput!){finishVideoTransfer(input:$input)}`)},
+
+  VideoSourceEvidence:{story:"As a video agent, I want the product revisions and evidence bundles with their original records and citations, so that shots use verified product sources.",document:graphql(`query VideoSourceEvidence($productId:ID!,$cursor:String){videoSourceEvidence(productId:$productId,cursor:$cursor)}`)},
+  VideoProductions:{story:"As a product owner, I want to inspect saved storyboards, source citations, takes and finished videos, so that I can review what the agent built.",document:graphql(`query VideoProductions($id:ID,$productId:ID,$revision:Int,$after:String,$limit:Int=20){videoProductions(id:$id,productId:$productId,revision:$revision,after:$after,limit:$limit)}`)},
+  SaveVideoProduction:{story:"As a product editor, I want to save a storyboard at its current revision; zero creates a stable production ID. Editors only, so that production work is reviewable and recoverable.",document:graphql(`mutation SaveVideoProduction($input:SaveVideoProductionInput!){saveVideoProduction(input:$input)}`)},
+  PrepareVideoTake:{story:"As a product editor, I want to freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request, so that production work is reviewable and recoverable.",document:graphql(`mutation PrepareVideoTake($input:PrepareVideoTakeInput!){prepareVideoTake(input:$input)}`)},
+  UpdateVideoTake:{story:"As a product editor, I want to claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests, so that production work is reviewable and recoverable.",document:graphql(`mutation UpdateVideoTake($input:UpdateVideoTakeInput!){updateVideoTake(input:$input)}`)},
+  ReserveVideoAsset:{story:"As a product editor, I want to reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it, so that production work is reviewable and recoverable.",document:graphql(`mutation ReserveVideoAsset($input:ReserveVideoAssetInput!){reserveVideoAsset(input:$input)}`)},
+  CommitVideoAsset:{story:"As a product editor, I want to verify uploaded bytes and attach them to the production. Editors only, so that production work is reviewable and recoverable.",document:graphql(`mutation CommitVideoAsset($input:CommitVideoAssetInput!){commitVideoAsset(input:$input)}`)},
+  PublishVideoProduction:{story:"As a product editor, I want to publish the current production packet as an organization graph Document referencing its product and revision, so that production work is reviewable and recoverable.",document:graphql(`mutation PublishVideoProduction($input:PublishVideoProductionInput!){publishVideoProduction(input:$input)}`)},
   PortfolioProjects: {
     story: "As a personal portfolio owner, I want a small authorized project index without loading every project's graph, so that ordering stays responsive.",
     document: graphql(`query PortfolioProjects($first:Int=100,$after:String){projects(first:$first,after:$after,archived:false){nodes{id name state archived revision rank} pageInfo{endCursor hasNextPage}}}`),
@@ -52,8 +66,8 @@ const legacyDocuments = defineDocuments({
   },
   Issues: {
     story: "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
-    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {
-      issues(first: $first, after: $after, ids: $ids, projectId: $projectId, status: $status, category: $category) {
+    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!], $orderBy: IssueOrder = ID_ASC) {
+      issues(first: $first, after: $after, ids: $ids, orderBy: $orderBy, filter: { projectId: { in: $projectId }, status: { in: $status }, category: { in: $category } }) {
         nodes { id projectId parentId title description category status assigneeId dueDate position revision createdAt updatedAt }
         pageInfo { endCursor hasNextPage }
       }
@@ -299,6 +313,19 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), graphqlSchema, readGroups), {
+ VideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ VideoTransferReceipt:{description:"Transfer video records with sealing and media verification."},
+ BeginVideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ ImportVideoTransfer:{description:"Transfer video records with sealing and media verification."},
+ FinishVideoTransfer:{description:"Transfer video records with sealing and media verification."},
+  VideoSourceEvidence:{description:"Read a bounded product neighborhood including revisions, evidence bundles and members. Preserve returned cursor and omitted/truncation indicators; missing evidence is not product proof."},
+  VideoProductions:{description:"Read versioned productions with shots, evidence, takes and private uploaded assets; follow next even when product filtering returns no items."},
+  SaveVideoProduction:{description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only."},
+  PrepareVideoTake:{description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request."},
+  UpdateVideoTake:{description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests."},
+  ReserveVideoAsset:{description:"Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it."},
+  CommitVideoAsset:{description:"Verify uploaded bytes and attach them to the production. Editors only."},
+  PublishVideoProduction:{description:"Publish the current production packet as an organization graph Document referencing its product and revision."},
   PortfolioProjects: {description: "Read a compact authorized project index for personal portfolio ordering; no linked graph or provider activity is loaded.", collection:true, provenance:"organizationSlug"},
   UseCases: {description: "Read complete project-linked use-case documents and revisions before authoring scenarios or editing. Names and summaries alone are insufficient for scenario review."},
   SaveUseCase: {description: "Save a complete use case against an existing project: actor, goal, trigger, steps, alternatives and observable successCriteria. Editors only. Read UseCases first; edits require both ID and revision."},
@@ -323,7 +350,7 @@ export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(
   DigestRuns:{description:"Read daily digest/report run progress and failures."},
   DigestSchedule:{description:"Read the existing daily owner report chain schedule."},
   ChangeDigestSchedule:{description:"Enable or disable the existing daily report chain schedule; editors only."},
-  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
+  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order, or in category order with orderBy POSITION_ASC (keep orderBy unchanged while paging). Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
   IssueChanges: {description: "Create, replace, delete or reorder project issues. Use stable UUID item keys for safe retries; read Issues with includeIdentifiers:true first for IDs, current revisions and every issue in a category before reordering. Updates replace fields, so preserve values from the read. Any member of the installation may write."},
   ProjectRepositories:{description:"Read project repositories and their recent GitHub pull requests.",collection:true,provenance:"organizationSlug"},
   PriorityOrder:{description:"Read an organization priority order and revision."},

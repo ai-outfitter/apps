@@ -3,8 +3,8 @@
     "name": "ChangeBatch",
     "kind": "query",
     "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
-    "hash": "79d6777cfc2cd673b3eca131eb850f197114d731047339319ef2f57b5573ce86",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    questions\n    review\n    reviewRun\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      taskId\n      url\n    }\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "f38a4795eed2989dc30fe9e52d85da21a6149fc7ab7780d091d01c1476d8a90a",
     "variables": {
       "type": "object",
       "properties": {
@@ -41,7 +41,7 @@
       ]
     },
     "mcp": {
-      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."
+      "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
     },
     "inputSchema": {
       "type": "object",
@@ -564,6 +564,98 @@
                       },
                       "action": {
                         "type": "string",
+                        "const": "ask"
+                      },
+                      "input": {
+                        "type": "object",
+                        "properties": {
+                          "batchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "questions": {
+                            "default": [],
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                                  "description": "Names the question in this batch, such as board-role. Asking again with the same key replaces it."
+                                },
+                                "ask": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500,
+                                  "description": "One plain question for a member."
+                                },
+                                "refs": {
+                                  "default": [],
+                                  "description": "Refs of the proposals in this batch that depend on the answer.",
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^\\$[a-z][a-z0-9_-]{0,63}$"
+                                  }
+                                },
+                                "options": {
+                                  "description": "Answers the member can pick; they can still type their own.",
+                                  "minItems": 2,
+                                  "maxItems": 6,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "ask"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "remove": {
+                            "default": [],
+                            "description": "Keys of questions to take back.",
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                              "description": "Names the question in this batch, such as board-role. Asking again with the same key replaces it."
+                            }
+                          }
+                        },
+                        "required": [
+                          "batchId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+                        "description": "Your stable key for this item: any short name, such as add-ada. Reuse it only to retry the same input."
+                      },
+                      "action": {
+                        "type": "string",
                         "const": "remove"
                       },
                       "input": {
@@ -812,8 +904,8 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "dd8614fcd5c6845a7dd00d5bb6b4c5fc593cc349025b5df6a64644eb09eb64e4",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n        taskId\n        url\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      reviewRun @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "2cf579c0d1023e3b3cc4a21f726b99b4845fe3bdebfff11d169d4914dbec6623",
     "variables": {
       "type": "object",
       "properties": {
@@ -887,6 +979,9 @@
                     "type": "string",
                     "nullable": true
                   },
+                  "questions": {
+                    "description": "JSON"
+                  },
                   "instructions": {
                     "type": "array",
                     "items": {
@@ -906,9 +1001,28 @@
                         },
                         "message": {
                           "type": "string"
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "url": {
+                          "type": "string",
+                          "nullable": true
                         }
                       }
                     }
+                  },
+                  "advice": {
+                    "description": "JSON"
+                  },
+                  "review": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "reviewRun": {
+                    "description": "JSON",
+                    "nullable": true
                   },
                   "operations": {
                     "type": "array",
@@ -966,6 +1080,43 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "name": "CreativeRecords",
+    "kind": "query",
+    "story": "As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",
+    "query": "query CreativeRecords($kind: String, $after: String, $limit: Int) {\n  creativeRecordViews(kind: $kind, after: $after, limit: $limit)\n}",
+    "hash": "b50fd116946904c372f1eed84751a38764329513b63364c97f7856f4a6e148f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read shared briefs, fragments, storyboards, snapshots, candidates and selections."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "creativeRecordViews": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }
@@ -1130,6 +1281,36 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "name": "FreezeCreativeInputs",
+    "kind": "mutation",
+    "story": "As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",
+    "query": "mutation FreezeCreativeInputs($input: FreezeCreativeInputsAtAddressInput!) {\n  freezeCreativeInputsAtAddress(input: $input)\n}",
+    "hash": "79abd2ad7ecb1c98f1a1a05b162d8348d77f3b954688108d1f361cadc03300a4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FreezeCreativeInputsAtAddressInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Freeze committed prompt dependencies into a snapshot proposal; does not generate."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "freezeCreativeInputsAtAddress": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }
@@ -1347,6 +1528,19 @@
     }
   },
   {
+    "name": "OntoSettings",
+    "kind": "query",
+    "story": "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
+    "query": "query OntoSettings {\n  settings {\n    stewardApproval\n    updatedAt\n    updatedBy\n  }\n}",
+    "hash": "f57ce535fa75d1183fd9bc2dd77624fb867062883d7dde6a6bc83fb81547dbb1",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "hidden": true
+  },
+  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
@@ -1415,6 +1609,25 @@
         }
       }
     }
+  },
+  {
+    "name": "SaveSettings",
+    "kind": "mutation",
+    "story": "As an admin, I want to choose whether the ontology steward approves what it found clean or only reviews, so that members review every batch only when we want that.",
+    "query": "mutation SaveSettings($input: SaveSettingsInput!) {\n  saveSettings(input: $input) {\n    stewardApproval\n    updatedAt\n    updatedBy\n  }\n}",
+    "hash": "eb6af561bff52b6e104d9afe1d195748f770cb36cdd790ae21a805d6a6ff7f73",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveSettingsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   },
   {
     "name": "Share",
@@ -1567,8 +1780,8 @@
     "name": "StageChanges",
     "kind": "mutation",
     "story": "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
-    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n  }\n}",
-    "hash": "a49ec65b0b65794a30bce244d0f8df755b705d76fe0343b5a31c153ce5a34244",
+    "query": "mutation StageChanges($input: StageChangesInput!) {\n  stageChanges(input: $input) {\n    id\n    title\n    state\n    counts\n    anchors\n    validation\n    advice\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n    }\n  }\n}",
+    "hash": "25969ca081bd3b5a253192066232f7641883fb4dbf952654592fd59e2a650550",
     "variables": {
       "type": "object",
       "properties": {
@@ -1583,11 +1796,41 @@
     "hidden": true
   },
   {
+    "name": "StageCreativeRecord",
+    "kind": "mutation",
+    "story": "As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",
+    "query": "mutation StageCreativeRecord($input: StageCreativeRecordAtAddressInput!) {\n  stageCreativeRecordAtAddress(input: $input)\n}",
+    "hash": "4030d04b4ed3f295196fff697239051d2f9f804dc45393340dc3ff4070136d29",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL StageCreativeRecordAtAddressInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Stage a typed creative record for graph review; does not generate or approve."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "stageCreativeRecordAtAddress": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "SubmitBatch",
     "kind": "mutation",
     "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
-    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
-    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    reviewRun\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      taskId\n      url\n    }\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "ad3c444641e064f3b2d46c5a316e038d0f50e106267a9f3f27f788b6cb03d9d5",
     "variables": {
       "type": "object",
       "properties": {

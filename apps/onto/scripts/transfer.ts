@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
+import type { EntityPage, EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { entityRef } from "@ai-outfitter/app-sdk/entities";
 import {
   core,
@@ -123,15 +123,17 @@ export async function listAll(
   type: string,
 ): Promise<EntityRecord[]> {
   const rows: EntityRecord[] = [];
-  for (let offset = 0; offset <= 100000; offset += 100) {
+  let after: string | undefined;
+  for (let pages = 0; pages <= 1000; pages++) {
     const page = (await call("list_entities", {
       installationId,
       type,
-      offset,
       limit: 100,
-    })) as EntityRecord[];
-    rows.push(...page);
-    if (page.length < 100) return rows;
+      ...(after ? { after } : {}),
+    })) as EntityPage;
+    rows.push(...page.records);
+    if (!page.pageInfo.hasNextPage || !page.pageInfo.endCursor) return rows;
+    after = page.pageInfo.endCursor;
   }
   throw new Error("Export exceeds the entity pagination limit");
 }

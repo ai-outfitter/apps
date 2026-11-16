@@ -1,3 +1,6 @@
+import {transferInput,importTransferInput,beginTransfer,exportTransfer,importTransfer,transferReceipt,finishTransfer} from '@ai-outfitter/creative-workflow/video-transfer';
+import { videoReadInput, saveVideoInput, videoTakeInput, takeUpdateInput, videoAssetInput, assetCommitInput, publishVideoInput } from "../lib/video-production";
+import { videoSourceEvidence, readVideos, saveProduction, prepareTake, updateTake, reserveAsset, commitAsset, publishProduction } from "./video-production";
 import { dailyReportReadInput, readDailyReport } from "./digest-wiki";
 import { dailyReportsInput, startDailyReports } from "./digests";
 import { readOrder, saveOrder, orderInput, sortByOrder } from "./priority-order";
@@ -55,6 +58,8 @@ const issueFields = tableType(issues, {
   dates: ["createdAt", "updatedAt"],
   ids: ["projectId", "parentId"],
   filters: ["projectId", "status", "category"],
+  // planning_issues_installation_position (installationId, position, id) gives an installation's issues in position order.
+  orders: ["position"],
   // Every Planning read keeps to the caller's installation.
   scope: context => eq(issues.installationId, context.identity.installationId),
 });
@@ -117,7 +122,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
       const ids = idList(args.ids);
       const id = (row: { nodeId: string; edgeId?: string }) => row.edgeId ?? row.nodeId;
       const rows = (await repositories(context, project.id, project.githubRepository)).filter(row => !ids || ids.includes(id(row))).sort((a, b) => id(a).localeCompare(id(b)));
-      return { ...page(context, info, rows.filter(row => !start || id(row) > start), id, first, start), aggregate: { count: rows.length } };
+      return page(context, info, rows.filter(row => !start || id(row) > start), id, first, start, () => rows.length);
     } },
     goals: projectDocument("What the project must achieve"),
     userStories: projectDocument("Who it serves and what they need"),
@@ -265,6 +270,8 @@ const designPartnerList = new GraphQLObjectType({ name: "DesignPartners", fields
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    videoSourceEvidence:{type:JSONScalar,args:{productId:{type:nonNull(GraphQLID)},cursor:{type:GraphQLString}},resolve:(_source,args,context)=>videoSourceEvidence(context,args.productId,args.cursor)},
+    videoTransfer:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>exportTransfer(c,args.id)},videoTransferReceipt:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>transferReceipt(c,args.id)},videoProductions: {type: JSONScalar,args:{id:{type:GraphQLID},productId:{type:GraphQLID},revision:{type:GraphQLInt},after:{type:GraphQLString},limit:{type:GraphQLInt}},resolve:(_source,args,context)=>readVideos(context,videoReadInput.parse(args))},
     partnerRequests: {
       type: nonNull(new GraphQLList(nonNull(partnerRequest))),
       description: "Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.",
@@ -276,10 +283,11 @@ const query = new GraphQLObjectType<unknown, Context>({
     },
     dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
       const {first,start}=pageStart(args),id=context.identity.installationId;
-      if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start);
+      // One record: this installation's report.
+      if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start,()=>1);
       const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone});
       const row={id,name:"Daily report",ownerKind:context.identity.owner.kind,ownerId:context.identity.owner.id,planningInstallationId:id,organizationSlug:null,report};
-      return page(context,info,[row],row=>row.id,first,start);
+      return page(context,info,[row],row=>row.id,first,start,()=>1);
     }},
     priorityOrder: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>readOrder(context.db(),context.identity,z.enum(["projects","products"]).parse(args.kind))},
     personalPortfolio: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>personalPortfolio(context,z.enum(["organizations","projects"]).parse(args.kind))},
@@ -291,7 +299,7 @@ const query = new GraphQLObjectType<unknown, Context>({
     productPages: {type:nonNull(connectionType(productPageType)),args:{...pageArgs(),at:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{at?:string},context,info)=>{
       const {first,start}=pageStart(args);
       const row=await productsPage(context,args.at);
-      return page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start);
+      return page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start,()=>1);
     }},
 
     organizationGoals: {
@@ -303,7 +311,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const record = await readOrganizationGoals(context.host(), context.identity);
         const rows = record && (!ids || ids.includes(record.id)) ? [record] : [];
-        return { ...page(context, info, rows, (row) => row.id, first, start), aggregate: { count: rows.length } };
+        return page(context, info, rows, (row) => row.id, first, start, () => rows.length);
       },
     },
     projects: {
@@ -316,11 +324,8 @@ const query = new GraphQLObjectType<unknown, Context>({
         if (args.states?.some(state => !["draft", "backlog", "active", "completed", "archived"].includes(state))) throw new GraphQLError("Unknown project state");
         const matching = (after: string | null) => projectRows(context, { ids, active: args.active, archived: args.archived ?? (args.states?.includes("archived") ? null : false), states: args.states, after });
         const rows = await matching(start).orderBy(asc(projects.id)).limit(first + 1);
-        return {
-          ...page(context, info, rows, row => row.id, first, start),
-          // Counted only when selected.
-          aggregate: { count: async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count },
-        };
+        // Counted only when selected.
+        return page(context, info, rows, row => row.id, first, start, async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count);
       },
     },
     ...issueFields,
@@ -349,7 +354,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const service = new IntakeService(context);
         const rows = await service.page(first + 1, start, ids);
-        return { ...page(context, info, rows, row => row.id, first, start), aggregate: { count: () => service.count(ids) } };
+        return page(context, info, rows, row => row.id, first, start, () => service.count(ids));
       },
     },
     intakeOptions: {
@@ -424,6 +429,12 @@ const revisionRule = "Name the revision you read; a changed record is refused (4
 const mutation = new GraphQLObjectType<unknown, Context>({
   name: "Mutation",
   fields: {
+    beginVideoTransfer:mutationField<typeof transferInput,Context>({name:'BeginVideoTransfer',description:'Seal a production for a verified transfer; blocks further source writes.',input:transferInput,run:beginTransfer}),importVideoTransfer:mutationField<typeof importTransferInput,Context>({name:'ImportVideoTransfer',description:'Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.',input:importTransferInput,run:importTransfer}),finishVideoTransfer:mutationField<typeof publishVideoInput,Context>({name:'FinishVideoTransfer',description:'Verify destination metadata and media before recording completion.',input:publishVideoInput,run:(c,input)=>finishTransfer(c,input.id)}),saveVideoProduction: mutationField<typeof saveVideoInput,Context>({name:"SaveVideoProduction",description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only.",input:saveVideoInput,run:(context,input)=>saveProduction(context,input)}),
+    prepareVideoTake: mutationField<typeof videoTakeInput,Context>({name:"PrepareVideoTake",description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.",input:videoTakeInput,run:(context,input)=>prepareTake(context,input)}),
+    updateVideoTake: mutationField<typeof takeUpdateInput,Context>({name:"UpdateVideoTake",description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.",input:takeUpdateInput,run:(context,input)=>updateTake(context,input)}),
+    reserveVideoAsset: mutationField<typeof videoAssetInput,Context>({name:"ReserveVideoAsset",description:"Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it.",input:videoAssetInput,run:(context,input)=>reserveAsset(context,input)}),
+    commitVideoAsset: mutationField<typeof assetCommitInput,Context>({name:"CommitVideoAsset",description:"Verify uploaded bytes and attach them to the production. Editors only.",input:assetCommitInput,run:(context,input)=>commitAsset(context,input)}),
+    publishVideoProduction: mutationField<typeof publishVideoInput,Context>({name:"PublishVideoProduction",description:"Publish the current production packet as an organization graph Document referencing its product and revision.",input:publishVideoInput,run:(context,input)=>publishProduction(context,input)}),
     generateProductReport: mutationField<typeof productReportInput,Context>({name:"GenerateProductReport",description:"Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.",input:productReportInput,run:(context,input)=>startProductReport(context.host(),context.identity,input)}),
     changeProductReportSchedule: mutationField<typeof productReportScheduleInput,Context>({name:"ChangeProductReportSchedule",description:"Enable or disable daily roadmap regeneration. Editors only.",input:productReportScheduleInput,run:(context,input)=>changeProductReportSchedule(context.host(),context.identity,input)}),
 

@@ -21,8 +21,8 @@ for (const width of [1440, 390]) {
         if (operation === "actions.call") return { ok: true, value: { data: { dailyReport: null } } };
         if (operation !== "platform.document") return { ok: false, status: 400, message: "Read-only review fixture" };
         if (!value.variables) return { ok: true, value: { viewer: { orgs: ["atlas", "northstar"].map(slug => ({ slug, name: slug === "northstar" ? "Northstar" : "Atlas", appSlugs: ["planning"] })) } } };
-        const variables = value.variables as { slugs: string[]; date: string };
-        return { ok: true, value: { viewer: { orgs: [{ slug: variables.slugs[0], dailyReports: { nodes: [{ report: variables.date === date ? savedReport : null }], pageInfo: { hasNextPage: false } } }] } } };
+        const variables = value.variables as { date: string };
+        return { ok: true, value: { data: { dailyReports: [{ organizationSlug: (value.scopes as string[])[0], report: variables.date === date ? savedReport : null }] } } };
       } }),
     });
     const scope = { organizationId: null, installationId: app.installationId, userId: "alice", packageHash: "test", phase: "interactive" as const, expiresAt: Date.now() + 120000 };

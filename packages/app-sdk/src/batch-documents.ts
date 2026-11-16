@@ -31,10 +31,11 @@ export function resultInstructions(key: string, value: unknown, url?: string): I
   const instructions: Instruction[] = Array.isArray(result.instructions) ? result.instructions.map((instruction:Instruction)=>({...instruction,itemKey:key})) : [];
   if((result.preview === true || result.phase === "preview") && result.previewToken)instructions.push({code:"CONFIRM_INSTALL",itemKey:key,actor:"caller",required:true,message:"Review the installation preview, then confirm its previewToken using a new request key."});
   if (result.state === "open" && result.validation?.valid === false) instructions.push({ code: "REPAIR_CHANGES", itemKey: key, actor: "caller", required: true, message: `Repair the draft before submitting: ${String(result.validation.error ?? "Graph validation failed")}`, ...(url ? { url } : {}) });
-  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: true, message: "Append remaining changes, then submit the batch.", ...(url ? { url } : {}) });
+  else if (result.state === "open") instructions.push({ code: "SUBMIT_CHANGES", itemKey: key, actor: "caller", required: false, message: "Staged. The batch stays open: add more changes to it, or submit it when it is complete; a member can also review it from its page.", ...(url ? { url } : {}) });
   if ((result.state === "awaiting_review" || result.status === "awaiting_review") && !instructions.length) instructions.push({ code: "AWAIT_REVIEW", itemKey: key, actor: "human", required: true, message: "Wait for an authorized reviewer; submission does not grant approval.", ...(url ? { url } : {}) });
   instructions.push(...workInstructions(key, result));
-  return instructions;
+  // A result may carry the instructions its own resolver already derived; say each once.
+  return instructions.filter((instruction, index) => instructions.findIndex(other => other.code === instruction.code && other.message === instruction.message) === index);
 }
 
 function workInstructions(key: string, result: Record<string, any>): Instruction[] {
@@ -42,7 +43,7 @@ function workInstructions(key: string, result: Record<string, any>): Instruction
   for (const waiting of result.openWork?.awaiting ?? []) instructions.push({ code: `GOVERNANCE_${String(waiting.step).toUpperCase()}`, itemKey: key,
     actor: waiting.kind === "Agent" ? "agent" : "human", required: waiting.required !== false, message: `${waiting.holder}: ${waiting.step}${waiting.blockedBy ? ` (${waiting.blockedBy})` : ""}.` });
   const run = result.run;
-  if (run?.id && !["complete", "completed", "failed", "cancelled"].includes(run.status)) instructions.push({ code: "WAIT_FOR_RUN", itemKey: key, actor: "system", required: true, message: "Read the retained run before retrying.", taskId: run.id });
+  if (run?.id && !["complete", "completed", "failed", "cancelled"].includes(run.status)) instructions.push({ code: "WAIT_FOR_RUN", itemKey: key, actor: "system", required: true, message: typeof run.message === "string" ? run.message : "Read the retained run before retrying.", taskId: run.id });
   return instructions;
 }
 

@@ -12,6 +12,6 @@ amended through this operation.
 
 An open batch remains open. A submitted batch remains `awaiting_review`, keeps
 its policy and deadline, validates the complete proposed graph and anchors, and
-queues a fresh advisory review. Amendment never approves or commits records.
+queues a fresh steward review. Amendment never approves or commits records.
 Concurrent graph changes or decisions cause a conflict; reload before retrying.
 Stable `ChangeBatchChanges` keys reconcile lost responses without repeating writes.

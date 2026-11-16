@@ -21,16 +21,17 @@ test("DailyHome refuses organization installations before reading schedules or r
 
 const alice = { owner: { kind: "user", id: "alice" }, userId: "alice", installationId: "forerunner", canEdit: true, role: "owner" } as never;
 type Saved = { id: string; revision: number; generatedBody: string; provenance?: string; archived?: boolean };
-type Call = { operation: string; action?: string; query?: string };
+type Call = { operation: string; action?: string; query?: string; template?: string };
 const refuse = (operation: string): unknown => { throw new Error(`unexpected host call ${operation}`); };
 /** A personal Wiki holding `saved` briefs by date. Any other host operation is answered by `extra`, which refuses by default. */
-async function wikiHost(saved: Record<string, Saved>, extra: (operation: string) => unknown = refuse) {
+async function wikiHost(saved: Record<string, Saved>, extra: (operation: string) => unknown = refuse, wikiTemplate = "wiki-map") {
   const bySlug = new Map<string, Saved>();
   for (const [date, doc] of Object.entries(saved)) bySlug.set(await briefSlug(alice, date, "America/Chicago"), doc);
   const calls: Call[] = [];
-  const host = { call: async (operation: string, input: { installationId?: string; action?: string; input?: { query: string; variables: Record<string, string> } }) => {
-    calls.push({ operation, action: input.action, query: input.input?.query });
-    if (operation === "actions.list") return [{ installationId: "wiki", actions: [{ name: "graph.describe", access: "read", permitted: true }] }];
+  const host = { call: async (operation: string, input: { installationId?: string; template?: string; action?: string; input?: { query: string; variables: Record<string, string> } }) => {
+    calls.push({ operation, action: input.action, query: input.input?.query, template: input.template });
+    // The platform lists only the named package's installations when a template is given.
+    if (operation === "actions.list") return input.template && input.template !== wikiTemplate ? [] : [{ installationId: "wiki", actions: [{ name: "graph.describe", access: "read", permitted: true }] }];
     if (operation === "actions.call" && input.installationId === "wiki") {
       if (input.action === "graph.describe") return { version: 1, contracts: [{ id: "outfitter.wiki-documents", version: 1 }], capabilities: ["documents"], types: [], queryAction: "graph.graphql" };
       const { query, variables } = input.input ?? { query: "", variables: {} };
@@ -82,9 +83,28 @@ test("the digest section reads the saved brief without reports, priorities, gene
   assert.equal(result.schedule?.timezone, "America/Chicago");
   assert.ok(!("yesterday" in result) && !("priorities" in result) && !("previousWeek" in result));
   // One schedule read, one provider resolution, one page lookup and one document read. Nothing else.
-  assert.deepEqual(calls.map(call => call.operation === "actions.call" ? call.action : call.operation), ["schedules", "actions.list", "graph.describe", "graph.graphql", "graph.graphql"]);
+  // The Wiki is resolved while the schedule loads, and only the Wiki package is asked to describe itself.
+  assert.deepEqual(calls.map(call => call.operation === "actions.call" ? call.action : call.operation), ["actions.list", "schedules", "graph.describe", "graph.graphql", "graph.graphql"]);
+  assert.equal(calls[0].template, "wiki-map");
   assert.deepEqual(Object.keys(result.timings).sort(), ["briefLookup", "briefRead", "schedule", "wikiProvider"]);
   assert.ok(Object.values(result.timings).every(value => typeof value === "number"));
+});
+
+test("a document Wiki under another package name is still found by asking every provider", async () => {
+  const { host, calls } = await wikiHost({ "2026-11-12": { id: "today", revision: 2, generatedBody: "# Today" } }, schedules, "team-wiki");
+  const result = await readDailyHome({} as never, alice, host, { sections: ["digest"] }, noon);
+  assert.equal(result.briefState, "saved");
+  assert.deepEqual(calls.filter(call => call.operation === "actions.list").map(call => call.template), ["wiki-map", undefined]);
+});
+
+test("the digest does not wait for the schedule before resolving the Wiki", async () => {
+  const { host } = await wikiHost({ "2026-11-12": { id: "today", revision: 2, generatedBody: "# Today" } }, schedules);
+  const wait = 40, slow = { call: async (operation: string, input: never) => { await new Promise(done => setTimeout(done, wait)); return (host as { call: (operation: string, input: never) => unknown }).call(operation, input); } } as never;
+  const started = Date.now();
+  const result = await readDailyHome({} as never, alice, slow, { sections: ["digest"] }, noon);
+  assert.equal(result.briefState, "saved");
+  // Five host calls: list and schedule together, then describe, lookup and read. Four waits, not five.
+  assert.ok(Date.now() - started < wait * 5 - 10, `took ${Date.now() - started} ms`);
 });
 
 test("a missing brief is explicit and offers the last dated snapshot, never as today's", async () => {

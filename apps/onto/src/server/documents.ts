@@ -11,19 +11,38 @@ import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-doc
 import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
+  CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
+  StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
+  FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
   ReviseBatch: {
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
     document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
   },
-  ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true},
+  // Onto's receipt adds its advice on the draft and the instructions that go with it.
+  StageChanges: {...wikiChangeDocuments.StageChanges, document: `mutation StageChanges($input: StageChangesInput!) {
+      stageChanges(input: $input) { id title state counts anchors validation advice instructions { code itemKey actor required message } }
+    }`},
+  ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions review reviewRun instructions { code itemKey actor required message taskId url }\n")},
+  // Onto's receipt names the steward's review run to wait on.
+  SubmitBatch: {...wikiChangeDocuments.SubmitBatch, document: `mutation SubmitBatch($input: SubmitBatchInput!) {
+      submitBatch(input: $input) { id state reviewBy counts reviewRun instructions { code itemKey actor required message taskId url } operations { ref state } }
+    }`},
   ChangeBatches: {
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
       changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy reviewUrl instructions @include(if:$details) { code itemKey actor required message } operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,
+  },
+  OntoSettings: {
+    story: "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
+    document: `query OntoSettings { settings { stewardApproval updatedAt updatedBy } }`,
+  },
+  SaveSettings: {
+    story: "As an admin, I want to choose whether the ontology steward approves what it found clean or only reviews, so that members review every batch only when we want that.",
+    document: `mutation SaveSettings($input: SaveSettingsInput!) { saveSettings(input:$input) { stewardApproval updatedAt updatedBy } }`,
   },
   Explorations: {
     story:"As a member or agent, I want to list the saved explorations of this Wiki, so that I can open one instead of rebuilding a view.",
@@ -66,6 +85,9 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+ CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
+ StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
+ FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
   ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
@@ -90,6 +112,6 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
     "description": "Editors: show another organization part of this graph (a KnowledgeGraph from roots, minus hidden nodes) with a merge patch, or archive the share."
   },
   "ChangeBatchChanges": {
-    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies."
+    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
   }
 });

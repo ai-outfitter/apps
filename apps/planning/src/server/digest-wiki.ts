@@ -11,13 +11,15 @@ export { localDate as digestPeriod } from "./report-period";
 
 type Host = Pick<WorkflowHost<"interactive">,"call">;
 export type ReportRef={installationId:string;documentId:string;revision:number;slug:string;inputDigest:string;status:"complete"|"incomplete"};
+/** Reports live in the Wiki package; naming it asks one provider instead of describing every installed app. */
+const wikiPackage={template:"wiki-map"};
 const draft=z.object({id:z.string(),revision:z.number(),generatedBody:z.string(),archived:z.boolean()});
 /** Idempotent generated-section update; Wiki enforces revision guards and keeps authored/publication history. */
 export async function saveReportNote(host:Host,actor:AppIdentity,input:{
  level:"project"|"organization"|"personal";subject:string;title:string;period:ReportPeriod;
  content:Record<string,unknown>;status:ReportRef["status"];runId:string;capturedAt:number;
 }):Promise<ReportRef>{
- const wiki=await documentWiki(host);
+ const wiki=await documentWiki(host,wikiPackage);
  const slug=`${input.level}-daily-${await stableGraphId(actor.owner,actor.installationId,input.subject,input.period.date,input.period.timezone)}`;
  const call=async(action:"graph.graphql"|"graph.mutate",query:string,variables:Record<string,unknown>)=>{
   const result=graphGraphqlResult.parse(await host.call("actions.call",{installationId:wiki.installationId,action,...(action==="graph.graphql"?{readOnly:true}:{}),input:{query,variables:JSON.parse(JSON.stringify(variables)),maxBytes:262144}}));
@@ -56,7 +58,7 @@ export async function readDailyReport(host:Host,actor:AppIdentity,raw:z.input<ty
  if(level==="organization" && actor.owner.kind!=="organization" || level==="personal" && actor.owner.kind!=="user")throw new Response("Report owner does not match its scope",{status:403});
  const subject=level==="project"?input.subject:actor.owner.id;
  if(!subject)throw new Response("A project report needs a project ID",{status:400});
- const wiki=await documentWiki(host);
+ const wiki=await documentWiki(host,wikiPackage);
  const slug=`${level}-daily-${await stableGraphId(actor.owner,actor.installationId,subject,input.date,input.timezone)}`;
  const execute=async(query:string,variables:Record<string,string>)=>{
   const result=graphGraphqlResult.parse(await host.call("actions.call",{installationId:wiki.installationId,action:"graph.graphql",readOnly:true,input:{query,variables,maxBytes:262144}}));

@@ -10,7 +10,7 @@ const actor: AppIdentity = { userId: "alice", owner: {kind:"user",id:"alice"}, i
 const node = (id:string,title:string) => ({id,revision:2,title,body:"Recorded definition",properties:{} as Record<string,unknown>,archived:false,updatedAt:"2026-11-10T12:00:00Z"});
 function sourceData() {
  const metric={...node("metric","Weekly activity definition"),__typename:"MetricDefinition",properties:{calculation:"Recorded method",unit:"hours",source:"Reviewed diary",interval:"weekly"}};
- const goal={...node("goal","Personal activity goal"),metrics:[{id:"edge",revision:3,fromId:"goal",toId:"metric",body:null,properties:{},archived:false,to:metric}]};
+ const goal={...node("goal","Personal activity goal"),metrics:{nodes:[{id:"edge",revision:3,fromId:"goal",toId:"metric",body:null,properties:{},archived:false,to:metric}],pageInfo:{hasNextPage:false}}};
  return {goals:{nodes:[goal],pageInfo:{hasNextPage:false,endCursor:null}}};
 }
 function fixture(transform:(data:ReturnType<typeof sourceData>)=>unknown=data=>({data})) {
@@ -56,10 +56,10 @@ test("empty goals are an observed empty set, while absent, truncated and failed 
 test("retired records are excluded and invalid metric relationships or changing revisions refuse complete coverage",async()=>{
  const retired=await capturePersonalGoalContext(fixture(data=>{data.goals.nodes[0].body='{"status":"retired"}';return {data};}).host,actor);
  assert.equal(retired.complete,true);assert.deepEqual(retired.goals,[]);
- const invalid=await capturePersonalGoalContext(fixture(data=>{data.goals.nodes[0].metrics[0].to.__typename="Person";return {data};}).host,actor);
+ const invalid=await capturePersonalGoalContext(fixture(data=>{data.goals.nodes[0].metrics.nodes[0].to.__typename="Person";return {data};}).host,actor);
  assert.equal(invalid.complete,false);assert.deepEqual(invalid.goals[0].metrics,[]);
  const changed=await capturePersonalGoalContext(fixture(data=>{
-  const another=structuredClone(data.goals.nodes[0]);another.id="other-goal";another.metrics[0].fromId="other-goal";another.metrics[0].to.revision=4;data.goals.nodes.push(another);return {data};
+  const another=structuredClone(data.goals.nodes[0]);another.id="other-goal";another.metrics.nodes[0].fromId="other-goal";another.metrics.nodes[0].to.revision=4;data.goals.nodes.push(another);return {data};
  }).host,actor);
  assert.equal(changed.complete,false);assert.match(changed.errors.join(" "),/revisions disagree/);
 });
@@ -71,7 +71,7 @@ test("organization scope is refused before reading any personal goal source",asy
 test("definition targets and number-shaped content remain source data rather than fabricated measured progress",async()=>{
  const captured=await capturePersonalGoalContext(fixture(data=>{
   data.goals.nodes[0].properties={target:100};
-  data.goals.nodes[0].metrics[0].to.body='{"kind":"planning-kpi","value":12}';
+  data.goals.nodes[0].metrics.nodes[0].to.body='{"kind":"planning-kpi","value":12}';
   return {data};
  }).host,actor);
  assert.equal(captured.complete,true);

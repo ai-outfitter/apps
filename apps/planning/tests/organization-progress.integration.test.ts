@@ -3,6 +3,7 @@ import test from "node:test";
 import { appDataContext } from "@ai-outfitter/app-sdk/database";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   organizationProgressView,
   readOrganizationProgress,
@@ -210,16 +211,8 @@ test("organization progress uses only filtered incident documents and reuses ove
           if (operation === "entities.list")
             return {
               ok: true,
-              value: graph.edges.filter(
-                (edge) =>
-                  edge.attributes.typeId === "documents" &&
-                  edge.attributes.toId === "org-node",
-              ),
+              value: memoryEntityPage(input.type === "graph-edge" ? graph.edges : [newer, foreign], input),
             };
-          if (operation === "entities.get" && input.id === "newer")
-            return { ok: true, value: newer };
-          if (operation === "entities.get" && input.id === "foreign")
-            return { ok: true, value: foreign };
           return { ok: false, status: 403, message: "Outside scope" };
         },
       },
@@ -235,18 +228,16 @@ test("organization progress uses only filtered incident documents and reuses ove
     ["newer", "older"],
   );
   const lists = calls.filter((call) => call.operation === "entities.list");
-  assert.equal(lists.length, 1);
+  assert.equal(lists.length, 2);
   assert.deepEqual(lists[0].input.filter, {
     typeId: "documents",
     toId: "org-node",
     archived: false,
   });
-  assert.deepEqual(
-    calls
-      .filter((call) => call.operation === "entities.get")
-      .map((call) => call.input.id),
-    ["newer"],
-  );
+  // Only the document missing from the overview is read, by its known ID.
+  assert.deepEqual(lists[1].input.ids, ["newer"]);
+  assert.equal(lists[1].input.filter, undefined);
+  assert.equal(calls.some((call) => call.operation === "entities.get"), false);
 });
 
 test("future and impossible delivery timestamps are not shown as shipped", () => {

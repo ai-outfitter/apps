@@ -1,0 +1,31 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "strict": true,
+    "resolveJsonModule": true,
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schemas": [
+          {
+            "name": "video-production",
+            "schema": "./graph/schema.graphql",
+            "tadaOutputLocation": "./graph/graphql-env.d.ts"
+          }
+        ]
+      }
+    ]
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "src/**/*",
+    "fixtures/*",
+    "../../../packages/ui/src/astro/**/*.astro",
+    "tests/**/*",
+    "scripts/**/*",
+    "evals/**/*",
+    "navigation.js",
+    "playwright.config.ts"
+  ],
+  "exclude": ["dist", "node_modules", "evals/**/results"]
+}
