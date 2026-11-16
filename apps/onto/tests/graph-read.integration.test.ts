@@ -52,8 +52,8 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.deepEqual(await entitySearch("graph-node", "markdown", { typeId: ids.$relation.id }), []);
     assert.ok((await entitySearch("graph-node", "")).some(row => row.ref.id === ids.$root.id));
     for (const [type, id] of [["graph-node", ids.$root.id], ["graph-edge", ids.$edge.id], ["graph-type", ids.$type.id]]) {
-      assert.deepEqual((await entitySearch(type, "", { ids: [id] })).map(row => row.ref.id), [id]);
-      assert.deepEqual(await entitySearch(type, "", { ids: ["missing-exact-id"] }), []);
+      assert.deepEqual((await entitySearch(type, "", {}, { ids: [id] })).map(row => row.ref.id), [id]);
+      assert.deepEqual(await entitySearch(type, "", {}, { ids: ["missing-exact-id"] }), []);
     }
     const counts = () => app.database.prepare("SELECT 'nodes' AS kind, count(*) AS n, sum(revision) AS revisions FROM graph_nodes UNION ALL SELECT 'edges', count(*), sum(revision) FROM graph_edges UNION ALL SELECT 'types', count(*), sum(revision) FROM graph_types").all();
     const declaration = await app.call(path, member, {method:"POST",body:{action:"graph.describe",input:{}}});
