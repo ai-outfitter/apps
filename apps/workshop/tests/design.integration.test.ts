@@ -177,3 +177,25 @@ test("concepts: a generated image runs the concept workflow and is kept like an 
     await app.dispose();
   }
 });
+
+test("design: a person's own Workshop, with no organization, starts design work and saves the project as its owner", async () => {
+  const double = host();
+  const app = await appWorker("workshop", appArtifact(new URL("..", import.meta.url), "operational"), "personal-workshop", { workflowHost: double.host });
+  // As platform dispatch reaches a user-owned installation: no organization, the owner as the role.
+  const person = { userId: "member", organizationId: "", role: "owner", owner: { kind: "user" as const, id: "member" } };
+  const personalScope = (): WorkflowHostScope => ({ ...scope(), organizationId: null, installationId: "personal-workshop" });
+  try {
+    const mutate = (who: typeof person, input: unknown) => app.call("/api/internal/actions/v1/call", who, { method: "POST", workflowHost: personalScope(), body: { action: "graph.mutate", input: { query: "mutation StartWorkshopDesign($input: StartWorkshopDesignInput!) { startWorkshopDesign(input: $input) }", variables: { input } } } });
+    const message = "A 60 x 40 x 20 mm cable clip with a 10 mm hole";
+    const response = await mutate(person, { message });
+    assert.equal(response.status, 200, await response.clone().text());
+    const started = ((await response.json()) as { data: { startWorkshopDesign: { id: string; status: string } } }).data.startWorkshopDesign;
+    assert.equal(started.status, "running");
+    const designed = await app.call("/api/internal/workflow-host/v1", person, { method: "POST", workflowHost: personalScope(), body: { phase: "interactive", input: { runId: started.id, task: "workshop-design", inputs: { message } } } });
+    assert.equal(designed.status, 200, await designed.clone().text());
+    const projects = (await (await app.call("/api/apps/workshop/projects", person)).json()) as { name: string }[];
+    assert.deepEqual(projects.map((p) => p.name), ["Cable clip"]);
+  } finally {
+    await app.dispose();
+  }
+});
