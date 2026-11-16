@@ -64,8 +64,6 @@ export const issues = sqliteTable(
       t.category,
       t.position,
     ),
-    // A page ordered by position reads in this order, whatever its filter.
-    index("planning_issues_position").on(t.installationId, t.position, t.id),
     index("planning_issues_parent").on(t.parentId),
   ],
 );
