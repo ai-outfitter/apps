@@ -9,9 +9,11 @@ const slug = Astro.params.slug ?? "";
 if (!slugId(slug)) return new Response("Not found", { status: 404 });
 let section: "models" | "pcb" = "models";
 if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
+  try {
   const db = installationDatabase();
   const summary = (await listWorkshopProjects(db)).find(p => p.id.endsWith(slugId(slug)!));
   if (summary) { const project=await getWorkshopProject(db,summary.id); if(project.pcbSnapshots?.length || hasPcbReview(project.workspace)) section="pcb"; }
+  } catch { /* The normal project view reports record-loading failures. */ }
 }
 ---
 <WorkshopPage section={section} slug={slug} hasPcb={section === "pcb"} />

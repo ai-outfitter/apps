@@ -6,14 +6,14 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { BuildManifestSchema } from "../src/lib/workspace";
-import { parsePcbReview } from "../src/lib/pcb-review";
+import { parsePcbReview, pcbReviewArtifact } from "../src/lib/pcb-review";
 import { ProjectSchema } from "../src/lib/project";
 const [baseArg,directory,id,...flags]=process.argv.slice(2);
 if(!baseArg||!directory||!id)throw Error("Supply Workshop URL, package directory and existing project ID");
 const base=baseArg.replace(/\/$/,"");
 const manifest=BuildManifestSchema.parse(JSON.parse(await readFile(resolve(directory,"manifest.json"),"utf8")));
 const files=JSON.parse(await readFile(resolve(directory,"upload-map.json"),"utf8")) as Record<string,string>;
-const reviewFile=manifest.artifacts.find(a=>a.path.endsWith("/pcb-review.json"));
+const reviewFile=pcbReviewArtifact(manifest.artifacts);
 if(!reviewFile)throw Error("No PCB review document in package");
 const buffers=new Map<string,Buffer>();
 for(const artifact of manifest.artifacts){

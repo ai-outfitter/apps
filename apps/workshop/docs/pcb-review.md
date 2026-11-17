@@ -23,7 +23,7 @@ Board files stay in installation-scoped build storage, and no board data is embe
 
 **Quotes.**
 - A quote with `total: null` is pending, blocked or not requested. It shows its status and never a price.
-- A price appears only when the record has all of these: a positive `total`, `currency`, `supplier`, `quoteId`, `quotedAt`, assembly `scope` and a registered `evidence` file. Totals are never derived or estimated.
+- A price appears only when the record has all of these: a positive `total`, `currency`, `supplier`, `quoteId`, `quotedAt`, assembly `scope` and a registered `evidence` file. Totals are never derived or estimated. Member-imported quote records are labelled unverified: an attached file is evidence to inspect, not authentication of the supplier.
 
 **Power.**
 - The input voltage comes from `power.inputVoltageV`.

@@ -4,7 +4,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { zipSync, strToU8 } from "fflate";
 import { BuildManifestSchema } from "../lib/workspace";
 import { ProjectSchema } from "../lib/project";
-import { parsePcbReview } from "../lib/pcb-review";
+import { parsePcbReview, pcbReviewArtifact } from "../lib/pcb-review";
 import type { WorkshopContext } from "./graphql";
 import { getWorkshopProject, updateWorkshopProject } from "./projects";
 
@@ -44,6 +44,7 @@ export async function importPcbSnapshot(c: WorkshopContext, projectId: string, i
   if (project.revision !== input.revision) throw new Response("Project changed; reload before importing", {status:409});
   if (project.pcbSnapshots?.some(s => s.id === input.snapshotId)) throw new Response("Snapshot already imported", {status:409});
   if ((project.pcbSnapshots?.length ?? 0) >= 30) throw new Response("Snapshot limit reached", {status:409});
+  if(pcbReviewArtifact(input.manifest.artifacts)?.path !== input.reviewPath) throw new Response("Package must contain exactly one matching pcb-review.json",{status:400});
   let total=0, reviewBytes: Uint8Array|undefined;
   for (const artifact of input.manifest.artifacts) {
     total+=artifact.bytes;

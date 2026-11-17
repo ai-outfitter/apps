@@ -154,7 +154,7 @@ export async function renderPcbReview(root: HTMLElement, source: PcbReviewSource
 
   renderBom($, review);
   renderPower($, review);
-  renderManufacturing($, review, artifactUrl);
+  renderManufacturing($, review, artifactUrl, provenance.kind === "imported");
   await renderModel($, review, artifactUrl, provenance.kind === "imported" ? provenance.importedAt : provenance.finishedAt, signal);
 }
 
@@ -194,7 +194,7 @@ function renderPower($: <T extends HTMLElement = HTMLElement>(id: string) => T, 
   $("pcb-power-notes").textContent = review.powerNotes;
 }
 
-function renderManufacturing($: <T extends HTMLElement = HTMLElement>(id: string) => T, review: PcbReview, artifactUrl: (path: string) => string) {
+function renderManufacturing($: <T extends HTMLElement = HTMLElement>(id: string) => T, review: PcbReview, artifactUrl: (path: string) => string, imported: boolean) {
   $("pcb-manufacturing-note").textContent = review.manufacturingNote;
   $("pcb-downloads").replaceChildren(...review.downloads.map(download => {
     const a = el("a", download.label);
@@ -208,6 +208,7 @@ function renderManufacturing($: <T extends HTMLElement = HTMLElement>(id: string
       const card = el("article", "", isQuoted(quote) ? "pcb-quote-quoted" : "pcb-quote-open");
       card.append(el("h4", `${quote.quantity} assembled boards`));
       if (isQuoted(quote)) {
+        if(imported) card.append(el("p", "Member-imported quote; supplier authenticity is not verified by Workshop."));
         const evidence = el("a", "Quote evidence");
         evidence.href = artifactUrl(quote.evidence);
         evidence.download = quote.evidence.split("/").at(-1)!;

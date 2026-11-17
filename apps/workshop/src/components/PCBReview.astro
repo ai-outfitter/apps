@@ -9,7 +9,7 @@ const {slug}=Astro.props;
  <nav class="pcb-tabs" aria-label="Board information"><a href="#pcb-bom">Bill of materials</a><a href="#pcb-power">Power</a><a href="#pcb-manufacturing">Manufacturing</a></nav>
  <section id="pcb-bom"><div class="pcb-section-title"><h2>Bill of materials</h2><label>Find a component <input id="pcb-search" type="search" placeholder="Reference, part number, function" /></label></div><p id="pcb-bom-count"></p><div class="pcb-table-scroll"><table><thead><tr><th>Reference</th><th>Qty</th><th>Manufacturer part number</th><th>Value / function</th></tr></thead><tbody id="pcb-rows"></tbody></table></div></section>
  <section id="pcb-power"><h2>Power budget</h2><p id="pcb-power-basis"></p><div id="pcb-power-cards"></div><p id="pcb-power-notes"></p></section>
- <section id="pcb-manufacturing"><h2>Manufacturing & downloads</h2><p id="pcb-manufacturing-note"></p><div id="pcb-downloads"></div><h3 id="pcb-quotes-heading">Supplier assembly quotes</h3><div id="pcb-quotes"></div><p>A price appears only for a supplier-issued quote with its reference, date, assembly scope and evidence file. Shipping and tax depend on the delivery destination.</p></section>
+ <section id="pcb-manufacturing"><h2>Manufacturing & downloads</h2><p id="pcb-manufacturing-note"></p><div id="pcb-downloads"></div><h3 id="pcb-quotes-heading">Supplier assembly quotes</h3><div id="pcb-quotes"></div><p>A price requires a quote record with a supplier reference, date, assembly scope and evidence file. Check the attached evidence; Workshop does not authenticate supplier quotes. Shipping and tax depend on the delivery destination.</p></section>
 </div>
 <script>import "../client/pcb-review";</script>
 <style is:global>

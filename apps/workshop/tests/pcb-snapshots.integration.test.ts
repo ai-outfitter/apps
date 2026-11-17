@@ -27,10 +27,12 @@ test("PCB imports verify content, preserve assembly/workflows and reject forged 
   assert.equal((await call(url+"/pcb",{snapshotId,path:source.record.path,base64:Buffer.from("tampered").toString("base64"),contentType:source.record.contentType},"PUT")).status,400);
   for(const a of all)assert.equal((await call(url+"/pcb",{snapshotId,path:a.record.path,base64:a.base64,contentType:a.record.contentType},"PUT")).status,200);
   assert.equal((await call(url+"/pcb",{...input,revision:p.revision+1})).status,409,"Reject stale project revision");
+  assert.equal((await call(url+"/pcb",{...input,reviewPath:source.record.path})).status,400,"Review selection must match the unique review artifact");
   const imported=await call(url+"/pcb",input);assert.equal(imported.status,200,await imported.clone().text());
   const saved=ProjectSchema.parse(await imported.json());assert.equal(saved.pcbSnapshots?.length,1);assert.equal(saved.pcbSnapshots[0].origin,"imported");assert.deepEqual(saved.assembly,p.assembly);assert.deepEqual(saved.workspace,p.workspace);
   assert.equal((await call(url+"/pcb",{...input,revision:saved.revision})).status,409,"No duplicate snapshot ID");
   assert.equal((await call(url+"/pcb",{snapshotId,path:model.record.path,base64:model.base64,contentType:model.record.contentType},"PUT")).status,409,"Imported bytes are immutable");
+  assert.equal((await call(url,p,"PUT")).status,409,"Stale saves ask for reload");
   assert.equal((await call(url,{...saved,pcbSnapshots:[]},"PUT")).status,400,"Generic save cannot rewrite evidence");
   assert.equal((await call("/api/apps/workshop/projects",{project:{...saved,id:randomUUID()}})).status,400,"Project import cannot forge evidence");
   const normalSave=await call(url,{...saved,name:"Renamed after import"},"PUT");assert.equal(normalSave.status,200,await normalSave.clone().text());
