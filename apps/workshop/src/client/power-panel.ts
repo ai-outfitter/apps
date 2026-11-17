@@ -1,0 +1,63 @@
+import { AssemblySchema, type Assembly } from "../lib/assembly";
+import { powerRollup } from "../lib/power";
+const node=(tag:string,text="")=>{const n=document.createElement(tag);n.textContent=text;return n;};
+const fmt=(v:number|null,unit="W")=>v===null?"Unknown":`${v.toLocaleString(undefined,{maximumFractionDigits:2})} ${unit}`;
+/** Power follows the viewed item; saved inputs belong to the full assembly. */
+export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:string|undefined,save?: (next:Assembly)=>Promise<void>){
+ host.replaceChildren(node("h2","Power"));
+ if(!assembly.power){host.append(node("p","No power budget saved with this assembly. Missing data is not zero demand."));return;}
+ const model=assembly.power;
+ const select=document.createElement("select");select.id="power-scenario";select.setAttribute("aria-label","Power scenario");
+ for(const s of model.scenarios)select.add(new Option(s.name,s.id));
+ host.append(select);
+ const content=node("div");host.append(content);
+ const render=()=>{try{
+  const result=powerRollup(assembly,select.value,itemId);
+  if(!result)throw Error("Choose a root assembly before calculating power");
+  content.replaceChildren();
+  const scenario=model.scenarios.find(s=>s.id===select.value)!;
+  content.append(node("p",scenario.notes));
+  const summary=node("p",result.rows.length?`Source-equivalent demand at ${result.boundary.name}: ${fmt(result.total.operatingW)} operating · ${fmt(result.total.averageW)} 24-hour average · ${fmt(result.total.peakW)} simultaneous running peak · ${fmt(result.dailyWh,"Wh/day")}`:"No loads recorded in this component. This does not establish zero consumption.");summary.id="power-summary";
+  content.append(summary,node("p","Totals describe one instance of this assembly, including its child quantities. Rail rows include their downstream demand and must not be added together. Peak excludes unrecorded startup surges."));
+  if(!result.rows.length)return;
+  content.append(node("p",`${result.unrecorded} placed parts have no direct load record (mechanical parts may need none). Only recorded loads are included.`));
+  const railTable=node("table");railTable.className="power-table";
+  railTable.append(node("caption","Supply rails — downstream demand and conversion losses included"));
+  const head=node("tr");for(const t of ["Rail","24-hour average","Operating","Running peak","Peak DC current"])head.append(node("th",t));railTable.append(head);
+  for(const r of result.rails){
+   const tr=node("tr");for(const t of [`${r.name} (${r.voltage} V ${r.kind.toUpperCase()})`,fmt(r.values.averageW),fmt(r.values.operatingW),fmt(r.values.peakW),r.kind==="dc"?fmt(r.values.peakW===null?null:r.values.peakW/r.voltage,"A"):"Requires power factor"])tr.append(node("td",t));railTable.append(tr);
+  }
+  const wrap=node("div");wrap.className="power-scroll";wrap.append(railTable);content.append(wrap);
+  const form=document.createElement("form"),table=node("table");table.className="power-table";
+  table.append(node("caption","Component input loads — values per part instance; quantity applied in totals"));
+  const heading=node("tr");for(const t of ["Component / load","Qty","Input rail","Average W","Operating W","Peak W","Evidence"])heading.append(node("th",t));table.append(heading);
+  const edits:{itemId:string;loadId:string;inputs:HTMLInputElement[]}[]=[];
+  for(const row of result.rows){
+   const tr=node("tr"),title=node("td",`${row.itemName} · ${row.load.name}`);title.append(node("small",row.number),node("small",row.load.notes));
+   tr.append(title,node("td",String(row.quantity)),node("td",row.load.rail));
+   const inputs:HTMLInputElement[]=[];
+   for(const field of ["averageW","operatingW","peakW"] as const){
+    const td=node("td"),input=document.createElement("input");input.type="number";input.min="0";input.step="any";input.placeholder="Unknown";input.value=row.load.scenarios[select.value][field]?.toString()??"";input.disabled=!save;input.setAttribute("aria-label",`${row.number} ${row.load.name} ${field}`);inputs.push(input);td.append(input);tr.append(td);
+   }
+   const evidence=node("td",row.load.evidence);evidence.append(node("small",row.load.source));tr.append(evidence);table.append(tr);edits.push({itemId:row.itemId,loadId:row.load.id,inputs});
+  }
+  const scroll=node("div");scroll.className="power-scroll";scroll.append(table);form.append(scroll);
+  const status=node("p");status.id="power-save-status";status.setAttribute("role","status");
+  if(save && result.rows.length){
+   const button=node("button","Save power values") as HTMLButtonElement;button.type="submit";form.append(button);
+   form.onsubmit=async e=>{e.preventDefault();button.disabled=true;try{
+    const next=structuredClone(assembly);
+    for(const edit of edits){const load=next.items.find(i=>i.id===edit.itemId)!.power!.loads.find(l=>l.id===edit.loadId)!;
+     const values=edit.inputs.map(i=>i.value===""?null:Number(i.value));
+     load.scenarios[select.value]={averageW:values[0],operatingW:values[1],peakW:values[2]};
+    }
+    await save(AssemblySchema.parse(next));assembly=next;render();
+   }catch(error){status.textContent=(error as Error).message;button.disabled=false;}};
+  }else if(!save)form.append(node("p","Historical build or demo: power values are read-only."));
+  form.append(status);content.append(form);
+  const details=node("details");details.append(node("summary","Assumptions and supply connections"),node("p",model.notes));
+  for(const r of model.rails)details.append(node("p",`${r.name}: ${r.parent?`supplied by ${r.parent}, ${(r.efficiency*100).toFixed(1)}% conversion efficiency`:"source boundary"}. ${r.notes}`));
+  content.append(details);
+ }catch(error){content.replaceChildren(node("p",`Power budget unavailable: ${(error as Error).message}`));}};
+ select.onchange=render;render();
+}

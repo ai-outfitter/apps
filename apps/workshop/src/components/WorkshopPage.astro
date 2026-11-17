@@ -6,7 +6,7 @@ import Content from "./Workspace.astro";
 
 interface Props { section: SectionId; slug: string }
 const { section, slug } = Astro.props;
-const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":"Model"};
+const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":section==="models"?"Models":"Assembly"};
 ---
 <AppLayout
   name="Workshop"
@@ -19,7 +19,7 @@ const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":"
   sidebarSections={[
     { label: "Workspace", links: [{ label: "All projects", href: "/", active: false }, { label: "New model", href: "/new", active: false }] },
     { label: "Project", links: [
-    ...([{id:"assembly",label:"Model"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
+    ...([{id:"models",label:"Models"},{id:"assembly",label:"Assembly"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
   ] },
   ]}
 >

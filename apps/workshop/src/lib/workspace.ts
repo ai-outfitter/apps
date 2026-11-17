@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { ArtifactPathSchema } from "./artifact";
 import { AssemblySchema } from "./assembly";
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const path = z.string().max(300).regex(/^[a-zA-Z0-9_][a-zA-Z0-9_./-]*$/).refine(p => !p.split("/").includes(".."));
+const path = ArtifactPathSchema;
 export const ArtifactSchema = z.object({path, sha256:hash, bytes:z.number().int().nonnegative(), contentType:z.string().max(100)}).strict();
 export const BuildManifestSchema = z.object({
  version:z.literal(1), units:z.literal("mm"), sourceCommit:z.string().regex(/^[a-f0-9]{40}$/),

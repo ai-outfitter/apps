@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ArtifactPathSchema } from "./artifact";
+import { ItemPowerSchema, PowerSystemSchema, validateAssemblyPower } from "./power";
 import { Matrix4, Euler, Quaternion, Vector3 } from "three";
 import { type CadPlan, AssemblyCadPlanSchema, planBounds } from "../model/cad-plan";
 
@@ -60,10 +62,11 @@ export const ItemSchema = z
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
     geometry: AssemblyCadPlanSchema.optional(),
-    mesh: z.object({path:z.string().max(300), bounds:z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])})}).optional(),
+    mesh: z.object({path:ArtifactPathSchema, bounds:z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])})}).optional(),
     priceKnown: z.boolean().default(false),
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     firmware: FirmwareSchema.optional(),
+    power: ItemPowerSchema.optional(),
     notes: z.string().max(2000).default(""),
     uses: z.array(UsageSchema).max(50).default([]),
   })
@@ -80,9 +83,11 @@ export const AssemblySchema = z
     rootId: z.uuid().optional(),
 
     items: z.array(ItemSchema).max(200),
+    power: PowerSystemSchema.optional(),
   })
   .strict()
   .superRefine((assembly, ctx) => {
+    validateAssemblyPower(assembly, ctx);
     const byId = new Map(assembly.items.map((item) => [item.id, item]));
     if (byId.size !== assembly.items.length)
       ctx.addIssue({ code: "custom", message: "Item IDs must be unique" });
