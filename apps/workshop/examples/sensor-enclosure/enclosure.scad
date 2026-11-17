@@ -1,4 +1,4 @@
-// SNY-1 soil sensor node enclosure: the printed base and lid of Workshop's
+// Soil sensor node enclosure: the printed base and lid of Workshop's
 // starter assembly (src/lib/sensor-node.ts), written out in OpenSCAD so the
 // workspace build can slice and simulate it. Same sizes as the CAD plans there;
 // change both together. All sizes in mm; origin at the centre of the floor.

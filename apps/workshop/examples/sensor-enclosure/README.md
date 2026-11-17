@@ -1,6 +1,6 @@
-# SNY-1 enclosure
+# Sensor node enclosure
 
-Tier 2 of [docs/vision.md](../../docs/vision.md). Persona: Sunny, putting a solar soil-moisture, CO2 and light sensor outside in a Texas summer. The printed base and lid are those of Workshop's starter assembly (`src/lib/sensor-node.ts`), written out in `enclosure.scad` so the workspace build can slice and simulate them. Change both together.
+Tier 2 of [docs/vision.md](../../docs/vision.md). Persona: a member putting a solar soil-moisture, CO2 and light sensor outside in a hot summer. The printed base and lid are those of Workshop's starter assembly (`src/lib/sensor-node.ts`), written out in `enclosure.scad` so the workspace build can slice and simulate them. Change both together.
 
 `workspace.json` runs the build's quality checks (box/README.md, "Quality checks and studies"):
 

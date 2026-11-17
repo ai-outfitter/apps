@@ -157,7 +157,7 @@ Kubernetes activation require subsequent work; this local harness proves neither
 `workspace.json` can also ask the build for printability, interference and
 simulation; `box/workspace/quality.py` runs them with existing tools and adds
 their rows to `manifest.json` `tests`, with the numbers in `quality.json`.
-`examples/mini-itx-case/workspace.json` and `examples/sny-1-enclosure/workspace.json`
+`examples/mini-itx-case/workspace.json` and `examples/sensor-enclosure/workspace.json`
 use every option.
 
 | Key | Tool | Test rows |

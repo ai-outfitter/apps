@@ -6,7 +6,7 @@ proposed: until they exist, material values live in each `workspace.json`.
 
 ## The question
 
-Workshop now holds Keystone and Artera hardware. Three things were asked:
+Workshop now holds real customer hardware. Three things were asked:
 
 1. What existing quality, lint and static-analysis tools fit these models?
 2. Do the models name materials well enough to simulate later?
@@ -19,9 +19,9 @@ Workshop now holds Keystone and Artera hardware. Three things were asked:
   features built with replicad on OpenCascade, exported to STEP and STL by
   `box/export.ts`), `src/lib/workspace.ts` and `box/workspace/build.py`
   (project-repository builds with OpenSCAD).
-- The models behind the live projects. Planning holds "Keystone Mini-ITX case"
-  (Keystone), whose reference is `apps/workshop/examples/mini-itx-case`, and
-  the SNY-1 soil sensor node (Artera, moving to Sunny), whose starter is
+- The models behind the live projects. Planning holds a Mini-ITX case project
+  whose reference is `apps/workshop/examples/mini-itx-case`, and
+  a solar soil sensor node, whose starter is
   `src/lib/sensor-node.ts`.
 - Not checked: the saved Workshop project records themselves. Workshop
   publishes no read document over MCP (only `WorkshopDesignRun`,
@@ -54,7 +54,7 @@ the right place for everything below: no new record, just more tests per build.
 - Nothing checks printability. The case shell is 224 x 178 x 83 mm and its BOM
   note says it needs a 230 x 185 mm bed or a split; the "300 g of plastic" claim
   is not measured anywhere.
-- Nothing lints the BOM: SNY-F001 firmware has an empty repository, most COTS
+- Nothing lints the BOM: SEN-F001 firmware has an empty repository, most COTS
   items are `provenance: provisional` with `priceKnown: false`, envelopes have
   no mass.
 
@@ -67,7 +67,7 @@ the right place for everything below: no new record, just more tests per build.
 | Interference and clearance from the assembly | manifold3d or OpenCascade Booleans over `placements()` | Replaces per-repo SCAD checks; clearance = distance query on the same pairs |
 | Printability (bed fit, overhangs, supports, time, grams) | PrusaSlicer CLI (`--export-gcode`, `--info`) or CuraEngine headless | Slicing gives real filament mass and print time per part and fails on bed overflow |
 | Thin walls and overhang angles | PrusaSlicer warnings; trimesh face-normal pass for overhang | Cheap first pass before slicing |
-| PCB (SNY-1 rev B) | `kicad-cli sch erc`, `kicad-cli pcb drc` | Only once a KiCad board exists |
+| PCB (sensor node rev B) | `kicad-cli sch erc`, `kicad-cli pcb drc` | Only once a KiCad board exists |
 | Firmware config | `esphome config` | Belongs to Foundry's checks, listed here because the item names it |
 
 Recommendation: add the slicer and data-driven interference to `build.py`
@@ -86,7 +86,7 @@ No, not in a form a simulation can use.
 - `AcceptCreativeHandoff` takes `materials` as an optional free-text string.
 - COTS parts are dimensioned envelopes with no mass, no power dissipation and no
   operating temperature range, which are exactly what a thermal model needs
-  (the CPU cooler and PSU in the case, the ESP32-S3 and charger in SNY-1).
+  (the CPU cooler and PSU in the case, the ESP32-S3 and charger in the sensor node).
 - Printed parts carry no print settings. FDM parts are anisotropic and their
   strength depends on infill, wall count and build orientation, so a material
   name alone is not enough.
@@ -116,8 +116,8 @@ Workshop already exports.
 
 | Analysis | Tools | First use |
 | --- | --- | --- |
-| Static stress | Gmsh (mesh from STEP) + CalculiX | Mini-ITX standoff bosses under screw load; SNY-1 lid screw bosses |
-| Steady and transient heat | Elmer FEM or CalculiX thermal | SNY-1 in full sun: does PETG pass its ~80 °C glass transition, does the SCD41 stay in range |
+| Static stress | Gmsh (mesh from STEP) + CalculiX | Mini-ITX standoff bosses under screw load; Sensor node lid screw bosses |
+| Steady and transient heat | Elmer FEM or CalculiX thermal | Sensor node in full sun: does PETG pass its ~80 °C glass transition, does the SCD41 stay in range |
 | Lumped thermal network | a few lines over Item.physical | Mini-ITX case: CPU and PSU watts against vent area, before any CFD |
 | Airflow (CFD) | OpenFOAM | Only if the lumped model says the case is marginal; heavy to set up |
 | Orchestration | FreeCAD FEM (headless) wraps Gmsh, CalculiX and Elmer | Option if we want one tool instead of three |
@@ -137,7 +137,7 @@ studies"). The Workshop box image gains PrusaSlicer, CalculiX, Gmsh and
 manifold3d in its existing Workshop-only step; other apps' images are unchanged.
 Every result is a `BuildManifest.tests` row, with the numbers in `quality.json`.
 
-Run on the two models (`examples/mini-itx-case`, `examples/sny-1-enclosure`):
+Run on the two models (`examples/mini-itx-case`, `examples/sensor-enclosure`):
 
 | Model | Check | Result |
 | --- | --- | --- |
@@ -145,8 +145,8 @@ Run on the two models (`examples/mini-itx-case`, `examples/sny-1-enclosure`):
 | Mini-ITX case | Plastic | 384 g PETG (91 + 194 + 98), not 300 g; about 34 h of printing |
 | Mini-ITX case | Interference | Pass on 15 pairs, agreeing with the hand-written check; moving the PSU 10 mm fails it with the same overlap OpenSCAD measures (38,060 vs 38,044 mm3) |
 | Mini-ITX case | Standoff boss, 500 N clamp | Fail: 25 MPa under the screw head against 23.5 MPa allowed; a washer fixes it |
-| SNY-1 | Bed fit, plastic | Pass: 111 g PETG, about 9.5 h |
-| SNY-1 | Full sun at 40 C | Fail: lid about 93 C (PETG deflects at 68 C), inside air about 55 C (SCD41 limit 50 C, LiFePO4 charging 45 C) |
+| Sensor node | Bed fit, plastic | Pass: 111 g PETG, about 9.5 h |
+| Sensor node | Full sun at 40 C | Fail: lid about 93 C (PETG deflects at 68 C), inside air about 55 C (SCD41 limit 50 C, LiFePO4 charging 45 C) |
 
 `box/workspace/test_quality.py` checks the code against hand calculations
 (Fourier conduction through a slab, force over area in a column, overlap of two
@@ -160,7 +160,7 @@ and radiation, well-mixed inside air, derated datasheet strength.
 2. Done (section 5): slicer, interference and CalculiX studies in `build.py`.
 3. Agree the entities in section 3, then add Material, Item.material,
    Item.process and Item.physical.
-4. Done as a pilot (section 5): SNY-1 in full sun with CalculiX. Next: read
+4. Done as a pilot (section 5): Sensor node in full sun with CalculiX. Next: read
    load cases and materials from the records once section 3 exists.
 
 ## Decisions needed
@@ -168,5 +168,5 @@ and radiation, well-mixed inside air, derated datasheet strength.
 - Where Material records live: Workshop table or Onto records.
 - Which printer bed the checks assume. The examples use 220 x 220 mm (Ender-3
   class); a printer record per organization would replace it.
-- What to do about SNY-1 in the sun: shade, a white lid, vents or a gap under
-  the panel. This is a product decision for Sunny, not a Workshop one.
+- What to do about Sensor node in the sun: shade, a white lid, vents or a gap under
+  the panel. This is a product decision for the hardware owner, not a Workshop one.

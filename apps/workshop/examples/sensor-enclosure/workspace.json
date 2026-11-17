@@ -1,5 +1,5 @@
 {
-  "notes": "SNY-1 rev A enclosure from Workshop's starter assembly. Material values are datasheet figures for printed PETG; the thermal study is a first estimate with the sun overhead and no wind.",
+  "notes": "Sensor node rev A enclosure from Workshop's starter assembly. Material values are datasheet figures for printed PETG; the thermal study is a first estimate with the sun overhead and no wind.",
   "printer": {
     "name": "220 mm bed (Ender-3 class)",
     "bed": [
@@ -48,9 +48,9 @@
     "items": [
       {
         "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a00",
-        "number": "SNY-A001",
+        "number": "SEN-A001",
         "revision": "A",
-        "name": "SNY-1 soil sensor node",
+        "name": "Soil sensor node",
         "kind": "assembly",
         "uses": [
           {
@@ -67,7 +67,7 @@
       },
       {
         "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a01",
-        "number": "SNY-P001",
+        "number": "SEN-P001",
         "revision": "A",
         "name": "Enclosure base",
         "kind": "printed",
@@ -75,7 +75,7 @@
       },
       {
         "id": "0f6a3c1e-5b7d-4e2a-9c41-7d2b8e5f1a02",
-        "number": "SNY-P002",
+        "number": "SEN-P002",
         "revision": "A",
         "name": "Enclosure lid",
         "kind": "printed",
