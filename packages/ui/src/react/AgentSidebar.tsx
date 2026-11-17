@@ -10,6 +10,8 @@ import "../styles/agent-sidebar.css";
 
 // Phones get the panel full-screen (see styles/agent-sidebar.css), so the page behind goes inert.
 const NARROW = "(max-width: 760px)";
+// A DOM event also coordinates islands loaded from different app bundles.
+const OPEN_PANEL = "outfitter:agent-sidebar-open";
 
 /** The least a message needs; AI SDK `UIMessage`s fit as they are. */
 export interface AgentMessage {
@@ -107,6 +109,7 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
     document.querySelectorAll<HTMLButtonElement>(`[data-agent-sidebar-toggle][aria-controls="${CSS.escape(id)}"]`);
 
   function show(next: boolean, takeFocus = true) {
+    openRef.current = next;
     setOpen(next);
     if (openStorageKey) {
       try {
@@ -114,39 +117,69 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
       } catch {}
     }
     // The server renders the panel as the member left it (app-sdk ui-preferences).
-    if (next) setUiPreference("agent", id);
+    if (next) {
+      setUiPreference("agent", id);
+      document.dispatchEvent(new CustomEvent(OPEN_PANEL, { detail: id }));
+    }
     else if (uiPreferences(document.cookie).agent === id) setUiPreference("agent", undefined);
-    if (next) focusOnOpen.current = takeFocus;
-    else focusOnClose.current = takeFocus;
+    focusOnOpen.current = next && takeFocus;
+    focusOnClose.current = !next && takeFocus;
     latest.current.onOpenChange?.(next);
   }
+
+  const showRef = useRef(show);
+  showRef.current = show;
+  const openRef = useRef(open);
+  openRef.current = open;
+  // Hide the other presentation, preserving its mounted conversation and stream.
+  useEffect(() => {
+    const claim = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== id && openRef.current)
+        showRef.current(false, false);
+    };
+    document.addEventListener(OPEN_PANEL, claim);
+    return () => document.removeEventListener(OPEN_PANEL, claim);
+  }, [id]);
 
   // Reopen after navigation, without taking focus from the new page.
   // biome-ignore lint/correctness/useExhaustiveDependencies: restores once per page.
   useEffect(() => {
     // Rendered open by the server: the host loads the conversation as on any open.
-    if (props.initialOpen) latest.current.onOpenChange?.(true);
+    let restore = props.initialOpen;
     try {
       const reopen = reopenKey ? sessionStorage.getItem(reopenKey) : null;
       if (reopenKey) sessionStorage.removeItem(reopenKey);
-      if (reopen || (openStorageKey && sessionStorage.getItem(openStorageKey))) show(true, false);
+      restore ||= Boolean(reopen || (openStorageKey && sessionStorage.getItem(openStorageKey)));
     } catch {}
+    if (restore) show(true, false);
   }, []);
 
   // Toggles are the host's markup; they stay disabled until this runs.
-  const showRef = useRef(show);
-  showRef.current = show;
-  const openRef = useRef(open);
-  openRef.current = open;
   // biome-ignore lint/correctness/useExhaustiveDependencies: toggles are found by the fixed id.
   useEffect(() => {
-    const click = () => showRef.current(!openRef.current);
-    for (const button of toggles()) {
-      button.disabled = false;
-      button.addEventListener("click", click);
-    }
+    const click = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const button = target?.closest<HTMLButtonElement>(`[data-agent-sidebar-toggle][aria-controls="${CSS.escape(id)}"]`);
+      if (!button) return;
+      const opener = button.hasAttribute("data-agent-sidebar-open");
+      if (opener && openRef.current) {
+        panel.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+        return;
+      }
+      showRef.current(opener || !openRef.current);
+    };
+    const syncToggles = () => {
+      for (const button of toggles()) {
+        button.disabled = false;
+        button.setAttribute("aria-expanded", String(openRef.current));
+      }
+    };
+    syncToggles();
+    document.addEventListener("click", click);
+    document.addEventListener("astro:page-load", syncToggles);
     return () => {
-      for (const button of toggles()) button.removeEventListener("click", click);
+      document.removeEventListener("click", click);
+      document.removeEventListener("astro:page-load", syncToggles);
     };
   }, [id]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: toggles are found by the fixed id.
@@ -171,13 +204,16 @@ export default function AgentSidebar<M extends AgentMessage = AgentMessage>(prop
     const narrow = window.matchMedia(NARROW);
     const background = () => document.querySelectorAll<HTMLElement>(inertSelector);
     const apply = () => {
-      for (const element of background()) element.inert = narrow.matches;
+      const covered = narrow.matches && Boolean(document.querySelector(".agent-sidebar:not([hidden])"));
+      for (const element of background()) element.inert = covered;
     };
     apply();
     narrow.addEventListener("change", apply);
+    document.addEventListener("astro:page-load", apply);
     return () => {
+      document.removeEventListener("astro:page-load", apply);
       narrow.removeEventListener("change", apply);
-      for (const element of background()) element.inert = false;
+      apply();
     };
   }, [open, inertSelector]);
   // Closing returns focus to the toggle, once the page is no longer inert.

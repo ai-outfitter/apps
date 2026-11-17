@@ -98,3 +98,14 @@ standing (`appDiagnosticsEnabled(request)`), then enforce their normal owner and
 member scope. The platform enables this standing only for its local-development
 server, never from a query parameter or forwarded browser header. Older records
 can supply a note explaining which diagnostics were not retained.
+
+### Persistent platform assistant in managed layouts
+
+Operational `ManagedAppLayout` renders Ask Outfitter when trusted platform page
+dispatch supplies `x-outfitter-sidebar-base`. It derives the thread from the
+dispatched member and owner; the endpoint is display configuration, not authority.
+The island persists under `platform-sidebar:<member>:<owner>` and uses an absolute
+platform endpoint independent of app navigation. App agent review panels remain
+separate. Operational consumers need `@astrojs/react` integration and Astro CSP
+hashes enabled for hydration. Demos and pages without this header do not render
+the panel. The platform omits it for confined personal `/apps/<slug>` installs.
