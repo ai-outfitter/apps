@@ -452,6 +452,11 @@ type Intake {
   """Wiki records at the revisions the intake was scoped to."""
   sources: JSON!
 
+  """
+  Optional bounded research brief; a guided contract, not execution authority.
+  """
+  research: JSON
+
   """Caller-provided conversation provenance; grants no transcript access."""
   originatingMessage: JSON
 
@@ -1120,9 +1125,21 @@ input CreateIntakeInput {
   title: String!
   description: String!
   projectId: ID
+  research: CreateIntakeInputResearch
   originatingMessage: CreateIntakeInputOriginatingMessage
   sourceUrls: [String!]
   sources: [CreateIntakeInputSourcesItem!]
+}
+
+input CreateIntakeInputResearch {
+  question: String!
+  decision: String!
+  owner: String!
+  scope: [String!]!
+  exclusions: [String!]!
+  stoppingCriteria: [String!]!
+  timeboxMinutes: Float!
+  successMeasure: String!
 }
 
 input CreateIntakeInputOriginatingMessage {
@@ -1202,12 +1219,33 @@ input SaveResultDraftInput {
 }
 
 input SaveResultDraftInputDraft {
+  research: SaveResultDraftInputDraftResearch
   summary: String
   sources: [SaveResultDraftInputDraftSourcesItem!]
   gaps: [String!]
   disposition: SaveResultDraftInputDraftDisposition
   architecture: SaveResultDraftInputDraftArchitecture
   wikiRefs: [SaveResultDraftInputDraftWikiRefsItem!]
+}
+
+input SaveResultDraftInputDraftResearch {
+  outcome: SaveResultDraftInputDraftResearchOutcome!
+  conclusion: String!
+  stopReason: String!
+  elapsedMinutes: Float!
+  artifacts: [SaveResultDraftInputDraftResearchArtifactsItem!]!
+}
+
+enum SaveResultDraftInputDraftResearchOutcome {
+  supported
+  rejected
+  inconclusive
+  blocked
+}
+
+input SaveResultDraftInputDraftResearchArtifactsItem {
+  title: String!
+  url: String!
 }
 
 input SaveResultDraftInputDraftSourcesItem {
@@ -1246,12 +1284,33 @@ input RecordResultInput {
 }
 
 input RecordResultInputResult {
+  research: RecordResultInputResultResearch
   summary: String!
   sources: [RecordResultInputResultSourcesItem!]!
   gaps: [String!]!
   disposition: RecordResultInputResultDisposition
   architecture: RecordResultInputResultArchitecture
   wikiRefs: [RecordResultInputResultWikiRefsItem!]
+}
+
+input RecordResultInputResultResearch {
+  outcome: RecordResultInputResultResearchOutcome!
+  conclusion: String!
+  stopReason: String!
+  elapsedMinutes: Float!
+  artifacts: [RecordResultInputResultResearchArtifactsItem!]!
+}
+
+enum RecordResultInputResultResearchOutcome {
+  supported
+  rejected
+  inconclusive
+  blocked
+}
+
+input RecordResultInputResultResearchArtifactsItem {
+  title: String!
+  url: String!
 }
 
 input RecordResultInputResultSourcesItem {
@@ -1289,6 +1348,7 @@ input ReviseIntakeScopeInput {
   title: String!
   description: String!
   sources: [ReviseIntakeScopeInputSourcesItem!]
+  research: ReviseIntakeScopeInputResearch
 }
 
 input ReviseIntakeScopeInputSourcesItem {
@@ -1296,6 +1356,17 @@ input ReviseIntakeScopeInputSourcesItem {
   type: String!
   id: String!
   revision: Float!
+}
+
+input ReviseIntakeScopeInputResearch {
+  question: String!
+  decision: String!
+  owner: String!
+  scope: [String!]!
+  exclusions: [String!]!
+  stoppingCriteria: [String!]!
+  timeboxMinutes: Float!
+  successMeasure: String!
 }
 
 input PublishResultInput {

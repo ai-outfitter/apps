@@ -222,8 +222,8 @@
     "name": "CreateIntake",
     "kind": "mutation",
     "story": "As an editor, I want to capture a customer or competitive intake from the intake page or an agent and have it routed, so that the right discovery and delivery work starts under Governance.",
-    "query": "mutation CreateIntake($input: CreateIntakeInput!) {\n  createIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "3d6537dbb7a81aceb3a1990275103ebb679759d972ced5a582dbf7d50faa19a7",
+    "query": "mutation CreateIntake($input: CreateIntakeInput!) {\n  createIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    research\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "44c45344dbb8a1a8be27d6e63857cf054cd2d145aeb2311cd19c4f1a95564af1",
     "variables": {
       "type": "object",
       "properties": {
@@ -271,6 +271,10 @@
             },
             "sources": {
               "description": "JSON"
+            },
+            "research": {
+              "description": "JSON",
+              "nullable": true
             },
             "originatingMessage": {
               "description": "JSON",
@@ -879,6 +883,76 @@
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
+                          "research": {
+                            "type": "object",
+                            "properties": {
+                              "question": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "decision": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "owner": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "scope": {
+                                "minItems": 1,
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "exclusions": {
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "stoppingCriteria": {
+                                "minItems": 1,
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "timeboxMinutes": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 10080
+                              },
+                              "successMeasure": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              }
+                            },
+                            "required": [
+                              "question",
+                              "decision",
+                              "owner",
+                              "scope",
+                              "exclusions",
+                              "stoppingCriteria",
+                              "timeboxMinutes",
+                              "successMeasure"
+                            ],
+                            "additionalProperties": false
+                          },
                           "originatingMessage": {
                             "type": "object",
                             "properties": {
@@ -1164,6 +1238,76 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "research": {
+                            "type": "object",
+                            "properties": {
+                              "question": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "decision": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "owner": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "scope": {
+                                "minItems": 1,
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "exclusions": {
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "stoppingCriteria": {
+                                "minItems": 1,
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "timeboxMinutes": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 10080
+                              },
+                              "successMeasure": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              }
+                            },
+                            "required": [
+                              "question",
+                              "decision",
+                              "owner",
+                              "scope",
+                              "exclusions",
+                              "stoppingCriteria",
+                              "timeboxMinutes",
+                              "successMeasure"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -1480,8 +1624,8 @@
     "name": "Intakes",
     "kind": "query",
     "story": "As an agent, I want the intakes with their routed work, each route's blocker and draft, and the active Governance work gates, so that I can find work that is ready, see which routes are gated, and follow review and delivery.",
-    "query": "query Intakes($first: Int = 20, $after: String) {\n  intakeOptions\n  intakes(first: $first, after: $after) {\n    nodes {\n      id\n      revision\n      projectId\n      kind\n      title\n      description\n      sourceUrls\n      sources\n      originatingMessage\n      releaseFit\n      releaseFitHistory\n      routing\n      routingError\n      routes {\n        id\n        revision\n        kind\n        dependsOn\n        rationale\n        gate {\n          installationId\n          controlId\n        }\n        blocker\n        claim {\n          principal\n          until\n        }\n        draft\n        result\n        observedAt\n        gateReceipt\n        gateError\n        receipt\n        submissionIntent\n        subject\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "14daa6e9edaff8a9e305413475163c4dc16094a9f88b246105b5713513d14fb1",
+    "query": "query Intakes($first: Int = 20, $after: String) {\n  intakeOptions\n  intakes(first: $first, after: $after) {\n    nodes {\n      id\n      revision\n      projectId\n      kind\n      title\n      description\n      sourceUrls\n      sources\n      research\n      originatingMessage\n      releaseFit\n      releaseFitHistory\n      routing\n      routingError\n      routes {\n        id\n        revision\n        kind\n        dependsOn\n        rationale\n        gate {\n          installationId\n          controlId\n        }\n        blocker\n        claim {\n          principal\n          until\n        }\n        draft\n        result\n        observedAt\n        gateReceipt\n        gateError\n        receipt\n        submissionIntent\n        subject\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "c09825c1b5df41da826953125a3a52e4d656bd4216ffedc451bd65851778b0e8",
     "variables": {
       "type": "object",
       "properties": {
@@ -1540,6 +1684,10 @@
                   },
                   "sources": {
                     "description": "JSON"
+                  },
+                  "research": {
+                    "description": "JSON",
+                    "nullable": true
                   },
                   "originatingMessage": {
                     "description": "JSON",
@@ -5276,8 +5424,8 @@
     "name": "RecordResult",
     "kind": "mutation",
     "story": "As an assigned agent or Recommend holder, I want to submit findings or my saved draft under my claim and have Governance asked to review them, or ask again when that request failed or a perform-only worker recorded them, so that dependent work can proceed once they are approved.",
-    "query": "mutation RecordResult($input: RecordResultInput!) {\n  recordResult(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "2cc44e0c15d03d22e3bf3c12eeb3c818a8896d80c5cf6798b58ae06da2e1794d",
+    "query": "mutation RecordResult($input: RecordResultInput!) {\n  recordResult(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    research\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "e25bf7c23ba2ddce444d89a28937530a1379c54caa037e89b0efc99c34927b11",
     "variables": {
       "type": "object",
       "properties": {
@@ -5325,6 +5473,10 @@
             },
             "sources": {
               "description": "JSON"
+            },
+            "research": {
+              "description": "JSON",
+              "nullable": true
             },
             "originatingMessage": {
               "description": "JSON",
@@ -5585,8 +5737,8 @@
     "name": "ResetIntakeSubmission",
     "kind": "mutation",
     "story": "As an editor, I want to reset a submission Foundry rejected before any delivery was created, so that I can correct the package and submit again.",
-    "query": "mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {\n  resetIntakeSubmission(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "82ddf52d4596201bd22d0f8b1c9f61e3686fc04cc74497e823b715da3f363cf5",
+    "query": "mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {\n  resetIntakeSubmission(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    research\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "904094e0c7fde64bafbfd13489285de14906954bfe6c04c5d19deea6f04cd04d",
     "variables": {
       "type": "object",
       "properties": {
@@ -5634,6 +5786,10 @@
             },
             "sources": {
               "description": "JSON"
+            },
+            "research": {
+              "description": "JSON",
+              "nullable": true
             },
             "originatingMessage": {
               "description": "JSON",
@@ -5855,6 +6011,65 @@
                           "draft": {
                             "type": "object",
                             "properties": {
+                              "research": {
+                                "type": "object",
+                                "properties": {
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "supported",
+                                      "rejected",
+                                      "inconclusive",
+                                      "blocked"
+                                    ]
+                                  },
+                                  "conclusion": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 8000
+                                  },
+                                  "stopReason": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 2000
+                                  },
+                                  "elapsedMinutes": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "artifacts": {
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "url": {
+                                          "type": "string",
+                                          "format": "uri"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "url"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "outcome",
+                                  "conclusion",
+                                  "stopReason",
+                                  "elapsedMinutes",
+                                  "artifacts"
+                                ],
+                                "additionalProperties": false
+                              },
                               "summary": {
                                 "type": "string",
                                 "minLength": 1,
@@ -6043,6 +6258,65 @@
                           "result": {
                             "type": "object",
                             "properties": {
+                              "research": {
+                                "type": "object",
+                                "properties": {
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "supported",
+                                      "rejected",
+                                      "inconclusive",
+                                      "blocked"
+                                    ]
+                                  },
+                                  "conclusion": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 8000
+                                  },
+                                  "stopReason": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 2000
+                                  },
+                                  "elapsedMinutes": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "artifacts": {
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "url": {
+                                          "type": "string",
+                                          "format": "uri"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "url"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "outcome",
+                                  "conclusion",
+                                  "stopReason",
+                                  "elapsedMinutes",
+                                  "artifacts"
+                                ],
+                                "additionalProperties": false
+                              },
                               "summary": {
                                 "type": "string",
                                 "minLength": 1,
@@ -6261,8 +6535,8 @@
     "name": "ReviseIntakeScope",
     "kind": "mutation",
     "story": "As an editor, I want to approve a changed scope for an intake, so that new routes replace the old ones while previous results stay in history and old decisions cannot authorize the change.",
-    "query": "mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {\n  reviseIntakeScope(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "584a92452972f8518e74b1ba86d7791df15534667fee0d1e0f1f788e25c8dfb1",
+    "query": "mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {\n  reviseIntakeScope(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    research\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "cb2fdf98fa206edbea0be88eb211f15ef5edeef7a267eac4b4e41a20117e5dfc",
     "variables": {
       "type": "object",
       "properties": {
@@ -6310,6 +6584,10 @@
             },
             "sources": {
               "description": "JSON"
+            },
+            "research": {
+              "description": "JSON",
+              "nullable": true
             },
             "originatingMessage": {
               "description": "JSON",
@@ -6425,8 +6703,8 @@
     "name": "RouteIntake",
     "kind": "mutation",
     "story": "As an editor, I want to route an intake again, set its routes and decision controls myself, or assign its canonical Planning project, so that unstarted work follows the plan I chose and is delivered against the right project.",
-    "query": "mutation RouteIntake($input: RouteIntakeInput!) {\n  routeIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "d8f8d1c964abe4f1b6674f8d87ff365d1b9bcece19e084ad96e5fb002f868099",
+    "query": "mutation RouteIntake($input: RouteIntakeInput!) {\n  routeIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    research\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "490539602641a1b7437bb3f1dd5c1f127cfae6a11d8ee3d425af9f8d9c5892a9",
     "variables": {
       "type": "object",
       "properties": {
@@ -6474,6 +6752,10 @@
             },
             "sources": {
               "description": "JSON"
+            },
+            "research": {
+              "description": "JSON",
+              "nullable": true
             },
             "originatingMessage": {
               "description": "JSON",
