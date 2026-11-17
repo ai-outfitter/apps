@@ -1122,6 +1122,30 @@
     }
   },
   {
+    "name": "EnsureOwnerRoot",
+    "kind": "mutation",
+    "story": "As an editor, I want safe repeatable installation owner setup, so that trusted host identity supplies a canonical root.",
+    "query": "mutation EnsureOwnerRoot {\n  ensureOwnerRoot\n}",
+    "hash": "a40eb50617fdc28c309790112744c39a4fc856c82ca331d0489b4de55d1ad197",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Editors: ensure a canonical root using trusted installation identity. Preserves existing roots, returns blocked for conflicts or archives, and never guesses a Person or links unrelated data."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "ensureOwnerRoot": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "Exploration",
     "kind": "query",
     "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
@@ -1611,6 +1635,30 @@
       "required": []
     },
     "hidden": true
+  },
+  {
+    "name": "OwnerRoot",
+    "kind": "query",
+    "story": "As a member, I want the canonical installation root and setup status, so that I can inspect connectivity without guessing identity.",
+    "query": "query OwnerRoot {\n  ownerRoot\n}",
+    "hash": "ffa624d6de855dfbbd3563c237159f12b5323106f1bcf67127840d93e8d2e25c",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Read the canonical owner root address and setup status; never changes data."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "ownerRoot": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "RemoveStagedChanges",

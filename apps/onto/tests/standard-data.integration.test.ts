@@ -36,7 +36,7 @@ test("JSON initialization is editor-only and repeated uploads leave the graph un
     assert.equal(before.types.filter(type => !type.archived).length, standardData.types.length);
     // Retired SoftwareProduct definitions belong to existing legacy history.
     assert.ok(!before.types.some(type => type.id === "71000000-0000-4000-8000-000000000008"));
-    assert.equal(before.nodes.length, standardData.nodes.length);
+    assert.equal(before.nodes.length, standardData.nodes.length + 1); // Trusted installation owner root.
     assert.equal((await upload()).status, 200);
     assert.deepEqual(await (await app.call(snapshot, reader)).json(), before);
   } finally {

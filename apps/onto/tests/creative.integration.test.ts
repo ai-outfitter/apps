@@ -37,6 +37,8 @@ test("shared graph freezes dependencies, reviews writes, reports stale candidate
   await call("graph.apply", {
     requestKey: "subject",
     operations: [
+      { operation: "create", ref: "$owner", type: "graph-node", attributes: { id: id(8000), typeId: "Organization", title: "Artera", properties: { organization_id: "artera" } } },
+      { operation: "create", ref: "$scope", type: "graph-edge", attributes: { id: id(8001), typeId: "part_of", fromId: "$subject", toId: "$owner" } },
       {
         operation: "create",
         ref: "$subject",

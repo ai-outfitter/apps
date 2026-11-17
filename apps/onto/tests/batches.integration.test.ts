@@ -25,7 +25,12 @@ async function json(response: Response): Promise<Record<string, any>> {
   assert.equal(response.status, 200, await response.clone().text());
   return response.json();
 }
-async function fixture() {
+// Contact discoveries in this suite come from an organization-owned research record.
+// Each context proposal is explicit, so counts and review decisions include it.
+const context = (ref: string, n: number) => ({ operation: create(`$context${n}`, "graph-edge", {
+  id: uuid(10000 + n), typeId: "documents", fromId: "Document:contact-research", toId: ref,
+}), evidence: cite("contact-research"), confidence: 1 });
+async function fixture(withRoot = true) {
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
       assert.equal(operation, "threads.submission");
@@ -35,6 +40,11 @@ async function fixture() {
   const action = (name: string, input: object, identity: object = owner) =>
     app.call(actions, identity as typeof owner, { method: "POST", body: { action: name, input } });
   await json(await action("graph.apply", { requestKey: "definitions", operations: definitions() }));
+  if (withRoot) await json(await action("graph.apply", { requestKey: "owner-context", operations: [
+    create("$owner", "graph-node", { id: uuid(8000), typeId: core.organization, title: "Research organization", slug: "research-organization", properties: { organization_id: "org" } }),
+    create("$research", "graph-node", { id: uuid(8001), typeId: core.document, title: "Contact research", slug: "contact-research" }),
+    create("$research-owner", "graph-edge", { id: uuid(8002), typeId: "part_of", fromId: "$research", toId: "$owner" }),
+  ] }));
   const exists = async (id: string) =>
     (await json(await action("graph.query", { queries: [{ name: "q", ids: [id] }] }))).queries.q.matches.length > 0;
   // The Changes page's routes: a member's review, and a record's history.
@@ -51,22 +61,22 @@ test("operations added over several calls stay invisible until a member approves
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$ada", 1, "Ada"), evidence: cite("m1"), confidence: 0.8 }] }, agent));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$bea", 2, "Bea"), evidence: cite("m2"), confidence: 0.8 }] }, agent));
   const edge = create("$friends", "graph-edge", { id: uuid(3), typeId: ids.friend, fromId: "$ada", toId: "$bea" });
-  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: edge, evidence: cite("m3"), confidence: 0.8, reason: "They plan climbing together." }] }, agent));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: edge, evidence: cite("m3"), confidence: 0.8, reason: "They plan climbing together." }, context("$ada", 1)] }, agent));
   // Re-adding an identical proposal is a no-op.
-  assert.equal((await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: edge, evidence: cite("m3"), confidence: 0.8, reason: "They plan climbing together." }] }, agent))).added, 0);
+  assert.equal((await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: edge, evidence: cite("m3"), confidence: 0.8, reason: "They plan climbing together." }, context("$ada", 1)] }, agent))).added, 0);
   assert.equal(await f.exists(uuid(1)), false);
 
   const submitted = await json(await f.action("batch.submit", { batchId: batch.id, summary: "Two people and a friendship" }, agent));
   assert.equal(submitted.batch.state, "awaiting_review");
-  assert.equal(submitted.counts.awaiting_review, 3);
+  assert.equal(submitted.counts.awaiting_review, 4);
   assert.equal(await f.exists(uuid(1)), false);
 
   // An agent cannot approve its own batch.
   assert.equal((await f.review({ batchId: batch.id, verdict: "approve" }, agent)).status, 403);
   // Approving the edge also approves the people it connects.
-  const reviewed = await json(await f.review({ batchId: batch.id, refs: ["$friends"], verdict: "approve" }));
+  const reviewed = await json(await f.review({ batchId: batch.id, refs: ["$friends", "$context1"], verdict: "approve" }));
   assert.equal(reviewed.batch.state, "committed");
-  assert.equal(reviewed.counts.committed, 3);
+  assert.equal(reviewed.counts.committed, 4);
   assert.equal(await f.exists(uuid(1)), true);
 
   const history = await f.history(uuid(1));
@@ -84,12 +94,12 @@ test("a confidence policy commits only confident operations whose dependencies a
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
     { operation: person("$ada", 11, "Ada"), evidence: cite("m1"), confidence: 0.97 },
     { operation: person("$bea", 12, "Bea"), evidence: cite("m2"), confidence: 0.5 },
-    { operation: friends("$friends", 13, 11, 12), evidence: cite("m3"), confidence: 0.99 },
+    { operation: friends("$friends", 13, 11, 12), evidence: cite("m3"), confidence: 0.99 }, context("$ada", 11),
   ] }, agent));
   const submitted = await json(await f.action("batch.submit", { batchId: batch.id }, agent));
   assert.equal(submitted.batch.state, "awaiting_review");
   assert.deepEqual(submitted.operations.map((op: { ref: string; state: string }) => [op.ref, op.state]),
-    [["$ada", "committed"], ["$bea", "awaiting_review"], ["$friends", "awaiting_review"]]);
+    [["$ada", "committed"], ["$bea", "awaiting_review"], ["$friends", "awaiting_review"], ["$context11", "committed"]]);
   assert.equal(submitted.operations[0].decision.kind, "policy");
   assert.equal(submitted.operations[0].decision.score, 0.97);
   // Rejecting a person also rejects the friendship that needs them.
@@ -105,13 +115,13 @@ test("a review window seals what is still waiting, by policy", async (t) => {
   t.after(() => f.app.dispose());
   const policy = { kind: "confidence", threshold: 0.95, version: "test-1", reviewWindow: { hours: 1 } };
   const { batch } = await json(await f.action("batch.open", { title: "Daily", source: { kind: "discovery-run", ref: "run-3" }, policy }, agent));
-  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$cy", 21, "Cy"), evidence: cite("m1"), confidence: 0.6 }] }, agent));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$cy", 21, "Cy"), evidence: cite("m1"), confidence: 0.6 }, context("$cy", 21)] }, agent));
   const submitted = await json(await f.action("batch.submit", { batchId: batch.id }, agent));
   assert.ok(submitted.batch.reviewBy > Date.now());
   const db = drizzle(f.app.database);
   const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
   assert.equal((await sealDueBatches(db, who)).sealed, 0);
-  assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 1);
+  assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 2);
   const sealed = await json(await f.action("batch.get", { batchId: batch.id }));
   assert.equal(sealed.batch.state, "committed");
   assert.equal(sealed.operations[0].decision.reason, "review-window");
@@ -124,7 +134,7 @@ test("a first run commits everything once per Wiki", async (t) => {
   const policy = { kind: "first-run", version: "test-1" };
   const source = { kind: "discovery-run", ref: "run-4" };
   const { batch } = await json(await f.action("batch.open", { title: "First run", source, policy }, agent));
-  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$di", 31, "Di"), evidence: cite("m1"), confidence: 0.4 }] }, agent));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: person("$di", 31, "Di"), evidence: cite("m1"), confidence: 0.4 }, context("$di", 31)] }, agent));
   const submitted = await json(await f.action("batch.submit", { batchId: batch.id }, agent));
   assert.equal(submitted.batch.state, "committed");
   assert.equal(submitted.operations[0].decision.reason, "first-run");
@@ -148,12 +158,20 @@ test("a batch over 100 operations validates refs across add calls and commits in
   // The edge refers to a person added by the previous call.
   const edge = create("$link", "graph-edge", { id: uuid(300), typeId: ids.friend, fromId: "$p0", toId: "$p100" });
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [people[100], { operation: edge }] }, agent));
+  const contexts = people.map((_, n) => context(`$p${n}`, 100 + n));
+  for (let start = 0; start < contexts.length; start += 100)
+    await json(await f.action("batch.add", { batchId: batch.id, proposals: contexts.slice(start, start + 100) }, agent));
   await json(await f.action("batch.submit", { batchId: batch.id }, agent));
   const reviewed = await json(await f.review({ batchId: batch.id, verdict: "approve" }));
   assert.equal(reviewed.batch.state, "committed");
-  assert.equal(reviewed.counts.committed, 102);
+  assert.equal(reviewed.counts.committed, 203);
+  assert.equal((await f.app.database.prepare("SELECT commits FROM graph_batches WHERE id=?").bind(batch.id).first())?.commits, 3);
+  // Context links were staged last, but must commit with their new endpoints.
+  const savedGraph = await json(await f.action("graph.read", {}));
+  assert.ok(savedGraph.edges.some((edge: { id: string }) => edge.id === uuid(10100)));
+  assert.ok(savedGraph.edges.some((edge: { id: string }) => edge.id === uuid(10200)));
   assert.equal(await f.exists(uuid(200)), true);
-  // The edge committed in the second chunk, with its endpoint from the first.
+  // Every edge keeps its batch history even when packing changes its commit order.
   assert.equal((await f.history(uuid(300))).revisions[0].batchId, batch.id);
 });
 
@@ -186,12 +204,12 @@ test("an agent stages, takes back and submits changes with documents; a member c
   const f = await fixture();
   t.after(() => f.app.dispose());
   const source = { kind: "meeting", ref: "meeting-1", label: "Kickoff" };
-  const staged = await run(f, "StageChanges", { input: { title: "From a meeting", source, proposals: [{ operation: person("$ada", 61, "Ada"), evidence: cite("m1"), reason: "Introduced herself." }] } });
+  const staged = await run(f, "StageChanges", { input: { title: "From a meeting", source, proposals: [{ operation: person("$ada", 61, "Ada"), evidence: cite("m1"), reason: "Introduced herself." }, context("$ada", 61)] } });
   assert.equal(staged.errors, undefined);
   const batchId = staged.data?.stageChanges.id;
   // The batch names where its proposals came from, as Forerunner's name their run.
   assert.deepEqual((await json(await f.action("batch.get", { batchId }, agent))).batch.source, source);
-  assert.deepEqual([staged.data?.stageChanges.state, staged.data?.stageChanges.counts], ["open", { pending: 1 }]);
+  assert.deepEqual([staged.data?.stageChanges.state, staged.data?.stageChanges.counts], ["open", { pending: 2 }]);
   const inspected = (await run(f, "ChangeBatch", { id: batchId }, owner)).data?.changeBatch;
   assert.deepEqual(inspected.source, source);
   assert.equal(inspected.purpose, "");
@@ -203,11 +221,11 @@ test("an agent stages, takes back and submits changes with documents; a member c
   await run(f, "StageChanges", { input: { batchId, proposals: [{ operation: person("$bea", 62, "Bea") }, { operation: friends("$friends", 63, 61, 62) }, { operation: person("$cy", 64, "Cy") }] } });
   const selected = (await run(f, "ChangeBatch", { id: batchId, refs: ["$bea"] }, owner)).data.changeBatch;
   assert.deepEqual(selected.operations.map((op: { ref: string }) => op.ref), ["$bea"]);
-  assert.deepEqual(selected.counts, { pending: 4 });
+  assert.deepEqual(selected.counts, { pending: 5 });
   const removed = await run(f, "RemoveStagedChanges", { input: { batchId, refs: ["$cy"] } });
-  assert.deepEqual(removed.data?.removeStagedChanges.counts, { pending: 3 });
+  assert.deepEqual(removed.data?.removeStagedChanges.counts, { pending: 4 });
   const submitted = await run(f, "SubmitBatch", { input: { batchId, summary: "Two people who climb together" } });
-  assert.deepEqual([submitted.data?.submitBatch.state, submitted.data?.submitBatch.counts], ["awaiting_review", { awaiting_review: 3 }]);
+  assert.deepEqual([submitted.data?.submitBatch.state, submitted.data?.submitBatch.counts], ["awaiting_review", { awaiting_review: 4 }]);
   // A member batch commits nothing without its member, whatever the confidence.
   assert.equal(await f.exists(uuid(61)), false);
   await json(await f.review({ batchId, verdict: "approve" }));
@@ -215,14 +233,14 @@ test("an agent stages, takes back and submits changes with documents; a member c
   assert.equal(read.data?.changeBatch.state, "committed");
   // Committed records come back by handle: node slugs, and an edge as type:from:to.
   assert.deepEqual(read.data?.changeBatch.operations.map((op: { ref: string; record: string }) => [op.ref, op.record]),
-    [["$ada", "Person:ada"], ["$bea", "Person:bea"], ["$friends", "test_friends_with(Person:ada → Person:bea)"]]);
+    [["$ada", "Person:ada"], ["$context61", "documents(Document:contact-research → Person:ada)"], ["$bea", "Person:bea"], ["$friends", "test_friends_with(Person:ada → Person:bea)"]]);
   assert.equal((await run(f, "ChangeBatch", { id: uuid(999) }, owner)).data?.changeBatch, null);
 });
 
 test("agents name existing records by address, never by UUID", async (t) => {
   const f = await fixture();
   t.after(() => f.app.dispose());
-  await json(await f.action("graph.apply", { requestKey: "people", operations: [person("$ada", 131, "Ada"), person("$bea", 132, "Bea")] }));
+  await json(await f.action("graph.apply", { requestKey: "people", operations: [person("$ada", 131, "Ada"), person("$bea", 132, "Bea"), context("$ada", 131).operation] }));
   const staged = await run(f, "StageChanges", { input: { title: "Handles", proposals: [
     { operation: { operation: "create", ref: "$gus", type: "graph-node", attributes: { typeId: "Person", title: "Gus" } } },
     { operation: { operation: "create", ref: "$knows", type: "graph-edge", attributes: { typeId: "test_friends_with", fromId: "$gus", toId: "Person:ada" } } },
@@ -287,7 +305,7 @@ test("the Changes sidebar inspects canonical proposals through ChangeBatch witho
   const f = await fixture();
   t.after(() => f.app.dispose());
   const proposal = { operation: person("$project", 81, "Proposed project"), evidence: cite("source-81"), confidence: 0.73, reason: "Evidence to discuss." };
-  const staged = await run(f, "StageChanges", { input: { title: "Review this discovery", proposals: [proposal] } });
+  const staged = await run(f, "StageChanges", { input: { title: "Review this discovery", proposals: [proposal, context("$project", 81)] } });
   const id = staged.data.stageChanges.id;
   await run(f, "SubmitBatch", { input: { batchId: id } });
   const ref = { id: uuid(82) };
@@ -323,7 +341,7 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const f=await fixture();t.after(()=>f.app.dispose());
   const call=async(document:string,input:object,identity:object=agent)=>json(await f.action("graph.mutate",{query:print(documents.ChangeBatchChanges.document),operationName:document,variables:{input}},identity));
   const send=async(items:object[],identity:object=agent)=>(await call("ChangeBatchChanges",{items},identity)).data.changeBatchChanges;
-  const first=await send([{key:uuid(900),action:"stage",input:{title:"Batch contract",proposals:[{operation:person("$first",901,"First"),evidence:cite("first")}]}}]);
+  const first=await send([{key:uuid(900),action:"stage",input:{title:"Batch contract",proposals:[{operation:person("$first",901,"First"),evidence:cite("first")},context("$first",901)]}}]);
   const id=first.items[0].result.id;
   assert.equal(first.items[0].result.reviewUrl, batchReviewUrl(id));
   const expectedReviewUrl = `changes/${first.items[0].result.id}`;
@@ -332,7 +350,7 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
   assert.equal(listed.data.changeBatches.nodes.find((batch: { id: string }) => batch.id === first.items[0].result.id).reviewUrl, expectedReviewUrl);
   // changeBatches is a connection like any other: edges with cursors, four-field pageInfo and a count, paged by cursor.
-  const second=(await send([{key:uuid(905),action:"stage",input:{title:"Another batch",proposals:[{operation:person("$other",906,"Other"),evidence:cite("other")}]}}])).items[0].result.id;
+  const second=(await send([{key:uuid(905),action:"stage",input:{title:"Another batch",proposals:[{operation:person("$other",906,"Other"),evidence:cite("other")},context("$other",906)]}}])).items[0].result.id;
   const batches=async(variables:object)=>{
     const result=await json(await f.action("graph.graphql",{query:"query($first:Int,$after:String,$search:String){changeBatches(first:$first,after:$after,search:$search){totalCount edges{cursor node{id counts}} nodes{id} pageInfo{hasNextPage hasPreviousPage startCursor endCursor}}}",variables}));
     assert.equal(result.errors,undefined,JSON.stringify(result.errors));
@@ -342,7 +360,7 @@ test("plural change documents append durably, submit explicitly, and preserve th
   const firstPage=await batches({first:1});
   assert.equal(firstPage.totalCount,2);
   assert.deepEqual(firstPage.edges.map((edge:{node:{id:string}})=>edge.node.id),[ordered[0]]);
-  assert.deepEqual(firstPage.edges[0].node.counts,{pending:1});
+  assert.deepEqual(firstPage.edges[0].node.counts,{pending:2});
   assert.deepEqual(firstPage.nodes,[{id:ordered[0]}]);
   assert.deepEqual(firstPage.pageInfo,{hasNextPage:true,hasPreviousPage:false,startCursor:firstPage.edges[0].cursor,endCursor:firstPage.edges[0].cursor});
   const nextPage=await batches({first:1,after:firstPage.edges[0].cursor});
@@ -350,16 +368,16 @@ test("plural change documents append durably, submit explicitly, and preserve th
   assert.deepEqual([(await batches({search:"Another"})).totalCount,(await batches({first:0})).nodes],[1,[]]);
   const old=await json(await f.action("graph.graphql",{query:"{changeBatches{aggregate{count}}}"}));
   assert.equal(old.errors?.[0]?.extensions?.code,"GRAPHQL_VALIDATION_FAILED");
-  const append={key:uuid(902),action:"stage",input:{batchId:id,proposals:[{operation:person("$second",903,"Second"),evidence:cite("second")}]}};
+  const append={key:uuid(902),action:"stage",input:{batchId:id,proposals:[{operation:person("$second",903,"Second"),evidence:cite("second")},context("$second",903)]}};
   await send([append]);await send([append]);
   const submitted=await send([{key:uuid(904),action:"submit",input:{batchId:id}}]);
-  assert.equal(submitted.items[0].result.counts.awaiting_review,2);
+  assert.equal(submitted.items[0].result.counts.awaiting_review,4);
   assert.equal(submitted.instructions[0].actor,"human");
   assert.equal(submitted.instructions[0].url, expectedReviewUrl);
   // The receipt also names the steward's review run to wait on.
   assert.ok(submitted.instructions.find((item: { code: string; taskId?: string }) => item.code === "WAIT_FOR_RUN")?.taskId);
   assert.equal(await f.exists(uuid(901)),false);
-  const personalIdentity = { ...agent, owner: { kind: "user" as const, id: "personal-owner" } };
+  const personalIdentity = { ...agent, organizationId: "", owner: { kind: "user" as const, id: "personal-owner" } };
   const personalStage = await send([{ key: uuid(907), action: "stage", input: { title: "Personal batch", proposals: [{ operation: person("$personal", 908, "Personal"), evidence: cite("personal") }] } }], personalIdentity);
   const personalId = personalStage.items[0].result.id;
   const personalUrl = `changes/${personalId}`;
@@ -378,7 +396,7 @@ test("a member's own agent connection reviews a batch with the member's identity
   const connection = { ...owner, actor: { kind: "oauth-client" as const, id: "claude-desktop", label: "Claude" } };
   const changes = async (items: object[], identity: object) =>
     (await json(await f.action("graph.mutate", { query: print(documents.ChangeBatchChanges.document), operationName: "ChangeBatchChanges", variables: { input: { items } } }, identity))).data.changeBatchChanges;
-  const staged = await changes([{ key: uuid(920), action: "stage", input: { title: "Over MCP", proposals: [{ operation: person("$fay", 121, "Fay"), evidence: cite("fay") }] } }], connection);
+  const staged = await changes([{ key: uuid(920), action: "stage", input: { title: "Over MCP", proposals: [{ operation: person("$fay", 121, "Fay"), evidence: cite("fay") }, context("$fay", 121)] } }], connection);
   const id = staged.items[0].result.id;
   await changes([{ key: uuid(921), action: "submit", input: { batchId: id } }], connection);
   let key = 922;
@@ -403,7 +421,7 @@ test("a member's own agent connection reviews a batch with the member's identity
 
 test("agents repair one draft by ref and get anchor and ontology validation in mutation results", async t => {
   const f = await fixture(); t.after(() => f.app.dispose());
-  await json(await f.action("graph.apply", { requestKey: "anchor-person", operations: [person("$anchor", 950, "Anchor")] }));
+  await json(await f.action("graph.apply", { requestKey: "anchor-person", operations: [person("$anchor", 950, "Anchor"), context("$anchor", 950).operation] }));
   const send = async (action: string, input: object, identity: object = agent) => {
     const result = await json(await f.action("graph.mutate", { query: print(documents.ChangeBatchChanges.document), operationName: "ChangeBatchChanges", variables: { input: { items: [{ key: crypto.randomUUID(), action, input }] } } }, identity));
     assert.equal(result.errors, undefined);
@@ -424,7 +442,7 @@ test("agents repair one draft by ref and get anchor and ontology validation in m
   const detail = (await run(f, "ChangeBatch", { id: batchId })).data.changeBatch;
   assert.equal(detail.operations.find((op: {ref:string}) => op.ref === "$child").reason, "Corrected source");
   const cleared = await send("configure", { batchId, anchors: [] });
-  assert.deepEqual(cleared.result.anchors, []);
+  assert.deepEqual(cleared.result.anchors, ["Organization:research-organization"]);
   assert.equal(cleared.result.validation.valid, true);
   const viewer = { ...owner, role: "viewer" };
   const readOnly = await json(await f.app.call(`/api/apps/onto/batches/get?id=${batchId}`, viewer));
@@ -441,7 +459,7 @@ test("member amendments replace and add proposals without committing; invalid or
   const connection = { ...owner, actor: { kind: "oauth-client", id: "member-mcp" } };
   const staged = await run(f, "StageChanges", { input: { title: "Prototype", proposals: [
     { operation: person("$ada", 201, "Ada") }, { operation: person("$bea", 202, "Bea") },
-    { operation: friends("$friends", 203, 201, 202) },
+    { operation: friends("$friends", 203, 201, 202) }, context("$ada", 201), context("$bea", 202),
   ] } });
   const batchId = staged.data.stageChanges.id;
   await run(f, "SubmitBatch", { input: { batchId } });
@@ -449,29 +467,29 @@ test("member amendments replace and add proposals without committing; invalid or
   const beforeStored = await f.app.database.prepare("SELECT reviewJobId FROM graph_batches WHERE id=?").bind(batchId).first();
   const amendment = { batchId, proposals: [
     { operation: person("$ada", 201, "Ada revised"), evidence: cite("revised-source") },
-    { operation: person("$cy", 204, "Cy") },
+    { operation: person("$cy", 204, "Cy") }, context("$cy", 204),
   ] };
   const revised = await run(f, "ReviseBatch", { input: amendment }, connection);
   assert.equal(revised.errors, undefined);
   assert.equal(revised.data.reviseBatch.reviewUrl, batchReviewUrl(batchId));
-  assert.deepEqual([revised.data.reviseBatch.state, revised.data.reviseBatch.counts], ["awaiting_review", { awaiting_review: 4 }]);
+  assert.deepEqual([revised.data.reviseBatch.state, revised.data.reviseBatch.counts], ["awaiting_review", { awaiting_review: 7 }]);
   const after = await json(await f.action("batch.get", { batchId }));
   assert.deepEqual(after.batch.policy, before.batch.policy); assert.equal(after.batch.reviewBy, before.batch.reviewBy);
   const afterStored = await f.app.database.prepare("SELECT commits,reviewJobId FROM graph_batches WHERE id=?").bind(batchId).first();
   assert.equal(afterStored?.commits, 0); assert.notEqual(afterStored?.reviewJobId, beforeStored?.reviewJobId);
-  assert.equal(after.batch.summary.operations, 4);
+  assert.equal(after.batch.summary.operations, 7);
   assert.equal(after.operations[0].operation.attributes.title, "Ada revised");
   assert.equal(after.operations[0].position, before.operations[0].position);
   assert.equal(await f.exists(uuid(201)), false); assert.equal(await f.exists(uuid(204)), false);
   const invalid = await run(f, "ReviseBatch", { input: { batchId, remove: ["$bea"] } }, connection);
   assert.equal(invalid.errors[0].extensions.status, 409);
-  assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 4);
+  assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 7);
   for (const identity of [agent, { ...connection, role: "member" }, { ...owner, entityWriter: { installationId: "delegator" } }]) {
     const denied = await f.action("graph.mutate", { query: documents.ReviseBatch.document, operationName: "ReviseBatch", variables: { input: amendment } }, identity);
     if (denied.status === 200) assert.equal((await denied.json() as any).errors[0].extensions.status, 403);
     else assert.equal(denied.status, 403);
   }
-  await json(await f.review({ batchId, refs: ["$ada"], verdict: "approve" }));
+  await json(await f.review({ batchId, refs: ["$ada", "$context201"], verdict: "approve" }));
   const decided = await run(f, "ReviseBatch", { input: amendment }, connection);
   assert.equal(decided.errors[0].extensions.status, 409);
   const amended = await run(f, "ChangeBatchChanges", { input: { items: [{ key: uuid(205), action: "amend", input: { batchId, remove: ["$friends"] } }] } }, connection);
@@ -482,7 +500,7 @@ test("member amendments replace and add proposals without committing; invalid or
 
 test("amendment snapshot refuses a decision arriving during validation", async (t) => {
   const f = await fixture(); t.after(() => f.app.dispose());
-  const staged = await run(f, "StageChanges", { input: { title: "Concurrent review", proposals: [{ operation: person("$ada", 211, "Ada") }] } });
+  const staged = await run(f, "StageChanges", { input: { title: "Concurrent review", proposals: [{ operation: person("$ada", 211, "Ada") }, context("$ada", 211)] } });
   const batchId = staged.data.stageChanges.id; await run(f, "SubmitBatch", { input: { batchId } });
   const client = f.app.database, original = client.batch.bind(client);
   let injected = false;
@@ -503,7 +521,7 @@ test("amendment snapshot refuses a decision arriving during validation", async (
 
 test("a review cannot approve stale proposals after an amendment commits", async (t) => {
   const f = await fixture(); t.after(() => f.app.dispose());
-  const staged = await run(f, "StageChanges", { input: { title: "Stale approval", proposals: [{ operation: person("$ada", 221, "Ada") }] } });
+  const staged = await run(f, "StageChanges", { input: { title: "Stale approval", proposals: [{ operation: person("$ada", 221, "Ada") }, context("$ada", 221)] } });
   const batchId = staged.data.stageChanges.id; await run(f, "SubmitBatch", { input: { batchId } });
   const client = f.app.database, original = client.batch.bind(client);
   let injected = false;
@@ -529,7 +547,7 @@ test("a review cannot approve stale proposals after an amendment commits", async
 
 test("amendment anchor checks use the projected graph after a saved edge is archived", async (t) => {
   const f = await fixture(); t.after(() => f.app.dispose());
-  await json(await f.action("graph.apply", { requestKey: "anchor-base", operations: [person("$anchor", 231, "Anchor"), person("$bridge", 232, "Bridge"), friends("$path", 233, 231, 232)] }));
+  await json(await f.action("graph.apply", { requestKey: "anchor-base", operations: [person("$anchor", 231, "Anchor"), person("$bridge", 232, "Bridge"), friends("$path", 233, 231, 232), context("$anchor", 231).operation] }));
   const staged = await run(f, "StageChanges", { input: { title: "Anchored child", anchors: ["Person:anchor"], proposals: [
     { operation: person("$child", 234, "Child") }, { operation: friends("$child-path", 235, 232, 234) },
   ] } });
@@ -543,23 +561,27 @@ test("amendment anchor checks use the projected graph after a saved edge is arch
   assert.equal(await f.exists(uuid(234)), false);
 });
 
-test("a member-reviewed batch anchors to the organization's root unless it names its own anchors", async t => {
-  const f = await fixture(); t.after(() => f.app.dispose());
+test("organization batches default to the host-bound root and retain explicit connectivity constraints", async t => {
+  const f = await fixture(false); t.after(() => f.app.dispose());
   await json(await f.action("graph.apply", { requestKey: "root", operations: [
     create("$org", "graph-node", { id: uuid(960), typeId: core.organization, title: "Acme", slug: "acme", properties: { organization_id: "org" } }),
     person("$known", 961, "Known"),
+    create("$context", "graph-node", { id: uuid(990), typeId: core.document, title: "Contact research" }),
+    create("$context-owner", "graph-edge", { id: uuid(991), typeId: "71000000-0000-4000-8000-000000000032", fromId: "$context", toId: "$org" }),
   ] }));
+  const contextGraph = await json(await f.action("graph.read", {}));
+  const documentsType = contextGraph.types.find((type: { name: string }) => type.name === "documents");
+  await json(await f.action("graph.apply", { requestKey: "contact-context", operations: [create("$document-contact", "graph-edge", { id: uuid(992), typeId: documentsType.id, fromId: uuid(990), toId: uuid(961) })] }));
   const stage = async (input: object) => (await run(f, "StageChanges", { input }, agent)).data.stageChanges;
   const loose = await stage({ title: "Loose", proposals: [{ operation: person("$loose", 962, "Loose") }] });
   assert.deepEqual(loose.anchors, ["Organization:acme"]);
   assert.match(loose.validation.error, /anchor/);
-  // Named anchors replace the root; an empty list asks for none.
+  // Explicit anchors still constrain the batch; an empty list defaults to the owner root.
   assert.deepEqual((await stage({ title: "Narrow", anchors: ["Person:known"], proposals: [{ operation: person("$other", 963, "Other") }] })).anchors, ["Person:known"]);
   const free = await stage({ title: "Free", anchors: [], proposals: [{ operation: person("$free", 964, "Free") }] });
-  assert.deepEqual(free.anchors, []);
-  assert.equal(free.validation.valid, true);
-  // A scheduled app batch anchors to the root too: what is confident and traceable commits,
-  // what reaches no anchor waits for a member with what depends on it.
+  assert.deepEqual(free.anchors, ["Organization:acme"]);
+  assert.equal(free.validation.valid, false);
+  // Scheduled batches default to the root too; disconnected proposals remain held.
   const { batch } = await json(await f.action("batch.open", { title: "Discovery", source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent));
   assert.deepEqual(batch.anchors, [uuid(960)]);
   const narrow = (await json(await f.action("batch.open", { title: "Discovery", anchors: ["Person:known"], source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent))).batch;
@@ -578,13 +600,41 @@ test("a member-reviewed batch anchors to the organization's root unless it names
 });
 
 test("a personal Onto anchors a new batch to its owner's Person", async t => {
-  const f = await fixture(); t.after(() => f.app.dispose());
+  const f = await fixture(false); t.after(() => f.app.dispose());
   const me = { userId: "owner", organizationId: "", role: "owner", owner: { kind: "user", id: "owner" } };
   const ada = await json(await f.app.call("/api/internal/entities/v1/create", me as typeof owner, { method: "POST", body: { type: "graph-node", attributes: { typeId: core.person, title: "Ada", slug: "ada" } } }));
   await json(await f.app.call("/api/internal/identity/v1/link", me as typeof owner, { method: "POST", body: { holderId: ada.ref.id, principalId: "owner", kind: "human" } }));
   const staged = (await run(f, "StageChanges", { input: { title: "Mine", proposals: [{ operation: person("$friend", 970, "Friend") }] } }, me)).data.stageChanges;
   assert.deepEqual(staged.anchors, ["Person:ada"]);
   assert.match(staged.validation.error, /anchor/);
+  const connected = (await run(f, "StageChanges", { input: { title: "Connected friends", proposals: [
+    { operation: person("$friend", 975, "Friend") },
+    { operation: person("$second", 976, "Second friend") },
+    { operation: create("$first-link", "graph-edge", { id: uuid(977), typeId: ids.friend, fromId: "$friend", toId: "Person:ada" }) },
+    { operation: create("$indirect", "graph-edge", { id: uuid(978), typeId: ids.friend, fromId: "$second", toId: "$friend" }) },
+  ] } }, me)).data.stageChanges;
+  assert.equal(connected.validation.valid, true, JSON.stringify(connected.validation));
+
+});
+
+
+test("an external organization connects indirectly through an owned research document without a business relationship", async t => {
+  const f = await fixture(false); t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "research-root", operations: [
+    create("$root", "graph-node", { id: uuid(980), typeId: core.organization, title: "Acme", slug: "acme", properties: { organization_id: "org" } }),
+  ] }));
+  const graph = await json(await f.action("graph.read", {}));
+  const documentsType = graph.types.find((type: { name: string }) => type.name === "documents");
+  assert.ok(documentsType);
+  const proposals = [
+    create("$report", "graph-node", { id: uuid(981), typeId: core.document, title: "Vendor research" }),
+    create("$vendor", "graph-node", { id: uuid(982), typeId: core.organization, title: "External vendor" }),
+    create("$owned-report", "graph-edge", { id: uuid(983), typeId: "71000000-0000-4000-8000-000000000032", fromId: "$report", toId: uuid(980) }),
+    create("$report-vendor", "graph-edge", { id: uuid(984), typeId: documentsType.id, fromId: "$report", toId: "$vendor" }),
+  ].map(operation => ({ operation, evidence: cite("research") }));
+  const result = (await run(f, "StageChanges", { input: { title: "Research context", proposals } }, agent)).data.stageChanges;
+  assert.deepEqual(result.anchors, ["Organization:acme"]);
+  assert.equal(result.validation.valid, true, JSON.stringify(result.validation));
 });
 
 test("one Ontology read names every type, each relationship's ends, and how to stage", async (t) => {
@@ -597,4 +647,7 @@ test("one Ontology read names every type, each relationship's ends, and how to s
   // A projection is derived, so it is not offered for writing.
   assert.equal(ontology.relationshipTypes.some((type: { name: string }) => type.name === "test_spouse_of"), false);
   assert.match(ontology.staging, /ChangeBatchChanges/);
+  assert.match(ontology.staging, /Explicit anchors add another context requirement/);
+  assert.doesNotMatch(ontology.staging, /unless the batch names other anchors/);
+  assert.match(ontology.staging, /configured review and commit policy/);
 });

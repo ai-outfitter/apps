@@ -20,7 +20,7 @@ export const stagingGuide = [
   'A new node: {ref:"$ada", type:"graph-node", operation:"create", attributes:{typeId:"Person", title:"Ada Lovelace", slug:"ada-lovelace"}}.',
   'A new relationship: {ref:"$ada-works-on", type:"graph-edge", operation:"create", attributes:{typeId:"works_on", fromId:"$ada", toId:"Project:sunny"}}. Point at a node created in the same batch by its $ref, at a saved node by its address.',
   "Each relationship type accepts only the node types listed under from and to (any means every node type).",
-  "The staged batch stays open and waits for a member to commit it on the Changes page; say so, and do not stage it again.",
+  "Staging does not itself commit records. Follow the batch's configured review and commit policy and the instructions in its receipt; do not stage the same batch again.",
 ].join(" ");
 
 export async function ontologyGuide(db: Database, who: AppIdentity) {
@@ -28,7 +28,7 @@ export async function ontologyGuide(db: Database, who: AppIdentity) {
     .map(readType).map((type) => ({ ...type, ontology: "ontology" in type ? (type.ontology as OntologyContract) : undefined }));
   const names = new Map(types.map((type) => [type.id, type.name]));
   const side = (value: string[] | "any" | undefined) => (value === undefined || value === "any" ? ["any"] : value.map((id) => names.get(id) ?? id));
-  const rootId = await rootNode(db, who).catch(() => null);
+  const rootId = await rootNode(db, who);
   const [root] = rootId ? await db.select({ typeId: graphNodes.typeId, slug: graphNodes.slug }).from(graphNodes).where(eq(graphNodes.id, rootId)) : [];
   return {
     root: root ? `${names.get(root.typeId)}:${root.slug}` : null,
@@ -36,6 +36,6 @@ export async function ontologyGuide(db: Database, who: AppIdentity) {
     relationshipTypes: types
       .filter((type) => type.category === "edge" && !(type.ontology?.version === 2 && type.ontology.projection))
       .map((type) => ({ name: type.name, description: firstSentence(type.body), from: side(type.ontology?.endpoints?.from), to: side(type.ontology?.endpoints?.to) })),
-    staging: `${stagingGuide} ${root ? `New nodes must connect to the root, ${names.get(root.typeId)}:${root.slug}, directly or through other nodes, unless the batch names other anchors.` : "This graph has no root, so new nodes need no connection."}`,
+    staging: `${stagingGuide} ${root ? `New nodes must connect to the owner root, ${names.get(root.typeId)}:${root.slug}, directly or through other nodes. Explicit anchors add another context requirement; empty anchors still require the owner root.` : "This graph has no usable owner root. Staging is allowed, but submission and commit require setup. An editor can run EnsureOwnerRoot, then resolve any reported identity or schema conflicts before revalidating the batch."}`,
   };
 }

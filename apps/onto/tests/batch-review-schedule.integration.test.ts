@@ -123,4 +123,13 @@ test("review schedule requires editor identity and uses its reserved run", async
   const start = calls.find((c) => c.operation === "workflow.start");
   assert.equal(start?.input.workflow, "batch-review");
   assert.equal(start?.input.id, runId);
+  // Audits use the same host-owned scope without requiring an Organization node.
+  body.input.schedule.workflowId = "ontology-audit";
+  const audit = await dispatch("owner");
+  assert.equal(audit.status, 200);
+  const inference = calls.find(c => c.operation === "inference.generate" && c.input.step === "audit");
+  assert.deepEqual((inference?.input.data as Record<string, unknown>).owner, {
+    kind: "organization", id: "org", installationId: "wiki", authority: "host-installation",
+    graphNode: null, graphBinding: "absent",
+  });
 });

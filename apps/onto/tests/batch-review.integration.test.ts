@@ -28,7 +28,7 @@ async function json(response: Response): Promise<Json> {
 }
 
 /** A Wiki whose owner is Artera, with a workflow host that records the review run. */
-async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No further findings.", findings: [] })) {
+async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No further findings.", findings: [] }), bindOwner = true) {
   const calls: { operation: string; input: Json }[] = [];
   const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "onto-installation", {
     workflowHost: () => ({ call: async (operation, input) => {
@@ -50,6 +50,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
   const graphql = (query: string, variables: object, identity: object = owner) =>
     action("graph.mutate", { query, variables }, identity);
   try {
+    if (bindOwner) {
     // The owner's node, bound to the platform organization (existing Wikis add the binding by an editor's revision).
     const { types } = await json(await action("graph.read", {}));
     const organization = types.find((type: Json) => type.id === core.organization);
@@ -58,6 +59,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
         attributes: { properties: [...organization.properties.filter((property: Json) => property.name !== "organization_id"), { name: "organization_id", type: "string", description: "Platform organization", required: false }] } },
       node("$artera", 1, core.organization, "Artera", { properties: { organization_id: "org" } }),
     ] }));
+    }
   } catch (error) {
     await app.dispose();
     throw error;
@@ -82,7 +84,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
 /** Forerunner's confidence batch: an external mission filed as a Project, part_of NASA rather than Artera. */
 async function externalProjectBatch(f: Awaited<ReturnType<typeof fixture>>) {
   const policy = { kind: "confidence", threshold: 0.95, version: "test-1" };
-  const { batch } = await json(await f.action("batch.open", { title: "Space research", source: { kind: "discovery-run", ref: "run-1" }, policy }, forerunner));
+  const { batch } = await json(await f.action("batch.open", { title: "Space research", anchors: [uuid(1)], source: { kind: "discovery-run", ref: "run-1" }, policy }, forerunner));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
     { operation: node("$nasa", 10, core.organization, "NASA"), evidence: cite("nasa"), confidence: 0.99 },
     { operation: node("$veg", 11, core.project, "VEG-05"), evidence: cite("veg"), confidence: 0.97, reason: "A space crop experiment." },
@@ -130,7 +132,7 @@ test("a batch adding an external Project gets an error finding, and nothing that
   assert.equal(inference.input.runId, review.runId);
   assert.match(inference.input.instructions, /## Review one batch/);
   assert.equal(inference.input.data.mode, "batch");
-  assert.equal(inference.input.data.owner.title, "Artera");
+  assert.equal(inference.input.data.owner.graphNode.title, "Artera");
   assert.equal(inference.input.data.operations.length, 4);
   assert.ok(inference.input.data.checks.some((item: Json) => item.rule === "project.foreign"));
   assert.match(review.prompt.digest, /^[a-f0-9]{64}$/);
@@ -340,7 +342,7 @@ test("the steward approves only the clean part: flagged and questioned proposals
       { ref: "$crop", refs: [], rule: "claim.overstated", severity: "note", message: "Fine as is.", fix: null, types: [] }],
   }));
   t.after(() => f.app.dispose());
-  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  const { batch } = await json(await f.action("batch.open", { title: "Crops", anchors: [uuid(1)] }));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
     { operation: node("$crop", 60, core.project, "Lunar greenhouse"), evidence: cite("plan") },
     { operation: edge("$crop-artera", 61, partOf, "$crop", uuid(1)), evidence: cite("plan") },
@@ -399,7 +401,7 @@ test("submitting names the steward's review run to wait on, and that run is the 
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const f = await fixture(async () => { await gate; return { summary: "No findings.", findings: [] }; });
   t.after(() => { release(); return f.app.dispose(); });
-  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  const { batch } = await json(await f.action("batch.open", { title: "Crops", anchors: [uuid(1)] }));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
     { operation: node("$crop", 80, core.project, "Lunar greenhouse"), evidence: cite("plan") },
     { operation: edge("$crop-artera", 81, partOf, "$crop", uuid(1)), evidence: cite("plan") },
@@ -436,7 +438,7 @@ test("an admin can keep every decision with members: the steward then only revie
   const saved = await json(await f.graphql("mutation ($input: SaveSettingsInput!) { saveSettings(input: $input) { stewardApproval updatedBy } }", { input: { stewardApproval: "review" } }));
   assert.deepEqual(saved.data.saveSettings, { stewardApproval: "review", updatedBy: "owner" });
 
-  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  const { batch } = await json(await f.action("batch.open", { title: "Crops", anchors: [uuid(1)] }));
   await json(await f.action("batch.add", { batchId: batch.id, proposals: [
     { operation: node("$crop", 90, core.project, "Lunar greenhouse"), evidence: cite("plan") },
     { operation: edge("$crop-artera", 91, partOf, "$crop", uuid(1)), evidence: cite("plan") },
@@ -448,4 +450,26 @@ test("an admin can keep every decision with members: the steward then only revie
   assert.equal(read.counts.awaiting_review, 2);
   const page = await json(await f.app.call("/api/apps/onto/settings", owner, {}));
   assert.equal(page.stewardApproval, "review");
+});
+
+
+test("an existing unbound installation reviews sourced external references with host ownership", async t => {
+  const f = await fixture(undefined, false); t.after(() => f.app.dispose());
+  const { batch } = await json(await f.action("batch.open", { title: "External reference", source: { kind: "discovery-run", ref: "run-reference" } }, forerunner));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$vendor", 801, core.organization, "External vendor"), evidence: cite("vendor"), confidence: 0.99 },
+    { operation: node("$tool", 802, core.technology, "Research tool"), evidence: cite("tool"), confidence: 0.99 },
+    { operation: edge("$tool-vendor", 803, partOf, "$tool", "$vendor"), evidence: cite("tool"), confidence: 0.99 },
+  ] }, forerunner));
+  assert.equal((await f.action("batch.submit", { batchId: batch.id }, forerunner)).status, 409);
+  // A historical submitted batch remains reviewable, but cannot auto-commit without a root.
+  await f.app.database.prepare("UPDATE graph_batches SET state='awaiting_review' WHERE id=?").bind(batch.id).run();
+  await f.app.database.prepare("UPDATE graph_batch_operations SET state='awaiting_review' WHERE batchId=?").bind(batch.id).run();
+  await json(await f.page("steward-review", { method: "POST", body: { batchId: batch.id } }));
+  const read = await f.reviewed(batch.id);
+  assert.ok(!read.batch.review.findings.some((f: Json) => ["owner.unknown", "owner.unreachable", "organization.unrelated"].includes(f.rule)));
+  const input = f.calls.find(c => c.operation === "inference.generate")!.input.data;
+  assert.deepEqual(input.owner, { kind: "organization", id: "org", installationId: "onto-installation", authority: "host-installation", graphNode: null, graphBinding: "absent" });
+  assert.equal(read.batch.state, "awaiting_review");
+  assert.equal(read.counts.committed ?? 0, 0);
 });

@@ -503,6 +503,18 @@ export async function checkGraphChanges(db: Database, who: AppIdentity, input: I
   return inspectGraphChanges(db, who, input);
 }
 
+/** Validated projection for domain invariants checked against a guarded snapshot. */
+export function projectGraphChanges(graph: Graph, who: AppIdentity, input: Input): Graph {
+  const { changes, receipt } = prepareChanges(input, graph, who);
+  compileKnowledgeGraphs(graph, changes);
+  validateChanges(graph, changes, receipt);
+  const merge = (kind: Change["type"]) => [...new Map([
+    ...records(graph)[kind].map(row => [row.id, row] as const),
+    ...changes[kind].map(row => [String(row.id), row] as const),
+  ]).values()];
+  return { ...graph, types: merge("graph-type"), nodes: merge("graph-node"), edges: merge("graph-edge") } as Graph;
+}
+
 /** Read-only validation for members inspecting proposed changes. Grants no write authority. */
 export async function inspectGraphChanges(db: Database, who: AppIdentity, input: Input): Promise<Receipt> {
   const graph = await readGraph(db, who);

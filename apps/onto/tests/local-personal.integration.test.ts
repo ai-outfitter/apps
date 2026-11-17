@@ -92,13 +92,16 @@ test("the personal graph is restored whole, with Project pages referencing perso
 
   const wiki = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), installations.onto);
   try {
-    const initialized = await wiki.call("/api/internal/app-initialize", { userId: "installer", organizationId: "org", role: "owner" }, { method: "POST", body: {} });
+    const initialized = await wiki.call("/api/internal/app-initialize", viewer, { method: "POST", body: {} });
     assert.equal(initialized.status, 200);
     const before = await snapshot(wiki);
     const report = await seedPersonalInstallation({ ...context, database: wiki.database, installationId: installations.onto });
     // A fresh baseline has no retired legacy type; initialization follows current defaults.
     assert.ok(!before.types.some((t) => t.id === "71000000-0000-4000-8000-000000000008"));
-    assert.deepEqual(report.counts, inspected.counts);
+    // Static seed inspection excludes the installation's verified account root.
+    assert.deepEqual(report.counts, { ...inspected.counts, nodes: inspected.counts.nodes + 1 });
+    const account = await wiki.database.prepare("SELECT id FROM graph_nodes WHERE externalKey=?").bind("ai-outfitter.com/users:local-viewer").first();
+    assert.ok(account, "restoring personal data preserves the verified owner account");
     assert.deepEqual(report.counts, {
       types: before.types.length + 1,
       nodes: before.nodes.length + 6 + releaseExample.nodes.filter((n) => !before.nodes.some((stored) => stored.id === n.id)).length,

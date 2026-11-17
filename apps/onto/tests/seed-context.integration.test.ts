@@ -68,7 +68,7 @@ test("fresh installations expose the shared type pages to readers and agents", a
       await app.call("/api/apps/onto/graph/snapshot", member)
     ).json()) as {
       types: unknown[];
-      nodes: { title: string }[];
+      nodes: { id: string; title: string; properties: Record<string, unknown> }[];
       edges: { id: string }[];
     };
     assert.equal(snapshot.types.length, records.length);
@@ -85,11 +85,14 @@ test("fresh installations expose the shared type pages to readers and agents", a
     );
     assert.equal(
       snapshot.nodes.length,
-      seed.nodes.length,
-      "standard organizations are seeded without example projects",
+      seed.nodes.length + 1,
+      "standard records and exactly one canonical owner root are initialized",
     );
+    const ownerNodes = snapshot.nodes.filter((n) => !seededIds.has(n.id));
+    assert.equal(ownerNodes.length, 1);
+    assert.equal(ownerNodes[0].properties.organization_id, "org");
     assert.deepEqual(
-      snapshot.nodes.map((n) => n.title).sort((a, b) => a.localeCompare(b)),
+      snapshot.nodes.filter((n) => seededIds.has(n.id)).map((n) => n.title).sort((a, b) => a.localeCompare(b)),
       seed.nodes.map((n) => n.title).sort((a, b) => a.localeCompare(b)),
     );
   } finally {
