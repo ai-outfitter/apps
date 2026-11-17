@@ -543,7 +543,7 @@ test("amendment anchor checks use the projected graph after a saved edge is arch
   assert.equal(await f.exists(uuid(234)), false);
 });
 
-test("a member-reviewed batch anchors to the organization's root unless it names its own anchors", async t => {
+test("organization batches have no implicit graph anchor but retain explicit connectivity constraints", async t => {
   const f = await fixture(); t.after(() => f.app.dispose());
   await json(await f.action("graph.apply", { requestKey: "root", operations: [
     create("$org", "graph-node", { id: uuid(960), typeId: core.organization, title: "Acme", slug: "acme", properties: { organization_id: "org" } }),
@@ -551,17 +551,17 @@ test("a member-reviewed batch anchors to the organization's root unless it names
   ] }));
   const stage = async (input: object) => (await run(f, "StageChanges", { input }, agent)).data.stageChanges;
   const loose = await stage({ title: "Loose", proposals: [{ operation: person("$loose", 962, "Loose") }] });
-  assert.deepEqual(loose.anchors, ["Organization:acme"]);
-  assert.match(loose.validation.error, /anchor/);
-  // Named anchors replace the root; an empty list asks for none.
+  assert.deepEqual(loose.anchors, []);
+  assert.equal(loose.validation.valid, true);
+  // Explicit anchors still constrain the batch; an empty list asks for none.
   assert.deepEqual((await stage({ title: "Narrow", anchors: ["Person:known"], proposals: [{ operation: person("$other", 963, "Other") }] })).anchors, ["Person:known"]);
   const free = await stage({ title: "Free", anchors: [], proposals: [{ operation: person("$free", 964, "Free") }] });
   assert.deepEqual(free.anchors, []);
   assert.equal(free.validation.valid, true);
-  // A scheduled app batch anchors to the root too: what is confident and traceable commits,
-  // what reaches no anchor waits for a member with what depends on it.
+  // Scheduled batches also have no implicit anchor; explicitly anchored batches
+  // still hold unrelated proposals and their dependencies.
   const { batch } = await json(await f.action("batch.open", { title: "Discovery", source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent));
-  assert.deepEqual(batch.anchors, [uuid(960)]);
+  assert.equal(batch.anchors, null);
   const narrow = (await json(await f.action("batch.open", { title: "Discovery", anchors: ["Person:known"], source: { kind: "discovery-run", ref: "run-root" }, policy: { kind: "confidence", threshold: 0.95, version: "test-1" } }, agent))).batch;
   await json(await f.action("batch.add", { batchId: narrow.id, proposals: [
     { operation: person("$linked", 965, "Linked"), evidence: cite("r1"), confidence: 0.99 },

@@ -19,7 +19,6 @@ import {
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
 import { resolveIdentity } from "./identity";
-import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
 import { readSettings } from "./settings";
 
@@ -96,8 +95,8 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
-  // Every batch is anchored to the root unless it names its own anchors; an empty list
-  // asks for no connectivity requirement.
+  // Personal batches default to their account-linked Person; organizations use
+  // only explicit anchors. An empty list asks for no connectivity requirement.
   const root = input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
@@ -110,13 +109,14 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   return getBatch(db, who, { batchId: id });
 }
 
-/** The node this Onto belongs to: the Organization bound to an organization's Onto, or the
- * owner's Person (through its OutfitterUser account) in a personal Onto. Null when none or
- * more than one matches; an unbound Onto then has no default anchor. */
+/** Personal default context anchor, resolved through the owner account. Organization
+ * installations have no implicit graph anchor; ownership is independent of relevance. */
 export async function rootNode(db: Database, who: AppIdentity) {
   if (who.owner.kind === "user")
     return (await resolveIdentity(db, { principalId: who.owner.id }).catch(() => null))?.holderId ?? null;
-  return wikiHome(await readGraph(db, who), who).organizationId ?? null;
+  // Organization ownership is host scope, not a graph-connectivity constraint.
+  // Callers can still request explicit anchors. Personal defaults above are unchanged.
+  return null;
 }
 
 /** The saved nodes a batch's anchors name. */
