@@ -105,7 +105,7 @@ test("PublishEvidence stages the bundle for review on the Planning project and a
     const shots = operations.filter((op: any) => op.ref.startsWith("$evidence-step-"));
     assert.deepEqual(shots.map((op: any) => op.attributes.title), ["1. Office collection", "2. Unconfirmed plant"]);
     assert.deepEqual(shots.map((op: any) => JSON.parse(op.attributes.body).media[0].replace(/^.*\/files\//, "")), paths.map((path) => `main/evidence/fernlight-ios-run/${path}`));
-    // Sunny-like graph without includes_record: the type arrives in the same batch.
+    // A graph without includes_record: the type arrives in the same batch.
     assert.equal(operations[0].ref, "$includes-record-type");
     assert.equal(operations.at(-1).attributes.toId, projectNode);
     assert.deepEqual(submitted.map((item) => item.batchId), [result.batchId]);

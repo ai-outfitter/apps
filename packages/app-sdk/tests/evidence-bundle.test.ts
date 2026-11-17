@@ -38,8 +38,8 @@ test("a bundle becomes a Document, numbered Demonstrations, includes_record edge
 });
 
 test("types are found by name, so a graph whose standard ID belongs to another type still works", async () => {
-  const sunny = types.filter((type) => type.name !== "includes_record").concat({ id: "7b000000-0000-4000-8000-000000000004", name: "DesignArtifact", category: "node" });
-  const ops = await evidenceBundleOperations(input({ types: sunny }));
+  const graph = types.filter((type) => type.name !== "includes_record").concat({ id: "7b000000-0000-4000-8000-000000000004", name: "DesignArtifact", category: "node" });
+  const ops = await evidenceBundleOperations(input({ types: graph }));
   assert.equal(ops[0].ref, "$includes-record-type");
   const typeId = ops[0].attributes.id;
   assert.notEqual(typeId, "7b000000-0000-4000-8000-000000000004");
@@ -61,8 +61,8 @@ test("steps need https screenshot URLs; the Demonstration body refuses extra key
 });
 
 test("every proposal passes the graph record contracts Onto validates", async () => {
-  const sunny = types.filter((type) => type.name !== "includes_record");
-  for (const op of await evidenceBundleOperations(input({ types: sunny }))) {
+  const graph = types.filter((type) => type.name !== "includes_record");
+  for (const op of await evidenceBundleOperations(input({ types: graph }))) {
     const contract = { "graph-type": typeInput, "graph-node": nodeInput, "graph-edge": edgeInput }[op.type];
     const parsed = contract.safeParse(op.attributes);
     assert.ok(parsed.success, `${op.ref}: ${parsed.error?.message}`);
