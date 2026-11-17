@@ -47,6 +47,7 @@
   },
   "catalog": {
     "access": "admin-only",
+    "personal": true,
     "operational": {
       "slug": "workshop",
       "name": "Workshop",
