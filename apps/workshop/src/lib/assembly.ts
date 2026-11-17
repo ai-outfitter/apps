@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type CadPlan, CadPlanSchema, planBounds } from "../model/cad-plan";
+import { type CadPlan, AssemblyCadPlanSchema, planBounds } from "../model/cad-plan";
 
 // A product structure in the shape Windchill and Teamcenter use: items (part
 // masters with one current revision) and usage lines from an assembly item to
@@ -57,7 +57,7 @@ export const ItemSchema = z
     color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
-    geometry: CadPlanSchema.optional(),
+    geometry: AssemblyCadPlanSchema.optional(),
     firmware: FirmwareSchema.optional(),
     notes: z.string().max(2000).default(""),
     uses: z.array(UsageSchema).max(50).default([]),

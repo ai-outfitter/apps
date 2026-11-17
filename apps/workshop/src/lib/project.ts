@@ -186,7 +186,7 @@ export const ProjectSchema = z
     );
   }, "CAD plan and dimensions must agree")
   .refine(
-    (p) => new TextEncoder().encode(JSON.stringify(p)).length <= 1_500_000,
+    (p) => new TextEncoder().encode(JSON.stringify(p)).length <= 1_900_000,
     "Project exceeds the draft storage limit; shorten notes or remove unused parts/candidates.",
   );
 export type Project = z.infer<typeof ProjectSchema>;
