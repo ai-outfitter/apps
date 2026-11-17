@@ -4,14 +4,14 @@ import {
   isRetired,
   resolveKnowledgeGraph,
 } from "@ai-outfitter/app-sdk/knowledge-graph";
-import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
+import { evidenceView } from "@ai-outfitter/app-sdk/visual-evidence";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import demo from "../../fixtures/project-release-review.json";
 import { type Graph, type GraphNode, productGraph } from "../lib/graph";
-import { projectBodySelection, readProjectSelection } from "./wiki-subgraph";
+import { readProjectEvidenceSelection } from "./wiki-subgraph";
 
 export type ProjectReleaseReview = {
-  project: { title: string };
+  project: { title: string; revision?: number; legacy?: string };
   wiki: {
     installationId: string;
     hostname: string | null;
@@ -85,6 +85,9 @@ export function projectReleaseRecords(
       from_type: "Document",
       to_type: "Release",
     },
+    { type: "produces", direction: "outgoing" as const, from_type: "Project", to_type: "ProductRevision" },
+    { type: "documents", direction: "incoming" as const, from_type: "Document", to_type: "ProductRevision" },
+    { type: "evidence_for", direction: "incoming" as const, from_type: "Document", to_type: "ProductRevision" },
   ].filter((rule) => hasType(rule.type, "edge") && hasType(rule.from_type, "node") && hasType(rule.to_type, "node"));
   if (!relationships.length) return { releases: [], documents: [], demonstrations: {} };
   const definition = resolveKnowledgeGraph(graph, {
@@ -101,9 +104,10 @@ export function projectReleaseRecords(
       status: 413,
     });
   const sorted = [...selection.nodes].sort(
-    (a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
+    (a, b) => (Date.parse(String(releaseBody(b.body).capturedAt ?? "")) || b.createdAt || 0) - (Date.parse(String(releaseBody(a.body).capturedAt ?? "")) || a.createdAt || 0) || a.id.localeCompare(b.id),
   );
-  const documents = sorted.filter((node) => typeName(node.typeId) === "Document");
+  const isCapture = (node: GraphNode) => releaseBody(node.body).recordKind === "visual-evidence" || bundleDemonstrations(graph, node.id, typeName).length > 0;
+  const documents = sorted.filter((node) => typeName(node.typeId) === "Document").sort((a,b) => Number(isCapture(b)) - Number(isCapture(a)));
   return {
     releases: sorted.filter((node) => typeName(node.typeId) === "Release"),
     documents,
@@ -145,13 +149,9 @@ export async function readProjectReleases(
   const db = await appDataContext(host).apps.installation(installationId);
   // Authenticate the canonical project before reading any Wiki context.
   const project = await db.collection("projects").get(projectId);
-  // Only the project's releases and their evidence, not the whole Wiki; the whole graph from a Wiki without graph.query.
-  const records = await readProjectSelection(host, installationId, projectId, projectBodySelection).catch((error) => {
-    if (error instanceof Response && [400, 404].includes(error.status)) return readWikiGraph(host);
-    throw error;
-  });
+  const records = await readProjectEvidenceSelection(host, installationId, projectId);
   return {
-    project,
+    project: { title: project.title, revision: project.revision, legacy: [project.attributes.demoInstructions, project.attributes.demoResults].filter(Boolean).join("\n\n") },
     wiki: records.wiki,
     ...projectReleaseRecords(productGraph(records), installationId, projectId),
   };
@@ -237,4 +237,8 @@ export function releaseMarkdown(body: string) {
     lines.join("\n") ||
     "Release details are unavailable. Review the source record."
   );
+}
+
+export function projectEvidenceViews(model: ProjectReleaseReview) {
+  return model.documents.map(record => evidenceView(record, model.demonstrations[record.id] ?? []));
 }

@@ -1,3 +1,5 @@
+import { visualEvidenceJSONSchema } from "@ai-outfitter/app-sdk/visual-evidence";
+import { evidenceReadInput, readVisualEvidence, submitEvidenceInput, submitVisualEvidence } from "./visual-evidence";
 import {transferInput,importTransferInput,beginTransfer,exportTransfer,importTransfer,transferReceipt,finishTransfer} from '@ai-outfitter/creative-workflow/video-transfer';
 import { videoReadInput, saveVideoInput, videoTakeInput, takeUpdateInput, videoAssetInput, assetCommitInput, publishVideoInput } from "../lib/video-production";
 import { videoSourceEvidence, readVideos, saveProduction, prepareTake, updateTake, reserveAsset, commitAsset, publishProduction } from "./video-production";
@@ -270,6 +272,8 @@ const designPartnerList = new GraphQLObjectType({ name: "DesignPartners", fields
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    evidenceSchema: {type:nonNull(JSONScalar), resolve:()=>visualEvidenceJSONSchema},
+    projectEvidence: mutationField<typeof evidenceReadInput, Context>({name:"ProjectEvidence",description:"Read project evidence",input:evidenceReadInput,output:nonNull(JSONScalar),run:readVisualEvidence}),
     videoSourceEvidence:{type:JSONScalar,args:{productId:{type:nonNull(GraphQLID)},cursor:{type:GraphQLString}},resolve:(_source,args,context)=>videoSourceEvidence(context,args.productId,args.cursor)},
     videoTransfer:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>exportTransfer(c,args.id)},videoTransferReceipt:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>transferReceipt(c,args.id)},videoProductions: {type: JSONScalar,args:{id:{type:GraphQLID},productId:{type:GraphQLID},revision:{type:GraphQLInt},after:{type:GraphQLString},limit:{type:GraphQLInt}},resolve:(_source,args,context)=>readVideos(context,videoReadInput.parse(args))},
     partnerRequests: {
@@ -429,6 +433,7 @@ const revisionRule = "Name the revision you read; a changed record is refused (4
 const mutation = new GraphQLObjectType<unknown, Context>({
   name: "Mutation",
   fields: {
+    submitEvidence: mutationField<typeof submitEvidenceInput, Context>({name:"SubmitEvidence",description:"Stage a visual capture in a graph batch",input:submitEvidenceInput,output:nonNull(JSONScalar),run:submitVisualEvidence}),
     beginVideoTransfer:mutationField<typeof transferInput,Context>({name:'BeginVideoTransfer',description:'Seal a production for a verified transfer; blocks further source writes.',input:transferInput,run:beginTransfer}),importVideoTransfer:mutationField<typeof importTransferInput,Context>({name:'ImportVideoTransfer',description:'Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.',input:importTransferInput,run:importTransfer}),finishVideoTransfer:mutationField<typeof publishVideoInput,Context>({name:'FinishVideoTransfer',description:'Verify destination metadata and media before recording completion.',input:publishVideoInput,run:(c,input)=>finishTransfer(c,input.id)}),saveVideoProduction: mutationField<typeof saveVideoInput,Context>({name:"SaveVideoProduction",description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only.",input:saveVideoInput,run:(context,input)=>saveProduction(context,input)}),
     prepareVideoTake: mutationField<typeof videoTakeInput,Context>({name:"PrepareVideoTake",description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.",input:videoTakeInput,run:(context,input)=>prepareTake(context,input)}),
     updateVideoTake: mutationField<typeof takeUpdateInput,Context>({name:"UpdateVideoTake",description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.",input:takeUpdateInput,run:(context,input)=>updateTake(context,input)}),
