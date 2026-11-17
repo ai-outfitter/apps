@@ -50,7 +50,7 @@ const PowerModeSchema = z.object({
 export const PcbReviewSchema = z.object({
   title: z.string().min(1).max(200), revision: z.string().min(1).max(80),
   boardSha256: hash, dimensions: text, components: z.number().int().positive().max(10000),
-  model: artifactPath, modelNote: text, status: text,
+  model: artifactPath, preview: artifactPath.optional(), modelNote: text, status: text,
   parts: z.array(PartSchema).min(1).max(10000),
   checks: z.array(z.object({ name: text, status: z.enum(["pass", "fail", "unverified"]), detail: text }).strict()).max(100),
   power: z.object({
@@ -76,12 +76,13 @@ export type PcbReview = z.infer<typeof PcbReviewSchema>;
 export function parsePcbReview(value: unknown, artifacts: readonly Artifact[]): PcbReview {
   const review = PcbReviewSchema.parse(value);
   const registered = new Map(artifacts.map(a => [a.path, a]));
-  const paths = [review.model, ...review.downloads.map(d => d.path), ...review.quotes.flatMap(q => q.evidence ? [q.evidence] : [])];
+  const paths = [review.model, ...(review.preview ? [review.preview] : []), ...review.downloads.map(d => d.path), ...review.quotes.flatMap(q => q.evidence ? [q.evidence] : [])];
   for (const path of paths) {
     const artifact = registered.get(path);
     if (!artifact || path.split("/")[0] !== artifact.sha256) throw Error(`Unregistered PCB artifact: ${path}`);
   }
   if (registered.get(review.model)?.contentType !== "model/gltf-binary") throw Error("PCB model must be a GLB artifact");
+  if (review.preview && registered.get(review.preview)?.contentType !== "image/png") throw Error("PCB preview must be a PNG artifact");
   return review;
 }
 

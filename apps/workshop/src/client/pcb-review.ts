@@ -248,6 +248,15 @@ async function renderModel($: <T extends HTMLElement = HTMLElement>(id: string) 
     status.textContent = e instanceof HttpError
       ? missingFileMessage("3D board model", e.status, finishedAt)
       : `The 3D board model could not be shown: ${(e as Error).message}`;
+    if (review.preview) {
+      const preview = document.createElement("img");
+      preview.alt = `${review.title}: static rendering of the exported board`;
+      preview.src = artifactUrl(review.preview);
+      preview.style.cssText = "width:100%;height:100%;object-fit:contain";
+      preview.onload = () => { if (!signal.aborted) status.textContent = "Interactive 3D is unavailable. Showing a static rendering of the exported board."; };
+      preview.onerror = () => { if (!signal.aborted) { preview.remove(); status.textContent += " The static rendering is also unavailable."; } };
+      $("pcb-canvas").replaceChildren(preview);
+    }
   }
 }
 
