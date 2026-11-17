@@ -85,3 +85,10 @@ test("imported snapshot selection never falls back from a missing historical id"
   assert.throws(()=>resolvePcbSnapshot([snapshot],B),/not found/);
   assert.throws(()=>resolvePcbSnapshot([{...snapshot,reviewPath:"wrong"}]),/matching/);
 });
+
+test("optional static preview must be a registered PNG",()=>{
+  const preview=`${hash}/preview.png`, r={...fixture(),preview};
+  assert.throws(()=>parsePcbReview(r,artifacts));
+  assert.throws(()=>parsePcbReview(r,[...artifacts,{path:preview,sha256:hash,bytes:20,contentType:"text/plain"}]));
+  assert.equal(parsePcbReview(r,[...artifacts,{path:preview,sha256:hash,bytes:20,contentType:"image/png"}]).preview,preview);
+});

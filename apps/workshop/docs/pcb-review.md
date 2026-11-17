@@ -12,7 +12,7 @@ Board files stay in installation-scoped build storage, and no board data is embe
 
 **Review record.** It is validated with `PcbReviewSchema` (`src/lib/pcb-review.ts`).
 - Every model, download and quote-evidence path must be a registered artifact in the build manifest.
-- The model must be `model/gltf-binary`.
+- The model must be `model/gltf-binary`. An optional `preview` must be a registered PNG; it is shown as a static rendering if interactive 3D fails.
 - The existing workspace import checks verify each artifact's byte length and SHA-256 before a build can become current.
 
 **Facts that pin the revision.** These come from the build record, not the review: build id, finish time, project revision, source commit, source archive hash, review record hash and runner.
