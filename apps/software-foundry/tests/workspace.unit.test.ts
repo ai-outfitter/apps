@@ -211,6 +211,40 @@ test("a repository job's issue starts issue-to-merge once, under the issue's run
   assert.equal(start?.input.inputs["triage.inputs.event"].issue.number, 12);
 });
 
+test("the sidebar UI review action keeps organization and current workflow authority", async () => {
+  const { runJobAction } = await import("../src/server/repositories");
+  const { host, calls, bindings } = platform();
+  const context = (role = "owner", canEdit = true, kind = "organization") => ({
+    identity: { userId: "owner", owner: { kind, id: "org" }, role, canEdit },
+    host: () => host,
+  }) as never;
+  const input = { job: "ui-review", repository: "acme/app" };
+  for (const denied of [context("member"), context("admin", false), context("owner", true, "user")]) {
+    assert.equal(runJobAction.permitted(denied), false);
+    await assert.rejects(runJobAction.invoke(denied, input), (error: Response) => error.status === 403);
+  }
+  assert.equal(calls.length, 0, "denied callers never reach the workflow host");
+  await assert.rejects(runJobAction.invoke(context(), input, true), (error: Response) => error.status === 403,
+    "a read-only delegation cannot start work");
+  await assert.rejects(runJobAction.invoke(context(), input), (error: Response) => error.status === 409,
+    "the proposal cannot turn Foundry on implicitly");
+  await configureFoundryWorkspaces(host as never, "acme/app", "vega");
+  calls.length = 0;
+  const result = await runJobAction.invoke(context("admin"), input) as { run: string };
+  const started = calls.find((call) => call.operation === "workflow.start");
+  assert.equal(started?.input.workflow, "ui-review");
+  assert.equal(started?.input.id, result.run);
+  assert.equal(started?.input.inputs["analyze.inputs.reviewerBinding"], bindings.at(-1).id);
+  assert.equal(bindings.at(-1).workspace.agentPermissions.contents, "read");
+  assert.equal(bindings.at(-1).workspace.agentPermissions.issues, "write");
+  const revoked = {
+    identity: { userId: "owner", owner: { kind: "organization", id: "org" }, role: "owner", canEdit: true },
+    host: () => ({ call: async () => { throw new Response("Membership revoked", { status: 403 }); } }),
+  };
+  await assert.rejects(runJobAction.invoke(revoked as never, input), (error: Response) => error.status === 403,
+    "a prepared proposal cannot bypass a fresh host refusal");
+});
+
 test("a job run retries Foundry's failed fixes and closes ones that keep failing", async () => {
   const runs: Record<number, any[]> = {
     // 20: failed once, retried on the failed run's branch, though a member opened it.

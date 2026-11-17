@@ -16,6 +16,7 @@ import { z } from "zod";
 import { organizationEditor, startWork, startWorkDescription, startWorkInput, startWorkOutput } from "./graph-work";
 import { foundryActions, submitInput } from "./intake";
 import { foundryProjects, workSubmissions } from "./schema";
+import { runJobAction } from "./repositories";
 
 /** The sidebar assistant's tools. They are named as tools for the sidebar only: the actions
  * route does not serve them as MCP tools, where agents run Foundry's documents instead. */
@@ -23,6 +24,7 @@ const sidebar = publishActionTools("software-foundry", {
   "work.get": foundryActions["work.get"],
   "work.targets": foundryActions["work.targets"],
   "work.submit": foundryActions["work.submit"],
+  "job.run": runJobAction,
   "work.start": defineAction({
     description: startWorkDescription, access: "write", canInvoke: organizationEditor,
     input: startWorkInput, output: startWorkOutput,
@@ -57,14 +59,20 @@ export function agentRoute(
       contextType: "software-foundry.page",
       focusId: "e9500000-0000-4000-8000-000000000003",
       label: "software-foundry",
+      delegation: true,
       context,
       instructions:
-        "You are the Software Foundry assistant. Explain saved submissions and delivery evidence, distinguishing recorded state from current provider state. Prepare new work for explicit review. To start work from a Wiki node, propose work.start; use work.submit only for hand-written work. Do not configure, resume, merge, or deploy work.",
+        "You are the Software Foundry assistant. Explain saved submissions and delivery evidence, distinguishing recorded state from current provider state. Prepare new work for explicit review. To start work from a Wiki node, propose work.start; use work.submit only for hand-written work. For a UI or design review, propose job.run with ui-review on the explicitly named repository; this reviews one app and may file issues that Foundry fixes and merges. Jobs require Foundry already enabled. The member reviews proposals in Ask Foundry, and the Jobs page shows job runs. Never claim a proposal started work. Do not configure, resume, directly merge, or deploy work.",
       reads: {
         "work.get": sidebar["work.get"],
         "work.targets": sidebar["work.targets"],
       },
       actions: {
+        "job.run": {
+          retry: "inspect",
+          action: sidebar["job.run"],
+          prepare: (input) => input,
+        },
         "work.start": {
           retry: "same-request",
           action: sidebar["work.start"],
