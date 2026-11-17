@@ -1,3 +1,7 @@
+import { verifiedArtifact, type ArtifactRecord } from "../lib/artifact";
+import { savedMotionMatrix, type PlacedRotation } from "../lib/saved-drive-motion";
+import { createZDriveInspection } from "./z-drive-inspection";
+import { zDriveTurns, type ZDriveInspection } from "../lib/artera-drive-review";
 import cadWorkerURL from "../model/worker.ts?worker&url";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { syncFaces, syncLines } from "replicad-threejs-helper";
@@ -38,6 +42,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
   const { item } = placement;
   const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.kind === "printed" ? 0.3 : 1);
   node.userData.itemId = item.id;
+  node.userData.path = placement.path;
   node.position.set(...placement.position);
   node.rotation.z = (placement.rotation * Math.PI) / 180;
   if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
@@ -62,10 +67,10 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     pending.clear();
     report("CAD engine failed. Reload the page to retry.");
   };
-  const mesh = (plan: unknown, singlePart?: {params:unknown;plan:unknown}) =>
+  const mesh = (plan: unknown, legacy?: {params:unknown;plan:unknown}) =>
     new Promise<MeshReply>((resolve, reject) => {
       pending.set(++id, { resolve, reject });
-      worker.postMessage({ id, plan, ...singlePart });
+      worker.postMessage({ id, plan, ...legacy });
     });
 
   const scene = new THREE.Scene();
@@ -84,6 +89,14 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   scene.add(group);
   let frame: { min: number[]; max: number[] } | undefined;
   let selected: string | undefined;
+  let isolated: Set<string> | undefined;
+  let driveInspection: ReturnType<typeof createZDriveInspection> | undefined;
+  let inspectionPaths = new Set<string>();
+  let inspectionVisible = false;
+  function clearInspection() {
+    if(driveInspection){scene.remove(driveInspection.group);driveInspection.dispose();driveInspection=undefined;}
+    inspectionPaths.clear();inspectionVisible=false;
+  }
 
   const resize = new ResizeObserver(() => {
     const w = canvas.clientWidth;
@@ -116,6 +129,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   function clear() {
+    clearInspection();
     group.traverse((child) => {
       if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
         child.geometry.dispose();
@@ -127,6 +141,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   function highlight() {
     for (const node of group.children) {
+      node.visible = (!isolated || isolated.has(node.userData.itemId)) && !(inspectionVisible && inspectionPaths.has(node.userData.path));
       const dim = selected !== undefined && node.userData.itemId !== selected;
       node.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -141,44 +156,45 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   /** Each distinct item meshed once, however many places use it. */
-  async function meshItems(list: Placement[],singlePart?: {params:unknown;plan:unknown}) {
+  async function meshItems(list: Placement[],legacy?: {params:unknown;plan:unknown}) {
     const items = new Map(list.map(({ item }) => [item.id, item]));
-    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry,singlePart)));
+    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry,legacy)));
     return new Map([...items.keys()].map((id, i) => [id, replies[i]]));
   }
 
-  async function render(assembly: Assembly, artifactBase = "", singlePart?: {params:unknown;plan:unknown}) {
+  async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal) {
     const current = ++version;
+    isolated=undefined;
+    canvas.dataset.ready = "false";
     const list = placements(assembly);
     if (!list.length) {
       clear();
-      canvas.dataset.ready="false";
-      report("This project has no assembly with geometry yet.");
+      frame = undefined;
+      canvas.dataset.ready = "true";
+      report("No geometry is available for this selection yet.");
       return;
     }
     report(`Building ${list.length} placed solids…`);
+    const external=new Map<string,THREE.BufferGeometry>();
     try {
-      const replies = await meshItems(list.filter(p=>!p.item.mesh),singlePart);
-      const external=new Map<string,THREE.BufferGeometry>();
+      const replies = await meshItems(list.filter(p=>!p.item.mesh),legacy);
       for(const {item} of list)if(item.mesh&&!external.has(item.id)){
-        const response=await fetch(artifactBase+item.mesh.path);if(!response.ok)throw new Error(`Cannot load ${item.name}`);
-        external.set(item.id,new STLLoader().parse(await response.arrayBuffer()));
+        external.set(item.id,new STLLoader().parse(await verifiedArtifact(artifactBase,item.mesh.path,artifacts,signal)));
       }
       if (current !== version) return;
       clear();
       for (const placement of list) {
         const geometry=external.get(placement.item.id);
         if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
-        const node=new THREE.Group();node.userData.itemId=placement.item.id;
+        const node=new THREE.Group();node.userData.itemId=placement.item.id;node.userData.path=placement.path;
         const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=1;node.add(solid);
         if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
         group.add(node);
       }
-      for(const geometry of external.values())geometry.dispose();
+      for (const node of group.children) { if (node.matrixAutoUpdate) node.updateMatrix(); node.userData.restMatrix = node.matrix.clone(); }
       highlight();
-      const firstFrame = !frame;
       frame = assemblyBounds(list);
-      if (firstFrame) reset();
+      reset();
       report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
       canvas.dataset.ready = "true";
     } catch (e) {
@@ -186,14 +202,42 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
         canvas.dataset.ready = "false";
         report((e as Error).message);
       }
-    }
+    } finally {for(const geometry of external.values())geometry.dispose();}
   }
 
   return {
     render,
     reset,
+    inspectDrive(drives: ZDriveInspection[], visible: boolean) {
+      clearInspection();
+      if(visible && drives.length){
+        driveInspection=createZDriveInspection(drives);inspectionVisible=true;
+        inspectionPaths=new Set(drives.flatMap(d=>[d.axisPath,d.motorPath]));
+        scene.add(driveInspection.group);
+      }
+      highlight();
+      canvas.dataset.driveInspection=String(inspectionVisible);
+    },
+    /** View-only world Z displacement, restoring the original matrix on each call. */
+    previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = []) {
+      let moved = 0;
+      for (const node of group.children) {
+        const rest = node.userData.restMatrix as THREE.Matrix4 | undefined;
+        if (!rest) continue;
+        node.matrixAutoUpdate = false;
+        const translate=paths.has(node.userData.path);
+        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.matrix);
+        if(translate)moved++;
+        node.matrixWorldNeedsUpdate = true;
+      }
+      driveInspection?.update(offset);
+      canvas.dataset.savedRotors=String(rotations.length);
+      canvas.dataset.zDriveTurns=String(zDriveTurns(offset));
+      canvas.dataset.motionOffset = String(offset);
+      canvas.dataset.motionSolids = String(moved);
+    },
     /** Show one item at full strength and fade the rest; undefined shows all. */
-    isolate(items?: Set<string>) {for(const node of group.children)node.visible=!items||items.has(node.userData.itemId);},
+    isolate(items?: Set<string>) {isolated=items;highlight();},
     select(itemId?: string) {
       selected = itemId;
       highlight();

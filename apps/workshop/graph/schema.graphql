@@ -256,6 +256,7 @@ input FinishWorkshopBuildInputManifest {
 input FinishWorkshopBuildInputManifestAssembly {
   rootId: ID
   items: [FinishWorkshopBuildInputManifestAssemblyItemsItem!]!
+  power: FinishWorkshopBuildInputManifestAssemblyPower
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItem {
@@ -275,6 +276,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
+  power: FinishWorkshopBuildInputManifestAssemblyItemsItemPower
   notes: String
   uses: [FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem!]
 }
@@ -323,6 +325,27 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
   target: String!
 }
 
+input FinishWorkshopBuildInputManifestAssemblyItemsItemPower {
+  loads: [FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
+}
+
 input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
@@ -331,6 +354,34 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPower {
+  version: Float!
+  scenarios: [FinishWorkshopBuildInputManifestAssemblyPowerScenariosItem!]!
+  rails: [FinishWorkshopBuildInputManifestAssemblyPowerRailsItem!]!
+  notes: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: FinishWorkshopBuildInputManifestAssemblyPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyPowerRailsItemKind {
+  ac
+  dc
 }
 
 input FinishWorkshopBuildInputManifestArtifactsItem {
@@ -419,6 +470,7 @@ input SaveWorkshopAssemblyInput {
 input SaveWorkshopAssemblyInputAssembly {
   rootId: ID
   items: [SaveWorkshopAssemblyInputAssemblyItemsItem!]!
+  power: SaveWorkshopAssemblyInputAssemblyPower
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItem {
@@ -438,6 +490,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
+  power: SaveWorkshopAssemblyInputAssemblyItemsItemPower
   notes: String
   uses: [SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem!]
 }
@@ -486,6 +539,27 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
   target: String!
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemPower {
+  loads: [SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
@@ -494,6 +568,34 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyPower {
+  version: Float!
+  scenarios: [SaveWorkshopAssemblyInputAssemblyPowerScenariosItem!]!
+  rails: [SaveWorkshopAssemblyInputAssemblyPowerRailsItem!]!
+  notes: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: SaveWorkshopAssemblyInputAssemblyPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyPowerRailsItemKind {
+  ac
+  dc
 }
 
 input DeleteWorkshopProjectInput {

@@ -314,6 +314,90 @@
                                                   "axis"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "const": "extrusion"
+                                                  },
+                                                  "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "add",
+                                                      "cut"
+                                                    ]
+                                                  },
+                                                  "base": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "height": {
+                                                    "type": "number",
+                                                    "minimum": 1,
+                                                    "maximum": 5000
+                                                  },
+                                                  "axis": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "x",
+                                                      "y",
+                                                      "z"
+                                                    ]
+                                                  },
+                                                  "points": {
+                                                    "minItems": 3,
+                                                    "maxItems": 512,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "array",
+                                                      "prefixItems": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": -5000,
+                                                          "maximum": 5000
+                                                        },
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": -5000,
+                                                          "maximum": 5000
+                                                        }
+                                                      ],
+                                                      "items": false,
+                                                      "minItems": 2,
+                                                      "maxItems": 2
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "kind",
+                                                  "mode",
+                                                  "base",
+                                                  "height",
+                                                  "axis",
+                                                  "points"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           }
@@ -331,7 +415,8 @@
                                       "properties": {
                                         "path": {
                                           "type": "string",
-                                          "maxLength": 300
+                                          "maxLength": 300,
+                                          "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_./-]*$"
                                         },
                                         "bounds": {
                                           "type": "object",
@@ -437,6 +522,119 @@
                                       ],
                                       "additionalProperties": false
                                     },
+                                    "power": {
+                                      "type": "object",
+                                      "properties": {
+                                        "loads": {
+                                          "maxItems": 30,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string",
+                                                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 150
+                                              },
+                                              "rail": {
+                                                "type": "string",
+                                                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                              },
+                                              "evidence": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "assumed",
+                                                  "modeled",
+                                                  "vendor",
+                                                  "measured"
+                                                ]
+                                              },
+                                              "source": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 2000
+                                              },
+                                              "notes": {
+                                                "type": "string",
+                                                "maxLength": 3000
+                                              },
+                                              "scenarios": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "averageW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "operatingW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "peakW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "averageW",
+                                                    "operatingW",
+                                                    "peakW"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "name",
+                                              "rail",
+                                              "evidence",
+                                              "source",
+                                              "notes",
+                                              "scenarios"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "loads"
+                                      ],
+                                      "additionalProperties": false
+                                    },
                                     "notes": {
                                       "default": "",
                                       "type": "string",
@@ -539,6 +737,108 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "power": {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "scenarios": {
+                                    "minItems": 1,
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 150
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 5000
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name",
+                                        "notes"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "rails": {
+                                    "minItems": 1,
+                                    "maxItems": 30,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 100
+                                        },
+                                        "voltage": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 10000
+                                        },
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "ac",
+                                            "dc"
+                                          ]
+                                        },
+                                        "parent": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "efficiency": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 1
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 2000
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name",
+                                        "voltage",
+                                        "kind",
+                                        "efficiency",
+                                        "notes"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "notes": {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "scenarios",
+                                  "rails",
+                                  "notes"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [

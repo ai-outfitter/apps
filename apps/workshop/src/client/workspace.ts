@@ -1,9 +1,16 @@
+import { onPageLoad } from "@ai-outfitter/ui/page";
+import { boxPlan } from "../model/cad-plan";
+import { renderPowerPanel } from "./power-panel";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import { savedDriveMotion, type PlacedRotation } from "../lib/saved-drive-motion";
+import { arteraDriveReview } from "../lib/artera-drive-review";
+import { arteraMotionPreview } from "../lib/artera-motion-preview";
 import type { Project } from "../lib/project";
 import { bomRows,bomTotals,AssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
-import { onPageLoad } from "@ai-outfitter/ui/page";
-import { boxPlan } from "../model/cad-plan";
-import { appBase, projectPath, projectSlug, slugId } from "../lib/sections";
+import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
+import { appBase, projectPath } from "../lib/sections";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
 if(!root)return;
@@ -11,35 +18,146 @@ const section=root.dataset.section;
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>root.querySelector<T>(`#${id}`)!;
 const element=(tag:string,text:string)=>{const node=document.createElement(tag);node.textContent=text;return node;};
 const notice=(s:string)=>$("workspace-notice").textContent=s;
-let singlePart=false;
+let legacy=false, historical=false;
+const query = new URLSearchParams(location.search);
+const urlFor = (section: "models" | "assembly", item?: string) => {
+ const params = new URLSearchParams();
+ if (item) params.set("item", item);
+ if (build && historical) params.set("build", build.id);
+ return appBase(location.pathname) + projectPath(root.dataset.slug!, section) + (params.size ? "?" + params : "");
+};
+function renderCatalog() {
+ if (!assembly) return;
+ const rows = modelCatalog(assembly, $<HTMLInputElement>("model-search").value, $<HTMLSelectElement>("model-filter").value);
+ $("models-summary").textContent = `${rows.length} of ${assembly.items.length} items · ${assembly.items.filter(item => item.kind === "assembly").length} assemblies`;
+ $("models-empty").hidden = rows.length !== 0;
+ $("model-catalog").replaceChildren(...rows.map(({item, quantity, modeled}) => {
+  const card = element("article", ""); card.className = "model-card"; card.dataset.itemId = item.id;
+  card.append(element("small", `${item.number} · ${item.kind}`), element("h3", item.name), element("p", quantity ? `Qty ${quantity} in full assembly` : "Not placed in full assembly"), element("small", [item.manufacturer, item.mpn].filter(Boolean).join(" · ")), element("p", modeled ? "3D model available" : "Awaiting geometry"));
+  const link = element("a", modeled ? "View model" : "View part details") as HTMLAnchorElement; link.href = urlFor("assembly", item.id); card.append(link); return card;
+ }));
+}
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
 const viewerModule=section==="assembly"?await import("./assembly-viewer"):undefined;
 if(signal.aborted)return;
 const viewer=viewerModule?.createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"),s=>$("assembly-status").textContent=s);
-signal.addEventListener("abort",()=>viewer?.dispose(),{once:true});
+let motionFrame = 0, motionOffset = 0;
+let driveReview: ReturnType<typeof arteraDriveReview> | undefined;
+let motion: ReturnType<typeof arteraMotionPreview>;
+let savedRotations: PlacedRotation[]=[];
+let motionGeneration=0;
+const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
+signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
+const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
+$<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
+$("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
+$("motion-reset").onclick=()=>{stopMotion();applyMotion(0);$<HTMLSelectElement>("motion-level").value="";};
+$("motion-play").onclick=()=>{
+ if(motionFrame){stopMotion();return;}
+ if(!motion)return;
+ $("motion-play").textContent="Pause motion";
+ $<HTMLSelectElement>("motion-level").value="";
+ let last=performance.now(),direction=1;
+ const animate=(now:number)=>{
+  if(!motion)return;
+  const low=motion.levels[0].offset,high=motion.levels.at(-1)!.offset;
+  let next=motionOffset+direction*(high-low)*Math.min(now-last,100)/8000;last=now;
+  if(next>=high){next=high;direction=-1;}if(next<=low){next=low;direction=1;}
+  applyMotion(next);motionFrame=requestAnimationFrame(animate);
+ };
+ motionFrame=requestAnimationFrame(animate);
+};
 const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(path,{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
-function select(item:Item){selected=item;viewer?.select(item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
+function select(item:Item){selected=item;viewer?.select(item.kind==="assembly"?undefined:item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
 function renderBom(){
+ if (!assembly) return;
  const mode=$<HTMLSelectElement>("bom-mode").value;
  const rows=mode==="hierarchy"?bomRows(assembly):bomTotals(assembly).lines.filter(r=>r.item.kind!=="assembly"&&(mode!=="cots"||r.item.kind==="cots")).map(r=>({...r,depth:0}));
- $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("a",item.name) as HTMLAnchorElement;button.href=appBase(location.pathname)+projectPath(projectSlug(project),"assembly");title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${item.priceKnown?`$${item.unitCost}`:"Unpriced"}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
+ $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("button",item.name);button.onclick=()=>{select(item);$("model-panel").hidden=false;};title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${item.priceKnown?`$${item.unitCost}`:"Unpriced"}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
 }
-function showBuild(run?:BuildRequest){
- build=run;assembly=run?.result?.manifest?.assembly??project.assembly;
+function showBuild(run?:BuildRequest, snapshot=false){
+ const motionVersion=++motionGeneration;savedRotations=[];
+ stopMotion();motion=undefined;motionOffset=0;$("motion-preview").hidden=true;
+ build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
+ const parsed=AssemblySchema.safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
+ assembly=parsed.success?parsed.data:{items:[]};
+ if(!parsed.success)notice("This assembly failed validation; its geometry and power cannot be displayed.");
+ else if(historical&&!run?.result?.manifest?.assembly)notice("This build has no saved assembly. Current project data is not shown here.");
  $("revision-label").textContent=run?`${run.id.slice(0,8)} · ${run.id===project.workspace?.currentBuildId?"Current":"Historical"}`:`Project save ${project.revision}`;
- singlePart=!assembly.rootId;
- if(singlePart)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
- void viewer?.render(assembly,run?.result?.artifactBase??"",singlePart?{params:project.params,plan:project.cadPlan}:undefined);
- $("component-tree").replaceChildren(...bomRows(assembly).map(({item,depth,quantity})=>{const b=element("button",`${"↳ ".repeat(Math.min(depth,3))}${item.name} ×${quantity}`);b.className="component-row";b.onclick=()=>select(item);return b;}));
+ legacy=parsed.success&&!historical&&!assembly.rootId;
+ if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
+ const focused = assembly.items.find(item => item.id === query.get("item"));
+ const view = modelView(assembly, focused?.id);
+ $("assembly-title").textContent = focused?.name ?? "Full assembly";
+ renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
+  !historical && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
+   project=await request(`/api/apps/workshop/projects/${project.id}`,"PUT",{...project,assembly:next});
+   assembly=project.assembly;$("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
+  }:undefined);
+ if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
+ $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
+ $<HTMLAnchorElement>("full-assembly").href=urlFor("assembly");
+ $<HTMLAnchorElement>("browse-models").href=urlFor("models");
+ if(query.has("item")&&!focused&&assembly.items.length)notice("That item is not in this revision. Showing the full assembly.");
+ const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
+ void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal).then(async()=>{
+  if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
+  const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
+  motion=motionArtifact?undefined:preview;$("motion-preview").hidden=!motion;
+  if(motionArtifact && run?.result){
+   try {
+    const response=await fetch(run.result.artifactBase+motionArtifact.path,{signal});
+    if(!response.ok)throw Error("Cannot load saved drive motion");
+    const bytes=await response.arrayBuffer();
+    const hash=bytesToHex(sha256(new Uint8Array(bytes)));
+    if(hash!==motionArtifact.sha256 || bytes.byteLength!==motionArtifact.bytes)throw Error("Saved motion artifact failed integrity check");
+    const saved=savedDriveMotion(JSON.parse(new TextDecoder().decode(bytes)),assembly,view);
+    if(motionVersion!==motionGeneration)return;
+    motion=saved;savedRotations=saved?.rotations??[];
+   }catch(error){if(motionVersion!==motionGeneration)return;motion=undefined;notice(`Motion disabled: ${(error as Error).message}`);}
+  }
+  $("motion-preview").hidden=!motion;
+  $("motion-heading").textContent=savedRotations.length?"Saved assembly motion":"Unverified motion study";
+  $("drive-review-status").textContent=savedRotations.length?"Motion uses the saved build’s shafts, pulleys and carriage geometry. Physical load and safety testing remain separate acceptance gates.":"Mechanical review: incomplete. Animation does not establish a working drive.";
+  $("drive-inspection-controls").hidden=Boolean(motionArtifact);
+  driveReview=motion && !motionArtifact?arteraDriveReview(assembly,view):undefined;
+  $("drive-findings").replaceChildren(...(driveReview?.findings??[]).map(finding=>element("li",finding)));
+  const inspect=$<HTMLInputElement>("inspect-drive");inspect.checked=false;inspect.disabled=!driveReview?.drives.length;
+  $("drive-turns").textContent="Z shaft turns from saved pose: 0.00 · X and Y held stationary";
+  const prompt=element("option","Choose a shelf") as HTMLOptionElement;prompt.value="";
+  $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
+  if(motion)applyMotion(0);
+ });
+ if(focused){select(focused);$<HTMLDetailsElement>("inspector").open=false;}
+ renderCatalog();
+ const children = assemblyChildren(view);
+ $("component-summary").textContent = children.length ? `${children.length} immediate components · quantities in this assembly` : "No child components";
+ $("component-tree").replaceChildren(...children.map(({item,quantity,labels})=>{
+  const row=element("div", ""); row.className="component-row";
+  const link=element("a",`${item.name} ×${quantity}`) as HTMLAnchorElement; link.href=urlFor("assembly",item.id);
+  row.append(link,element("small",`${item.number} · ${item.kind}${labels.length > 1 ? " · " + labels.join(", ") : ""}`));
+  const inspect=element("button","Details");inspect.setAttribute("aria-label",`Details for ${item.name}`);inspect.onclick=()=>select(item);row.append(inspect);
+  return row;
+ }));
+ const path=assemblyPath(assembly,view.rootId);
+ $("assembly-breadcrumbs").replaceChildren(...path.flatMap((item,index)=>{
+  const link=element("a",index===0 && item.id===assembly.rootId ? "Full assembly" : item.name) as HTMLAnchorElement;
+  link.href=urlFor("assembly",item.id===assembly.rootId?undefined:item.id);
+  if(index===path.length-1)link.setAttribute("aria-current","page");
+  return index ? [element("span"," / "),link] : [link];
+ }));
+ const parents=assembly.items.filter(item=>item.uses.some(use=>use.itemId===view.rootId));
+ $("assembly-parents").replaceChildren(...parents.map(item=>{
+  const link=element("a",`Back to ${item.name}`) as HTMLAnchorElement;link.href=urlFor("assembly",item.id===assembly.rootId?undefined:item.id);return link;
+ }));
  const manifest=run?.result?.manifest;
  $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(manifest?.parameters??{},null,2);
  $("source-files").replaceChildren();$("source-preview").textContent="";
- for(const artifact of manifest?.artifacts??[]){const url=run!.result!.artifactBase+artifact.path;const a=element("a",artifact.path.split('/').at(-1)!) as HTMLAnchorElement;a.href=url;a.download=artifact.path.split('/').at(-1)!;$("source-files").append(a);if(/\.(scad|json|md|py)$/.test(artifact.path)){const b=element("button",`Read ${a.textContent}`);b.onclick=async()=>{$("source-preview").textContent=await (await fetch(url,{signal})).text();};$("source-files").append(b);}}
+ for(const artifact of manifest?.artifacts??[]){const url=run!.result!.artifactBase+artifact.path;const a=element("a",artifact.path.split('/').at(-1)!) as HTMLAnchorElement;a.href=url;a.download=artifact.path.split('/').at(-1)!;$("source-files").append(a);if(/\.(scad|json|md|py)$/.test(artifact.path)){const b=element("button",`Read ${a.textContent}`);b.onclick=async()=>{try{const response=await fetch(url,{signal});if(!response.ok)throw Error("Cannot load source artifact");$("source-preview").textContent=await response.text();}catch(error){if(!signal.aborted)notice((error as Error).message);}};$("source-files").append(b);}}
  const evidence=$("revision-evidence");evidence.replaceChildren(element("h3",run?`Build ${run.id.slice(0,8)}`:"No workspace build yet"));
-
  if(import.meta.env.OUTFITTER_APP_MODE !== "demo" && (!run || run.id===project.workspace?.currentBuildId)) {
   const captureUrl=`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&evidence=1`;
-  void fetch(captureUrl).then(async response=>{
+  void fetch(captureUrl,{signal}).then(async response=>{
    if(!response.ok)return;
    const capture=await response.json();
    if(build?.id!==run?.id)return;
@@ -56,17 +174,21 @@ function showBuild(run?:BuildRequest){
 function render(){
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
- $("build-request").hidden=!project.workspace;
  const runs=project.workspace?.requests??[];$("runner-status").textContent=runs.length?`${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}`:"No workspace connected. Existing CAD remains inspectable.";
  $("revision-help").textContent="Build records preserve their inputs and evidence. Private downloads are retained for one year; source stays in the project repository. Geometry checks do not establish physical acceptance.";
- $("revision-list").replaceChildren(...[...runs].reverse().map(r=>{const row=element("article","");row.className="run-row";const b=element("button",`${r.id.slice(0,8)} · ${r.status}${r.result?.stale?" · newer work exists":""}`);b.onclick=()=>showBuild(r);row.append(b,element("p",r.instructions),element("small",`${r.createdAt} · ${r.sourceCommit}`));return row;}));
- showBuild(runs.find(r=>r.id===project.workspace?.currentBuildId));
+ $("revision-list").replaceChildren(...[...runs].reverse().map(r=>{const row=element("article","");row.className="run-row";const b=element("button",`${r.id.slice(0,8)} · ${r.status}${r.result?.stale?" · newer work exists":""}`);b.onclick=()=>showBuild(r,true);row.append(b,element("p",r.instructions),element("small",`${r.createdAt} · ${r.sourceCommit}`));return row;}));
+ const requested = query.get("build");
+ const run = runs.find(r=>r.id===(requested ?? project.workspace?.currentBuildId));
+ if(requested&&!run)notice("That build was not found. Showing the current assembly.");
+ showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
 $("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected){const descendants=new Set<string>();const walk=(i:Item)=>{descendants.add(i.id);for(const use of i.uses){const child=assembly.items.find(c=>c.id===use.itemId);if(child)walk(child);}};walk(selected);viewer?.isolate(descendants);}};
 $("bom-mode").onchange=renderBom;
-$("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});if(signal.aborted)return;render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){if(!signal.aborted)notice((e as Error).message);}};
-$("model-panel").hidden=section==="parts"||section==="release";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
-try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");if(signal.aborted)return;const key=slugId(root.dataset.slug!);const found=key?projects.find(p=>p.id.endsWith(key)):undefined;if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);if(signal.aborted)return;render();}catch(e){if(!signal.aborted)notice((e as Error).message);}
+$("model-search").oninput=renderCatalog;
+$("model-filter").onchange=renderCatalog;
+$("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
+$("model-panel").hidden=section==="parts"||section==="release"||section==="models"||section==="overview";$("models-panel").hidden=section!=="models"&&section!=="overview";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
+try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);render();}catch(e){notice((e as Error).message);}
 
 }
-onPageLoad(signal=>{void start(signal);});
+onPageLoad(start);
