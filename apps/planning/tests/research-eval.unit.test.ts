@@ -14,3 +14,6 @@ test("research eval requires grounded excerpts and schema", () => {
   const a = answer(); assert.equal(grade(cases[2], { ...a, sources: [{ ...a.sources[0], excerpt: "Invented evidence" }] }, 1).pass, false);
 });
 test("research eval records contract limitation instead of hiding it", () => assert.equal(negativeControls().fabricatedEvidenceAndTimeOverrunAcceptedByProductionContract, true));
+
+import { wireSchema } from "../evals/research/wire-schema";
+test("research wire schema omits unsupported uri formats", () => { assert.equal(JSON.stringify(wireSchema()).includes('"format":"uri"'), false); const a = answer(); assert.equal(grade(cases[2], { ...a, sources: [{ ...a.sources[0], url: "file:///secret" }] }, 1).pass, false); });
