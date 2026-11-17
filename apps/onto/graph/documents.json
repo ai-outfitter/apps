@@ -1528,6 +1528,78 @@
     }
   },
   {
+    "name": "Ontology",
+    "kind": "query",
+    "story": "As an agent, I want every type name, which types each relationship connects and how to stage a change in one read, so that I can write to this graph without searching for its types.",
+    "query": "query Ontology {\n  ontology {\n    root\n    nodeTypes {\n      name\n      description\n    }\n    relationshipTypes {\n      name\n      description\n      from\n      to\n    }\n    staging\n  }\n}",
+    "hash": "a197daad284006e9626c601e512388712b384bf67a980af083fc66ae7419b001",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "ontology": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "nullable": true
+            },
+            "nodeTypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "relationshipTypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "from": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "staging": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "OntoSettings",
     "kind": "query",
     "story": "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",

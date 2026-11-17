@@ -1,5 +1,6 @@
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
-import { and, asc, count, gt, like, ne, sql } from "drizzle-orm";
+import { ontologyGuide } from "./ontology-guide";
+import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
 import { graphBatches, graphBatchOperations } from "./schema";
 import { connectionType, idList, type PageArgs, page, pageArgs, pageStart } from "@ai-outfitter/app-sdk/app-graphql";
 import { within } from "@ai-outfitter/app-sdk/graph-filter-sql";
@@ -199,9 +200,26 @@ export const stageInput = z.strictObject({
   replace: batchAddInput.shape.replace,
 }).refine(input => input.batchId || input.title, { message: "Pass batchId, or a title to open a batch", path: ["title"] });
 
+const OntologyNodeType = new GraphQLObjectType({ name: "OntologyNodeType", fields: { name: text, description: text } });
+const OntologyRelationshipType = new GraphQLObjectType({ name: "OntologyRelationshipType", fields: {
+  name: text, description: text,
+  from: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Node type names allowed at the start; any allows every type." },
+  to: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Node type names allowed at the end; any allows every type." },
+} });
+const Ontology = new GraphQLObjectType({ name: "Ontology", fields: {
+  root: { type: GraphQLString, description: "Address of the node every new node connects to by default." },
+  nodeTypes: { type: nonNull(new GraphQLList(nonNull(OntologyNodeType))) },
+  relationshipTypes: { type: nonNull(new GraphQLList(nonNull(OntologyRelationshipType))) },
+  staging: { ...text, description: "How to stage a change to this graph." },
+} });
+
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
   ...creativeQueries,
   ...creativeAddressQueries,
+  ontology: {
+    type: nonNull(Ontology), description: "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node, and how to stage a change.",
+    resolve: (_root, _args, context) => ontologyGuide(context.db(), context.identity),
+  },
   changeBatches: {
     type: nonNull(connectionType(ChangeBatch)), description: "Search saved change batches; operations and evidence are selected explicitly.",
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},

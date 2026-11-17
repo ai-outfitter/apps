@@ -3,6 +3,11 @@ type Query {
   creativeRecordViews(kind: String, after: String, limit: Int): JSON
 
   """
+  Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node, and how to stage a change.
+  """
+  ontology: Ontology!
+
+  """
   Search saved change batches; operations and evidence are selected explicitly.
   """
   changeBatches(first: Int = 100, after: String, ids: [ID!], search: String, state: [String!]): ChangeBatchConnection!
@@ -38,6 +43,32 @@ type Query {
 
 """Any JSON value."""
 scalar JSON
+
+type Ontology {
+  """Address of the node every new node connects to by default."""
+  root: String
+  nodeTypes: [OntologyNodeType!]!
+  relationshipTypes: [OntologyRelationshipType!]!
+
+  """How to stage a change to this graph."""
+  staging: String!
+}
+
+type OntologyNodeType {
+  name: String!
+  description: String!
+}
+
+type OntologyRelationshipType {
+  name: String!
+  description: String!
+
+  """Node type names allowed at the start; any allows every type."""
+  from: [String!]!
+
+  """Node type names allowed at the end; any allows every type."""
+  to: [String!]!
+}
 
 type ChangeBatchConnection {
   edges: [ChangeBatchConnectionEdge!]!
