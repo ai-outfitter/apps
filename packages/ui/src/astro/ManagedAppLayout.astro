@@ -85,7 +85,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
           <button class="account-toggle" aria-expanded="false" aria-controls="app-tools-menu" data-disclosure=""><Icon name="settings" /> Settings</button>
           </>}
         </div>
-        <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
+        <AccountMenu navigation={Boolean(platformPanel)} user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
         </div>
       </Fragment>
       <div class="ui-content">
