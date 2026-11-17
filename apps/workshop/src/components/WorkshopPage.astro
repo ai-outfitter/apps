@@ -3,10 +3,12 @@ import AppLayout from "./WorkshopLayout.astro";
 import "../styles/workshop.css";
 import { projectPath, type SectionId } from "../lib/sections";
 import Content from "./Workspace.astro";
+import PCBReview from "./PCBReview.astro";
 
-interface Props { section: SectionId; slug: string }
-const { section, slug } = Astro.props;
-const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":section==="models"?"Models":"Assembly"};
+/** `hasPcb`: the current build carries a PCB review; never set in demo mode. */
+interface Props { section: SectionId; slug: string; hasPcb?: boolean }
+const { section, slug, hasPcb = false } = Astro.props;
+const current = {label:section==="pcb"?"PCB":section==="parts"?"BOM":section==="release"?"Revisions":section==="models"?"Models":"Assembly"};
 ---
 <AppLayout
   name="Workshop"
@@ -19,9 +21,9 @@ const current = {label:section==="parts"?"BOM":section==="release"?"Revisions":s
   sidebarSections={[
     { label: "Workspace", links: [{ label: "All projects", href: "/", active: false }, { label: "New model", href: "/new", active: false }] },
     { label: "Project", links: [
-    ...([{id:"models",label:"Models"},{id:"assembly",label:"Assembly"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
+    ...([{id:"pcb",label:"PCB"},{id:"models",label:"Models"},{id:"assembly",label:"Assembly"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).filter(s=>s.id!=="pcb"||hasPcb||section==="pcb").map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
   ] },
   ]}
 >
-  <Content section={section} slug={slug} />
+  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} />}
 </AppLayout>

@@ -1,9 +1,23 @@
 ---
 import WorkshopPage from "../../../components/WorkshopPage.astro";
 import { isSection, slugId } from "../../../lib/sections";
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { listWorkshopProjects, getWorkshopProject } from "../../../server/projects";
+import { hasPcbReview } from "../../../lib/pcb-review";
 
 const slug = Astro.params.slug ?? "";
 const section = Astro.params.section ?? "";
 if (!slugId(slug) || !isSection(section)) return new Response("Not found", { status: 404 });
+// Show the PCB link only for projects whose current build has a review; never in demo.
+let hasPcb = false;
+if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
+  try {
+    const db = installationDatabase();
+    const summary = (await listWorkshopProjects(db)).find(p => p.id.endsWith(slugId(slug)!));
+    if (summary) { const project=await getWorkshopProject(db,summary.id); hasPcb=Boolean(project.pcbSnapshots?.length)||hasPcbReview(project.workspace); }
+  } catch {
+    // The link is optional; a lookup failure must not break the section page.
+  }
+}
 ---
-<WorkshopPage section={section} slug={slug} />
+<WorkshopPage section={section} slug={slug} hasPcb={hasPcb} />

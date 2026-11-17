@@ -2,6 +2,7 @@ import type { Project } from "./project";
 
 /** A project's sections, one page each, in the order the sidebar lists them. */
 export const SECTIONS = [
+  { id: "pcb", label: "PCB", path: "/pcb" },
   { id: "models", label: "Models", path: "/models" },
   { id: "assembly", label: "Assembly", path: "/assembly" },
   { id: "parts", label: "BOM", path: "/parts" },
