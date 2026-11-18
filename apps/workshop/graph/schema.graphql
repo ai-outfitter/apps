@@ -306,6 +306,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
+  selectAsUnit: Boolean
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
   power: FinishWorkshopBuildInputManifestAssemblyItemsItemPower
   notes: String
@@ -556,6 +557,7 @@ input WorkshopAssemblyInputItemsItem {
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
+  selectAsUnit: Boolean
   firmware: WorkshopAssemblyInputItemsItemFirmware
   power: WorkshopAssemblyInputItemsItemPower
   notes: String
@@ -730,6 +732,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
+  selectAsUnit: Boolean
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
   power: SaveWorkshopAssemblyInputAssemblyItemsItemPower
   notes: String

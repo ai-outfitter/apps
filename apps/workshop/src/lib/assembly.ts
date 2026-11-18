@@ -85,6 +85,8 @@ export const ItemSchema = z
     priceKnown: z.boolean().default(false),
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
+    /** Pick this assembly when a user clicks one of its installed parts. */
+    selectAsUnit: z.boolean().optional(),
     firmware: FirmwareSchema.optional(),
     power: ItemPowerSchema.optional(),
     notes: z.string().max(2000).default(""),
@@ -208,6 +210,7 @@ export type Placement = {
   /** Total turn about Z, in degrees. */
   rotation: number;
   matrix?: number[];
+  pickGroup?: { id: string; path: string };
 };
 
 /** Every solid in the top assembly, placed in world coordinates. */
@@ -217,17 +220,18 @@ export function placements(assembly: Assembly, options?: { maxVisits: number; sk
   if (!root) return [];
   const out: Placement[] = [];
   let remaining = options?.maxVisits ?? Infinity;
-  const walk = (item: Item, matrix: Matrix4, path: string) => {
+  const walk = (item: Item, matrix: Matrix4, path: string, pickGroup?: Placement["pickGroup"]) => {
     remaining--;
     const pos = new Vector3().setFromMatrixPosition(matrix);
-    if (item.geometry || item.mesh) out.push({item,path,position:pos.toArray() as [number,number,number],rotation:Math.round(new Euler().setFromRotationMatrix(matrix).z*180/Math.PI*1e9)/1e9,matrix:matrix.toArray()});
+    if (!pickGroup && item !== root && item.selectAsUnit && item.kind === "assembly") pickGroup = { id: item.id, path };
+    if (item.geometry || item.mesh) out.push({item,path,pickGroup,position:pos.toArray() as [number,number,number],rotation:Math.round(new Euler().setFromRotationMatrix(matrix).z*180/Math.PI*1e9)/1e9,matrix:matrix.toArray()});
     for (const use of item.uses) {
       if (remaining <= 0) break;
       const child=byId.get(use.itemId);if(!child)continue;
       const angles=use.orientation ?? [0,0,use.rotation];
       const local=new Matrix4().compose(new Vector3(...use.position),new Quaternion().setFromEuler(new Euler(...angles.map(v=>v*Math.PI/180) as [number,number,number],"XYZ")),new Vector3(1,1,1));
       const copies = options?.skipCoincidentCopies ? 1 : use.quantity;
-      for(let copy=0;copy<copies && remaining>0;copy++)walk(child,matrix.clone().multiply(local),`${path}/${use.id}#${copy}`);
+      for(let copy=0;copy<copies && remaining>0;copy++)walk(child,matrix.clone().multiply(local),`${path}/${use.id}#${copy}`,pickGroup);
     }
   };
   walk(root,new Matrix4(),root.id);

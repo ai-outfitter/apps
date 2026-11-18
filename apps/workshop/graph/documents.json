@@ -524,6 +524,9 @@
                                       ],
                                       "additionalProperties": false
                                     },
+                                    "selectAsUnit": {
+                                      "type": "boolean"
+                                    },
                                     "firmware": {
                                       "type": "object",
                                       "properties": {

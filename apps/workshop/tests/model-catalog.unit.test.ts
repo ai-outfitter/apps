@@ -48,3 +48,19 @@ test('assembly navigation shows immediate children and aggregates repeated place
  assert.deepEqual(assemblyPath(assembly,'missing'),[]);
  root.uses.pop();assert.equal(JSON.stringify(assembly),before);
 });
+
+test('a canvas pick belongs to the installed module occurrence until its model is opened', () => {
+ const assembly=sensorNodeAssembly();
+ const root=assembly.items.find(item=>item.id===assembly.rootId)!;
+ const use=root.uses.find(u=>assembly.items.find(i=>i.id===u.itemId)?.kind==='assembly')!;
+ const module=assembly.items.find(i=>i.id===use.itemId)!;
+ module.selectAsUnit=true;
+ use.quantity=2;
+ const installed=placements(assembly).filter(p=>p.pickGroup?.id===module.id);
+ assert.deepEqual(new Set(installed.map(p=>p.pickGroup?.path)),new Set([
+   root.id+'/'+use.id+'#0',root.id+'/'+use.id+'#1'
+ ]));
+ const opened=placements(modelView(assembly,module.id));
+ assert.ok(opened.length);
+ assert.ok(opened.every(p=>!p.pickGroup));
+});
