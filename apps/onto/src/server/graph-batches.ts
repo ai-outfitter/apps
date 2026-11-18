@@ -18,7 +18,7 @@ import {
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
-import { resolveIdentity } from "./identity";
+import { personalRoot } from "./owner-root";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
 import { readSettings } from "./settings";
@@ -111,11 +111,11 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
 }
 
 /** The node this Onto belongs to: the Organization bound to an organization's Onto, or the
- * owner's Person (through its OutfitterUser account) in a personal Onto. Null when none or
+ * owner's verified holder or canonical OutfitterUser account in a personal Onto. Null when none or
  * more than one matches; an unbound Onto then has no default anchor. */
 export async function rootNode(db: Database, who: AppIdentity) {
   if (who.owner.kind === "user")
-    return (await resolveIdentity(db, { principalId: who.owner.id }).catch(() => null))?.holderId ?? null;
+    return personalRoot(db, who);
   return wikiHome(await readGraph(db, who), who).organizationId ?? null;
 }
 

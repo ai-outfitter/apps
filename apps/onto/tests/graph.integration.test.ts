@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "./fixtures/initialized-worker";
+import { appWorker as rawAppWorker } from "@ai-outfitter/app-test/worker";
+import { initializedAppWorker } from "./fixtures/initialized-worker";
 import baseSeed from "../seeds/entities-v1.json";
 import graphSeed from "../seeds/knowledge-graphs-v1.json";
 import artifacts from "../seeds/artifacts-v1.json";
@@ -19,6 +20,7 @@ const seed = {
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
+const appWorker = (...args: Parameters<typeof rawAppWorker>) => initializedAppWorker(owner, ...args);
 const member = { userId: "member", organizationId: "org", role: "member" };
 const path = "/api/internal/entities/v1/";
 // biome-ignore lint/suspicious/noExplicitAny: public JSON contract under test.
@@ -102,7 +104,8 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     const graph = await json(
       await app.call("/api/apps/onto/graph/snapshot", member),
     );
-    assert.equal(graph.nodes.length, seed.nodes.length + 4);
+    assert.equal(graph.nodes.length, seed.nodes.length + 5, "four authored nodes plus the canonical owner root");
+    assert.equal(graph.nodes.filter((n: { properties: Record<string, unknown> }) => n.properties.organization_id === owner.organizationId).length, 1);
     const seededIds = new Set(seed.nodes.map((node) => node.id));
     assert.equal(
       graph.edges.length,
@@ -462,7 +465,7 @@ test("schema migrations do not replay old seed data", async () => {
           .prepare("SELECT count(*) AS count FROM graph_nodes")
           .first()
       )?.count,
-      seed.nodes.length,
+      seed.nodes.length + 1,
     );
   } finally {
     await app.dispose();
