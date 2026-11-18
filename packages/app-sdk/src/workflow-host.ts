@@ -2,7 +2,7 @@ import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
 import { actionDescriptor, actionName, workContextInput, workContextResult } from "./actions";
-import { entityGet, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
+import { entityGet, entityPage, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
 import { hostPhases } from "./host-operation";
 import { platformRecordOperations } from "./platform-records";
 import { appActor, readJSON } from "./server";
@@ -209,6 +209,8 @@ export type InstallationSchedule = z.infer<typeof installationSchedule>;
  * it names `invocation` explicitly; a new phase is a member phase unless excluded here. */
 const memberPhases = workflowPhases.filter((current): current is Exclude<WorkflowPhase, "invocation"> => current !== "invocation");
 const unattended = ["event", "operator", "interactive"] as const;
+/** A schedule acts for the member who saved it, so it may list and read what that member may use. */
+const memberReads = [...unattended, "schedule"] as const;
 /** Ordinary agent tasks: a member's request to the app, or its scheduled invocation. */
 const agentTasks = ["interactive", "invocation"] as const;
 /** Delegated work reads: an owner verifying a delegation, or the scheduled scan. */
@@ -266,16 +268,18 @@ const coreOperations = {
   "identity.link": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id, principalId: z.string().min(1).max(300), kind: z.enum(["human", "agent"]) }), z.object({ linked: z.boolean() })),
   "identity.unlink": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id }), z.object({ removed: z.boolean() })),
   "entities.types": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(entityType.extend({ installationId: id, hostname: z.string().nullable().optional(), template: z.string().optional(), slug: z.string().optional() }))),
-  "entities.list": operation(running, entityQuery.extend({ installationId: id }), z.array(entityRecord)),
+  "entities.list": operation(running, entityQuery.extend({ installationId: id }), entityPage),
   "entities.get": operation(running, entityGet.extend({ installationId: id }), entityRecord),
   "entities.create": operation(running, entityWrite.extend({ installationId: id }), entityRecord),
   "entities.update": operation(running, entityUpdate.extend({ installationId: id }), entityRecord),
   /** Actions other installations of the same owner publish (`actions.invoke`).
    * The target app enforces the member's role; calls are attributed to this app. */
   "actions.list": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(z.object({ installationId: id, actions: z.array(actionDescriptor) }))),
-  "actions.call": operation(running, z.strictObject({ installationId: id, action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call"), json),
+  /** Name the destination by `installationId`, or by `template`: the caller's owner's one
+   * operational installation of that package, resolved by the host with no discovery call. */
+  "actions.call": operation(running, z.strictObject({ installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional(), action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call").refine(value => (value.installationId === undefined) !== (value.template === undefined), "Name the destination by installationId or by template, not both"), json),
   /** Approved bindings, subscriptions and usable connections of this installation. Editors only. */
-  snapshot: operation(unattended, z.strictObject({}), z.object({
+  snapshot: operation(memberReads, z.strictObject({}), z.object({
     installation: z.object({ id, activeHash: z.string().nullable(), hostname: z.string().nullable(), workflows: z.array(id) }),
     bindings: z.array(z.object({ id, workflowId: id, actor: id, kind: z.enum(["external", "resident"]), label: z.string(), revision: z.string(), packageHash: z.string(), enabled: z.boolean() })),
     subscriptions: z.array(z.object({ id, workflowId: id, connectionId: id, resource: z.string(), enabled: z.boolean(), inputs: jsonObject })),

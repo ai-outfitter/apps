@@ -1,3 +1,4 @@
+import react from "@astrojs/react";
 import { outfitterApp } from "@ai-outfitter/app-sdk/astro";
 import cloudflare from "@astrojs/cloudflare";
 import { defineConfig } from "astro/config";
@@ -9,7 +10,7 @@ export default defineConfig({
   output: "server",
   session: false,
   adapter: cloudflare({ imageService: "compile" }),
-  integrations: [
+  integrations: [react(),
     outfitterApp({
       app: "video-production",
       readOnly: true,

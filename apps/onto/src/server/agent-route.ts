@@ -115,6 +115,7 @@ export function agentRoute(
       }),
       host: workflowHost<"interactive">(locals as never),
       type: "onto.conversation",
+      delegation: true,
       contextType: "onto.page",
       focusId: "e9500000-0000-4000-8000-000000000002",
       label: "Onto",

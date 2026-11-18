@@ -1,3 +1,4 @@
+import { parse } from "graphql";
 // Internal page documents and the explicitly selected MCP subset below reuse
 // the same app-owned schema, services and authorization. Generated helpers alone
 // do not publish agent capabilities.
@@ -12,6 +13,9 @@ import type { PlanningContext } from "./intake";
 
 // Selections are spelled out: gql.tada types a document only from a literal string.
 const legacyDocuments = defineDocuments({
+  EvidenceSchema:{story:"As an agent, I want the evidence JSON Schema before capturing a change, so that submissions are valid.",document:parse(`query EvidenceSchema {evidenceSchema}`)},
+  ProjectEvidence:{story:"As a reviewer, I want the same ordered visual capture the browser displays, so that review uses the same evidence.",document:parse(`query ProjectEvidence($input:ProjectEvidenceInput!){projectEvidence(input:$input)}`)},
+  SubmitEvidence:{story:"As an agent, I want to stage an exact captured walkthrough for graph review without duplicating media, so that retries preserve the capture.",document:parse(`mutation SubmitEvidence($input:SubmitEvidenceInput!){submitEvidence(input:$input)}`)},
  VideoTransfer:{story:"As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",document:graphql(`query VideoTransfer($id:ID!){videoTransfer(id:$id)}`)},
  VideoTransferReceipt:{story:"As an agent, I want to verify imported media, so that source links switch only after validation.",document:graphql(`query VideoTransferReceipt($id:ID!){videoTransferReceipt(id:$id)}`)},
  BeginVideoTransfer:{story:"As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",document:graphql(`mutation BeginVideoTransfer($input:BeginVideoTransferInput!){beginVideoTransfer(input:$input)}`)},
@@ -66,8 +70,8 @@ const legacyDocuments = defineDocuments({
   },
   Issues: {
     story: "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
-    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {
-      issues(first: $first, after: $after, ids: $ids, projectId: $projectId, status: $status, category: $category) {
+    document: graphql(`query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!], $orderBy: IssueOrder = ID_ASC) {
+      issues(first: $first, after: $after, ids: $ids, orderBy: $orderBy, filter: { projectId: { in: $projectId }, status: { in: $status }, category: { in: $category } }) {
         nodes { id projectId parentId title description category status assigneeId dueDate position revision createdAt updatedAt }
         pageInfo { endCursor hasNextPage }
       }
@@ -313,6 +317,9 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), graphqlSchema, readGroups), {
+  EvidenceSchema:{description:"JSON Schema for visual evidence: capture provenance, ordered steps, optional screenshots/videos and before references."},
+  ProjectEvidence:{description:"Read an authorized project evidence index or exact bundle. Browser and MCP use the same projection."},
+  SubmitEvidence:{description:"Validate and stage a frozen capture in an existing open graph batch. Reuse key and batchId on retry. Requires current project/product revisions. Submit/review that batch separately; staged is not applied."},
  VideoTransfer:{description:"Transfer video records with sealing and media verification."},
  VideoTransferReceipt:{description:"Transfer video records with sealing and media verification."},
  BeginVideoTransfer:{description:"Transfer video records with sealing and media verification."},
@@ -350,7 +357,7 @@ export const documents = publishDocuments(readBatchDocuments(withBatchDocuments(
   DigestRuns:{description:"Read daily digest/report run progress and failures."},
   DigestSchedule:{description:"Read the existing daily owner report chain schedule."},
   ChangeDigestSchedule:{description:"Enable or disable the existing daily report chain schedule; editors only."},
-  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
+  Issues: {description: "Read issues in this installation, filtered by projectId, status or category. Results page in ID order, or in category order with orderBy POSITION_ASC (keep orderBy unchanged while paging). Use includeIdentifiers:true for IDs and revisions before changes.", collection: true},
   IssueChanges: {description: "Create, replace, delete or reorder project issues. Use stable UUID item keys for safe retries; read Issues with includeIdentifiers:true first for IDs, current revisions and every issue in a category before reordering. Updates replace fields, so preserve values from the read. Any member of the installation may write."},
   ProjectRepositories:{description:"Read project repositories and their recent GitHub pull requests.",collection:true,provenance:"organizationSlug"},
   PriorityOrder:{description:"Read an organization priority order and revision."},

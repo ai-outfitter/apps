@@ -30,9 +30,9 @@ test("personal and organization control pilots are complete, separate and repeat
     assert.deepEqual(await check(await action(app,"graph.apply",request)),first);
   }
   // friends_with is projected through the Friendship relator.
-  const friends=async(app:typeof personal)=>((await check(await action(app,"graph.graphql",{query:"{ persons { nodes { id friendsWith { id } } } }"}))) as {data:{persons:{nodes:{id:string;friendsWith:{id:string}[]}[]}}}).data.persons.nodes;
-  assert.deepEqual((await friends(personal)).find(node=>node.id===a)?.friendsWith.map(node=>node.id),[b]);
-  assert.equal((await friends(org)).flatMap(node=>node.friendsWith).length,0);
+  const friends=async(app:typeof personal)=>((await check(await action(app,"graph.graphql",{query:"{ persons { nodes { id friendsWith { nodes { id } } } } }"}))) as {data:{persons:{nodes:{id:string;friendsWith:{nodes:{id:string}[]}}[]}}}).data.persons.nodes;
+  assert.deepEqual((await friends(personal)).find(node=>node.id===a)?.friendsWith.nodes.map(node=>node.id),[b]);
+  assert.equal((await friends(org)).flatMap(node=>node.friendsWith.nodes).length,0);
   const get=(app:typeof personal,id:string)=>call(app,"/api/internal/entities/v1/get",{type:"graph-node",id});
   assert.equal((await get(org,pilotId(201))).status,404);
   assert.equal((await get(personal,pilotId(303))).status,404);

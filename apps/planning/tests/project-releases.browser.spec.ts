@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   canonicalReleaseProject,
   projectReleasesFixture,
@@ -45,7 +46,7 @@ for (const width of [1440, 390])
             if (operation === "entities.types")
               return { ok: true, value: releaseProviders() };
             if (operation === "entities.get") return projectResult(input);
-            if (operation === "entities.list") return { ok: true, value: [] };
+            if (operation === "entities.list") return { ok: true, value: memoryEntityPage([]) };
             expect(operation).toBe("actions.call");
             expect(input).toMatchObject({
               installationId: "wiki",
@@ -102,10 +103,11 @@ for (const width of [1440, 390])
       await page.goto(origin + project);
       await page.getByRole("link", { name: "Review evidence", exact: true }).click();
       await expect(page).toHaveURL(origin + evidence);
+      await page.getByText("Source records and JSON", {exact:true}).click();
       await expect(
         page.getByRole("heading", { name: "Evidence inventory" }),
       ).toBeVisible();
-      await expect(page.locator("article")).toContainText(
+      await expect(page.locator(".planning-release-reader")).toContainText(
         "Sensor tests are pending",
       );
       await expect(page.getByText("Foreign evidence")).toHaveCount(0);
@@ -113,7 +115,7 @@ for (const width of [1440, 390])
       await expect(
         page.getByRole("heading", { name: "Check a plant — abc12345" }),
       ).toBeVisible();
-      await expect(page.locator(".planning-evidence-grid img")).toHaveCount(1);
+      await expect(page.getByRole("button", {name:"Load media from evidence.example"})).toHaveCount(1);
       await expect(page.getByText("Foreign demonstration")).toHaveCount(0);
       await expect(page.locator('article a[href^="javascript:"]')).toHaveCount(
         0,
@@ -131,10 +133,10 @@ for (const width of [1440, 390])
       await expect(
         page.getByRole("heading", { name: "Know when your plant needs care" }),
       ).toBeVisible();
-      await expect(page.locator("article")).toContainText("draft · Revision 1");
-      await expect(page.locator("article")).toContainText("(hypothetical)");
+      await expect(page.locator(".planning-release-reader")).toContainText("draft · Revision 1");
+      await expect(page.locator(".planning-release-reader")).toContainText("(hypothetical)");
       await expect(page.locator(".planning-evidence-grid")).toHaveCount(0);
-      await expect(page.locator("article")).toContainText("Shipping date");
+      await expect(page.locator(".planning-release-reader")).toContainText("Shipping date");
       await expect(page.getByText("Foreign press release")).toHaveCount(0);
       await page.screenshot({
         path: info.outputPath(`press-release-${width}.png`),
@@ -149,10 +151,11 @@ for (const width of [1440, 390])
         "## Evidence inventory\n\nNew source evidence is visible after reload.";
       graph.nodes[2].revision = 2;
       await page.goto(origin + evidence);
-      await expect(page.locator("article")).toContainText(
+      await page.getByText("Source records and JSON", {exact:true}).click();
+      await expect(page.locator(".planning-release-reader")).toContainText(
         "New source evidence is visible after reload",
       );
-      await expect(page.locator("article")).toContainText("Revision 2");
+      await expect(page.locator(".planning-release-reader")).toContainText("Record revision 2");
       expect(
         (await page.goto(`${origin}${evidence}?bundle=${releaseId(6)}`))?.status(),
       ).toBe(404);
@@ -216,6 +219,7 @@ test("read-only Planning demo exposes a synthetic release review without an owne
       page.getByRole("link", { name: "Wiki source", exact: true }),
     ).toHaveCount(0);
     await page.goto(`${project}/evidence`);
+    await page.getByText("Source records and JSON", {exact:true}).click();
     await expect(
       page.getByText("Read-only demo · These evidence records are synthetic."),
     ).toBeVisible();

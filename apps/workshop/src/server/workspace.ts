@@ -48,5 +48,6 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
  const isStale=p.revision!==r.baseRevision+2;
  const success=Boolean(i.manifest)&&!i.manifest!.tests.some(t=>t.status==="fail");
  const result={...(i.manifest?{manifest:i.manifest}:{}),...(i.error?{error:i.error}:{}),artifactBase:`/files/main/builds/${p.id}/${r.id}/`,stale:isStale};
- return updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
+ const authored = p.assembly.items.some(item=>item.reference || item.driveMotion) || Boolean(p.assembly.configurations?.length);
+ return updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale&&!authored?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
 }

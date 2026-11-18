@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
 import { AssemblySchema } from "../lib/assembly";
 import { EXAMPLES, makeProject, type Project, ProjectSchema } from "../lib/project";
@@ -59,7 +60,8 @@ export const describeInput = z
     requirements: ProjectSchema.shape.requirements.optional(),
   })
   .strict();
-/** The SaveWorkshopAssembly mutation's input: the whole product structure (items and usage lines). */
+export const assemblyUpdateBody = z.strictObject({ expectedRevision: z.int32().nonnegative(), assembly: AssemblySchema });
+/** The legacy SaveWorkshopAssembly input, also used by AssemblyChanges. */
 export const assemblyInput = z.object({ ...atRevision, assembly: AssemblySchema }).strict();
 
 /** The starter project an example makes, named and linked as the caller asked. */
@@ -75,6 +77,7 @@ export async function listWorkshopProjects(db: WorkshopDatabase) {
       name: workshopProjects.name,
       revision: workshopProjects.revision,
       updatedAt: workshopProjects.updatedAt,
+      brief: sql<string>`substr(trim(coalesce(nullif(trim(json_extract(${workshopProjects.data}, '$.brief')), ''), json_extract(${workshopProjects.data}, '$.requirements'), '')), 1, 200)`,
       // Stored projects saved before stages existed have none: they are concepts.
       phase: sql<string>`coalesce(json_extract(${workshopProjects.data}, '$.phase'), 'concept')`,
     })
@@ -96,6 +99,12 @@ export async function workshopProjectRow(db: WorkshopDatabase, id: string) {
   return row;
 }
 
+export async function projectBySlugId(db: WorkshopDatabase, suffix: string) {
+  const [row] = await db.select({data: workshopProjects.data}).from(workshopProjects)
+    .where(sql`substr(${workshopProjects.id}, -12) = ${suffix}`).limit(1);
+  return row && ProjectSchema.parse(JSON.parse(row.data));
+}
+
 export async function getWorkshopProject(db: WorkshopDatabase, id: string) {
   return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db,id)).data));
 }
@@ -107,6 +116,7 @@ export async function createWorkshopProject(
   input: Project,
 ) {
   if (input.workspace) throw new Response("Import model source, not workspace execution records", {status:400});
+  if (input.pcbSnapshots?.length) throw new Response("Import PCB evidence through the snapshot API", {status:400});
   const project: Project = { ...input, revision: 1 };
   const exists = async () =>
     (
@@ -118,11 +128,12 @@ export async function createWorkshopProject(
   if (await exists())
     throw new Response("Project already exists.", { status: 409 });
   const linked = revisionColumns(project);
+  const guard = project.assembly.items.some(i=>i.reference) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
   await db.run(sql`INSERT INTO workshop_projects (id, name, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
     SELECT ${project.id}, ${project.name}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
-    WHERE (SELECT count(*) FROM workshop_projects) < ${PROJECT_LIMIT}`);
-  if (!(await exists())) throw new Response(full, { status: 409 });
+    WHERE (SELECT count(*) FROM workshop_projects) < ${PROJECT_LIMIT} AND ${guard}`);
+  if (!(await exists())) throw new Response(project.assembly.items.some(i=>i.reference) ? "Project limit reached or a reference changed. Reload before creating." : full, { status: 409 });
   return project;
 }
 
@@ -140,7 +151,9 @@ export async function updateWorkshopProject(
   if (input.id !== id)
     throw new Response("Project ID mismatch", { status: 400 });
   if (!workspaceWrite) {
-    const stored = await getWorkshopProject(db,id);
+    const stored = ProjectSchema.parse(JSON.parse(previous.data));
+    if(stored.revision !== input.revision) throw new Response("Project changed in another session. Reload before saving.",{status:409});
+    if (JSON.stringify(stored.pcbSnapshots ?? []) !== JSON.stringify(input.pcbSnapshots ?? [])) throw new Response("Use the PCB snapshot import operation to change imported evidence", {status:400});
     if (JSON.stringify(stored.workspace) !== JSON.stringify(input.workspace)) throw new Response("Use workspace build operations to change revision records", {status:400});
   }
   const parsed = ProjectSchema.safeParse({
@@ -155,6 +168,7 @@ export async function updateWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
+  const guard = JSON.stringify(next.assembly) !== JSON.stringify(JSON.parse(previous.data).assembly) ? await assemblyGuard(db,next) : undefined;
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -168,7 +182,7 @@ export async function updateWorkshopProject(
     .where(
       and(
         eq(workshopProjects.id, id),
-        eq(workshopProjects.revision, input.revision),
+        eq(workshopProjects.revision, input.revision), guard,
       ),
     )
     .returning({ id: workshopProjects.id });
@@ -204,6 +218,7 @@ export async function patchWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
+  const guard = JSON.stringify(next.assembly) !== JSON.stringify(current.assembly) ? await assemblyGuard(db,next) : undefined;
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -214,7 +229,7 @@ export async function patchWorkshopProject(
       updatedBy: identity.userId,
       updatedAt: next.updatedAt,
     })
-    .where(and(eq(workshopProjects.id, id), eq(workshopProjects.revision, revision)))
+    .where(and(eq(workshopProjects.id, id), eq(workshopProjects.revision, revision), guard))
     .returning({ id: workshopProjects.id });
   if (!updated)
     throw new Response("Project changed in another session. Reload before saving.", { status: 409 });
@@ -239,7 +254,9 @@ export function saveWorkshopAssembly(db: WorkshopDatabase, identity: AppIdentity
 
 export async function exportWorkshopProject(db: WorkshopDatabase, id: string) {
   const project = await getWorkshopProject(db, id);
-  return new Response(new Uint8Array(projectPackage(project)).buffer, {
+  const bom = project.assembly.items.some(item => item.reference)
+    ? (await resolvedProject(db, {projectId: id, revision: project.revision})).assembly : project.assembly;
+  return new Response(new Uint8Array(projectPackage(project, bom)).buffer, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="workshop-${project.id}-r${project.revision}.zip"`,
@@ -252,19 +269,19 @@ export async function deleteWorkshopProject(
   db: WorkshopDatabase,
   { id, revision }: z.output<typeof deleteInput>,
 ) {
-  await workshopProjectRow(db, id);
+  const guard=await assemblyGuard(db,await getWorkshopProject(db,id),true);
   const [deleted] = await db
     .delete(workshopProjects)
     .where(
       and(
         eq(workshopProjects.id, id),
-        eq(workshopProjects.revision, revision),
+        eq(workshopProjects.revision, revision), guard, noConsumers(id),
       ),
     )
     .returning({ id: workshopProjects.id });
   if (!deleted)
     throw new Response(
-      "Project changed in another session. Reload before deleting.",
+      "Project changed or another assembly references it. Reload before deleting.",
       { status: 409 },
     );
   return id;

@@ -331,12 +331,33 @@ test("plural change documents append durably, submit explicitly, and preserve th
   assert.equal(first.instructions[0].url, expectedReviewUrl);
   const listed = await json(await f.action("graph.graphql", { query: documents.ChangeBatches.document, variables: { first: 100 } }));
   assert.equal(listed.data.changeBatches.nodes.find((batch: { id: string }) => batch.id === first.items[0].result.id).reviewUrl, expectedReviewUrl);
+  // changeBatches is a connection like any other: edges with cursors, four-field pageInfo and a count, paged by cursor.
+  const second=(await send([{key:uuid(905),action:"stage",input:{title:"Another batch",proposals:[{operation:person("$other",906,"Other"),evidence:cite("other")}]}}])).items[0].result.id;
+  const batches=async(variables:object)=>{
+    const result=await json(await f.action("graph.graphql",{query:"query($first:Int,$after:String,$search:String){changeBatches(first:$first,after:$after,search:$search){totalCount edges{cursor node{id counts}} nodes{id} pageInfo{hasNextPage hasPreviousPage startCursor endCursor}}}",variables}));
+    assert.equal(result.errors,undefined,JSON.stringify(result.errors));
+    return result.data.changeBatches;
+  };
+  const ordered=[id,second].sort();
+  const firstPage=await batches({first:1});
+  assert.equal(firstPage.totalCount,2);
+  assert.deepEqual(firstPage.edges.map((edge:{node:{id:string}})=>edge.node.id),[ordered[0]]);
+  assert.deepEqual(firstPage.edges[0].node.counts,{pending:1});
+  assert.deepEqual(firstPage.nodes,[{id:ordered[0]}]);
+  assert.deepEqual(firstPage.pageInfo,{hasNextPage:true,hasPreviousPage:false,startCursor:firstPage.edges[0].cursor,endCursor:firstPage.edges[0].cursor});
+  const nextPage=await batches({first:1,after:firstPage.edges[0].cursor});
+  assert.deepEqual([nextPage.nodes,nextPage.pageInfo.hasNextPage,nextPage.pageInfo.hasPreviousPage,nextPage.totalCount],[[{id:ordered[1]}],false,true,2]);
+  assert.deepEqual([(await batches({search:"Another"})).totalCount,(await batches({first:0})).nodes],[1,[]]);
+  const old=await json(await f.action("graph.graphql",{query:"{changeBatches{aggregate{count}}}"}));
+  assert.equal(old.errors?.[0]?.extensions?.code,"GRAPHQL_VALIDATION_FAILED");
   const append={key:uuid(902),action:"stage",input:{batchId:id,proposals:[{operation:person("$second",903,"Second"),evidence:cite("second")}]}};
   await send([append]);await send([append]);
   const submitted=await send([{key:uuid(904),action:"submit",input:{batchId:id}}]);
   assert.equal(submitted.items[0].result.counts.awaiting_review,2);
   assert.equal(submitted.instructions[0].actor,"human");
   assert.equal(submitted.instructions[0].url, expectedReviewUrl);
+  // The receipt also names the steward's review run to wait on.
+  assert.ok(submitted.instructions.find((item: { code: string; taskId?: string }) => item.code === "WAIT_FOR_RUN")?.taskId);
   assert.equal(await f.exists(uuid(901)),false);
   const personalIdentity = { ...agent, owner: { kind: "user" as const, id: "personal-owner" } };
   const personalStage = await send([{ key: uuid(907), action: "stage", input: { title: "Personal batch", proposals: [{ operation: person("$personal", 908, "Personal"), evidence: cite("personal") }] } }], personalIdentity);
@@ -564,4 +585,16 @@ test("a personal Onto anchors a new batch to its owner's Person", async t => {
   const staged = (await run(f, "StageChanges", { input: { title: "Mine", proposals: [{ operation: person("$friend", 970, "Friend") }] } }, me)).data.stageChanges;
   assert.deepEqual(staged.anchors, ["Person:ada"]);
   assert.match(staged.validation.error, /anchor/);
+});
+
+test("one Ontology read names every type, each relationship's ends, and how to stage", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const { ontology } = (await json(await f.action("graph.graphql", { query: documents.Ontology.document }))).data;
+  assert.ok(ontology.nodeTypes.some((type: { name: string }) => type.name === "Person"));
+  const spouse = ontology.relationshipTypes.find((type: { name: string }) => type.name === "test_spouse");
+  assert.deepEqual([spouse.from, spouse.to], [["TestMarriage"], ["Person"]]);
+  // A projection is derived, so it is not offered for writing.
+  assert.equal(ontology.relationshipTypes.some((type: { name: string }) => type.name === "test_spouse_of"), false);
+  assert.match(ontology.staging, /ChangeBatchChanges/);
 });

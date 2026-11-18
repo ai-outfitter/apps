@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import {
   demoProjectPage,
   projectPageView,
@@ -38,7 +39,9 @@ function fixture() {
         ),
         references: [],
       }));
-      return operation === "entities.get" ? records[0] : records;
+      return operation === "entities.get"
+        ? records.find((record) => record.ref.id === input.id)
+        : memoryEntityPage(records, input);
     },
   } as unknown as WorkflowHost<"interactive">;
   return { host, calls, demo };

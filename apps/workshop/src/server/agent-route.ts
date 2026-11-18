@@ -3,7 +3,9 @@ import { agentDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { ProposalStore } from "@ai-outfitter/app-sdk/proposal-store";
 import { respond } from "@ai-outfitter/app-sdk/server";
 import { workshopContext } from "./context";
+import { slugId } from "../lib/sections";
 import { documents, runDocument } from "./documents";
+import { getWorkshopProject } from "./projects";
 
 export const focusId = "ed000000-0000-4000-8000-000000000001";
 
@@ -17,19 +19,25 @@ export function agentRoute(request: Request, operation: string, locals: unknown,
       host: context.host(), type: "workshop.conversation", contextType: "workshop.page", focusId, label: "Workshop",
       context: async () => context, actions: {},
       instructions: "You are the Workshop assistant for physical product design. Help the member understand saved models, assemblies, BOM items and recorded build evaluations. Distinguish computed checks from physical validation. Explain missing evidence. You cannot modify models or start builds in this conversation; direct creation requests to New model and explain workspace build requirements for assemblies. Open a project page to discuss its parts and recorded build evidence.",
-      // The assistant reads the same documents agents run over MCP: the project list, and the
-      // open project's model, BOM and builds by its slug.
       page: async (view) => {
-        const { workshopProjects } = await runDocument(documents.WorkshopProjects.document, {}, context);
-        const projects = workshopProjects.nodes;
+        // The same project list MCP clients read (WorkshopProjects): slug, stage and brief per project.
+        const projects = (await runDocument(documents.WorkshopProjects.document, {}, context)).workshopProjects.nodes;
         const slug = /^projects\/([^/?#]+)/.exec(view?.location ?? "")?.[1];
+        const suffix = slug ? slugId(slug) : undefined;
+        const selected = suffix ? projects.find(p => p.id.endsWith(suffix)) : undefined;
         let detail: unknown = null;
-        if (slug) {
+        if (selected) {
           try {
-            detail = (await runDocument(documents.WorkshopProject.document, { slug }, context)).workshopProjects.nodes[0] ?? null;
-          } catch { detail = { slug, unavailable: true }; }
+            const p = await getWorkshopProject(context.db(), selected.id);
+            const build = p.workspace?.requests.find(run => run.id === p.workspace?.currentBuildId);
+            const assembly = build?.result?.manifest?.assembly ?? p.assembly;
+            detail = { id:p.id, brief:p.brief.slice(0,2000), requirements:p.requirements.slice(0,2000),
+              items:assembly.items.slice(0,50).map(({id,name,number,kind,unitCost,estimatedUnitCost,priceKnown})=>({id,name,number,kind,unitCost,estimatedUnitCost,priceKnown})), itemsLimited:assembly.items.length>50,
+              build:build ? {id:build.id,status:build.status,notes:build.result?.manifest?.notes.slice(0,1000),
+                tests:build.result?.manifest?.tests.slice(0,30).map(test=>({...test,detail:test.detail.slice(0,300)})),testsLimited:(build.result?.manifest?.tests.length??0)>30} : null };
+          } catch { detail={id:selected.id,unavailable:true}; }
         }
-        return { projects, detail, source:"The WorkshopProjects and WorkshopProject documents: saved project summaries and the open project's model. Physical fit is not verified." };
+        return { projects, detail, source:"Saved project summaries and bounded detail for the open project. Physical fit is not verified." };
       },
     });
     return internal ? agent.provider(request, operation) : agent.browser(request, operation);

@@ -1,0 +1,3 @@
+Today's digest reads the saved brief with one Wiki request. Forerunner used to find the Wiki, look the brief's page up, then read its document; it now names the Wiki by its package and asks for each dated page together with its document. Capturing a brief, research reports and brief previews reach the Wiki the same way. The `wikiProvider` and `briefLookup` timings are gone. See `docs/daily-brief.md`.
+
+Forerunner now declares the Wiki as a dependency and needs version 0.1.5 or later, the first that returns a page with its document. An account whose Wiki is older keeps its current Forerunner until the Wiki updates.

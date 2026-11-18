@@ -8,29 +8,51 @@
 // - fieldName: the type name with its first letter lowercased (`reportsTo`).
 // - collectionName: fieldName + "s", unchanged when it already ends in "s".
 // - Root fields per node type: `fieldName(id, slug)` (exactly one of them: a slug is a
-//   node's address, unique across the Wiki's node types) and `collectionName(first, after,
-//   archived, ids, slugs, text[, at])` returning `<Type>Connection { nodes pageInfo aggregate }`.
+//   node's address, unique across the Wiki's node types) and `collectionName(first, after, orderBy,
+//   filter, archived, ids, text[, at])` returning a connection.
+// - Connections follow the Relay Cursor Connections spec with PostGraphile's additions:
+//   `<Type>Connection { edges { cursor node } nodes pageInfo totalCount }`,
+//   `PageInfo { hasNextPage hasPreviousPage startCursor endCursor }`. Paging is forward only
+//   (`first`, default 100, at most 500, and `after`), so hasPreviousPage is true when `after` was given.
+//   The `{ cursor node }` wrapper is `<Connection>Edge` (`ProductConnectionEdge`), apart from the graph's
+//   own `Edge` interface and edge types. `totalCount` is counted only when selected.
+//   `orderBy: <Type>Order` is ID_ASC (default), ID_DESC, CREATED_AT_ASC/DESC, UPDATED_AT_ASC/DESC or
+//   TITLE_ASC/DESC, ties by ID; every cursor names its order with the record's (value, ID), so a
+//   cursor continues only the order it was made with.
+//   `filter: <Type>Filter` takes PostGraphile connection-filter's operators (equalTo, notEqualTo, in, notIn,
+//   isNull, lessThan, lessThanOrEqualTo, greaterThan, greaterThanOrEqualTo; on text also includes,
+//   includesInsensitive, startsWith, startsWithInsensitive) with and, or and not, over the indexed fields
+//   id, slug, title, createdAt and updatedAt (edges: no slug); at most 20 conditions. `ids` is the batched
+//   read of known records. The source reads only the page (GraphSource.nodePage): filter, order, page and
+//   count all run where the records live.
 //   When the collection name equals fieldName, the singular is `fieldName + "ById"`.
-//   Also `node(id, slug)` (any node type), cursor-paginated `searchConnection(text, types, first, after)`,
-//   legacy capped `search(text, types, first)` and `sdl` (the schema
-//   as SDL). By-key roots take `archived = EXCLUDE`, as graph.query matches.
+//   Also `node(id, slug)` (any node type), `search(text, types, first, after)` (a connection) and `sdl`
+//   (the schema as SDL). By-key roots take `archived = EXCLUDE`, as graph.query matches.
 // - Node fields: id typeId revision title summary slug body archived updatedAt properties
-//   edges(types, direction, at, archived) validFrom validUntil (every node type: validity is a
-//   row's, so a document written for the standard schema reads any Wiki); one typed scalar
-//   per entry of the type's `properties` list, named as stored.
+//   edges(types, direction, first, after, orderBy, filter, at, archived) validFrom validUntil (every node
+//   type: validity is a row's, so a document written for the standard schema reads any Wiki); one typed
+//   scalar per entry of the type's `properties` list, named as stored.
 // - Edge type E whose ontology.endpoints name types on both ends: on each `from` type `fieldName(E)` (targets) and
 //   `fieldName(E)Edges` (edge objects); on each `to` type `fieldName(E)Incoming` and
-//   `fieldName(E)IncomingEdges`. Args (at, archived). Edge types without endpoints get no
-//   typed fields; read them through `edges(types:)`, which returns edge objects with from/to.
+//   `fieldName(E)IncomingEdges`. Each is a connection (`<Type>Connection`, `NodeConnection` for
+//   several target types, `<E>Connection` for edge objects) taking (first, after, orderBy, filter, at, archived):
+//   a far node reached twice is listed once; edge objects order by `EdgeOrder` and filter by `EdgeFilter`.
+//   Every parent of a level shares one GraphSource.relationPage call (several, one after another, when the parents
+//   could together cost more rows than graphQueryLimits.relationRows: withRelationBudget). Edge types without endpoints get no
+//   typed fields; read them through `edges(types:)`, an `EdgeConnection` of edge objects with from/to,
+//   paged per node the same way.
 // - A projection edge type (ontology.projection) is a field `fieldName(E)` on the fromSlot's
 //   participant types reaching the toSlot's participants through the relator (and
-//   `fieldName(E)Incoming` the other way unless symmetric).
+//   `fieldName(E)Incoming` the other way unless symmetric): a connection like any other, its two hops
+//   read as one page per parent (RelationFilter.through).
 // - A field whose target may be one of several types returns the `Node` interface.
 // - Edge object type `E`: id typeId revision title body fromId toId from to properties
 //   archived updatedAt validFrom validUntil, plus one typed scalar per edge property.
 // - Relator slots (stereotype "relator"): a field per slot name, one participant when
 //   max is 1 else a list; participant types get `collectionName(relator)(as, first, after,
-//   archived, at)`.
+//   orderBy, filter, archived, at)`.
+// - Orders, edge connections, edge wrappers and filters are named after every type, in that order, so they
+//   never take a type's name, and a later kind never takes an earlier one's.
 // - Names go to the oldest type first (createdAt, then ID); collisions append `_` + the last 8
 //   alphanumerics of the type ID. Caller names (recordFields, rootExtensions/rootFieldNames,
 //   typeNames) are reserved first. Reported in `extensions.naming` on schema-reading queries
@@ -48,7 +70,13 @@ import { buildGraphSchema, type GraphSchemaOptions } from "./graph-graphql-schem
 import { type GraphSource, memorySource } from "./graph-graphql-source";
 
 export { graphqlNames, type NamingWarning, type TypeRow } from "./graph-graphql-names";
-export { type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, type GraphRow, type GraphSource, matchesSourceAndProperties, memorySource, type NodeQuery, type PropertyFilter, sourceKey, type SourceRef } from "./graph-graphql-source";
+export {
+  type ArchivedFilter, compareIds, type EdgeQuery, type EdgeRow, emptyCollection, emptyRelation, type GraphRow, type GraphSource, groupBy, type Keyset, matchesSourceAndProperties, memorySource, type NodeFilter,
+  type NodePageQuery, type NodeQuery, type Order, type OrderField, type Page, pageOf, type PageRows, type PropertyFilter, type RelationDirection, type RelationFilter, type RelationPage, type RelationPageQuery,
+  type RelationRow, RelationTooLarge, sourceKey, type SourceRef, withRelationBudget,
+} from "./graph-graphql-source";
+export { type OrderName, orders } from "./graph-order";
+export { edgeFilterFields, type FieldOperators, type FilterFields, type FilterKind, matchesFilter, nodeFilterFields, type RecordFilter } from "./graph-filter";
 export { type GraphContext, graphContext } from "./graph-graphql-resolve";
 export { buildGraphSchema, type GraphSchemaOptions, type KeyArgs } from "./graph-graphql-schema";
 export { ArchivedEnum, DateTimeScalar, DirectionEnum, JSONScalar } from "./graph-graphql-scalars";
@@ -76,6 +104,7 @@ const failure = (message: string, code: string): GraphGraphqlResult => ({ data: 
 
 export type ExecuteGraphQueryArgs = {
   query: string; variables?: Record<string, unknown>; operationName?: string; maxBytes: number;
+  /** Default 12 over a Wiki's records (each relationship hop is a connection: field and nodes, and an edge connection's from or to), else 8. */
   maxDepth?: number; maxFields?: number;
   /** The only operation kind this request may run (default query): graph.graphql reads, graph.mutate writes. */
   operation?: "query" | "mutation";
@@ -121,7 +150,7 @@ function wrongOperation(document: DocumentNode, { operationName, operation = "qu
  * schema with its own resolvers (whose fields meterFields must count). The whole
  * response, extensions included, stays within maxBytes (introspection: 448 KiB). */
 export async function executeGraphQuery(args: ExecuteGraphQueryArgs): Promise<GraphGraphqlResult> {
-  const { maxDepth = 8, maxFields = 2000 } = args;
+  const { maxDepth = args.source ? 12 : 8, maxFields = 2000 } = args;
   let schema: GraphQLSchema;
   try { schema = schemaOf(args); }
   catch (error) { return failure(`The schema could not be built: ${message(error, "unknown error")}`, "SCHEMA_BUILD_FAILED"); }
@@ -146,7 +175,7 @@ export async function executeGraphQuery(args: ExecuteGraphQueryArgs): Promise<Gr
   const response: GraphGraphqlResult = { data: (result.data ?? null) as GraphGraphqlResult["data"] };
   if (result.errors?.length) response.errors = result.errors.slice(0, maxErrors).map(shape);
   const extensions = baseExtensions(schema, document, roots.some(readsSchema), args.extensions);
-  const cut = fitResponse(response, budget - responseBytes(extensions) - truncationReserve, (path, kept) => cursorAfter(context, path, kept));
+  const cut = fitResponse(response, budget - responseBytes(extensions) - truncationReserve, (path, kept) => cursorAfter(context, path, kept), context.completeFields);
   // A list cut while resolving may be cut again here; it is named once.
   const paths = [...new Map([...context.truncated, ...cut].map(path => [JSON.stringify(path), path])).values()].slice(0, 20);
   if (paths.length) Object.assign(extensions, { truncated: true, truncatedPaths: paths });

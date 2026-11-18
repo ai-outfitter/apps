@@ -53,6 +53,8 @@ const projects = tableType(foundryProjects, {
   field: "foundryProjects", type: "FoundryProject",
   fields: ["name", "position", "repositories", "milestones", "revision", "updatedAt"],
   dates: ["updatedAt"],
+  // foundry_projects_position_idx.
+  orders: ["position"],
 });
 
 const nonNull = <T extends GraphQLNullableType>(type: T) => new GraphQLNonNull(type);

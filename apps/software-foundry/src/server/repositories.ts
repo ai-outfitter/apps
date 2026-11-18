@@ -1,6 +1,7 @@
 /** Turning Foundry execution on for a repository, from Foundry itself. */
 import { z } from "zod";
 import { requireEditor } from "@ai-outfitter/app-sdk/server";
+import { defineAction } from "@ai-outfitter/app-sdk/actions";
 import type { IntakeContext } from "./intake";
 import { repositoryName } from "./projects";
 import { configureFoundryWorkspaces, type FoundryJob, foundryJobs, runFoundryJob, scheduleFoundryJob } from "./workspace/workspaces";
@@ -31,6 +32,19 @@ export async function runJob(context: IntakeContext, input: z.output<typeof jobI
   requireEditor(context.identity);
   return runFoundryJob(context.host(), input.job, input.repository);
 }
+
+/** The same job runner exposed as a reviewed sidebar proposal. The host still
+ * checks current membership, repository access and binding authority on apply. */
+export const runJobAction = defineAction({
+  description: "Run a repository job: ui-review reviews one app's pages at phone and desktop sizes and files screenshot-backed fixes; dependency-review and architecture-reanalysis file maintenance issues. Foundry must already be enabled on the repository. Filed issues can start work that opens and merges pull requests. Owners and admins only.",
+  access: "write",
+  canInvoke: (context: IntakeContext) => context.identity.canEdit &&
+    context.identity.owner.kind === "organization" &&
+    context.identity.role.split(",").some((role) => role === "owner" || role === "admin"),
+  input: jobInput,
+  output: z.object({ job: jobInput.shape.job, repository: z.string(), run: z.string() }),
+  run: runJob,
+});
 
 /** Save, or pause, the job's one schedule on its declared cadence. */
 export async function scheduleJob(context: IntakeContext, input: z.output<typeof scheduleJobInput>) {

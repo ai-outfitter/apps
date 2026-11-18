@@ -1,18 +1,21 @@
+import { PcbSubmission, submitWorkshopPcb } from "./pcb-snapshots";
 import {creativeHandoffInput,resultInput,acceptCreativeHandoff,attachCreativeResult} from './creative';
 import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, claimBuild, finishBuild } from "./workspace";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { mutationField, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
+import { resolvedProject } from "./assembly-references";
+import { AssemblySchema, AssemblyReferenceSchema } from "../lib/assembly";
+import { mutationField, zodInputType, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import type { storage } from "@ai-outfitter/app-sdk/storage";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import { z } from "zod";
-import { type GraphQLFieldConfig, GraphQLID, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, getNamedType } from "graphql";
+import { type GraphQLFieldConfig, GraphQLID, GraphQLInt, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, getNamedType } from "graphql";
 import { designRun, designRunInput, startDesign, startDesignInput } from "./design-start";
 import { publishConcepts, publishInput, removeConcept, removeInput } from "./concepts";
 import {
-  assemblyInput, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
+  assemblyInput, assemblyUpdateBody, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
   getWorkshopProject, nameWorkshopProductRevision, projectFrom, saveWorkshopAssembly, type WorkshopDatabase, workshopProjectRow,
 } from "./projects";
 import { projects, WorkshopProject } from "./read";
@@ -46,6 +49,33 @@ const rowType = (collection: GraphQLFieldConfig<unknown, TableContext>) =>
 const row = new GraphQLNonNull(WorkshopProject);
 const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 
+const projectId = { type: new GraphQLNonNull(GraphQLID) };
+const revision = { type: new GraphQLNonNull(GraphQLInt) };
+const assemblyReceipt = new GraphQLObjectType({
+  name: "WorkshopAssemblyReceipt", fields: { projectId, revision },
+});
+const assemblyResult = new GraphQLObjectType({
+  name: "WorkshopAssemblyResult",
+  fields: { projectId, revision, assembly: { type: new GraphQLNonNull(JSONScalar), extensions: { completeResult: true } } },
+});
+const projectKey = z.object({ projectId: z.uuid() });
+const assemblyUpdate = assemblyUpdateBody.extend(projectKey.shape);
+const workshopAssembly = mutationField<typeof projectKey, WorkshopContext>({
+  name: "WorkshopAssembly", description: "Read the whole saved assembly at one project revision.",
+  input: projectKey, args: { projectId }, output: new GraphQLNonNull(assemblyResult),
+  run: async (context, { projectId }) => {
+    const { revision, assembly } = await getWorkshopProject(context.db(), projectId);
+    return { projectId, revision, assembly };
+  },
+});
+
+const resolvedAssembly = mutationField<typeof AssemblyReferenceSchema, WorkshopContext>({
+  name: "ResolvedWorkshopAssembly", description: "Expand source revisions and configurations for a read-only CAD, BOM and power view.",
+  input: AssemblyReferenceSchema, output: new GraphQLNonNull(JSONScalar),
+  run: (context,input) => resolvedProject(context.db(),input),
+});
+resolvedAssembly.extensions = { completeResult: true };
+
 // Workshop's writes that fit a document: every member starts, describes, links and deletes
 // projects, saves the product structure, removes and publishes design concepts and keeps the
 // inventory, as on the page; starting design work (startWorkshopDesign) is the design form's
@@ -54,6 +84,9 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
+      name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
+    }),
     acceptCreativeHandoff:mutationField<typeof creativeHandoffInput,WorkshopContext>({name:'AcceptCreativeHandoff',description:'Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.',input:creativeHandoffInput,run:acceptCreativeHandoff}),
     attachCreativeResult:mutationField<typeof resultInput,WorkshopContext>({name:'AttachCreativeResult',description:'Link a reviewed result candidate back to its design request; no manufacturing approval is implied.',input:resultInput,run:attachCreativeResult}),
     requestWorkshopBuild: mutationField<typeof requestBuildInput, WorkshopContext>({name:"RequestWorkshopBuild",description:"Request a project workspace build and preserve revision provenance.",input:requestBuildInput,run:requestBuild}),
@@ -82,6 +115,15 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       description: "Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.",
       input: describeInput, output: row,
       run: async (context, input) => workshopProjectRow(context.db(), (await describeWorkshopProject(context.db(), context.identity, input)).id),
+    }),
+    updateWorkshopAssembly: mutationField<typeof assemblyUpdate, WorkshopContext>({
+      name: "UpdateWorkshopAssembly", description: "Replace the complete assembly at the observed project revision.",
+      input: assemblyUpdate, output: new GraphQLNonNull(assemblyReceipt),
+      args: { projectId, expectedRevision: revision, assembly: { type: new GraphQLNonNull(zodInputType(AssemblySchema, "WorkshopAssemblyInput")) } },
+      run: async (context, { projectId, expectedRevision, assembly }) => {
+        const saved = await saveWorkshopAssembly(context.db(), context.identity, { id: projectId, revision: expectedRevision, assembly });
+        return { projectId, revision: saved.revision };
+      },
     }),
     saveWorkshopAssembly: mutationField<typeof assemblyInput, WorkshopContext>({
       name: "SaveWorkshopAssembly",
@@ -130,8 +172,9 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
 
 /** What this app serves over graph.graphql and graph.mutate (printed to graph/schema.graphql
  * by scripts/graph-schema.ts): its projects as the project list shows them, with the Wiki
- * ProductRevision each builds (filter by `productRevisionId`) and, per project, its model
- * (read.ts), its inventory of physical units, and the writes its documents (documents.ts) run. */
+ * ProductRevision each builds (filter by `productRevisionId`), its inventory of physical
+ * units, and the writes its documents (documents.ts) run. The project document in `data`
+ * (models, CAD plans, evidence) is not served. */
 /** One project's persisted handoff: what a caller wrote with the documents above, read back whole. */
 const handoffInput = z.strictObject({ id: z.uuid() });
 const handoff = mutationField<typeof handoffInput, WorkshopContext>({
@@ -154,7 +197,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

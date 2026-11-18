@@ -1,5 +1,5 @@
 export { graphChangeReceipts } from "@ai-outfitter/app-sdk/batch-receipts";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Workshop projects in the installation's own database. `data` is the whole
 // project document (src/lib/project.ts); the other columns serve listing and
@@ -55,3 +55,7 @@ export const workshopUnits = sqliteTable(
   },
   (t) => [index("workshop_units_part_idx").on(t.partNumber)],
 );
+
+export const workshopAssemblyRevisions = sqliteTable("workshop_assembly_revisions", {
+  projectId: text().notNull(), revision: integer().notNull(), data: text().notNull(),
+}, t => [primaryKey({columns:[t.projectId,t.revision]})]);

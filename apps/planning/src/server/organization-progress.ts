@@ -285,35 +285,21 @@ async function deliveryDocumentEdges(
   documentsType: string,
 ) {
   const edges = database.collection("edges");
-  const ids = new Set<string>();
-  const documentEdges: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await edges.list({
-      where: {
-        typeId: documentsType,
-        toId: organization.ref.id,
-        archived: false,
-      },
-      select: ["typeId", "fromId", "toId", "archived"],
-      offset,
-      limit: 100,
-    });
-    for (const edge of page)
-      if (
-        active(edge) &&
-        edge.attributes.typeId === documentsType &&
-        edge.attributes.toId === organization.ref.id
-      ) {
-        ids.add(String(edge.attributes.fromId));
-        documentEdges.push(edge);
-      }
-    if (ids.size > 1000)
-      throw new Response(
-        "Organization delivery context exceeds its read bound",
-        { status: 413 },
-      );
-    if (page.length < 100) break;
-  }
+  // The Wiki filters by type, target and archived; nothing is re-checked here.
+  const documentEdges: EntityRecord[] = await edges.all({
+    where: {
+      typeId: documentsType,
+      toId: organization.ref.id,
+      archived: false,
+    },
+    select: ["typeId", "fromId", "toId", "archived"],
+  }, 1100);
+  const ids = new Set(documentEdges.map((edge) => String(edge.attributes.fromId)));
+  if (ids.size > 1000)
+    throw new Response(
+      "Organization delivery context exceeds its read bound",
+      { status: 413 },
+    );
   return { ids, documentEdges };
 }
 
@@ -335,23 +321,10 @@ export async function readOrganizationProgress(
     documentsType,
   );
   const cached = new Map(graph.nodes.map((record) => [record.ref.id, record]));
-  const documents: EntityRecord[] = [];
-  const pending = [...ids];
-  for (let offset = 0; offset < pending.length; offset += 8) {
-    const records = await Promise.all(
-      pending.slice(offset, offset + 8).map(async (id) => {
-        if (cached.has(id)) return cached.get(id);
-        try {
-          return await database.collection("nodes").get(id);
-        } catch (error) {
-          if (error instanceof Response && error.status === 404)
-            return undefined;
-          throw error;
-        }
-      }),
-    );
-    for (const record of records) if (record) documents.push(record);
-  }
+  const nodes = database.collection("nodes");
+  const documents = (await Promise.all(
+    [...ids].map((id) => cached.get(id) ?? nodes.load(id)),
+  )).filter((record) => !!record);
   return organizationProgressView(
     { ...graph, edges: [...graph.edges, ...documentEdges] },
     identity,

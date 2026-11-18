@@ -63,12 +63,11 @@ function fakeHost(options: { search?: (query: string) => unknown; written?: unkn
       return { results };
     }
     if (op === "inference.generate") return { output: options.written ?? { summary: "One open studio.", sections: [{ topic: "artist events", items: [{ title: "Open studio", detail: "Visit.", url: "https://example.org/open-studio" }] }] } };
-    if (op === "actions.list") return [{ installationId: "personal-wiki", actions: [{ name: "graph.describe", access: "read", permitted: true }] }];
-    if (op === "actions.call" && args.installationId === "personal-wiki") {
-      if (args.action === "graph.describe") return { version: 1, contracts: [{ id: "outfitter.wiki-documents", version: 1 }], capabilities: ["documents"], types: [], queryAction: "graph.graphql" };
+    // The platform finds the owner's Wiki from its package name.
+    if (op === "actions.call" && args.template === "wiki-map") {
       const { query, variables } = args.input;
-      if (query.includes("ResearchReportPage")) return { data: { page: stored.has(variables.slug) ? { documentId: stored.get(variables.slug)!.id } : null } };
-      if (query.includes("ResearchReportDraft")) return { data: { document: [...stored.values()].find(row => row.id === variables.id) } };
+      if (query.includes("SavedPages")) return { data: Object.fromEntries(Object.entries(variables as Record<string, string>).map(([name, slug]) =>
+        [`p${name.slice(1)}`, stored.has(slug) ? { document: { ...stored.get(slug), installationId: "personal-wiki" } } : null])) };
       if (query.includes("SaveGeneratedDocument")) {
         const write = variables.input, slug = write.slug ?? [...stored].find(([, row]) => row.id === write.id)![0];
         const value = { id: "doc", revision: (stored.get(slug)?.revision ?? 0) + 1, generatedBody: write.generatedBody, archived: false };

@@ -16,7 +16,7 @@ try {
   if (demo) model = demoProjectReleases(projectId);
   else {
     const identity = requestIdentity(Astro.request);
-    model = await readProjectReleases(workflowHost<"interactive">(Astro.locals), identity.installationId, projectId);
+    model = await readProjectReleases(workflowHost<"interactive">(Astro.locals), identity.installationId, projectId, "release");
   }
 } catch (failure) {
   if (failure instanceof Response && [401, 403].includes(failure.status)) throw failure;

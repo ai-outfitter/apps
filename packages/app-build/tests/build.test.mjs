@@ -1,10 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,readFile,rm,mkdir,symlink} from 'node:fs/promises';
+import {mkdtemp,writeFile,readFile,rm,mkdir,symlink,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-import {buildApp} from '../src/build.mjs';
+import {buildApp,appDependencies} from '../src/build.mjs';
 import {createHash} from 'node:crypto';
+import semver from 'semver';
 import {catalogContractModule} from '../src/catalog-metadata.mjs';
 
 test('packages both modes outside dist, preserves migrations, and produces a read-only demo',async()=>{
@@ -48,4 +49,26 @@ test('packages both modes outside dist, preserves migrations, and produces a rea
   assert.deepEqual(fresh.manifest.database.baselines,[{name:'0000_sample_baseline',sql:baselineSql,replaces:['0000_sample']}]);
   await assert.rejects(buildApp(root,{mode:'invalid'}),/supported app modes/);
  } finally {await rm(root,{recursive:true,force:true});}
+});
+
+test('a manifest lists its dependencies or maps each to the semver range it needs',()=>{
+ assert.deepEqual(appDependencies(),{dependencies:[]});
+ assert.deepEqual(appDependencies(['onto']),{dependencies:['onto']});
+ assert.deepEqual(appDependencies({onto:'*','wiki-map':'>=0.1.5'}),{dependencies:['onto','wiki-map'],dependencyRanges:{'wiki-map':'>=0.1.5'}});
+ for(const invalid of [{'wiki-map':'newest'},{'Wiki Map':'*'},['onto','onto'],['wiki-map@1']]) assert.throws(()=>appDependencies(invalid));
+});
+
+test('each declared range admits a release of the dependency this repository can make',async()=>{
+ // A range no coming version could meet would hold the app's updates forever.
+ const root=resolve('../../apps'),apps=new Map();
+ for(const name of await readdir(root)) {
+  const app=JSON.parse(await readFile(join(root,name,'app.json'),'utf8').catch(()=>'null'));
+  if(app) apps.set(app.id.split('/').pop(),app);
+ }
+ for(const [slug,app] of apps) for(const [dependency,range] of Object.entries(appDependencies(app.dependencies).dependencyRanges ?? {})) {
+  // An app from another repository is checked by the platform alone.
+  assert.ok(apps.has(dependency),`${slug} states a range for ${dependency}, which this repository cannot check`);
+  const current=apps.get(dependency).version;
+  assert.ok([current,semver.inc(current,'patch'),semver.inc(current,'minor')].some(version=>semver.satisfies(version,range)),`${slug} needs ${dependency} ${range}, beyond the next release after ${current}`);
+ }
 });

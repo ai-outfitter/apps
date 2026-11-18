@@ -1,17 +1,24 @@
 // Record-level rules the generated resolvers share: visibility (graph.query's
 // archived/retired rules), validity at a time, traversal and paging.
-import { defaultFieldResolver, type GraphQLField, GraphQLError, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, responsePathAsArray } from "graphql";
-import { type ArchivedFilter, compareIds, type EdgeRow, type GraphLoader, graphLoader, type GraphRow, type GraphSource, visible } from "./graph-graphql-source";
+import {
+  defaultFieldResolver, getDirectiveValues, type GraphQLField, GraphQLError, GraphQLIncludeDirective, type GraphQLNamedType, GraphQLObjectType, type GraphQLResolveInfo, GraphQLSkipDirective, Kind,
+  responsePathAsArray, type SelectionNode, type SelectionSetNode,
+} from "graphql";
+import { type ArchivedFilter, type EdgeRow, type GraphLoader, graphLoader, type GraphSource, type Keyset, validAt, validFrom, validUntil, visible } from "./graph-graphql-source";
+import { checkFilter, type FilterFields, filterConditions, type RecordFilter } from "./graph-filter";
+import { keysetCursor, type OrderName, readKeyset } from "./graph-order";
 
-export { visible };
+export { validAt, validFrom, validUntil, visible };
 export type GraphContext = {
   loader: GraphLoader;
   /** Lists stop at `maxRecords` and report the cut; execution stops past `maxFields`
    * resolved fields or `maxBytes` of resolved strings (aliases multiply work). */
   budget: { records: number; maxRecords: number; fields: number; maxFields: number; bytes: number; maxBytes: number; exceeded: boolean };
   truncated: (string | number)[][];
-  /** Each connection page by response path (where it started, its record IDs), so a cut page can continue. */
-  pages: Map<string, { after: string | null; ids: string[] }>;
+  /** Response paths whose contents must survive byte-budget fitting intact. */
+  completeFields?: Set<string>;
+  /** Each connection page by response path (the cursor it started after, each record's cursor), so a cut page can continue. */
+  pages: Map<string, { after: string | null; cursors: string[] }>;
   [key: string]: unknown;
 };
 export type GraphBudget = { maxRecords?: number; maxFields?: number; maxBytes?: number };
@@ -20,21 +27,6 @@ export function graphContext(source: GraphSource, extra: Record<string, unknown>
 }
 export const pathKey = (path: GraphQLResolveInfo["path"] | (string | number)[]) => JSON.stringify(Array.isArray(path) ? path : responsePathAsArray(path));
 
-const field = (row: GraphRow, key: string) => (row.properties as Record<string, unknown> | null | undefined)?.[key];
-/** Validity columns win; otherwise the conventional property names. */
-export function validFrom(row: GraphRow) {
-  const validity = row.validity as { from?: string | null } | null | undefined;
-  return validity?.from ?? field(row, "valid_from") ?? field(row, "validFrom") ?? null;
-}
-export function validUntil(row: GraphRow) {
-  const validity = row.validity as { to?: string | null } | null | undefined;
-  return validity?.to ?? field(row, "valid_until") ?? field(row, "validUntil") ?? field(row, "valid_to") ?? null;
-}
-export function validAt(row: GraphRow, at: string | undefined) {
-  if (!at) return true;
-  const time = Date.parse(at), from = validFrom(row), until = validUntil(row);
-  return (from == null || Date.parse(String(from)) <= time) && (until == null || time < Date.parse(String(until)));
-}
 
 /** Spend the record budget; a list past it is cut and its path reported. */
 export function take<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[]) {
@@ -62,38 +54,71 @@ export async function traverse(context: GraphContext, nodeId: string, edgeTypeId
   });
 }
 
-export const cursorOf = (id: string) => btoa(encodeURIComponent(id)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-function decode(cursor: string) {
-  try { return decodeURIComponent(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))); }
-  catch { throw badInput("Invalid cursor"); }
-}
 const badInput = (message: string) => new GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 /** At most 200 IDs (or slugs) per argument, as graph.query takes. */
 export function idList(ids: string[] | null | undefined, name = "ids") {
   if (ids && ids.length > 200) throw badInput(`${name} takes at most 200 ${name === "ids" ? "IDs" : name}`);
   return ids ?? undefined;
 }
+/** A `filter` argument checked against the fields it may name (BAD_USER_INPUT otherwise); nothing when it holds no condition. */
+export function checkedFilter(filter: unknown, fields: FilterFields): { filter?: RecordFilter } {
+  if (filter === null || filter === undefined) return {};
+  try { checkFilter(filter, fields); }
+  catch (error) { throw badInput(error instanceof Error ? error.message : "Invalid filter"); }
+  return filterConditions(filter) ? { filter } : {};
+}
 export type PageArgs = { first?: number | null; after?: string | null };
-/** The page size (default 100, at most 500) and the ID the page starts after. */
+export type OrderedPageArgs = PageArgs & { orderBy?: OrderName | null };
+/** Where a page ordered by `orderBy` resumes: its cursor's record (BAD_USER_INPUT unless the cursor names this order). */
+const pageAfter = (orderBy: string, after: string | null | undefined) => (after ? readKeyset(orderBy, after, badInput) : null);
+const idKey = (id: string): Keyset => ({ value: id, id });
+/** The page size (default 100, at most 500) and, for a page in ID order, the ID it starts after. */
 export function pageStart({ first, after }: PageArgs) {
   const size = first ?? 100;
   if (size < 0 || size > 500) throw badInput("first must be between 0 and 500");
-  return { first: size, start: after ? decode(after) : null };
+  return { first: size, start: pageAfter("ID_ASC", after)?.id ?? null };
 }
-/** The first `first` of the ID-ordered `rows` after `start`, noted for fitResponse to continue. */
-export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null) {
-  const nodes = take(context, info, rows.slice(0, first));
-  const ids = nodes.map(idOf);
-  context.pages.set(pathKey(info.path), { after: start, ids });
-  const last = ids.at(-1);
-  return { nodes, pageInfo: { endCursor: last ? cursorOf(last) : null, hasNextPage: rows.length > nodes.length } };
+/** The page an ordered connection reads: its order by name (a graph order, or one an app's table declares; ID_ASC when
+ * none is given), its size and the record it resumes after. */
+export function orderedStart<Name extends string = OrderName>(args: PageArgs & { orderBy?: Name | null }) {
+  const orderBy = args.orderBy ?? ("ID_ASC" as Name);
+  return { orderBy, first: pageStart({ first: args.first }).first, after: pageAfter(orderBy, args.after) };
 }
-/** ID-ordered page of a connection; counts everything that matched. */
-export function connection(context: GraphContext, info: GraphQLResolveInfo, rows: GraphRow[], args: PageArgs) {
-  const { first, start } = pageStart(args);
-  const unique = [...new Map(rows.map(row => [row.id, row])).values()].sort((a, b) => compareIds(a.id, b.id));
-  const rest = start === null ? unique : unique.filter(row => row.id > start);
-  return { ...page(context, info, rest, row => row.id, first, start), aggregate: { count: unique.length } };
+/** A Relay connection over the ordered `rows` a source read: `nodes`, the same records as `edges` with each one's cursor,
+ * `pageInfo` and `totalCount` (`count` runs only when it is selected). More follow when `rows` hold one past the page
+ * (a table read with LIMIT first + 1) or the source said so (`more`, a GraphSource page's hasNextPage).
+ * Paging is forward only, so a page has a previous one exactly when it started after a cursor. Noted for fitResponse to
+ * continue from any record kept. */
+export function orderedPage<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], key: (row: T) => Keyset, start: { orderBy: string; first: number },
+  after: string | null | undefined, count: () => number | Promise<number>, more = false) {
+  const nodes = take(context, info, rows.slice(0, start.first));
+  const cursors = nodes.map(row => keysetCursor(start.orderBy, key(row)));
+  context.pages.set(pathKey(info.path), { after: after ?? null, cursors });
+  return {
+    nodes, edges: nodes.map((node, index) => ({ cursor: cursors[index], node })),
+    pageInfo: { hasNextPage: more || rows.length > nodes.length, hasPreviousPage: !!after, startCursor: cursors[0] ?? null, endCursor: cursors.at(-1) ?? null },
+    totalCount: count,
+  };
+}
+/** Whether the field being resolved selects `name` directly (through fragments too, and not under a @skip or @include that
+ * leaves it out of this request): what a resolver may read ahead for. */
+export function selects(info: GraphQLResolveInfo, name: string) {
+  const left = (node: SelectionNode) => getDirectiveValues(GraphQLSkipDirective, node, info.variableValues)?.if === true
+    || getDirectiveValues(GraphQLIncludeDirective, node, info.variableValues)?.if === false;
+  const within = (set: SelectionSetNode | undefined, seen: Set<string>): boolean => !!set?.selections.some(node => {
+    if (left(node)) return false;
+    if (node.kind === Kind.FIELD) return node.name.value === name;
+    if (node.kind === Kind.INLINE_FRAGMENT) return within(node.selectionSet, seen);
+    if (seen.has(node.name.value)) return false;
+    seen.add(node.name.value);
+    return within(info.fragments[node.name.value]?.selectionSet, seen);
+  });
+  return info.fieldNodes.some(node => within(node.selectionSet, new Set()));
+}
+/** A connection over the ID-ordered `rows` after `start` (one past the page, or `more` when their reader was told more
+ * follow), for a collection written by hand. */
+export function page<T>(context: GraphContext, info: GraphQLResolveInfo, rows: T[], idOf: (row: T) => string, first: number, start: string | null, count: () => number | Promise<number>, more = false) {
+  return orderedPage(context, info, rows, row => idKey(idOf(row)), { orderBy: "ID_ASC", first }, start === null ? null : keysetCursor("ID_ASC", idKey(start)), count, more);
 }
 
 export const responseTooLarge = () => new GraphQLError("The query resolves more than this request may return; select fewer fields, aliases or records", { extensions: { code: "RESPONSE_TOO_LARGE" } });
@@ -117,6 +142,10 @@ export function meterFields(types: Iterable<GraphQLNamedType>) {
         const budget = (context as Partial<GraphContext> | undefined)?.budget;
         // Past the budget nothing more resolves; the request answers RESPONSE_TOO_LARGE.
         if (budget && !spend(budget, 1, 0)) return null;
+        if (budget && field.extensions.completeResult) {
+          const graph = context as GraphContext;
+          (graph.completeFields ??= new Set()).add(pathKey(info.path));
+        }
         const value = inner(source, args, context, info);
         if (budget && typeof value === "string" && !spend(budget, 0, value.length)) return null;
         return value;
@@ -128,6 +157,5 @@ export function meterFields(types: Iterable<GraphQLNamedType>) {
 /** The cursor after the first `kept` records of the page at `path`. */
 export function cursorAfter(context: GraphContext, path: (string | number)[], kept: number) {
   const page = context.pages.get(pathKey(path));
-  const id = kept ? page?.ids[kept - 1] : page?.after;
-  return id ? cursorOf(id) : null;
+  return (kept ? page?.cursors[kept - 1] : page?.after) ?? null;
 }

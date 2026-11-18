@@ -1,0 +1,31 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {writeFile,readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const [base,dir,projectSlug,cdp='http://127.0.0.1:9237']=process.argv.slice(2);if(!base||!dir||!projectSlug)throw Error('Supply Workshop URL, package directory, project slug and optional CDP URL');
+const review=JSON.parse(await readFile(dir+'/pcb-review.json','utf8'));
+const b=await chromium.connectOverCDP(cdp);const p=await b.contexts()[0].newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+await p.setViewportSize({width:1550,height:1100});
+const root='/projects/'+projectSlug;
+const response=await p.goto(base+root);assert.equal(response.status(),200);
+await p.waitForSelector('#pcb-canvas[data-ready=true]',{timeout:60000});
+assert.equal(await p.locator('#pcb-canvas canvas').count(),1);assert.equal(await p.locator('#pcb-facts dt').count(),4);assert.equal(await p.locator('#pcb-rows tr').count(),review.components);
+await p.locator('#pcb-search').fill(review.parts[0].Reference);await p.locator('#pcb-rows button').first().click();assert((await p.locator('#pcb-selection').innerText()).includes(review.parts[0].MPN));await p.locator('#pcb-search').fill('');
+await p.getByRole('button',{name:'Top',exact:true}).click();await p.locator('#pcb-title').scrollIntoViewIfNeeded();await p.screenshot({path:dir+'/evidence/top.png'});await p.getByRole('button',{name:'Perspective',exact:true}).click();await p.locator('#pcb-title').scrollIntoViewIfNeeded();await p.screenshot({path:dir+'/evidence/workshop.png'});
+const manifest=JSON.parse(await readFile(dir+'/manifest.json','utf8'));const links=await p.locator('#pcb-downloads a').evaluateAll(xs=>xs.map(a=>a.href));
+for(const url of links){console.log("Verify download",url.split("/").at(-1));const r=await fetch(url);assert.equal(r.status,200);const bytes=Buffer.from(await r.arrayBuffer());const a=manifest.artifacts.find(a=>url.endsWith(a.path));assert(a);assert.equal(createHash('sha256').update(bytes).digest('hex'),a.sha256);}
+assert((await p.locator("#pcb-provenance").innerText()).includes(manifest.sourceHash.slice(0,12)));
+console.log("Verify package");const bundle=await fetch(await p.locator('#pcb-bundle').evaluate(a=>a.href));assert.equal(bundle.status,200);const zipped=Buffer.from(await bundle.arrayBuffer());assert.equal(zipped.subarray(0,2).toString(),'PK');await writeFile(dir+'/engineering-package.zip',zipped);
+await p.setViewportSize({width:390,height:844});await p.reload();await p.waitForSelector('#pcb-canvas[data-ready=true]');await p.screenshot({path:dir+'/evidence/mobile.png'});assert.equal(await p.locator('#pcb-canvas canvas').count(),1);assert.deepEqual(errors,[]);
+await p.setViewportSize({width:1550,height:1100});
+// Leave while the GLB fetch is held, then return. A late response must not attach a second viewer.
+let releaseModel;const gate=new Promise(resolve=>{releaseModel=resolve;});let sawModel;
+const modelRequested=new Promise(resolve=>{sawModel=resolve;});
+await p.route('**/*.glb',async route=>{sawModel();await gate;try{await route.continue();}catch{}});
+await p.reload({waitUntil:"domcontentloaded"});await modelRequested;
+await p.getByRole('link',{name:'Models',exact:true}).click();
+await p.waitForURL('**/models');releaseModel();await p.unroute('**/*.glb');
+await p.getByRole('link',{name:'PCB',exact:true}).click();
+await p.waitForSelector('#pcb-canvas[data-ready=true]',{timeout:60000});
+assert.equal(await p.locator('#pcb-canvas canvas').count(),1);assert.deepEqual(errors,[]);
+const result={rootRouteStatus:response.status(),actualWebGL:true,canvases:1,bomRows:review.components,searchAndSelection:'pass',navigationDuringModelLoad:'pass',downloadHashesVerified:links.length,packageBytes:zipped.length,pageErrors:errors,limits:'Local Workshop installation; does not establish hosted deployment or supplier quote.'};await writeFile(dir+'/evidence/browser-check.json',JSON.stringify(result,null,2)+'\n');console.log(result);await p.close();await b.close();

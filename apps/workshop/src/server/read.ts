@@ -1,18 +1,16 @@
 // Workshop's projects as agents and pages read them: one typed record per project with its
-// stage, brief and requirements, and (opened by slug) its whole model: the product structure,
-// the indented BOM with cost, the workspace builds with their tests and artifacts, bench
-// evidence, research and concepts. The list reads only columns and a few JSON paths; the
-// project document is loaded once per project and request, and only when a model field is
-// selected. Image bytes, CAD source and build files stay behind the app's routes.
-import { and, eq, inArray, like, or, sql } from "drizzle-orm";
+// slug, stage, brief and requirements, and (opened by slug) its workspace builds with their
+// tests and artifacts, bench evidence, research and concepts. The model itself (CAD, BOM,
+// power, build price) is ResolvedWorkshopAssembly's. The list reads columns and a few JSON
+// paths; the project document is loaded once per project and request, only when a field
+// needs it. Image bytes, CAD source and build files stay behind the app's routes.
+import { eq, like, or, sql } from "drizzle-orm";
 import {
   GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldConfigMap, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType,
   type GraphQLOutputType, GraphQLString,
 } from "graphql";
-import { connectionType, idList, page, pageArgs, type PageArgs, pageStart, type TableContext } from "@ai-outfitter/app-sdk/app-graphql";
+import { connectionType, idList, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
-import { planBounds } from "../model/cad-plan";
-import { type Assembly, bomRows, bomTotals, type Item } from "../lib/assembly";
 import { type Project, ProjectSchema } from "../lib/project";
 import { projectSlug } from "../lib/sections";
 import type { WorkshopDatabase } from "./projects";
@@ -24,7 +22,7 @@ const database = (context: Context) => context.db() as WorkshopDatabase;
 export type ProjectSource = {
   id: string; name: string; revision: number; wikiInstallationId: string | null; productRevisionId: string | null; productRevisionTitle: string | null;
   createdBy: string; updatedBy: string; createdAt: string; updatedAt: string;
-  data?: string; phase?: string; kind?: string; brief?: string; requirements?: string;
+  data?: string;
 };
 
 const nn = <T extends GraphQLOutputType>(type: T) => new GraphQLNonNull(type);
@@ -32,7 +30,6 @@ const list = <T extends GraphQLOutputType>(type: T) => nn(new GraphQLList(nn(typ
 const str = { type: nn(GraphQLString) };
 const optStr = { type: GraphQLString };
 const num = { type: nn(GraphQLFloat) };
-const vector = { type: list(GraphQLFloat) };
 
 // One project document per project and request, however many fields read it.
 const loaded = new WeakMap<object, Map<string, Promise<Project>>>();
@@ -52,83 +49,30 @@ async function projectOf(source: ProjectSource, context: Context): Promise<Proje
 /** A field read from the project document. */
 const fromProject = <T>(type: GraphQLOutputType, read: (project: Project) => T, description?: string): GraphQLFieldConfig<ProjectSource, Context> =>
   ({ type, description, resolve: async (source, _args, context) => read(await projectOf(source, context)) });
-/** A field the list selects as a JSON path, read from the document when a mutation answers the whole row. */
-const listed = (key: "phase" | "kind" | "brief" | "requirements", description: string): GraphQLFieldConfig<ProjectSource, Context> =>
-  ({ type: nn(GraphQLString), description, resolve: async (source, _args, context) => source[key] ?? (await projectOf(source, context))[key] });
+// The list's words (stage, kind, brief, requirements) per project and request, read as JSON paths, not the whole document.
+const summaries = new WeakMap<object, Map<string, Promise<Record<Summary, string>>>>();
+type Summary = "phase" | "kind" | "brief" | "requirements";
+const path = (key: Summary) => sql<string>`coalesce(json_extract(${workshopProjects.data}, ${`$.${key}`}), ${key === "phase" ? "concept" : ""})`;
+function summaryOf(source: ProjectSource, context: Context) {
+  if (source.data !== undefined) return projectOf(source, context);
+  const cache = summaries.get(context) ?? new Map<string, Promise<Record<Summary, string>>>();
+  summaries.set(context, cache);
+  let summary = cache.get(source.id);
+  if (!summary) {
+    // Projects saved before stages existed have none: they are concepts.
+    summary = database(context).select({ phase: path("phase"), kind: path("kind"), brief: path("brief"), requirements: path("requirements") })
+      .from(workshopProjects).where(eq(workshopProjects.id, source.id)).then(([row]) => row ?? { phase: "concept", kind: "", brief: "", requirements: "" });
+    cache.set(source.id, summary);
+  }
+  return summary;
+}
+const listed = (key: Summary, description: string): GraphQLFieldConfig<ProjectSource, Context> =>
+  ({ type: nn(GraphQLString), description, resolve: async (source, _args, context) => (await summaryOf(source, context))[key] });
 
 const ProductRevisionType = new GraphQLObjectType({
   name: "WorkshopProductRevision",
   description: "The Wiki ProductRevision a project builds.",
   fields: { id: { type: nn(GraphQLID) }, title: str, url: str, wikiInstallationId: optStr },
-});
-const FirmwareType = new GraphQLObjectType({
-  name: "WorkshopFirmware",
-  fields: { repository: str, path: str, ref: { ...str, description: "The tag, branch or commit a build flashes." }, target: { ...str, description: "The chip target, such as esp32s3." } },
-});
-const UsageType = new GraphQLObjectType<Assembly["items"][number]["uses"][number] & { part: string }>({
-  name: "WorkshopUsage",
-  description: "A usage line: how many of an item an assembly holds, where and under which reference designator.",
-  fields: {
-    part: { ...str, description: "The contained item's part number." },
-    quantity: { type: nn(GraphQLInt) },
-    refdes: str,
-    position: { ...vector, description: "[x, y, z] in mm in the parent assembly." },
-    rotation: { ...num, description: "Turn about the parent's Z axis, in degrees." },
-    orientation: { type: new GraphQLList(nn(GraphQLFloat)), description: "[x, y, z] Euler angles in degrees, when set instead of rotation." },
-  },
-});
-const ItemType = new GraphQLObjectType<Item & { byId: Map<string, Item> }>({
-  name: "WorkshopItem",
-  description: "One item of the product structure: an assembly, printed or fabricated part, COTS part, PCB or firmware.",
-  fields: {
-    number: { ...str, description: "The part number, unique in the project." },
-    revision: { ...str, description: "The revision letter." },
-    name: str,
-    kind: { ...str, description: "assembly, printed, fabricated, cots, pcb or firmware." },
-    manufacturer: str, mpn: str, source: str,
-    unitCost: num,
-    priceKnown: { type: nn(GraphQLBoolean) },
-    provenance: { ...str, description: "provisional, manufacturer or measured: how far the dimensions and data can be trusted." },
-    trackBy: { ...str, description: "none, mac or serial: how the inventory tells units apart." },
-    color: optStr,
-    notes: str,
-    size: { type: new GraphQLList(nn(GraphQLFloat)), description: "[x, y, z] extent of the item's geometry or mesh in mm; none for items without a solid.",
-      resolve: (item) => item.mesh ? item.mesh.bounds.max.map((max, axis) => max - item.mesh!.bounds.min[axis]) : item.geometry ? planBounds(item.geometry).size : null },
-    geometry: { type: JSONScalar, description: "The CAD plan (features in the item's own coordinates, mm). For a COTS part it is an envelope, not the manufacturer's model." },
-    mesh: { type: optStr.type, description: "The build artifact path of the item's mesh, when a workspace build supplied one.", resolve: (item) => item.mesh?.path ?? null },
-    firmware: { type: FirmwareType },
-    uses: { type: list(UsageType), resolve: (item) => item.uses.map((use) => ({ ...use, part: item.byId.get(use.itemId)?.number ?? "" })) },
-  },
-});
-const AssemblyType = new GraphQLObjectType<Assembly>({
-  name: "WorkshopAssembly",
-  fields: {
-    root: { type: GraphQLString, description: "The top assembly's part number.", resolve: (a) => a.items.find((item) => item.id === a.rootId)?.number ?? null },
-    items: { type: list(ItemType), resolve: (a) => { const byId = new Map(a.items.map((item) => [item.id, item])); return a.items.map((item) => ({ ...item, byId })); } },
-  },
-});
-const BomLine = new GraphQLObjectType<ReturnType<typeof bomRows>[number]>({
-  name: "WorkshopBomLine",
-  description: "One line of the indented BOM, from the top assembly down.",
-  fields: {
-    depth: { type: nn(GraphQLInt), description: "0 for the top assembly." },
-    part: { ...str, resolve: (row) => row.item.number },
-    revision: { ...str, resolve: (row) => row.item.revision },
-    name: { ...str, resolve: (row) => row.item.name },
-    kind: { ...str, resolve: (row) => row.item.kind },
-    quantity: { type: nn(GraphQLInt), description: "Units per one top assembly." },
-    refdes: str,
-    unitCost: { ...num, resolve: (row) => row.item.unitCost },
-    priceKnown: { type: nn(GraphQLBoolean), resolve: (row) => row.item.priceKnown },
-  },
-});
-const BomType = new GraphQLObjectType<Assembly>({
-  name: "WorkshopBom",
-  fields: {
-    lines: { type: list(BomLine), resolve: (a) => bomRows(a) },
-    cost: { ...num, description: "Cost of one top assembly from unit costs, known or not.", resolve: (a) => bomTotals(a).cost },
-    pricesKnown: { type: nn(GraphQLBoolean), description: "Whether every line below the top has a known price.", resolve: (a) => bomTotals(a).lines.every((line) => line.item.priceKnown) },
-  },
 });
 type Request = NonNullable<Project["workspace"]>["requests"][number] & { current: boolean };
 const BuildTest = new GraphQLObjectType({ name: "WorkshopBuildTest", fields: { name: str, status: { ...str, description: "pass, fail or unverified." }, detail: str } });
@@ -148,8 +92,6 @@ const BuildType = new GraphQLObjectType<Request>({
     compiler: { type: GraphQLString, resolve: (b) => b.result?.manifest?.compiler ?? null },
     error: { type: GraphQLString, resolve: (b) => b.result?.error ?? null },
     tests: { type: list(BuildTest), resolve: (b) => b.result?.manifest?.tests ?? [] },
-    assembly: { type: AssemblyType, description: "The product structure the build produced, with meshes, when it succeeded.", resolve: (b) => b.result?.manifest?.assembly ?? null },
-    bom: { type: BomType, description: "The BOM of the built assembly.", resolve: (b) => b.result?.manifest?.assembly ?? null },
     artifacts: { type: list(BuildArtifact), resolve: (b) => b.result?.manifest?.artifacts ?? [] },
   },
 });
@@ -186,8 +128,6 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
     createdAt: { type: nn(DateTimeScalar) }, updatedAt: { type: nn(DateTimeScalar) },
     measurementNotes: fromProject(nn(GraphQLString), (p) => p.measurementNotes, "What was measured and what is still assumed."),
     circuitNotes: fromProject(nn(GraphQLString), (p) => p.circuitNotes),
-    assembly: fromProject(nn(AssemblyType), (p) => p.assembly, "The saved product structure: items and the usage lines between them. A workspace build may produce its own (builds.assembly)."),
-    bom: fromProject(nn(BomType), (p) => p.assembly, "The indented BOM and the cost of one top assembly, derived from the assembly."),
     builds: fromProject(list(BuildType), (p) => (p.workspace?.requests ?? []).map((request) => ({ ...request, current: request.id === p.workspace?.currentBuildId })).reverse(), "Workspace builds, newest first, with their tests and artifacts."),
     evidence: fromProject(list(EvidenceType), (p) => p.evidence, "Bench observations, oldest first."),
     research: fromProject(list(ResearchType), (p) => p.research),
@@ -195,53 +135,36 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
   },
 });
 
-const json = (path: string) => sql<string>`coalesce(json_extract(${workshopProjects.data}, ${path}), '')`;
-const listColumns = {
-  id: workshopProjects.id, name: workshopProjects.name, revision: workshopProjects.revision,
-  wikiInstallationId: workshopProjects.wikiInstallationId, productRevisionId: workshopProjects.productRevisionId, productRevisionTitle: workshopProjects.productRevisionTitle,
-  createdBy: workshopProjects.createdBy, updatedBy: workshopProjects.updatedBy, createdAt: workshopProjects.createdAt, updatedAt: workshopProjects.updatedAt,
-  // Projects saved before stages existed have none: they are concepts.
-  phase: sql<string>`coalesce(json_extract(${workshopProjects.data}, '$.phase'), 'concept')`,
-  kind: json("$.kind"), brief: json("$.brief"), requirements: json("$.requirements"),
-};
-/** The 12 hex digits a slug ends with, or a value that matches no project. */
+/** The collection itself is the table's (paging, ids, orderBy, filter, search); its rows resolve as WorkshopProject,
+ * and `slugs` narrows it to the projects those slugs address. */
+const table = tableType(workshopProjects, {
+  field: "workshopProjects", type: "WorkshopProject",
+  fields: ["name", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
+  dates: ["createdAt", "updatedAt"],
+  ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
+  filters: ["createdBy", "productRevisionId"],
+  // workshop_projects_updated_idx.
+  orders: ["updatedAt"],
+}).workshopProjects;
+/** The 12 hex digits a slug (or a whole id) ends with, or a value that matches no project. */
 const slugKey = (slug: string) => /(?:^|-)([0-9a-f]{12})$/.exec(slug.trim().toLowerCase())?.[1] ?? "-";
-const values = (value: unknown) => idList(value as string[] | null | undefined);
-
-type Args = PageArgs & { ids?: string[]; slugs?: string[]; search?: string; phase?: string[]; createdBy?: string[]; productRevisionId?: string[] };
-const projectsField: GraphQLFieldConfig<unknown, Context, Args> = {
-  type: nn(connectionType(WorkshopProject)),
-  description: "Workshop's projects in ID order. Filter by slugs (as the project page addresses them), ids, phase, the Wiki product revision they build or who created them; search matches the name and brief.",
-  args: {
-    ...pageArgs(),
-    slugs: { type: new GraphQLList(nn(GraphQLString)) },
-    search: { type: GraphQLString, description: "Match text in the name and brief." },
-    phase: { type: new GraphQLList(nn(GraphQLString)) },
-    createdBy: { type: new GraphQLList(nn(GraphQLID)) },
-    productRevisionId: { type: new GraphQLList(nn(GraphQLID)) },
-  },
-  resolve: async (_source, args, context, info) => {
-    const { first, start } = pageStart(args);
-    const search = args.search?.trim() ?? "";
-    if (search.length > 200) throw new Error("Search exceeds 200 characters");
-    const ids = values(args.ids), slugs = values(args.slugs), phases = values(args.phase), creators = values(args.createdBy), revisions = values(args.productRevisionId);
-    const where = and(
-      ids ? inArray(workshopProjects.id, ids) : undefined,
-      slugs ? or(...slugs.map((slug) => like(workshopProjects.id, `%${slugKey(slug)}`))) : undefined,
-      phases ? inArray(listColumns.phase, phases) : undefined,
-      creators ? inArray(workshopProjects.createdBy, creators) : undefined,
-      revisions ? inArray(workshopProjects.productRevisionId, revisions) : undefined,
-      search ? or(like(workshopProjects.name, `%${search}%`), like(listColumns.brief, `%${search}%`)) : undefined,
-    );
-    const db = database(context);
-    const rows: ProjectSource[] = await db.select(listColumns).from(workshopProjects)
-      .where(and(where, start === null ? undefined : sql`${workshopProjects.id} > ${start}`)).orderBy(workshopProjects.id).limit(first + 1);
-    return {
-      ...page(context, info, rows, (row) => row.id, first, start),
-      aggregate: { count: async () => (await db.select({ count: sql<number>`count(*)` }).from(workshopProjects).where(where))[0].count },
-    };
-  },
-};
 
 /** The `workshopProjects` root field, as a field map like tableType answers. */
-export const projects: GraphQLFieldConfigMap<unknown, Context> = { workshopProjects: projectsField as GraphQLFieldConfig<unknown, Context> };
+export const projects: GraphQLFieldConfigMap<unknown, Context> = {
+  workshopProjects: {
+    ...table,
+    type: nn(connectionType(WorkshopProject)),
+    args: { ...table.args, slugs: { type: new GraphQLList(nn(GraphQLString)), description: "Projects by slug, as the project page addresses them; a renamed project keeps its old slug." } },
+    resolve: async (source, { slugs, ...args }, context, info) => {
+      const list = idList(slugs as string[] | null | undefined);
+      if (list) {
+        const found = (await database(context).select({ id: workshopProjects.id }).from(workshopProjects)
+          .where(or(...list.map((slug) => like(workshopProjects.id, `%${slugKey(slug)}`))))).map((row) => row.id);
+        const ids = idList(args.ids as string[] | null | undefined);
+        args.ids = ids ? found.filter((id) => ids.includes(id)) : found;
+        if (!(args.ids as string[]).length) args.ids = ["-"];
+      }
+      return table.resolve!(source, args, context, info);
+    },
+  },
+};

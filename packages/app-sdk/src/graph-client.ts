@@ -11,6 +11,7 @@ import {
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { discoverEntityTypes } from "@ai-outfitter/app-sdk/entity-discovery";
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import { type graphQueryInput, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 import {
@@ -137,18 +138,8 @@ function remapFields(fields: SetupRow["fields"], mapped: (id: string) => string)
 }
 /** The ID of the active type with this category and name, when the Wiki has one. */
 async function typeByName(host: Host, installationId: string, fields: SetupRow["fields"]) {
-  for (let offset = 0; offset < 10_000; offset += 100) {
-    const page = await host.call("entities.list", { installationId, type: "graph-type", offset, limit: 100 });
-    const match = page.find(
-      (type) =>
-        !type.attributes.archived &&
-        type.attributes.category === fields.category &&
-        type.attributes.name === fields.name,
-    );
-    if (match) return match.ref.id;
-    if (page.length < 100) return undefined;
-  }
-  return undefined;
+  const { records } = await host.call("entities.list", { installationId, type: "graph-type", filter: { name: String(fields.name), category: fields.category, archived: false }, limit: 1 });
+  return records[0]?.ref.id;
 }
 /** A UUID-shaped ID derived from `parts`: the same parts always name the same record. */
 export async function stableGraphId(...parts: unknown[]) {
@@ -225,20 +216,8 @@ export function wikiAdapter(host: Host, installationId: string) {
     },
     /** Active type IDs by name. */
     async typeIds() {
-      const ids = new Map<string, string>();
-      for (let offset = 0; offset < 10_000; offset += 100) {
-        const page = await host.call("entities.list", {
-          installationId,
-          type: "graph-type",
-          offset,
-          limit: 100,
-        });
-        for (const type of page)
-          if (!type.attributes.archived)
-            ids.set(String(type.attributes.name), type.ref.id);
-        if (page.length < 100) return ids;
-      }
-      throw new Response("Wiki has too many types", { status: 413 });
+      const types = await listEntities(host, { installationId, type: "graph-type", filter: { archived: false } });
+      return new Map(types.map((type) => [String(type.attributes.name), type.ref.id]));
     },
     /**
      * Adds the graph's missing records. A type the Wiki already has under its

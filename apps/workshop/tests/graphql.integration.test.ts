@@ -13,10 +13,10 @@ const member = { userId: "member", organizationId: "org", role: "member" };
 const artifact = () => appArtifact(new URL("..", import.meta.url), "operational");
 const projectsQuery = graphql(`
   query Projects($createdBy: [ID!], $after: String) {
-    workshopProjects(first: 2, createdBy: $createdBy, after: $after) {
+    workshopProjects(first: 2, filter: { createdBy: { in: $createdBy } }, after: $after) {
       nodes { id name revision createdBy updatedAt }
       pageInfo { endCursor hasNextPage }
-      aggregate { count }
+      totalCount
     }
   }
 `);
@@ -38,7 +38,7 @@ test("members read projects over graph.graphql, paged and filtered, without the 
     const page = ((await first.json()) as { data: ResultOf<typeof projectsQuery> }).data.workshopProjects;
     assert.deepEqual(page.nodes.map((node) => [node.id, node.createdBy, node.revision]), [["p-0", "ada", 1], ["p-2", "ada", 3]]);
     assert.equal(page.nodes[0].updatedAt, updated);
-    assert.deepEqual([page.pageInfo.hasNextPage, page.aggregate.count], [true, 3]);
+    assert.deepEqual([page.pageInfo.hasNextPage, page.totalCount], [true, 3]);
     const next = ((await (await call(documentText(projectsQuery), { createdBy: ["ada"], after: page.pageInfo.endCursor })).json()) as { data: ResultOf<typeof projectsQuery> }).data.workshopProjects;
     assert.deepEqual([next.nodes.map((node) => node.id), next.pageInfo.hasNextPage], [["p-4"], false]);
     // The project document (models, CAD plans, evidence) is not in the schema.
@@ -64,7 +64,7 @@ test("a project's Wiki product revision is saved with it and served, filterable,
     await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "holder" } });
     const query = graphql(`
       query Linked($productRevisionId: [ID!]) {
-        workshopProjects(productRevisionId: $productRevisionId) {
+        workshopProjects(filter: { productRevisionId: { in: $productRevisionId } }) {
           nodes { id wikiInstallationId productRevisionId productRevisionTitle }
         }
       }
@@ -83,9 +83,8 @@ test("a project's Wiki product revision is saved with it and served, filterable,
   }
 });
 
-test("agents list projects and open one by slug with its assembly, BOM and builds through the published documents", async () => {
+test("agents list projects and open one by slug through the published documents", async () => {
   const { documents } = await import("../src/server/documents");
-  const { bomTotals } = await import("../src/lib/assembly");
   const { projectSlug } = await import("../src/lib/sections");
   const app = await appWorker("workshop", artifact(), "model-reads");
   try {
@@ -104,7 +103,7 @@ test("agents list projects and open one by slug with its assembly, BOM and build
     const listed = await run("WorkshopProjects", { search: "soil" });
     assert.deepEqual(listed.map(({ name, slug, phase, kind }) => ({ name, slug, phase, kind })),
       [{ name: "SNY-1 soil sensor node", slug: projectSlug(node), phase: "concept", kind: "electronics" }]);
-    assert.equal((await run("WorkshopProjects", { phase: ["manufacturing"] })).length, 0);
+    assert.equal((await run("WorkshopProjects", { filter: { createdBy: { equalTo: "someone-else" } } })).length, 0);
     // The page's project list is the same document.
     const page = (await (await app.call("/api/apps/workshop/projects", member)).json()) as { slug: string; phase: string }[];
     assert.deepEqual(page.map((row) => row.slug).sort(), (await run("WorkshopProjects", {})).map((row) => row.slug).sort());
@@ -114,19 +113,6 @@ test("agents list projects and open one by slug with its assembly, BOM and build
     const [model] = await run("WorkshopProject", { slug: `old-name-${node.id.slice(-12)}` });
     assert.equal(model.slug, projectSlug(node));
     assert.equal(model.requirements, node.requirements);
-    const assembly = model.assembly as { root: string; items: { number: string; kind: string; size: number[] | null; uses: { part: string; quantity: number }[] }[] };
-    const root = node.assembly.items.find((item) => item.id === node.assembly.rootId)!;
-    assert.equal(assembly.root, root.number);
-    assert.equal(assembly.items.length, node.assembly.items.length);
-    // Usage lines name contained items by part number, never by internal id.
-    const byNumber = new Map(node.assembly.items.map((item) => [item.number, item]));
-    for (const item of assembly.items) for (const use of item.uses) assert.ok(byNumber.has(use.part), use.part);
-    assert.ok(assembly.items.some((item) => item.kind === "firmware" && item.size === null));
-    assert.ok(assembly.items.some((item) => item.kind !== "firmware" && item.size?.length === 3));
-    const bom = model.bom as { cost: number; lines: { depth: number; part: string }[] };
-    assert.equal(bom.lines[0].part, root.number);
-    assert.equal(bom.lines[0].depth, 0);
-    assert.equal(bom.cost, bomTotals(node.assembly).cost);
     assert.deepEqual(model.builds, []);
     assert.deepEqual(await run("WorkshopProject", { slug: "no-such-project" }), []);
   } finally {

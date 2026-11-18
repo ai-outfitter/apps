@@ -5,21 +5,41 @@ const {slug,section}=Astro.props;
 <div class="workspace" data-slug={slug} data-section={section}>
   <header><div><h1 id="project-name">Loading project…</h1></div><span id="revision-label"></span></header>
   <p id="workspace-notice" role="status"></p>
-  <section id="model-panel" hidden={section!=="assembly"}>
+  <section id="models-panel" hidden>
+    <div class="toolbar"><div><h2>Models and parts</h2><p id="models-summary" role="status"></p></div><a id="open-assembly" href="#">View full assembly</a></div>
+    <div class="catalog-controls"><label>Search models<input id="model-search" type="search" placeholder="Name, part number or manufacturer" /></label><label>Show<select id="model-filter"><option value="all">All items</option><option value="assembly">Assemblies</option><option value="modeled">With geometry</option><option value="cots">COTS parts</option><option value="fabricated">Fabricated parts</option><option value="unmodeled">Awaiting geometry</option></select></label></div>
+    <div id="model-catalog" class="model-catalog"></div><p id="models-empty" hidden>No models match your search.</p>
+  </section>
+  <section id="model-panel">
+    <div class="toolbar"><h2 id="assembly-title">Full assembly</h2><div><a id="browse-models" href="#">Browse all models</a> · <a id="full-assembly" href="#">Full assembly</a></div></div>
+    <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
+    <aside id="assembly-references" hidden></aside>
     <div class="model-layout">
-      <div class="model-stage workspace-card"><canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas><div class="view-tools"><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div><p id="assembly-status" role="status">Loading geometry…</p></div>
-      <aside class="workspace-card"><h2>Components</h2><div id="component-tree"></div></aside>
+      <div class="model-stage workspace-card"><canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas><div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div><p id="assembly-status" role="status">Loading geometry…</p></div>
+      <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
-    <details id="inspector"><summary>Selected component</summary><div id="item-details"></div><button id="isolate-item">Isolate component</button></details>
+    <div id="motion-preview" hidden>
+      <strong id="motion-heading">Unverified motion study</strong>
+      <label>Target level<select id="motion-level"></select></label>
+      <button id="motion-play">Play motion</button><button id="motion-reset">Reset pose</button>
+      <p id="drive-review-status">Mechanical review: incomplete. Animation does not establish a working drive.</p>
+      <p id="drive-turns" role="status"></p>
+      <div id="drive-inspection-controls"><label><input id="inspect-drive" type="checkbox" /> Inspect proposed Z belt drive (cutaway)</label>
+      <p>The cutaway replaces the saved axis/motor envelopes with a proposed alignment. Amber: assumed motor placement. Red outlines: unresolved flange and carriage belt attachment. Belt markers and shaft stripes show motion at 70 mm per revolution; internal placement is schematic, not supplier CAD.</p>
+      <details><summary>Drive review — unresolved connections</summary><ul id="drive-findings"></ul><p><a href="https://www.igus.com/us/pdf/DrylinSlideTables.pdf" target="_blank" rel="noopener">igus ZLW belt-drive dimensions and transmission ratio (pages 22.11–22.12)</a></p></details></div>
+    </div>
+    <section id="power-panel" class="workspace-card" aria-label="Assembly power budget"></section>
+    <details id="inspector"><summary>Selected component</summary><div id="item-details"></div><button id="isolate-item">Isolate component</button> <a id="open-component" href="#">Open model</a></details>
     <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
     <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
-  <section id="bom-panel" hidden={section!=="parts"}><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><div id="bom-rows"></div></section>
-  <section id="revisions-panel" hidden={section!=="release"}><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
+  <section id="bom-panel" hidden><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><p id="bom-price"></p><div id="bom-rows"></div></section>
+  <section id="revisions-panel" hidden><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
 </div>
 <script>import "../client/workspace";</script>
 <style is:global>
 .workspace{max-width:1440px;margin:auto;padding:0;color:var(--text);font-size:16px}.workspace header,.workspace .toolbar,.workspace .composer{display:flex;gap:16px;justify-content:space-between;align-items:center}.workspace h1{font-size:28px;margin:4px 0}.workspace p{line-height:1.5}.workspace button,.workspace select,.workspace input,.workspace textarea{font:inherit;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:inherit}.workspace button{cursor:pointer}.workspace .model-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,1fr);gap:20px}.workspace .model-stage{position:relative;min-width:0}.workspace canvas{display:block;width:100%;height:60vh;min-height:320px;touch-action:none;border-radius:10px}.workspace .view-tools{position:absolute;top:12px;left:12px;display:flex;gap:8px}.workspace aside{max-height:65vh;overflow:auto}.workspace .component-row{display:block;width:100%;text-align:left;margin-bottom:4px}.workspace details,.workspace .bom-row,.workspace .run-row{padding:16px;margin:12px 0;border:1px solid var(--border);border-radius:8px}.workspace summary{cursor:pointer;min-height:32px}.workspace .bom-row{display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr);gap:12px}.workspace small{display:block;color:var(--muted);line-height:1.5}.workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}.workspace textarea{width:100%;box-sizing:border-box}.workspace .composer input{flex:1;min-width:0}.workspace a{overflow-wrap:anywhere}.workspace #build-request{margin:24px 0}.workspace #source-files{display:flex;gap:8px;flex-wrap:wrap}.workspace [hidden]{display:none!important}
+.workspace .inspection-children{display:flex;flex-wrap:wrap;gap:.35rem;margin-block:.5rem}
 @media(max-width:700px){.workspace{padding:0}.workspace header{display:block}.workspace .model-layout{display:flex;flex-direction:column}.workspace canvas{height:48vh;min-height:300px}.workspace aside{max-height:240px}.workspace .bom-row{grid-template-columns:minmax(0,1fr) auto}.workspace .bom-row>div:last-child{grid-column:1/-1}.workspace .toolbar{align-items:flex-start;flex-direction:column}.workspace .composer{gap:8px}.workspace #inspector[open]{position:fixed;z-index:60;bottom:0;left:0;right:0;margin:0;max-height:50vh;overflow:auto;background:var(--surface);box-shadow:0 -4px 24px #0003}.workspace h1{font-size:24px}}
 /* Sections group content; only explicit cards carry a surface. */
 .workspace > section { margin:20px 0; }
@@ -32,4 +52,19 @@ const {slug,section}=Astro.props;
 .workspace .component-row { border:0; background:transparent; padding:8px; margin:0; }
 .workspace .component-row:hover { background:var(--hover); }
 .workspace .bom-row button { border:0; background:none; padding:0; text-align:left; min-height:32px; }
+</style>
+
+<style is:global>
+.workspace .catalog-controls{display:flex;gap:16px;margin:20px 0;flex-wrap:wrap}.workspace .catalog-controls label{display:grid;gap:6px}.workspace .catalog-controls label:first-child{flex:1;min-width:220px}.workspace .model-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.workspace .model-card{padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow-wrap:anywhere}.workspace .model-card h3{margin:8px 0;font-size:18px}.workspace .model-card p{margin:8px 0}.workspace .model-card a{display:inline-block;min-height:32px;padding-top:8px}.workspace #model-panel>.toolbar{margin-bottom:16px}
+</style>
+
+<style is:global>
+.workspace #assembly-breadcrumbs{margin:12px 0;line-height:1.8;overflow-wrap:anywhere}.workspace #assembly-parents{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}.workspace .component-row{padding:12px 4px;border-bottom:1px solid var(--border)}.workspace .component-row a{display:block;line-height:1.5}.workspace .component-row button{min-height:32px;padding:4px 8px;margin-top:4px;font-size:14px}
+</style>
+<style is:global>
+.workspace #motion-preview label:has(input[type="checkbox"]){display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px;margin:16px 0;min-height:44px}.workspace #motion-preview input[type="checkbox"]{width:20px;height:20px;min-height:20px;margin:0;padding:0;flex:0 0 20px}.workspace #motion-preview{margin-top:16px}.workspace #motion-preview select{max-width:320px}
+</style>
+
+<style is:global>
+.workspace #power-panel{margin-top:20px;min-width:0}.workspace .power-scroll{overflow-x:auto;max-width:100%}.workspace .power-table{width:100%;border-collapse:collapse;margin:16px 0}.workspace .power-table th,.workspace .power-table td{padding:10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}.workspace .power-table input{width:110px;box-sizing:border-box}.workspace .power-table caption{text-align:left;font-weight:600}.workspace #power-panel p{overflow-wrap:anywhere}
 </style>

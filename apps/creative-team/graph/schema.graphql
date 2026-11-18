@@ -5,6 +5,7 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: BrandAnswerOrder = ID_ASC
 
     """Match text across this collection’s text fields."""
     search: String
@@ -13,15 +14,17 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: SourceOrder = ID_ASC
+    filter: SourceFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    kind: [String!]
   ): SourceConnection!
   contentProfiles(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: ContentProfileOrder = ID_ASC
 
     """Match text across this collection’s text fields."""
     search: String
@@ -30,26 +33,27 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: MapNodeOrder = ID_ASC
+    filter: MapNodeFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    level: [String!]
-    parentId: [ID!]
   ): MapNodeConnection!
   drafts(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: DraftOrder = ID_ASC
+    filter: DraftFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    status: [String!]
-    nodeId: [ID!]
   ): DraftConnection!
   brandWikiBatches(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: BrandWikiBatchRowOrder = ID_ASC
 
     """Match text across this collection’s text fields."""
     search: String
@@ -68,9 +72,15 @@ type BrandQuestion {
 }
 
 type BrandAnswerConnection {
+  edges: [BrandAnswerConnectionEdge!]!
   nodes: [BrandAnswer!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type BrandAnswerConnectionEdge {
+  cursor: String!
+  node: BrandAnswer!
 }
 
 type BrandAnswer {
@@ -84,18 +94,28 @@ type BrandAnswer {
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How BrandAnswer records are ordered, ties by ID."""
+enum BrandAnswerOrder {
+  ID_ASC
+  ID_DESC
 }
 
 type SourceConnection {
+  edges: [SourceConnectionEdge!]!
   nodes: [Source!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type SourceConnectionEdge {
+  cursor: String!
+  node: Source!
 }
 
 type Source {
@@ -111,10 +131,48 @@ type Source {
   updatedAt: DateTime!
 }
 
+"""How Source records are ordered, ties by ID."""
+enum SourceOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input SourceFilter {
+  kind: StringFilter
+  and: [SourceFilter!]
+  or: [SourceFilter!]
+  not: SourceFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
+}
+
 type ContentProfileConnection {
+  edges: [ContentProfileConnectionEdge!]!
   nodes: [ContentProfile!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ContentProfileConnectionEdge {
+  cursor: String!
+  node: ContentProfile!
 }
 
 type ContentProfile {
@@ -127,10 +185,22 @@ type ContentProfile {
   updatedAt: DateTime!
 }
 
+"""How ContentProfile records are ordered, ties by ID."""
+enum ContentProfileOrder {
+  ID_ASC
+  ID_DESC
+}
+
 type MapNodeConnection {
+  edges: [MapNodeConnectionEdge!]!
   nodes: [MapNode!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type MapNodeConnectionEdge {
+  cursor: String!
+  node: MapNode!
 }
 
 type MapNode {
@@ -145,10 +215,47 @@ type MapNode {
   updatedAt: DateTime!
 }
 
+"""How MapNode records are ordered, ties by ID."""
+enum MapNodeOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
+}
+
+input MapNodeFilter {
+  level: StringFilter
+  parentId: IDFilter
+  and: [MapNodeFilter!]
+  or: [MapNodeFilter!]
+  not: MapNodeFilter
+}
+
+"""
+Conditions on one id field of a filter; every one given must hold, and a filter holds at most 20. They run in the database.
+"""
+input IDFilter {
+  isNull: Boolean
+  equalTo: ID
+  notEqualTo: ID
+  in: [ID!]
+  notIn: [ID!]
+  lessThan: ID
+  lessThanOrEqualTo: ID
+  greaterThan: ID
+  greaterThanOrEqualTo: ID
+}
+
 type DraftConnection {
+  edges: [DraftConnectionEdge!]!
   nodes: [Draft!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type DraftConnectionEdge {
+  cursor: String!
+  node: Draft!
 }
 
 type Draft {
@@ -162,10 +269,32 @@ type Draft {
   updatedAt: DateTime!
 }
 
+"""How Draft records are ordered, ties by ID."""
+enum DraftOrder {
+  ID_ASC
+  ID_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+}
+
+input DraftFilter {
+  status: StringFilter
+  nodeId: IDFilter
+  and: [DraftFilter!]
+  or: [DraftFilter!]
+  not: DraftFilter
+}
+
 type BrandWikiBatchRowConnection {
+  edges: [BrandWikiBatchRowConnectionEdge!]!
   nodes: [BrandWikiBatchRow!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type BrandWikiBatchRowConnectionEdge {
+  cursor: String!
+  node: BrandWikiBatchRow!
 }
 
 type BrandWikiBatchRow {
@@ -176,6 +305,14 @@ type BrandWikiBatchRow {
   proposals: Float!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""How BrandWikiBatchRow records are ordered, ties by ID."""
+enum BrandWikiBatchRowOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
 }
 
 input SaveBrandAnswerInput {

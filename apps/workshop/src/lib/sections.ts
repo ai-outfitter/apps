@@ -2,9 +2,11 @@ import type { Project } from "./project";
 
 /** A project's sections, one page each, in the order the sidebar lists them. */
 export const SECTIONS = [
-  { id: "assembly", label: "Model", path: "/assembly" },
-  { id: "parts", label: "BOM", path: "/parts" },
-  { id: "release", label: "Revisions", path: "/release" },
+  { id: "pcb", label: "PCB review", path: "/pcb" },
+  { id: "models", label: "Models and parts", path: "/models" },
+  { id: "assembly", label: "Full assembly", path: "/assembly" },
+  { id: "parts", label: "Bill of materials", path: "/parts" },
+  { id: "release", label: "Build revisions", path: "/release" },
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];

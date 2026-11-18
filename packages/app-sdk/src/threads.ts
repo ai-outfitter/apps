@@ -184,12 +184,16 @@ export const threadTypeDescriptor = z.strictObject({
   kind: z.enum(["conversation", "history"]),
   operations: z.array(z.enum(threadOperationNames)).min(1).max(threadOperationNames.length),
   contexts: z.array(threadTypeName).max(32).optional(),
+  /** Opt-in entry point for the owner's private app agent. Discovery grants no authority. */
+  agent: z.strictObject({ context: threadContext }).optional(),
   parts: z.array(threadTypeName).max(64).optional(),
   notify: z.array(z.enum(["deleted"])).max(1).optional(),
   /** Optional app-owned schemas of this type's contexts, `data` parts and metadata. */
   schemas: z.array(threadSchemaDescriptor).max(32).optional(),
 }).refine((value) => value.kind === "conversation" || value.operations.every((operation) => (historyOperations as readonly string[]).includes(operation)),
   "History types are read-only: list, get and entries only")
+  .refine((value) => !value.agent || (value.kind === "conversation" && value.operations.includes("create") && value.operations.includes("send") && value.contexts?.includes(value.agent.context.type)),
+    "An agent needs a writable conversation and a declared context")
   .refine((value) => JSON.stringify(value.schemas ?? []).length <= threadSchemasBytes, `A type's schemas are at most ${threadSchemasBytes} bytes`)
   .refine((value) => new Set((value.schemas ?? []).map((schema) => `${schema.kind}:${schema.name}:${schema.version}`)).size === (value.schemas ?? []).length,
     "Each schema name and version is published once per kind")

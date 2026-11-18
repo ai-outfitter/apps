@@ -1,5 +1,6 @@
 import { compareIds, type EdgeRow, type GraphRow, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
-import { type GraphQuery, graphQueryInput, type GraphQueryInput, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
+import { type GraphQuery, graphQueryInput, type GraphQueryInput, graphQueryLimits, isOrderedPage, queryGraph, textMatch } from "@ai-outfitter/app-sdk/graph-query";
+import { cursorText } from "@ai-outfitter/app-sdk/graph-order";
 import { normalizeRule } from "@ai-outfitter/app-sdk/graph-selection";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
@@ -12,7 +13,7 @@ import { graphTypes } from "./schema";
 
 /** Where a query's cursor resumes, or "" when it has none or it doesn't parse (queryGraph refuses it). */
 function cursorAfter(cursor: string | undefined) {
-  try { return cursor ? String(JSON.parse(atob(cursor.replaceAll("-", "+").replaceAll("_", "/"))).after ?? "") : ""; } catch { return ""; }
+  try { return cursor ? String(JSON.parse(cursorText(cursor) ?? "").after ?? "") : ""; } catch { return ""; }
 }
 
 /** The rows read so far, and reads that add to them through the indexed source. */
@@ -67,8 +68,8 @@ function candidates(db: Database, installationId: string, types: TypeRow[]) {
     // queryGraph resolves a saved KnowledgeGraph even when nothing matched.
     if (query.expand && "knowledgeGraphId" in query.expand) await nodesById([query.expand.knowledgeGraphId]);
     const reach = query.expand && roots.length ? followed(query.expand) : null;
-    // queryGraph expands at most 100 roots in a request; the reach is read once for every query (reachAll).
-    return reach ? { rootIds: roots.slice(0, 100).map(row => row.id), ...reach } : null;
+    // queryGraph expands only so many roots in a request; the reach is read once for every query (reachAll).
+    return reach ? { rootIds: roots.slice(0, graphQueryLimits.expandedRoots).map(row => row.id), ...reach } : null;
   }
   /** The expansions of every query in one pass: one indexed read per hop over all their roots and
    * followed types together, rather than a hop loop per query. A superset is harmless: queryGraph
@@ -93,13 +94,18 @@ function candidates(db: Database, installationId: string, types: TypeRow[]) {
  * walk inspects that hop to report omitted records) with their endpoints.
  * `queryGraph` then runs unchanged over that partial snapshot; rows another query
  * brought in fail this query's filters or were among its candidates anyway.
- * A query filtered only by type or text reads every row of those types. */
+ * A query filtered only by type or text reads every row of those types.
+ *
+ * An ordered page (orderBy or relation) maps straight onto the database source: nodePage and nodeCount
+ * for a collection, relationPage and relationCount for a page per parent, each one bounded statement
+ * (per 500 parents, fewer when the page is large: the SDK's relationRows budget), the same SQL GraphQL connections run. */
 export async function queryGraphRecords(db: Database, identity: AppIdentity, raw: GraphQueryInput) {
   const input = graphQueryInput.parse(raw);
   const types = (await db.select().from(graphTypes).orderBy(asc(graphTypes.name))).map(readType) as unknown as TypeRow[];
   const rows = candidates(db, identity.installationId, types);
   const plans = [];
-  for (const query of input.queries) plans.push(await rows.read(query));
+  // Ordered pages read only their page (and counts), through the database source.
+  for (const query of input.queries) if (!isOrderedPage(query)) plans.push(await rows.read(query));
   await rows.reachAll(plans);
-  return queryGraph(rows.snapshot() as never, input, { knowledgeGraph: id => savedDefinition(rows.node(id)) });
+  return queryGraph(rows.snapshot() as never, input, { knowledgeGraph: id => savedDefinition(rows.node(id)), source: databaseSource(db) });
 }

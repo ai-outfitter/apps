@@ -36,7 +36,7 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
       calls.push({ operation, input: body });
       try {
         if (operation === "workflow.start") return { ok: true, value: { id: body.id, workflow: body.workflow, created: true } };
-        if (operation === "inference.generate") return { ok: true, value: { output: answer(body) } };
+        if (operation === "inference.generate") return { ok: true, value: { output: await answer(body) } };
         if (operation === "workflow.collect") return { ok: true, value: { run: "complete", steps: { review: "complete" } } };
         return { ok: false, status: 400, message: `Unexpected ${operation}` };
       } catch (error) {
@@ -65,15 +65,18 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
   const page = (path: string, init: { method?: string; body?: unknown } = {}) =>
     app.call(`/api/apps/onto/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
   /** The batch once its background review has been saved. */
-  const reviewed = async (batchId: string) => {
+  const waitFor = async (batchId: string, done: (read: Json) => boolean, failure: string) => {
     for (let attempt = 0; attempt < 100; attempt++) {
       const read = await json(await action("batch.get", { batchId }));
-      if (read.batch.review) return read;
+      if (done(read)) return read;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    throw new Error("The review was not saved");
+    throw new Error(failure);
   };
-  return { app, calls, action, graphql, page, reviewed };
+  const reviewed = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review, "The review was not saved");
+  /** The batch once the steward has decided after its review. */
+  const decided = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review?.decision, "The steward did not decide");
+  return { app, calls, action, graphql, page, reviewed, decided };
 }
 
 /** Forerunner's confidence batch: an external mission filed as a Project, part_of NASA rather than Artera. */
@@ -299,4 +302,150 @@ test("staging returns advice, and the steward reviews the open draft once with a
   assert.equal(f.calls.filter((call) => call.operation === "workflow.start").length, 1);
   const jobs = await f.app.database.prepare("SELECT state FROM onto_review_jobs WHERE batchId = ?").bind(batchId).all();
   assert.deepEqual(jobs.results.map((job) => job.state), ["complete"]);
+});
+
+test("the steward approves a batch it found clean, recorded as its own decision citing the review run", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
+    title: "Our crop project",
+    proposals: [
+      { operation: node("$crop", 50, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+      { operation: edge("$crop-artera", 51, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+    ],
+  } }));
+  const batchId = staged.data.stageChanges.id;
+  await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
+  const read = await f.decided(batchId);
+  const { review } = read.batch;
+  assert.deepEqual(review.decision.held, []);
+  assert.equal(review.decision.approved, 2);
+  assert.equal(read.batch.state, "committed");
+  for (const op of read.operations) {
+    assert.equal(op.state, "committed");
+    assert.deepEqual({ ...op.decision, at: 0 }, { kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at: 0 });
+  }
+  const decidedBy = await f.app.database.prepare("SELECT decidedBy FROM graph_batch_operations WHERE batchId = ?").bind(batchId).all();
+  assert.deepEqual(decidedBy.results.map((row) => row.decidedBy), [null, null]);
+  // The record's history names the steward and its run.
+  const history = await json(await f.page(`history?id=${uuid(50)}`));
+  assert.equal(history.revisions[0].approval.kind, "steward");
+  assert.equal(history.revisions[0].approval.runId, review.runId);
+});
+
+test("the steward approves only the clean part: flagged and questioned proposals and what needs them wait for a member", async (t) => {
+  const f = await fixture(() => ({
+    summary: "1 finding: the cultivar may duplicate one we have.",
+    findings: [{ ref: "$tomato", refs: [], rule: "node.duplicate", severity: "warning", message: "Probably a duplicate.", fix: null, types: [] },
+      { ref: "$crop", refs: [], rule: "claim.overstated", severity: "note", message: "Fine as is.", fix: null, types: [] }],
+  }));
+  t.after(() => f.app.dispose());
+  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$crop", 60, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+    { operation: edge("$crop-artera", 61, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+    { operation: node("$tomato", 62, core.technology, "Dwarf tomato cultivar"), evidence: cite("veg") },
+    { operation: edge("$tomato-crop", 63, partOf, "$tomato", "$crop"), evidence: cite("veg") },
+    { operation: node("$lamp", 64, core.technology, "Grow lamp"), evidence: cite("plan") },
+    { operation: edge("$lamp-crop", 65, partOf, "$lamp", "$crop"), evidence: cite("plan") },
+  ] }));
+  await json(await f.action("batch.ask", { batchId: batch.id, questions: [{ key: "lamp-vendor", ask: "Which lamp do we use?", refs: ["$lamp-crop"] }] }));
+  await json(await f.action("batch.submit", { batchId: batch.id }));
+  const read = await f.decided(batch.id);
+  const states = Object.fromEntries(read.operations.map((op: Json) => [op.ref, op.state]));
+  // A note holds nothing; the warning holds the cultivar and its relationship; the question holds the lamp's relationship,
+  // and the lamp itself, which would not connect without it.
+  assert.deepEqual(states, { "$crop": "committed", "$crop-artera": "committed", "$tomato": "awaiting_review", "$tomato-crop": "awaiting_review", "$lamp": "awaiting_review", "$lamp-crop": "awaiting_review" });
+  assert.equal(read.batch.state, "awaiting_review");
+  assert.deepEqual(Object.fromEntries(read.batch.review.decision.held.map((item: Json) => [item.ref, item.reason])), {
+    "$tomato": "node.duplicate", "$tomato-crop": "depends on a held proposal", "$lamp-crop": "question lamp-vendor",
+    "$lamp": "does not connect to an anchor without a held proposal",
+  });
+  assert.equal(read.batch.review.decision.approved, 2);
+  // Once a member answers the question, a fresh review approves what it held.
+  await json(await f.page("answer", { method: "POST", body: { batchId: batch.id, key: "lamp-vendor", text: "The 400 W lamp." } }));
+  const again = await json(await f.page("steward-review", { method: "POST", body: { batchId: batch.id } }));
+  const after = Object.fromEntries(again.operations.map((op: Json) => [op.ref, op.state]));
+  assert.equal(after["$lamp"], "committed");
+  assert.equal(after["$lamp-crop"], "committed");
+  assert.equal(after["$tomato"], "awaiting_review");
+  // A member still decides the rest, as a member.
+  const done = await json(await f.page("review", { method: "POST", body: { batchId: batch.id, verdict: "approve" } }));
+  assert.equal(done.batch.state, "committed");
+  assert.equal(done.operations.find((op: Json) => op.ref === "$tomato").decision.kind, "member");
+});
+
+test("an error on the whole batch approves nothing", async (t) => {
+  const f = await fixture(() => ({ summary: "The batch mixes two owners.", findings: [{ ref: null, refs: [], rule: "owner.unreachable", severity: "error", message: "Mixed.", fix: null, types: [] }] }));
+  t.after(() => f.app.dispose());
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
+    title: "Our crop project",
+    proposals: [
+      { operation: node("$crop", 70, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+      { operation: edge("$crop-artera", 71, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+    ],
+  } }));
+  const batchId = staged.data.stageChanges.id;
+  await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
+  const read = await f.decided(batchId);
+  assert.equal(read.batch.review.decision.approved, 0);
+  assert.deepEqual(read.batch.review.decision.held.map((item: Json) => item.reason), ["owner.unreachable on the whole batch", "owner.unreachable on the whole batch"]);
+  assert.equal(read.counts.awaiting_review, 2);
+});
+
+test("submitting names the steward's review run to wait on, and that run is the one the review starts", async (t) => {
+  // The steward answers only once the receipt has been read.
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const f = await fixture(async () => { await gate; return { summary: "No findings.", findings: [] }; });
+  t.after(() => { release(); return f.app.dispose(); });
+  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$crop", 80, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+    { operation: edge("$crop-artera", 81, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+  ] }));
+  const submitted = await json(await f.graphql("mutation ($input: ChangeBatchChangesInput!) { changeBatchChanges(input: $input) { items { key status result } instructions { code actor required taskId message } } }",
+    { input: { items: [{ key: "submit-1", action: "submit", input: { batchId: batch.id } }] } }));
+  const { items, instructions } = submitted.data.changeBatchChanges;
+  const run = items[0].result.reviewRun;
+  assert.ok(["pending", "running"].includes(run.state));
+  assert.match(run.runId, /^[0-9a-f-]{36}$/);
+  const wait = instructions.find((item: Json) => item.code === "WAIT_FOR_RUN");
+  assert.equal(wait.taskId, run.runId);
+  assert.equal(wait.required, true);
+  assert.match(wait.message, /approves what it found clean/);
+  // The review starts exactly that run; once it finishes the batch no longer names one.
+  release();
+  const done = await f.decided(batch.id);
+  assert.equal(done.batch.review.runId, run.runId);
+  assert.equal(f.calls.find((call) => call.operation === "workflow.start")!.input.id, run.runId);
+  const read = await json(await f.action("graph.graphql", { query: "query ($id: ID!) { changeBatch(id: $id) { reviewRun instructions { code } } }", variables: { id: batch.id } }));
+  assert.equal(read.data.changeBatch.reviewRun, null);
+  assert.ok(!read.data.changeBatch.instructions.some((item: Json) => item.code === "WAIT_FOR_RUN"));
+});
+
+test("an admin can keep every decision with members: the steward then only reviews", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const settings = await json(await f.action("graph.graphql", { query: "query { settings { stewardApproval } }", variables: {} }));
+  assert.equal(settings.data.settings.stewardApproval, "approve");
+  // A member without admin access cannot change it.
+  const member = { userId: "member", organizationId: "org", role: "member" };
+  const refused = await f.app.call("/api/apps/onto/settings", member as typeof owner, { method: "POST", body: { stewardApproval: "review" } });
+  assert.equal(refused.status, 403);
+  const saved = await json(await f.graphql("mutation ($input: SaveSettingsInput!) { saveSettings(input: $input) { stewardApproval updatedBy } }", { input: { stewardApproval: "review" } }));
+  assert.deepEqual(saved.data.saveSettings, { stewardApproval: "review", updatedBy: "owner" });
+
+  const { batch } = await json(await f.action("batch.open", { title: "Crops" }));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [
+    { operation: node("$crop", 90, core.project, "Lunar greenhouse"), evidence: cite("plan") },
+    { operation: edge("$crop-artera", 91, partOf, "$crop", uuid(1)), evidence: cite("plan") },
+  ] }));
+  await json(await f.action("batch.submit", { batchId: batch.id }));
+  const read = await f.reviewed(batch.id);
+  assert.equal(read.batch.review.state, "complete");
+  assert.equal(read.batch.review.decision, undefined);
+  assert.equal(read.counts.awaiting_review, 2);
+  const page = await json(await f.app.call("/api/apps/onto/settings", owner, {}));
+  assert.equal(page.stewardApproval, "review");
 });

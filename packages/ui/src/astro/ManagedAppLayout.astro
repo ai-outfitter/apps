@@ -1,5 +1,8 @@
 ---
 import AppLayout from "./AppLayout.astro";
+import AgentSidebarToggle from "./AgentSidebarToggle.astro";
+import ThreadSidebarChat from "../react/chat/ThreadSidebarChat";
+import { platformSidebar } from "../platform-sidebar";
 import PageHeader from "./PageHeader.astro";
 import { ClientRouter } from "astro:transitions";
 import Navigation from "./Navigation.astro";
@@ -50,6 +53,7 @@ interface Props {
 const { workspaceReturnStyle = "standard", navigation = true, name, headerStyle, showOrganizationLink = true, sidebarSections, persistKey = navigation ? `${name} sidebar` : undefined, brand, headerBrand, badge, headerTitle, titleProjectId, title, description, active, homeLabel = "Overview", sidebarLinks, introVisuallyHidden = false, settingsHref = "/settings", settingsDirect = false, settingsLabel = `${name} settings`, accountLinks = [] } = Astro.props;
 // Demo builds are read-only fixtures that call no API, so their account footer shows a fixture member.
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const platformPanel = demo ? null : await platformSidebar(Astro.request);
 const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active === "home" }];
 ---
 <!doctype html>
@@ -65,6 +69,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
     <AppLayout {headerStyle} {persistKey} title={headerTitle ?? name} {titleProjectId} {brand} {headerBrand} {badge} desktopOpen desktopSidebar="collapsible" scrollContent sidebarLabel={`${name} sidebar`} toggleLabel="Open navigation" closeLabel="Close navigation">
       <PersonalRail slot="rail" />
       <slot name="header-actions" slot="header-actions" />
+      {platformPanel && <AgentSidebarToggle slot="header-actions" controls="outfitter-sidebar-chat" label="Ask Outfitter" />}
       <Fragment slot="navigation">
         {workspaceReturnStyle === "standard" && <nav class="ui-navigation" aria-label="Outfitter" hidden><a id={WORKSPACE_RETURN_ID} class="chat-link" href="#"><Icon name="back" /> Back to Outfitter</a></nav>}
         <slot name="sidebar" />
@@ -80,7 +85,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
           <button class="account-toggle" aria-expanded="false" aria-controls="app-tools-menu" data-disclosure=""><Icon name="settings" /> Settings</button>
           </>}
         </div>
-        <AccountMenu user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
+        <AccountMenu navigation={Boolean(platformPanel)} user={demo ? { id: "demo-member", name: "Demo member", email: "member@example.test" } : undefined} accounts={!demo} />
         </div>
       </Fragment>
       <div class="ui-content">
@@ -89,6 +94,7 @@ const links = sidebarLinks || [{ label: homeLabel, href: "/", active: active ===
         <slot />
       </div>
       <slot name="overlays" slot="overlays" />
+      {platformPanel && <ThreadSidebarChat slot="overlays" transition:persist={`platform-sidebar:${platformPanel.userId}:${platformPanel.scopeKey}`} transition:persist-props client:idle id="outfitter-sidebar-chat" {...platformPanel} />}
     </AppLayout>
   </body>
 </html>

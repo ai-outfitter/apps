@@ -1,31 +1,37 @@
 type Query {
-  """
-  Workshop's projects in ID order. Filter by slugs (as the project page addresses them), ids, phase, the Wiki product revision they build or who created them; search matches the name and brief.
-  """
   workshopProjects(
     first: Int = 100
     after: String
     ids: [ID!]
-    slugs: [String!]
+    orderBy: WorkshopProjectOrder = ID_ASC
+    filter: WorkshopProjectFilter
 
-    """Match text in the name and brief."""
+    """Match text across this collection’s text fields."""
     search: String
-    phase: [String!]
-    createdBy: [ID!]
-    productRevisionId: [ID!]
+
+    """
+    Projects by slug, as the project page addresses them; a renamed project keeps its old slug.
+    """
+    slugs: [String!]
   ): WorkshopProjectConnection!
   workshopUnits(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: WorkshopUnitOrder = ID_ASC
+    filter: WorkshopUnitFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    partNumber: [String!]
-    mac: [String!]
-    status: [String!]
-    projectId: [ID!]
   ): WorkshopUnitConnection!
+
+  """Read the whole saved assembly at one project revision."""
+  workshopAssembly(projectId: ID!): WorkshopAssemblyResult!
+
+  """
+  Expand source revisions and configurations for a read-only CAD, BOM and power view.
+  """
+  resolvedWorkshopAssembly(input: ResolvedWorkshopAssemblyInput!): JSON!
 
   """
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
@@ -39,9 +45,15 @@ type Query {
 }
 
 type WorkshopProjectConnection {
+  edges: [WorkshopProjectConnectionEdge!]!
   nodes: [WorkshopProject!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkshopProjectConnectionEdge {
+  cursor: String!
+  node: WorkshopProject!
 }
 
 """
@@ -81,16 +93,6 @@ type WorkshopProject {
   measurementNotes: String!
   circuitNotes: String!
 
-  """
-  The saved product structure: items and the usage lines between them. A workspace build may produce its own (builds.assembly).
-  """
-  assembly: WorkshopAssembly!
-
-  """
-  The indented BOM and the cost of one top assembly, derived from the assembly.
-  """
-  bom: WorkshopBom!
-
   """Workspace builds, newest first, with their tests and artifacts."""
   builds: [WorkshopBuild!]!
 
@@ -110,118 +112,6 @@ type WorkshopProductRevision {
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
-
-type WorkshopAssembly {
-  """The top assembly's part number."""
-  root: String
-  items: [WorkshopItem!]!
-}
-
-"""
-One item of the product structure: an assembly, printed or fabricated part, COTS part, PCB or firmware.
-"""
-type WorkshopItem {
-  """The part number, unique in the project."""
-  number: String!
-
-  """The revision letter."""
-  revision: String!
-  name: String!
-
-  """assembly, printed, fabricated, cots, pcb or firmware."""
-  kind: String!
-  manufacturer: String!
-  mpn: String!
-  source: String!
-  unitCost: Float!
-  priceKnown: Boolean!
-
-  """
-  provisional, manufacturer or measured: how far the dimensions and data can be trusted.
-  """
-  provenance: String!
-
-  """none, mac or serial: how the inventory tells units apart."""
-  trackBy: String!
-  color: String
-  notes: String!
-
-  """
-  [x, y, z] extent of the item's geometry or mesh in mm; none for items without a solid.
-  """
-  size: [Float!]
-
-  """
-  The CAD plan (features in the item's own coordinates, mm). For a COTS part it is an envelope, not the manufacturer's model.
-  """
-  geometry: JSON
-
-  """
-  The build artifact path of the item's mesh, when a workspace build supplied one.
-  """
-  mesh: String
-  firmware: WorkshopFirmware
-  uses: [WorkshopUsage!]!
-}
-
-"""Any JSON value."""
-scalar JSON
-
-type WorkshopFirmware {
-  repository: String!
-  path: String!
-
-  """The tag, branch or commit a build flashes."""
-  ref: String!
-
-  """The chip target, such as esp32s3."""
-  target: String!
-}
-
-"""
-A usage line: how many of an item an assembly holds, where and under which reference designator.
-"""
-type WorkshopUsage {
-  """The contained item's part number."""
-  part: String!
-  quantity: Int!
-  refdes: String!
-
-  """[x, y, z] in mm in the parent assembly."""
-  position: [Float!]!
-
-  """Turn about the parent's Z axis, in degrees."""
-  rotation: Float!
-
-  """[x, y, z] Euler angles in degrees, when set instead of rotation."""
-  orientation: [Float!]
-}
-
-type WorkshopBom {
-  lines: [WorkshopBomLine!]!
-
-  """Cost of one top assembly from unit costs, known or not."""
-  cost: Float!
-
-  """Whether every line below the top has a known price."""
-  pricesKnown: Boolean!
-}
-
-"""One line of the indented BOM, from the top assembly down."""
-type WorkshopBomLine {
-  """0 for the top assembly."""
-  depth: Int!
-  part: String!
-  revision: String!
-  name: String!
-  kind: String!
-
-  """Units per one top assembly."""
-  quantity: Int!
-  refdes: String!
-  unitCost: Float!
-  priceKnown: Boolean!
-}
 
 """One workspace build: the pinned source it compiled and what it proved."""
 type WorkshopBuild {
@@ -248,16 +138,11 @@ type WorkshopBuild {
   compiler: String
   error: String
   tests: [WorkshopBuildTest!]!
-
-  """
-  The product structure the build produced, with meshes, when it succeeded.
-  """
-  assembly: WorkshopAssembly
-
-  """The BOM of the built assembly."""
-  bom: WorkshopBom
   artifacts: [WorkshopBuildArtifact!]!
 }
+
+"""Any JSON value."""
+scalar JSON
 
 type WorkshopBuildTest {
   name: String!
@@ -311,18 +196,53 @@ type WorkshopConcept {
 }
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How WorkshopProject records are ordered, ties by ID."""
+enum WorkshopProjectOrder {
+  ID_ASC
+  ID_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+}
+
+input WorkshopProjectFilter {
+  createdBy: IDFilter
+  productRevisionId: IDFilter
+  and: [WorkshopProjectFilter!]
+  or: [WorkshopProjectFilter!]
+  not: WorkshopProjectFilter
+}
+
+"""
+Conditions on one id field of a filter; every one given must hold, and a filter holds at most 20. They run in the database.
+"""
+input IDFilter {
+  isNull: Boolean
+  equalTo: ID
+  notEqualTo: ID
+  in: [ID!]
+  notIn: [ID!]
+  lessThan: ID
+  lessThanOrEqualTo: ID
+  greaterThan: ID
+  greaterThanOrEqualTo: ID
 }
 
 type WorkshopUnitConnection {
+  edges: [WorkshopUnitConnectionEdge!]!
   nodes: [WorkshopUnit!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkshopUnitConnectionEdge {
+  cursor: String!
+  node: WorkshopUnit!
 }
 
 type WorkshopUnit {
@@ -343,12 +263,68 @@ type WorkshopUnit {
   updatedAt: DateTime!
 }
 
+"""How WorkshopUnit records are ordered, ties by ID."""
+enum WorkshopUnitOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input WorkshopUnitFilter {
+  partNumber: StringFilter
+  mac: StringFilter
+  status: StringFilter
+  projectId: IDFilter
+  and: [WorkshopUnitFilter!]
+  or: [WorkshopUnitFilter!]
+  not: WorkshopUnitFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
+}
+
+type WorkshopAssemblyResult {
+  projectId: ID!
+  revision: Int!
+  assembly: JSON!
+}
+
+input ResolvedWorkshopAssemblyInput {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
 input WorkshopProjectHandoffInput {
   id: ID!
 }
 
 input WorkshopDesignRunInput {
   id: ID!
+}
+
+input SubmitWorkshopPcbInput {
+  projectId: ID!
+  snapshotId: ID!
+  revision: Float!
+  reviewPath: String!
+  manifest: JSON!
 }
 
 input AcceptCreativeHandoffInput {
@@ -434,6 +410,8 @@ input FinishWorkshopBuildInputManifest {
 input FinishWorkshopBuildInputManifestAssembly {
   rootId: ID
   items: [FinishWorkshopBuildInputManifestAssemblyItemsItem!]!
+  configurations: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItem!]
+  power: FinishWorkshopBuildInputManifestAssemblyPower
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItem {
@@ -445,14 +423,20 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   manufacturer: String
   mpn: String
   source: String
+  estimatedUnitCost: Float
   unitCost: Float
   trackBy: FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy
+  opacity: Float
   color: String
   geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
   mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
+  reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
+  driveMotion: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion
+  selectAsUnit: Boolean
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
+  power: FinishWorkshopBuildInputManifestAssemblyItemsItemPower
   notes: String
   uses: [FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem!]
 }
@@ -494,11 +478,63 @@ enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
   measured
 }
 
+input FinishWorkshopBuildInputManifestAssemblyItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZ!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZ {
+  levels: [FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZRotationsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
+}
+
 input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
   repository: String!
   path: String
   ref: String!
   target: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemPower {
+  loads: [FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
@@ -509,6 +545,62 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItem!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPower {
+  version: Float!
+  scenarios: [FinishWorkshopBuildInputManifestAssemblyPowerScenariosItem!]!
+  rails: [FinishWorkshopBuildInputManifestAssemblyPowerRailsItem!]!
+  notes: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: FinishWorkshopBuildInputManifestAssemblyPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyPowerRailsItemKind {
+  ac
+  dc
 }
 
 input FinishWorkshopBuildInputManifestArtifactsItem {
@@ -588,6 +680,207 @@ enum DescribeWorkshopProjectInputPhase {
   manufacturing
 }
 
+type WorkshopAssemblyReceipt {
+  projectId: ID!
+  revision: Int!
+}
+
+input WorkshopAssemblyInput {
+  rootId: ID
+  items: [WorkshopAssemblyInputItemsItem!]!
+  configurations: [WorkshopAssemblyInputConfigurationsItem!]
+  power: WorkshopAssemblyInputPower
+}
+
+input WorkshopAssemblyInputItemsItem {
+  id: ID!
+  number: String!
+  revision: String!
+  name: String!
+  kind: WorkshopAssemblyInputItemsItemKind!
+  manufacturer: String
+  mpn: String
+  source: String
+  estimatedUnitCost: Float
+  unitCost: Float
+  trackBy: WorkshopAssemblyInputItemsItemTrackBy
+  opacity: Float
+  color: String
+  geometry: WorkshopAssemblyInputItemsItemGeometry
+  mesh: WorkshopAssemblyInputItemsItemMesh
+  priceKnown: Boolean
+  provenance: WorkshopAssemblyInputItemsItemProvenance
+  reference: WorkshopAssemblyInputItemsItemReference
+  driveMotion: WorkshopAssemblyInputItemsItemDriveMotion
+  selectAsUnit: Boolean
+  firmware: WorkshopAssemblyInputItemsItemFirmware
+  power: WorkshopAssemblyInputItemsItemPower
+  notes: String
+  uses: [WorkshopAssemblyInputItemsItemUsesItem!]
+}
+
+enum WorkshopAssemblyInputItemsItemKind {
+  assembly
+  printed
+  fabricated
+  cots
+  pcb
+  firmware
+}
+
+enum WorkshopAssemblyInputItemsItemTrackBy {
+  none
+  mac
+  serial
+}
+
+input WorkshopAssemblyInputItemsItemGeometry {
+  version: Float!
+  units: String!
+  features: [JSON!]!
+}
+
+input WorkshopAssemblyInputItemsItemMesh {
+  path: String!
+  bounds: WorkshopAssemblyInputItemsItemMeshBounds!
+}
+
+input WorkshopAssemblyInputItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum WorkshopAssemblyInputItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
+input WorkshopAssemblyInputItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: WorkshopAssemblyInputItemsItemDriveMotionZ!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZ {
+  levels: [WorkshopAssemblyInputItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [WorkshopAssemblyInputItemsItemDriveMotionZRotationsItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
+}
+
+input WorkshopAssemblyInputItemsItemFirmware {
+  repository: String!
+  path: String
+  ref: String!
+  target: String!
+}
+
+input WorkshopAssemblyInputItemsItemPower {
+  loads: [WorkshopAssemblyInputItemsItemPowerLoadsItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: WorkshopAssemblyInputItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum WorkshopAssemblyInputItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
+}
+
+input WorkshopAssemblyInputItemsItemUsesItem {
+  id: ID!
+  itemId: ID!
+  quantity: Int!
+  refdes: String
+  position: [JSON!]
+  rotation: Float
+  orientation: [JSON!]
+}
+
+input WorkshopAssemblyInputConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [WorkshopAssemblyInputConfigurationsItemParametersItem!]
+}
+
+input WorkshopAssemblyInputConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
+}
+
+input WorkshopAssemblyInputPower {
+  version: Float!
+  scenarios: [WorkshopAssemblyInputPowerScenariosItem!]!
+  rails: [WorkshopAssemblyInputPowerRailsItem!]!
+  notes: String!
+}
+
+input WorkshopAssemblyInputPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input WorkshopAssemblyInputPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: WorkshopAssemblyInputPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum WorkshopAssemblyInputPowerRailsItemKind {
+  ac
+  dc
+}
+
 input SaveWorkshopAssemblyInput {
   id: String!
   revision: Float!
@@ -597,6 +890,8 @@ input SaveWorkshopAssemblyInput {
 input SaveWorkshopAssemblyInputAssembly {
   rootId: ID
   items: [SaveWorkshopAssemblyInputAssemblyItemsItem!]!
+  configurations: [SaveWorkshopAssemblyInputAssemblyConfigurationsItem!]
+  power: SaveWorkshopAssemblyInputAssemblyPower
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItem {
@@ -608,14 +903,20 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   manufacturer: String
   mpn: String
   source: String
+  estimatedUnitCost: Float
   unitCost: Float
   trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
+  opacity: Float
   color: String
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
   mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
+  reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
+  driveMotion: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion
+  selectAsUnit: Boolean
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
+  power: SaveWorkshopAssemblyInputAssemblyItemsItemPower
   notes: String
   uses: [SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem!]
 }
@@ -657,11 +958,63 @@ enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
   measured
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZ!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZ {
+  levels: [SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZRotationsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
   repository: String!
   path: String
   ref: String!
   target: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemPower {
+  loads: [SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
@@ -672,6 +1025,62 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItem!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
+}
+
+input SaveWorkshopAssemblyInputAssemblyPower {
+  version: Float!
+  scenarios: [SaveWorkshopAssemblyInputAssemblyPowerScenariosItem!]!
+  rails: [SaveWorkshopAssemblyInputAssemblyPowerRailsItem!]!
+  notes: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: SaveWorkshopAssemblyInputAssemblyPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyPowerRailsItemKind {
+  ac
+  dc
 }
 
 input DeleteWorkshopProjectInput {
@@ -727,6 +1136,9 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """Upload a KiCad package and attach its verified snapshot."""
+  submitWorkshopPcb(input: SubmitWorkshopPcbInput!): JSON
+
   """
   Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.
   """
@@ -765,6 +1177,9 @@ type Mutation {
   Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.
   """
   describeWorkshopProject(input: DescribeWorkshopProjectInput!): WorkshopProject!
+
+  """Replace the complete assembly at the observed project revision."""
+  updateWorkshopAssembly(projectId: ID!, expectedRevision: Int!, assembly: WorkshopAssemblyInput!): WorkshopAssemblyReceipt!
 
   """
   Replace a project's product structure at the revision the caller saw: its items (assemblies, printed parts, COTS parts, PCBs and firmware, each with a part number and revision letter) and the usage lines from each assembly to the items it contains, with quantities, reference designators and placements; the BOM, costs and 3D view derive from it. Item geometry is a CAD plan (JSON) and a placement is [x, y, z] in mm. A stale revision is refused. Answers the project at its next revision.

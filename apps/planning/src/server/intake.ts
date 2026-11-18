@@ -325,27 +325,17 @@ export class IntakeService {
       graphDatabase(host),
       host.call("actions.list", {}),
     ]);
-    const types = await database.collection("types").list({
+    const { records: types } = await database.collection("types").list({
       where: { names: ["DecisionControlV4"], archived: false },
       limit: 10,
     });
-    const nodes: Awaited<
-      ReturnType<ReturnType<typeof database.collection>["list"]>
-    > = [];
-    if (types.length)
-      for (let offset = 0; ; offset += 100) {
-        const page = await database.collection("nodes").list({
-          where: { typeIds: types.map((t) => t.ref.id), archived: false },
-          limit: 100,
-          offset,
-        });
-        nodes.push(...page);
-        if (page.length < 100) break;
-        if (offset >= 9900)
-          throw conflict(
-            "Too many controls to determine an unambiguous route; choose a control explicitly",
-          );
-      }
+    const nodes = types.length
+      ? await database.collection("nodes").all({ where: { typeIds: types.map((t) => t.ref.id), archived: false } }).catch((error) => {
+        if (error instanceof Response && error.status === 413)
+          throw conflict("Too many controls to determine an unambiguous route; choose a control explicitly");
+        throw error;
+      })
+      : [];
     return {
       gates: apps
         .filter((app) =>

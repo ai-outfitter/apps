@@ -29,6 +29,11 @@ Astro.response.status = model.status;
       <a href={href(`/projects/${projectId}/releases`)}>Press release</a>
     </nav>
   </details>
+  {project && <section aria-label="Latest visual evidence" class="project-evidence-preview">
+    <p>{project.goals}</p><h2>Review the latest change</h2>
+    <p class="muted" data-evidence-summary={projectId} data-endpoint={href("/api/apps/planning/evidence")}>{demo ? "Read-only demo" : "Loading capture summary…"}</p>
+    <Button href={href(`/projects/${projectId}/evidence`)}>Open screenshots and videos</Button>
+  </section>}
   {preview ? <ProjectConversationPreview {preview} /> : project && <ProjectNextAction {projectId} />}
   {!project && <p role="status">{model.error || "Project not found. Return to All projects to choose another project."}</p>}
   <details class="planning-project-details" hidden={!project}>
@@ -53,3 +58,5 @@ Astro.response.status = model.status;
   .project-actions a { display:block; padding:10px; color:inherit; text-decoration:none; font-size:13px; }
   .project-actions a:hover { background:var(--soft); }
 </style>
+
+<script>import "../../scripts/evidence-summary";</script>

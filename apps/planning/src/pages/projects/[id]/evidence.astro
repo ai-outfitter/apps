@@ -1,19 +1,25 @@
 ---
+import { readVisualEvidence } from "../../../server/visual-evidence";
+import { planningContext } from "../../../server/context";
 import { appHref } from "../../../app-href";
 import Layout from "../../../components/PlanningLayout.astro";
 import Button from "@ai-outfitter/ui/astro/Button.astro";
+import EvidenceViewer from "../../../components/EvidenceViewer";
+import { projectEvidenceViews } from "../../../server/project-releases";
 import ReleaseContent from "../../../components/ReleaseContent";
 import { requestIdentity, requestPageURL } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { demoProjectReleases, readProjectReleases, type ProjectReleaseReview } from "../../../server/project-releases";
-import { demoProjectPage, projectPage } from "../../../server/project-page";
 import { wikiPageHref } from "../../../server/wiki-links";
 const projectId = Astro.params.id ?? "";
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
 let model: ProjectReleaseReview | undefined;
 let error = "";
+let pending: Awaited<ReturnType<typeof readVisualEvidence>> | undefined;
+const pendingBatch = Astro.url.searchParams.get("batch");
 try {
-  if (demo) model = demoProjectReleases(projectId);
+  if (!demo && pendingBatch) pending = await readVisualEvidence(planningContext(Astro.request,Astro.locals),{projectId,bundleId:Astro.url.searchParams.get("bundle"),batchId:pendingBatch});
+  else if (demo) model = demoProjectReleases(projectId);
   else { const identity = requestIdentity(Astro.request); model = await readProjectReleases(workflowHost<"interactive">(Astro.locals), identity.installationId, projectId); }
 } catch (failure) {
   if (failure instanceof Response && [401, 403].includes(failure.status)) throw failure;
@@ -23,25 +29,29 @@ try {
 const documents = model?.documents ?? [];
 const bundleId = Astro.url.searchParams.get("bundle");
 const document = bundleId ? documents.find(node => node.id === bundleId) : documents[0];
-if (!error && bundleId && !document) { Astro.response.status = 404; error = "This record is not linked to the selected project."; }
+if (!pending && !error && bundleId && !document) { Astro.response.status = 404; error = "This record is not linked to the selected project."; }
 const source = document && model?.wiki ? wikiPageHref(model.wiki, requestPageURL(Astro.request), `documents/${document.id}`) : "";
-const screens = document ? model?.demonstrations[document.id] ?? [] : [];
-const project = !error && !document ? (demo ? demoProjectPage() : await projectPage(Astro.request, Astro.locals, projectId)).projects[0] : undefined;
-const legacy = project ? [project.demoInstructions, project.demoResults].filter(Boolean).join("\n\n") : "";
-const firstHeading = document?.body.match(/^\s*#{1,6}\s+(.+?)\s*#*\s*(?:\r?\n|$)/)?.[1]?.trim();
-const bodyHasTitle = firstHeading === document?.title.trim();
+const legacy = model?.project.legacy ?? "";
+let views: ReturnType<typeof projectEvidenceViews> = [];
+try { if (model) views = projectEvidenceViews(model); } catch (failure) { error = (failure as Error).message; }
+const selected = pending && "bundle" in pending ? pending.bundle : views.find(view => view.id === document?.id);
+const focus = {kind: "planning-project", id: projectId, label: model?.project.title ?? "Project", revision: model?.project.revision};
 ---
-<Layout title="Evidence" description={model?.project.title ?? "Review this project's supporting evidence."} wiki={model?.wiki ?? null}>
+<Layout title="Evidence" description={model?.project.title ?? "Review this project's supporting evidence."} wiki={model?.wiki ?? null} {focus}>
   <div slot="intro-actions"><Button href={appHref(Astro.url.pathname, `/projects/${projectId}`)} variant="secondary">← Back to project</Button></div>
   {demo && <p class="planning-notice">Read-only demo · These evidence records are synthetic.</p>}
   {error ? <p role="alert">{error}</p> : <>
     {documents.length > 1 && <nav class="planning-toolbar planning-release-records" aria-label="Evidence records">
       {documents.map(node => <Button href={`?bundle=${node.id}`} variant="secondary" aria-current={document?.id === node.id ? "page" : undefined}>{node.title}</Button>)}
     </nav>}
-    {document ? <article class="planning-release-reader">
-      {!bodyHasTitle && <h2>{document.title}</h2>}<p class="muted">Revision {document.revision}{source && <> · <a href={source}>Wiki source</a></>}</p>
-      <ReleaseContent content={document.body} />
-    </article> : legacy ? <article class="planning-release-reader"><h2>Project evidence</h2><ReleaseContent content={legacy} /></article> : <p>No evidence documents are linked to this project yet.</p>}
-    {screens.length > 0 && <div class="planning-evidence-screens"><h2>Screenshots</h2>{screens.map(demonstration => <div><h3>{demonstration.title}</h3><div class="planning-evidence-grid">{demonstration.media.map(url => <a href={url}><img src={url} alt={`${demonstration.title}, ${url.split("/").pop()}`} loading="lazy" /></a>)}</div></div>)}</div>}
+    {pending && <p role="status" class="planning-notice">Pending graph review · This capture has not been applied to the product revision.</p>}
+    {selected && <EvidenceViewer bundle={selected} comparisons={views} projectRevision={pending && "projectRevision" in pending ? pending.projectRevision : model?.project.revision} evidenceHref={appHref(Astro.url.pathname, `/projects/${projectId}/evidence`)} client:load />}
+    <details class="planning-release-reader"><summary>Source records and JSON</summary>
+      {document ? <><p>Record revision {document.revision}{source && <> · <a href={source}>Wiki source</a></>}</p>
+        {selected?.legacy ? <ReleaseContent content={document.body} /> : <pre>{JSON.stringify(JSON.parse(document.body), null, 2)}</pre>}
+        <a download={`evidence-${document.id}.${selected?.legacy ? "md" : "json"}`} href={`data:${selected?.legacy ? "text/plain" : "application/json"};charset=utf-8,${encodeURIComponent(document.body)}`}>Download source</a>
+      </> : pending && selected ? <pre>{JSON.stringify(selected, null, 2)}</pre> : legacy ? <ReleaseContent content={legacy} /> : <p>No evidence documents are linked to this project yet.</p>}
+    </details>
+    {!selected && <p>No visual evidence captured. A manifest link alone is not a captured walkthrough.</p>}
   </>}
 </Layout>

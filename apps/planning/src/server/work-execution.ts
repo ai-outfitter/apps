@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";
 import {
   defineAction,
@@ -1143,29 +1144,11 @@ export class WorkExecution {
     const foundries: { installationId: string; projects: unknown[] }[] = [],
       governances: { installationId: string; controls: unknown[] }[] = [];
     const wiki = await defaultWiki(this.context.host());
-    const list = async (type: string) => {
-      const rows = [];
-      for (let offset = 0; offset < 100000; offset += 100) {
-        const page = await this.context.host().call("entities.list", {
-          installationId: wiki.installationId,
-          type,
-          offset,
-          limit: 100,
-        });
-        rows.push(...page.filter((record) => !record.attributes.archived));
-        if (page.length < 100) return rows;
-      }
-      throw new Response("Wiki exceeds control discovery limit", {
-        status: 413,
-      });
-    };
-    const types = await list("graph-type"),
-      controlType = types.find(
-        (type) => type.attributes.name === "DecisionControl",
-      );
+    const list = (type: string, filter: Record<string, unknown>) =>
+      listEntities(this.context.host(), { installationId: wiki.installationId, type, filter: { ...filter, archived: false } });
+    const [controlType] = await list("graph-type", { name: "DecisionControl" });
     const controls = controlType
-      ? (await list("graph-node"))
-          .filter((node) => node.attributes.typeId === controlType.ref.id)
+      ? (await list("graph-node", { typeId: controlType.ref.id }))
           .flatMap((node) => {
             try {
               const body = JSON.parse(String(node.attributes.body));

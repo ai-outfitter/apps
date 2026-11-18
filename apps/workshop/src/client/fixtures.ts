@@ -1,3 +1,4 @@
+import { projectThumbnail } from "../lib/thumbnail";
 import { makeProject, type Project, ProjectSchema } from "../lib/project";
 import type { Unit } from "../server/units";
 
@@ -70,12 +71,9 @@ export const fixtureProjects: Project[] = [
 export function fixtureRequest<T>(path: string, method: string): T {
   if (method !== "GET") throw new Error("This installation is read-only.");
   if (!path)
-    return fixtureProjects.map(({ id, name, revision, updatedAt, phase }) => ({
-      id,
-      name,
-      revision,
-      updatedAt,
-      phase,
+    return fixtureProjects.map(project => ({
+      brief: project.brief, thumbnail: projectThumbnail(project),
+      id: project.id, name: project.name, revision: project.revision, updatedAt: project.updatedAt, phase: project.phase,
     })) as T;
   const found = fixtureProjects.find((item) => item.id === path.slice(1));
   if (!found) throw new Error("Project not found");

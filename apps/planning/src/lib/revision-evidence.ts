@@ -114,6 +114,9 @@ export function revisionEvidence(graph: Graph, revision: GraphNode) {
 
   const bundles: EvidenceBundle[] = candidates
     .flatMap((node) => {
+      const capture = evidenceBody(node.body);
+      const normalized = capture.recordKind === "visual-evidence";
+      if (normalized && object(capture.productRevision).id !== revision.id) return [];
       // Inspect membership edges even when a member is missing/archived, so that
       // omissions are reported instead of silently disappearing from coverage.
       const membership = graph.edges.filter(
@@ -162,8 +165,8 @@ export function revisionEvidence(graph: Graph, revision: GraphNode) {
       const demonstrations = selection.demonstrations;
       warnings.push(...selection.warnings);
       // A source receipt alone is not an evidence bundle.
-      if (!explicitScope && !demonstrations.length) return [];
-      if (!explicitScope)
+      if (!explicitScope && !demonstrations.length && evidenceBody(node.body).recordKind !== "visual-evidence") return [];
+      if (!explicitScope && !normalized)
         warnings.push(
           "This bundle does not pin its member revisions. Historical source versions cannot be verified.",
         );
@@ -176,7 +179,7 @@ export function revisionEvidence(graph: Graph, revision: GraphNode) {
           body.source
         );
       });
-      const metadata = sources.map((source) => evidenceBody(source.body));
+      const metadata = [...(normalized ? [capture] : []), ...sources.map((source) => evidenceBody(source.body))];
       const captures = metadata.flatMap((meta) => {
         if (meta.sourceAtCapture) return [object(meta.sourceAtCapture)];
         if (meta.captureRuns)

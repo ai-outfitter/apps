@@ -125,3 +125,11 @@ test('transport errors after durable publication are reported as unverified, nev
  assert.equal(status.status,'activation-unverified');assert.equal(status.remaining,undefined);
  assert.equal(status.message,'OIDC service unavailable');
 });
+
+test('publication orders apps that declare dependency version ranges',async()=>{
+  const {publishCatalogSet}=await import('../catalog-publication.mjs');
+  const order=[];
+  await publishCatalogSet([{slug:'forerunner',app:{dependencies:{onto:'*','wiki-map':'>=0.1.5'}}},{slug:'wiki-map',app:{dependencies:['onto']}},{slug:'onto',app:{}}],
+    {publish:async bundle=>{order.push(bundle.slug);return {sha256:'b'.repeat(64)};},reconcile:async()=>({remaining:0}),report:()=>{}});
+  assert.deepEqual(order,['onto','wiki-map','forerunner']);
+});

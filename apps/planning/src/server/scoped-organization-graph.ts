@@ -27,42 +27,33 @@ export async function readScopedOrganizationGraph(
   identity: AppIdentity,
 ) {
   const who = requireOrganization(identity);
-  async function list(
-    collection: ReturnType<Database["collection"]>,
-    options: Parameters<ReturnType<Database["collection"]>["list"]>[0],
-  ) {
-    const result: EntityRecord[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const page = await collection.list({ ...options, offset, limit: 100 });
-      result.push(...page);
-      if (result.length > 10000)
-        throw new Response("Selected graph exceeds its read bound", {
-          status: 413,
-        });
-      if (page.length < 100) return result;
-    }
-  }
+  type Collection = ReturnType<Database["collection"]>;
+  const list = (collection: Collection, options: Parameters<Collection["all"]>[0]): Promise<EntityRecord[]> =>
+    collection.all(options).catch((error) => {
+      if (error instanceof Response && error.status === 413) throw new Response("Selected graph exceeds its read bound", { status: 413 });
+      throw error;
+    });
   // Types are small registry metadata; retain archived definitions to validate saved rules.
   const types = await list(database.collection("types"), {
     select: ["id", "name", "category", "title", "archived"],
   });
-  const organizationTypes = types.filter(
-    (t) =>
-      active(t) &&
-      t.attributes.name === "Organization" &&
-      t.attributes.category === "node",
-  );
-  // Find bindings without downloading every company's authored body. Only exact
-  // binding candidates are hydrated and counted as loaded traversal records.
-  const [organizationLookup, lensCandidates] = await Promise.all([
-    Promise.all(
-      organizationTypes.map((t) =>
-        list(database.collection("nodes"), {
-          where: { typeId: t.ref.id, archived: false },
-          select: ["id", "typeId", "title", "properties", "archived"],
-        }),
-      ),
-    ).then((pages) => pages.flat()),
+  const organizationTypeIds = types
+    .filter(
+      (t) =>
+        active(t) &&
+        t.attributes.name === "Organization" &&
+        t.attributes.category === "node",
+    )
+    .map((t) => t.ref.id);
+  const organizations = (where: Record<string, unknown>, select?: string[]) =>
+    organizationTypeIds.length
+      ? list(database.collection("nodes"), { where: { typeIds: organizationTypeIds, archived: false, ...where }, select })
+      : Promise.resolve([]);
+  // The Wiki matches the binding; only bound organizations are read in full and count as
+  // loaded traversal records. The other companies' authored bodies are never downloaded.
+  const [organizationLookup, boundOrganizations, lensCandidates] = await Promise.all([
+    organizations({}, ["id", "typeId", "title", "properties", "archived"]),
+    organizations({ properties: { organization_id: who.organizationId } }),
     list(database.collection("nodes"), {
       where: { slug: "organization-overview", archived: false },
       select: nodeFields,
@@ -85,18 +76,7 @@ export async function readScopedOrganizationGraph(
       return true;
     }
   };
-  const boundOrganizations = organizationLookup.filter(
-    (n) =>
-      (n.attributes.properties as Record<string, unknown> | undefined)
-        ?.organization_id === who.organizationId,
-  );
-  const anchors: EntityRecord[] = [];
-  for (let offset = 0; offset < boundOrganizations.length; offset += 8) {
-    const records = await Promise.all(boundOrganizations.slice(offset, offset + 8).map(
-      (record) => database.collection("nodes").get(record.ref.id),
-    ));
-    anchors.push(...records.filter(eligible));
-  }
+  const anchors = boundOrganizations.filter(eligible);
   const lenses = lensCandidates.filter(
     (record) => eligible(record) && typeName(record) === "KnowledgeGraph",
   );
@@ -138,9 +118,9 @@ export async function readScopedOrganizationGraph(
     if (!read) {
       read = database
         .collection("nodes")
-        .get(id)
+        .load(id)
         .then((record) => {
-          if (!eligible(record)) return undefined;
+          if (!record || !eligible(record)) return undefined;
           if (nodes.size >= 1000) {
             truncated = true;
             return undefined;
@@ -233,8 +213,7 @@ export async function readScopedOrganizationGraph(
     const endpointIds = [...new Set(candidates.map((edge) => otherEndpoint(current, edge)))];
     // Fetch only the opposite endpoint of a direction/type-matching rule. Nodes
     // at the depth limit supply solely the required project/product provenance.
-    for (let offset = 0; offset < endpointIds.length; offset += 8)
-      await Promise.all(endpointIds.slice(offset, offset + 8).map(node));
+    await Promise.all(endpointIds.map(node));
     const relevant = candidates.filter((edge) => matchesLoadedTarget(current, edge));
     if (productTypes.includes(String(typeName(current.record))))
       await readOfferingProviders(current, relevant);

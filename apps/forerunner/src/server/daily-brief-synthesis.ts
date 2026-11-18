@@ -2,6 +2,7 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
 import type { DayReview, ReportSource } from "./day-review";
+import type { PlanningWork } from "./planning-work";
 
 // The daily digest is written by one model answer over saved, authorized evidence.
 // This module is the pure part: it names every piece of evidence the model may
@@ -19,12 +20,14 @@ export const discoveryFreshMs = 36 * 3_600_000;
 export type BriefInputs = {
   date: string; timezone: string; review: DayReview;
   priorities: { id: string; title: string; category: string; status: string; dueDate?: string | null }[];
+  /** Issues in progress in the member's organizations' Planning. Absent means it was not read. */
+  work?: PlanningWork;
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
 };
-type Kind = "priority" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
+type Kind = "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
 export type Evidence = {
   ref: string; kind: Kind;
   /** What the member reads in the source list. */
@@ -57,6 +60,11 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   else if (!input.review.goals.length) gaps.push("Goals: no personal goals are saved.");
   for (const item of input.priorities.slice(0, 30)) add("priority", "p", { label: `Priority: ${cut(item.title, 160)}`, text: cut(`${item.title} (${item.category}, ${item.status}${item.dueDate ? `, due ${item.dueDate}` : ""})`, 300), recordId: item.id });
   if (!input.priorities.length) gaps.push("Priorities: no open priorities are on your board.");
+  const work = input.work;
+  for (const issue of work?.issues.slice(0, 30) ?? []) add("work", "w", { label: `In progress in ${cut(issue.organization, 80)}: ${cut(issue.title, 160)}`, text: cut(`${issue.title} (${issue.organization}, ${issue.category}, in progress${issue.dueDate ? `, due ${issue.dueDate}` : ""})`, 300), scope: issue.scope, href: issue.href });
+  if (!work || work.status === "unavailable") gaps.push("Planning issues: in-progress issues in your organizations could not be read.");
+  else if (work.status === "incomplete") gaps.push("Planning issues: only the first in-progress issues were read.");
+  else if (!work.issues.length) gaps.push("Planning issues: no issue is in progress in your organizations' Planning.");
   for (const source of input.review.organizations) {
     if (usable(source)) add("report", "r", { label: `${cut(source.name, 120)} daily report for ${input.review.period.date}`, text: reportText(source), scope: source.scope, status: source.status, href: source.href });
     else gaps.push(`${cut(source.name, 120)}: ${source.status === "missing" ? "no daily report was saved for" : "the saved report could not be read for"} ${input.review.period.date}. This is not evidence of no activity.`);
@@ -88,6 +96,7 @@ export const briefInstructions = [
   "Rules:",
   "- Every statement cites the refs it rests on. Cite only refs that appear in `evidence`.",
   "- `highlights` are what matters today in light of the person's role (kind `responsibility`) and goals (kind `goal`) when those are present. Mark each `fact` (directly stated by the cited evidence) or `inference` (your reading of it).",
+  "- Kind `priority` is the person's own board. Kind `work` is an issue in progress in one of their organizations; it is not necessarily assigned to them.",
   "- `attention` are at most five things worth their attention today, each with a reason. They are your suggestions, not facts. Set `goal` to the ref of the goal it serves, or null.",
   "- Never invent activity, numbers, people, dates or progress. If the evidence does not say it, do not say it. A missing source is unknown, not quiet.",
   "- `unsupported` lists, in plain words, anything the person would likely want to know that the evidence cannot support.",
@@ -104,7 +113,8 @@ export function answerSchema(evidence: Evidence[]) {
     highlights: z.array(z.strictObject({ text: z.string().min(1).max(360), kind: z.enum(["fact", "inference"]), evidence: cite })).max(8),
     attention: z.array(z.strictObject({
       text: z.string().min(1).max(240).describe("What to give attention to"), why: z.string().min(1).max(300), evidence: cite,
-      goal: (goals.length ? z.enum(goals as [string, ...string[]]) : z.never()).nullable().describe("The goal ref this serves, or null"),
+      // With no goal in the evidence the only answer is null. `never` has no JSON Schema a strict provider accepts.
+      goal: (goals.length ? z.enum(goals as [string, ...string[]]).nullable() : z.null()).describe("The goal ref this serves, or null"),
     })).max(5),
     unsupported: z.array(z.string().min(1).max(240)).max(6),
   });

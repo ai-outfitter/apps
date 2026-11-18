@@ -10,7 +10,7 @@ import {
 } from "../../../../../server/graph-batches";
 
 // The Changes pages: list and read batches, member review, answers to an agent's questions, a fresh steward
-// review (a new batch-review run; advisory only), record history.
+// review (a new batch-review run; the steward then approves what it found clean), record history.
 // Reading the list first seals batches whose review window has ended.
 export const GET: APIRoute = ({ request, params }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Read-only demo", { status: 403 });

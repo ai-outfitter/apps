@@ -146,7 +146,7 @@ test("create a canonical project, document a dependency, and read an agent updat
         method: "POST",
         body: { type: "project" },
       })
-    ).json()) as { ref: { id: string }; revision: number }[];
+    ).json() as { records: { ref: { id: string }; revision: number }[] }).records;
     expect(projects).toHaveLength(1);
     const node = (await (
       await runtime.app.call("/api/internal/entities/v1/get", owner, {
@@ -387,7 +387,7 @@ test(`document an external project with Planning ${planningAvailable ? "installe
     const node = await (await runtime.app.call("/api/internal/entities/v1/get", owner, { method: "POST", body: { type: "graph-node", id: nodeId } })).json() as { references: unknown[] };
     expect(node.references).toEqual([]);
     const projects = await (await runtime.planning.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "project" } })).json();
-    expect(projects).toEqual([]);
+    expect(projects.records).toEqual([]);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${origin}/page?new=project`);
     await page.getByLabel("How would you like to start?").selectOption("standalone");

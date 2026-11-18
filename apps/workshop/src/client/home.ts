@@ -4,7 +4,7 @@ import { appBase, projectPath, projectSlug, type SectionId } from "../lib/sectio
 
 // A build-time constant, so the demo bundle carries no API calls.
 const readOnly = import.meta.env.OUTFITTER_APP_MODE === "demo";
-type Summary = Pick<Project, "id" | "name" | "revision" | "updatedAt" | "phase">;
+type Summary = Pick<Project, "id" | "name" | "revision" | "updatedAt" | "phase" | "brief"> & { thumbnail?: string };
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => {
   const node = document.querySelector<T>(s);
@@ -36,16 +36,26 @@ function projectRow(p: Summary, base: string) {
   thumb.height = 75;
   thumb.loading = "lazy";
   thumb.decoding = "async";
-  if (!readOnly) thumb.src = `${base}/api/apps/workshop/projects/${p.id}/preview?revision=${p.revision}`;
+  if (!readOnly) thumb.src = `${base}/api/apps/workshop/projects/${p.id}/preview?revision=${p.revision}&thumbnail=1`;
   thumb.addEventListener("load", () => { row.dataset.thumbnail = "ready"; });
   thumb.addEventListener("error", () => { thumb.hidden = true; row.dataset.thumbnail = "pending"; });
-  if (readOnly) thumb.hidden = true;
+
   const name = document.createElement("strong");
   name.textContent = p.name;
   const text = document.createElement("span");
   text.className = "project-text";
-  text.append(name);
-  link.append(text, thumb);
+  const description = document.createElement("span");
+  description.className = "project-brief";
+  description.textContent = p.brief || `Design project in the ${p.phase} stage.`;
+  text.append(name, description);
+  if (readOnly && p.thumbnail) {
+    const drawing = new DOMParser().parseFromString(p.thumbnail, "image/svg+xml").documentElement;
+    drawing.setAttribute("class", "thumb");
+    drawing.setAttribute("aria-hidden", "true");
+    link.append(text, drawing);
+  } else {
+    link.append(text, thumb);
+  }
   row.append(link);
   return row;
 }

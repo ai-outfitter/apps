@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
+import { mutateAction, serveGraphql } from "@ai-outfitter/app-sdk/app-graphql";
 import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
 import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema, type WorkshopContext } from "../src/server/graphql";
-import { getWorkshopProject } from "../src/server/projects";
+import { AssemblySchema } from "../src/lib/assembly";
+import { unzipSync, strFromU8 } from "fflate";
+import { exportWorkshopProject, getWorkshopProject } from "../src/server/projects";
 
 // Each mutation document runs through graph.mutate as the platform's graph_mutate calls it,
 // admitting every member as the page does: a starter example becomes a first-revision
@@ -132,4 +134,103 @@ test("an agent starts a linked project and builds it by document: describe, link
     assert.equal((await getWorkshopProject(db, id)).productRevision, undefined);
     assert.deepEqual((await run(writer, "NameWorkshopProductRevision", { id: crypto.randomUUID(), revision: 1, productRevision: null })).errors?.[0]?.extensions, { code: "REFUSED", status: 404 });
   } finally { close(); }
+});
+
+
+test("the saved assembly is returned whole, and only one writer can replace its revision", async () => {
+  const { db, close } = await workshopDatabase();
+  try {
+    const context = member(db);
+    const { createWorkshopProject: project } = await runDocument(documents.CreateWorkshopProject.document, { input: { example: "node" } }, context);
+    const projectId = project.id;
+    const read = () => runDocument(documents.WorkshopAssembly.document, { projectId }, context);
+    const before = await read();
+    const saved = await getWorkshopProject(db, projectId);
+    assert.deepEqual({ ...before.workshopAssembly }, { projectId, revision: saved.revision, assembly: saved.assembly });
+    const next = structuredClone(saved.assembly);
+    for (const item of next.items) item.notes = "first edit".repeat(200);
+    const part = next.items.find(item => item.kind === "cots")!;
+    while (next.items.length < 204) {
+      next.items.push({ ...part, id: crypto.randomUUID(), number: `TEST-${next.items.length}`, notes: "" });
+    }
+    const replace = (assembly: typeof next) => runDocument(documents.UpdateWorkshopAssembly.document,
+      { projectId, expectedRevision: saved.revision, assembly }, context);
+    await assert.rejects(replace({ ...next, rootId: crypto.randomUUID() }), status(400));
+    const writes = await Promise.allSettled([replace(next), replace(next)]);
+    assert.equal(writes.filter(write => write.status === "fulfilled").length, 1);
+    assert.ok(writes.some(write => write.status === "rejected" && status(409)(write.reason)));
+    assert.deepEqual({ ...(await read()).workshopAssembly }, { projectId, revision: saved.revision + 1, assembly: next });
+    const limited = await serveGraphql({ schema: graphqlSchema, query: documentText(documents.WorkshopAssembly.document),
+      variables: { projectId }, context, maxBytes: 8192 });
+    assert.equal(limited.data, null);
+    assert.equal(limited.errors?.[0].extensions?.code, "RESPONSE_TOO_LARGE");
+  } finally { close(); }
+});
+
+test("a shared gripper propagates through two configurations and a nested consumer without republishing", async () => {
+  const {db,close}=await workshopDatabase();
+  try {
+    const ctx=member(db);
+    const create=async(name:string)=>(await runDocument(documents.CreateWorkshopProject.document,{input:{example:"cube",name}},ctx)).createWorkshopProject;
+    const save=(projectId:string,expectedRevision:number,assembly:unknown)=>runDocument(documents.UpdateWorkshopAssembly.document,{projectId,expectedRevision,assembly:AssemblySchema.parse(assembly)},ctx);
+    const view=async(projectId:string)=>(await runDocument(documents.ResolvedWorkshopAssembly.document,{input:{projectId}},ctx)).resolvedWorkshopAssembly as import("../src/lib/assembly-resolution").ResolvedAssembly;
+    const projects=[];
+    for(const name of ["Arm","Rack","Compact","Ship","Pin"])projects.push(await create(name));
+    const [a,r,c,s,p]=projects;
+    const item=(number:string,kind="assembly")=>({id:crypto.randomUUID(),number,kind,name:number,revision:"A"});
+    const use=(itemId:string,quantity=1)=>({id:crypto.randomUUID(),itemId,quantity,position:[0,0,0]});
+    const root=item("Arm"), grip=item("Gripper","cots"), placement=use(grip.id,2);
+    const configuration=(name:string,spacing:number)=>({name,rootId:root.id,parameters:[{name:"gap",min:0,max:100,defaultValue:spacing,placements:[{parentId:root.id,usageId:placement.id,axis:"x",offset:1,scale:2}]}]});
+    const structure={rootId:root.id,configurations:[configuration("rack",10),configuration("compact",5)],
+      power:{version:1,notes:"",scenarios:[{id:"on",name:"On",notes:""}],rails:[{id:"dc",name:"Input",voltage:24,efficiency:1,kind:"dc",notes:""}]},
+      items:[{...root,uses:[placement]},{...grip,opacity:0.35,estimatedUnitCost:2.75,power:{loads:[{id:"motor",name:"Motor",rail:"dc",source:"Test",evidence:"assumed",notes:"",scenarios:{on:{averageW:2,operatingW:2,peakW:2}}}]}}]};
+    await save(a.id,1,structure);
+    const link=(projectId:string,configuration?:string,revision?:number,parameters?:Record<string,number>)=>{
+      const wrapper=item("Linked");return {rootId:wrapper.id,items:[{...wrapper,reference:{projectId,...(configuration&&{configuration}),...(revision&&{revision}),...(parameters&&{parameters})}}]};
+    };
+    await save(r.id,1,link(a.id,"rack"));
+    await save(c.id,1,link(a.id,"compact",undefined,{gap:3}));
+    await save(s.id,1,link(r.id));
+    await save(p.id,1,link(a.id,"rack",2));
+    const {powerRollup}=await import("../src/lib/power");
+    const {bomTotals}=await import("../src/lib/assembly");
+    const check=async(id:string,position:number,watts:number)=>{
+      const result=await view(id);
+      assert.deepEqual(result,JSON.parse(JSON.stringify(result)), "MCP action results must contain only JSON values");
+      assert.equal(result.revision,2);
+      assert.equal(result.assembly.items.find(i=>i.number==="Gripper")!.opacity,0.35);
+      assert.deepEqual(result.buildPrice,{knownSubtotal:0,estimatedSubtotal:5.5,unpricedUnits:0});
+      assert.equal(result.assembly.items.find(i=>i.number==="Arm")!.uses[0].position[0],position);
+      assert.equal(bomTotals(result.assembly).lines.find(l=>l.item.number==="Gripper")!.quantity,2);
+      assert.equal(powerRollup(result.assembly,"on")!.total.operatingW,watts);
+      return result;
+    };
+    await check(s.id,21,4);
+    await assert.rejects(save(a.id,2,link(s.id)),status(400));
+    await assert.rejects(save(c.id,2,link(a.id,"compact",undefined,{gap:101})),status(400));
+    const motor=structure.items[1];
+    assert.ok('power' in motor);
+    const load=motor.power.loads[0];
+    load.scenarios.on={averageW:3,operatingW:3,peakW:3};
+    await save(a.id,2,structure);
+    await check(r.id,21,6);await check(c.id,7,6);await check(s.id,21,6);await check(p.id,21,4);
+    // A metadata-only save archives a marker; a later geometry edit supplies its historical body.
+    await runDocument(documents.DescribeWorkshopProject.document,{input:{id:a.id,revision:3,brief:"Metadata update"}},ctx);
+    load.scenarios.on={averageW:5,operatingW:5,peakW:5};
+    await save(a.id,4,structure);
+    const archived=(await runDocument(documents.ResolvedWorkshopAssembly.document,{input:{projectId:a.id,revision:3}},ctx)).resolvedWorkshopAssembly as import("../src/lib/assembly-resolution").ResolvedAssembly;
+    assert.equal(archived.revision,3);
+    assert.equal(powerRollup(archived.assembly,"on")!.total.operatingW,6);
+    const both=item("Both"),left={...item("Rack mount"),reference:{projectId:r.id}},right={...item("Compact mount"),reference:{projectId:c.id}};
+    await save(s.id,2,{rootId:both.id,items:[{...both,uses:[use(left.id),use(right.id)]},left,right]});
+    const shared=await view(s.id);
+    assert.deepEqual(shared.buildPrice,{knownSubtotal:0,estimatedSubtotal:11,unpricedUnits:0});
+    const grippers=bomTotals(shared.assembly).lines.filter(l=>l.item.number==="Gripper");
+    assert.deepEqual(grippers.map(l=>l.quantity),[4]);
+    const archive=await exportWorkshopProject(db,s.id);
+    const files=unzipSync(new Uint8Array(await archive.arrayBuffer()));
+    assert.match(strFromU8(files["bom.csv"]), /"Gripper","4","","","","2.75"/);
+    assert.ok(JSON.parse(strFromU8(files["assembly.json"])).items.some((i: {reference?:unknown})=>i.reference));
+    assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
+  } finally {close();}
 });

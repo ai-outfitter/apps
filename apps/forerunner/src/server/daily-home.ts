@@ -1,5 +1,4 @@
-import { documentWiki } from "@ai-outfitter/app-sdk/wiki-documents";
-import { graphGraphqlResult } from "@ai-outfitter/app-sdk/graph-protocol";
+import { wikiDocuments, wikiPackage } from "@ai-outfitter/app-sdk/wiki-documents";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -24,10 +23,6 @@ const briefDocument = z.object({ id: z.string(), revision: z.number().int().posi
 // owner-scoped page slug pins the period; the current brief workflow always
 // records incomplete coverage while provider adapters remain unavailable.
 const briefProvenance = z.object({ kind: z.literal("forerunner.daily-brief") });
-/** The package that holds briefs. Naming it lets discovery ask one installation instead of every installed app; the contract still decides. */
-const wikiPackage = "wiki-map";
-/** The owner's document Wiki, resolved once per read. */
-export const briefWiki = (host: Host) => documentWiki(host, { template: wikiPackage });
 /** Today and the six days before it: how far back a missing brief looks for the last saved one. */
 const lookbackDays = 7;
 
@@ -48,50 +43,37 @@ const timed = async <T>(timings: Timings, name: string, work: () => Promise<T>) 
 };
 
 /**
- * The owner's saved briefs for `date`, read with one Wiki provider resolution
- * and two Wiki requests: one page lookup for today and the days before it,
- * then one document read. `current` is today's brief. `previous` is
- * yesterday's reference (its body only when `previousBody`). `latest` is the
- * newest earlier brief with its body, read only when today's is missing, so a
- * page can show the last dated snapshot without calling it today's.
+ * The owner's saved briefs for `date`, read with one Wiki request: today's and
+ * yesterday's pages with their documents. `current` is today's brief.
+ * `previous` is yesterday's reference (its body only when `previousBody`).
+ * `latest` is the newest earlier brief with its body, so a page can show the
+ * last dated snapshot without calling it today's; only when neither today nor
+ * yesterday has one does a second request look further back.
  */
-export async function savedBriefs(host: Host, owner: AppIdentity, date: string, zone: string, options: { previousBody?: boolean; timings?: Timings; wiki?: ReturnType<typeof briefWiki> } = {}) {
+export async function savedBriefs(host: Host, owner: AppIdentity, date: string, zone: string, options: { previousBody?: boolean; timings?: Timings } = {}) {
   const timings = options.timings ?? {};
-  // A caller may have started resolving the Wiki already, beside other reads the slugs wait on.
-  const wiki = await (options.wiki ?? timed(timings, "wikiProvider", () => briefWiki(host)));
-  const query = async (query: string, variables: Record<string, unknown>) => {
-    const result = graphGraphqlResult.parse(await host.call("actions.call", {
-      installationId: wiki.installationId, action: "graph.graphql", readOnly: true,
-      input: { query, variables: JSON.parse(JSON.stringify(variables)), maxBytes: 131072 },
-    }));
-    if (result.errors?.length || result.extensions?.truncated || !result.data) throw new Error("Saved daily brief could not be read");
-    return result.data;
-  };
   const dates = Array.from({ length: lookbackDays }, (_, index) => shiftDate(date, -index));
   const slugs = await Promise.all(dates.map(day => briefSlug(owner, day, zone)));
-  const pages = await timed(timings, "briefLookup", () => query(
-    `query DailyHomePages(${dates.map((_, index) => `$s${index}:String!`).join(",")}){${dates.map((_, index) => `d${index}:page(slug:$s${index}){documentId}`).join(" ")}}`,
-    Object.fromEntries(slugs.map((slug, index) => [`s${index}`, slug]))));
-  const ids = dates.map((_, index) => z.object({ documentId: z.string() }).nullable().parse(pages[`d${index}`] ?? null)?.documentId ?? null);
-  // Today's body, or else the newest earlier brief's. Yesterday is also read as a reference when it is neither.
-  const bodyIndex = ids.findIndex(id => id !== null);
-  const wanted = [...new Set([bodyIndex, ids[1] ? 1 : -1].filter(index => index >= 0))];
-  if (!wanted.length) return { current: null, previous: null, latest: null };
-  const full = (index: number) => index === bodyIndex || (index === 1 && options.previousBody === true);
-  const documents = await timed(timings, "briefRead", () => query(
-    `query DailyHomeDocuments(${wanted.map(index => `$i${index}:ID!`).join(",")}){${wanted.map(index => `b${index}:document(id:$i${index}){id revision ${full(index) ? "generatedBody " : ""}provenance archived createdAt}`).join(" ")}}`,
-    Object.fromEntries(wanted.map(index => [`i${index}`, ids[index]]))));
-  const brief = (index: number) => {
-    if (!wanted.includes(index)) return null;
-    const doc = briefDocument.parse(documents[`b${index}`]);
-    if (doc.archived) return null;
-    if (!briefProvenance.safeParse(JSON.parse(doc.provenance || "null")).success) throw new Error("Saved page is not a Forerunner daily brief");
-    const slug = slugs[index];
-    return { documentId: doc.id, revision: doc.revision, slug, href: `/apps/wiki-map/p/${encodeURIComponent(slug)}?revision=${doc.revision}`,
-      markdown: doc.generatedBody ?? "", status: "incomplete" as const, date: dates[index], timezone: zone, savedAt: doc.createdAt ?? null };
+  const read = async (from: number, to: number) => {
+    const days = dates.slice(from, to).map((_, offset) => from + offset);
+    const pages = await timed(timings, "briefRead", () => wikiDocuments(host, "graph.graphql",
+      `query DailyHomeBriefs(${days.map(index => `$s${index}:String!`).join(",")}){${days.map(index => `d${index}:page(slug:$s${index}){document{id revision generatedBody provenance archived createdAt}}`).join(" ")}}`,
+      Object.fromEntries(days.map(index => [`s${index}`, slugs[index]]))));
+    return days.map(index => {
+      const doc = z.object({ document: briefDocument.nullable() }).nullable().parse(pages[`d${index}`] ?? null)?.document;
+      if (!doc) return null;
+      if (doc.archived) return "archived" as const;
+      if (!briefProvenance.safeParse(JSON.parse(doc.provenance || "null")).success) throw new Error("Saved page is not a Forerunner daily brief");
+      return { documentId: doc.id, revision: doc.revision, slug: slugs[index], href: `/apps/${wikiPackage}/p/${encodeURIComponent(slugs[index])}?revision=${doc.revision}`,
+        markdown: doc.generatedBody ?? "", status: "incomplete" as const, date: dates[index], timezone: zone, savedAt: doc.createdAt ?? null };
+    });
   };
-  const current = brief(0), previous = brief(1);
-  return { current, previous, latest: current || bodyIndex <= 0 ? null : brief(bodyIndex) };
+  const shown = <T>(brief: T | "archived" | null) => brief === "archived" ? null : brief;
+  const [today, prior] = await read(0, 2);
+  const current = shown(today), yesterday = shown(prior);
+  // An archived brief for today is not replaced by an older day's.
+  const latest = today ? null : yesterday ?? shown((prior ? [] : await read(2, lookbackDays)).find(brief => brief !== null) ?? null);
+  return { current, previous: yesterday && !options.previousBody ? { ...yesterday, markdown: "" } : yesterday, latest };
 }
 
 /** The saved brief for one date, or null when none is saved or it is archived. */
@@ -113,9 +95,8 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
   const combined = !input.sections;
   const sections = new Set<DailyHomeSection>(input.sections ?? ["digest", "priorities", "review", ...(input.includeHistory ? ["history" as const] : [])]);
   const timings: Timings = {};
-  // Nothing below waits on the time zone to begin: the Wiki is resolved and the board is read while the schedule loads.
+  // The board does not wait on the time zone: it is read while the schedule loads.
   const started = <T>(work: Promise<T>) => { work.catch(() => undefined); return work; };
-  const wiki = sections.has("digest") ? started(timed(timings, "wikiProvider", () => briefWiki(host))) : undefined;
   const board = sections.has("priorities") ? started(timed(timings, "priorities", () => listItems(db, identity))) : null;
   // The schedule names the member's time zone; a caller that already knows it skips the read outside the digest.
   const schedule = sections.has("digest") || !input.timezone ? await timed(timings, "schedule", () => dailyBriefSchedule(host, identity)) : undefined;
@@ -123,7 +104,7 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
   const { date, yesterday, weekStart, weekEnd, weekDates } = dailyHomeDates(now, zone);
   const warnings: string[] = [];
   const digest = async () => {
-    try { return { ...await savedBriefs(host, identity, date, zone, { previousBody: combined, timings, wiki }), briefState: "read" as const }; }
+    try { return { ...await savedBriefs(host, identity, date, zone, { previousBody: combined, timings }), briefState: "read" as const }; }
     catch {
       warnings.push(`The saved daily brief for ${date} could not be read.`);
       return { current: null, previous: null, latest: null, briefState: "unavailable" as const };

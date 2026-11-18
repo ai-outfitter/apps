@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-sdk",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": false,
   "type": "module",
   "exports": {
@@ -21,6 +21,7 @@
     "./agent-store": "./src/agent-store.ts",
     "./workflow-host": "./src/workflow-host.ts",
     "./entities": "./src/entities.ts",
+    "./entity-query": "./src/entity-query.ts",
     "./database": "./src/database.ts",
     "./home-cards": "./src/home-cards.ts",
     "./operations": "./src/operations.ts",
@@ -33,6 +34,9 @@
     "./graph-markdown": "./src/graph-markdown.ts",
     "./graph-selection": "./src/graph-selection.ts",
     "./graph-query": "./src/graph-query.ts",
+    "./graph-order": "./src/graph-order.ts",
+    "./graph-filter": "./src/graph-filter.ts",
+    "./graph-filter-sql": "./src/graph-filter-sql.ts",
     "./graph-graphql": "./src/graph-graphql.ts",
     "./graph-graphql-typed": "./src/graph-graphql-typed.ts",
     "./graph-graphql-typegen": "./src/graph-graphql-typegen.ts",
@@ -49,6 +53,7 @@
     "./batch-documents": "./src/batch-documents.ts",
     "./batch-receipts": "./src/batch-receipts.ts",
     "./graph-protocol": "./src/graph-protocol.ts",
+    "./graph-limits": "./src/graph-limits.ts",
     "./graph-provider": "./src/graph-provider.ts",
     "./document-policy": "./src/document-policy.ts",
     "./graph-records": "./src/graph-records.ts",
@@ -61,7 +66,8 @@
     "./ui-preferences": "./src/ui-preferences.ts",
     "./workflow-inference": "./src/workflow-inference.ts",
     "./workflow-session": "./src/workflow-session.ts",
-    "./wiki-documents": "./src/wiki-documents.ts"
+    "./wiki-documents": "./src/wiki-documents.ts",
+    "./visual-evidence": "./src/visual-evidence.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",

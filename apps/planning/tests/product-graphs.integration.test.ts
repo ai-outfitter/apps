@@ -1,4 +1,5 @@
 import { wikiGraphFixture } from "@ai-outfitter/app-test/wiki-fixture";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -405,24 +406,7 @@ test("Product reader selects the authenticated Planning installation when the ow
         : input.type === "graph-node"
           ? graph.nodes
           : graph.edges;
-    const filter = input.filter as Record<string, unknown> | undefined;
-    return records
-      .filter((record) =>
-        Object.entries(filter ?? {}).every(([key, value]) => {
-          if (key === "nodeId")
-            return (
-              record.attributes.fromId === value ||
-              record.attributes.toId === value
-            );
-          if (key === "archived")
-            return Boolean(record.attributes.archived) === value;
-          return record.attributes[key] === value;
-        }),
-      )
-      .slice(
-        Number(input.offset ?? 0),
-        Number(input.offset ?? 0) + Number(input.limit ?? 100),
-      );
+    return memoryEntityPage(records, input);
   }
   const host = {
     async call(operation: string, value: unknown) {
@@ -437,7 +421,7 @@ test("Product reader selects the authenticated Planning installation when the ow
       assert.equal(operation, "entities.list");
       if (input.type === "project") {
         projectReads.push(String(input.installationId));
-        return [canonical];
+        return memoryEntityPage([canonical], input);
       }
       return listFixtureGraph(input);
     },

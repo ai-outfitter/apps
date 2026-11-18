@@ -1,6 +1,14 @@
 """Any JSON value."""
 scalar JSON
 
+input ProjectEvidenceInput {
+  projectId: ID!
+  bundleId: ID
+  batchId: ID
+  after: String
+  limit: Int
+}
+
 """
 A design partner's feature or bug request, filed from its own organization.
 """
@@ -53,9 +61,15 @@ enum PartnerRequestStatus {
 }
 
 type DailyReportSourceConnection {
+  edges: [DailyReportSourceConnectionEdge!]!
   nodes: [DailyReportSource!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type DailyReportSourceConnectionEdge {
+  cursor: String!
+  node: DailyReportSource!
 }
 
 type DailyReportSource {
@@ -69,12 +83,10 @@ type DailyReportSource {
 }
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
 type ProductCard {
@@ -116,15 +128,27 @@ type ProductPage {
 }
 
 type ProductPageConnection {
+  edges: [ProductPageConnectionEdge!]!
   nodes: [ProductPage!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ProductPageConnectionEdge {
+  cursor: String!
+  node: ProductPage!
 }
 
 type OrganizationGoalsConnection {
+  edges: [OrganizationGoalsConnectionEdge!]!
   nodes: [OrganizationGoals!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type OrganizationGoalsConnectionEdge {
+  cursor: String!
+  node: OrganizationGoals!
 }
 
 """
@@ -160,9 +184,15 @@ type GoalMetric {
 }
 
 type ProjectConnection {
+  edges: [ProjectConnectionEdge!]!
   nodes: [Project!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ProjectConnectionEdge {
+  cursor: String!
+  node: Project!
 }
 
 type Project {
@@ -264,9 +294,15 @@ type ProjectReadiness {
 }
 
 type ProjectRepositoryConnection {
+  edges: [ProjectRepositoryConnectionEdge!]!
   nodes: [ProjectRepository!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ProjectRepositoryConnectionEdge {
+  cursor: String!
+  node: ProjectRepository!
 }
 
 type ProjectRepository {
@@ -309,9 +345,15 @@ type GithubPullRequestActivity {
 scalar DateTime
 
 type IssueConnection {
+  edges: [IssueConnectionEdge!]!
   nodes: [Issue!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type IssueConnectionEdge {
+  cursor: String!
+  node: Issue!
 }
 
 type Issue {
@@ -330,6 +372,57 @@ type Issue {
   updatedAt: DateTime!
 }
 
+"""How Issue records are ordered, ties by ID."""
+enum IssueOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
+}
+
+input IssueFilter {
+  projectId: IDFilter
+  status: StringFilter
+  category: StringFilter
+  and: [IssueFilter!]
+  or: [IssueFilter!]
+  not: IssueFilter
+}
+
+"""
+Conditions on one id field of a filter; every one given must hold, and a filter holds at most 20. They run in the database.
+"""
+input IDFilter {
+  isNull: Boolean
+  equalTo: ID
+  notEqualTo: ID
+  in: [ID!]
+  notIn: [ID!]
+  lessThan: ID
+  lessThanOrEqualTo: ID
+  greaterThan: ID
+  greaterThanOrEqualTo: ID
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
+}
+
 input MetricMeasurementsInput {
   metricIds: [ID!]
 }
@@ -343,9 +436,15 @@ input IntakeReleaseOptionsInput {
 }
 
 type IntakeConnection {
+  edges: [IntakeConnectionEdge!]!
   nodes: [Intake!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type IntakeConnectionEdge {
+  cursor: String!
+  node: Intake!
 }
 
 type Intake {
@@ -519,6 +618,85 @@ input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
   installationId: String!
   type: String!
   id: String!
+  revision: Float!
+}
+
+input SubmitEvidenceInput {
+  key: String!
+  batchId: ID!
+  bundle: SubmitEvidenceInputBundle!
+}
+
+input SubmitEvidenceInputBundle {
+  schemaVersion: Float!
+  recordKind: String!
+  project: SubmitEvidenceInputBundleProject!
+  productRevision: SubmitEvidenceInputBundleProductRevision!
+  title: String!
+  summary: String!
+  capturedAt: String!
+  source: SubmitEvidenceInputBundleSource!
+  steps: [SubmitEvidenceInputBundleStepsItem!]!
+  limitations: [String!]
+}
+
+input SubmitEvidenceInputBundleProject {
+  id: ID!
+  revision: Float!
+}
+
+input SubmitEvidenceInputBundleProductRevision {
+  id: ID!
+  revision: Float!
+}
+
+input SubmitEvidenceInputBundleSource {
+  repository: String!
+  commit: String!
+  environment: SubmitEvidenceInputBundleSourceEnvironment!
+  seeded: Boolean!
+  dirty: Boolean!
+  release: String
+  build: String
+}
+
+enum SubmitEvidenceInputBundleSourceEnvironment {
+  local
+  preview
+  production
+}
+
+input SubmitEvidenceInputBundleStepsItem {
+  id: String!
+  title: String!
+  description: String!
+  media: [SubmitEvidenceInputBundleStepsItemMediaItem!]
+  before: SubmitEvidenceInputBundleStepsItemBefore
+}
+
+input SubmitEvidenceInputBundleStepsItemMediaItem {
+  id: String!
+  kind: SubmitEvidenceInputBundleStepsItemMediaItemKind!
+  caption: String!
+  href: String!
+  downloadHref: String
+  contentType: String!
+  sha256: String!
+  owner: String!
+}
+
+enum SubmitEvidenceInputBundleStepsItemMediaItemKind {
+  screenshot
+  video
+}
+
+input SubmitEvidenceInputBundleStepsItemBefore {
+  bundle: SubmitEvidenceInputBundleStepsItemBeforeBundle!
+  stepId: String!
+}
+
+input SubmitEvidenceInputBundleStepsItemBeforeBundle {
+  id: ID!
   revision: Float!
 }
 
@@ -1345,6 +1523,10 @@ input SaveUseCaseInputDocument {
 }
 
 type Query {
+  evidenceSchema: JSON!
+
+  """Read project evidence"""
+  projectEvidence(input: ProjectEvidenceInput!): JSON!
   videoSourceEvidence(productId: ID!, cursor: String): JSON
   videoTransfer(id: ID): JSON
   videoTransferReceipt(id: ID): JSON
@@ -1377,12 +1559,11 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: IssueOrder = ID_ASC
+    filter: IssueFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    projectId: [ID!]
-    status: [String!]
-    category: [String!]
   ): IssueConnection!
 
   """
@@ -1472,6 +1653,9 @@ input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
 }
 
 type Mutation {
+  """Stage a visual capture in a graph batch"""
+  submitEvidence(input: SubmitEvidenceInput!): JSON!
+
   """
   Seal a production for a verified transfer; blocks further source writes.
   """

@@ -94,7 +94,6 @@
                                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                               },
                               "items": {
-                                "maxItems": 200,
                                 "type": "array",
                                 "items": {
                                   "type": "object",
@@ -144,6 +143,10 @@
                                       "type": "string",
                                       "maxLength": 2000
                                     },
+                                    "estimatedUnitCost": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
                                     "unitCost": {
                                       "default": 0,
                                       "type": "number",
@@ -158,6 +161,11 @@
                                         "mac",
                                         "serial"
                                       ]
+                                    },
+                                    "opacity": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
                                     },
                                     "color": {
                                       "type": "string",
@@ -314,6 +322,90 @@
                                                   "axis"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "const": "extrusion"
+                                                  },
+                                                  "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "add",
+                                                      "cut"
+                                                    ]
+                                                  },
+                                                  "base": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      },
+                                                      {
+                                                        "type": "number",
+                                                        "minimum": -5000,
+                                                        "maximum": 5000
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "height": {
+                                                    "type": "number",
+                                                    "minimum": 1,
+                                                    "maximum": 5000
+                                                  },
+                                                  "axis": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "x",
+                                                      "y",
+                                                      "z"
+                                                    ]
+                                                  },
+                                                  "points": {
+                                                    "minItems": 3,
+                                                    "maxItems": 512,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "array",
+                                                      "prefixItems": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": -5000,
+                                                          "maximum": 5000
+                                                        },
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": -5000,
+                                                          "maximum": 5000
+                                                        }
+                                                      ],
+                                                      "items": false,
+                                                      "minItems": 2,
+                                                      "maxItems": 2
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "kind",
+                                                  "mode",
+                                                  "base",
+                                                  "height",
+                                                  "axis",
+                                                  "points"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           }
@@ -331,7 +423,8 @@
                                       "properties": {
                                         "path": {
                                           "type": "string",
-                                          "maxLength": 300
+                                          "maxLength": 300,
+                                          "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_./-]*$"
                                         },
                                         "bounds": {
                                           "type": "object",
@@ -407,6 +500,170 @@
                                         "measured"
                                       ]
                                     },
+                                    "reference": {
+                                      "type": "object",
+                                      "properties": {
+                                        "projectId": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "configuration": {
+                                          "type": "string",
+                                          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                        },
+                                        "parameters": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                          },
+                                          "additionalProperties": {
+                                            "type": "number"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "projectId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "driveMotion": {
+                                      "type": "object",
+                                      "properties": {
+                                        "version": {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        "viewRootIds": {
+                                          "minItems": 1,
+                                          "maxItems": 20,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          }
+                                        },
+                                        "z": {
+                                          "type": "object",
+                                          "properties": {
+                                            "levels": {
+                                              "minItems": 2,
+                                              "maxItems": 16,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "label": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 100
+                                                  },
+                                                  "offset": {
+                                                    "type": "number"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "label",
+                                                  "offset"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "translationUsageIds": {
+                                              "minItems": 1,
+                                              "maxItems": 200,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "format": "uuid",
+                                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                              }
+                                            },
+                                            "rotations": {
+                                              "minItems": 1,
+                                              "maxItems": 100,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "usageId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  },
+                                                  "axis": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "pivot": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "radiansPerMillimeter": {
+                                                    "type": "number"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "usageId",
+                                                  "axis",
+                                                  "pivot",
+                                                  "radiansPerMillimeter"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "levels",
+                                            "translationUsageIds",
+                                            "rotations"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "version",
+                                        "viewRootIds",
+                                        "z"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "selectAsUnit": {
+                                      "type": "boolean"
+                                    },
                                     "firmware": {
                                       "type": "object",
                                       "properties": {
@@ -434,6 +691,119 @@
                                         "repository",
                                         "ref",
                                         "target"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "power": {
+                                      "type": "object",
+                                      "properties": {
+                                        "loads": {
+                                          "maxItems": 30,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string",
+                                                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 150
+                                              },
+                                              "rail": {
+                                                "type": "string",
+                                                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                              },
+                                              "evidence": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "assumed",
+                                                  "modeled",
+                                                  "vendor",
+                                                  "measured"
+                                                ]
+                                              },
+                                              "source": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 2000
+                                              },
+                                              "notes": {
+                                                "type": "string",
+                                                "maxLength": 3000
+                                              },
+                                              "scenarios": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "averageW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "operatingW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "peakW": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "maximum": 10000000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "averageW",
+                                                    "operatingW",
+                                                    "peakW"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "name",
+                                              "rail",
+                                              "evidence",
+                                              "source",
+                                              "notes",
+                                              "scenarios"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "loads"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -539,6 +909,200 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "configurations": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                    },
+                                    "rootId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "parameters": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                          },
+                                          "min": {
+                                            "type": "number"
+                                          },
+                                          "max": {
+                                            "type": "number"
+                                          },
+                                          "defaultValue": {
+                                            "type": "number"
+                                          },
+                                          "placements": {
+                                            "minItems": 1,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "parentId": {
+                                                  "type": "string",
+                                                  "format": "uuid",
+                                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                },
+                                                "usageId": {
+                                                  "type": "string",
+                                                  "format": "uuid",
+                                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                },
+                                                "axis": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "x",
+                                                    "y",
+                                                    "z"
+                                                  ]
+                                                },
+                                                "scale": {
+                                                  "type": "number"
+                                                },
+                                                "offset": {
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "required": [
+                                                "parentId",
+                                                "usageId",
+                                                "axis",
+                                                "scale",
+                                                "offset"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "min",
+                                          "max",
+                                          "defaultValue",
+                                          "placements"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "rootId"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "power": {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "scenarios": {
+                                    "minItems": 1,
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 150
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 5000
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name",
+                                        "notes"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "rails": {
+                                    "minItems": 1,
+                                    "maxItems": 30,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 100
+                                        },
+                                        "voltage": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 10000
+                                        },
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "ac",
+                                            "dc"
+                                          ]
+                                        },
+                                        "parent": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                                        },
+                                        "efficiency": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 1
+                                        },
+                                        "notes": {
+                                          "type": "string",
+                                          "maxLength": 2000
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name",
+                                        "voltage",
+                                        "kind",
+                                        "efficiency",
+                                        "notes"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "notes": {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "scenarios",
+                                  "rails",
+                                  "notes"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -783,7 +1347,48 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Create a Workshop project for a product or PCB package and return its ID and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createWorkshopProject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "number"
+            },
+            "productRevisionId": {
+              "type": "string",
+              "nullable": true
+            },
+            "productRevisionTitle": {
+              "type": "string",
+              "nullable": true
+            },
+            "createdBy": {
+              "type": "string"
+            },
+            "updatedBy": {
+              "type": "string"
+            },
+            "createdAt": {
+              "description": "DateTime"
+            },
+            "updatedAt": {
+              "description": "DateTime"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "DeleteWorkshopProject",
@@ -1304,6 +1909,35 @@
     "hidden": true
   },
   {
+    "name": "ResolvedWorkshopAssembly",
+    "kind": "query",
+    "story": "As a prototype builder, I want to inspect the configured assembly and its source revisions, so that I can verify shared CAD and power across projects.",
+    "query": "query ResolvedWorkshopAssembly($input: ResolvedWorkshopAssemblyInput!) {\n  resolvedWorkshopAssembly(input: $input)\n}",
+    "hash": "0e46c3ac8092a04b1b5a1ac98b21f3f79b0a9b6df2ed6761466533bb88a0b9fd",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ResolvedWorkshopAssemblyInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "resolvedWorkshopAssembly": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
@@ -1346,6 +1980,36 @@
       "type": "object",
       "properties": {
         "startWorkshopDesign": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SubmitWorkshopPcb",
+    "kind": "mutation",
+    "story": "As a workspace agent, I want to publish a verified PCB package, so that members can review its board, quote and manufacturing files.",
+    "query": "mutation SubmitWorkshopPcb($input: SubmitWorkshopPcbInput!) {\n  submitWorkshopPcb(input: $input)\n}",
+    "hash": "9be8b1bdff2812adfd5e4796cd85ebeb6420fc47b55a9b8085cbbcb7305398a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitWorkshopPcbInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitWorkshopPcb": {
           "description": "JSON",
           "nullable": true
         }
@@ -1631,6 +2295,53 @@
     }
   },
   {
+    "name": "UpdateWorkshopAssembly",
+    "kind": "mutation",
+    "story": "As a prototype builder, I want my agent to save my assembly edit at the observed revision, so that concurrent project changes are preserved.",
+    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n  }\n}",
+    "hash": "e3908874fd8e9be02b64a82cfa4b0d2750ae5356d917abddd561b9f491956ceb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "description": "GraphQL Int!"
+        },
+        "assembly": {
+          "description": "GraphQL WorkshopAssemblyInput!"
+        }
+      },
+      "required": [
+        "projectId",
+        "expectedRevision",
+        "assembly"
+      ]
+    },
+    "mcp": {
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "updateWorkshopAssembly": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "UpdateWorkshopUnit",
     "kind": "mutation",
     "story": "As a member, I want to mark a unit flashed, installed in a project or moved to a new bin at the revision I saw, so that the inventory follows each physical unit through the build.",
@@ -1648,6 +2359,47 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WorkshopAssembly",
+    "kind": "query",
+    "story": "As a prototype builder, I want my agent to read the saved assembly and its power inputs, so that I can change one quantity and verify its effect.",
+    "query": "query WorkshopAssembly($projectId: ID!) {\n  workshopAssembly(projectId: $projectId) {\n    projectId\n    revision\n    assembly\n  }\n}",
+    "hash": "4a62f6c38e54a81df8500a74cda462bf586ba890156f8d9f9194ce4ccd943096",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "projectId"
+      ]
+    },
+    "mcp": {
+      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopAssembly": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "assembly": {
+              "description": "JSON"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "WorkshopDesignRun",
@@ -1681,9 +2433,9 @@
   {
     "name": "WorkshopProject",
     "kind": "query",
-    "story": "As a member or an agent working for one, I want to open one Workshop project by its slug with its requirements, product structure, indented BOM and cost, workspace builds with their tests, and bench evidence, so that I can review, check or simulate the model from stored state instead of the page.",
-    "query": "query WorkshopProject($slug: String!) {\n  workshopProjects(slugs: [$slug], first: 1) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      requirements\n      measurementNotes\n      circuitNotes\n      updatedAt\n      productRevision {\n        id\n        title\n        url\n      }\n      assembly {\n        root\n        items {\n          number\n          revision\n          name\n          kind\n          manufacturer\n          mpn\n          source\n          unitCost\n          priceKnown\n          provenance\n          trackBy\n          notes\n          size\n          mesh\n          geometry\n          firmware {\n            repository\n            path\n            ref\n            target\n          }\n          uses {\n            part\n            quantity\n            refdes\n            position\n            rotation\n            orientation\n          }\n        }\n      }\n      bom {\n        cost\n        pricesKnown\n        lines {\n          depth\n          part\n          revision\n          name\n          kind\n          quantity\n          refdes\n          unitCost\n          priceKnown\n        }\n      }\n      builds {\n        id\n        status\n        current\n        stale\n        repository\n        sourceDir\n        sourceCommit\n        runner\n        compiler\n        createdAt\n        finishedAt\n        error\n        tests {\n          name\n          status\n          detail\n        }\n        artifacts {\n          path\n          bytes\n          contentType\n        }\n        assembly {\n          root\n          items {\n            number\n            revision\n            name\n            kind\n            manufacturer\n            mpn\n            unitCost\n            priceKnown\n            provenance\n            notes\n            size\n            mesh\n            uses {\n              part\n              quantity\n              refdes\n              position\n              rotation\n              orientation\n            }\n          }\n        }\n        bom {\n          cost\n          pricesKnown\n          lines {\n            depth\n            part\n            revision\n            name\n            kind\n            quantity\n            refdes\n            unitCost\n            priceKnown\n          }\n        }\n      }\n      evidence {\n        stage\n        outcome\n        note\n        operator\n        at\n      }\n      research {\n        name\n        kind\n        url\n        notes\n        decision\n      }\n      concepts {\n        caption\n        model\n        createdAt\n      }\n    }\n  }\n}",
-    "hash": "61d62e8aa22b35be67c59272e4acffd5722cd5a4f226c2c980dc328d46d8ac8c",
+    "story": "As a member or an agent working for one, I want to open one Workshop project by its slug with its requirements, notes, workspace builds with their tests and artifacts, and bench evidence, so that I can review or check the project from stored state instead of the page.",
+    "query": "query WorkshopProject($slug: String!) {\n  workshopProjects(slugs: [$slug], first: 1) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      requirements\n      measurementNotes\n      circuitNotes\n      updatedAt\n      productRevision {\n        id\n        title\n        url\n      }\n      builds {\n        id\n        status\n        current\n        stale\n        repository\n        sourceDir\n        sourceCommit\n        runner\n        compiler\n        createdAt\n        finishedAt\n        error\n        tests {\n          name\n          status\n          detail\n        }\n        artifacts {\n          path\n          bytes\n          contentType\n        }\n      }\n      evidence {\n        stage\n        outcome\n        note\n        operator\n        at\n      }\n      research {\n        name\n        kind\n        url\n        notes\n        decision\n      }\n      concepts {\n        caption\n        model\n        createdAt\n      }\n    }\n  }\n}",
+    "hash": "4b4eb9b03e06ad47281de97d9fce017ca2146ba1bd1e553de0823af80d27ddaa",
     "variables": {
       "type": "object",
       "properties": {
@@ -1697,7 +2449,7 @@
       ]
     },
     "mcp": {
-      "description": "Read one project by slug: requirements, product structure (items with part numbers, kinds, sizes in mm, CAD plan geometry, usage lines with placements), indented BOM and cost, workspace builds with tests, artifacts and the assembly each built, bench evidence, research and concepts. Provisional items are envelopes, not measured parts."
+      "description": "Read one project by slug: requirements, measurement and circuit notes, workspace builds (newest first) with their tests and artifacts, bench evidence, research and concepts. Read the model, BOM and build price with ResolvedWorkshopAssembly."
     },
     "outputSchema": {
       "type": "object",
@@ -1757,171 +2509,6 @@
                       }
                     },
                     "nullable": true
-                  },
-                  "assembly": {
-                    "type": "object",
-                    "properties": {
-                      "root": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "items": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "number": {
-                              "type": "string"
-                            },
-                            "revision": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "kind": {
-                              "type": "string"
-                            },
-                            "manufacturer": {
-                              "type": "string"
-                            },
-                            "mpn": {
-                              "type": "string"
-                            },
-                            "source": {
-                              "type": "string"
-                            },
-                            "unitCost": {
-                              "type": "number"
-                            },
-                            "priceKnown": {
-                              "type": "boolean"
-                            },
-                            "provenance": {
-                              "type": "string"
-                            },
-                            "trackBy": {
-                              "type": "string"
-                            },
-                            "notes": {
-                              "type": "string"
-                            },
-                            "size": {
-                              "type": "array",
-                              "items": {
-                                "type": "number"
-                              },
-                              "nullable": true
-                            },
-                            "mesh": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "geometry": {
-                              "description": "JSON",
-                              "nullable": true
-                            },
-                            "firmware": {
-                              "type": "object",
-                              "properties": {
-                                "repository": {
-                                  "type": "string"
-                                },
-                                "path": {
-                                  "type": "string"
-                                },
-                                "ref": {
-                                  "type": "string"
-                                },
-                                "target": {
-                                  "type": "string"
-                                }
-                              },
-                              "nullable": true
-                            },
-                            "uses": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "part": {
-                                    "type": "string"
-                                  },
-                                  "quantity": {
-                                    "type": "integer"
-                                  },
-                                  "refdes": {
-                                    "type": "string"
-                                  },
-                                  "position": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "number"
-                                    }
-                                  },
-                                  "rotation": {
-                                    "type": "number"
-                                  },
-                                  "orientation": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "number"
-                                    },
-                                    "nullable": true
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "bom": {
-                    "type": "object",
-                    "properties": {
-                      "cost": {
-                        "type": "number"
-                      },
-                      "pricesKnown": {
-                        "type": "boolean"
-                      },
-                      "lines": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "depth": {
-                              "type": "integer"
-                            },
-                            "part": {
-                              "type": "string"
-                            },
-                            "revision": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "kind": {
-                              "type": "string"
-                            },
-                            "quantity": {
-                              "type": "integer"
-                            },
-                            "refdes": {
-                              "type": "string"
-                            },
-                            "unitCost": {
-                              "type": "number"
-                            },
-                            "priceKnown": {
-                              "type": "boolean"
-                            }
-                          }
-                        }
-                      }
-                    }
                   },
                   "builds": {
                     "type": "array",
@@ -2000,145 +2587,6 @@
                               }
                             }
                           }
-                        },
-                        "assembly": {
-                          "type": "object",
-                          "properties": {
-                            "root": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "items": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "number": {
-                                    "type": "string"
-                                  },
-                                  "revision": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "kind": {
-                                    "type": "string"
-                                  },
-                                  "manufacturer": {
-                                    "type": "string"
-                                  },
-                                  "mpn": {
-                                    "type": "string"
-                                  },
-                                  "unitCost": {
-                                    "type": "number"
-                                  },
-                                  "priceKnown": {
-                                    "type": "boolean"
-                                  },
-                                  "provenance": {
-                                    "type": "string"
-                                  },
-                                  "notes": {
-                                    "type": "string"
-                                  },
-                                  "size": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "number"
-                                    },
-                                    "nullable": true
-                                  },
-                                  "mesh": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "uses": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "part": {
-                                          "type": "string"
-                                        },
-                                        "quantity": {
-                                          "type": "integer"
-                                        },
-                                        "refdes": {
-                                          "type": "string"
-                                        },
-                                        "position": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "number"
-                                          }
-                                        },
-                                        "rotation": {
-                                          "type": "number"
-                                        },
-                                        "orientation": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "number"
-                                          },
-                                          "nullable": true
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "nullable": true
-                        },
-                        "bom": {
-                          "type": "object",
-                          "properties": {
-                            "cost": {
-                              "type": "number"
-                            },
-                            "pricesKnown": {
-                              "type": "boolean"
-                            },
-                            "lines": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "depth": {
-                                    "type": "integer"
-                                  },
-                                  "part": {
-                                    "type": "string"
-                                  },
-                                  "revision": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "kind": {
-                                    "type": "string"
-                                  },
-                                  "quantity": {
-                                    "type": "integer"
-                                  },
-                                  "refdes": {
-                                    "type": "string"
-                                  },
-                                  "unitCost": {
-                                    "type": "number"
-                                  },
-                                  "priceKnown": {
-                                    "type": "boolean"
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "nullable": true
                         }
                       }
                     }
@@ -2236,9 +2684,9 @@
   {
     "name": "WorkshopProjects",
     "kind": "query",
-    "story": "As a member or an agent working for one, I want to list the organization's Workshop projects with their stage, brief and the product revision each builds, so that I can find the model to open without loading every model.",
-    "query": "query WorkshopProjects($first: Int = 100, $after: String, $search: String, $phase: [String!], $productRevisionId: [ID!]) {\n  workshopProjects(\n    first: $first\n    after: $after\n    search: $search\n    phase: $phase\n    productRevisionId: $productRevisionId\n  ) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      productRevisionId\n      productRevisionTitle\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "b9e297e075ce8f866bf1e2d092859970c49aac4918e3a56429ebd42f0a517029",
+    "story": "As a member or an agent working for one, I want to list the organization's Workshop projects with their slug, stage, brief and the product revision each builds, so that I can find the project to open without loading every model.",
+    "query": "query WorkshopProjects($first: Int = 100, $after: String, $search: String, $filter: WorkshopProjectFilter, $orderBy: WorkshopProjectOrder) {\n  workshopProjects(\n    first: $first\n    after: $after\n    search: $search\n    filter: $filter\n    orderBy: $orderBy\n  ) {\n    nodes {\n      id\n      slug\n      name\n      revision\n      phase\n      kind\n      brief\n      productRevisionId\n      productRevisionTitle\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "d39206bb4f643186e7bc4d10ba6333dfdeb7005293640776488f527598e4d99e",
     "variables": {
       "type": "object",
       "properties": {
@@ -2254,19 +2702,17 @@
           "type": "string",
           "description": "GraphQL String"
         },
-        "phase": {
-          "type": "array",
-          "description": "GraphQL [String!]"
+        "filter": {
+          "description": "GraphQL WorkshopProjectFilter"
         },
-        "productRevisionId": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
+        "orderBy": {
+          "description": "GraphQL WorkshopProjectOrder"
         }
       },
       "required": []
     },
     "mcp": {
-      "description": "List Workshop projects with slug, stage, brief and the Wiki product revision each builds; open one with WorkshopProject by slug.",
+      "description": "List Workshop projects with slug, stage, brief and the Wiki product revision each builds; open one with WorkshopProject by slug. With includeIdentifiers:true it gives the id and revision that ResolvedWorkshopAssembly, WorkshopAssembly and PCB imports take.",
       "collection": true,
       "provenance": "organizationSlug"
     },
@@ -2342,8 +2788,8 @@
     "name": "WorkshopUnits",
     "kind": "query",
     "story": "As a member or an agent working for one, I want to list the physical units in stock by part number, MAC address, status or project with the firmware each last flashed, so that a build or test names the exact board it ran on.",
-    "query": "query WorkshopUnits($first: Int = 100, $after: String, $partNumber: [String!], $mac: [String!], $status: [String!], $projectId: [ID!]) {\n  workshopUnits(\n    first: $first\n    after: $after\n    partNumber: $partNumber\n    mac: $mac\n    status: $status\n    projectId: $projectId\n  ) {\n    nodes {\n      id\n      partNumber\n      mpn\n      mac\n      serial\n      status\n      location\n      projectId\n      firmware\n      notes\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "17eafd39e0b26ffa077b4e445980ff9ea8bb7c6ee47c82b88073f4d3bae1ca5f",
+    "query": "query WorkshopUnits($first: Int = 100, $after: String, $search: String, $filter: WorkshopUnitFilter) {\n  workshopUnits(first: $first, after: $after, search: $search, filter: $filter) {\n    nodes {\n      id\n      partNumber\n      mpn\n      mac\n      serial\n      status\n      location\n      projectId\n      firmware\n      notes\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "b6d59596471b8bddd741ae4d1c3e0ca10bec901ccc242e4486ff05c2df6a23c8",
     "variables": {
       "type": "object",
       "properties": {
@@ -2355,27 +2801,18 @@
           "type": "string",
           "description": "GraphQL String"
         },
-        "partNumber": {
-          "type": "array",
-          "description": "GraphQL [String!]"
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
         },
-        "mac": {
-          "type": "array",
-          "description": "GraphQL [String!]"
-        },
-        "status": {
-          "type": "array",
-          "description": "GraphQL [String!]"
-        },
-        "projectId": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
+        "filter": {
+          "description": "GraphQL WorkshopUnitFilter"
         }
       },
       "required": []
     },
     "mcp": {
-      "description": "List physical units by part number, MAC, status or project, with location and the firmware last flashed.",
+      "description": "List physical units, filtered by partNumber, mac, status or projectId, with location and the firmware last flashed.",
       "collection": true,
       "provenance": "organizationSlug"
     },

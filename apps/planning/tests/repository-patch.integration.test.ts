@@ -3,7 +3,7 @@ import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { wikiFixtureCall } from "@ai-outfitter/app-test/wiki-fixture";
-import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import type { EntityPage, EntityRecord } from "@ai-outfitter/app-sdk/entities";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -34,13 +34,16 @@ test("patchProject publishes multiple repositories, creates its canonical Wiki P
     'mutation($input:PatchProjectInput!){patchProject(input:$input){id revision githubRepository repositoryChanges}}',
     { input: { project: { id, revision }, mask: { repositories } } }, who, true);
   const read = async () => {
-    const result = await graphql('query($ids:[ID!]){projects(ids:$ids){nodes{id githubRepository repositories(first:50){nodes{id url path ref} aggregate{count}}}}}', { ids: [projectId] });
+    const result = await graphql('query($ids:[ID!]){projects(ids:$ids){nodes{id githubRepository repositories(first:50){nodes{id url path ref} totalCount}}}}', { ids: [projectId] });
     assert.equal(result.errors, undefined, JSON.stringify(result));
     return result.data.projects.nodes[0];
   };
   const wikiRows = async (type: string) => {
     const response = await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type, limit: 100 } });
-    assert.equal(response.status, 200, await response.clone().text()); return await response.json() as EntityRecord[];
+    assert.equal(response.status, 200, await response.clone().text());
+    const page = await response.json() as EntityPage;
+    assert.equal(page.pageInfo.hasNextPage, false, "the fixture Wiki fits one page");
+    return page.records;
   };
   const one = { url: "https://github.com/acme/one", path: "app", ref: "main" };
   const two = { url: "https://github.com/acme/two" };
@@ -137,11 +140,11 @@ test("patchProject links a project without repositories to an existing or new On
   };
   const wikiNodes = async () => {
     const response = await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "graph-node", limit: 100 } });
-    return await response.json() as EntityRecord[];
+    return (await response.json() as EntityPage).records;
   };
   const linkedTo = async (id: string) => (await wikiNodes()).filter(row => row.references.some(ref => ref.installationId === app.installationId && ref.id === id));
   const existingId = "44444444-4444-4444-8444-444444444444";
-  const types = await (await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "graph-type", limit: 100 } })).json() as EntityRecord[];
+  const types = (await (await wiki.call("/api/internal/entities/v1/list", owner, { method: "POST", body: { type: "graph-type", limit: 100 } })).json() as EntityPage).records;
   const projectType = types.find(row => row.attributes.name === "Project")!.ref.id;
   try {
     for (const [id, name] of [[projectId, "Reduce costs"], [existingId, "Existing context"]])

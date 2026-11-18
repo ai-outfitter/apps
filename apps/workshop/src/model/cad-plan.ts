@@ -1,6 +1,31 @@
 import { z } from "zod";
 import type { Params } from "../lib/project";
 
+type ProfilePoint = [number, number];
+
+function simpleProfile(points: ProfilePoint[]) {
+  const cross = (a: ProfilePoint, b: ProfilePoint, c: ProfilePoint) =>
+    (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+  const onSegment = (a: ProfilePoint, b: ProfilePoint, p: ProfilePoint) =>
+    Math.abs(cross(a,b,p)) < 1e-9 && p[0] >= Math.min(a[0],b[0]) && p[0] <= Math.max(a[0],b[0]) && p[1] >= Math.min(a[1],b[1]) && p[1] <= Math.max(a[1],b[1]);
+  let area = 0;
+  for (let i=0;i<points.length;i++) {
+    const a=points[i],b=points[(i+1)%points.length];
+    if (a[0]===b[0] && a[1]===b[1]) return false;
+    const next=points[(i+2)%points.length];
+    if (Math.abs(cross(a,b,next)) < 1e-9 &&
+        (b[0]-a[0])*(next[0]-b[0])+(b[1]-a[1])*(next[1]-b[1]) < 0) return false;
+    area += a[0]*b[1]-b[0]*a[1];
+    for(let j=i+2;j<points.length;j++) {
+      if(i===0 && j===points.length-1) continue;
+      const c=points[j],d=points[(j+1)%points.length];
+      if ((cross(a,b,c)*cross(a,b,d)<0 && cross(c,d,a)*cross(c,d,b)<0) ||
+          onSegment(a,b,c) || onSegment(a,b,d) || onSegment(c,d,a) || onSegment(c,d,b)) return false;
+    }
+  }
+  return Math.abs(area)>1e-9;
+}
+
 function cadPlanSchema(limit: number) {
 const coordinate = z.number().min(-limit).max(limit);
 const extent = z.number().min(1).max(limit);
@@ -26,6 +51,13 @@ const feature = z.discriminatedUnion("kind", [
       axis: z.enum(["x", "y", "z"]),
     })
     .strict(),
+  z.object({
+    kind: z.literal("extrusion"), mode, base: point, height: extent,
+    axis: z.enum(["x", "y", "z"]),
+    // Right-handed planes: X uses (Y,Z), Y uses (Z,X), Z uses (X,Y).
+    points: z.array(z.tuple([coordinate, coordinate])).min(3).max(512)
+      .refine(simpleProfile, "Use a simple nonzero-area polygon without a repeated closing point"),
+  }).strict(),
 ]);
 
 return z
@@ -60,6 +92,13 @@ function featureBounds(part: CadPlan["features"][number]) {
       low[axis] = part.origin[axis];
       high[axis] = part.origin[axis] + part.size[axis];
     }
+  } else if (part.kind === "extrusion") {
+    const axis={x:0,y:1,z:2}[part.axis],u=(axis+1)%3,v=(axis+2)%3;
+    low[axis]=part.base[axis];high[axis]=part.base[axis]+part.height;
+    low[u]=part.base[u]+Math.min(...part.points.map(p=>p[0]));
+    high[u]=part.base[u]+Math.max(...part.points.map(p=>p[0]));
+    low[v]=part.base[v]+Math.min(...part.points.map(p=>p[1]));
+    high[v]=part.base[v]+Math.max(...part.points.map(p=>p[1]));
   } else {
     const axis = { x: 0, y: 1, z: 2 }[part.axis];
     for (let i = 0; i < 3; i++) {

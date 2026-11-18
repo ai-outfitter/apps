@@ -1,5 +1,6 @@
 import type { WorkflowHost } from "./workflow-host";
 import type { EntityRecord } from "./entities";
+import { batch } from "./batch-load";
 import { discoverEntityTypes } from "./entity-discovery";
 
 type Host = WorkflowHost<"interactive">;
@@ -7,7 +8,10 @@ type ListOptions = {
   where?: Record<string, unknown>;
   select?: string[];
   order?: { field: string; direction: "asc" | "desc" };
-  offset?: number;
+  ids?: string[];
+  search?: string;
+  /** The previous page's `endCursor`. */
+  after?: string;
   limit?: number;
 };
 
@@ -15,9 +19,60 @@ const collectionRecord = (record: EntityRecord) => ({
   ...record.attributes, id: record.ref.id, title: record.title, ref: record.ref,
   revision: record.revision, references: record.references, attributes: record.attributes,
 });
+type EntityListInput = { installationId: string; type: string; filter?: EntityRecord["attributes"]; select?: string[]; order?: { field: string; direction: "asc" | "desc" }; ids?: string[]; search?: string };
+/** Every record an entity query matches, read page by page through the host in the owning app's
+ * database, up to `max` records (default 10,000). */
+export async function listEntities(host: Host, input: EntityListInput, max = 10_000): Promise<EntityRecord[]> {
+  const records: EntityRecord[] = [];
+  let after: string | undefined;
+  do {
+    const page = await host.call("entities.list", { ...input, limit: 100, ...(after ? { after } : {}) });
+    records.push(...page.records);
+    if (records.length > max) throw new Response("The records exceed the read limit; narrow the filter", { status: 413 });
+    after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor ?? undefined : undefined;
+  } while (after);
+  return records;
+}
+
 /** An app template's slug, as the workflow host's entity discovery accepts it. */
 const templateSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const contexts = new WeakMap<Host, ReturnType<typeof createAppDataContext>>();
+
+type Record_ = ReturnType<typeof collectionRecord>;
+/** The entities.list input for `options`, leaving out what was not asked for. */
+function listInput(provider: { installationId: string; type: string }, { where, ...options }: ListOptions) {
+  const input: EntityListInput & { after?: string; limit?: number } = { installationId: provider.installationId, type: provider.type };
+  if (where !== undefined) input.filter = where as EntityRecord["attributes"];
+  for (const [key, value] of Object.entries(options)) if (value !== undefined) Object.assign(input, { [key]: value });
+  return input;
+}
+/** Known IDs asked for in the same tick, read together: one indexed list per 100 IDs. Nothing is kept
+ * between ticks, so a load after a write reads the record again. */
+function batchedLoads(host: Host, provider: { installationId: string; type: string }) {
+  return batch<Record_ | undefined>(async ids => {
+    const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, index * 100 + 100));
+    const pages = await Promise.all(chunks.map(chunk => host.call("entities.list", { installationId: provider.installationId, type: provider.type, ids: chunk, limit: 100 })));
+    return new Map(pages.flatMap(page => page.records.map(record => [record.ref.id, collectionRecord(record)] as const)));
+  }, undefined, { cache: false }).load;
+}
+function entityCollection(host: Host, provider: { installationId: string; type: string }) {
+  return {
+    /** The record with this ID, or undefined; concurrent loads share one batched read. */
+    load: batchedLoads(host, provider),
+    async get(id: string) {
+      return collectionRecord(await host.call("entities.get", { installationId: provider.installationId, type: provider.type, id }));
+    },
+    /** One page; continue with `after: pageInfo.endCursor` while `pageInfo.hasNextPage`. */
+    async list(options: ListOptions = {}) {
+      const { records, pageInfo } = await host.call("entities.list", { ...listInput(provider, options), limit: options.limit ?? 50 });
+      return { records: records.map(collectionRecord), pageInfo };
+    },
+    /** Every matching record, page by page, up to `max` (default 10,000). */
+    async all(options: Omit<ListOptions, "after" | "limit"> = {}, max = 10_000) {
+      return (await listEntities(host, listInput(provider, options), max)).map(collectionRecord);
+    },
+  };
+}
 
 /** A request-scoped facade over entities; arguments never grant owner access. */
 export function appDataContext(host: Host) {
@@ -29,6 +84,14 @@ export function appDataContext(host: Host) {
 }
 
 function createAppDataContext(host: Host) {
+  // One collection per installation and type for the request, so loads through a re-obtained collection share a batch.
+  const collections = new Map<string, ReturnType<typeof entityCollection>>();
+  const shared = (provider: { installationId: string; type: string }) => {
+    const key = `${provider.installationId}\n${provider.type}`;
+    const collection = collections.get(key) ?? entityCollection(host, provider);
+    collections.set(key, collection);
+    return collection;
+  };
   async function resolve(matches: Awaited<ReturnType<typeof discoverEntityTypes>>) {
     const installations = new Set(matches.map(item => item.installationId));
     if (installations.size !== 1) throw new Response("App database unavailable or ambiguous", { status: 409 });
@@ -40,23 +103,7 @@ function createAppDataContext(host: Host) {
       collection(name: string) {
         const candidates = matches.filter(item => item.collection === name);
         if (candidates.length !== 1) throw new Response("Collection unavailable or ambiguous", { status: 404 });
-        const provider = candidates[0];
-        return {
-          async get(id: string) {
-            const record = await host.call("entities.get", { installationId: provider.installationId, type: provider.type, id });
-            return collectionRecord(record);
-          },
-          async list(options: ListOptions = {}) {
-            const records = await host.call("entities.list", {
-              installationId: provider.installationId, type: provider.type,
-              ...(options.where === undefined ? {} : { filter: options.where as EntityRecord["attributes"] }),
-              ...(options.select === undefined ? {} : { select: options.select }),
-              ...(options.order === undefined ? {} : { order: options.order }),
-              offset: options.offset ?? 0, limit: options.limit ?? 50,
-            });
-            return records.map(collectionRecord);
-          },
-        };
+        return shared(candidates[0]);
       },
     };
   }

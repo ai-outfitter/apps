@@ -32,6 +32,8 @@ const board = tableType(items, {
   dates: ["createdAt", "updatedAt"],
   ids: ["parentId"],
   filters: ["category", "status"],
+  // forerunner_owner_order answers an owner's category in position order.
+  orders: ["position"],
   scope: own(items),
 });
 

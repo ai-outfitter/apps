@@ -187,7 +187,7 @@ for (const [width, mount] of [[1440, ""], [390, "/o/org/planning"]] as const)
       expect(created.status, await created.clone().text()).toBe(200);
       const project = (await created.json()) as { id: string };
       await page.goto(`${origin}${mount}/projects`);
-      await expect(page.locator("#project-cards a")).toHaveCount(1);
+      await expect(page.locator("#project-cards .planning-org-project-name")).toHaveCount(1);
       // Open the project at its canonical address (the platform keeps the mount for app links).
       await page.goto(`${origin}${mount}/projects/${project.id}`);
       await expect(page.locator("#project-name")).toHaveText("Launch");

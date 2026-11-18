@@ -4,6 +4,7 @@ import { identityHeaderValues } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHostResult, WorkflowHostScope, WorkflowHostStub } from "@ai-outfitter/app-sdk/workflow-host";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import type { Project } from "../src/lib/project";
 
 // The built operational worker: concept images in its own bucket, references in
@@ -34,7 +35,7 @@ function wikiHost() {
         if (input.id === designConceptId) return ok(record(designConceptId, "Design concept", 1));
         return denied(404, "Not found");
       case "entities.list":
-        return ok([{ ref: { installationId: wiki, type: "graph-type", id: "7b000000-0000-4000-8000-000000000003" }, revision: 1, title: "evidence for", attributes: { name: "evidence_for", archived: false }, references: [] }]);
+        return ok(memoryEntityPage([{ ref: { installationId: wiki, type: "graph-type", id: "7b000000-0000-4000-8000-000000000003" }, revision: 1, title: "evidence for", attributes: { name: "evidence_for", archived: false }, references: [] }], input));
       case "actions.call":
         applied.push(input);
         return ok({ $document: { id: "22222222-2222-4222-8222-222222222222", revision: 1 } });

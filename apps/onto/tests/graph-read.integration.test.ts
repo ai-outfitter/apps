@@ -36,24 +36,28 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.equal(response.status, 200, await response.clone().text());
     const ids = await response.json() as Record<string, { id: string }>;
     await app.database.prepare("UPDATE graph_nodes SET externalKey=? WHERE id=?").bind('ai-outfitter.com/users:never-return', ids.$root.id).run();
-    const entitySearch = async (type: string, query: string, filter = {}) => {
-      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, filter: { ...filter, query }, limit: 100 } });
+    const entitySearch = async (type: string, search: string, filter = {}, known: { ids?: string[] } = {}) => {
+      const response = await app.call("/api/internal/entities/v1/list", member, { method: "POST", body: { type, ...known, ...(Object.keys(filter).length ? { filter } : {}), ...(search.trim() ? { search } : {}), limit: 100 } });
       assert.equal(response.status, 200, await response.clone().text());
-      return response.json() as Promise<{ ref: { id: string } }[]>;
+      return (await response.json() as { records: { ref: { id: string } }[] }).records;
     };
     assert.deepEqual((await entitySearch("graph-node", "  MARKDOWN  ")).map(row => row.ref.id), [ids.$root.id]);
     assert.ok((await entitySearch("graph-type", "synthetic directed")).some(row => row.ref.id === ids.$relation.id));
-    assert.ok((await entitySearch("graph-edge", ids.$root.id)).some(row => row.ref.id === ids.$edge.id));
-    const edgeRow = (await entitySearch("graph-edge", ids.$root.id)).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
+    assert.ok((await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).some(row => row.ref.id === ids.$edge.id));
+    const edgeRow = (await entitySearch("graph-edge", "", { nodeId: ids.$root.id })).find(row => row.ref.id === ids.$edge.id) as { title?: string } | undefined;
     assert.equal(edgeRow?.title, "reader_link(ReaderEntity:root → ReaderEntity:child)", "an untitled edge is named by its address, not its UUID");
+    assert.ok((await entitySearch("graph-edge", "child")).some(row => row.ref.id === ids.$edge.id), "an edge is found by the slug of either end");
+    assert.ok((await entitySearch("graph-edge", "reader_link root")).some(row => row.ref.id === ids.$edge.id), "an edge is found by its type name and an end together");
+    assert.deepEqual(await entitySearch("graph-edge", "reader_link NOT child"), []);
+    assert.ok((await entitySearch("graph-node", "ReaderEntity")).some(row => row.ref.id === ids.$root.id), "a node is found by its type name");
     assert.deepEqual(await entitySearch("graph-node", "never-return"), [], "external ids are neither searched nor returned");
-    assert.deepEqual(await entitySearch("graph-node", "' OR 1=1 --"), []);
+    assert.deepEqual(await entitySearch("graph-node", '"\' OR 1=1 --"'), []);
     assert.deepEqual(await entitySearch("graph-node", "%_"), []);
     assert.deepEqual(await entitySearch("graph-node", "markdown", { typeId: ids.$relation.id }), []);
     assert.ok((await entitySearch("graph-node", "")).some(row => row.ref.id === ids.$root.id));
     for (const [type, id] of [["graph-node", ids.$root.id], ["graph-edge", ids.$edge.id], ["graph-type", ids.$type.id]]) {
-      assert.deepEqual((await entitySearch(type, "", { ids: [id] })).map(row => row.ref.id), [id]);
-      assert.deepEqual(await entitySearch(type, "", { ids: ["missing-exact-id"] }), []);
+      assert.deepEqual((await entitySearch(type, "", {}, { ids: [id] })).map(row => row.ref.id), [id]);
+      assert.deepEqual(await entitySearch(type, "", {}, { ids: ["missing-exact-id"] }), []);
     }
     const counts = () => app.database.prepare("SELECT 'nodes' AS kind, count(*) AS n, sum(revision) AS revisions FROM graph_nodes UNION ALL SELECT 'edges', count(*), sum(revision) FROM graph_edges UNION ALL SELECT 'types', count(*), sum(revision) FROM graph_types").all();
     const declaration = await app.call(path, member, {method:"POST",body:{action:"graph.describe",input:{}}});
@@ -94,12 +98,12 @@ test("snapshot reads preserve raw graph data and archival retains revision check
     assert.equal(archived.status, 200, await archived.clone().text());
     const archivedRecord = await archived.json() as { revision: number; attributes: { archived: boolean } };
     assert.equal(archivedRecord.attributes.archived, true);
-    assert.deepEqual(await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: false }), []);
-    assert.equal((await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: true })).length, 1);
+    assert.deepEqual(await entitySearch("graph-node", "", { archived: false }, { ids: [ids.$other.id] }), []);
+    assert.equal((await entitySearch("graph-node", "", { archived: true }, { ids: [ids.$other.id] })).length, 1);
     assert.equal((await app.call("/api/internal/entities/v1/update", owner, { method: "POST", body: archiveInput })).status, 409);
     const restored = await app.call("/api/internal/entities/v1/update", owner, { method: "POST", body: { ...archiveInput, revision: archivedRecord.revision, attributes: { archived: false } } });
     assert.equal(restored.status, 200, await restored.clone().text());
-    assert.equal((await entitySearch("graph-node", "", { ids: [ids.$other.id], archived: false })).length, 1);
+    assert.equal((await entitySearch("graph-node", "", { archived: false }, { ids: [ids.$other.id] })).length, 1);
     for (let i = 0; i < 30; i++) await app.database.prepare(
       "INSERT INTO graph_nodes(id,typeId,slug,title,body,createdAt,updatedAt) VALUES(?,?,?,?,?,1,1)",
     ).bind(crypto.randomUUID(), ids.$type.id, `large-${i}`, `Large ${i}`, "x".repeat(300000)).run();

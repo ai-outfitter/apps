@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import { appWorker } from "./fixtures/initialized-worker";
+import { appWorker as rawAppWorker } from "@ai-outfitter/app-test/worker";
+import { initializedAppWorker } from "./fixtures/initialized-worker";
 import baseSeed from "../seeds/entities-v1.json";
 import graphSeed from "../seeds/knowledge-graphs-v1.json";
 import artifacts from "../seeds/artifacts-v1.json";
@@ -19,6 +20,7 @@ const seed = {
 import { core } from "../src/lib/graph";
 
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
+const appWorker = (...args: Parameters<typeof rawAppWorker>) => initializedAppWorker(owner, ...args);
 const member = { userId: "member", organizationId: "org", role: "member" };
 const path = "/api/internal/entities/v1/";
 // biome-ignore lint/suspicious/noExplicitAny: public JSON contract under test.
@@ -66,7 +68,7 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     const projection = await json(await app.call(path + "list", member, { method: "POST", body: {
       type: "graph-node", filter: { source: { installationId: "planning", type: "project", id: "canonical-meze" } },
     } }));
-    assert.deepEqual(projection.map((node: { ref: { id: string } }) => node.ref.id), [project.ref.id]);
+    assert.deepEqual(projection.records.map((node: { ref: { id: string } }) => node.ref.id), [project.ref.id]);
     const unit = await create("graph-node", {
       typeId: core.unit,
       title: "Life Sciences",
@@ -102,7 +104,8 @@ test("humans and agents share a persisted, typed Meze graph and canonical projec
     const graph = await json(
       await app.call("/api/apps/onto/graph/snapshot", member),
     );
-    assert.equal(graph.nodes.length, seed.nodes.length + 4);
+    assert.equal(graph.nodes.length, seed.nodes.length + 5, "four authored nodes plus the canonical owner root");
+    assert.equal(graph.nodes.filter((n: { properties: Record<string, unknown> }) => n.properties.organization_id === owner.organizationId).length, 1);
     const seededIds = new Set(seed.nodes.map((node) => node.id));
     assert.equal(
       graph.edges.length,
@@ -462,7 +465,7 @@ test("schema migrations do not replay old seed data", async () => {
           .prepare("SELECT count(*) AS count FROM graph_nodes")
           .first()
       )?.count,
-      seed.nodes.length,
+      seed.nodes.length + 1,
     );
   } finally {
     await app.dispose();
@@ -477,7 +480,7 @@ test("agents find exact types, nodes and incident edges without listing the wiki
         method: "POST",
         body: { type, ...(filter ? { filter } : {}), ...paging },
       }),
-    );
+    ).then((page) => page.records);
   const create = async (type: string, attributes: object) =>
     json(
       await app.call(path + "create", owner, {
@@ -524,12 +527,14 @@ test("agents find exact types, nodes and incident edges without listing the wiki
     assert.deepEqual(ids(await list("graph-node", { titleContains: "%_" })), [
       first.ref.id,
     ]);
+    const firstPage = await json(await app.call(path + "list", member, { method: "POST", body: {
+      type: "graph-node", filter: { titleContains: "KEYSTONE", typeId: core.software, archived: false }, limit: 1 } }));
     assert.deepEqual(
       ids(
         await list(
           "graph-node",
           { titleContains: "KEYSTONE", typeId: core.software, archived: false },
-          { offset: 1, limit: 1 },
+          { after: firstPage.pageInfo.endCursor, limit: 1 },
         ),
       ),
       [second.ref.id],
@@ -579,24 +584,43 @@ test("agents find exact types, nodes and incident edges without listing the wiki
       await list("graph-type", { name: "Product", category: "edge" }),
       [],
     );
-    assert.deepEqual(ids(await list("graph-node", { ids: [first.ref.id, archived.ref.id], archived: false })), [first.ref.id]);
+    assert.deepEqual(ids(await list("graph-node", { archived: false }, { ids: [first.ref.id, archived.ref.id] })), [first.ref.id]);
     assert.deepEqual(new Set(ids(await list("graph-edge", { nodeIds: [first.ref.id], typeIds: [core.uses] }))), new Set([edge.ref.id, reverse.ref.id]));
     assert.deepEqual(new Set(ids(await list("graph-edge", { nodeIds: [first.ref.id], typeIds: [core.uses], fromTypeIds: [core.software] }))), new Set([edge.ref.id, reverse.ref.id]));
     assert.deepEqual(await list("graph-edge", { nodeIds: [first.ref.id], fromTypeIds: [core.organization] }), []);
     assert.equal((await list("graph-type", { names: ["Product"], category: "node" })).length, 1);
+    // Known IDs are the top-level `ids`; the filter no longer takes them.
+    assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { ids: [first.ref.id] } } })).status, 400);
     for (const invalid of [[], Array(101).fill(first.ref.id)]) {
-      assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { ids: invalid } } })).status, 400);
+      assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", ids: invalid } })).status, 400);
     }
     const selected = await json(await app.call(path + "list", member, { method: "POST", body: {
       type: "graph-node", filter: { titleContains: "Keystone", archived: false },
       order: { field: "title", direction: "desc" }, select: ["id", "summary"], limit: 1,
     } }));
-    assert.equal(selected.length, 1);
-    assert.equal(selected[0].title, "Keystone other");
-    assert.deepEqual(Object.keys(selected[0].attributes), ["id", "summary"]);
-    assert.equal(selected[0].ref.type, "graph-node");
+    assert.equal(selected.records.length, 1);
+    assert.equal(selected.records[0].title, "Keystone other");
+    assert.deepEqual(Object.keys(selected.records[0].attributes), ["id", "summary"]);
+    assert.equal(selected.records[0].ref.type, "graph-node");
     assert.equal((await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", order: { field: "externalId", direction: "asc" } } })).status, 400);
     const discovery = await json(await app.call(path + "types", member));
+    // Nodes advertise the orders migration 0004 indexes; each pages by its cursor in the order SQLite gives.
+    const orderFields = (type: string) => discovery.find((item: { type: string }) => item.type === type).orderFields;
+    assert.deepEqual([orderFields("graph-node"), orderFields("graph-edge"), orderFields("graph-type")], [["id", "title", "createdAt", "updatedAt"], ["id"], ["id", "name"]]);
+    for (const field of ["createdAt", "updatedAt"]) for (const direction of ["asc", "desc"]) {
+      const walked: string[] = [];
+      for (let after: string | undefined, more = true; more;) {
+        const page = await json(await app.call(path + "list", member, { method: "POST", body: { type: "graph-node", filter: { typeId: core.software }, order: { field, direction }, limit: 2, ...(after ? { after } : {}) } }));
+        walked.push(...page.records.map((record: { ref: { id: string } }) => record.ref.id));
+        more = page.pageInfo.hasNextPage;
+        after = page.pageInfo.endCursor;
+      }
+      const expected = (await app.database.prepare(`SELECT id FROM graph_nodes WHERE typeId = ? ORDER BY ${field} ${direction}, id ${direction}`).bind(core.software).all<{ id: string }>()).results.map(row => row.id);
+      assert.ok(expected.length > 1);
+      assert.deepEqual(walked, expected, `${field} ${direction}`);
+    }
+    const plan = (await app.database.prepare("EXPLAIN QUERY PLAN SELECT id FROM graph_nodes WHERE typeId = ? AND (createdAt, id) > (?, ?) ORDER BY createdAt, id LIMIT 3").bind(core.software, 0, "").all<{ detail: string }>()).results.map(row => row.detail);
+    assert.match(plan.join("; "), /^SEARCH graph_nodes USING (COVERING )?INDEX graph_nodes_type_created \(typeId=\? AND \(createdAt,id\)>\(\?,\?\)\)$/);
     assert.ok(
       discovery.find((type: { type: string }) => type.type === "graph-node")
         .filterSchema.properties.slug,

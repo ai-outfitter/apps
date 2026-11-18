@@ -3,8 +3,8 @@
     "name": "ChangeBatch",
     "kind": "query",
     "story": "As an agent, I want to inspect a change batch with its proposed records and evidence, so that I can explain suggestions, check decisions and help a member correct inaccurate projects.",
-    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    questions\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
-    "hash": "5899fa0ec318fc799538f8942d1cf9d063a738aec9ee1f4e80fce7a3fdf1cc1c",
+    "query": "query ChangeBatch($id: ID!, $refs: [String!]) {\n  changeBatch(id: $id) {\n    id\n    title\n    purpose\n    source\n    state\n    policy\n    anchors\n    validation\n    summary\n    reviewBy\n    createdAt\n    updatedAt\n    expiresAt\n    counts\n    questions\n    review\n    reviewRun\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      taskId\n      url\n    }\n    operations(refs: $refs) {\n      ref\n      state\n      operation\n      evidence\n      confidence\n      reason\n      decision\n      record\n      recordRevision\n    }\n  }\n}",
+    "hash": "f38a4795eed2989dc30fe9e52d85da21a6149fc7ab7780d091d01c1476d8a90a",
     "variables": {
       "type": "object",
       "properties": {
@@ -904,8 +904,8 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "f32a7ff3b948a3f01665aaa882345ad16e2646daac476ef0f532e121d08fa576",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n        taskId\n        url\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      reviewRun @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "2cf579c0d1023e3b3cc4a21f726b99b4845fe3bdebfff11d169d4914dbec6623",
     "variables": {
       "type": "object",
       "properties": {
@@ -1001,6 +1001,14 @@
                         },
                         "message": {
                           "type": "string"
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "url": {
+                          "type": "string",
+                          "nullable": true
                         }
                       }
                     }
@@ -1009,6 +1017,10 @@
                     "description": "JSON"
                   },
                   "review": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "reviewRun": {
                     "description": "JSON",
                     "nullable": true
                   },
@@ -1516,6 +1528,91 @@
     }
   },
   {
+    "name": "Ontology",
+    "kind": "query",
+    "story": "As an agent, I want every type name, which types each relationship connects and how to stage a change in one read, so that I can write to this graph without searching for its types.",
+    "query": "query Ontology {\n  ontology {\n    root\n    nodeTypes {\n      name\n      description\n    }\n    relationshipTypes {\n      name\n      description\n      from\n      to\n    }\n    staging\n  }\n}",
+    "hash": "a197daad284006e9626c601e512388712b384bf67a980af083fc66ae7419b001",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "ontology": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "nullable": true
+            },
+            "nodeTypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "relationshipTypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "from": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "staging": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "OntoSettings",
+    "kind": "query",
+    "story": "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
+    "query": "query OntoSettings {\n  settings {\n    stewardApproval\n    updatedAt\n    updatedBy\n  }\n}",
+    "hash": "f57ce535fa75d1183fd9bc2dd77624fb867062883d7dde6a6bc83fb81547dbb1",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "hidden": true
+  },
+  {
     "name": "RemoveStagedChanges",
     "kind": "mutation",
     "story": "As an agent, I want to take back proposals I staged by mistake, so that the member reviews only what I still propose.",
@@ -1584,6 +1681,25 @@
         }
       }
     }
+  },
+  {
+    "name": "SaveSettings",
+    "kind": "mutation",
+    "story": "As an admin, I want to choose whether the ontology steward approves what it found clean or only reviews, so that members review every batch only when we want that.",
+    "query": "mutation SaveSettings($input: SaveSettingsInput!) {\n  saveSettings(input: $input) {\n    stewardApproval\n    updatedAt\n    updatedBy\n  }\n}",
+    "hash": "eb6af561bff52b6e104d9afe1d195748f770cb36cdd790ae21a805d6a6ff7f73",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveSettingsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
   },
   {
     "name": "Share",
@@ -1785,8 +1901,8 @@
     "name": "SubmitBatch",
     "kind": "mutation",
     "story": "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
-    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    operations {\n      ref\n      state\n    }\n  }\n}",
-    "hash": "3b9d6e990c97f4448666a407fff75f9c117024bae3ad52f35e865aef7f819e2a",
+    "query": "mutation SubmitBatch($input: SubmitBatchInput!) {\n  submitBatch(input: $input) {\n    id\n    state\n    reviewBy\n    counts\n    reviewRun\n    instructions {\n      code\n      itemKey\n      actor\n      required\n      message\n      taskId\n      url\n    }\n    operations {\n      ref\n      state\n    }\n  }\n}",
+    "hash": "ad3c444641e064f3b2d46c5a316e038d0f50e106267a9f3f27f788b6cb03d9d5",
     "variables": {
       "type": "object",
       "properties": {

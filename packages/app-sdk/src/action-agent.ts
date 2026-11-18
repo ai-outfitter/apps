@@ -40,6 +40,8 @@ export function actionAgent<C extends ActionContext>(options: {
   contextType: string;
   focusId: string;
   label: string;
+  /** Allow the owner's platform sidebar to ask this agent in its private conversation. */
+  delegation?: boolean;
   context(): C | Promise<C>;
   actions: Record<string, Binding<C>>;
   reads?: Record<string, AppAction<C>>;
@@ -93,6 +95,7 @@ export function actionAgent<C extends ActionContext>(options: {
         "delete",
       ],
       contexts: [options.contextType],
+      ...(options.delegation ? { agent: { context: { type: options.contextType, id: options.focusId } } } : {}),
       notify: ["deleted"],
     },
   ];
