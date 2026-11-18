@@ -9,7 +9,8 @@ import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
 import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema, type WorkshopContext } from "../src/server/graphql";
 import { AssemblySchema } from "../src/lib/assembly";
-import { getWorkshopProject } from "../src/server/projects";
+import { unzipSync, strFromU8 } from "fflate";
+import { exportWorkshopProject, getWorkshopProject } from "../src/server/projects";
 
 // Each mutation document runs through graph.mutate as the platform's graph_mutate calls it,
 // admitting every member as the page does: a starter example becomes a first-revision
@@ -226,6 +227,10 @@ test("a shared gripper propagates through two configurations and a nested consum
     assert.deepEqual(shared.buildPrice,{knownSubtotal:0,estimatedSubtotal:11,unpricedUnits:0});
     const grippers=bomTotals(shared.assembly).lines.filter(l=>l.item.number==="Gripper");
     assert.deepEqual(grippers.map(l=>l.quantity),[4]);
+    const archive=await exportWorkshopProject(db,s.id);
+    const files=unzipSync(new Uint8Array(await archive.arrayBuffer()));
+    assert.match(strFromU8(files["bom.csv"]), /"Gripper","4","","","","2.75"/);
+    assert.ok(JSON.parse(strFromU8(files["assembly.json"])).items.some((i: {reference?:unknown})=>i.reference));
     assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
   } finally {close();}
 });

@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { assemblyGuard, noConsumers } from "./assembly-references";
+import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
 import { AssemblySchema } from "../lib/assembly";
 import { EXAMPLES, makeProject, type Project, ProjectSchema } from "../lib/project";
@@ -254,7 +254,9 @@ export function saveWorkshopAssembly(db: WorkshopDatabase, identity: AppIdentity
 
 export async function exportWorkshopProject(db: WorkshopDatabase, id: string) {
   const project = await getWorkshopProject(db, id);
-  return new Response(new Uint8Array(projectPackage(project)).buffer, {
+  const bom = project.assembly.items.some(item => item.reference)
+    ? (await resolvedProject(db, {projectId: id, revision: project.revision})).assembly : project.assembly;
+  return new Response(new Uint8Array(projectPackage(project, bom)).buffer, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="workshop-${project.id}-r${project.revision}.zip"`,
