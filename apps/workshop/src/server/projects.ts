@@ -76,7 +76,7 @@ export async function listWorkshopProjects(db: WorkshopDatabase) {
       name: workshopProjects.name,
       revision: workshopProjects.revision,
       updatedAt: workshopProjects.updatedAt,
-      brief: sql<string>`substr(trim(coalesce(nullif(json_extract(${workshopProjects.data}, '$.brief'), ''), json_extract(${workshopProjects.data}, '$.requirements'), '')), 1, 200)`,
+      brief: sql<string>`substr(trim(coalesce(nullif(trim(json_extract(${workshopProjects.data}, '$.brief')), ''), json_extract(${workshopProjects.data}, '$.requirements'), '')), 1, 200)`,
       // Stored projects saved before stages existed have none: they are concepts.
       phase: sql<string>`coalesce(json_extract(${workshopProjects.data}, '$.phase'), 'concept')`,
     })
@@ -96,6 +96,12 @@ export async function workshopProjectRow(db: WorkshopDatabase, id: string) {
     .where(eq(workshopProjects.id, id));
   if (!row) throw new Response("Not found", { status: 404 });
   return row;
+}
+
+export async function projectBySlugId(db: WorkshopDatabase, suffix: string) {
+  const [row] = await db.select({data: workshopProjects.data}).from(workshopProjects)
+    .where(sql`substr(${workshopProjects.id}, -12) = ${suffix}`).limit(1);
+  return row && ProjectSchema.parse(JSON.parse(row.data));
 }
 
 export async function getWorkshopProject(db: WorkshopDatabase, id: string) {

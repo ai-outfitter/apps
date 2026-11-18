@@ -186,7 +186,6 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(run?.result?.error)evidence.append(element("p",run.result.error));renderBom();
 }
 function render(){
- if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
  const runs=project.workspace?.requests??[];$("runner-status").textContent=runs.length?`${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}`:"No workspace connected. Existing CAD remains inspectable.";
@@ -200,6 +199,7 @@ function render(){
 $("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected){const descendants=new Set<string>();const walk=(i:Item)=>{descendants.add(i.id);for(const use of i.uses){const child=assembly.items.find(c=>c.id===use.itemId);if(child)walk(child);}};walk(selected);viewer?.isolate(descendants);}};
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
+if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
 $("model-filter").onchange=renderCatalog;
 $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
 $("model-panel").hidden=section==="parts"||section==="release"||section==="models"||section==="overview";$("models-panel").hidden=section!=="models"&&section!=="overview";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
