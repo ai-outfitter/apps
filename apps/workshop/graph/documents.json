@@ -158,6 +158,11 @@
                                         "serial"
                                       ]
                                     },
+                                    "opacity": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
                                     "color": {
                                       "type": "string",
                                       "pattern": "^#[0-9a-f]{6}$"
@@ -1789,7 +1794,7 @@
       ]
     },
     "mcp": {
-      "description": "Read the expanded CAD, BOM and power assembly and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
+      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
     },
     "outputSchema": {
       "type": "object",

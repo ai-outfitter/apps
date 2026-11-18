@@ -37,3 +37,7 @@ Workshop resolves references within one installation. Each source owns its CAD, 
 Omitting `configuration` selects the source's ordinary root. Omitting `revision` follows the current source. An integer `reference.revision` pins the source's authored assembly and configuration at that project save. Nested references follow their own revision settings. Current saves and revisions archived since the references migration can be pinned. Earlier edits have no retroactive snapshots.
 
 Direct loads follow physical usage quantities. Powered sources share scenario IDs and the source boundary rail. Rails with the same ID must agree on parent, voltage, kind and efficiency. Imported power inputs are edited in the owning project. Build manifests capture resolved parts for historical playback. Cycles, missing source records or roots, unknown configurations and out-of-range parameters are refused.
+
+Set an item's optional `opacity` from 0 (transparent) to 1 (opaque) alongside its hex `color`. It applies to authored CAD and imported meshes through references.
+
+The BOM and the resolved MCP result report the price for one installed assembly. `buildPrice.knownSubtotal` is in USD. `unpricedUnits` counts installed physical units still missing a price. Set `priceKnown: true` to include a unit cost, including an explicit zero. A quoted assembly covers all its contents. An unquoted assembly rolls up its children at their installed quantities.

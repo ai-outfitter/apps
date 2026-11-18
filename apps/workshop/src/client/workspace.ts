@@ -8,7 +8,7 @@ import { savedDriveMotion, type PlacedRotation } from "../lib/saved-drive-motion
 import { arteraDriveReview } from "../lib/artera-drive-review";
 import { arteraMotionPreview } from "../lib/artera-motion-preview";
 import type { Project } from "../lib/project";
-import { bomRows,bomTotals,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
+import { bomRows,bomTotals,buildPrice,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
 import { appBase, projectPath } from "../lib/sections";
@@ -128,6 +128,11 @@ if(item.uses.length){
 if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
 function renderBom(){
  if (!assembly) return;
+ const {knownSubtotal,unpricedUnits}=buildPrice(assembly);
+ const usd=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
+ $("bom-price").textContent=!assembly.rootId ? "No assembly selected." : unpricedUnits
+   ? `Known build subtotal ${usd.format(knownSubtotal)} · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`
+   : `Build price ${usd.format(knownSubtotal)}`;
  const mode=$<HTMLSelectElement>("bom-mode").value;
  const rows=mode==="hierarchy"?bomRows(assembly):bomTotals(assembly).lines.filter(r=>r.item.kind!=="assembly"&&(mode!=="cots"||r.item.kind==="cots")).map(r=>({...r,depth:0}));
  $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("button",item.name);button.onclick=()=>{select(item);$("model-panel").hidden=false;};title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${item.priceKnown?`$${item.unitCost}`:"Unpriced"}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));

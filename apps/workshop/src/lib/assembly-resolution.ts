@@ -1,13 +1,13 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import type { Assembly, AssemblyReference, Item } from "./assembly";
+import { buildPrice, type Assembly, type AssemblyReference, type Item } from "./assembly";
 import type { ArtifactRecord } from "./artifact";
 import type { Project } from "./project";
 
 export type AssemblySource = Pick<Project, "id"|"name"|"revision"|"assembly"|"workspace"> & {meshBuild?:{base:string;artifacts:ArtifactRecord[]}};
 export type MeshSource = { base: string; artifact: ArtifactRecord };
 export type ResolvedAssembly = {
-  projectId: string; revision: number; assembly: Assembly;
+  projectId: string; revision: number; assembly: Assembly; buildPrice: ReturnType<typeof buildPrice>;
   sources: { itemId: string; projectId: string; name: string; revision: number; configuration?: string; parameters?: Record<string,number>; pinned: boolean }[];
   meshes: Record<string, MeshSource>;
 };
@@ -42,7 +42,7 @@ function scopedId(scope: string, id: string) {
 export async function resolveAssembly(root: AssemblySource, load: (ref: AssemblyReference)=>Promise<AssemblySource>, selection?: AssemblyReference): Promise<ResolvedAssembly> {
   const base = configuredAssembly(root.assembly, selection);
   const items = new Map<string,Item>();
-  const result: ResolvedAssembly = {projectId:root.id,revision:root.revision,
+  const result: Omit<ResolvedAssembly,"buildPrice"> = {projectId:root.id,revision:root.revision,
     assembly:{...(base.rootId && {rootId:base.rootId}),items:[],...(base.power && {power:base.power})},sources:[],meshes:{}};
   function mergePower(power: Assembly["power"]) {
     if (!power) return;
@@ -103,5 +103,5 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
   }
   await expand(root,base,"",new Set([root.id]));
   result.assembly.items=[...items.values()];
-  return result;
+  return {...result, buildPrice: buildPrice(result.assembly)};
 }

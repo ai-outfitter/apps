@@ -300,6 +300,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   source: String
   unitCost: Float
   trackBy: FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy
+  opacity: Float
   color: String
   geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
   mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
@@ -551,6 +552,7 @@ input WorkshopAssemblyInputItemsItem {
   source: String
   unitCost: Float
   trackBy: WorkshopAssemblyInputItemsItemTrackBy
+  opacity: Float
   color: String
   geometry: WorkshopAssemblyInputItemsItemGeometry
   mesh: WorkshopAssemblyInputItemsItemMesh
@@ -726,6 +728,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   source: String
   unitCost: Float
   trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
+  opacity: Float
   color: String
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
   mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh

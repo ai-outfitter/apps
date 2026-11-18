@@ -77,6 +77,7 @@ export const ItemSchema = z
     unitCost: z.number().min(0).max(100000).default(0),
     /** How Workshop's inventory tells physical units apart. */
     trackBy: z.enum(["none", "mac", "serial"]).default("none"),
+    opacity: z.number().min(0).max(1).optional(),
     color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
@@ -200,6 +201,29 @@ export function bomTotals(assembly: Assembly) {
     lines,
     cost: lines.reduce((sum, line) => sum + line.quantity * line.item.unitCost, 0),
   };
+}
+
+/** Purchase price for one build. A quoted assembly covers its children. */
+export function buildPrice(assembly: Assembly) {
+  const byId = new Map(assembly.items.map(item => [item.id, item]));
+  type Price = { knownSubtotal: number; unpricedUnits: number };
+  const memo = new Map<string, Price>();
+  function price(item: Item): Price {
+    const cached = memo.get(item.id);
+    if (cached) return cached;
+    const total = { knownSubtotal: 0, unpricedUnits: 0 };
+    if (item.priceKnown) total.knownSubtotal = item.unitCost;
+    else if (!item.uses.length) total.unpricedUnits = Number(item.kind !== "firmware");
+    else for (const use of item.uses) {
+      const child = price(byId.get(use.itemId)!);
+      total.knownSubtotal += use.quantity * child.knownSubtotal;
+      total.unpricedUnits += use.quantity * child.unpricedUnits;
+    }
+    memo.set(item.id, total);
+    return total;
+  }
+  const root = assembly.rootId && byId.get(assembly.rootId);
+  return root ? price(root) : { knownSubtotal: 0, unpricedUnits: 0 };
 }
 
 export type Placement = {

@@ -182,7 +182,7 @@ test("a shared gripper propagates through two configurations and a nested consum
     const configuration=(name:string,spacing:number)=>({name,rootId:root.id,parameters:[{name:"gap",min:0,max:100,defaultValue:spacing,placements:[{parentId:root.id,usageId:placement.id,axis:"x",offset:1,scale:2}]}]});
     const structure={rootId:root.id,configurations:[configuration("rack",10),configuration("compact",5)],
       power:{version:1,notes:"",scenarios:[{id:"on",name:"On",notes:""}],rails:[{id:"dc",name:"Input",voltage:24,efficiency:1,kind:"dc",notes:""}]},
-      items:[{...root,uses:[placement]},{...grip,power:{loads:[{id:"motor",name:"Motor",rail:"dc",source:"Test",evidence:"assumed",notes:"",scenarios:{on:{averageW:2,operatingW:2,peakW:2}}}]}}]};
+      items:[{...root,uses:[placement]},{...grip,opacity:0.35,unitCost:2.75,priceKnown:true,power:{loads:[{id:"motor",name:"Motor",rail:"dc",source:"Test",evidence:"assumed",notes:"",scenarios:{on:{averageW:2,operatingW:2,peakW:2}}}]}}]};
     await save(a.id,1,structure);
     const link=(projectId:string,configuration?:string,revision?:number,parameters?:Record<string,number>)=>{
       const wrapper=item("Linked");return {rootId:wrapper.id,items:[{...wrapper,reference:{projectId,...(configuration&&{configuration}),...(revision&&{revision}),...(parameters&&{parameters})}}]};
@@ -197,6 +197,8 @@ test("a shared gripper propagates through two configurations and a nested consum
       const result=await view(id);
       assert.deepEqual(result,JSON.parse(JSON.stringify(result)), "MCP action results must contain only JSON values");
       assert.equal(result.revision,2);
+      assert.equal(result.assembly.items.find(i=>i.number==="Gripper")!.opacity,0.35);
+      assert.deepEqual(result.buildPrice,{knownSubtotal:5.5,unpricedUnits:0});
       assert.equal(result.assembly.items.find(i=>i.number==="Arm")!.uses[0].position[0],position);
       assert.equal(bomTotals(result.assembly).lines.find(l=>l.item.number==="Gripper")!.quantity,2);
       assert.equal(powerRollup(result.assembly,"on")!.total.operatingW,watts);
@@ -220,7 +222,9 @@ test("a shared gripper propagates through two configurations and a nested consum
     assert.equal(powerRollup(archived.assembly,"on")!.total.operatingW,6);
     const both=item("Both"),left={...item("Rack mount"),reference:{projectId:r.id}},right={...item("Compact mount"),reference:{projectId:c.id}};
     await save(s.id,2,{rootId:both.id,items:[{...both,uses:[use(left.id),use(right.id)]},left,right]});
-    const grippers=bomTotals((await view(s.id)).assembly).lines.filter(l=>l.item.number==="Gripper");
+    const shared=await view(s.id);
+    assert.deepEqual(shared.buildPrice,{knownSubtotal:11,unpricedUnits:0});
+    const grippers=bomTotals(shared.assembly).lines.filter(l=>l.item.number==="Gripper");
     assert.deepEqual(grippers.map(l=>l.quantity),[4]);
     assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
   } finally {close();}

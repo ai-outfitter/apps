@@ -41,7 +41,7 @@ export function solidNode(reply: MeshReply, color: string, opacity = 1) {
 /** One placed item: its faces in the item's color (see-through when printed) and its edges. */
 export function placedNode(placement: Placement, reply: MeshReply) {
   const { item } = placement;
-  const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.kind === "printed" ? 0.3 : 1);
+  const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.opacity ?? (item.kind === "printed" ? 0.3 : 1));
   node.userData.itemId = item.id;
   node.userData.pickGroup = placement.pickGroup;
   node.userData.path = placement.path;
@@ -194,7 +194,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       node.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           const material = child.material as THREE.MeshStandardMaterial;
-          material.opacity = dim ? 0.12 : child.userData.opacity;
+          material.opacity = dim ? Math.min(0.12, child.userData.opacity) : child.userData.opacity;
           material.transparent = material.opacity < 1;
           material.depthWrite = !material.transparent;
           material.needsUpdate = true;
@@ -237,7 +237,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
         const geometry=external.get(placement.item.id);
         if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
         const node=new THREE.Group();node.userData.pickGroup=placement.pickGroup;node.userData.itemId=placement.item.id;node.userData.path=placement.path;
-        const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=1;node.add(solid);
+        const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=placement.item.opacity ?? 1;node.add(solid);
         if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
         group.add(node);
       }

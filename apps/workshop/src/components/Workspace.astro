@@ -33,7 +33,7 @@ const {slug,section}=Astro.props;
     <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
     <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
-  <section id="bom-panel" hidden><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><div id="bom-rows"></div></section>
+  <section id="bom-panel" hidden><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><p id="bom-price"></p><div id="bom-rows"></div></section>
   <section id="revisions-panel" hidden><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
 </div>
 <script>import "../client/workspace";</script>
