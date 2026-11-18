@@ -68,7 +68,10 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
       // revision is identical across configurations and has one consolidated BOM row.
       return scopedId(ids.get(id)?.kind==="assembly" ? scope : source.id+"/"+source.revision,id);
     };
-    const usageIdFor = (id: string) => scope ? scopedId(scope, id) : id;
+    // Preserve existing paths and artifact bindings on placements outside authored drives.
+    const motionUsages = new Set(assembly.items.flatMap(item=>item.driveMotion
+      ? [...item.driveMotion.z.translationUsageIds,...item.driveMotion.z.rotations.map(r=>r.usageId)] : []));
+    const usageIdFor = (id: string) => scope && motionUsages.has(id) ? scopedId(scope, id) : id;
     async function visit(id: string): Promise<string> {
       const viewId = idFor(id);
       if (items.has(viewId)) return viewId;

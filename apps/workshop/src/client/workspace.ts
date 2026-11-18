@@ -194,11 +194,11 @@ function showBuild(run?:BuildRequest, snapshot=false){
   if(query.get("view")==="top") viewer?.topView();
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;$("motion-preview").hidden=!motion;
-  let inline;
+  let inline, inlineFailed=false;
   try { inline=installedDriveMotion(view); }
-  catch(error){ motion=undefined;notice(`Motion disabled: ${(error as Error).message}`); }
+  catch(error){ inlineFailed=true;motion=undefined;notice(`Motion disabled: ${(error as Error).message}`); }
   if(inline) { motion=inline;savedRotations=inline.rotations;savedAxes=inline.axes; }
-  else if(motionArtifact && run?.result){
+  else if(!inlineFailed && motionArtifact && run?.result){
    try {
     const response=await fetch(run.result.artifactBase+motionArtifact.path,{signal});
     if(!response.ok)throw Error("Cannot load saved drive motion");

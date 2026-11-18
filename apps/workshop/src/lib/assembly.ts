@@ -151,6 +151,7 @@ function assemblySchema(uniquePartNumbers: boolean) { return z
         }
       }
       collect(owner.id);
+      if (!spec.viewRootIds.includes(owner.id)) fail("Motion view roots must include the owning drive assembly");
       if (spec.viewRootIds.some(id => !reachable.has(id))) fail("Motion view root must belong to its source assembly");
       if (spec.z.translationUsageIds.some(id => usages.get(id)?.length !== 1)) fail("Motion translation needs a unique source usage");
       for (const r of spec.z.rotations) {

@@ -43,7 +43,11 @@ export function installedDriveMotion(view: Assembly) {
  for (const mount of mounts) {
    if (JSON.stringify(mount.spec.z.levels)!==JSON.stringify(levels)) throw Error("Select a drive assembly to play its distinct motion levels");
    const local=bindMotion(mount.spec,list.filter(p=>p.path.startsWith(mount.path+"/")));
-   for (const path of local.paths) { paths.add(path); axes.set(path,mount.axis); }
+   for (const path of local.paths) {
+     if (paths.has(path)) throw Error("Select a drive assembly to play overlapping motions separately");
+     paths.add(path);
+     axes.set(path,mount.axis);
+   }
    rotations.push(...local.rotations);
  }
  return {levels,paths,rotations,axes};
