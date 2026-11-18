@@ -173,6 +173,14 @@ input WorkshopDesignRunInput {
   id: ID!
 }
 
+input SubmitWorkshopPcbInput {
+  projectId: ID!
+  snapshotId: ID!
+  revision: Float!
+  reviewPath: String!
+  manifest: JSON!
+}
+
 input AcceptCreativeHandoffInput {
   projectId: ID!
   revision: Float!
@@ -651,6 +659,9 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """Upload a KiCad package and attach its verified snapshot."""
+  submitWorkshopPcb(input: SubmitWorkshopPcbInput!): JSON
+
   """
   Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.
   """

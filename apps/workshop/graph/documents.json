@@ -1083,7 +1083,48 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Create a Workshop project for a product or PCB package and return its ID and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createWorkshopProject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "number"
+            },
+            "productRevisionId": {
+              "type": "string",
+              "nullable": true
+            },
+            "productRevisionTitle": {
+              "type": "string",
+              "nullable": true
+            },
+            "createdBy": {
+              "type": "string"
+            },
+            "updatedBy": {
+              "type": "string"
+            },
+            "createdAt": {
+              "description": "DateTime"
+            },
+            "updatedAt": {
+              "description": "DateTime"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "DeleteWorkshopProject",
@@ -1653,6 +1694,36 @@
     }
   },
   {
+    "name": "SubmitWorkshopPcb",
+    "kind": "mutation",
+    "story": "As a workspace agent, I want to publish a verified PCB package, so that members can review its board, quote and manufacturing files.",
+    "query": "mutation SubmitWorkshopPcb($input: SubmitWorkshopPcbInput!) {\n  submitWorkshopPcb(input: $input)\n}",
+    "hash": "9be8b1bdff2812adfd5e4796cd85ebeb6420fc47b55a9b8085cbbcb7305398a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitWorkshopPcbInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitWorkshopPcb": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "UnitChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to apply unit changes using explicit actions, so that each change has a durable receipt and explicit next steps.",
@@ -2031,7 +2102,51 @@
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Find a Workshop project and its current revision before importing PCB files."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "WorkshopUnits",

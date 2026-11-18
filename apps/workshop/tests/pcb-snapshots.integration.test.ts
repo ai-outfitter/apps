@@ -4,6 +4,9 @@ import { unzipSync, strFromU8 } from "fflate";
 import { createHash, randomUUID } from "node:crypto";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { parseDirectUpload } from "@ai-outfitter/app-sdk/storage";
+import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
+import { documents } from "../src/server/documents";
 import { ProjectSchema } from "../src/lib/project";
 
 const member={userId:"pcb-builder",organizationId:"pcb-fixture",role:"member"};
@@ -45,5 +48,37 @@ test("PCB imports verify content, preserve assembly/workflows and reject forged 
   const contents=unzipSync(new Uint8Array(await bundle.arrayBuffer()));
   assert.equal(JSON.parse(strFromU8(contents["snapshot.json"])).id,snapshotId);
   for(const a of all)assert.equal(Buffer.from(contents[a.record.path]).toString("base64"),a.base64);
+  const submission = {...input, projectId:p.id, snapshotId:randomUUID(), revision:renamed.revision};
+  const submit = async (input = submission) => {
+    const response = await call("/api/internal/actions/v1/call", {
+      action:"graph.mutate", input:{query:documentText(documents.SubmitWorkshopPcb.document),variables:{input}},
+    });
+    const result = await response.json() as any;
+    if (result.errors) throw Error(result.errors[0].message);
+    return result.data.submitWorkshopPcb;
+  };
+  const pending = await submit();
+  assert.equal(pending.status,"awaiting_upload");
+  assert.equal(pending.uploads.length,all.length);
+  const bucket = await app.bucket("main");
+  await assert.rejects(submit({...submission, revision:submission.revision-1}), /changed/i);
+  const first = parseDirectUpload(pending.uploads[0].url)!;
+  await bucket.put(first.key,"wrong bytes");
+  await assert.rejects(submit(), /match/i);
+  for (const ticket of pending.uploads) {
+    const ref = parseDirectUpload(ticket.url);
+    const artifact = all.find(item => item.record.path === ticket.path);
+    assert.ok(ref && artifact);
+    await bucket.put(ref.key,Buffer.from(artifact.base64,"base64"));
+  }
+  const receipt = await submit();
+  assert.equal(receipt.status,"imported");
+  assert.match(receipt.projectPath,/^\/projects\/.+\/pcb$/);
+  assert.deepEqual(await submit(),receipt);
+  await assert.rejects(submit({...submission, manifest:{...manifest,notes:"different package"}}), /another package/i);
+  const exported = await call(url+"/pcb?snapshot="+submission.snapshotId);
+  assert.equal(exported.status,200);
+  const downloaded = unzipSync(new Uint8Array(await exported.arrayBuffer()));
+  for(const a of all) assert.equal(Buffer.from(downloaded[a.record.path]).toString("base64"),a.base64);
  }finally{await app.dispose();}
 });
