@@ -230,18 +230,6 @@ function walkthrough(chapters: Chapter[]) {
 
 function revisionPage(root: HTMLElement, mount: string, graph: Graph, product: GraphNode, revision: GraphNode, wiki?: WikiContext) {
   const model = revisionEvidence(graph, revision);
-  const normalized = model.bundles.filter(item => evidenceBody(item.node.body).recordKind === "visual-evidence");
-  if (normalized.length) {
-    const selectedId = new URL(location.href).searchParams.get("bundle");
-    const selected = selectedId ? normalized.find(item => item.node.id === selectedId) : normalized[0];
-    if (selected) {
-      const view = evidenceView(selected.node);
-      root.replaceChildren();
-      createRoot(root).render(createElement(EvidenceViewer, {bundle: view, comparisons: normalized.map(item => evidenceView(item.node)), evidenceHref: revisionUrl(mount, product.id, revision.id)}));
-      return;
-    }
-  }
-
   const requested = new URLSearchParams(location.search).get("bundle");
   const bundle = requested ? model.bundles.find(bundle => bundle.node.id === requested) : model.bundles[0];
   const heading = document.querySelector(".intro h1"); if (heading) heading.textContent = revision.title;
@@ -255,6 +243,16 @@ function revisionPage(root: HTMLElement, mount: string, graph: Graph, product: G
   const toolbar = el("div", { class: "product-revision-toolbar" }, captureSelect);
   if (requested && !bundle) { root.replaceChildren(breadcrumb, el("p", { role: "alert" }, "This evidence snapshot is unavailable. Choose a recorded capture."), toolbar); return; }
   const content = el("div");
+  if (bundle && evidenceBody(bundle.node.body).recordKind === "visual-evidence") {
+    const view = evidenceView(bundle.node);
+    const refs = new Set(view.steps.flatMap(step => step.before ? [step.before.bundle.id] : []));
+    const comparisons = graph.nodes.filter(node => !node.archived && refs.has(node.id)).map(node => evidenceView(node));
+    root.replaceChildren(breadcrumb, toolbar, ...bundle.warnings.map(warning => el("p", {role:"status"}, warning)), content);
+    const viewer = createRoot(content);
+    viewer.render(createElement(EvidenceViewer, {bundle:view, comparisons}));
+    document.addEventListener("astro:before-swap", () => viewer.unmount(), {once:true});
+    return;
+  }
   const chapters = chaptersFor(model.stories(bundle), bundle);
   const walk = walkthrough(chapters), evidence = evidencePanel(graph, bundle, wiki);
   const tabs = el("nav", { class: "product-tabs", "aria-label": "Revision views" });

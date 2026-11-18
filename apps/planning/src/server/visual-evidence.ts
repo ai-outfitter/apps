@@ -138,6 +138,53 @@ export async function submitVisualEvidence(c: PlanningContext, raw: unknown) {
       ),
     );
   if (!project) throw new Response("Project not found", { status: 404 });
+  const id = await stableGraphId(
+    "visual-evidence",
+    c.identity.installationId,
+    project.id,
+    input.key,
+  );
+  const wiki = await defaultWiki(c.host());
+  const call = (action: string, value: unknown) =>
+    c
+      .host()
+      .call("actions.call", {
+        installationId: wiki.installationId,
+        action,
+        input: JSON.parse(JSON.stringify(value)),
+      }) as Promise<any>;
+  const ref = `$evidence_${id.replaceAll("-", "")}`;
+  const body = JSON.stringify(capture);
+  const existing = await queryWikiGraph(c.host(), {
+    queries: [
+      { name: "existing", entity: "node", ids: [id], fields: "full", limit: 1 },
+    ],
+  });
+  const saved = existing.nodes.find((n) => n.id === id);
+  const url = `/projects/${project.id}/evidence?bundle=${id}`;
+  if (saved) {
+    if (saved.body !== body)
+      throw new Response(
+        "Submission key already names a different capture; use a new key",
+        { status: 409 },
+      );
+    return { id, state: "applied", url };
+  }
+  const batch = await call("batch.get", { batchId: input.batchId });
+  const prior = batch.operations?.find((p: any) => p.operation?.ref === ref);
+  if (prior) {
+    if (prior.operation.attributes?.body !== body)
+      throw new Response(
+        "Submission key already staged with different content",
+        { status: 409 },
+      );
+    return {
+      id,
+      batchId: input.batchId,
+      state: batch.batch.state,
+      url: `${url}&batch=${input.batchId}`,
+    };
+  }
   if (project.revision !== capture.project.revision)
     throw new Response("Project changed; read it again", { status: 409 });
   const graph = await queryWikiGraph(c.host(), {
@@ -212,52 +259,6 @@ export async function submitVisualEvidence(c: PlanningContext, raw: unknown) {
     throw new Response("Evidence document types are unavailable", {
       status: 409,
     });
-  const id = await stableGraphId(
-    "visual-evidence",
-    c.identity.installationId,
-    project.id,
-    input.key,
-  );
-  const call = (action: string, value: unknown) =>
-    c
-      .host()
-      .call("actions.call", {
-        installationId: graph.wiki.installationId,
-        action,
-        input: JSON.parse(JSON.stringify(value)),
-      }) as Promise<any>;
-  const ref = `$evidence_${id.replaceAll("-", "")}`;
-  const body = JSON.stringify(capture);
-  const existing = await queryWikiGraph(c.host(), {
-    queries: [
-      { name: "existing", entity: "node", ids: [id], fields: "full", limit: 1 },
-    ],
-  });
-  const saved = existing.nodes.find((n) => n.id === id);
-  const url = `/projects/${project.id}/evidence?bundle=${id}`;
-  if (saved) {
-    if (saved.body !== body)
-      throw new Response(
-        "Submission key already names a different capture; use a new key",
-        { status: 409 },
-      );
-    return { id, state: "applied", url };
-  }
-  const batch = await call("batch.get", { batchId: input.batchId });
-  const prior = batch.operations?.find((p: any) => p.operation?.ref === ref);
-  if (prior) {
-    if (prior.operation.attributes?.body !== body)
-      throw new Response(
-        "Submission key already staged with different content",
-        { status: 409 },
-      );
-    return {
-      id,
-      batchId: input.batchId,
-      state: batch.batch.state,
-      url: `${url}&batch=${input.batchId}`,
-    };
-  }
   const proposals: any[] = [
     {
       operation: {
@@ -276,14 +277,15 @@ export async function submitVisualEvidence(c: PlanningContext, raw: unknown) {
       },
     },
   ];
-  for (const target of [String(anchor[0].id), capture.productRevision.id])
+  for (const target of [String(anchor[0].id), capture.productRevision.id]) {
+    const linkId = await stableGraphId("visual-evidence-link", id, target);
     proposals.push({
       operation: {
         operation: "create",
-        ref: `$link_${(await stableGraphId("visual-evidence-link", id, target)).replaceAll("-", "")}`,
+        ref: `$link_${linkId.replaceAll("-", "")}`,
         type: "graph-edge",
         attributes: {
-          id: await stableGraphId("visual-evidence-link", id, target),
+          id: linkId,
           typeId: type("documents"),
           fromId: ref,
           toId: target,
@@ -291,6 +293,7 @@ export async function submitVisualEvidence(c: PlanningContext, raw: unknown) {
         },
       },
     });
+  }
   await call("batch.add", { batchId: input.batchId, proposals });
   return {
     id,

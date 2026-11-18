@@ -150,9 +150,7 @@ export function evidenceView(
     "recordKind" in raw &&
     raw.recordKind === "visual-evidence"
   )
-    throw new Error(
-      "Evidence does not match the supported schema; inspect the source record.",
-    );
+    return {id:record.id, revision:record.revision, title:record.title, legacy:false, summary:"Invalid evidence record", limitations:["Evidence does not match the supported schema; inspect the source record."], steps:[]};
   return {
     id: record.id,
     revision: record.revision,

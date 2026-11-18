@@ -52,7 +52,7 @@ function MediaItem({ media }: { media: Media }) {
         {media.caption}{" "}
         <a
           href={media.downloadHref ?? media.href}
-          download={media.downloadHref ? undefined : true}
+          download={media.kind === "video" && !media.downloadHref ? true : undefined}
         >
           {media.kind === "video" ? "Download video" : "Open full-size image"}
         </a>
@@ -212,8 +212,8 @@ export default function EvidenceViewer({
                 </p>
                 <h3>{step.title}</h3>
                 <p>{step.description}</p>
-                <div className={compare ? "evidence-comparison" : ""}>
-                  {compare && (
+                <div className={compare && step.before ? "evidence-comparison" : ""}>
+                  {compare && step.before && (
                     <section>
                       <h4>Before</h4>
                       {previous ? (
@@ -240,7 +240,7 @@ export default function EvidenceViewer({
                     </section>
                   )}
                   <section>
-                    {compare && (
+                    {compare && step.before && (
                       <h4>After · record revision {bundle.revision}</h4>
                     )}
                     {step.media.length ? (

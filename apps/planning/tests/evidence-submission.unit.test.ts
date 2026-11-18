@@ -59,23 +59,25 @@ function setup() {
       throw Error(op + ":" + input.action);
     },
   };
+  const project = { id: capture.project.id, revision: 1 };
   const context: any = {
     identity: { installationId: "planning", userId: "owner", canEdit: true },
     host: () => host,
     db: () => ({
       select: () => ({
         from: () => ({
-          where: async () => [{ id: capture.project.id, revision: 1 }],
+          where: async () => [project],
         }),
       }),
     }),
   };
-  return { context, graph, staged, writes: () => writes };
+  return { context, project, graph, staged, writes: () => writes };
 }
 test("repeat capture staging is idempotent and never submits or approves the graph batch", async () => {
   const s = setup(),
     input = { key: "demo-v1", batchId: releaseId(200), bundle: capture };
   const first = await submitVisualEvidence(s.context, input);
+  s.project.revision++;
   const second = await submitVisualEvidence(s.context, input);
   assert.equal(first.id, second.id);
   assert.equal(s.writes(), 1);

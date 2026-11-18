@@ -98,14 +98,13 @@ test("legacy adaptation retains media and never invents hash or provenance", () 
   assert.equal(view.steps[0].media.length, 2);
   assert.equal(view.source, undefined);
   assert.equal(view.steps[0].media[0].sha256, undefined);
-  assert.throws(
-    () =>
+  assert.match(
       evidenceView({
         id: "invalid",
         revision: 1,
         title: "Bad",
         body: JSON.stringify({ recordKind: "visual-evidence" }),
-      }),
+      }).limitations[0],
     /schema/,
   );
 });

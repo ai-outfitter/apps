@@ -8,7 +8,8 @@ import { evidenceView } from "@ai-outfitter/app-sdk/visual-evidence";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import demo from "../../fixtures/project-release-review.json";
 import { type Graph, type GraphNode, productGraph } from "../lib/graph";
-import { readProjectEvidenceSelection } from "./wiki-subgraph";
+import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
+import { readProjectSelection, projectBodySelection, readProjectEvidenceSelection } from "./wiki-subgraph";
 
 export type ProjectReleaseReview = {
   project: { title: string; revision?: number; legacy?: string };
@@ -43,6 +44,7 @@ export function projectReleaseRecords(
   graph: Graph,
   installationId: string,
   projectId: string,
+  mode: "evidence" | "release" = "evidence",
 ) {
   const typeName = (typeId: string) =>
     graph.types.find((type) => !type.archived && type.id === typeId)?.name;
@@ -88,7 +90,7 @@ export function projectReleaseRecords(
     { type: "produces", direction: "outgoing" as const, from_type: "Project", to_type: "ProductRevision" },
     { type: "documents", direction: "incoming" as const, from_type: "Document", to_type: "ProductRevision" },
     { type: "evidence_for", direction: "incoming" as const, from_type: "Document", to_type: "ProductRevision" },
-  ].filter((rule) => hasType(rule.type, "edge") && hasType(rule.from_type, "node") && hasType(rule.to_type, "node"));
+  ].filter(rule => mode === "evidence" || rule.to_type !== "ProductRevision").filter((rule) => hasType(rule.type, "edge") && hasType(rule.from_type, "node") && hasType(rule.to_type, "node"));
   if (!relationships.length) return { releases: [], documents: [], demonstrations: {} };
   const definition = resolveKnowledgeGraph(graph, {
     root_type: "Project",
@@ -104,10 +106,11 @@ export function projectReleaseRecords(
       status: 413,
     });
   const sorted = [...selection.nodes].sort(
-    (a, b) => (Date.parse(String(releaseBody(b.body).capturedAt ?? "")) || b.createdAt || 0) - (Date.parse(String(releaseBody(a.body).capturedAt ?? "")) || a.createdAt || 0) || a.id.localeCompare(b.id),
+    (a, b) => mode === "release" ? a.title.localeCompare(b.title) || a.id.localeCompare(b.id) : (Date.parse(String(releaseBody(b.body).capturedAt ?? "")) || b.createdAt || 0) - (Date.parse(String(releaseBody(a.body).capturedAt ?? "")) || a.createdAt || 0) || a.id.localeCompare(b.id),
   );
   const isCapture = (node: GraphNode) => releaseBody(node.body).recordKind === "visual-evidence" || bundleDemonstrations(graph, node.id, typeName).length > 0;
-  const documents = sorted.filter((node) => typeName(node.typeId) === "Document").sort((a,b) => Number(isCapture(b)) - Number(isCapture(a)));
+  const documents = sorted.filter((node) => typeName(node.typeId) === "Document");
+  if (mode === "evidence") documents.sort((a,b) => Number(isCapture(b)) - Number(isCapture(a)));
   return {
     releases: sorted.filter((node) => typeName(node.typeId) === "Release"),
     documents,
@@ -145,15 +148,20 @@ export async function readProjectReleases(
   host: WorkflowHost<"interactive">,
   installationId: string,
   projectId: string,
+  mode: "evidence" | "release" = "evidence",
 ) {
   const db = await appDataContext(host).apps.installation(installationId);
   // Authenticate the canonical project before reading any Wiki context.
   const project = await db.collection("projects").get(projectId);
-  const records = await readProjectEvidenceSelection(host, installationId, projectId);
+  const records = mode === "evidence" ? await readProjectEvidenceSelection(host, installationId, projectId)
+    : await readProjectSelection(host, installationId, projectId, projectBodySelection).catch(error => {
+      if (error instanceof Response && [400, 404].includes(error.status)) return readWikiGraph(host);
+      throw error;
+    });
   return {
     project: { title: project.title, revision: project.revision, legacy: [project.attributes.demoInstructions, project.attributes.demoResults].filter(Boolean).join("\n\n") },
     wiki: records.wiki,
-    ...projectReleaseRecords(productGraph(records), installationId, projectId),
+    ...projectReleaseRecords(productGraph(records), installationId, projectId, mode),
   };
 }
 

@@ -31,7 +31,7 @@ Astro.response.status = model.status;
   </details>
   {project && <section aria-label="Latest visual evidence" class="project-evidence-preview">
     <p>{project.goals}</p><h2>Review the latest change</h2>
-    <p class="muted" data-evidence-summary={projectId} data-endpoint={href("/api/apps/planning/evidence")}>Loading capture summary…</p>
+    <p class="muted" data-evidence-summary={projectId} data-endpoint={href("/api/apps/planning/evidence")}>{demo ? "Read-only demo" : "Loading capture summary…"}</p>
     <Button href={href(`/projects/${projectId}/evidence`)}>Open screenshots and videos</Button>
   </section>}
   {preview ? <ProjectConversationPreview {preview} /> : project && <ProjectNextAction {projectId} />}
