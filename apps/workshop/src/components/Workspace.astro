@@ -102,6 +102,6 @@ const {slug,section}=Astro.props;
 .workspace #project-brief{max-width:72ch;color:var(--muted)}
 .workspace:has(#pricing:not([open])) .line-price{display:none}
 .workspace .model-stage{display:flex;flex-direction:column}
-.workspace .stage-bar{order:1;border-bottom:0;border-top:1px solid var(--border)}
+.workspace .stage-bar:has(#motion-controls[hidden]){order:1;border-bottom:0;border-top:1px solid var(--border)}
 .workspace #assembly-references{margin-top:1rem}
 </style>
