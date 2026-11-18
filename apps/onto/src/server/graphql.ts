@@ -1,4 +1,3 @@
-import { ensureOwnerRoot, ownerRootStatus } from "./owner-root";
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { ontologyGuide } from "./ontology-guide";
 import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
@@ -215,7 +214,6 @@ const Ontology = new GraphQLObjectType({ name: "Ontology", fields: {
 } });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
-  ownerRoot: { type: JSONScalar, resolve: (_root, _args, context) => ownerRootStatus(context.db(), context.identity) },
   ...creativeQueries,
   ...creativeAddressQueries,
   ontology: {
@@ -272,7 +270,6 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
-    ensureOwnerRoot: { type: JSONScalar, description: "Editors: initialize the trusted installation owner root without guessing identities or linking unrelated records. No inputs. Existing roots and archives are preserved.", resolve: (_root, _args, context) => ensureOwnerRoot(context.db(), context.identity) },
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
       description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.",
@@ -313,7 +310,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     ...creativeAddressMutations,
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
-      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's verified holder/account in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] uses the owner root. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.",
+      description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.",
       input: stageInput,
       run: async (context: MutationContext, input) => {
         const db = context.db();

@@ -27,11 +27,7 @@ async function fixture() {
   });
   const action = (name: string, input: object, identity: object = owner) =>
     app.call("/api/internal/actions/v1/call", identity as typeof owner, { method: "POST", body: { action: name, input } });
-  await json(await action("graph.apply", { requestKey: "definitions", operations: [...definitions(),
-    create("$org", "graph-node", { id: uuid(8000), typeId: core.organization, title: "Research owner", properties: { organization_id: "org" } }),
-    create("$research", "graph-node", { id: uuid(8001), typeId: core.document, title: "Board research", slug: "board-research" }),
-    create("$scope", "graph-edge", { id: uuid(8002), typeId: "part_of", fromId: "$research", toId: "$org" }),
-  ] }));
+  await json(await action("graph.apply", { requestKey: "definitions", operations: definitions() }));
   const changes = async (action: string, input: object, identity: object = agent) => {
     const result = await json(await app.call("/api/internal/actions/v1/call", identity as typeof owner, { method: "POST", body: { action: "graph.mutate", input: {
       query: print(documents.ChangeBatchChanges.document), operationName: "ChangeBatchChanges", variables: { input: { items: [{ key: crypto.randomUUID(), action, input }] } },
@@ -52,10 +48,7 @@ const board = { key: "board-role", ask: "Who signs off flight hardware?", refs: 
 test("an agent asks on its batch, a reviewer answers, and the agent revises citing the answer", async (t) => {
   const f = await fixture();
   t.after(() => f.app.dispose());
-  const staged = await f.changes("stage", { title: "Board", anchors: [], proposals: [{ operation: person("$shen", 1, "Shen Ge") }, { operation: person("$lu", 2, "Lu") },
-    { operation: create("$shen-context", "graph-edge", { id: uuid(8003), typeId: "documents", fromId: "Document:board-research", toId: "$shen" }) },
-    { operation: create("$lu-context", "graph-edge", { id: uuid(8004), typeId: "documents", fromId: "Document:board-research", toId: "$lu" }) },
-  ] });
+  const staged = await f.changes("stage", { title: "Board", anchors: [], proposals: [{ operation: person("$shen", 1, "Shen Ge") }, { operation: person("$lu", 2, "Lu") }] });
   const batchId = staged.result.id;
 
   // Questions name proposals in the batch.
@@ -82,7 +75,7 @@ test("an agent asks on its batch, a reviewer answers, and the agent revises citi
 
   // Answering approves nothing.
   const answered = await json(await f.answer({ batchId, key: "board-role", option: "Both directors" }));
-  assert.deepEqual(answered.counts, { awaiting_review: 4 });
+  assert.deepEqual(answered.counts, { awaiting_review: 2 });
   assert.equal(answered.batch.questions[0].answer.option, "Both directors");
   assert.equal(answered.batch.questions[0].answer.by, "owner");
   const typed = await json(await f.answer({ batchId, key: "lu-title", text: "Treasurer" }));

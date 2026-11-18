@@ -56,15 +56,11 @@ test("every activation keeps one hourly, installation-owned seal timer", async (
 test("the hourly seal approves what is past its window, by policy and as no member", async (t) => {
   const f = await fixture();
   t.after(() => f.worker.dispose());
-  await json(await f.action("graph.apply", { requestKey: "definitions", operations: [...definitions(),
-    create("$org", "graph-node", { id: "7c0e0000-0000-4000-8000-000000008000", typeId: core.organization, title: "Research owner", properties: { organization_id: "org" } }),
-    create("$research", "graph-node", { id: "7c0e0000-0000-4000-8000-000000008001", typeId: core.document, title: "Contact research", slug: "contact-research" }),
-    create("$scope", "graph-edge", { id: "7c0e0000-0000-4000-8000-000000008002", typeId: "part_of", fromId: "$research", toId: "$org" }),
-  ] }));
+  await json(await f.action("graph.apply", { requestKey: "definitions", operations: definitions() }));
   const policy = { kind: "confidence", threshold: 0.95, version: "test", reviewWindow: { hours: 1 } };
   const { batch } = await json(await f.action("batch.open", { title: "Daily", source: { kind: "discovery-run", ref: "r" }, policy }, app));
   const id = "7c0e0000-0000-4000-8000-000000000001";
-  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: create("$cy", "graph-node", { id, typeId: core.person, title: "Cy" }), confidence: 0.6 }, { operation: create("$context", "graph-edge", { id: "7c0e0000-0000-4000-8000-000000008003", typeId: "documents", fromId: "Document:contact-research", toId: "$cy" }), confidence: 0.6 }] }, app));
+  await json(await f.action("batch.add", { batchId: batch.id, proposals: [{ operation: create("$cy", "graph-node", { id, typeId: core.person, title: "Cy" }), confidence: 0.6 }] }, app));
   await json(await f.action("batch.submit", { batchId: batch.id }, app));
 
   // Not due yet: nothing seals.
@@ -72,7 +68,7 @@ test("the hourly seal approves what is past its window, by policy and as no memb
   assert.equal((await json(await f.action("batch.get", { batchId: batch.id }))).batch.state, "awaiting_review");
 
   // Two hours on, the window has closed.
-  assert.match((await json(await f.seal("batches.seal", Date.now() + 2 * 3600_000))).summary, /^sealed 2/);
+  assert.match((await json(await f.seal("batches.seal", Date.now() + 2 * 3600_000))).summary, /^sealed 1/);
   const sealed = await json(await f.action("batch.get", { batchId: batch.id }));
   assert.equal(sealed.batch.state, "committed");
   assert.equal(sealed.operations[0].decision.reason, "review-window");

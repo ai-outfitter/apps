@@ -9,7 +9,6 @@ import prompt from "../../agent/ontology-steward.md?raw";
 import { auditOntology } from "../lib/ontology-validation";
 import { readGraph } from "./graph";
 import { finding } from "./batch-review";
-import { reviewOwner } from "./review-owner";
 import type { Database } from "./graph-batches";
 
 export const auditWorkflow = "ontology-audit";
@@ -81,7 +80,6 @@ export async function auditOnSchedule(
     graph.types.length <= 300;
   const data = {
     mode: "audit",
-    owner: reviewOwner(graph, who),
     complete,
     types: graph.types.slice(0, 300),
     nodes: graph.nodes.slice(0, 300),

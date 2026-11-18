@@ -10,8 +10,6 @@ import { batchGroups } from "./batch-groups";
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
 import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
-  OwnerRoot: { story: "As a member, I want the canonical installation root and setup status, so that I can inspect connectivity without guessing identity.", document: `query OwnerRoot { ownerRoot }` },
-  EnsureOwnerRoot: { story: "As an editor, I want safe repeatable installation owner setup, so that trusted host identity supplies a canonical root.", document: `mutation EnsureOwnerRoot { ensureOwnerRoot }` },
   ...wikiChangeDocuments,
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
@@ -91,8 +89,6 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
- OwnerRoot: {description:"Read the canonical owner root address and setup status; never changes data."},
- EnsureOwnerRoot: {description:"Editors: ensure a canonical root using trusted installation identity. Preserves existing roots, returns blocked for conflicts or archives, and never guesses a Person or links unrelated data."},
  CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},

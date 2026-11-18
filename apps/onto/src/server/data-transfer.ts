@@ -1,4 +1,3 @@
-import { rejectNewOwnerBindingAmbiguity } from "./owner-root-bindings";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import type { ImportPlan } from "@ai-outfitter/app-sdk/data-transfer";
 
@@ -21,11 +20,6 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
     return rows;
   };
   const types = incoming("graph_types"), nodes = incoming("graph_nodes"), edges = incoming("graph_edges");
-  const before = await db.query({ sql: "SELECT id,typeId,archived,properties FROM graph_nodes" });
-  const projected = new Map(before.map(row => [String(row.id), row]));
-  for (const row of nodes) projected.set(String(row.id), { ...projected.get(String(row.id)), ...row });
-  const after = [...projected.values()];
-  rejectNewOwnerBindingAmbiguity(before as { id: unknown }[], after as { id: unknown }[]);
 
   const typeIds = new Set([...types, ...await lookup("graph_types", "id", [...nodes, ...edges].map((r) => r.typeId))].map((r) => String(r.id)));
   for (const row of [...nodes, ...edges])

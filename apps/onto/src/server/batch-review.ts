@@ -15,7 +15,7 @@ import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
 import { readGraph } from "./graph";
 import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
-import { reviewOwner } from "./review-owner";
+import { wikiHome } from "./wiki-home";
 
 export const reviewWorkflow = "batch-review";
 export const reviewStep = "review";
@@ -117,9 +117,9 @@ type Row = { ref: string; operation: Op; evidence: unknown; confidence: number |
 /** Structural types the steward exempts from the owner and isolation checks. */
 const structural = new Set(["KnowledgeGraph", "GraphContextTemplate", "DecisionControlTemplate", "DecisionType", "MetricDefinition"]);
 
-/** Optional exact graph representation; never the authority for installation ownership. */
+/** The owner's node: the Organization this Wiki's home resolves to (its root). */
 function ownerOf(graph: Graph, who: AppIdentity) {
-  const id = reviewOwner(graph, who).graphNode?.id;
+  const id = wikiHome(graph, who).organizationId;
   return id ? graph.nodes.find((node) => node.id === id) ?? null : null;
 }
 
@@ -165,6 +165,7 @@ function readingOrder(rows: Row[]) {
 export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget) {
   const typeNames = new Map(graph.types.map((type) => [type.id, type.name]));
   const nodes = new Map(graph.nodes.filter((node) => !node.archived).map((node) => [node.id, node]));
+  const owner = ownerOf(graph, who);
   const newTypes = rows.filter((row) => row.operation.type === "graph-type").map((row) => ({
     ref: row.ref, operation: row.operation.operation, name: row.operation.attributes.name ?? row.operation.id, category: row.operation.attributes.category,
     properties: Array.isArray(row.operation.attributes.properties) ? row.operation.attributes.properties.map((property: { name?: unknown; type?: unknown }) => `${property?.name}:${property?.type}`) : undefined,
@@ -194,7 +195,7 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
   const parts: { data: Record<string, unknown>; refs: string[]; neighborsComplete: boolean }[] = [];
   const base = (index: number) => ({
     mode: "batch",
-    owner: reviewOwner(graph, who),
+    owner: owner ? { id: owner.id, title: owner.title } : null,
     batch: { id: batch.id, title: batch.title, purpose: cut(batch.purpose, 1000), source: batch.source, policy: batch.policy, state: batch.state, operations: rows.length },
     part: { index: index + 1, of: 0, operations: 0 },
     types,
@@ -270,6 +271,8 @@ export function batchChecks(graph: Graph, who: AppIdentity, rows: Row[], batchId
         fix: "Add the relationship its body or summary implies.",
       });
   }
+  if (!owner && who.organizationId)
+    findings.push({ ref: null, rule: "owner.unknown", severity: "warning", message: "No single Organization in this Wiki is bound to its organization, so owner checks did not run.", fix: null });
   // The staging advice runs on the whole batch too: missing and sprawling types, card quality.
   return [...findings, ...batchAdvice(graph, live, batchId)];
 }

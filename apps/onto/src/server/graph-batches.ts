@@ -9,18 +9,17 @@ import {
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import { readGraph, graphUnchanged } from "./graph";
+import { readGraph } from "./graph";
 import { addressIndex, resolveAddress } from "../lib/addresses";
 import {
   applyGraphChanges,
   inspectGraphChanges,
-  projectGraphChanges,
   graphChangeInput,
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
-
-import { rootContext } from "./owner-root";
+import { personalRoot } from "./owner-root";
+import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
 import { readSettings } from "./settings";
 
@@ -97,10 +96,10 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
-  // Saved anchors add context; owner-root connectivity is enforced independently.
-  // Missing roots permit staging; initialization or editor setup supplies the root.
-  const root = await rootNode(db, who);
-  const anchors = input.anchors?.length ? await anchorIds(db, who, input.anchors) : root ? [root] : null;
+  // Every batch is anchored to the root unless it names its own anchors; an empty list
+  // asks for no connectivity requirement.
+  const root = input.anchors === undefined ? await rootNode(db, who) : null;
+  const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
   await db.insert(graphBatches).values({
@@ -111,30 +110,13 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   return getBatch(db, who, { batchId: id });
 }
 
-/** Existing canonical graph root: personal account/verified holder or exact organization
- * binding. Trusted installation ownership is distinct from this optional graph context. */
+/** The node this Onto belongs to: the Organization bound to an organization's Onto, or the
+ * owner's verified holder or canonical OutfitterUser account in a personal Onto. Null when none or
+ * more than one matches; an unbound Onto then has no default anchor. */
 export async function rootNode(db: Database, who: AppIdentity) {
-  return (await rootContext(db, await readGraph(db, who), who)).graphNode?.id ?? null;
-}
-
-/** Missing graph bindings are not unknown tenant ownership. */
-async function requiredRoot(db: Database, graph: Awaited<ReturnType<typeof readGraph>>, who: AppIdentity) {
-  const owner = await rootContext(db, graph, who);
-  if (!owner.graphNode) {
-    const setup = owner.kind === "organization"
-      ? `Bind exactly one active Organization's organization_id to ${owner.id} using authorized graph editing`
-      : `Use the editor identity-link API to link account ${owner.id} to its canonical Person or Agent`;
-    fail(`Owner root is ${owner.graphBinding}; an editor can run EnsureOwnerRoot for safe setup. If it reports a conflict: ${setup}, resolve conflicting bindings, then revalidate this staged batch. Installation ownership remains known`, 409);
-  }
-  return owner.graphNode.id;
-}
-function rootedSelection(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], selected: Set<string>, anchors: string[] | null, root: string) {
-  for (;;) {
-    const size = selected.size;
-    anchoredSelection(graph, rows, selected, [root]);
-    anchoredSelection(graph, rows, selected, anchors);
-    if (size === selected.size) return selected;
-  }
+  if (who.owner.kind === "user")
+    return personalRoot(db, who);
+  return wikiHome(await readGraph(db, who), who).organizationId ?? null;
 }
 
 /** The saved nodes a batch's anchors name. */
@@ -150,11 +132,11 @@ async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
 
 /** Every node the batch creates must reach an anchor along saved or staged edges, in
  * either direction and through any number of nodes. Returns the titles that do not. */
-function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[], includeCommitted = false) {
-  return looseRows(graph, rows, anchors, includeCommitted).map((row) => String((row.operation as { attributes?: Record<string, unknown> }).attributes?.title ?? row.ref));
+function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
+  return looseRows(graph, rows, anchors).map((row) => String((row.operation as { attributes?: Record<string, unknown> }).attributes?.title ?? row.ref));
 }
 /** The created-node rows that reach no anchor. */
-function looseRows(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[], includeCommitted = false) {
+function looseRows(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
   const index = addressIndex(graph);
   const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; id?: string; attributes?: Record<string, unknown> };
   const idOf = (row: OperationRow) => {
@@ -181,7 +163,7 @@ function looseRows(graph: Awaited<ReturnType<typeof readGraph>>, rows: Operation
   for (const edge of edges.values()) if (!edge.archived && !archived.has(edge.fromId) && !archived.has(edge.toId)) link(edge.fromId, edge.toId);
   const reached = new Set(anchors), queue = [...anchors];
   while (queue.length) for (const next of links.get(queue.pop()!) ?? []) if (!reached.has(next)) { reached.add(next); queue.push(next); }
-  return rows.filter((row) => (["pending", "awaiting_review"].includes(row.state) || (includeCommitted && row.state === "committed")) && op(row).type === "graph-node" && op(row).operation === "create" && !archived.has(idOf(row)) && !reached.has(idOf(row)));
+  return rows.filter((row) => ["pending", "awaiting_review"].includes(row.state) && op(row).type === "graph-node" && op(row).operation === "create" && !op(row).attributes?.archived && !reached.has(idOf(row)));
 }
 
 /** A policy commits only what stays traceable: a created node reaches an anchor through
@@ -278,7 +260,7 @@ export async function configureBatch(db: Database, who: AppIdentity, actor: AppA
   const batch = await loadBatch(db, input.batchId);
   if (batch.state === "open") requireOpen(batch, actor);
   else if (batch.state !== "awaiting_review" || batch.policy.kind !== "member") fail("Anchors can only change in an open batch or a batch awaiting member review", 409);
-  const anchors = input.anchors.length ? await anchorIds(db, who, input.anchors) : [await requiredRoot(db, await readGraph(db, who), who)];
+  const anchors = await anchorIds(db, who, input.anchors);
   if (batch.state === "awaiting_review") {
     const rows = live(await loadOperations(db, batch.id));
     if (rows.some(row => row.state !== "awaiting_review")) fail("Anchors are fixed once review decisions are made", 409);
@@ -358,40 +340,9 @@ type Approval = Record<string, unknown>;
 async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow, rows: OperationRow[], refs: Set<string>, approval: (row: OperationRow) => Approval) {
   const committed = new Map(rows.filter((row) => row.state === "committed" && row.recordId).map((row) => [row.ref, row.recordId!]));
   const chosen = rows.filter((row) => refs.has(row.ref) && row.state !== "committed");
-  let remaining = [...chosen];
-  while (remaining.length) {
-    const graph = await readGraph(db, who);
-    const currentRoot = await requiredRoot(db, graph, who);
-    // Pack dependency-complete, root-connected groups rather than arbitrary prefixes.
-    // A context edge may appear after hundreds of node proposals in the draft.
-    // Earlier decisions in this batch remain connectivity obligations, including
-    // creates that a later operation unarchives. A later chunk cannot detach them.
-    const prior = rows.filter(row => committed.has(row.ref)).map(row => ({ ...row, state: "committed" as const, recordId: committed.get(row.ref)! }));
-    const pending = remaining.map(row => ({ ...row, operation: resolveCommitted(row, committed) as unknown as Record<string, unknown> }));
-    let selected = new Set<string>();
-    for (;;) {
-      const before = selected.size;
-      for (const row of pending) {
-        if (selected.has(row.ref)) continue;
-        const candidate = withDependencies(pending, pending, new Set([...selected, row.ref]));
-        if (candidate.size > 100) continue;
-        const connected = rootedSelection(graph, pending, new Set(candidate), batch.anchors, currentRoot);
-        if (connected.size !== candidate.size) continue;
-        const projectedRows = [...prior, ...pending.filter(row => candidate.has(row.ref))];
-        if (unanchored(graph, projectedRows, [currentRoot], true).length ||
-            (batch.anchors?.length && unanchored(graph, projectedRows, batch.anchors, true).length)) continue;
-        selected = candidate;
-      }
-      if (selected.size === before || selected.size === 100) break;
-    }
-    if (!selected.size) fail("No root-connected dependency group fits the 100-operation commit limit; split the batch into smaller connected steps", 409);
-    const chunk = remaining.filter(row => selected.has(row.ref));
+  for (let start = 0; start < chosen.length; start += 100) {
+    const chunk = chosen.slice(start, start + 100);
     const operations = chunk.map((row) => resolveCommitted(row, committed));
-    const projected = projectGraphChanges(graph, who, { requestKey: `root:${batch.id}`, operations });
-    const root = await requiredRoot(db, projected, who);
-    const currentRows = [...prior, ...chunk.map(row => ({ ...row, operation: resolveCommitted(row, committed) as unknown as Record<string, unknown> }))];
-    const loose = [...unanchored(graph, currentRows, [root], true), ...(batch.anchors?.length ? unanchored(graph, currentRows, batch.anchors, true) : [])];
-    if (loose.length) fail(`Connect these to the owner root and saved anchors before approval: ${loose.slice(0, 20).join(", ")}`, 409);
     // Keyed by the chunk's refs: two concurrent commits of the same operations
     // replay one receipt, and different operations never share a key.
     const requestKey = `batch:${batch.id}:${(await batchContentDigest(chunk)).slice(0, 32)}`;
@@ -401,9 +352,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       proposedBy: batch.openedBy,
       approval: approval(chunk[0]),
       evidence: Object.fromEntries(chunk.map((row) => [row.ref, row.evidence])),
-      // Guard all batch obligations, not only the chosen chunk: a concurrent
-      // approval may have committed a node after this call loaded the rows.
-      precondition: sql`${reviewedRowsUnchanged(batch, rows.map(row => committed.has(row.ref) ? { ...row, state: "committed" } : row))} and ${graphUnchanged(graph)}`,
+      precondition: reviewedRowsUnchanged(batch, chunk),
       finalize: (saved, gate) => [
         ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "member" ? who.userId : null}
           WHERE batchId=${batch.id} AND ref=${row.ref} AND ${gate}`),
@@ -414,7 +363,6 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       const saved = receipt[row.ref];
       committed.set(row.ref, saved.id);
     }
-    remaining = remaining.filter(row => !selected.has(row.ref));
   }
   return chosen.length;
 }
@@ -423,7 +371,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
  * decisions against another reviewer or writer without relying on timestamps. */
 function reviewedRowsUnchanged(batch: BatchRow, rows: OperationRow[]) {
   const snapshot = JSON.stringify(rows.map(row => ({ ...row, operation: JSON.stringify(row.operation), evidence: JSON.stringify(row.evidence) })));
-  return sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state} and reviewJobId is ${batch.reviewJobId} and anchors is ${batch.anchors ? JSON.stringify(batch.anchors) : null})
+  return sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state} and reviewJobId is ${batch.reviewJobId})
     and not exists (select 1 from json_each(${snapshot}) e left join graph_batch_operations r
       on r.batchId=${batch.id} and r.ref=json_extract(e.value,'$.ref') where r.ref is null
       or r.state is not json_extract(e.value,'$.state') or r.operation is not json_extract(e.value,'$.operation')
@@ -492,10 +440,10 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run")
-    await commitByPolicy(db, who, submitted, waiting, rootedSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors, await requiredRoot(db, graph, who)), policyApproval(policy, "first-run"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"));
   else if (policy.kind === "confidence") {
     const confident = new Set(waiting.filter((row) => (row.confidence ?? 0) >= policy.threshold).map((row) => row.ref));
-    await commitByPolicy(db, who, submitted, waiting, rootedSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors, await requiredRoot(db, graph, who)), policyApproval(policy, "confidence"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
   // A draft review that carried over and has finished (read after the submit, so one that
@@ -536,13 +484,7 @@ async function validateRows(db: Database, who: AppIdentity, batch: BatchRow, row
     // writes nothing, so the 100-operation limit of a single apply does not apply.
     await inspectGraphChanges(db, who, { requestKey: `validate:${batch.id}`, operations });
     // Policy batches may hold loose records: they wait for a member instead of committing.
-    const graph = await readGraph(db, who);
-    await requiredRoot(db, graph, who);
-    const projected = projectGraphChanges(graph, who, { requestKey: `root:${batch.id}`, operations });
-    const root = await requiredRoot(db, projected, who);
-    const active = rows.filter(row => row.state !== "rejected");
-    const loose = batchPolicy.parse(batch.policy).kind === "member"
-      ? [...unanchored(graph, active, [root], true), ...(batch.anchors?.length ? unanchored(graph, active, batch.anchors, true) : [])] : [];
+    const loose = batchPolicy.parse(batch.policy).kind === "member" && batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
     return { valid: loose.length === 0, error: loose.length ? `Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}` : null, operations: operations.length };
   } catch (error) {
     if (!(error instanceof Response) || error.status >= 500) throw error;
@@ -600,7 +542,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   // Compare raw JSON text in SQLite using one bound snapshot, below D1's parameter limit.
   const snapshot = JSON.stringify(existing.map(row => ({ ...row, operation: JSON.stringify(row.operation), evidence: JSON.stringify(row.evidence) })));
   const unchanged = sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state}
-    and updatedAt=${batch.updatedAt} and commits=${batch.commits} and reviewJobId is ${batch.reviewJobId} and anchors is ${batch.anchors ? JSON.stringify(batch.anchors) : null})
+    and updatedAt=${batch.updatedAt} and commits=${batch.commits} and reviewJobId is ${batch.reviewJobId})
     and (select count(*) from graph_batch_operations where batchId=${batch.id})=${existing.length}
     and not exists (select 1 from json_each(${snapshot}) e left join graph_batch_operations r
       on r.batchId=${batch.id} and r.ref=json_extract(e.value,'$.ref') where r.ref is null
@@ -688,9 +630,7 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   for (const ref of withDependents(rows, waiting, flagged)) hold(ref, "depends on a held proposal");
   const graph = await readGraph(db, who);
   const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
-  const root = (await rootContext(db, graph, who)).graphNode?.id;
-  const chosen = root ? rootedSelection(graph, rows, closeSelection(rows, clean), batch.anchors, root) : new Set<string>();
-  if (!root) holdAll("owner root is missing or ambiguous; establish the canonical binding");
+  const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
   for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
   const at = Date.now();
   const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });

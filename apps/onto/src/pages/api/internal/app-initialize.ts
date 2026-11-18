@@ -4,7 +4,7 @@ import { requestIdentity, respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { refreshKnowledgeGraphQueries } from "../../../server/knowledge-graph-refresh";
 import { ensureSealTimer } from "../../../server/seal-timer";
-import { ensureOwnerRoot } from "../../../server/owner-root";
+import { initializeOwnerRoot } from "../../../server/owner-root";
 import { setupStandardData } from "../../../server/standard-data";
 
 export const POST: APIRoute = ({ request, locals }) =>
@@ -13,7 +13,7 @@ export const POST: APIRoute = ({ request, locals }) =>
       throw new Response("Read-only demo", { status: 403 });
     const who = requestIdentity(request);
     const result = await setupStandardData(agentDatabase(), who);
-    const ownerRoot = await ensureOwnerRoot(installationDatabase(), who);
+    const ownerRoot = await initializeOwnerRoot(installationDatabase(), who);
     // Existing Wikis get their stored documents compiled over the types they have now.
     await refreshKnowledgeGraphQueries(installationDatabase());
     return { ...result, ownerRoot, sealTimer: await sealTimer(locals) };

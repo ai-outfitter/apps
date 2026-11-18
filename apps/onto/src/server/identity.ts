@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
@@ -17,7 +17,7 @@ const kind = (typeId: string) => (typeId === core.agent ? ("agent" as const) : (
 const account = alias(graphNodes, "account");
 
 /** Active account_of links from Outfitter accounts to people and agents. */
-function links(db: Database, includeArchivedAccounts = false) {
+function links(db: Database) {
   return db
     .select({ edgeId: graphEdges.id, accountId: account.id, key: account.externalKey, holderId: graphNodes.id, typeId: graphNodes.typeId })
     .from(graphEdges)
@@ -25,7 +25,7 @@ function links(db: Database, includeArchivedAccounts = false) {
     .innerJoin(graphNodes, eq(graphNodes.id, graphEdges.toId))
     .where(and(
       eq(graphEdges.typeId, accountOf), eq(graphEdges.archived, false),
-      eq(account.typeId, outfitterUser), includeArchivedAccounts ? undefined : eq(account.archived, false),
+      eq(account.typeId, outfitterUser), eq(account.archived, false),
       eq(graphNodes.archived, false), inArray(graphNodes.typeId, holders),
     ));
 }
@@ -54,7 +54,7 @@ export async function listIdentities(db: Database, who: AppIdentity) {
   return (await links(db)).map(view);
 }
 const archive = (db: Database, edgeIds: string[], who: AppIdentity) =>
-  db.update(graphEdges).set({ archived: true, revision: sql`${graphEdges.revision} + 1`, updatedBy: who.userId, updatedAt: Date.now() }).where(inArray(graphEdges.id, edgeIds));
+  db.update(graphEdges).set({ archived: true, updatedBy: who.userId, updatedAt: Date.now() }).where(inArray(graphEdges.id, edgeIds));
 
 export async function unlinkIdentity(db: Database, who: AppIdentity, holderId: string) {
   requireEditor(who);
@@ -78,10 +78,10 @@ export async function linkIdentity(
     throw new Response("Identity type mismatch", { status: 409 });
   const key = userKey(input.principalId);
   const now = Date.now();
-  const [existing] = await db.select({ id: graphNodes.id, typeId: graphNodes.typeId, archived: graphNodes.archived }).from(graphNodes).where(eq(graphNodes.externalKey, key));
+  const [existing] = await db.select({ id: graphNodes.id, typeId: graphNodes.typeId }).from(graphNodes).where(eq(graphNodes.externalKey, key));
   if (existing && existing.typeId !== outfitterUser) throw new Response("This key belongs to another record", { status: 409 });
   const accountId = existing?.id ?? crypto.randomUUID();
-  const current = await links(db, true);
+  const current = await links(db);
   const replaced = current.filter((row) => (row.key === key) !== (row.holderId === input.holderId)).map((row) => row.edgeId);
   const kept = current.some((row) => row.key === key && row.holderId === input.holderId);
   const taken = new Set((await db.select({ slug: graphNodes.slug }).from(graphNodes).where(eq(graphNodes.typeId, outfitterUser))).map((row) => row.slug));
@@ -89,8 +89,6 @@ export async function linkIdentity(
   for (let n = 2; taken.has(slug); n++) slug = `${holder.slug}-${n}`;
   const audit = { createdBy: who.userId, updatedBy: who.userId, createdAt: now, updatedAt: now };
   const writes = [
-    // Explicit editor relinking restores the existing account, preserving its ID.
-    ...(existing?.archived ? [db.update(graphNodes).set({ archived: false, revision: sql`${graphNodes.revision} + 1`, updatedBy: who.userId, updatedAt: now }).where(eq(graphNodes.id, existing.id))] : []),
     ...(existing ? [] : [db.insert(graphNodes).values({ id: accountId, typeId: outfitterUser, slug, title: holder.title, externalKey: key, ...audit })]),
     ...(replaced.length ? [archive(db, replaced, who)] : []),
     ...(kept ? [] : [db.insert(graphEdges).values({ id: crypto.randomUUID(), typeId: accountOf, fromId: accountId, toId: input.holderId, ...audit })]),

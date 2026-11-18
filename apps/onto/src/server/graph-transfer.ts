@@ -1,4 +1,3 @@
-import { rejectNewOwnerBindingAmbiguity } from "./owner-root-bindings";
 import { storeType } from "../lib/type-metadata";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -97,7 +96,6 @@ function planGraph(file: z.infer<typeof graphTransfer>, current: Graph) {
   const nodes = additions(current.nodes, file.nodes, nodeInput);
   const edges = additions(current.edges, file.edges, edgeInput);
   const allTypes = [...current.types, ...types], allNodes = [...current.nodes, ...nodes], allEdges = [...current.edges, ...edges];
-  rejectNewOwnerBindingAmbiguity(current.nodes, allNodes);
   requireOntologyValid(current, {
     ...current, types: allTypes, nodes: allNodes, edges: allEdges,
   });
