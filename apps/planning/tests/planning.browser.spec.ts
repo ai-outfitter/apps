@@ -241,7 +241,7 @@ for (const width of [1440, 390]) {
         .click();
       await expect(page.locator("#project-detail")).toBeHidden();
       await expect(page.locator("#project-issues")).toBeHidden();
-      await page.locator("#project-cards a").click();
+      await page.locator("#project-cards .planning-org-project-name").click();
       await expect(page).toHaveURL(projectUrl);
       const legacy = await app.dispatch(
         "",
@@ -468,7 +468,7 @@ test("Planning demo remains synthetic and read-only", async ({ page }) => {
   try {
     await page.goto(`${pOrigin}/projects`);
     await expect(page.locator("#project-detail")).toBeHidden();
-    await page.locator("#project-cards a").click();
+    await page.locator("#project-cards .planning-org-project-name").click();
     await expect(page).toHaveURL(
       /\/projects\/00000000-0000-4000-8000-000000000001$/,
     );
