@@ -26,12 +26,12 @@ const {slug,section}=Astro.props;
         </div>
         <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
         <p id="assembly-status" role="status">Loading geometry…</p>
-        <p id="drive-turns" role="status"></p>
+        <p id="drive-turns" role="status" hidden></p>
+        <p id="drive-review-status" hidden>Mechanical review: incomplete. Animation does not establish a working drive.</p>
       </div>
       <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
     <div id="motion-preview" hidden>
-      <p id="drive-review-status">Mechanical review: incomplete. Animation does not establish a working drive.</p>
       <div id="drive-inspection-controls"><label><input id="inspect-drive" type="checkbox" /> Inspect proposed Z belt drive (cutaway)</label>
       <p>The cutaway replaces the saved axis/motor envelopes with a proposed alignment. Amber: assumed motor placement. Red outlines: unresolved flange and carriage belt attachment. Belt markers and shaft stripes show motion at 70 mm per revolution; internal placement is schematic, not supplier CAD.</p>
       <details><summary>Drive review — unresolved connections</summary><ul id="drive-findings"></ul><p><a href="https://www.igus.com/us/pdf/DrylinSlideTables.pdf" target="_blank" rel="noopener">igus ZLW belt-drive dimensions and transmission ratio (pages 22.11–22.12)</a></p></details></div>
@@ -82,8 +82,8 @@ const {slug,section}=Astro.props;
 .workspace .stage-bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
 .workspace .motion-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.workspace .motion-controls strong{font-size:14px;color:var(--muted)}.workspace .motion-controls label{display:contents}.workspace .motion-controls select{flex:0 1 220px;min-width:0;max-width:none}
 .workspace #motion-play{background:var(--text);color:var(--surface);border-color:var(--text);font-weight:600}
-.workspace .model-stage>p{margin:8px 12px}.workspace #drive-turns{margin-top:0;color:var(--muted);font-size:14px}
-.workspace .model-layout>aside{align-self:start}
+.workspace .model-stage>p{margin:8px 12px}.workspace #drive-turns,.workspace #drive-review-status{margin-top:0;color:var(--muted);font-size:14px}
+@media(min-width:701px){.workspace .model-layout>aside{align-self:start}}.workspace #assembly-parents:empty{display:none}
 .workspace #assembly-references{margin:0 0 16px;font-size:14px;color:var(--muted)}.workspace #assembly-references strong{color:var(--text)}
 .workspace .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .workspace .model-stage canvas{border-radius:0}.workspace .stage-bar:not(:has(>:not([hidden]))){display:none}

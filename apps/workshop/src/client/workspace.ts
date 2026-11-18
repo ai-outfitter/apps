@@ -74,7 +74,7 @@ let savedAxes: NonNullable<ReturnType<typeof installedDriveMotion>>["axes"] | un
 let savedRotations: PlacedRotation[]=[];
 let motionGeneration=0;
 // The trigger and shelf picker sit beside the viewer; the review record stays below it. Both show and hide together.
-const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","motion-preview"])$(id).hidden=!visible;};
+const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
 const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
