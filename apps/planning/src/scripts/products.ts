@@ -1,3 +1,7 @@
+import { createRoot } from "react-dom/client";
+import { createElement } from "react";
+import EvidenceViewer from "../components/EvidenceViewer";
+import { evidenceView } from "@ai-outfitter/app-sdk/visual-evidence";
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { productsFocus } from "../agent-focus";
 import { format as timeAgo } from "timeago.js";
@@ -239,6 +243,16 @@ function revisionPage(root: HTMLElement, mount: string, graph: Graph, product: G
   const toolbar = el("div", { class: "product-revision-toolbar" }, captureSelect);
   if (requested && !bundle) { root.replaceChildren(breadcrumb, el("p", { role: "alert" }, "This evidence snapshot is unavailable. Choose a recorded capture."), toolbar); return; }
   const content = el("div");
+  if (bundle && evidenceBody(bundle.node.body).recordKind === "visual-evidence") {
+    const view = evidenceView(bundle.node);
+    const refs = new Set(view.steps.flatMap(step => step.before ? [step.before.bundle.id] : []));
+    const comparisons = graph.nodes.filter(node => !node.archived && refs.has(node.id)).map(node => evidenceView(node));
+    root.replaceChildren(breadcrumb, toolbar, ...bundle.warnings.map(warning => el("p", {role:"status"}, warning)), content);
+    const viewer = createRoot(content);
+    viewer.render(createElement(EvidenceViewer, {bundle:view, comparisons}));
+    document.addEventListener("astro:before-swap", () => viewer.unmount(), {once:true});
+    return;
+  }
   const chapters = chaptersFor(model.stories(bundle), bundle);
   const walk = walkthrough(chapters), evidence = evidencePanel(graph, bundle, wiki);
   const tabs = el("nav", { class: "product-tabs", "aria-label": "Revision views" });

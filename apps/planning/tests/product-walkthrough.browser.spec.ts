@@ -1,3 +1,4 @@
+import {capture} from "./fixtures/visual-evidence";
 import { fulfillFrom } from "@ai-outfitter/app-test/playwright";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
@@ -149,6 +150,13 @@ test(`explore a product revision as a visual walkthrough at ${mount || "root"}`,
     await expect(page).toHaveURL(new RegExp(`bundle=${bundle}`));
     await expect(page.locator(".walkthrough-capture img")).toBeVisible();
     expect(errors).toEqual([]);
+    if (!mount) {
+      graph.nodes.find(node => node.id === bundle)!.body = JSON.stringify({...capture, productRevision:{id:revision,revision:1}});
+      await page.goto(origin + "/products/" + product + "/revisions/" + revision + "?bundle=" + bundle);
+      await expect(page.getByRole("heading",{name:capture.title})).toBeVisible();
+      await page.getByRole("combobox",{name:"Evidence snapshot"}).selectOption(old);
+      await expect(page.getByRole("navigation",{name:"Revision views"})).toBeVisible();
+    }
   } finally {
     // Let in-flight routed requests (prefetches) finish before the Worker goes away.
     await page.unrouteAll({behavior:"wait"});

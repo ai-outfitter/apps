@@ -654,6 +654,29 @@
     }
   },
   {
+    "name": "EvidenceSchema",
+    "kind": "query",
+    "story": "As an agent, I want the evidence JSON Schema before capturing a change, so that submissions are valid.",
+    "query": "query EvidenceSchema {\n  evidenceSchema\n}",
+    "hash": "7b24ab39a98a39885a8639723f5c94f636c9b69e90632a0a48ac6a773b0466cc",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "JSON Schema for visual evidence: capture provenance, ordered steps, optional screenshots/videos and before references."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "evidenceSchema": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "FinishVideoTransfer",
     "kind": "mutation",
     "story": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",
@@ -4663,6 +4686,35 @@
     }
   },
   {
+    "name": "ProjectEvidence",
+    "kind": "query",
+    "story": "As a reviewer, I want the same ordered visual capture the browser displays, so that review uses the same evidence.",
+    "query": "query ProjectEvidence($input: ProjectEvidenceInput!) {\n  projectEvidence(input: $input)\n}",
+    "hash": "44c0fd345f250a0bd4787060801e780fe78e11c3489d8f11a0c3f372c9290b25",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ProjectEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read an authorized project evidence index or exact bundle. Browser and MCP use the same projection."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectEvidence": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "ProjectRepositories",
     "kind": "query",
     "story": "As a member, I want to inspect the repositories and recent pull requests linked to a project, so that I can understand its code activity.",
@@ -6783,6 +6835,35 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "SubmitEvidence",
+    "kind": "mutation",
+    "story": "As an agent, I want to stage an exact captured walkthrough for graph review without duplicating media, so that retries preserve the capture.",
+    "query": "mutation SubmitEvidence($input: SubmitEvidenceInput!) {\n  submitEvidence(input: $input)\n}",
+    "hash": "523fd2958f4bfb010385c8774eed4e8ec30b5cc8fa910f57bd42f3fd78510263",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Validate and stage a frozen capture in an existing open graph batch. Reuse key and batchId on retry. Requires current project/product revisions. Submit/review that batch separately; staged is not applied."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitEvidence": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "SubmitIntakeWork",
