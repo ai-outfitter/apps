@@ -33,6 +33,7 @@ const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
 const urlFor = (section: "models" | "assembly", item?: string) => {
  const params = new URLSearchParams(selection);
  if (item) params.set("item", item);
+ if (section === "assembly" && query.get("view") === "top") params.set("view","top");
  if (build && historical) params.set("build", build.id);
  return appBase(location.pathname) + projectPath(root.dataset.slug!, section) + (params.size ? "?" + params : "");
 };
@@ -54,9 +55,9 @@ if (section === "assembly") {
  try {
   const { createAssemblyViewer } = await import("./assembly-viewer");
   if (signal.aborted) return;
-  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, id => {
+  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, (id,path) => {
     const item = assembly?.items.find(candidate => candidate.id === id);
-    if (item) select(item);
+    if (item) select(item,path);
   });
  } catch {
   if (signal.aborted) return;
@@ -93,9 +94,37 @@ $("motion-play").onclick=()=>{
  motionFrame=requestAnimationFrame(animate);
 };
 const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(path,{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
-function select(item:Item){selected=item;viewer?.select(item.kind==="assembly"?undefined:item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+function descendants(item: Item) {
+  const byId = new Map(assembly.items.map(child => [child.id, child]));
+  const result = new Set<string>();
+  function visit(current: Item) {
+    if (result.has(current.id)) return;
+    result.add(current.id);
+    for (const use of current.uses) {
+      const child = byId.get(use.itemId);
+      if (child) visit(child);
+    }
+  }
+  visit(item);
+  return result;
+}
+let selectionPath: string | undefined;
+function select(item:Item, path?:string){
+ selectionPath=path;
+ selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
 if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
 a.href=sourceUrl(source);details.append(a);}
+if(item.uses.length){
+ const children=element("div",""); children.className="inspection-children";
+ for(const {item:child,labels} of assemblyChildren(assembly,item.id)){
+   const button=element("button",child.name+(labels.length ? " · "+labels.join(", ") : ""));
+   button.onclick=()=>{
+     select(child,path);
+   };
+   children.append(button);
+ }
+ details.append(children);
+}
 if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
 function renderBom(){
  if (!assembly) return;
@@ -179,7 +208,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
   $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
   if(motion)applyMotion(0);
  });
- if(focused){select(focused);$<HTMLDetailsElement>("inspector").open=false;}
+ if(focused){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
  renderCatalog();
  const children = assemblyChildren(view);
  $("component-summary").textContent = children.length ? `${children.length} immediate components · quantities in this assembly` : "No child components";
@@ -234,7 +263,7 @@ function render(){
  showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
 $("top-view").onclick=()=>viewer?.topView();
-$("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected){const descendants=new Set<string>();const walk=(i:Item)=>{descendants.add(i.id);for(const use of i.uses){const child=assembly.items.find(c=>c.id===use.itemId);if(child)walk(child);}};walk(selected);viewer?.isolate(descendants);}};
+$("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected)viewer?.isolate(descendants(selected),selectionPath);};
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
 if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";

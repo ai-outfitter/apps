@@ -43,6 +43,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
   const { item } = placement;
   const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.kind === "printed" ? 0.3 : 1);
   node.userData.itemId = item.id;
+  node.userData.pickGroup = placement.pickGroup;
   node.userData.path = placement.path;
   node.position.set(...placement.position);
   node.rotation.z = (placement.rotation * Math.PI) / 180;
@@ -53,7 +54,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string) => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
@@ -89,8 +90,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   const group = new THREE.Group();
   scene.add(group);
   let frame: { min: number[]; max: number[] } | undefined;
-  let selected: string | undefined;
+  let selected: Set<string> | undefined;
+  let selectedPath: string | undefined;
+  let selectedItem: string | undefined;
   let isolated: Set<string> | undefined;
+  let isolatedPath: string | undefined;
   let driveInspection: ReturnType<typeof createZDriveInspection> | undefined;
   let inspectionPaths = new Set<string>();
   let inspectionVisible = false;
@@ -133,7 +137,10 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       let node: THREE.Object3D | null = object;
       while (node && node.visible && node !== group) {
         if (node.parent === group && node.userData.itemId) {
-          inspect(node.userData.itemId);
+          const groupHit = node.userData.pickGroup;
+          const drill = groupHit && selectedItem === groupHit.id && selectedPath === groupHit.path;
+          const owner = drill ? undefined : groupHit;
+          inspect(owner?.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
           return;
         }
         node = node.parent;
@@ -179,8 +186,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   function highlight() {
     for (const node of group.children) {
-      node.visible = (!isolated || isolated.has(node.userData.itemId)) && !(inspectionVisible && inspectionPaths.has(node.userData.path));
-      const dim = selected !== undefined && node.userData.itemId !== selected;
+      const id = node.userData.itemId as string;
+      const path = node.userData.path as string;
+      const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
+      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !(inspectionVisible && inspectionPaths.has(path));
+      const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
       node.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           const material = child.material as THREE.MeshStandardMaterial;
@@ -203,6 +213,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal, sources:Record<string,MeshSource>={}) {
     const current = ++version;
     isolated=undefined;
+    isolatedPath=undefined;
     canvas.dataset.ready = "false";
     const list = placements(assembly);
     if (!list.length) {
@@ -225,7 +236,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       for (const placement of list) {
         const geometry=external.get(placement.item.id);
         if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
-        const node=new THREE.Group();node.userData.itemId=placement.item.id;node.userData.path=placement.path;
+        const node=new THREE.Group();node.userData.pickGroup=placement.pickGroup;node.userData.itemId=placement.item.id;node.userData.path=placement.path;
         const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=1;node.add(solid);
         if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
         group.add(node);
@@ -277,9 +288,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       canvas.dataset.motionSolids = String(moved);
     },
     /** Show one item at full strength and fade the rest; undefined shows all. */
-    isolate(items?: Set<string>) {isolated=items;highlight();},
-    select(itemId?: string) {
-      selected = itemId;
+    isolate(items?: Set<string>, path?: string) {isolated=items;isolatedPath=path;highlight();},
+    select(items?: Set<string>, path?: string, itemId?: string) {
+      selectedItem = itemId;
+      selected = items;
+      selectedPath = path;
       highlight();
     },
     dispose() {
