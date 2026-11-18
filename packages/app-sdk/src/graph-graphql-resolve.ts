@@ -15,6 +15,8 @@ export type GraphContext = {
    * resolved fields or `maxBytes` of resolved strings (aliases multiply work). */
   budget: { records: number; maxRecords: number; fields: number; maxFields: number; bytes: number; maxBytes: number; exceeded: boolean };
   truncated: (string | number)[][];
+  /** Response paths whose contents must survive byte-budget fitting intact. */
+  completeFields?: Set<string>;
   /** Each connection page by response path (the cursor it started after, each record's cursor), so a cut page can continue. */
   pages: Map<string, { after: string | null; cursors: string[] }>;
   [key: string]: unknown;
@@ -140,7 +142,10 @@ export function meterFields(types: Iterable<GraphQLNamedType>) {
         const budget = (context as Partial<GraphContext> | undefined)?.budget;
         // Past the budget nothing more resolves; the request answers RESPONSE_TOO_LARGE.
         if (budget && !spend(budget, 1, 0)) return null;
-        if (budget && field.extensions.completeResult) context.completeResult = true;
+        if (budget && field.extensions.completeResult) {
+          const graph = context as GraphContext;
+          (graph.completeFields ??= new Set()).add(pathKey(info.path));
+        }
         const value = inner(source, args, context, info);
         if (budget && typeof value === "string" && !spend(budget, 0, value.length)) return null;
         return value;

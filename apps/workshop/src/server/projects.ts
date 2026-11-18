@@ -59,7 +59,8 @@ export const describeInput = z
     requirements: ProjectSchema.shape.requirements.optional(),
   })
   .strict();
-/** The SaveWorkshopAssembly mutation's input: the whole product structure (items and usage lines). */
+export const assemblyUpdateBody = z.strictObject({ expectedRevision: z.int32().nonnegative(), assembly: AssemblySchema });
+/** The legacy SaveWorkshopAssembly input, also used by AssemblyChanges. */
 export const assemblyInput = z.object({ ...atRevision, assembly: AssemblySchema }).strict();
 
 /** The starter project an example makes, named and linked as the caller asked. */

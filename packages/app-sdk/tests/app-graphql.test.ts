@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { GraphQLObjectType, GraphQLSchema, GraphQLString, printSchema } from "graphql";
 import { graphGraphqlResult, graphqlAction, serveGraphql, tableType } from "../src/app-graphql";
+import { JSONScalar } from "../src/graph-graphql";
 import { matchesFilter } from "../src/graph-filter";
 import { filterSql, rowsAfter } from "../src/graph-filter-sql";
 
@@ -255,4 +256,21 @@ test("rowsAfter continues any order in SQLite's own NULL placement, with one ind
   const plan = await db.all<{ detail: string }>(sql`EXPLAIN QUERY PLAN SELECT id FROM notes WHERE ${rowsAfter(notes.title, notes.id, true, { value: "T2", id: "n07" }, false)} ORDER BY title DESC, id DESC LIMIT 2`);
   assert.match(plan.map(row => row.detail).join("\n"), /^SEARCH notes USING (COVERING )?INDEX notes_title \(\(title,id\)<\(\?,\?\)\)$/);
   client.close();
+});
+
+test("a complete JSON field keeps its nested lists while sibling collections can be paged", async () => {
+  const record = { lines: Array(50).fill("x".repeat(100)) };
+  const db = await database(10, "b".repeat(400));
+  const mixed = new GraphQLSchema({ query: new GraphQLObjectType({
+    name: "Query",
+    fields: {
+      ...schema.getQueryType()!.toConfig().fields,
+      record: { type: JSONScalar, extensions: { completeResult: true }, resolve: () => record },
+    },
+  }) });
+  const result = await serveGraphql({ schema: mixed, context: { db: () => db }, maxBytes: 8192,
+    query: "{ saved: record items { nodes { id body } pageInfo { hasNextPage endCursor } } }" });
+  assert.equal(result.errors, undefined);
+  assert.deepEqual(result.data?.saved, record);
+  assert.deepEqual(result.extensions?.truncatedPaths, [["items", "nodes"]]);
 });

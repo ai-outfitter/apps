@@ -50,12 +50,13 @@ export function measureQuery(document: DocumentNode, operationName?: string, cap
 
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 type Found = { list: unknown[]; path: (string | number)[]; size: number; parent: Record<string, unknown> | null };
-function lists(value: unknown, path: (string | number)[] = [], parent: Record<string, unknown> | null = null, into: Found[] = []) {
+function lists(value: unknown, completeFields: ReadonlySet<string> | undefined, path: (string | number)[] = [], parent: Record<string, unknown> | null = null, into: Found[] = []) {
+  if (completeFields?.has(JSON.stringify(path))) return into;
   if (Array.isArray(value)) {
     if (value.length) into.push({ list: value, path, size: bytes(value), parent });
-    for (const [index, item] of value.entries()) lists(item, [...path, index], null, into);
+    for (const [index, item] of value.entries()) lists(item, completeFields, [...path, index], null, into);
   } else if (value && typeof value === "object") {
-    for (const [key, item] of Object.entries(value)) lists(item, [...path, key], value as Record<string, unknown>, into);
+    for (const [key, item] of Object.entries(value)) lists(item, completeFields, [...path, key], value as Record<string, unknown>, into);
   }
   return into;
 }
@@ -73,11 +74,11 @@ function cutPageInfo(pageInfo: Record<string, unknown>, kept: number, endCursor:
 /** Cut the largest lists from the end until the response fits; records are never cut.
  * A cut connection's pageInfo (under any alias) continues after the last record kept;
  * `cursorAt(path, kept)` gives that cursor for the connection at `path`. */
-export function fitResponse(response: { data: unknown }, maxBytes: number, cursorAt: (path: (string | number)[], kept: number) => string | null) {
+export function fitResponse(response: { data: unknown }, maxBytes: number, cursorAt: (path: (string | number)[], kept: number) => string | null, completeFields?: ReadonlySet<string>) {
   const paths: (string | number)[][] = [];
   let size = bytes(response);
   while (size > maxBytes) {
-    const found = lists(response.data).sort((a, b) => b.size - a.size)[0];
+    const found = lists(response.data, completeFields).sort((a, b) => b.size - a.size)[0];
     if (!found) break;
     // Keep as many leading items as fit; at least drop one so the loop ends.
     const sizes = found.list.map(item => bytes(item) + 1);

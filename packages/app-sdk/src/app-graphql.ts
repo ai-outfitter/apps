@@ -178,9 +178,10 @@ export type MutationFieldOptions<Input extends z.ZodType, Context> = {
 export function mutationField<Input extends z.ZodType, Context = TableContext & ActionContext>(options: MutationFieldOptions<Input, Context>): GraphQLFieldConfig<unknown, Context> {
   return {
     type: options.output ?? JSONScalar, description: options.description,
-    extensions: { batchInput: options.input },
+    // Batch documents invoke a field with one argument named input.
+    extensions: options.args ? undefined : { batchInput: options.input },
     args: options.args ?? { input: { type: new GraphQLNonNull(zodInputType(options.input, `${options.name}Input`)) } },
-    resolve: async (_source, args: { input: unknown }, context) => {
+    resolve: async (_source, args, context) => {
       const parsed = options.input.safeParse(options.args ? args : args.input);
       if ((context as Partial<ActionContext>).identity?.role === "external" && !options.external)
         throw new GraphQLError("Not open to other organizations", { extensions: { code: "REFUSED", status: 403 } });

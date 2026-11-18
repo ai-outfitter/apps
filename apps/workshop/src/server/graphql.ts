@@ -14,7 +14,7 @@ import { type GraphQLFieldConfig, GraphQLID, GraphQLInt, GraphQLNonNull, GraphQL
 import { designRun, designRunInput, startDesign, startDesignInput } from "./design-start";
 import { publishConcepts, publishInput, removeConcept, removeInput } from "./concepts";
 import {
-  assemblyInput, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
+  assemblyInput, assemblyUpdateBody, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
   getWorkshopProject, nameWorkshopProductRevision, projectFrom, saveWorkshopAssembly, type WorkshopDatabase, workshopProjectRow,
 } from "./projects";
 import { workshopProjects, workshopUnits } from "./schema";
@@ -66,7 +66,7 @@ const assemblyResult = new GraphQLObjectType({
   fields: { projectId, revision, assembly: { type: new GraphQLNonNull(JSONScalar), extensions: { completeResult: true } } },
 });
 const projectKey = z.object({ projectId: z.uuid() });
-const assemblyUpdate = projectKey.extend({ expectedRevision: z.int32().nonnegative(), assembly: AssemblySchema });
+const assemblyUpdate = assemblyUpdateBody.extend(projectKey.shape);
 const workshopAssembly = mutationField<typeof projectKey, WorkshopContext>({
   name: "WorkshopAssembly", description: "Read the whole saved assembly at one project revision.",
   input: projectKey, args: { projectId }, output: new GraphQLNonNull(assemblyResult),
