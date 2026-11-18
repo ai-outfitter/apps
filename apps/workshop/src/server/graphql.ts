@@ -1,3 +1,4 @@
+import { PcbSubmission, submitWorkshopPcb } from "./pcb-snapshots";
 import {creativeHandoffInput,resultInput,acceptCreativeHandoff,attachCreativeResult} from './creative';
 import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, claimBuild, finishBuild } from "./workspace";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
@@ -62,6 +63,9 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
+      name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
+    }),
     acceptCreativeHandoff:mutationField<typeof creativeHandoffInput,WorkshopContext>({name:'AcceptCreativeHandoff',description:'Attach a selected mockup and acceptance criteria as a design request. Does not build CAD.',input:creativeHandoffInput,run:acceptCreativeHandoff}),
     attachCreativeResult:mutationField<typeof resultInput,WorkshopContext>({name:'AttachCreativeResult',description:'Link a reviewed result candidate back to its design request; no manufacturing approval is implied.',input:resultInput,run:attachCreativeResult}),
     requestWorkshopBuild: mutationField<typeof requestBuildInput, WorkshopContext>({name:"RequestWorkshopBuild",description:"Request a project workspace build and preserve revision provenance.",input:requestBuildInput,run:requestBuild}),

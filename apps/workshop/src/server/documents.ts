@@ -11,6 +11,10 @@ import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  SubmitWorkshopPcb: {
+    story: "As a workspace agent, I want to publish a verified PCB package, so that members can review its board, quote and manufacturing files.",
+    document: graphql(`mutation SubmitWorkshopPcb($input: SubmitWorkshopPcbInput!) { submitWorkshopPcb(input: $input) }`),
+  },
  AcceptCreativeHandoff:{story:"As a member, I want to hand a selected mockup to Workshop with constraints, so that design work starts from a pinned reference.",document:graphql(`mutation AcceptCreativeHandoff($input:AcceptCreativeHandoffInput!){acceptCreativeHandoff(input:$input)}`)},
  AttachCreativeResult:{story:"As a member, I want to link a result candidate to the original mockup request, so that presentations and marketing can reuse its evidence.",document:graphql(`mutation AttachCreativeResult($input:AttachCreativeResultInput!){attachCreativeResult(input:$input)}`)},
   RequestWorkshopBuild: {story:"As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",document:graphql(`mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) { requestWorkshopBuild(input:$input) }`)},
@@ -85,6 +89,9 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
+  WorkshopProjects: { description: "Find a Workshop project and its current revision before importing PCB files." },
+  CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
   WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
   AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },

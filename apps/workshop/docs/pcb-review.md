@@ -55,7 +55,9 @@ The verifier is an engineering-snapshot acceptance check against a local install
 - Each download's hash against the package manifest.
 - ZIP delivery and loading on mobile.
 
-It does not establish a hosted deployment or a supplier quote. For a hosted installation, the importer uses normal credentialed requests from a signed-in browser via `--cdp`; a local member inspection host also works. No production authentication bypass is provided. Record run evidence in the wiki, not here.
+### Import from an Outfitter workspace
+
+Use the organization's Workshop installation in MCP. Query `WorkshopProjects` with identifiers to find the project and its revision, or use `CreateWorkshopProject` with an example and name. Call `SubmitWorkshopPcb` with the project ID, observed revision, a stable snapshot UUID, the package manifest and its content-addressed review path. For each entry in `uploads`, PUT the corresponding file bytes to its presigned URL using the returned headers. Repeat the same mutation to finish or refresh expired tickets. The saved receipt includes the snapshot ID, project revision and PCB path relative to the organization's Workshop mount.
 
 ## Snapshot import
 

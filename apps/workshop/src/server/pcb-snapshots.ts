@@ -1,8 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
+import { maxObjectBytes } from "@ai-outfitter/app-sdk/storage";
 import { z } from "zod";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { zipSync, strToU8 } from "fflate";
 import { BuildManifestSchema } from "../lib/workspace";
+import { projectPath, projectSlug } from "../lib/sections";
 import { ProjectSchema } from "../lib/project";
 import { parsePcbReview, pcbReviewArtifact } from "../lib/pcb-review";
 import type { WorkshopContext } from "./graphql";
@@ -27,16 +30,74 @@ export async function uploadPcbFile(c: WorkshopContext, projectId: string, input
   let bytes: Uint8Array;
   try { bytes = Uint8Array.from(atob(input.base64), c => c.charCodeAt(0)); }
   catch { throw new Response("Invalid base64 artifact", {status:400}); }
-  const key = pcbArtifactKey(projectId,input.snapshotId,input.path);
+  await checkUploadQuota(c, projectId, input.snapshotId, input.path, bytes.length);
+  if (input.path.split("/")[0] !== digest(bytes)) throw new Response("Artifact hash mismatch", {status:400});
+  return c.storage().put("builds", pcbArtifactKey(projectId,input.snapshotId,input.path), bytes, {contentType:input.contentType});
+}
+
+async function checkUploadQuota(c: WorkshopContext, projectId: string, snapshotId: string, file: string, size: number) {
+  const key = pcbArtifactKey(projectId,snapshotId,file);
   // Include abandoned uploads in the project quota; storage expires after one year.
   const uploaded = await c.storage().list("builds", {prefix:projectId+"/pcb/",limit:1000});
   const other = uploaded.filter(file => file.key !== key);
-  const sameSnapshot = other.filter(file => file.key.startsWith(projectId+"/pcb/"+input.snapshotId+"/"));
-  if (other.length >= 999 || other.reduce((sum,file)=>sum+file.size,0)+bytes.length > 500_000_000 ||
-      sameSnapshot.length >= 50 || sameSnapshot.reduce((sum,file)=>sum+file.size,0)+bytes.length > 30_000_000)
+  const sameSnapshot = other.filter(file => file.key.startsWith(projectId+"/pcb/"+snapshotId+"/"));
+  if (other.length >= 999 || other.reduce((sum,file)=>sum+file.size,0)+size > 500_000_000 ||
+      sameSnapshot.length >= 50 || sameSnapshot.reduce((sum,file)=>sum+file.size,0)+size > 30_000_000)
     throw new Response("PCB upload storage limit reached", {status:413});
-  if (input.path.split("/")[0] !== digest(bytes)) throw new Response("Artifact hash mismatch", {status:400});
-  return c.storage().put("builds", pcbArtifactKey(projectId,input.snapshotId,input.path), bytes, {contentType:input.contentType});
+}
+
+export const PcbSubmission = z.object({
+  projectId: z.uuid(), snapshotId: z.uuid(), revision: z.number().int().nonnegative(),
+  reviewPath: path, manifest: z.unknown(),
+}).strict();
+
+export async function submitWorkshopPcb(c: WorkshopContext, submission: z.infer<typeof PcbSubmission>) {
+  const { projectId, ...packageInput } = submission;
+  const parsed = PcbImportInput.safeParse(packageInput);
+  if (!parsed.success) throw new Response(z.prettifyError(parsed.error), {status:400});
+  const input = parsed.data;
+  const project = await getWorkshopProject(c.db(), projectId);
+  const receipt = (revision: number) => ({
+    status: "imported", projectId, snapshotId: input.snapshotId, revision,
+    projectPath: projectPath(projectSlug(project), "pcb"),
+  });
+  const previous = project.pcbSnapshots?.find(snapshot => snapshot.id === input.snapshotId);
+  if (previous) {
+    if (previous.reviewPath !== input.reviewPath || !isDeepStrictEqual(previous.manifest, input.manifest))
+      throw new Response("Snapshot ID already used for another package", {status:409});
+    return receipt(project.revision);
+  }
+  if (project.revision !== input.revision) throw new Response("Project changed; reload before importing", {status:409});
+  if ((project.pcbSnapshots?.length ?? 0) >= 30) throw new Response("Snapshot limit reached", {status:409});
+  const files = input.manifest.artifacts;
+  if (pcbReviewArtifact(files)?.path !== input.reviewPath || files.reduce((sum, file) => sum + file.bytes, 0) > 30_000_000)
+    throw new Response("Invalid PCB package size or review path", {status:400});
+  for (const file of files) {
+    if (!path.safeParse(file.path).success || !file.path.startsWith(file.sha256 + "/"))
+      throw new Response("Invalid content-addressed artifact path", {status:400});
+    if (!PcbFileInput.shape.contentType.safeParse(file.contentType).success)
+      throw new Response("Unsupported PCB artifact content type", {status:400});
+    if (file.bytes < 1 || file.bytes > maxObjectBytes)
+      throw new Response("PCB upload files must contain between 1 byte and 25 MiB", {status:400});
+  }
+  const storage = c.storage();
+  const uploads = [];
+  for (const file of files) {
+    const target = {space: "builds", key: pcbArtifactKey(projectId, input.snapshotId, file.path)};
+    const existing = await storage.head(target);
+    if (existing?.sha256 === file.sha256 && existing.contentType === file.contentType && existing.size === file.bytes) continue;
+    const declaration = {contentType: file.contentType, size: file.bytes, sha256: file.sha256};
+    const bytes = await storage.takeUpload(target, declaration);
+    if (!bytes) {
+      uploads.push({path: file.path, ...storage.uploadTicket(target, declaration)});
+      continue;
+    }
+    await checkUploadQuota(c, projectId, input.snapshotId, file.path, bytes.length);
+    await storage.put(target.space, target.key, bytes, {contentType: file.contentType});
+    await storage.discardUpload(target, declaration);
+  }
+  if (uploads.length) return {status: "awaiting_upload", uploads};
+  return receipt((await importPcbSnapshot(c, projectId, input)).revision);
 }
 
 export async function importPcbSnapshot(c: WorkshopContext, projectId: string, input: z.infer<typeof PcbImportInput>) {
