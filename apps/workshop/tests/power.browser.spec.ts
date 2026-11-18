@@ -51,6 +51,25 @@ test('power scenario stays selected after save; empty historical builds never sh
   await expect(page.locator('#workspace-notice')).toContainText('no saved assembly');
   await expect(page.locator('#power-panel')).toContainText('No power budget');
   await expect(page.locator('#component-tree .component-row')).toHaveCount(0);
+  const consumer=await(await app.call('/api/apps/workshop/projects',member,{method:'POST',body:{example:'cube'}})).json() as any;
+  const linked={id:crypto.randomUUID(),number:'LINK',revision:'A',name:'Source controls',kind:'assembly',reference:{projectId:p.id}};
+  const linkReceipt=await app.call(`/api/apps/workshop/projects/${consumer.id}/assembly`,member,{method:'PUT',body:{
+   expectedRevision:consumer.revision,assembly:{rootId:linked.id,items:[linked]},
+  }});
+  expect(linkReceipt.status).toBe(200);
+  await page.goto(origin+`/projects/${projectSlug(consumer)}/assembly`);
+  await page.selectOption('#power-scenario','high');
+  await expect(page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true})).toBeDisabled();
+  await expect(page.locator('#power-summary')).toContainText('7 W simultaneous');
+  await expect(page.locator('#assembly-references')).toContainText(p.name);
+  const source=await(await app.call(path,member)).json() as any;
+  source.assembly.items[0].power.loads[0].scenarios.high.peakW=8;
+  expect((await app.call(path+'/assembly',member,{method:'PUT',body:{expectedRevision:source.revision,assembly:source.assembly}})).status).toBe(200);
+  await page.reload();await page.selectOption('#power-scenario','high');
+  await expect(page.locator('#power-summary')).toContainText('8 W simultaneous');
+  await expect(page.locator('#revision-label')).toContainText('Project save 2');
+  await page.goto(origin+`/projects/${projectSlug(consumer)}/parts`);
+  await expect(page.locator('#bom-rows')).toContainText('Controls');
   expect(errors).toEqual([]);
  }finally{await page.unrouteAll({behavior:'ignoreErrors'});await app.dispose();}
 });

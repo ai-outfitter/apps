@@ -24,6 +24,11 @@ type Query {
   workshopAssembly(projectId: ID!): WorkshopAssemblyResult!
 
   """
+  Expand source revisions and configurations for a read-only CAD, BOM and power view.
+  """
+  resolvedWorkshopAssembly(input: ResolvedWorkshopAssemblyInput!): JSON!
+
+  """
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
   """
   workshopProjectHandoff(input: WorkshopProjectHandoffInput!): JSON!
@@ -174,6 +179,13 @@ type WorkshopAssemblyResult {
 """Any JSON value."""
 scalar JSON
 
+input ResolvedWorkshopAssemblyInput {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
 input WorkshopProjectHandoffInput {
   id: ID!
 }
@@ -273,6 +285,7 @@ input FinishWorkshopBuildInputManifest {
 input FinishWorkshopBuildInputManifestAssembly {
   rootId: ID
   items: [FinishWorkshopBuildInputManifestAssemblyItemsItem!]!
+  configurations: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItem!]
   power: FinishWorkshopBuildInputManifestAssemblyPower
 }
 
@@ -292,6 +305,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
+  reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
   power: FinishWorkshopBuildInputManifestAssemblyItemsItemPower
   notes: String
@@ -335,6 +349,13 @@ enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
   measured
 }
 
+input FinishWorkshopBuildInputManifestAssemblyItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
 input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
   repository: String!
   path: String
@@ -371,6 +392,34 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItem!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
 }
 
 input FinishWorkshopBuildInputManifestAssemblyPower {
@@ -486,6 +535,7 @@ type WorkshopAssemblyReceipt {
 input WorkshopAssemblyInput {
   rootId: ID
   items: [WorkshopAssemblyInputItemsItem!]!
+  configurations: [WorkshopAssemblyInputConfigurationsItem!]
   power: WorkshopAssemblyInputPower
 }
 
@@ -505,6 +555,7 @@ input WorkshopAssemblyInputItemsItem {
   mesh: WorkshopAssemblyInputItemsItemMesh
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
+  reference: WorkshopAssemblyInputItemsItemReference
   firmware: WorkshopAssemblyInputItemsItemFirmware
   power: WorkshopAssemblyInputItemsItemPower
   notes: String
@@ -548,6 +599,13 @@ enum WorkshopAssemblyInputItemsItemProvenance {
   measured
 }
 
+input WorkshopAssemblyInputItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
 input WorkshopAssemblyInputItemsItemFirmware {
   repository: String!
   path: String
@@ -584,6 +642,34 @@ input WorkshopAssemblyInputItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input WorkshopAssemblyInputConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [WorkshopAssemblyInputConfigurationsItemParametersItem!]
+}
+
+input WorkshopAssemblyInputConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum WorkshopAssemblyInputConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
 }
 
 input WorkshopAssemblyInputPower {
@@ -623,6 +709,7 @@ input SaveWorkshopAssemblyInput {
 input SaveWorkshopAssemblyInputAssembly {
   rootId: ID
   items: [SaveWorkshopAssemblyInputAssemblyItemsItem!]!
+  configurations: [SaveWorkshopAssemblyInputAssemblyConfigurationsItem!]
   power: SaveWorkshopAssemblyInputAssemblyPower
 }
 
@@ -642,6 +729,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
+  reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
   power: SaveWorkshopAssemblyInputAssemblyItemsItemPower
   notes: String
@@ -685,6 +773,13 @@ enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
   measured
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemReference {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {
   repository: String!
   path: String
@@ -721,6 +816,34 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItem {
+  name: String!
+  rootId: ID!
+  parameters: [SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItem!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItem {
+  name: String!
+  min: Float!
+  max: Float!
+  defaultValue: Float!
+  placements: [SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItem {
+  parentId: ID!
+  usageId: ID!
+  axis: SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItemAxis!
+  scale: Float!
+  offset: Float!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyConfigurationsItemParametersItemPlacementsItemAxis {
+  x
+  y
+  z
 }
 
 input SaveWorkshopAssemblyInputAssemblyPower {

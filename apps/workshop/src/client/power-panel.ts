@@ -3,7 +3,7 @@ import { powerRollup } from "../lib/power";
 const node=(tag:string,text="")=>{const n=document.createElement(tag);n.textContent=text;return n;};
 const fmt=(v:number|null,unit="W")=>v===null?"Unknown":`${v.toLocaleString(undefined,{maximumFractionDigits:2})} ${unit}`;
 /** Power follows the viewed item; saved inputs belong to the full assembly. */
-export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:string|undefined,save?: (next:Assembly)=>Promise<void>){
+export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:string|undefined,save?: (next:Assembly)=>Promise<void>,editableItems?:Set<string>){
  host.replaceChildren(node("h2","Power"));
  if(!assembly.power){host.append(node("p","No power budget saved with this assembly. Missing data is not zero demand."));return;}
  const model=assembly.power;
@@ -37,13 +37,13 @@ export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:strin
    tr.append(title,node("td",String(row.quantity)),node("td",row.load.rail));
    const inputs:HTMLInputElement[]=[];
    for(const field of ["averageW","operatingW","peakW"] as const){
-    const td=node("td"),input=document.createElement("input");input.type="number";input.min="0";input.step="any";input.placeholder="Unknown";input.value=row.load.scenarios[select.value][field]?.toString()??"";input.disabled=!save;input.setAttribute("aria-label",`${row.number} ${row.load.name} ${field}`);inputs.push(input);td.append(input);tr.append(td);
+    const td=node("td"),input=document.createElement("input");input.type="number";input.min="0";input.step="any";input.placeholder="Unknown";input.value=row.load.scenarios[select.value][field]?.toString()??"";input.disabled=!save || Boolean(editableItems && !editableItems.has(row.itemId));input.setAttribute("aria-label",`${row.number} ${row.load.name} ${field}`);inputs.push(input);td.append(input);tr.append(td);
    }
-   const evidence=node("td",row.load.evidence);evidence.append(node("small",row.load.source));tr.append(evidence);table.append(tr);edits.push({itemId:row.itemId,loadId:row.load.id,inputs});
+   const evidence=node("td",row.load.evidence);evidence.append(node("small",row.load.source));tr.append(evidence);table.append(tr);if (!editableItems || editableItems.has(row.itemId)) edits.push({itemId:row.itemId,loadId:row.load.id,inputs});
   }
   const scroll=node("div");scroll.className="power-scroll";scroll.append(table);form.append(scroll);
   const status=node("p");status.id="power-save-status";status.setAttribute("role","status");
-  if(save && result.rows.length){
+  if(save && edits.length){
    const button=node("button","Save power values") as HTMLButtonElement;button.type="submit";form.append(button);
    form.onsubmit=async e=>{e.preventDefault();button.disabled=true;try{
     const next=structuredClone(assembly);
@@ -51,9 +51,10 @@ export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:strin
      const values=edit.inputs.map(i=>i.value===""?null:Number(i.value));
      load.scenarios[select.value]={averageW:values[0],operatingW:values[1],peakW:values[2]};
     }
-    await save(AssemblySchema.parse(next));assembly=next;render();
+    await save(editableItems ? next : AssemblySchema.parse(next));assembly=next;render();
    }catch(error){status.textContent=(error as Error).message;button.disabled=false;}};
-  }else if(!save)form.append(node("p","Historical build or demo: power values are read-only."));
+  }else if(editableItems)form.append(node("p","Edit referenced loads in their source project."));
+  else if(!save)form.append(node("p","Historical build or demo: power values are read-only."));
   form.append(status);content.append(form);
   const details=node("details");details.append(node("summary","Assumptions and supply connections"),node("p",model.notes));
   for(const r of model.rails)details.append(node("p",`${r.name}: ${r.parent?`supplied by ${r.parent}, ${(r.efficiency*100).toFixed(1)}% conversion efficiency`:"source boundary"}. ${r.notes}`));

@@ -4,7 +4,8 @@ import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, cla
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { AssemblySchema } from "../lib/assembly";
+import { resolvedProject } from "./assembly-references";
+import { AssemblySchema, AssemblyReferenceSchema } from "../lib/assembly";
 import { mutationField, zodInputType, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import type { storage } from "@ai-outfitter/app-sdk/storage";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -75,6 +76,13 @@ const workshopAssembly = mutationField<typeof projectKey, WorkshopContext>({
     return { projectId, revision, assembly };
   },
 });
+
+const resolvedAssembly = mutationField<typeof AssemblyReferenceSchema, WorkshopContext>({
+  name: "ResolvedWorkshopAssembly", description: "Expand source revisions and configurations for a read-only CAD, BOM and power view.",
+  input: AssemblyReferenceSchema, output: new GraphQLNonNull(JSONScalar),
+  run: (context,input) => resolvedProject(context.db(),input),
+});
+resolvedAssembly.extensions = { completeResult: true };
 
 // Workshop's writes that fit a document: every member starts, describes, links and deletes
 // projects, saves the product structure, removes and publishes design concepts and keeps the
@@ -197,7 +205,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

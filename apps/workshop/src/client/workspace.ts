@@ -1,4 +1,5 @@
 import { onPageLoad } from "@ai-outfitter/ui/page";
+import type { ResolvedAssembly } from "../lib/assembly-resolution";
 import { boxPlan } from "../model/cad-plan";
 import { renderPowerPanel } from "./power-panel";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -37,6 +38,7 @@ function renderCatalog() {
   const link = element("a", modeled ? "View model" : "View part details") as HTMLAnchorElement; link.href = urlFor("assembly", item.id); card.append(link); return card;
  }));
 }
+let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
 if (section === "assembly") {
@@ -82,7 +84,10 @@ $("motion-play").onclick=()=>{
  motionFrame=requestAnimationFrame(animate);
 };
 const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(path,{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
-function select(item:Item){selected=item;viewer?.select(item.kind==="assembly"?undefined:item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
+function select(item:Item){selected=item;viewer?.select(item.kind==="assembly"?undefined:item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
+a.href=appBase(location.pathname)+projectPath(source.projectId.slice(-12),"assembly");details.append(a);}
+if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
 function renderBom(){
  if (!assembly) return;
  const mode=$<HTMLSelectElement>("bom-mode").value;
@@ -94,7 +99,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  stopMotion();motion=undefined;motionOffset=0;$("motion-preview").hidden=true;
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
  const parsed=AssemblySchema.safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
- assembly=parsed.success?parsed.data:{items:[]};
+ assembly=(!historical && resolved?.assembly) || (parsed.success?parsed.data:{items:[]});
  if(!parsed.success)notice("This assembly failed validation; its geometry and power cannot be displayed.");
  else if(historical&&!run?.result?.manifest?.assembly)notice("This build has no saved assembly. Current project data is not shown here.");
  $("revision-label").textContent=run?`${run.id.slice(0,8)} · ${run.id===project.workspace?.currentBuildId?"Current":"Historical"}`:`Project save ${project.revision}`;
@@ -102,22 +107,40 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
  const focused = assembly.items.find(item => item.id === query.get("item"));
  const view = modelView(assembly, focused?.id);
+ const references=$("assembly-references");
+ references.hidden=historical || !resolved?.sources.length;
+ if(!references.hidden && resolved){
+  const links=resolved.sources.map(s=>{
+   const a=element("a",`${s.name} · ${s.pinned?"pinned":"current"} revision ${s.revision}${s.configuration ? " · "+s.configuration : ""}`) as HTMLAnchorElement;
+   a.href=appBase(location.pathname)+projectPath(s.projectId.slice(-12),"assembly");
+   return a;
+  });
+  references.replaceChildren(element("h3","Source assemblies"),...links.map(a=>{const p=element("p","");p.append(a);return p;}));
+ }
  $("assembly-title").textContent = focused?.name ?? "Full assembly";
  renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
   !historical && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
-   const receipt=await request(`/api/apps/workshop/projects/${project.id}/assembly`,"PUT",{expectedRevision:project.revision,assembly:next});
+   const editable = structuredClone(project.assembly);
+   if (resolved) {
+    for (const local of editable.items) {
+     if (local.power) local.power = next.items.find(i=>i.id===local.id)?.power;
+    }
+   }
+   const saved = resolved ? editable : next;
+   const receipt=await request(`/api/apps/workshop/projects/${project.id}/assembly`,"PUT",{expectedRevision:project.revision,assembly:saved});
    project.revision=receipt.revision;
-   project.assembly=next;
+   project.assembly=saved;
    assembly=next;
+   if(resolved)resolved.assembly=next;
    $("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
-  }:undefined);
+  }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
  if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
  $<HTMLAnchorElement>("full-assembly").href=urlFor("assembly");
  $<HTMLAnchorElement>("browse-models").href=urlFor("models");
  if(query.has("item")&&!focused&&assembly.items.length)notice("That item is not in this revision. Showing the full assembly.");
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
- void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal).then(async()=>{
+ void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal,historical?{}:resolved?.meshes).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
   if(query.get("view")==="top") viewer?.topView();
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
@@ -208,7 +231,12 @@ if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="as
 $("model-filter").onchange=renderCatalog;
 $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
 $("model-panel").hidden=section==="parts"||section==="release"||section==="models"||section==="overview";$("models-panel").hidden=section!=="models"&&section!=="overview";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
-try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);render();}catch(e){if(!signal.aborted){$("project-name").textContent="Could not load project";notice((e as Error).message);}}
+try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);
+if (project.assembly?.items.some(i=>i.reference) && !query.has("build")) {
+ resolved=await request(`/api/apps/workshop/projects/${project.id}/assembly`);
+ if(resolved!.revision!==project.revision) throw Error("Project changed while opening. Reload to read the current revision.");
+}
+render();}catch(e){if(!signal.aborted){$("project-name").textContent="Could not load project";notice((e as Error).message);}}
 
 }
 onPageLoad(start);

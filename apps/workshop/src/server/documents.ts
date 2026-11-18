@@ -46,6 +46,10 @@ const legacyDocuments = defineDocuments({
       describeWorkshopProject(input: $input) { id name revision createdBy updatedBy createdAt updatedAt }
     }`),
   },
+  ResolvedWorkshopAssembly: {
+    story: "As a prototype builder, I want to inspect the configured assembly and its source revisions, so that I can verify shared CAD and power across projects.",
+    document: graphql(`query ResolvedWorkshopAssembly($input: ResolvedWorkshopAssemblyInput!) { resolvedWorkshopAssembly(input: $input) }`),
+  },
   WorkshopAssembly: {
     story: "As a prototype builder, I want my agent to read the saved assembly and its power inputs, so that I can change one quantity and verify its effect.",
     document: graphql(`query WorkshopAssembly($projectId: ID!) {
@@ -101,8 +105,9 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits." },
   WorkshopAssembly: { description: "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision." },
-  UpdateWorkshopAssembly: { description: "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. On conflict, reread and reapply the intended edit." },
+  UpdateWorkshopAssembly: { description: "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit." },
   SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
   WorkshopProjects: { description: "Find a Workshop project and its current revision before importing PCB files." },
   CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },

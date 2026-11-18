@@ -8,6 +8,7 @@ import { mutateAction, serveGraphql } from "@ai-outfitter/app-sdk/app-graphql";
 import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
 import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema, type WorkshopContext } from "../src/server/graphql";
+import { AssemblySchema } from "../src/lib/assembly";
 import { getWorkshopProject } from "../src/server/projects";
 
 // Each mutation document runs through graph.mutate as the platform's graph_mutate calls it,
@@ -163,4 +164,52 @@ test("the saved assembly is returned whole, and only one writer can replace its 
     assert.equal(limited.data, null);
     assert.equal(limited.errors?.[0].extensions?.code, "RESPONSE_TOO_LARGE");
   } finally { close(); }
+});
+
+test("a shared gripper propagates through two configurations and a nested consumer without republishing", async () => {
+  const {db,close}=await workshopDatabase();
+  try {
+    const ctx=member(db);
+    const create=async(name:string)=>(await runDocument(documents.CreateWorkshopProject.document,{input:{example:"cube",name}},ctx)).createWorkshopProject;
+    const save=(projectId:string,expectedRevision:number,assembly:unknown)=>runDocument(documents.UpdateWorkshopAssembly.document,{projectId,expectedRevision,assembly:AssemblySchema.parse(assembly)},ctx);
+    const view=async(projectId:string)=>(await runDocument(documents.ResolvedWorkshopAssembly.document,{input:{projectId}},ctx)).resolvedWorkshopAssembly as import("../src/lib/assembly-resolution").ResolvedAssembly;
+    const projects=[];
+    for(const name of ["Arm","Rack","Compact","Ship","Pin"])projects.push(await create(name));
+    const [a,r,c,s,p]=projects;
+    const item=(number:string,kind="assembly")=>({id:crypto.randomUUID(),number,kind,name:number,revision:"A"});
+    const use=(itemId:string,quantity=1)=>({id:crypto.randomUUID(),itemId,quantity,position:[0,0,0]});
+    const root=item("Arm"), grip=item("Gripper","cots"), placement=use(grip.id,2);
+    const configuration=(name:string,spacing:number)=>({name,rootId:root.id,parameters:[{name:"gap",min:0,max:100,defaultValue:spacing,placements:[{parentId:root.id,usageId:placement.id,axis:"x",offset:1,scale:2}]}]});
+    const structure={rootId:root.id,configurations:[configuration("rack",10),configuration("compact",5)],
+      power:{version:1,notes:"",scenarios:[{id:"on",name:"On",notes:""}],rails:[{id:"dc",name:"Input",voltage:24,efficiency:1,kind:"dc",notes:""}]},
+      items:[{...root,uses:[placement]},{...grip,power:{loads:[{id:"motor",name:"Motor",rail:"dc",source:"Test",evidence:"assumed",notes:"",scenarios:{on:{averageW:2,operatingW:2,peakW:2}}}]}}]};
+    await save(a.id,1,structure);
+    const link=(projectId:string,configuration?:string,revision?:number,parameters?:Record<string,number>)=>{
+      const wrapper=item("Linked");return {rootId:wrapper.id,items:[{...wrapper,reference:{projectId,...(configuration&&{configuration}),...(revision&&{revision}),...(parameters&&{parameters})}}]};
+    };
+    await save(r.id,1,link(a.id,"rack"));
+    await save(c.id,1,link(a.id,"compact",undefined,{gap:3}));
+    await save(s.id,1,link(r.id));
+    await save(p.id,1,link(a.id,"rack",2));
+    const {powerRollup}=await import("../src/lib/power");
+    const {bomTotals}=await import("../src/lib/assembly");
+    const check=async(id:string,position:number,watts:number)=>{
+      const result=await view(id);
+      assert.equal(result.revision,2);
+      assert.equal(result.assembly.items.find(i=>i.number==="Arm")!.uses[0].position[0],position);
+      assert.equal(bomTotals(result.assembly).lines.find(l=>l.item.number==="Gripper")!.quantity,2);
+      assert.equal(powerRollup(result.assembly,"on")!.total.operatingW,watts);
+      return result;
+    };
+    await check(s.id,21,4);
+    await assert.rejects(save(a.id,2,link(s.id)),status(400));
+    await assert.rejects(save(c.id,2,link(a.id,"compact",undefined,{gap:101})),status(400));
+    const motor=structure.items[1];
+    assert.ok('power' in motor);
+    const load=motor.power.loads[0];
+    load.scenarios.on={averageW:3,operatingW:3,peakW:3};
+    await save(a.id,2,structure);
+    await check(r.id,21,6);await check(c.id,7,6);await check(s.id,21,6);await check(p.id,21,4);
+    assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
+  } finally {close();}
 });

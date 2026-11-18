@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
 import { AssemblySchema } from "../lib/assembly";
 import { EXAMPLES, makeProject, type Project, ProjectSchema } from "../lib/project";
@@ -127,11 +128,12 @@ export async function createWorkshopProject(
   if (await exists())
     throw new Response("Project already exists.", { status: 409 });
   const linked = revisionColumns(project);
+  const guard = project.assembly.items.some(i=>i.reference) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
   await db.run(sql`INSERT INTO workshop_projects (id, name, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
     SELECT ${project.id}, ${project.name}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
-    WHERE (SELECT count(*) FROM workshop_projects) < ${PROJECT_LIMIT}`);
-  if (!(await exists())) throw new Response(full, { status: 409 });
+    WHERE (SELECT count(*) FROM workshop_projects) < ${PROJECT_LIMIT} AND ${guard}`);
+  if (!(await exists())) throw new Response(project.assembly.items.some(i=>i.reference) ? "Project limit reached or a reference changed. Reload before creating." : full, { status: 409 });
   return project;
 }
 
@@ -166,6 +168,7 @@ export async function updateWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
+  const guard = await assemblyGuard(db,next);
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -179,7 +182,7 @@ export async function updateWorkshopProject(
     .where(
       and(
         eq(workshopProjects.id, id),
-        eq(workshopProjects.revision, input.revision),
+        eq(workshopProjects.revision, input.revision), guard,
       ),
     )
     .returning({ id: workshopProjects.id });
@@ -215,6 +218,7 @@ export async function patchWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
+  const guard = await assemblyGuard(db,next);
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -225,7 +229,7 @@ export async function patchWorkshopProject(
       updatedBy: identity.userId,
       updatedAt: next.updatedAt,
     })
-    .where(and(eq(workshopProjects.id, id), eq(workshopProjects.revision, revision)))
+    .where(and(eq(workshopProjects.id, id), eq(workshopProjects.revision, revision), guard))
     .returning({ id: workshopProjects.id });
   if (!updated)
     throw new Response("Project changed in another session. Reload before saving.", { status: 409 });
@@ -263,19 +267,19 @@ export async function deleteWorkshopProject(
   db: WorkshopDatabase,
   { id, revision }: z.output<typeof deleteInput>,
 ) {
-  await workshopProjectRow(db, id);
+  const guard=await assemblyGuard(db,await getWorkshopProject(db,id),true);
   const [deleted] = await db
     .delete(workshopProjects)
     .where(
       and(
         eq(workshopProjects.id, id),
-        eq(workshopProjects.revision, revision),
+        eq(workshopProjects.revision, revision), guard, noConsumers(id),
       ),
     )
     .returning({ id: workshopProjects.id });
   if (!deleted)
     throw new Response(
-      "Project changed in another session. Reload before deleting.",
+      "Project changed or another assembly references it. Reload before deleting.",
       { status: 409 },
     );
   return id;

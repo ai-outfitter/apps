@@ -13,6 +13,7 @@ const {slug,section}=Astro.props;
   <section id="model-panel">
     <div class="toolbar"><h2 id="assembly-title">Full assembly</h2><div><a id="browse-models" href="#">Browse all models</a> · <a id="full-assembly" href="#">Full assembly</a></div></div>
     <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
+    <aside id="assembly-references" hidden></aside>
     <div class="model-layout">
       <div class="model-stage workspace-card"><canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas><div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div><p id="assembly-status" role="status">Loading geometry…</p></div>
       <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>

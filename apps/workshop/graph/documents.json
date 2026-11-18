@@ -491,6 +491,39 @@
                                         "measured"
                                       ]
                                     },
+                                    "reference": {
+                                      "type": "object",
+                                      "properties": {
+                                        "projectId": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "configuration": {
+                                          "type": "string",
+                                          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                        },
+                                        "parameters": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                          },
+                                          "additionalProperties": {
+                                            "type": "number"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "projectId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
                                     "firmware": {
                                       "type": "object",
                                       "properties": {
@@ -733,6 +766,98 @@
                                     "revision",
                                     "name",
                                     "kind"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "configurations": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                    },
+                                    "rootId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "parameters": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                          },
+                                          "min": {
+                                            "type": "number"
+                                          },
+                                          "max": {
+                                            "type": "number"
+                                          },
+                                          "defaultValue": {
+                                            "type": "number"
+                                          },
+                                          "placements": {
+                                            "minItems": 1,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "parentId": {
+                                                  "type": "string",
+                                                  "format": "uuid",
+                                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                },
+                                                "usageId": {
+                                                  "type": "string",
+                                                  "format": "uuid",
+                                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                },
+                                                "axis": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "x",
+                                                    "y",
+                                                    "z"
+                                                  ]
+                                                },
+                                                "scale": {
+                                                  "type": "number"
+                                                },
+                                                "offset": {
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "required": [
+                                                "parentId",
+                                                "usageId",
+                                                "axis",
+                                                "scale",
+                                                "offset"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "min",
+                                          "max",
+                                          "defaultValue",
+                                          "placements"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "rootId"
                                   ],
                                   "additionalProperties": false
                                 }
@@ -1644,6 +1769,35 @@
     "hidden": true
   },
   {
+    "name": "ResolvedWorkshopAssembly",
+    "kind": "query",
+    "story": "As a prototype builder, I want to inspect the configured assembly and its source revisions, so that I can verify shared CAD and power across projects.",
+    "query": "query ResolvedWorkshopAssembly($input: ResolvedWorkshopAssemblyInput!) {\n  resolvedWorkshopAssembly(input: $input)\n}",
+    "hash": "0e46c3ac8092a04b1b5a1ac98b21f3f79b0a9b6df2ed6761466533bb88a0b9fd",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ResolvedWorkshopAssemblyInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the expanded CAD, BOM and power assembly and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "resolvedWorkshopAssembly": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
@@ -2028,7 +2182,7 @@
       ]
     },
     "mcp": {
-      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. On conflict, reread and reapply the intended edit."
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit."
     },
     "outputSchema": {
       "type": "object",

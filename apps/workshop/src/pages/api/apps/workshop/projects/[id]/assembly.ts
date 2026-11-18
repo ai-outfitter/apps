@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { readJSON, respond } from "@ai-outfitter/app-sdk/server";
+import { resolvedProject } from "../../../../../../server/assembly-references";
 import { assemblyUpdateBody } from "../../../../../../server/projects";
 import { workshopContext } from "../../../../../../server/context";
 import { documents, runDocument } from "../../../../../../server/documents";
@@ -10,3 +11,5 @@ export const PUT: APIRoute = ({ params, request, locals }) =>
     const result = await runDocument(documents.UpdateWorkshopAssembly.document, variables, workshopContext(request, locals));
     return result.updateWorkshopAssembly;
   });
+
+export const GET: APIRoute = ({params, request, locals}) => respond(() => resolvedProject(workshopContext(request,locals).db(), {projectId:params.id!}));

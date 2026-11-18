@@ -36,6 +36,13 @@
       "when": 1794540000000,
       "tag": "0004_agent_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795017400000,
+      "tag": "0005_assembly_revisions",
+      "breakpoints": true
     }
   ]
 }

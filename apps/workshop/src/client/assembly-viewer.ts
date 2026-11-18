@@ -1,3 +1,4 @@
+import type { MeshSource } from "../lib/assembly-resolution";
 import { verifiedArtifact, type ArtifactRecord } from "../lib/artifact";
 import { savedMotionMatrix, type PlacedRotation } from "../lib/saved-drive-motion";
 import { createZDriveInspection } from "./z-drive-inspection";
@@ -199,7 +200,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     return new Map([...items.keys()].map((id, i) => [id, replies[i]]));
   }
 
-  async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal) {
+  async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal, sources:Record<string,MeshSource>={}) {
     const current = ++version;
     isolated=undefined;
     canvas.dataset.ready = "false";
@@ -216,7 +217,8 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     try {
       const replies = await meshItems(list.filter(p=>!p.item.mesh),legacy);
       for(const {item} of list)if(item.mesh&&!external.has(item.id)){
-        external.set(item.id,new STLLoader().parse(await verifiedArtifact(artifactBase,item.mesh.path,artifacts,signal)));
+        const src=sources[item.id];
+        external.set(item.id,new STLLoader().parse(await verifiedArtifact(src?.base ?? artifactBase,item.mesh.path,src ? [src.artifact] : artifacts,signal)));
       }
       if (current !== version) return;
       clear();
