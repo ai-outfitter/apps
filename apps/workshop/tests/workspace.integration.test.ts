@@ -28,6 +28,9 @@ test('workspace results verify artifacts, preserve stale results and refuse immu
  assert.equal(p.workspace.requests[0].result.stale,true);assert.equal(p.workspace.currentBuildId,undefined);
  assert.equal((await call(url,{buildId:build.id,path,base64:bytes.toString('base64'),contentType:'text/plain'},'PUT')).status,409);
  assert.equal((await call(`/api/apps/workshop/projects/${p.id}`,{...p,workspace:{...p.workspace,requests:[]}},'PUT')).status,400);
+ const source=await(await call('/api/apps/workshop/projects',{example:'node'})).json() as any;
+ const mount={id:crypto.randomUUID(),number:'SOURCE',name:'Shared node',kind:'assembly',revision:'A',reference:{projectId:source.id}};
+ p=await(await call(`/api/apps/workshop/projects/${p.id}`,{...p,assembly:{rootId:mount.id,items:[mount]}},'PUT')).json();
  p=await(await call(url,{id:p.id,revision:p.revision,repository:'example/fixture',sourceCommit:'a'.repeat(40),instructions:'Build current revision',parameters:{},runner:'container:test'})).json() as any;
  const current=p.workspace.requests.at(-1);
  requestRecord={projectId:p.id,buildId:current.id,repository:current.repository,sourceDir:current.sourceDir,sourceCommit:current.sourceCommit,parameters:current.parameters};
@@ -35,6 +38,8 @@ test('workspace results verify artifacts, preserve stale results and refuse immu
  assert.equal((await call(url,{buildId:current.id,path,base64:bytes.toString('base64'),contentType:'text/plain'},'PUT')).status,200);
  p=await(await call(url+'?action=finish',{id:p.id,revision:p.revision,buildId:current.id,manifest})).json();
  assert.equal(p.workspace.currentBuildId,current.id);
+ assert.equal(p.assembly.items[0].reference.projectId,source.id);
+ assert.deepEqual(p.workspace.requests.at(-1).result.manifest.assembly,manifest.assembly);
  assert.equal(p.workspace.requests.at(-1).result.stale,false);
 
  }finally{await app.dispose();}

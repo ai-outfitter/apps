@@ -168,7 +168,7 @@ export async function updateWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
-  const guard = await assemblyGuard(db,next);
+  const guard = JSON.stringify(next.assembly) !== JSON.stringify(JSON.parse(previous.data).assembly) ? await assemblyGuard(db,next) : undefined;
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -218,7 +218,7 @@ export async function patchWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
-  const guard = await assemblyGuard(db,next);
+  const guard = JSON.stringify(next.assembly) !== JSON.stringify(current.assembly) ? await assemblyGuard(db,next) : undefined;
   const [updated] = await db
     .update(workshopProjects)
     .set({

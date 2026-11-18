@@ -23,9 +23,16 @@ async function snapshot(db: WorkshopDatabase, proposed?: AssemblySource, deleted
       .unionAll(db.select({data:workshopAssemblyRevisions.data}).from(workshopAssemblyRevisions)
         .where(and(eq(workshopAssemblyRevisions.projectId,ref.projectId),eq(workshopAssemblyRevisions.revision,revision)))).limit(1);
     if (!row) throw refuse("Referenced project revision is unavailable");
-    const record = JSON.parse(row.data);
+    // Tiny marker rows identify real revisions that had the same assembly as the next save.
+    const snapshotRow = row.data === "null" ? await db.get<{data:string}>(sql`
+      SELECT data FROM (
+        SELECT revision,data FROM workshop_assembly_revisions WHERE projectId=${ref.projectId} AND revision>${revision} AND data<>'null'
+        UNION ALL SELECT revision,data FROM workshop_projects WHERE id=${ref.projectId}
+      ) ORDER BY revision LIMIT 1`) : row;
+    if(!snapshotRow) throw refuse("Referenced project revision is unavailable");
+    const record = JSON.parse(snapshotRow.data);
     const source: AssemblySource = { id:ref.projectId, revision, name:record.name,
-      workspace:record.workspace, assembly:AssemblySchema.parse(record.assembly ?? {items:[]}) };
+      workspace:record.workspace, meshBuild:record.meshBuild, assembly:AssemblySchema.parse(record.assembly ?? {items:[]}) };
     cache.set(key,source);
     return source;
   }

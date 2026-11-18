@@ -195,6 +195,7 @@ test("a shared gripper propagates through two configurations and a nested consum
     const {bomTotals}=await import("../src/lib/assembly");
     const check=async(id:string,position:number,watts:number)=>{
       const result=await view(id);
+      assert.deepEqual(result,JSON.parse(JSON.stringify(result)), "MCP action results must contain only JSON values");
       assert.equal(result.revision,2);
       assert.equal(result.assembly.items.find(i=>i.number==="Arm")!.uses[0].position[0],position);
       assert.equal(bomTotals(result.assembly).lines.find(l=>l.item.number==="Gripper")!.quantity,2);
@@ -210,6 +211,17 @@ test("a shared gripper propagates through two configurations and a nested consum
     load.scenarios.on={averageW:3,operatingW:3,peakW:3};
     await save(a.id,2,structure);
     await check(r.id,21,6);await check(c.id,7,6);await check(s.id,21,6);await check(p.id,21,4);
+    // A metadata-only save archives a marker; a later geometry edit supplies its historical body.
+    await runDocument(documents.DescribeWorkshopProject.document,{input:{id:a.id,revision:3,brief:"Metadata update"}},ctx);
+    load.scenarios.on={averageW:5,operatingW:5,peakW:5};
+    await save(a.id,4,structure);
+    const archived=(await runDocument(documents.ResolvedWorkshopAssembly.document,{input:{projectId:a.id,revision:3}},ctx)).resolvedWorkshopAssembly as import("../src/lib/assembly-resolution").ResolvedAssembly;
+    assert.equal(archived.revision,3);
+    assert.equal(powerRollup(archived.assembly,"on")!.total.operatingW,6);
+    const both=item("Both"),left={...item("Rack mount"),reference:{projectId:r.id}},right={...item("Compact mount"),reference:{projectId:c.id}};
+    await save(s.id,2,{rootId:both.id,items:[{...both,uses:[use(left.id),use(right.id)]},left,right]});
+    const grippers=bomTotals((await view(s.id)).assembly).lines.filter(l=>l.item.number==="Gripper");
+    assert.deepEqual(grippers.map(l=>l.quantity),[4]);
     assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
   } finally {close();}
 });

@@ -99,7 +99,7 @@ export const ItemSchema = z
 export type Item = z.infer<typeof ItemSchema>;
 export type Usage = z.infer<typeof UsageSchema>;
 
-export const AssemblySchema = z
+function assemblySchema(uniquePartNumbers: boolean) { return z
   .object({
     rootId: z.uuid().optional(),
 
@@ -131,7 +131,7 @@ export const AssemblySchema = z
     if (byId.size !== assembly.items.length)
       ctx.addIssue({ code: "custom", message: "Item IDs must be unique" });
     const numbers = new Set(assembly.items.map((item) => item.number));
-    if (numbers.size !== assembly.items.length)
+    if (uniquePartNumbers && numbers.size !== assembly.items.length)
       ctx.addIssue({ code: "custom", message: "Part numbers must be unique" });
     for (const item of assembly.items)
       for (const use of item.uses)
@@ -153,6 +153,10 @@ export const AssemblySchema = z
       ctx.addIssue({ code: "custom", message: "An assembly cannot contain itself" });
   });
 
+}
+export const AssemblySchema = assemblySchema(true);
+// Built snapshots can contain different source projects with the same local part number.
+export const BuildAssemblySchema = assemblySchema(false);
 export type Assembly = z.infer<typeof AssemblySchema>;
 
 export type BomRow = {

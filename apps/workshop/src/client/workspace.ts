@@ -8,7 +8,7 @@ import { savedDriveMotion, type PlacedRotation } from "../lib/saved-drive-motion
 import { arteraDriveReview } from "../lib/artera-drive-review";
 import { arteraMotionPreview } from "../lib/artera-motion-preview";
 import type { Project } from "../lib/project";
-import { bomRows,bomTotals,AssemblySchema,type Item,type Assembly } from "../lib/assembly";
+import { bomRows,bomTotals,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
 import { appBase, projectPath } from "../lib/sections";
@@ -21,8 +21,17 @@ const element=(tag:string,text:string)=>{const node=document.createElement(tag);
 const notice=(s:string)=>$("workspace-notice").textContent=s;
 let legacy=false, historical=false;
 const query = new URLSearchParams(location.search);
+const selection = new URLSearchParams();
+for(const key of ["revision","configuration","parameters"]) if(query.has(key)) selection.set(key,query.get(key)!);
+const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
+ const params=new URLSearchParams();
+ if(source.pinned)params.set("revision",String(source.revision));
+ if(source.configuration)params.set("configuration",source.configuration);
+ if(source.parameters)params.set("parameters",JSON.stringify(source.parameters));
+ return appBase(location.pathname)+projectPath(source.projectId.slice(-12),"assembly")+(params.size?"?"+params:"");
+};
 const urlFor = (section: "models" | "assembly", item?: string) => {
- const params = new URLSearchParams();
+ const params = new URLSearchParams(selection);
  if (item) params.set("item", item);
  if (build && historical) params.set("build", build.id);
  return appBase(location.pathname) + projectPath(root.dataset.slug!, section) + (params.size ? "?" + params : "");
@@ -86,7 +95,7 @@ $("motion-play").onclick=()=>{
 const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(path,{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
 function select(item:Item){selected=item;viewer?.select(item.kind==="assembly"?undefined:item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
 if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
-a.href=appBase(location.pathname)+projectPath(source.projectId.slice(-12),"assembly");details.append(a);}
+a.href=sourceUrl(source);details.append(a);}
 if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
 function renderBom(){
  if (!assembly) return;
@@ -98,7 +107,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  const motionVersion=++motionGeneration;savedRotations=[];
  stopMotion();motion=undefined;motionOffset=0;$("motion-preview").hidden=true;
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
- const parsed=AssemblySchema.safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
+ const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
  assembly=(!historical && resolved?.assembly) || (parsed.success?parsed.data:{items:[]});
  if(!parsed.success)notice("This assembly failed validation; its geometry and power cannot be displayed.");
  else if(historical&&!run?.result?.manifest?.assembly)notice("This build has no saved assembly. Current project data is not shown here.");
@@ -112,14 +121,14 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(!references.hidden && resolved){
   const links=resolved.sources.map(s=>{
    const a=element("a",`${s.name} · ${s.pinned?"pinned":"current"} revision ${s.revision}${s.configuration ? " · "+s.configuration : ""}`) as HTMLAnchorElement;
-   a.href=appBase(location.pathname)+projectPath(s.projectId.slice(-12),"assembly");
+   a.href=sourceUrl(s);
    return a;
   });
   references.replaceChildren(element("h3","Source assemblies"),...links.map(a=>{const p=element("p","");p.append(a);return p;}));
  }
  $("assembly-title").textContent = focused?.name ?? "Full assembly";
  renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
-  !historical && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
+  !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
    const editable = structuredClone(project.assembly);
    if (resolved) {
     for (const local of editable.items) {
@@ -134,7 +143,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
    if(resolved)resolved.assembly=next;
    $("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
   }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
- if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
+ if(selection.size && !historical) $("revision-label").textContent=`Source revision ${resolved?.revision ?? project.revision}${selection.get("configuration") ? " · "+selection.get("configuration") : ""}`;
+ else if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
  $<HTMLAnchorElement>("full-assembly").href=urlFor("assembly");
  $<HTMLAnchorElement>("browse-models").href=urlFor("models");
@@ -232,10 +242,17 @@ $("model-filter").onchange=renderCatalog;
 $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
 $("model-panel").hidden=section==="parts"||section==="release"||section==="models"||section==="overview";$("models-panel").hidden=section!=="models"&&section!=="overview";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
 try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);
-if (project.assembly?.items.some(i=>i.reference) && !query.has("build")) {
- resolved=await request(`/api/apps/workshop/projects/${project.id}/assembly`);
- if(resolved!.revision!==project.revision) throw Error("Project changed while opening. Reload to read the current revision.");
+const recordPath=`/api/apps/workshop/projects/${found.id}`;
+const savedBuild=query.get("build") && project.workspace?.requests.some(r=>r.id===query.get("build"));
+if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
+ const readView=():Promise<ResolvedAssembly>=>request(recordPath+"/assembly?"+selection);
+ resolved=await readView();
+ if(!selection.has("revision") && resolved.revision!==project.revision) {
+  project=await request(recordPath);resolved=await readView();
+  if(resolved.revision!==project.revision)throw Error("Project changed while opening. Reload to read the current revision.");
+ }
 }
+if(selection.size)$("build-request").hidden=true;
 render();}catch(e){if(!signal.aborted){$("project-name").textContent="Could not load project";notice((e as Error).message);}}
 
 }
