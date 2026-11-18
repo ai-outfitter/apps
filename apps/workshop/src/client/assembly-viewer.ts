@@ -270,14 +270,14 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       canvas.dataset.driveInspection=String(inspectionVisible);
     },
     /** View-only world Z displacement, restoring the original matrix on each call. */
-    previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = []) {
+    previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = [], axes?:Map<string,THREE.Vector3>) {
       let moved = 0;
       for (const node of group.children) {
         const rest = node.userData.restMatrix as THREE.Matrix4 | undefined;
         if (!rest) continue;
         node.matrixAutoUpdate = false;
         const translate=paths.has(node.userData.path);
-        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.matrix);
+        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.matrix,axes?.get(node.userData.path));
         if(translate)moved++;
         node.matrixWorldNeedsUpdate = true;
       }

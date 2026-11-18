@@ -68,6 +68,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
       // revision is identical across configurations and has one consolidated BOM row.
       return scopedId(ids.get(id)?.kind==="assembly" ? scope : source.id+"/"+source.revision,id);
     };
+    const usageIdFor = (id: string) => scope ? scopedId(scope, id) : id;
     async function visit(id: string): Promise<string> {
       const viewId = idFor(id);
       if (items.has(viewId)) return viewId;
@@ -84,7 +85,13 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         await expand(target,configured,key,new Set([...ancestors,target.id]),viewId);
         result.sources.push({itemId:viewId,projectId:target.id,name:target.name,revision:target.revision,...(ref.configuration && {configuration:ref.configuration}),...(ref.parameters && {parameters:ref.parameters}),pinned:ref.revision!==undefined});
       } else {
-        const view = {...item,id:viewId,uses:item.uses.map(u=>({...u,itemId:idFor(u.itemId)}))};
+        const view = {...item,id:viewId,uses:item.uses.map(u=>({...u,id:usageIdFor(u.id),itemId:idFor(u.itemId)}))};
+        if (scope && item.driveMotion) {
+          const {viewRootIds,z} = item.driveMotion;
+          view.driveMotion = {...item.driveMotion,viewRootIds:viewRootIds.map(idFor),z:{...z,
+            translationUsageIds:z.translationUsageIds.map(usageIdFor),
+            rotations:z.rotations.map(r=>({...r,usageId:usageIdFor(r.usageId)}))}};
+        }
         items.set(viewId,view);
         if (scope && item.power?.loads.length) mergePower(assembly.power);
         if (scope && item.mesh) {

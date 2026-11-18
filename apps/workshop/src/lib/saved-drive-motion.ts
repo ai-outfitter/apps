@@ -1,21 +1,8 @@
 import {Matrix4,Vector3} from 'three';
-import {z} from 'zod';
-import {placements,type Assembly} from './assembly';
+import {SavedDriveMotionSchema, type SavedRotation, type DriveMotion} from './drive-motion-schema';
+export {SavedDriveMotionSchema} from './drive-motion-schema';
+import {placements,type Assembly,type Placement} from './assembly';
 
-const vector=z.tuple([z.number(),z.number(),z.number()]);
-const rotation=z.object({
- usageId:z.uuid(),axis:vector.refine(v=>Math.abs(Math.hypot(...v)-1)<1e-6,'Rotation axis must be unit length'),
- pivot:vector,radiansPerMillimeter:z.number().refine(n=>n!==0),
-}).strict();
-/** Build-owned movement instructions. This schema defines no geometry or joints. */
-export const SavedDriveMotionSchema=z.object({
- version:z.literal(1),viewRootIds:z.array(z.uuid()).min(1).max(20),
- z:z.object({
-  levels:z.array(z.object({label:z.string().min(1).max(100),offset:z.number()}).strict()).min(2).max(16).refine(levels=>levels.every((level,i)=>i===0||level.offset>levels[i-1].offset),"Motion levels must strictly increase"),
-  translationUsageIds:z.array(z.uuid()).min(1).max(200),rotations:z.array(rotation).min(1).max(100),
- }).strict(),
-}).strict();
-export type SavedRotation=z.infer<typeof rotation>;
 export type PlacedRotation=SavedRotation & {path:string};
 
 /** Validate references against the complete build before resolving a focused view. */
@@ -30,15 +17,40 @@ export function savedDriveMotion(value:unknown,assembly:Assembly,view:Assembly) 
   if(!item || item.uses.length || !(item.geometry||item.mesh))throw Error('Motion rotation must reference a saved leaf solid');
  }
  if(!spec.viewRootIds.includes(view.rootId??''))return;
- const list=placements(view);
+ return bindMotion(spec,placements(view));
+}
+
+function bindMotion(spec:DriveMotion,list:Placement[]) {
  const paths=new Set(list.filter(p=>spec.z.translationUsageIds.some(id=>p.path.includes(`/${id}#`))).map(p=>p.path));
  const rotations:PlacedRotation[]=spec.z.rotations.flatMap(rotation=>list.filter(p=>new RegExp(`/${rotation.usageId}#\\d+$`).test(p.path)).map(p=>({...rotation,path:p.path})));
  if(!paths.size || !rotations.length)throw Error('Motion metadata does not address visible saved solids');
  return {levels:spec.z.levels,paths,rotations};
 }
 
+/** Bind authored motion only to installed instances visible in this view. */
+export function installedDriveMotion(view: Assembly) {
+ const owners = view.items.filter(item=>item.driveMotion);
+ if (!owners.length) return;
+ const mounts: {spec: DriveMotion; path: string; axis: Vector3}[] = [];
+ const list = placements(view,{onVisit(item,path,matrix) {
+   const spec = item.driveMotion ?? (item.id===view.rootId ? owners.find(o=>o.driveMotion!.viewRootIds.includes(item.id))?.driveMotion : undefined);
+   if (spec?.viewRootIds.includes(item.id))
+     mounts.push({spec,path,axis:new Vector3(0,0,1).transformDirection(matrix)});
+ }});
+ if (!mounts.length) return;
+ const levels=mounts[0].spec.z.levels;
+ const paths=new Set<string>(), rotations:PlacedRotation[]=[], axes=new Map<string,Vector3>();
+ for (const mount of mounts) {
+   if (JSON.stringify(mount.spec.z.levels)!==JSON.stringify(levels)) throw Error("Select a drive assembly to play its distinct motion levels");
+   const local=bindMotion(mount.spec,list.filter(p=>p.path.startsWith(mount.path+"/")));
+   for (const path of local.paths) { paths.add(path); axes.set(path,mount.axis); }
+   rotations.push(...local.rotations);
+ }
+ return {levels,paths,rotations,axes};
+}
+
 /** Apply local shaft rotation then world Z displacement to the saved placement. */
-export function savedMotionMatrix(rest:Matrix4,offset:number,translate:boolean,rotations:SavedRotation[],target=new Matrix4()) {
+export function savedMotionMatrix(rest:Matrix4,offset:number,translate:boolean,rotations:SavedRotation[],target=new Matrix4(),axis?:Vector3) {
  target.copy(rest);
  for(const rotation of rotations){
   const [x,y,z]=rotation.pivot;
@@ -46,6 +58,10 @@ export function savedMotionMatrix(rest:Matrix4,offset:number,translate:boolean,r
    .multiply(new Matrix4().makeRotationAxis(new Vector3(...rotation.axis),offset*rotation.radiansPerMillimeter))
    .multiply(new Matrix4().makeTranslation(-x,-y,-z));
  }
- if(translate)target.elements[14]+=offset;
+ if(translate){
+  target.elements[12]+=offset*(axis?.x??0);
+  target.elements[13]+=offset*(axis?.y??0);
+  target.elements[14]+=offset*(axis?.z??1);
+ }
  return target;
 }

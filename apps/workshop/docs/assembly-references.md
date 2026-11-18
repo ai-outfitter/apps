@@ -41,3 +41,26 @@ Direct loads follow physical usage quantities. Powered sources share scenario ID
 Set an item's optional `opacity` from 0 (transparent) to 1 (opaque) alongside its hex `color`. Set color, opacity, and quoted prices on the source item. Consumers inherit them for both authored CAD and imported meshes.
 
 The BOM and the resolved MCP result report the price for one installed assembly. `buildPrice.knownSubtotal` is in USD. `unpricedUnits` counts installed physical units still missing a price. Set `priceKnown: true` to include a unit cost, including an explicit zero. A quoted assembly covers all its contents. Use optional `item.estimatedUnitCost` for a USD estimate, including zero. Known prices take precedence over estimates. Estimates contribute to `buildPrice.estimatedSubtotal`. A priced assembly covers its contents once; an assembly with neither price rolls up its children at installed quantities.
+
+### Saved rack drive motion
+
+Save the optional `driveMotion` object on the owning assembly item in the source project, using `WorkshopAssembly` followed by `UpdateWorkshopAssembly` at the revision read. All identifiers in the authored object belong to that source. For a rack configuration, include the rack root item ID in `viewRootIds`. Containing chambers and vehicles inherit playback automatically. Configurations without that installed root retain their own behavior.
+
+```json
+{
+  "version": 1,
+  "viewRootIds": ["<rack root item UUID>"],
+  "z": {
+    "levels": [{"label": "Lower", "offset": 0}, {"label": "Upper", "offset": 70}],
+    "translationUsageIds": ["<carriage placement UUID>"],
+    "rotations": [{
+      "usageId": "<shaft placement UUID>",
+      "axis": [1, 0, 0],
+      "pivot": [0, 0, 0],
+      "radiansPerMillimeter": 0.08975979010256552
+    }]
+  }
+}
+```
+
+Offsets are millimetres along the mounted rack’s Z axis. Supply 2–16 levels in strictly increasing offset order. Each translation usage moves its placed descendants. Each rotation usage must identify one saved leaf solid with geometry or a mesh; axis and pivot are in that solid’s own coordinates (unit vector and millimetres). The nonzero signed rotation rate is radians per millimetre of travel. A shared part on another usage remains stationary. Each referenced usage ID must be unambiguous within the owner. `ResolvedWorkshopAssembly` remaps both root and usage IDs; use the authored source IDs for saves.

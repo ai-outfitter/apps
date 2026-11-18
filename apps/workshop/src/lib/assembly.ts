@@ -1,3 +1,4 @@
+import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
 import { ArtifactPathSchema } from "./artifact";
 import { ItemPowerSchema, PowerSystemSchema, validateAssemblyPower } from "./power";
@@ -88,6 +89,7 @@ export const ItemSchema = z
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
     /** Pick this assembly when a user clicks one of its installed parts. */
+    driveMotion: SavedDriveMotionSchema.optional(),
     selectAsUnit: z.boolean().optional(),
     firmware: FirmwareSchema.optional(),
     power: ItemPowerSchema.optional(),
@@ -130,6 +132,31 @@ function assemblySchema(uniquePartNumbers: boolean) { return z
           if ([p.min,p.max].some(v=>Math.abs(binding.offset+binding.scale*v)>10000)) fail("Configured placement exceeds the coordinate range");
           bindings.add(key);
         }
+      }
+    }
+    for (const owner of assembly.items) {
+      const spec = owner.driveMotion;
+      if (!spec) continue;
+      if (owner.reference || owner.kind !== "assembly") fail("Drive motion belongs on a source assembly");
+      const reachable = new Set<string>();
+      const usages = new Map<string, Item[]>();
+      function collect(id: string) {
+        const item = byId.get(id);
+        if (!item || reachable.has(id)) return;
+        reachable.add(id);
+        for (const use of item.uses) {
+          const target = byId.get(use.itemId);
+          if (target) usages.set(use.id, [...(usages.get(use.id) ?? []), target]);
+          collect(use.itemId);
+        }
+      }
+      collect(owner.id);
+      if (spec.viewRootIds.some(id => !reachable.has(id))) fail("Motion view root must belong to its source assembly");
+      if (spec.z.translationUsageIds.some(id => usages.get(id)?.length !== 1)) fail("Motion translation needs a unique source usage");
+      for (const r of spec.z.rotations) {
+        const targets = usages.get(r.usageId);
+        if (targets?.length !== 1 || targets[0].uses.length || !(targets[0].geometry || targets[0].mesh))
+          fail("Motion rotation needs a unique saved leaf solid usage");
       }
     }
     if (byId.size !== assembly.items.length)
@@ -244,7 +271,7 @@ export type Placement = {
 };
 
 /** Every solid in the top assembly, placed in world coordinates. */
-export function placements(assembly: Assembly, options?: { maxVisits: number; skipCoincidentCopies: boolean }): Placement[] {
+export function placements(assembly: Assembly, options?: { maxVisits?: number; skipCoincidentCopies?: boolean; onVisit?: (item: Item, path: string, matrix: Matrix4) => void }): Placement[] {
   const byId = new Map(assembly.items.map((item) => [item.id, item]));
   const root = assembly.rootId ? byId.get(assembly.rootId) : undefined;
   if (!root) return [];
@@ -252,6 +279,7 @@ export function placements(assembly: Assembly, options?: { maxVisits: number; sk
   let remaining = options?.maxVisits ?? Infinity;
   const walk = (item: Item, matrix: Matrix4, path: string, pickGroup?: Placement["pickGroup"]) => {
     remaining--;
+    options?.onVisit?.(item,path,matrix);
     const pos = new Vector3().setFromMatrixPosition(matrix);
     if (!pickGroup && item !== root && item.selectAsUnit && item.kind === "assembly") pickGroup = { id: item.id, path };
     if (item.geometry || item.mesh) out.push({item,path,pickGroup,position:pos.toArray() as [number,number,number],rotation:Math.round(new Euler().setFromRotationMatrix(matrix).z*180/Math.PI*1e9)/1e9,matrix:matrix.toArray()});

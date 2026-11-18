@@ -308,6 +308,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
+  driveMotion: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
   power: FinishWorkshopBuildInputManifestAssemblyItemsItemPower
@@ -357,6 +358,30 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemReference {
   revision: Float
   configuration: String
   parameters: JSON
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZ!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZ {
+  levels: [FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZRotationsItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware {
@@ -561,6 +586,7 @@ input WorkshopAssemblyInputItemsItem {
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
+  driveMotion: WorkshopAssemblyInputItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: WorkshopAssemblyInputItemsItemFirmware
   power: WorkshopAssemblyInputItemsItemPower
@@ -610,6 +636,30 @@ input WorkshopAssemblyInputItemsItemReference {
   revision: Float
   configuration: String
   parameters: JSON
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: WorkshopAssemblyInputItemsItemDriveMotionZ!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZ {
+  levels: [WorkshopAssemblyInputItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [WorkshopAssemblyInputItemsItemDriveMotionZRotationsItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input WorkshopAssemblyInputItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
 }
 
 input WorkshopAssemblyInputItemsItemFirmware {
@@ -738,6 +788,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
+  driveMotion: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
   power: SaveWorkshopAssemblyInputAssemblyItemsItemPower
@@ -787,6 +838,30 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemReference {
   revision: Float
   configuration: String
   parameters: JSON
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion {
+  version: Float!
+  viewRootIds: [ID!]!
+  z: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZ!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZ {
+  levels: [SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZLevelsItem!]!
+  translationUsageIds: [ID!]!
+  rotations: [SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZRotationsItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZLevelsItem {
+  label: String!
+  offset: Float!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotionZRotationsItem {
+  usageId: ID!
+  axis: [JSON!]!
+  pivot: [JSON!]!
+  radiansPerMillimeter: Float!
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemFirmware {

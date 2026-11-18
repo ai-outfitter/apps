@@ -533,6 +533,134 @@
                                       ],
                                       "additionalProperties": false
                                     },
+                                    "driveMotion": {
+                                      "type": "object",
+                                      "properties": {
+                                        "version": {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        "viewRootIds": {
+                                          "minItems": 1,
+                                          "maxItems": 20,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          }
+                                        },
+                                        "z": {
+                                          "type": "object",
+                                          "properties": {
+                                            "levels": {
+                                              "minItems": 2,
+                                              "maxItems": 16,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "label": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 100
+                                                  },
+                                                  "offset": {
+                                                    "type": "number"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "label",
+                                                  "offset"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "translationUsageIds": {
+                                              "minItems": 1,
+                                              "maxItems": 200,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "format": "uuid",
+                                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                              }
+                                            },
+                                            "rotations": {
+                                              "minItems": 1,
+                                              "maxItems": 100,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "usageId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  },
+                                                  "axis": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "pivot": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      }
+                                                    ],
+                                                    "items": false,
+                                                    "minItems": 3,
+                                                    "maxItems": 3
+                                                  },
+                                                  "radiansPerMillimeter": {
+                                                    "type": "number"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "usageId",
+                                                  "axis",
+                                                  "pivot",
+                                                  "radiansPerMillimeter"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "levels",
+                                            "translationUsageIds",
+                                            "rotations"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "version",
+                                        "viewRootIds",
+                                        "z"
+                                      ],
+                                      "additionalProperties": false
+                                    },
                                     "selectAsUnit": {
                                       "type": "boolean"
                                     },

@@ -4,7 +4,7 @@ import { boxPlan } from "../model/cad-plan";
 import { renderPowerPanel } from "./power-panel";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { savedDriveMotion, type PlacedRotation } from "../lib/saved-drive-motion";
+import { installedDriveMotion, savedDriveMotion, type PlacedRotation } from "../lib/saved-drive-motion";
 import { arteraDriveReview } from "../lib/artera-drive-review";
 import { arteraMotionPreview } from "../lib/artera-motion-preview";
 import type { Project } from "../lib/project";
@@ -70,11 +70,12 @@ if (section === "assembly") {
 let motionFrame = 0, motionOffset = 0;
 let driveReview: ReturnType<typeof arteraDriveReview> | undefined;
 let motion: ReturnType<typeof arteraMotionPreview>;
+let savedAxes: NonNullable<ReturnType<typeof installedDriveMotion>>["axes"] | undefined;
 let savedRotations: PlacedRotation[]=[];
 let motionGeneration=0;
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
-const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
+const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
 $("motion-reset").onclick=()=>{stopMotion();applyMotion(0);$<HTMLSelectElement>("motion-level").value="";};
@@ -142,7 +143,7 @@ function renderBom(){
  $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("button",item.name);button.onclick=()=>{select(item);$("model-panel").hidden=false;};title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${itemPrice(item)}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
 }
 function showBuild(run?:BuildRequest, snapshot=false){
- const motionVersion=++motionGeneration;savedRotations=[];
+ const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
  stopMotion();motion=undefined;motionOffset=0;$("motion-preview").hidden=true;
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
  const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
@@ -193,7 +194,11 @@ function showBuild(run?:BuildRequest, snapshot=false){
   if(query.get("view")==="top") viewer?.topView();
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;$("motion-preview").hidden=!motion;
-  if(motionArtifact && run?.result){
+  let inline;
+  try { inline=installedDriveMotion(view); }
+  catch(error){ motion=undefined;notice(`Motion disabled: ${(error as Error).message}`); }
+  if(inline) { motion=inline;savedRotations=inline.rotations;savedAxes=inline.axes; }
+  else if(motionArtifact && run?.result){
    try {
     const response=await fetch(run.result.artifactBase+motionArtifact.path,{signal});
     if(!response.ok)throw Error("Cannot load saved drive motion");
@@ -208,8 +213,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
   $("motion-preview").hidden=!motion;
   $("motion-heading").textContent=savedRotations.length?"Saved assembly motion":"Unverified motion study";
   $("drive-review-status").textContent=savedRotations.length?"Motion uses the saved build’s shafts, pulleys and carriage geometry. Physical load and safety testing remain separate acceptance gates.":"Mechanical review: incomplete. Animation does not establish a working drive.";
-  $("drive-inspection-controls").hidden=Boolean(motionArtifact);
-  driveReview=motion && !motionArtifact?arteraDriveReview(assembly,view):undefined;
+  $("drive-inspection-controls").hidden=Boolean(motionArtifact || inline);
+  driveReview=motion && !motionArtifact && !inline?arteraDriveReview(assembly,view):undefined;
   $("drive-findings").replaceChildren(...(driveReview?.findings??[]).map(finding=>element("li",finding)));
   const inspect=$<HTMLInputElement>("inspect-drive");inspect.checked=false;inspect.disabled=!driveReview?.drives.length;
   $("drive-turns").textContent="Z shaft turns from saved pose: 0.00 · X and Y held stationary";
