@@ -143,6 +143,10 @@
                                       "type": "string",
                                       "maxLength": 2000
                                     },
+                                    "estimatedUnitCost": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
                                     "unitCost": {
                                       "default": 0,
                                       "type": "number",
@@ -1794,7 +1798,7 @@
       ]
     },
     "mcp": {
-      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
+      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
     },
     "outputSchema": {
       "type": "object",

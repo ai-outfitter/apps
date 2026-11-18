@@ -34,7 +34,7 @@ export function solidNode(reply: MeshReply, color: string, opacity = 1) {
   );
   solid.userData.opacity = opacity;
   const node = new THREE.Group();
-  node.add(solid, new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: "#2b2b2b", transparent: true, opacity: 0.3 })));
+  node.add(solid, new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: "#2b2b2b", transparent: true, opacity: Math.min(0.3, opacity), depthWrite: false })));
   return node;
 }
 

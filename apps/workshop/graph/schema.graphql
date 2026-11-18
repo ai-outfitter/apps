@@ -298,6 +298,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   manufacturer: String
   mpn: String
   source: String
+  estimatedUnitCost: Float
   unitCost: Float
   trackBy: FinishWorkshopBuildInputManifestAssemblyItemsItemTrackBy
   opacity: Float
@@ -550,6 +551,7 @@ input WorkshopAssemblyInputItemsItem {
   manufacturer: String
   mpn: String
   source: String
+  estimatedUnitCost: Float
   unitCost: Float
   trackBy: WorkshopAssemblyInputItemsItemTrackBy
   opacity: Float
@@ -726,6 +728,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   manufacturer: String
   mpn: String
   source: String
+  estimatedUnitCost: Float
   unitCost: Float
   trackBy: SaveWorkshopAssemblyInputAssemblyItemsItemTrackBy
   opacity: Float

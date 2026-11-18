@@ -30,7 +30,7 @@ export function agentRoute(request: Request, operation: string, locals: unknown,
             const build = p.workspace?.requests.find(run => run.id === p.workspace?.currentBuildId);
             const assembly = build?.result?.manifest?.assembly ?? p.assembly;
             detail = { id:p.id, brief:p.brief.slice(0,2000), requirements:p.requirements.slice(0,2000),
-              items:assembly.items.slice(0,50).map(({id,name,number,kind,unitCost,priceKnown})=>({id,name,number,kind,unitCost,priceKnown})), itemsLimited:assembly.items.length>50,
+              items:assembly.items.slice(0,50).map(({id,name,number,kind,unitCost,estimatedUnitCost,priceKnown})=>({id,name,number,kind,unitCost,estimatedUnitCost,priceKnown})), itemsLimited:assembly.items.length>50,
               build:build ? {id:build.id,status:build.status,notes:build.result?.manifest?.notes.slice(0,1000),
                 tests:build.result?.manifest?.tests.slice(0,30).map(test=>({...test,detail:test.detail.slice(0,300)})),testsLimited:(build.result?.manifest?.tests.length??0)>30} : null };
           } catch { detail={id:selected.id,unavailable:true}; }

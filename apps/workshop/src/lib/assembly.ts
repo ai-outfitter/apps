@@ -74,6 +74,7 @@ export const ItemSchema = z
     manufacturer: z.string().trim().max(100).default(""),
     mpn: z.string().trim().max(100).default(""),
     source: url.default(""),
+    estimatedUnitCost: z.number().nonnegative().optional(),
     unitCost: z.number().min(0).max(100000).default(0),
     /** How Workshop's inventory tells physical units apart. */
     trackBy: z.enum(["none", "mac", "serial"]).default("none"),
@@ -94,7 +95,7 @@ export const ItemSchema = z
     uses: z.array(UsageSchema).max(50).default([]),
   })
   .strict()
-  .refine(item => !item.reference || (item.kind === "assembly" && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost), "Referenced assembly geometry, loads, cost and children belong to its source")
+  .refine(item => !item.reference || (item.kind === "assembly" && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
   .refine((item) => item.kind === "assembly" || !item.uses.length, "Only an assembly contains other items")
   .refine((item) => (item.kind === "firmware") === Boolean(item.firmware), "Firmware items, and only they, name a repository and ref")
   .refine((item) => item.kind !== "firmware" || !item.geometry, "Firmware has no geometry");
@@ -206,24 +207,29 @@ export function bomTotals(assembly: Assembly) {
 /** Purchase price for one build. A quoted assembly covers its children. */
 export function buildPrice(assembly: Assembly) {
   const byId = new Map(assembly.items.map(item => [item.id, item]));
-  type Price = { knownSubtotal: number; unpricedUnits: number };
+  type Price = { knownSubtotal: number; estimatedSubtotal: number; unpricedUnits: number };
   const memo = new Map<string, Price>();
   function price(item: Item): Price {
     const cached = memo.get(item.id);
     if (cached) return cached;
-    const total = { knownSubtotal: 0, unpricedUnits: 0 };
+    const total = { knownSubtotal: 0, estimatedSubtotal: 0, unpricedUnits: 0 };
     if (item.priceKnown) total.knownSubtotal = item.unitCost;
+    else if (item.estimatedUnitCost !== undefined) total.estimatedSubtotal = item.estimatedUnitCost;
     else if (!item.uses.length) total.unpricedUnits = Number(item.kind !== "firmware");
     else for (const use of item.uses) {
       const child = price(byId.get(use.itemId)!);
       total.knownSubtotal += use.quantity * child.knownSubtotal;
+      total.estimatedSubtotal += use.quantity * child.estimatedSubtotal;
       total.unpricedUnits += use.quantity * child.unpricedUnits;
     }
     memo.set(item.id, total);
     return total;
   }
   const root = assembly.rootId && byId.get(assembly.rootId);
-  return root ? price(root) : { knownSubtotal: 0, unpricedUnits: 0 };
+  if (!root) return { knownSubtotal: 0, estimatedSubtotal: 0, unpricedUnits: 0 };
+  const { knownSubtotal, estimatedSubtotal, unpricedUnits } = price(root);
+  const cents = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 2 });
+  return { knownSubtotal: Number(cents.format(knownSubtotal)), estimatedSubtotal: Number(cents.format(estimatedSubtotal)), unpricedUnits };
 }
 
 export type Placement = {

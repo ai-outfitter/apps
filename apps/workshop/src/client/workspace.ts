@@ -111,7 +111,7 @@ function descendants(item: Item) {
 let selectionPath: string | undefined;
 function select(item:Item, path?:string){
  selectionPath=path;
- selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${item.priceKnown?`$${item.unitCost}`:"unpriced"}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+ selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
 if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
 a.href=sourceUrl(source);details.append(a);}
 if(item.uses.length){
@@ -126,16 +126,20 @@ if(item.uses.length){
  details.append(children);
 }
 if(item.source){const a=element("a",`${item.manufacturer} ${item.mpn} — source`) as HTMLAnchorElement;a.href=item.source;a.target="_blank";a.rel="noopener";details.append(a);}($<HTMLDetailsElement>("inspector")).open=true;}
+function itemPrice(item: Item) {
+ if(item.priceKnown) return `$${item.unitCost} known`;
+ if(item.estimatedUnitCost !== undefined) return `$${item.estimatedUnitCost} estimated`;
+ return "Unpriced";
+}
 function renderBom(){
  if (!assembly) return;
- const {knownSubtotal,unpricedUnits}=buildPrice(assembly);
+ const {knownSubtotal,estimatedSubtotal,unpricedUnits}=buildPrice(assembly);
  const usd=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
- $("bom-price").textContent=!assembly.rootId ? "No assembly selected." : unpricedUnits
-   ? `Known build subtotal ${usd.format(knownSubtotal)} · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`
-   : `Build price ${usd.format(knownSubtotal)}`;
+ $("bom-price").textContent=!assembly.rootId ? "No assembly selected." :
+   `Build price · ${usd.format(knownSubtotal)} known · ${usd.format(estimatedSubtotal)} estimated · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`;
  const mode=$<HTMLSelectElement>("bom-mode").value;
  const rows=mode==="hierarchy"?bomRows(assembly):bomTotals(assembly).lines.filter(r=>r.item.kind!=="assembly"&&(mode!=="cots"||r.item.kind==="cots")).map(r=>({...r,depth:0}));
- $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("button",item.name);button.onclick=()=>{select(item);$("model-panel").hidden=false;};title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${item.priceKnown?`$${item.unitCost}`:"Unpriced"}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
+ $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("button",item.name);button.onclick=()=>{select(item);$("model-panel").hidden=false;};title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",`${item.kind} · ${itemPrice(item)}`);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
 }
 function showBuild(run?:BuildRequest, snapshot=false){
  const motionVersion=++motionGeneration;savedRotations=[];
