@@ -14,8 +14,12 @@ test('power scenario stays selected after save; empty historical builds never sh
   let p=await(await app.call('/api/apps/workshop/projects',member,{method:'POST',body:{example:'cube'}})).json() as any;
   const id='10000000-0000-4000-8000-000000000001';
   const assembly={rootId:id,power:{version:1,notes:'Fixture',scenarios:[{id:'low',name:'Low',notes:''},{id:'high',name:'High',notes:''}],rails:[{id:'dc',name:'Input',voltage:24,kind:'dc',efficiency:1,notes:''}]},items:[{id,number:'CTRL',revision:'A',kind:'assembly',name:'Controls',power:{loads:[{id:'input',name:'Input',rail:'dc',evidence:'assumed',source:'Fixture',notes:'',scenarios:{low:{averageW:1,operatingW:2,peakW:3},high:{averageW:3,operatingW:4,peakW:6}}}]}}]};
+  const parts = Array.from({length:203}, (_,index) => ({
+   id: crypto.randomUUID(), number: `PART-${index+1}`, name: `Part ${index+1}`, kind: 'cots', revision: 'A',
+  }));
+  const largeAssembly = {...assembly, items:[...assembly.items,...parts]};
   const path=`/api/apps/workshop/projects/${p.id}`;
-  p=await(await app.call(path,member,{method:'PUT',body:{...p,assembly}})).json();
+  p=await(await app.call(path,member,{method:'PUT',body:{...p,assembly:largeAssembly}})).json();
   // A legitimately queued request has no saved assembly yet.
   p=await(await app.call(path+'/builds',member,{method:'POST',body:{id:p.id,revision:p.revision,repository:'example/fixture',sourceCommit:'a'.repeat(40),instructions:'Fixture build',parameters:{},runner:'container:test'}})).json();
   await page.route(origin+'/**',async route=>{
@@ -39,6 +43,10 @@ test('power scenario stays selected after save; empty historical builds never sh
   await expect(page.locator('#power-summary')).toContainText('7 W simultaneous');
   await page.reload();await page.selectOption('#power-scenario','high');
   await expect(page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true})).toHaveValue('7');
+  await page.goto(origin+`/projects/${projectSlug(p)}/models`);
+  await expect(page.locator('#models-summary')).toContainText('204 of 204');
+  await page.getByLabel('Search models').fill('PART-203');
+  await expect(page.locator('.model-card')).toHaveCount(1);
   await page.goto(origin+`/projects/${projectSlug(p)}/assembly?build=${p.workspace.requests[0].id}`);
   await expect(page.locator('#workspace-notice')).toContainText('no saved assembly');
   await expect(page.locator('#power-panel')).toContainText('No power budget');

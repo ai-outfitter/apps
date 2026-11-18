@@ -147,6 +147,10 @@ test("the saved assembly is returned whole, and only one writer can replace its 
     assert.deepEqual({ ...before.workshopAssembly }, { projectId, revision: saved.revision, assembly: saved.assembly });
     const next = structuredClone(saved.assembly);
     for (const item of next.items) item.notes = "first edit".repeat(200);
+    const part = next.items.find(item => item.kind === "cots")!;
+    while (next.items.length < 204) {
+      next.items.push({ ...part, id: crypto.randomUUID(), number: `TEST-${next.items.length}`, notes: "" });
+    }
     const replace = (assembly: typeof next) => runDocument(documents.UpdateWorkshopAssembly.document,
       { projectId, expectedRevision: saved.revision, assembly }, context);
     await assert.rejects(replace({ ...next, rootId: crypto.randomUUID() }), status(400));

@@ -82,7 +82,7 @@ export const AssemblySchema = z
   .object({
     rootId: z.uuid().optional(),
 
-    items: z.array(ItemSchema).max(200),
+    items: z.array(ItemSchema),
     power: PowerSystemSchema.optional(),
   })
   .strict()
