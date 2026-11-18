@@ -1,3 +1,4 @@
+import { projectThumbnail } from "../../../../../../lib/thumbnail";
 import type { APIRoute } from "astro";
 import { readJSON, respond } from "@ai-outfitter/app-sdk/server";
 import { workshopContext } from "../../../../../../server/context";
@@ -10,6 +11,9 @@ export const GET: APIRoute = ({request,locals,params}) => respond(async () => {
   const url=new URL(request.url), revision=Number(url.searchParams.get("revision")??p.revision);
   if (!Number.isSafeInteger(revision)||revision<0||revision>p.revision) throw new Response("Invalid revision",{status:400});
   const file=await c.storage().get({space:"builds",key:previewKey(p.id,revision)});
+  if (!file && url.searchParams.has("thumbnail") && !url.searchParams.has("evidence") && revision === p.revision) {
+    return new Response(projectThumbnail(p), {headers: {"Content-Type": "image/svg+xml"}});
+  }
   if(!file) throw new Response("Preview pending capture",{status:404,headers:{"Cache-Control":"no-store"}});
   const evidence=await new Response(file.body).json() as {artifacts:{kind:string;key:string;contentHash:string}[]};
   if(url.searchParams.has("evidence")) return Response.json(evidence);

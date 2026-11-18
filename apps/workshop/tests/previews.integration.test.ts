@@ -11,6 +11,10 @@ test('saved previews are revision-bound, authenticated, and include hashed captu
   let p=await(await call('/api/apps/workshop/projects',{example:'cube'},'POST')).json() as any;
   const url=`/api/apps/workshop/projects/${p.id}/preview`;
   assert.equal((await call(url)).status,404);
+  const drawing = await call(url+'?thumbnail=1');
+  assert.equal(drawing.headers.get('content-type'),'image/svg+xml');
+  assert.match(await drawing.text(), /<polygon /);
+  assert.equal((await call(url+'?thumbnail=1&evidence=1')).status,404);
   const input={appPackageHash:'a'.repeat(64),revision:p.revision,capturedAt:new Date().toISOString(),renderer:'test fixture',images:['preview','desktop','mobile'].map(kind=>({kind,base64:png,width:1,height:1}))};
   assert.equal((await call(url,{...input,images:input.images.map(i=>({...i,width:2}))})).status,400);
   assert.equal((await app.call(url,undefined,{method:'PUT',body:input})).status,401);

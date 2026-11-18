@@ -5,6 +5,7 @@ import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database"
 import { listWorkshopProjects, getWorkshopProject } from "../../../server/projects";
 import { hasPcbReview } from "../../../lib/pcb-review";
 
+let projectName: string | undefined;
 const slug = Astro.params.slug ?? "";
 const section = Astro.params.section ?? "";
 if (!slugId(slug) || !isSection(section)) return new Response("Not found", { status: 404 });
@@ -14,10 +15,10 @@ if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
   try {
     const db = installationDatabase();
     const summary = (await listWorkshopProjects(db)).find(p => p.id.endsWith(slugId(slug)!));
-    if (summary) { const project=await getWorkshopProject(db,summary.id); hasPcb=Boolean(project.pcbSnapshots?.length)||hasPcbReview(project.workspace); }
+    if (summary) { projectName = summary.name; const project=await getWorkshopProject(db,summary.id); hasPcb=Boolean(project.pcbSnapshots?.length)||hasPcbReview(project.workspace); }
   } catch {
     // The link is optional; a lookup failure must not break the section page.
   }
 }
 ---
-<WorkshopPage section={section} slug={slug} hasPcb={hasPcb} />
+<WorkshopPage section={section} slug={slug} {projectName} hasPcb={hasPcb} />

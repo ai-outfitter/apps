@@ -188,7 +188,7 @@ export function placements(assembly: Assembly): Placement[] {
 }
 
 /** The eight corners of an item's bounds, placed in world coordinates. */
-function worldCorners({ item, position, rotation, matrix }: Placement) {
+export function worldCorners({ item, position, rotation, matrix }: Placement) {
   const b = item.mesh?.bounds ?? planBounds(item.geometry as CadPlan);
   const turn = (rotation * Math.PI) / 180;
   return [b.min[0], b.max[0]].flatMap((x) =>

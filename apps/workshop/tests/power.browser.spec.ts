@@ -23,7 +23,14 @@ test('power scenario stays selected after save; empty historical builds never sh
    const req=route.request(),url=new URL(req.url());
    await fulfillFrom(route,await app.call(url.pathname+url.search,member,{method:req.method(),...(req.postData()?{body:req.postDataJSON()}:{})}));
   });
+  await page.addInitScript(() => {
+   const getContext = HTMLCanvasElement.prototype.getContext;
+   HTMLCanvasElement.prototype.getContext = function(this: HTMLCanvasElement, type: string, ...args: any[]) {
+    return type.includes('webgl') ? null : Reflect.apply(getContext, this, [type,...args]);
+   } as typeof getContext;
+  });
   await page.goto(origin+`/projects/${projectSlug(p)}/assembly`);
+  await expect(page.locator('#assembly-status')).toContainText('3D preview unavailable');
   await page.selectOption('#power-scenario','high');
   await page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true}).fill('7');
   await page.getByRole('button',{name:'Save power values'}).click();

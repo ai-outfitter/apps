@@ -1,16 +1,25 @@
 ---
 import AppLayout from "./WorkshopLayout.astro";
 import "../styles/workshop.css";
-import { projectPath, type SectionId } from "../lib/sections";
+import { appHref } from "../app-href";
+import { SECTIONS, projectPath, type SectionId } from "../lib/sections";
 import Content from "./Workspace.astro";
 import PCBReview from "./PCBReview.astro";
 
 /** `hasPcb`: the current build carries a PCB review; never set in demo mode. */
-interface Props { section: SectionId; slug: string; hasPcb?: boolean }
-const { section, slug, hasPcb = false } = Astro.props;
-const current = {label:section==="pcb"?"PCB":section==="parts"?"BOM":section==="release"?"Revisions":section==="models"?"Models":"Assembly"};
+interface Props { section: SectionId; slug: string; hasPcb?: boolean; projectName?: string }
+const { section, slug, hasPcb = false, projectName } = Astro.props;
+const path = (target: string) => appHref(Astro.url.pathname, target);
+const current = SECTIONS.find(page => page.id === section)!;
+const assemblies = Astro.url.searchParams.get("kind") === "assembly";
+const links = SECTIONS.filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
+  label: { assembly: "Full assembly", models: "Models and parts", parts: "Bill of materials", release: "Build revisions", pcb: "PCB review" }[page.id],
+  href: path(projectPath(slug, page.id)),
+  active: page.id === section && !assemblies && !Astro.url.searchParams.has("item"),
+}));
 ---
 <AppLayout
+  persistKey={`workshop:${slug}:${section}:${Astro.url.search}`}
   name="Workshop"
   headerStyle="app"
   showOrganizationLink={false}
@@ -19,10 +28,13 @@ const current = {label:section==="pcb"?"PCB":section==="parts"?"BOM":section==="
   description="Inspect models, parts and product revisions."
   active="home"
   sidebarSections={[
-    { label: "Workspace", links: [{ label: "All projects", href: "/", active: false }, { label: "New model", href: "/new", active: false }] },
-    { label: "Project", links: [
-    ...([{id:"pcb",label:"PCB"},{id:"models",label:"Models"},{id:"assembly",label:"Assembly"},{id:"parts",label:"BOM"},{id:"release",label:"Revisions"}] as const).filter(s=>s.id!=="pcb"||hasPcb||section==="pcb").map(s=>({label:s.label,href:projectPath(slug,s.id),active:s.id===section})),
-  ] },
+    { label: "Workspace", links: [{ label: "All projects", href: path("/"), active: false }, { label: "New model", href: path("/new"), active: false }] },
+    { label: projectName ?? "Project", links },
+    { label: "Assembly views", links: [
+      { label: "Browse assemblies", href: path(projectPath(slug,"models")+"?kind=assembly"), active: section === "models" && assemblies },
+      { label: "Power budget", href: path(projectPath(slug,"assembly")+"#power-panel"), active: false },
+    ] },
+
   ]}
 >
   {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} />}

@@ -53,6 +53,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
 export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
   let id = 0;
@@ -77,7 +78,6 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   scene.background = new THREE.Color("#e8ede5");
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 4000);
   camera.up.set(0, 0, 1);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;

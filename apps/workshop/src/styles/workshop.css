@@ -378,3 +378,12 @@
   gap: 4px;
   min-width: 0;
 }
+
+.workshop .project-brief {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.workshop .project-row .thumb { object-fit: contain; }
+.workspace [hidden] { display: none !important; }

@@ -76,6 +76,7 @@ export async function listWorkshopProjects(db: WorkshopDatabase) {
       name: workshopProjects.name,
       revision: workshopProjects.revision,
       updatedAt: workshopProjects.updatedAt,
+      brief: sql<string>`substr(trim(coalesce(nullif(json_extract(${workshopProjects.data}, '$.brief'), ''), json_extract(${workshopProjects.data}, '$.requirements'), '')), 1, 200)`,
       // Stored projects saved before stages existed have none: they are concepts.
       phase: sql<string>`coalesce(json_extract(${workshopProjects.data}, '$.phase'), 'concept')`,
     })

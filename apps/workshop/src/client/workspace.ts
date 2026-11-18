@@ -38,9 +38,20 @@ function renderCatalog() {
  }));
 }
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
-const viewerModule=section==="assembly"?await import("./assembly-viewer"):undefined;
-if(signal.aborted)return;
-const viewer=viewerModule?.createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"),s=>$("assembly-status").textContent=s);
+let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
+if (section === "assembly") {
+ try {
+  const { createAssemblyViewer } = await import("./assembly-viewer");
+  if (signal.aborted) return;
+  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message);
+ } catch {
+  if (signal.aborted) return;
+  $("assembly-status").textContent = "3D preview unavailable in this browser.";
+  $("assembly-viewer").hidden = true;
+  $("view-tools").hidden = true;
+  $("isolate-item").hidden = true;
+ }
+}
 let motionFrame = 0, motionOffset = 0;
 let driveReview: ReturnType<typeof arteraDriveReview> | undefined;
 let motion: ReturnType<typeof arteraMotionPreview>;
@@ -175,6 +186,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(run?.result?.error)evidence.append(element("p",run.result.error));renderBom();
 }
 function render(){
+ if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
  const runs=project.workspace?.requests??[];$("runner-status").textContent=runs.length?`${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}`:"No workspace connected. Existing CAD remains inspectable.";
@@ -191,7 +203,7 @@ $("model-search").oninput=renderCatalog;
 $("model-filter").onchange=renderCatalog;
 $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
 $("model-panel").hidden=section==="parts"||section==="release"||section==="models"||section==="overview";$("models-panel").hidden=section!=="models"&&section!=="overview";$("bom-panel").hidden=section!=="parts";$("revisions-panel").hidden=section!=="release";
-try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);render();}catch(e){notice((e as Error).message);}
+try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);render();}catch(e){if(!signal.aborted){$("project-name").textContent="Could not load project";notice((e as Error).message);}}
 
 }
 onPageLoad(start);
