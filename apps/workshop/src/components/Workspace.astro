@@ -11,19 +11,27 @@ const {slug,section}=Astro.props;
     <div id="model-catalog" class="model-catalog"></div><p id="models-empty" hidden>No models match your search.</p>
   </section>
   <section id="model-panel">
-    <div class="toolbar"><h2 id="assembly-title">Full assembly</h2><div><a id="browse-models" href="#">Browse all models</a> · <a id="full-assembly" href="#">Full assembly</a></div></div>
+    <div class="toolbar"><h2 id="assembly-title">Full assembly</h2><div><a id="browse-models" href="#">Browse all models</a><span id="full-assembly-link"> · <a id="full-assembly" href="#">Full assembly</a></span></div></div>
     <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
-    <aside id="assembly-references" hidden></aside>
+    <p id="assembly-references" hidden></p>
     <div class="model-layout">
-      <div class="model-stage workspace-card"><canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas><div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div><p id="assembly-status" role="status">Loading geometry…</p></div>
+      <div class="model-stage workspace-card">
+        <div class="stage-bar">
+          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div>
+          <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
+            <strong id="motion-heading">Unverified motion study</strong>
+            <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
+            <button id="motion-play">Play motion</button><button id="motion-reset">Reset pose</button>
+          </div>
+        </div>
+        <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
+        <p id="assembly-status" role="status">Loading geometry…</p>
+        <p id="drive-turns" role="status"></p>
+      </div>
       <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
     <div id="motion-preview" hidden>
-      <strong id="motion-heading">Unverified motion study</strong>
-      <label>Target level<select id="motion-level"></select></label>
-      <button id="motion-play">Play motion</button><button id="motion-reset">Reset pose</button>
       <p id="drive-review-status">Mechanical review: incomplete. Animation does not establish a working drive.</p>
-      <p id="drive-turns" role="status"></p>
       <div id="drive-inspection-controls"><label><input id="inspect-drive" type="checkbox" /> Inspect proposed Z belt drive (cutaway)</label>
       <p>The cutaway replaces the saved axis/motor envelopes with a proposed alignment. Amber: assumed motor placement. Red outlines: unresolved flange and carriage belt attachment. Belt markers and shaft stripes show motion at 70 mm per revolution; internal placement is schematic, not supplier CAD.</p>
       <details><summary>Drive review — unresolved connections</summary><ul id="drive-findings"></ul><p><a href="https://www.igus.com/us/pdf/DrylinSlideTables.pdf" target="_blank" rel="noopener">igus ZLW belt-drive dimensions and transmission ratio (pages 22.11–22.12)</a></p></details></div>
@@ -38,7 +46,7 @@ const {slug,section}=Astro.props;
 </div>
 <script>import "../client/workspace";</script>
 <style is:global>
-.workspace{max-width:1440px;margin:auto;padding:0;color:var(--text);font-size:16px}.workspace header,.workspace .toolbar,.workspace .composer{display:flex;gap:16px;justify-content:space-between;align-items:center}.workspace h1{font-size:28px;margin:4px 0}.workspace p{line-height:1.5}.workspace button,.workspace select,.workspace input,.workspace textarea{font:inherit;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:inherit}.workspace button{cursor:pointer}.workspace .model-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,1fr);gap:20px}.workspace .model-stage{position:relative;min-width:0}.workspace canvas{display:block;width:100%;height:60vh;min-height:320px;touch-action:none;border-radius:10px}.workspace .view-tools{position:absolute;top:12px;left:12px;display:flex;gap:8px}.workspace aside{max-height:65vh;overflow:auto}.workspace .component-row{display:block;width:100%;text-align:left;margin-bottom:4px}.workspace details,.workspace .bom-row,.workspace .run-row{padding:16px;margin:12px 0;border:1px solid var(--border);border-radius:8px}.workspace summary{cursor:pointer;min-height:32px}.workspace .bom-row{display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr);gap:12px}.workspace small{display:block;color:var(--muted);line-height:1.5}.workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}.workspace textarea{width:100%;box-sizing:border-box}.workspace .composer input{flex:1;min-width:0}.workspace a{overflow-wrap:anywhere}.workspace #build-request{margin:24px 0}.workspace #source-files{display:flex;gap:8px;flex-wrap:wrap}.workspace [hidden]{display:none!important}
+.workspace{max-width:1440px;margin:auto;padding:0;color:var(--text);font-size:16px}.workspace header,.workspace .toolbar,.workspace .composer{display:flex;gap:16px;justify-content:space-between;align-items:center}.workspace h1{font-size:28px;margin:4px 0}.workspace p{line-height:1.5}.workspace button,.workspace select,.workspace input,.workspace textarea{font:inherit;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:inherit}.workspace button{cursor:pointer}.workspace .model-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,1fr);gap:20px}.workspace .model-stage{position:relative;min-width:0}.workspace canvas{display:block;width:100%;height:60vh;min-height:320px;touch-action:none;border-radius:10px}.workspace .view-tools{display:flex;gap:8px;flex-wrap:wrap}.workspace aside{max-height:65vh;overflow:auto}.workspace .component-row{display:block;width:100%;text-align:left;margin-bottom:4px}.workspace details,.workspace .bom-row,.workspace .run-row{padding:16px;margin:12px 0;border:1px solid var(--border);border-radius:8px}.workspace summary{cursor:pointer;min-height:32px}.workspace .bom-row{display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr);gap:12px}.workspace small{display:block;color:var(--muted);line-height:1.5}.workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}.workspace textarea{width:100%;box-sizing:border-box}.workspace .composer input{flex:1;min-width:0}.workspace a{overflow-wrap:anywhere}.workspace #build-request{margin:24px 0}.workspace #source-files{display:flex;gap:8px;flex-wrap:wrap}.workspace [hidden]{display:none!important}
 .workspace .inspection-children{display:flex;flex-wrap:wrap;gap:.35rem;margin-block:.5rem}
 @media(max-width:700px){.workspace{padding:0}.workspace header{display:block}.workspace .model-layout{display:flex;flex-direction:column}.workspace canvas{height:48vh;min-height:300px}.workspace aside{max-height:240px}.workspace .bom-row{grid-template-columns:minmax(0,1fr) auto}.workspace .bom-row>div:last-child{grid-column:1/-1}.workspace .toolbar{align-items:flex-start;flex-direction:column}.workspace .composer{gap:8px}.workspace #inspector[open]{position:fixed;z-index:60;bottom:0;left:0;right:0;margin:0;max-height:50vh;overflow:auto;background:var(--surface);box-shadow:0 -4px 24px #0003}.workspace h1{font-size:24px}}
 /* Sections group content; only explicit cards carry a surface. */
@@ -67,4 +75,17 @@ const {slug,section}=Astro.props;
 
 <style is:global>
 .workspace #power-panel{margin-top:20px;min-width:0}.workspace .power-scroll{overflow-x:auto;max-width:100%}.workspace .power-table{width:100%;border-collapse:collapse;margin:16px 0}.workspace .power-table th,.workspace .power-table td{padding:10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}.workspace .power-table input{width:110px;box-sizing:border-box}.workspace .power-table caption{text-align:left;font-weight:600}.workspace #power-panel p{overflow-wrap:anywhere}
+</style>
+
+<style is:global>
+/* Viewer and motion controls sit in-flow above the canvas so they never cover the model. */
+.workspace .stage-bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
+.workspace .motion-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.workspace .motion-controls strong{font-size:14px;color:var(--muted)}.workspace .motion-controls label{display:contents}.workspace .motion-controls select{flex:0 1 220px;min-width:0;max-width:none}
+.workspace #motion-play{background:var(--text);color:var(--surface);border-color:var(--text);font-weight:600}
+.workspace .model-stage>p{margin:8px 12px}.workspace #drive-turns{margin-top:0;color:var(--muted);font-size:14px}
+.workspace .model-layout>aside{align-self:start}
+.workspace #assembly-references{margin:0 0 16px;font-size:14px;color:var(--muted)}.workspace #assembly-references strong{color:var(--text)}
+.workspace .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.workspace .model-stage canvas{border-radius:0}.workspace .stage-bar:not(:has(>:not([hidden]))){display:none}
+@media(max-width:700px){.workspace .stage-bar{padding:8px}.workspace .stage-bar button{min-height:44px;padding:6px 10px;font-size:15px}.workspace .motion-controls{width:100%}.workspace .motion-controls strong{flex-basis:100%}.workspace .motion-controls select{flex:1 1 115px}}
 </style>

@@ -73,6 +73,8 @@ let motion: ReturnType<typeof arteraMotionPreview>;
 let savedAxes: NonNullable<ReturnType<typeof installedDriveMotion>>["axes"] | undefined;
 let savedRotations: PlacedRotation[]=[];
 let motionGeneration=0;
+// The trigger and shelf picker sit beside the viewer; the review record stays below it. Both show and hide together.
+const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","motion-preview"])$(id).hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
 const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
@@ -144,7 +146,7 @@ function renderBom(){
 }
 function showBuild(run?:BuildRequest, snapshot=false){
  const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
- stopMotion();motion=undefined;motionOffset=0;$("motion-preview").hidden=true;
+ stopMotion();motion=undefined;motionOffset=0;showMotion(false);
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
  const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
  assembly=(!historical && resolved?.assembly) || (parsed.success?parsed.data:{items:[]});
@@ -163,7 +165,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
    a.href=sourceUrl(s);
    return a;
   });
-  references.replaceChildren(element("h3","Source assemblies"),...links.map(a=>{const p=element("p","");p.append(a);return p;}));
+  references.replaceChildren(element("strong","Source assemblies: "),...links.flatMap((a,i)=>i?[document.createTextNode(" · "),a]:[a]));
  }
  $("assembly-title").textContent = focused?.name ?? "Full assembly";
  renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
@@ -186,6 +188,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  else if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
  $<HTMLAnchorElement>("full-assembly").href=urlFor("assembly");
+ $("full-assembly-link").hidden=!focused || focused.id===assembly.rootId;
  $<HTMLAnchorElement>("browse-models").href=urlFor("models");
  if(query.has("item")&&!focused&&assembly.items.length)notice("That item is not in this revision. Showing the full assembly.");
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
@@ -193,7 +196,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
   if(query.get("view")==="top") viewer?.topView();
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
-  motion=motionArtifact?undefined:preview;$("motion-preview").hidden=!motion;
+  motion=motionArtifact?undefined:preview;showMotion(Boolean(motion));
   let inline, inlineFailed=false;
   try { inline=installedDriveMotion(view); }
   catch(error){ inlineFailed=true;motion=undefined;notice(`Motion disabled: ${(error as Error).message}`); }
@@ -210,7 +213,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
     motion=saved;savedRotations=saved?.rotations??[];
    }catch(error){if(motionVersion!==motionGeneration)return;motion=undefined;notice(`Motion disabled: ${(error as Error).message}`);}
   }
-  $("motion-preview").hidden=!motion;
+  showMotion(Boolean(motion));
   $("motion-heading").textContent=savedRotations.length?"Saved assembly motion":"Unverified motion study";
   $("drive-review-status").textContent=savedRotations.length?"Motion uses the saved build’s shafts, pulleys and carriage geometry. Physical load and safety testing remain separate acceptance gates.":"Mechanical review: incomplete. Animation does not establish a working drive.";
   $("drive-inspection-controls").hidden=Boolean(motionArtifact || inline);
@@ -225,7 +228,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(focused){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
  renderCatalog();
  const children = assemblyChildren(view);
- $("component-summary").textContent = children.length ? `${children.length} immediate components · quantities in this assembly` : "No child components";
+ $("component-summary").textContent = children.length ? `${children.length} immediate ${children.length===1?"component":"components"} · quantities in this assembly` : "No child components";
  $("component-tree").replaceChildren(...children.map(({item,quantity,labels})=>{
   const row=element("div", ""); row.className="component-row";
   const link=element("a",`${item.name} ×${quantity}`) as HTMLAnchorElement; link.href=urlFor("assembly",item.id);
@@ -234,6 +237,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
   return row;
  }));
  const path=assemblyPath(assembly,view.rootId);
+ // At the root the heading already names the full assembly; a one-link trail only repeats it.
+ $("assembly-breadcrumbs").hidden=path.length<2;
  $("assembly-breadcrumbs").replaceChildren(...path.flatMap((item,index)=>{
   const link=element("a",index===0 && item.id===assembly.rootId ? "Full assembly" : item.name) as HTMLAnchorElement;
   link.href=urlFor("assembly",item.id===assembly.rootId?undefined:item.id);
