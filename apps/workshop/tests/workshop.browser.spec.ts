@@ -12,7 +12,12 @@ test("inspect an assembly and open its BOM",async({page})=>{
  await expect(row.locator('svg.thumb polygon').first()).toBeVisible();
  await row.getByRole('link').click();await expect(page.locator('#assembly-viewer')).toHaveAttribute('data-ready','true',{timeout:60000});
  const canvas=page.locator('#assembly-viewer');const before=await canvas.screenshot();const box=(await canvas.boundingBox())!;await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.75,box.y+box.height*.65,{steps:12});await page.mouse.up();await page.waitForTimeout(300);expect(Buffer.compare(before,await canvas.screenshot())).not.toBe(0);
- if(await page.getByRole('button',{name:'Open navigation',exact:true}).isVisible())await page.getByRole('button',{name:'Open navigation',exact:true}).click();
- await page.locator('#sidebar').getByRole('link',{name:'Bill of materials',exact:true}).click();await expect(page.locator('.bom-row')).toHaveCount(2);await expect(page.locator('#bom-price')).toHaveText('Partial one-build subtotal $0.00 · $0.00 known · $0.00 estimated · 1 unpriced unit');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
+ await expect(page.locator('#project-power')).toBeHidden();
+ await page.locator('#project-bom').click();
+ await expect(page.locator('.bom-row')).toContainText('M3 mounting screws');
+ await expect(page.locator('#bom-price')).toBeHidden();
+ await page.getByText('Pricing',{exact:true}).click();
+ await expect(page.locator('#bom-price')).toHaveText('One-build price $1.40');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
  }finally{await page.unrouteAll({behavior:'ignoreErrors'});await app.dispose();}
 });

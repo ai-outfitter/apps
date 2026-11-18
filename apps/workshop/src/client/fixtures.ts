@@ -53,6 +53,21 @@ Object.assign(cable, {
 });
 
 const node = makeProject("node");
+// Keep model deep links valid when a visitor reloads the demo.
+const modelIds = new Map(node.assembly.items.map((item, index) =>
+  [item.id, `00000000-0000-4000-8000-${String(index + 1000).padStart(12, "0")}`] as const));
+node.assembly.rootId = modelIds.get(node.assembly.rootId!);
+for (const item of node.assembly.items) {
+  item.id = modelIds.get(item.id)!;
+  for (const use of item.uses) use.itemId = modelIds.get(use.itemId)!;
+}
+node.assembly.power = {
+  version: 1, notes: "Illustrative sensor budget", scenarios: [{id:"sampling",name:"Sampling",notes:"Illustrative development-board load."}],
+  rails: [{id:"usb",name:"USB input",kind:"dc",voltage:5,efficiency:1,notes:""}],
+};
+const board = node.assembly.items.find(item => item.number === "SNY-C001")!;
+board.power = {loads:[{id:"board",name:"Controller",rail:"usb",evidence:"assumed",source:"Demo assumption",notes:"",
+  scenarios:{sampling:{averageW:0.4,operatingW:0.5,peakW:1}}}]};
 Object.assign(node, {
   id: "00000000-0000-4000-8000-000000000106",
   revision: 3,
