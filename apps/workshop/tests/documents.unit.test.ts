@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
+import { mutateAction, serveGraphql } from "@ai-outfitter/app-sdk/app-graphql";
 import { documentText } from "@ai-outfitter/app-sdk/graph-graphql-typed";
 import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema, type WorkshopContext } from "../src/server/graphql";
@@ -131,5 +131,32 @@ test("an agent starts a linked project and builds it by document: describe, link
     assert.equal(answer(unlinked, "nameWorkshopProductRevision").productRevisionId, null);
     assert.equal((await getWorkshopProject(db, id)).productRevision, undefined);
     assert.deepEqual((await run(writer, "NameWorkshopProductRevision", { id: crypto.randomUUID(), revision: 1, productRevision: null })).errors?.[0]?.extensions, { code: "REFUSED", status: 404 });
+  } finally { close(); }
+});
+
+
+test("the saved assembly is returned whole, and only one writer can replace its revision", async () => {
+  const { db, close } = await workshopDatabase();
+  try {
+    const context = member(db);
+    const { createWorkshopProject: project } = await runDocument(documents.CreateWorkshopProject.document, { input: { example: "node" } }, context);
+    const projectId = project.id;
+    const read = () => runDocument(documents.WorkshopAssembly.document, { projectId }, context);
+    const before = await read();
+    const saved = await getWorkshopProject(db, projectId);
+    assert.deepEqual({ ...before.workshopAssembly }, { projectId, revision: saved.revision, assembly: saved.assembly });
+    const next = structuredClone(saved.assembly);
+    for (const item of next.items) item.notes = "first edit".repeat(200);
+    const replace = (assembly: typeof next) => runDocument(documents.UpdateWorkshopAssembly.document,
+      { projectId, expectedRevision: saved.revision, assembly }, context);
+    await assert.rejects(replace({ ...next, rootId: crypto.randomUUID() }), status(400));
+    const writes = await Promise.allSettled([replace(next), replace(next)]);
+    assert.equal(writes.filter(write => write.status === "fulfilled").length, 1);
+    assert.ok(writes.some(write => write.status === "rejected" && status(409)(write.reason)));
+    assert.deepEqual({ ...(await read()).workshopAssembly }, { projectId, revision: saved.revision + 1, assembly: next });
+    const limited = await serveGraphql({ schema: graphqlSchema, query: documentText(documents.WorkshopAssembly.document),
+      variables: { projectId }, context, maxBytes: 8192 });
+    assert.equal(limited.data, null);
+    assert.equal(limited.errors?.[0].extensions?.code, "RESPONSE_TOO_LARGE");
   } finally { close(); }
 });

@@ -2002,6 +2002,53 @@
     }
   },
   {
+    "name": "UpdateWorkshopAssembly",
+    "kind": "mutation",
+    "story": "As a prototype builder, I want my agent to save my assembly edit at the observed revision, so that concurrent project changes are preserved.",
+    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n  }\n}",
+    "hash": "e3908874fd8e9be02b64a82cfa4b0d2750ae5356d917abddd561b9f491956ceb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "description": "GraphQL Int!"
+        },
+        "assembly": {
+          "description": "GraphQL WorkshopAssemblyInput!"
+        }
+      },
+      "required": [
+        "projectId",
+        "expectedRevision",
+        "assembly"
+      ]
+    },
+    "mcp": {
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. On conflict, reread and reapply the intended edit."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "updateWorkshopAssembly": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "UpdateWorkshopUnit",
     "kind": "mutation",
     "story": "As a member, I want to mark a unit flashed, installed in a project or moved to a new bin at the revision I saw, so that the inventory follows each physical unit through the build.",
@@ -2019,6 +2066,47 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WorkshopAssembly",
+    "kind": "query",
+    "story": "As a prototype builder, I want my agent to read the saved assembly and its power inputs, so that I can change one quantity and verify its effect.",
+    "query": "query WorkshopAssembly($projectId: ID!) {\n  workshopAssembly(projectId: $projectId) {\n    projectId\n    revision\n    assembly\n  }\n}",
+    "hash": "4a62f6c38e54a81df8500a74cda462bf586ba890156f8d9f9194ce4ccd943096",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "projectId"
+      ]
+    },
+    "mcp": {
+      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopAssembly": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "assembly": {
+              "description": "JSON"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "WorkshopDesignRun",

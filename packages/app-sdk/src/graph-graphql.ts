@@ -175,7 +175,7 @@ export async function executeGraphQuery(args: ExecuteGraphQueryArgs): Promise<Gr
   const response: GraphGraphqlResult = { data: (result.data ?? null) as GraphGraphqlResult["data"] };
   if (result.errors?.length) response.errors = result.errors.slice(0, maxErrors).map(shape);
   const extensions = baseExtensions(schema, document, roots.some(readsSchema), args.extensions);
-  const cut = fitResponse(response, budget - responseBytes(extensions) - truncationReserve, (path, kept) => cursorAfter(context, path, kept));
+  const cut = context.completeResult ? [] : fitResponse(response, budget - responseBytes(extensions) - truncationReserve, (path, kept) => cursorAfter(context, path, kept));
   // A list cut while resolving may be cut again here; it is named once.
   const paths = [...new Map([...context.truncated, ...cut].map(path => [JSON.stringify(path), path])).values()].slice(0, 20);
   if (paths.length) Object.assign(extensions, { truncated: true, truncatedPaths: paths });

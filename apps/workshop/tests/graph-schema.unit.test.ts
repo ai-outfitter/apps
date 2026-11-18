@@ -10,9 +10,9 @@ test("the committed GraphQL schema, types and documents match what graph.graphql
   assert.deepEqual(committed.map((row: { name: string; kind: string }) => [row.name, row.kind]), [
     ["AcceptCreativeHandoff","mutation"], ["AssemblyChanges", "mutation"], ["AttachCreativeResult","mutation"], ["ClaimWorkshopBuild", "mutation"], ["ConceptChanges", "mutation"], ["CreateWorkshopProject", "mutation"], ["DeleteWorkshopProject", "mutation"], ["DeleteWorkshopUnit", "mutation"],
     ["DescribeWorkshopProject", "mutation"], ["FinishWorkshopBuild", "mutation"], ["NameWorkshopProductRevision", "mutation"], ["ProductRevisionChanges", "mutation"], ["ProjectChanges", "mutation"], ["PublishWorkshopConcepts", "mutation"],
-    ["RecordWorkshopUnit", "mutation"], ["RemoveWorkshopConcept", "mutation"], ["RequestWorkshopBuild", "mutation"], ["SaveWorkshopAssembly", "mutation"], ["StartWorkshopDesign", "mutation"], ["SubmitWorkshopPcb", "mutation"], ["UnitChanges", "mutation"], ["UpdateWorkshopUnit", "mutation"], ["WorkshopDesignRun", "query"], ["WorkshopProjectHandoff", "query"],
+    ["RecordWorkshopUnit", "mutation"], ["RemoveWorkshopConcept", "mutation"], ["RequestWorkshopBuild", "mutation"], ["SaveWorkshopAssembly", "mutation"], ["StartWorkshopDesign", "mutation"], ["SubmitWorkshopPcb", "mutation"], ["UnitChanges", "mutation"], ["UpdateWorkshopAssembly", "mutation"], ["UpdateWorkshopUnit", "mutation"], ["WorkshopAssembly", "query"], ["WorkshopDesignRun", "query"], ["WorkshopProjectHandoff", "query"],
     ["WorkshopProjects", "query"], ["WorkshopUnits", "query"],
   ]);
   // Public documents are the operations a workspace agent can discover.
-  assert.deepEqual(committed.filter((row: { hidden?: boolean }) => !row.hidden).map((row: { name: string }) => row.name), ["AcceptCreativeHandoff", "AttachCreativeResult", "CreateWorkshopProject", "StartWorkshopDesign", "SubmitWorkshopPcb", "WorkshopDesignRun", "WorkshopProjects"]);
+  assert.deepEqual(committed.filter((row: { hidden?: boolean }) => !row.hidden).map((row: { name: string }) => row.name), ["AcceptCreativeHandoff", "AttachCreativeResult", "CreateWorkshopProject", "StartWorkshopDesign", "SubmitWorkshopPcb", "UpdateWorkshopAssembly", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopProjects"]);
 });

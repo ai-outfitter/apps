@@ -91,7 +91,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
  $("assembly-title").textContent = focused?.name ?? "Full assembly";
  renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
   !historical && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
-   project=await request(`/api/apps/workshop/projects/${project.id}`,"PUT",{...project,assembly:next});
+   const receipt=await request(`/api/apps/workshop/projects/${project.id}/assembly`,"PUT",{expectedRevision:project.revision,assembly:next});
+   project={...project,assembly:next,revision:receipt.revision};
    assembly=project.assembly;$("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
   }:undefined);
  if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;

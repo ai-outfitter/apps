@@ -153,11 +153,18 @@ export async function fieldError(error: unknown) {
   if (error instanceof Response) return new GraphQLError((await error.text()) || `Refused (${error.status})`, { extensions: { code: "REFUSED", status: error.status } });
   return error;
 }
+/** Derive a named GraphQL argument type from its domain schema. */
+export function zodInputType(schema: z.ZodType, name: string) {
+  return inputType(z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }) as JsonSchema, name);
+}
+
 export type MutationFieldOptions<Input extends z.ZodType, Context> = {
   /** Names the GraphQL input type (`<name>Input`) and the types it declares. */
   name: string;
   description: string;
   input: Input;
+  /** Named arguments parsed together by input. Defaults to one input object. */
+  args?: GraphQLFieldConfigArgumentMap;
   /** What the field returns; JSON when omitted. */
   output?: GraphQLOutputType;
   run: (context: Context, input: z.output<Input>) => unknown;
@@ -169,13 +176,12 @@ export type MutationFieldOptions<Input extends z.ZodType, Context> = {
  * already validates with (an action's input, say), so typegen and agents see typed variables. The zod schema
  * still parses the input before `run`, which keeps the app's checks; a thrown Response becomes a REFUSED error. */
 export function mutationField<Input extends z.ZodType, Context = TableContext & ActionContext>(options: MutationFieldOptions<Input, Context>): GraphQLFieldConfig<unknown, Context> {
-  const json = z.toJSONSchema(options.input, { io: "input", unrepresentable: "any" }) as JsonSchema;
   return {
     type: options.output ?? JSONScalar, description: options.description,
     extensions: { batchInput: options.input },
-    args: { input: { type: new GraphQLNonNull(inputType(json, `${options.name}Input`)) } },
+    args: options.args ?? { input: { type: new GraphQLNonNull(zodInputType(options.input, `${options.name}Input`)) } },
     resolve: async (_source, args: { input: unknown }, context) => {
-      const parsed = options.input.safeParse(args.input);
+      const parsed = options.input.safeParse(options.args ? args : args.input);
       if ((context as Partial<ActionContext>).identity?.role === "external" && !options.external)
         throw new GraphQLError("Not open to other organizations", { extensions: { code: "REFUSED", status: 403 } });
       if (!parsed.success) throw new GraphQLError(parsed.error.issues.map(issue => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; "), { extensions: { code: "BAD_USER_INPUT" } });

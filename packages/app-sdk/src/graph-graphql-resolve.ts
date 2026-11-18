@@ -140,6 +140,7 @@ export function meterFields(types: Iterable<GraphQLNamedType>) {
         const budget = (context as Partial<GraphContext> | undefined)?.budget;
         // Past the budget nothing more resolves; the request answers RESPONSE_TOO_LARGE.
         if (budget && !spend(budget, 1, 0)) return null;
+        if (budget && field.extensions.completeResult) context.completeResult = true;
         const value = inner(source, args, context, info);
         if (budget && typeof value === "string" && !spend(budget, 0, value.length)) return null;
         return value;

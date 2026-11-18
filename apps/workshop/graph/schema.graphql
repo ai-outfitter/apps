@@ -20,6 +20,9 @@ type Query {
     search: String
   ): WorkshopUnitConnection!
 
+  """Read the whole saved assembly at one project revision."""
+  workshopAssembly(projectId: ID!): WorkshopAssemblyResult!
+
   """
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
   """
@@ -160,6 +163,12 @@ input StringFilter {
   includesInsensitive: String
   startsWith: String
   startsWithInsensitive: String
+}
+
+type WorkshopAssemblyResult {
+  projectId: ID!
+  revision: Int!
+  assembly: JSON!
 }
 
 """Any JSON value."""
@@ -469,6 +478,142 @@ enum DescribeWorkshopProjectInputPhase {
   manufacturing
 }
 
+type WorkshopAssemblyReceipt {
+  projectId: ID!
+  revision: Int!
+}
+
+input WorkshopAssemblyInput {
+  rootId: ID
+  items: [WorkshopAssemblyInputItemsItem!]!
+  power: WorkshopAssemblyInputPower
+}
+
+input WorkshopAssemblyInputItemsItem {
+  id: ID!
+  number: String!
+  revision: String!
+  name: String!
+  kind: WorkshopAssemblyInputItemsItemKind!
+  manufacturer: String
+  mpn: String
+  source: String
+  unitCost: Float
+  trackBy: WorkshopAssemblyInputItemsItemTrackBy
+  color: String
+  geometry: WorkshopAssemblyInputItemsItemGeometry
+  mesh: WorkshopAssemblyInputItemsItemMesh
+  priceKnown: Boolean
+  provenance: WorkshopAssemblyInputItemsItemProvenance
+  firmware: WorkshopAssemblyInputItemsItemFirmware
+  power: WorkshopAssemblyInputItemsItemPower
+  notes: String
+  uses: [WorkshopAssemblyInputItemsItemUsesItem!]
+}
+
+enum WorkshopAssemblyInputItemsItemKind {
+  assembly
+  printed
+  fabricated
+  cots
+  pcb
+  firmware
+}
+
+enum WorkshopAssemblyInputItemsItemTrackBy {
+  none
+  mac
+  serial
+}
+
+input WorkshopAssemblyInputItemsItemGeometry {
+  version: Float!
+  units: String!
+  features: [JSON!]!
+}
+
+input WorkshopAssemblyInputItemsItemMesh {
+  path: String!
+  bounds: WorkshopAssemblyInputItemsItemMeshBounds!
+}
+
+input WorkshopAssemblyInputItemsItemMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
+}
+
+enum WorkshopAssemblyInputItemsItemProvenance {
+  provisional
+  manufacturer
+  measured
+}
+
+input WorkshopAssemblyInputItemsItemFirmware {
+  repository: String!
+  path: String
+  ref: String!
+  target: String!
+}
+
+input WorkshopAssemblyInputItemsItemPower {
+  loads: [WorkshopAssemblyInputItemsItemPowerLoadsItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemPowerLoadsItem {
+  id: String!
+  name: String!
+  rail: String!
+  evidence: WorkshopAssemblyInputItemsItemPowerLoadsItemEvidence!
+  source: String!
+  notes: String!
+  scenarios: JSON!
+}
+
+enum WorkshopAssemblyInputItemsItemPowerLoadsItemEvidence {
+  assumed
+  modeled
+  vendor
+  measured
+}
+
+input WorkshopAssemblyInputItemsItemUsesItem {
+  id: ID!
+  itemId: ID!
+  quantity: Int!
+  refdes: String
+  position: [JSON!]
+  rotation: Float
+  orientation: [JSON!]
+}
+
+input WorkshopAssemblyInputPower {
+  version: Float!
+  scenarios: [WorkshopAssemblyInputPowerScenariosItem!]!
+  rails: [WorkshopAssemblyInputPowerRailsItem!]!
+  notes: String!
+}
+
+input WorkshopAssemblyInputPowerScenariosItem {
+  id: String!
+  name: String!
+  notes: String!
+}
+
+input WorkshopAssemblyInputPowerRailsItem {
+  id: String!
+  name: String!
+  voltage: Float!
+  kind: WorkshopAssemblyInputPowerRailsItemKind!
+  parent: String
+  efficiency: Float!
+  notes: String!
+}
+
+enum WorkshopAssemblyInputPowerRailsItemKind {
+  ac
+  dc
+}
+
 input SaveWorkshopAssemblyInput {
   id: String!
   revision: Float!
@@ -700,6 +845,9 @@ type Mutation {
   Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.
   """
   describeWorkshopProject(input: DescribeWorkshopProjectInput!): WorkshopProject!
+
+  """Replace the complete assembly at the observed project revision."""
+  updateWorkshopAssembly(projectId: ID!, expectedRevision: Int!, assembly: WorkshopAssemblyInput!): WorkshopAssemblyReceipt!
 
   """
   Replace a project's product structure at the revision the caller saw: its items (assemblies, printed parts, COTS parts, PCBs and firmware, each with a part number and revision letter) and the usage lines from each assembly to the items it contains, with quantities, reference designators and placements; the BOM, costs and 3D view derive from it. Item geometry is a CAD plan (JSON) and a placement is [x, y, z] in mm. A stale revision is refused. Answers the project at its next revision.
