@@ -18,6 +18,14 @@ test('models catalog opens a part, an unmodeled item and the full assembly', asy
   await expect(page.locator('#assembly-title')).toContainText('ESP32');
   await expect(page.locator('#assembly-viewer')).toHaveAttribute('data-ready','true',{timeout:60000});
   await expect(page.locator('#assembly-status')).toContainText('1 solids from 1 items');
+  const perspective = await page.locator('#assembly-viewer').screenshot();
+  await page.getByRole('button',{name:'Top view',exact:true}).click();
+  expect(await page.locator('#assembly-viewer').screenshot()).not.toEqual(perspective);
+  await page.getByRole('button',{name:'Show all',exact:true}).click();
+  await expect(page.locator('#inspector')).not.toHaveAttribute('open','');
+  await page.locator('#assembly-viewer').click();
+  await expect(page.locator('#inspector')).toHaveAttribute('open','');
+  await expect(page.locator('#item-details')).toContainText('ESP32');
   await page.locator('#browse-models').click();
   await page.getByLabel('Search models').fill('SNY-C008');
   await expect(page.locator('.model-card')).toContainText('Qty 4');

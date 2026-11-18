@@ -43,7 +43,10 @@ if (section === "assembly") {
  try {
   const { createAssemblyViewer } = await import("./assembly-viewer");
   if (signal.aborted) return;
-  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message);
+  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, id => {
+    const item = assembly?.items.find(candidate => candidate.id === id);
+    if (item) select(item);
+  });
  } catch {
   if (signal.aborted) return;
   $("assembly-status").textContent = "3D preview unavailable in this browser.";
@@ -116,6 +119,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
  void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
+  if(query.get("view")==="top") viewer?.topView();
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;$("motion-preview").hidden=!motion;
   if(motionArtifact && run?.result){
@@ -196,6 +200,7 @@ function render(){
  if(requested&&!run)notice("That build was not found. Showing the current assembly.");
  showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
+$("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected){const descendants=new Set<string>();const walk=(i:Item)=>{descendants.add(i.id);for(const use of i.uses){const child=assembly.items.find(c=>c.id===use.itemId);if(child)walk(child);}};walk(selected);viewer?.isolate(descendants);}};
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;

@@ -52,7 +52,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string) => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
@@ -115,6 +115,43 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     }
   });
 
+  let press: { x: number; y: number; id: number } | undefined;
+  const raycaster = new THREE.Raycaster();
+  const pointerDown = (event: PointerEvent) => {
+    press = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined;
+  };
+  const pointerUp = (event: PointerEvent) => {
+    const start = press;
+    press = undefined;
+    if (!start || event.pointerId !== start.id || Math.hypot(event.clientX-start.x, event.clientY-start.y) > 4) return;
+    const rect = canvas.getBoundingClientRect();
+    raycaster.setFromCamera(new THREE.Vector2(2*(event.clientX-rect.left)/rect.width-1, 1-2*(event.clientY-rect.top)/rect.height), camera);
+    const hits = raycaster.intersectObjects(group.children.filter(node => node.visible), true);
+    for (const { object } of hits) {
+      if (!(object instanceof THREE.Mesh)) continue;
+      let node: THREE.Object3D | null = object;
+      while (node && node.visible && node !== group) {
+        if (node.parent === group && node.userData.itemId) {
+          inspect(node.userData.itemId);
+          return;
+        }
+        node = node.parent;
+      }
+    }
+  };
+  canvas.addEventListener("pointerdown", pointerDown);
+  canvas.addEventListener("pointerup", pointerUp);
+
+  function topView() {
+    if (!frame) return;
+    const visible = new THREE.Box3().setFromObject(group);
+    const center = visible.getCenter(new THREE.Vector3());
+    const size = visible.getSize(new THREE.Vector3());
+    const distance = 0.55 * Math.max(size.y, size.x / camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+    controls.target.copy(center);
+    camera.position.set(center.x, center.y-0.0001, visible.max.z+Math.max(distance,1));
+    controls.update();
+  }
   function reset() {
     if (!frame) return;
     const { min, max } = frame;
@@ -208,6 +245,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   return {
     render,
     reset,
+    topView,
     inspectDrive(drives: ZDriveInspection[], visible: boolean) {
       clearInspection();
       if(visible && drives.length){
@@ -246,6 +284,8 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       version++;
       resize.disconnect();
       renderer.setAnimationLoop(null);
+      canvas.removeEventListener("pointerdown", pointerDown);
+      canvas.removeEventListener("pointerup", pointerUp);
       controls.dispose();
       clear();
       renderer.dispose();
