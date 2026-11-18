@@ -4,7 +4,8 @@ import AppLayout from "../components/FoundryLayout.astro";
 import Section from "@ai-outfitter/ui/astro/Section.astro";
 import Table from "@ai-outfitter/ui/astro/Table.astro";
 // Repository jobs: an agent reads a repository and files ranked issues. They never
-// change code; send the issues worth doing through issue to review.
+// change code; on a repository Foundry is enabled for, each filed issue starts
+// issue to merge, which opens the pull request.
 const jobs = [
   {
     id: "dependency-review",
@@ -20,6 +21,13 @@ const jobs = [
       "Rereads the repository as it is now and files ranked refactor issues for the structure fast shipping left behind, each with evidence and an incremental plan.",
     cadence: "on the 1st of each month at 14:00 UTC",
   },
+  {
+    id: "ui-review",
+    title: "UI review",
+    summary:
+      "Opens every page at phone and desktop size, checks it against the UI standards and files one fix per issue. Each fix's pull request shows before and after screenshots in its Demo.",
+    cadence: "every Wednesday at 14:00 UTC",
+  },
 ];
 ---
 <AppLayout title="Jobs" description="Run repository jobs that file issues for the work worth doing." active="home">
@@ -32,7 +40,7 @@ const jobs = [
       <button slot="actions" class="secondary" data-job={job.id} disabled>Run now</button>
       <button slot="actions" class="secondary" data-schedule={job.id} disabled>Schedule</button>
       <p>{job.summary}</p>
-      <p>Scheduled runs start {job.cadence} as the person who owns the schedule. If they leave or can no longer run it, it pauses with the reason until an admin reassigns it to someone who can.</p>
+      <p>Scheduled runs start {job.cadence} as the person who saved the schedule. If they can no longer run it, it pauses with the reason until an admin saves it again.</p>
       <ul id={`job-schedules-${job.id}`} class="job-schedules"></ul>
       <Table id={`job-runs-${job.id}`} label={`${job.title} runs`} columns={["Started", "Repository", "Status", "Issues filed"]} />
       <p id={`job-empty-${job.id}`} role="status">No runs yet.</p>

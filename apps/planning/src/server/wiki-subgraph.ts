@@ -141,6 +141,26 @@ export const projectBodySelection = {
   maxNodes: 300,
 };
 
+/** Exact review neighborhood: no unrelated stories, repository activity or full-graph fallback. */
+export const projectEvidenceSelection = {
+  rootTypes: ["Project"],
+  relationships: [
+    { type: "produces", direction: "outgoing" as const, from_type: "Project", to_type: "ProductRevision" },
+    { type: "part_of", direction: "incoming" as const, from_type: "Release", to_type: "Project" },
+    { type: "documents", direction: "incoming" as const, from_type: "Document" },
+    { type: "evidence_for", direction: "incoming" as const, from_type: "Document", to_type: "ProductRevision" },
+    { type: "includes_record", direction: "outgoing" as const, from_type: "Document", to_type: "Demonstration" },
+  ],
+  nodeTypes: ["Project", "ProductRevision", "Release", "Document", "Demonstration"],
+  terminalTypes: ["Demonstration"], maxDepth: 4, maxNodes: 300,
+};
+export async function readProjectEvidenceSelection(host: Host, installationId: string, projectId: string) {
+  const rows = await queryAll(host, [{ name: "evidence", entity: "node", sources: [{ installationId, type: "project", id: projectId }], expand: projectEvidenceSelection, fields: "full", limit: 1 }]);
+  // Review needs type identity, not authored type documentation. Compact signatures
+  // are sufficient; do not fetch every full type just to satisfy the display adapter.
+  return asRecords({...rows, types: rows.types.map(type => ({...type, body: String(type.name)}))});
+}
+
 /** One project's subgraph under a selection, in `readWikiGraph`'s shape: a superset the in-memory rules select from. */
 export async function readProjectSelection(host: Host, installationId: string, projectId: string, expand: Query["expand"]) {
   const rows = await queryAll(host, [{ name: "project", entity: "node", sources: [{ installationId, type: "project", id: projectId }], expand, fields: "full", limit: 10 }]);

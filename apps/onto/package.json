@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-onto",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "exports": {
@@ -37,7 +37,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5",
-    "@ai-outfitter/connector-github": "*"
+    "@ai-outfitter/connector-github": "*",
+    "@ai-outfitter/creative-workflow": "*"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

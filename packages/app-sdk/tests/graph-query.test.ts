@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { graphQueryInput, graphQueryResult, queryGraph } from "../src/graph-query";
+import { type GraphSource, memorySource } from "../src/graph-graphql-source";
+import { graphQueryInput, graphQueryLimits, graphQueryResult, queryGraph } from "../src/graph-query";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const type = (n: number, name: string, category: "node" | "edge", extra: Record<string, unknown> = {}) =>
@@ -186,4 +187,158 @@ test("compact and picked projections say a record is retired, wherever its statu
     const result = await queryGraph(retired, { queries: [{ name: "roles", types: ["Role"], fields: fields as never }] });
     assert.deepEqual(result.nodes.filter(record => record.retired).map(record => record.title), ["Former", "Ex"]);
   }
+});
+
+test("ordered pages: a collection in any order, a page per parent with its cursor, counts, and cursors bound to their order", async () => {
+  // Three assignments, each with a role edge to a Role created in reverse of its ID order.
+  const roles = [node(11, 1, "Role A", { createdAt: 30 }), node(12, 1, "Role B", { createdAt: 20 }), node(13, 1, "Role C", { createdAt: 10 })];
+  const owners = [node(21, 2, "First"), node(22, 2, "Second"), node(23, 2, "Lonely")];
+  const links = [edge(11, 5, 21, 11), edge(12, 5, 21, 12), edge(13, 5, 21, 13), edge(14, 5, 22, 12), edge(15, 5, 22, 12, { title: "twice" })];
+  const graph = { ...snapshot, nodes: [...snapshot.nodes, ...roles, ...owners], edges: [...snapshot.edges, ...links] };
+  const relation = { parentIds: [uuid(121), uuid(122), uuid(123)], edgeTypes: ["assigns_role"], direction: "outgoing" as const, targetTypes: ["Role"] };
+  const result = graphQueryResult.parse(await queryGraph(graph, { includeTypes: "none", queries: [
+    { name: "roles", types: ["Role"], ids: roles.map(row => row.id), orderBy: "CREATED_AT_ASC", limit: 2, count: true },
+    { name: "held", relation, orderBy: "CREATED_AT_ASC", limit: 2, count: true },
+    { name: "links", entity: "edge", relation, orderBy: "ID_DESC", limit: 1 },
+  ] }));
+  const { roles: page, held, links: edges } = result.queries;
+  assert.deepEqual([page.matches, page.total, page.complete], [[uuid(113), uuid(112)], 3, false]);
+  assert.deepEqual(held.parents?.map(parent => [parent.parentId, parent.rows.map(row => row.nodeId), parent.hasNextPage, parent.count]), [
+    [uuid(121), [uuid(113), uuid(112)], true, 3],
+    // A far node reached by two edges is listed once, through its lowest edge ID.
+    [uuid(122), [uuid(112)], false, 1],
+    [uuid(123), [], false, 0],
+  ]);
+  assert.deepEqual(held.parents?.[1].rows, [{ edgeId: uuid(214), nodeId: uuid(112) }]);
+  assert.deepEqual(edges.parents?.map(parent => parent.rows.map(row => row.edgeId)), [[uuid(213)], [uuid(215)], []]);
+  assert.equal(held.total, 4);
+  assert.equal(edges.total, null, "no count asked");
+  assert.ok(result.edges.some(row => row.id === uuid(214)) && result.nodes.some(row => row.id === uuid(112)), "rows carry their edge and far node");
+
+  // Each parent continues from its own cursor; the next page starts after it.
+  const next = await queryGraph(graph, { queries: [
+    { name: "held", relation: { ...relation, parentIds: [uuid(121)] }, orderBy: "CREATED_AT_ASC", limit: 2, cursor: held.parents?.[0].cursor ?? undefined },
+    { name: "roles", types: ["Role"], ids: roles.map(row => row.id), orderBy: "CREATED_AT_ASC", limit: 2, cursor: page.cursor ?? undefined },
+  ] });
+  assert.deepEqual(next.queries.held.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.hasNextPage]), [[[uuid(111)], false]]);
+  assert.deepEqual([next.queries.roles.matches, next.queries.roles.complete], [[uuid(111)], true]);
+
+  // A cursor continues only its order; limit 0 counts without reading rows.
+  await assert.rejects(queryGraph(graph, { queries: [{ name: "held", relation, orderBy: "TITLE_ASC", cursor: held.parents?.[0].cursor ?? undefined }] }),
+    (error: Response) => error.status === 400);
+  const counted = await queryGraph(graph, { queries: [{ name: "held", relation, limit: 0, count: true }] });
+  assert.deepEqual(counted.queries.held.parents?.map(parent => [parent.rows.length, parent.count, parent.hasNextPage]), [[0, 3, true], [0, 1, true], [0, 0, false]]);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", relation, expand: { edgeTypes: ["assigns_role"] } }] }), /Ordered pages take no expand/);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: ["Role"], count: true }] }), /Only ordered pages/);
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", entity: "edge", orderBy: "ID_ASC" }] }), /ordered collection page lists entity/);
+
+  // filter is the connection filter, applied where the page is read: to a collection, to a relation's far nodes or to its edges.
+  const filtered = await queryGraph(graph, { includeTypes: "none", queries: [
+    { name: "roles", types: ["Role"], orderBy: "TITLE_DESC", count: true, filter: { title: { startsWith: "Role" }, not: { id: { in: [uuid(112)] } } } },
+    { name: "held", relation, count: true, filter: { or: [{ title: { equalTo: "Role A" } }, { createdAt: { lessThan: new Date(15).toISOString() } }] } },
+    { name: "links", entity: "edge", relation, filter: { title: { includesInsensitive: "TWICE" } } },
+  ] });
+  assert.deepEqual([filtered.queries.roles.matches, filtered.queries.roles.total], [[uuid(113), uuid(111)], 2]);
+  assert.deepEqual(filtered.queries.held.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.count]), [[[uuid(111), uuid(113)], 2], [[], 0], [[], 0]]);
+  assert.deepEqual(filtered.queries.links.parents?.map(parent => parent.rows.map(row => row.edgeId)), [[], [uuid(215)], []]);
+  // through: two hops as one page. Owners reach, through the roles they assign, the other owners of those roles; never themselves.
+  const through = await queryGraph(graph, { includeTypes: "none", queries: [{ name: "peers", count: true, orderBy: "TITLE_ASC",
+    relation: { parentIds: [uuid(121), uuid(122), uuid(123)], edgeTypes: ["assigns_role"], direction: "incoming", targetTypes: [String(owners[0].typeId)],
+      through: { edgeTypes: ["assigns_role"], nodeTypes: ["Role"] } } }] });
+  assert.deepEqual(through.queries.peers.parents?.map(parent => [parent.rows.map(row => row.nodeId), parent.count]), [[[uuid(122)], 1], [[uuid(121)], 1], [[], 0]]);
+  for (const [query, message] of [
+    [{ name: "q", types: ["Role"], filter: { title: { equalTo: "x" } } }, /Only ordered pages \(orderBy or relation\) take filter/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", slugs: ["x"] }, /Ordered pages take no slugs; use filter/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { body: { equalTo: "x" } } }, /filter has no field body/],
+    [{ name: "q", entity: "edge", relation, filter: { slug: { equalTo: "x" } } }, /filter has no field slug/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { title: { matches: "x" } } }, /no operator matches/],
+    [{ name: "q", types: ["Role"], orderBy: "ID_ASC", filter: { or: Array.from({ length: 21 }, () => ({ slug: { equalTo: "x" } })) } }, /21 conditions; at most 20/],
+    [{ name: "q", entity: "edge", relation: { ...relation, through: { edgeTypes: ["assigns_role"], nodeTypes: ["Role"] } } }, /through: \\"node\\" only/],
+  ] as const) assert.throws(() => graphQueryInput.parse({ queries: [query] }), message);
+});
+
+test("ordered pages of one request are read together, count beside page, and admitted in request order", async () => {
+  const roles = Array.from({ length: 6 }, (_, n) => node(30 + n, 1, `Role ${n}`, { createdAt: n, updatedAt: 100 - n }));
+  const graph = { ...snapshot, nodes: [...snapshot.nodes, ...roles] };
+  const memory = memorySource(graph);
+  const log: string[] = [];
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  /** Every read notes its start, then waits until all four of the request have started. */
+  const held = <A, R>(name: string, read: (query: A) => Promise<R>) => async (query: A) => {
+    log.push(name);
+    if (log.length === 4) release();
+    await gate;
+    return read(query);
+  };
+  const source: GraphSource = { ...memory, nodePage: held("page", memory.nodePage), nodeCount: held("count", memory.nodeCount) };
+  const queries = [
+    { name: "newest", orderBy: "UPDATED_AT_DESC" as const, limit: 2, count: true },
+    { name: "roles", types: ["Role"], orderBy: "CREATED_AT_DESC" as const, limit: 2, count: true },
+  ];
+  // Sequential reads would never release the gate: the request would hang here.
+  const together = await queryGraph(graph, { includeTypes: "none", queries }, { source });
+  assert.deepEqual(log.sort(), ["count", "count", "page", "page"]);
+  // Without `types` the page lists every node type, and the source is asked for no type test.
+  assert.deepEqual(together.queries.newest.matches, [roles[0].id, roles[1].id]);
+  assert.equal(together.queries.newest.total, 11);
+  assert.deepEqual([together.queries.roles.matches, together.queries.roles.total], [[roles[5].id, roles[4].id], 8]);
+  assert.deepEqual(together, await queryGraph(graph, { includeTypes: "none", queries }), "the same answer as reads over the snapshot");
+  // The byte budget still runs in request order: a later query keeps its place with nothing read into the response.
+  const large = { ...graph, nodes: graph.nodes.map(row => ({ ...row, body: "x".repeat(3000) })) };
+  const tight = await queryGraph(large, { includeTypes: "none", maxBytes: 8 * 1024, queries: [
+    { name: "first", types: ["Role"], orderBy: "ID_ASC", fields: "full", limit: 50 }, { name: "second", types: ["Role"], orderBy: "ID_DESC", count: true }] });
+  assert.ok(tight.queries.first.matches.length > 0 && !tight.queries.first.complete);
+  assert.deepEqual([tight.queries.second.matches, tight.queries.second.total, tight.queries.second.complete, tight.queries.second.cursor], [[], null, false, null]);
+  // A refusal belongs to its query's turn: an earlier query's error wins.
+  const refusal = (queries: object[]) => queryGraph(graph, { queries } as never).then(() => "", (error: Response) => error.text());
+  assert.equal(await refusal([{ name: "a", types: ["Role"], cursor: "garbage" }, { name: "b", orderBy: "ID_ASC", cursor: "garbage" }]), "Invalid cursor");
+  assert.equal(await refusal([{ name: "b", orderBy: "ID_ASC", cursor: "garbage" }]), "Query b: Invalid cursor");
+});
+
+test("a page that can match nothing asks no source, and type lists take as many as a relation's edge types", async () => {
+  const memory = memorySource(snapshot);
+  const refuse = () => { throw new Error("the source was asked"); };
+  const source: GraphSource = { ...memory, nodePage: refuse, nodeCount: refuse, relationPage: refuse, relationCount: refuse };
+  const relation = { parentIds: [uuid(103)], edgeTypes: ["assigns_role"], targetTypes: ["Role"] };
+  const result = await queryGraph(snapshot, { queries: [
+    { name: "unknown", types: ["Nothing"], orderBy: "ID_ASC", count: true },
+    { name: "noEdge", relation: { ...relation, edgeTypes: ["nothing"] }, count: true },
+    { name: "noTarget", relation: { ...relation, targetTypes: ["Nothing"] } },
+    { name: "noRelator", relation: { ...relation, through: { edgeTypes: ["assigns_role"], nodeTypes: ["Nothing"] } }, count: true },
+  ] }, { source });
+  assert.deepEqual([result.queries.unknown.matches, result.queries.unknown.total, result.queries.unknown.complete, result.queries.unknown.missingTypes], [[], 0, true, ["Nothing"]]);
+  for (const name of ["noEdge", "noTarget", "noRelator"]) assert.deepEqual(result.queries[name].parents?.map(parent => [parent.rows, parent.hasNextPage]), [[[], false]], name);
+  assert.equal(result.queries.noRelator.total, 0);
+  const many = Array.from({ length: graphQueryLimits.types }, (_, n) => `Type${n}`);
+  assert.equal(graphQueryLimits.types, 500);
+  assert.doesNotThrow(() => graphQueryInput.parse({ queries: [{ name: "q", types: many }, { name: "r", relation: { parentIds: [uuid(103)], edgeTypes: many, targetTypes: many } }] }));
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "q", types: [...many, "More"] }] }));
+  assert.throws(() => graphQueryInput.parse({ queries: [{ name: "r", relation: { parentIds: [uuid(103)], edgeTypes: ["a"], targetTypes: [...many, "More"] } }] }));
+});
+
+test("relation pages share the request's relationRows budget, read in bounded runs of parents", async () => {
+  // 200 assignments, each assigning the same 101 roles.
+  const owners = Array.from({ length: 200 }, (_, n) => node(5000 + n, 2, `Assignment ${n}`));
+  const roles = Array.from({ length: 101 }, (_, n) => node(7000 + n, 1, `Role ${n}`));
+  const graph = { ...snapshot, nodes: [...owners, ...roles], edges: owners.flatMap((_, o) => roles.map((_, r) => edge(20_000 + o * 101 + r, 5, 5000 + o, 7000 + r))) };
+  const relation = { edgeTypes: ["assigns_role"], direction: "outgoing" as const, targetTypes: ["Role"] };
+  const memory = memorySource(graph);
+  const reads: number[] = [];
+  const source: GraphSource = { ...memory, relationPage: query => { reads.push(query.parentIds.length * (query.first + 1)); return memory.relationPage(query); } };
+  const ask = (parents: number, limit: number, extra: Record<string, unknown> = {}) => { reads.length = 0;
+    return queryGraph(graph, { queries: [{ name: "held", relation: { ...relation, parentIds: owners.slice(0, parents).map(row => row.id) }, limit, ...extra }] }, { source }); };
+  // 198 parents × 101 rows = 19,998: within the budget, in one read.
+  assert.equal((await ask(198, 100)).queries.held.parents?.length, 198);
+  assert.deepEqual(reads, [19_998]);
+  // The largest page: 39 parents a read, none able to return more than the budget.
+  assert.equal((await ask(60, 500)).queries.held.parents?.length, 60);
+  assert.deepEqual(reads, [39 * 501, 21 * 501]);
+  // 200 parents × 101 rows = 20,200: refused with the query's name and the limit's.
+  const refused = await ask(200, 100).then(() => null, (error: Response) => error);
+  assert.equal(refused?.status, 400);
+  assert.match(await (refused as Response).text(), /^Query held: This request read more than 20000 relationship rows \(the relationRows limit\)/);
+  // Counting reads no rows, so it is never refused.
+  assert.equal((await ask(200, 0, { count: true })).queries.held.total, 20_200);
+  assert.deepEqual(reads, []);
 });

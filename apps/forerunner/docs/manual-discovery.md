@@ -3,11 +3,11 @@
 > Part of the knowledge graph, Outfitter's central architecture for Wikis, ontology, reads and writes.
 
 Forerunner reads an editor's readable Gmail and Google Calendar connections and
-saves source-backed Wiki entries as part of each discovery run. Daily discovery is
-on by default; **Sources** reruns one account at a time. Settings is one flat page:
-the daily run, the connected accounts and the sources still to connect. The
-`import` endpoint still accepts a private, bounded source sample from an agent,
-though Settings no longer offers an upload.
+saves source-backed Wiki entries as part of each discovery run. The platform
+Connections and Automations pages now own setup. The schedule declaration lists
+eligible account providers and maps the selected provider/label to run inputs.
+The platform validates current account authority before enabling a schedule.
+The legacy GraphQL and import APIs remain available for existing callers.
 The manual board remains independent. Demo mode remains synthetic and read-only.
 
 ## Discover, save and improve
@@ -26,7 +26,7 @@ The manual board remains independent. Demo mode remains synthetic and read-only.
 2. Each run resolves the operating user's current name and email through the
    trusted `identity.current` host API. Neither browser input nor messages choose
    that identity. The request-scoped Wiki adapter resolves the same owner and
-   reads every page of active types. Goal, Question, Activity, generic Entity, participates_in, participant,
+   reads every page of active types. Goal, Activity, generic Entity, participates_in, participant,
    interacts_with and customer_of are excluded for now. Discovery retains named
    contacts without creating generic interaction edges or inferring commercial
    relationships from notifications. Relationships

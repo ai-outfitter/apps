@@ -88,3 +88,40 @@ capability and `workflowPhaseHandler()` for the reserved
 (`eventInput`/`eventResult`, `prepareInput`/`prepareResult`,
 `finalizeInput`/`finalizeResult`) are exported as zod schemas. Only trusted dispatch props supply the
 capability; identity headers alone never do.
+
+
+Budgeted thread history may include `sources: [{ installationId, type, id,
+revision }]` (at most four). The platform must authorize the same owner and load
+that exact entity revision on every reply. Source snapshots are transient,
+attributed untrusted context, never a transcript checkpoint or privileged
+instruction. Unavailable access or revisions fail the reply visibly. Sources do
+not claim thread coverage or permit dropping messages; the combined context is
+bounded to 64 KiB. See the `threadContextSource` and `prepare.history` contracts.
+
+### D1 read sessions
+
+Operational app middleware shares one `withSession("first-primary")` session
+across installation database and prepared-batch calls in that request. The
+first query reads the primary; later reads may use replicas with sequential
+consistency. The platform must enable replication on each database, and apps
+must be rebuilt against this SDK before they use the session adapter.
+
+Read-only demos do not create sessions. Database calls outside middleware use
+the primary binding; asynchronous work started inside a request inherits its
+context. Bookmarks are not transported between requests or installations.
+
+### Let the platform sidebar ask an app agent
+
+`actionAgent({ delegation: true, ... })` opts an existing app agent into
+same-owner discovery by Ask Outfitter. The published thread descriptor adds
+`agent.context` using the agent's existing `contextType` and `focusId`. No
+additional route, workflow or conversation store is needed. Onto and Software
+Foundry use this option.
+
+The platform continues the member's private app conversation, keeping proposals
+reviewable in the app's own sidebar. App permissions and explicit proposal review
+still apply; the delegated request is not member approval. Delegated replies use
+app provider tools without platform MCP tools or recursive delegation. The
+platform must support this descriptor before deploying the updated app packages;
+older platforms validate thread descriptors strictly. Live deployment and
+provider execution must be verified separately from synthetic tests.

@@ -172,7 +172,7 @@ test("reads unfinished own items in board priority at 1/3/5 per size", async () 
 		const [top, , , child, first] = items;
 		assert.deepEqual(top.status, { label: "In progress", tone: "info" });
 		assert.equal(top.meta, "Due 2026-11-02");
-		assert.deepEqual(top.link, { path: `/board?item=${reorderedFirst.id}` });
+		assert.deepEqual(top.link, { path: `/items/${reorderedFirst.id}` });
 		assert.equal(child.subtitle, "Pebble · Launch");
 		assert.equal(first.id, sand.id);
 		assert.deepEqual(child.children, [

@@ -1,3 +1,10 @@
+import type { MeshSource } from "../lib/assembly-resolution";
+import { verifiedArtifact, type ArtifactRecord } from "../lib/artifact";
+import { savedMotionMatrix, type PlacedRotation } from "../lib/saved-drive-motion";
+import { createZDriveInspection } from "./z-drive-inspection";
+import { zDriveTurns, type ZDriveInspection } from "../lib/artera-drive-review";
+import cadWorkerURL from "../model/worker.ts?worker&url";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { syncFaces, syncLines } from "replicad-threejs-helper";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -27,25 +34,29 @@ export function solidNode(reply: MeshReply, color: string, opacity = 1) {
   );
   solid.userData.opacity = opacity;
   const node = new THREE.Group();
-  node.add(solid, new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: "#2b2b2b", transparent: true, opacity: 0.3 })));
+  node.add(solid, new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: "#2b2b2b", transparent: true, opacity: Math.min(0.3, opacity), depthWrite: false })));
   return node;
 }
 
 /** One placed item: its faces in the item's color (see-through when printed) and its edges. */
 export function placedNode(placement: Placement, reply: MeshReply) {
   const { item } = placement;
-  const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.kind === "printed" ? 0.3 : 1);
+  const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.opacity ?? (item.kind === "printed" ? 0.3 : 1));
   node.userData.itemId = item.id;
+  node.userData.pickGroup = placement.pickGroup;
+  node.userData.path = placement.path;
   node.position.set(...placement.position);
   node.rotation.z = (placement.rotation * Math.PI) / 180;
+  if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
   return node;
 }
 
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void) {
-  const worker = new Worker(new URL("../model/worker.ts", import.meta.url), { type: "module" });
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
   let id = 0;
   let version = 0;
@@ -59,17 +70,16 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     pending.clear();
     report("CAD engine failed. Reload the page to retry.");
   };
-  const mesh = (plan: unknown) =>
+  const mesh = (plan: unknown, legacy?: {params:unknown;plan:unknown}) =>
     new Promise<MeshReply>((resolve, reject) => {
       pending.set(++id, { resolve, reject });
-      worker.postMessage({ id, plan });
+      worker.postMessage({ id, plan, ...legacy });
     });
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#e8ede5");
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 4000);
   camera.up.set(0, 0, 1);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -80,7 +90,18 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   const group = new THREE.Group();
   scene.add(group);
   let frame: { min: number[]; max: number[] } | undefined;
-  let selected: string | undefined;
+  let selected: Set<string> | undefined;
+  let selectedPath: string | undefined;
+  let selectedItem: string | undefined;
+  let isolated: Set<string> | undefined;
+  let isolatedPath: string | undefined;
+  let driveInspection: ReturnType<typeof createZDriveInspection> | undefined;
+  let inspectionPaths = new Set<string>();
+  let inspectionVisible = false;
+  function clearInspection() {
+    if(driveInspection){scene.remove(driveInspection.group);driveInspection.dispose();driveInspection=undefined;}
+    inspectionPaths.clear();inspectionVisible=false;
+  }
 
   const resize = new ResizeObserver(() => {
     const w = canvas.clientWidth;
@@ -99,17 +120,61 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     }
   });
 
+  let press: { x: number; y: number; id: number } | undefined;
+  const raycaster = new THREE.Raycaster();
+  const pointerDown = (event: PointerEvent) => {
+    press = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined;
+  };
+  const pointerUp = (event: PointerEvent) => {
+    const start = press;
+    press = undefined;
+    if (!start || event.pointerId !== start.id || Math.hypot(event.clientX-start.x, event.clientY-start.y) > 4) return;
+    const rect = canvas.getBoundingClientRect();
+    raycaster.setFromCamera(new THREE.Vector2(2*(event.clientX-rect.left)/rect.width-1, 1-2*(event.clientY-rect.top)/rect.height), camera);
+    const hits = raycaster.intersectObjects(group.children.filter(node => node.visible), true);
+    for (const { object } of hits) {
+      if (!(object instanceof THREE.Mesh)) continue;
+      let node: THREE.Object3D | null = object;
+      while (node && node.visible && node !== group) {
+        if (node.parent === group && node.userData.itemId) {
+          const groupHit = node.userData.pickGroup;
+          const drill = groupHit && selectedItem === groupHit.id && selectedPath === groupHit.path;
+          const owner = drill ? undefined : groupHit;
+          inspect(owner?.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
+          return;
+        }
+        node = node.parent;
+      }
+    }
+  };
+  canvas.addEventListener("pointerdown", pointerDown);
+  canvas.addEventListener("pointerup", pointerUp);
+
+  function topView() {
+    if (!frame) return;
+    const visible = new THREE.Box3().setFromObject(group);
+    const center = visible.getCenter(new THREE.Vector3());
+    const size = visible.getSize(new THREE.Vector3());
+    const distance = 0.55 * Math.max(size.y, size.x / camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+    controls.target.copy(center);
+    camera.position.set(center.x, center.y-0.0001, visible.max.z+Math.max(distance,1));
+    controls.update();
+  }
   function reset() {
     if (!frame) return;
     const { min, max } = frame;
     const center = min.map((v, i) => (v + max[i]) / 2);
     const n = Math.max(...max.map((v, i) => v - min[i])) * 1.25;
+    camera.near = Math.max(0.01, n / 10000);
+    camera.far = Math.max(4000, n * 10);
+    camera.updateProjectionMatrix();
     controls.target.set(center[0], center[1], center[2]);
     camera.position.set(center[0] + n, center[1] - n, center[2] + n * 0.8);
     controls.update();
   }
 
   function clear() {
+    clearInspection();
     group.traverse((child) => {
       if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
         child.geometry.dispose();
@@ -121,11 +186,15 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   function highlight() {
     for (const node of group.children) {
-      const dim = selected !== undefined && node.userData.itemId !== selected;
+      const id = node.userData.itemId as string;
+      const path = node.userData.path as string;
+      const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
+      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !(inspectionVisible && inspectionPaths.has(path));
+      const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
       node.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           const material = child.material as THREE.MeshStandardMaterial;
-          material.opacity = dim ? 0.12 : child.userData.opacity;
+          material.opacity = dim ? Math.min(0.12, child.userData.opacity) : child.userData.opacity;
           material.transparent = material.opacity < 1;
           material.depthWrite = !material.transparent;
           material.needsUpdate = true;
@@ -135,52 +204,103 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   /** Each distinct item meshed once, however many places use it. */
-  async function meshItems(list: Placement[]) {
+  async function meshItems(list: Placement[],legacy?: {params:unknown;plan:unknown}) {
     const items = new Map(list.map(({ item }) => [item.id, item]));
-    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry)));
+    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry,legacy)));
     return new Map([...items.keys()].map((id, i) => [id, replies[i]]));
   }
 
-  async function render(assembly: Assembly) {
+  async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal, sources:Record<string,MeshSource>={}) {
     const current = ++version;
+    isolated=undefined;
+    isolatedPath=undefined;
+    canvas.dataset.ready = "false";
     const list = placements(assembly);
     if (!list.length) {
       clear();
-      report("This project has no assembly with geometry yet.");
+      frame = undefined;
+      canvas.dataset.ready = "true";
+      report("No geometry is available for this selection yet.");
       return;
     }
     report(`Building ${list.length} placed solids…`);
+    const external=new Map<string,THREE.BufferGeometry>();
     try {
-      const replies = await meshItems(list);
+      const replies = await meshItems(list.filter(p=>!p.item.mesh),legacy);
+      for(const {item} of list)if(item.mesh&&!external.has(item.id)){
+        const src=sources[item.id];
+        external.set(item.id,new STLLoader().parse(await verifiedArtifact(src?.base ?? artifactBase,item.mesh.path,src ? [src.artifact] : artifacts,signal)));
+      }
       if (current !== version) return;
       clear();
-      for (const placement of list) group.add(placedNode(placement, replies.get(placement.item.id) as MeshReply));
+      for (const placement of list) {
+        const geometry=external.get(placement.item.id);
+        if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
+        const node=new THREE.Group();node.userData.pickGroup=placement.pickGroup;node.userData.itemId=placement.item.id;node.userData.path=placement.path;
+        const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=placement.item.opacity ?? 1;node.add(solid);
+        if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
+        group.add(node);
+      }
+      for (const node of group.children) { if (node.matrixAutoUpdate) node.updateMatrix(); node.userData.restMatrix = node.matrix.clone(); }
       highlight();
-      const firstFrame = !frame;
       frame = assemblyBounds(list);
-      if (firstFrame) reset();
-      report(`${list.length} solids from ${replies.size} items · envelopes for COTS parts`);
+      reset();
+      report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
       canvas.dataset.ready = "true";
     } catch (e) {
       if (current === version) {
         canvas.dataset.ready = "false";
         report((e as Error).message);
       }
-    }
+    } finally {for(const geometry of external.values())geometry.dispose();}
   }
 
   return {
     render,
     reset,
+    topView,
+    inspectDrive(drives: ZDriveInspection[], visible: boolean) {
+      clearInspection();
+      if(visible && drives.length){
+        driveInspection=createZDriveInspection(drives);inspectionVisible=true;
+        inspectionPaths=new Set(drives.flatMap(d=>[d.axisPath,d.motorPath]));
+        scene.add(driveInspection.group);
+      }
+      highlight();
+      canvas.dataset.driveInspection=String(inspectionVisible);
+    },
+    /** View-only world Z displacement, restoring the original matrix on each call. */
+    previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = [], axes?:Map<string,THREE.Vector3>) {
+      let moved = 0;
+      for (const node of group.children) {
+        const rest = node.userData.restMatrix as THREE.Matrix4 | undefined;
+        if (!rest) continue;
+        node.matrixAutoUpdate = false;
+        const translate=paths.has(node.userData.path);
+        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.matrix,axes?.get(node.userData.path));
+        if(translate)moved++;
+        node.matrixWorldNeedsUpdate = true;
+      }
+      driveInspection?.update(offset);
+      canvas.dataset.savedRotors=String(rotations.length);
+      canvas.dataset.zDriveTurns=String(zDriveTurns(offset));
+      canvas.dataset.motionOffset = String(offset);
+      canvas.dataset.motionSolids = String(moved);
+    },
     /** Show one item at full strength and fade the rest; undefined shows all. */
-    select(itemId?: string) {
-      selected = itemId;
+    isolate(items?: Set<string>, path?: string) {isolated=items;isolatedPath=path;highlight();},
+    select(items?: Set<string>, path?: string, itemId?: string) {
+      selectedItem = itemId;
+      selected = items;
+      selectedPath = path;
       highlight();
     },
     dispose() {
       version++;
       resize.disconnect();
       renderer.setAnimationLoop(null);
+      canvas.removeEventListener("pointerdown", pointerDown);
+      canvas.removeEventListener("pointerup", pointerUp);
       controls.dispose();
       clear();
       renderer.dispose();

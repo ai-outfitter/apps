@@ -28,8 +28,10 @@ export async function wikiFixtureCall(
   raw: unknown,
   hostname = "wiki.example.localhost",
 ) {
-  const { installationId, ...input } = raw as Record<string, unknown>;
-  if (operation !== "entities.types" && installationId !== wiki.installationId)
+  const { installationId, template, ...input } = raw as Record<string, unknown>;
+  // A call may name the owner's Wiki by its package instead of its installation, as the platform allows.
+  const named = operation === "actions.call" && installationId === undefined && template === "wiki-map";
+  if (operation !== "entities.types" && !named && installationId !== wiki.installationId)
     return { ok: false as const, status: 403, message: "Outside owner scope" };
   if (operation === "actions.call") return wikiFixtureResult(await wiki.call(
     "/api/internal/actions/v1/call", owner, { method: "POST", body: { action: input.action, input: input.input, ...(input.readOnly ? { access: "read" } : {}) } },

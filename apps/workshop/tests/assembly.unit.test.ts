@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AssemblySchema, bomRows, bomTotals, placements } from "../src/lib/assembly";
+import { AssemblySchema, bomRows, bomTotals, buildPrice, placements } from "../src/lib/assembly";
 import { makeProject, ProjectSchema } from "../src/lib/project";
 import { sensorNodeAssembly } from "../src/lib/sensor-node";
 
@@ -54,4 +54,31 @@ test("older projects without an assembly still load", () => {
   const { assembly: _assembly, ...older } = makeProject("holder");
   assert.deepEqual(ProjectSchema.parse(older).assembly, { items: [] });
   assert.ok(makeProject("node").assembly.rootId);
+});
+
+test("build price covers quoted assemblies once and reports missing physical units", () => {
+  const assembly = sensorNodeAssembly();
+  const root = assembly.items.find(item => item.id === assembly.rootId)!;
+  const child = assembly.items.find(item => item.kind === "assembly" && item !== root)!;
+  const screw = assembly.items.find(item => item.number === "SNY-C008")!;
+  root.uses = [child, screw].map(item => ({
+    id: crypto.randomUUID(), itemId: item.id, quantity: 2, position: [0,0,0], rotation: 0, refdes: "",
+  }));
+  child.unitCost = 10;
+  child.priceKnown = true;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 0, unpricedUnits: 2 });
+  screw.estimatedUnitCost = 0;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 0, unpricedUnits: 0 });
+  screw.estimatedUnitCost = 2.5;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 5, unpricedUnits: 0 });
+  screw.unitCost = 0;
+  screw.priceKnown = true;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 0, unpricedUnits: 0 });
+  screw.unitCost = 0.1;
+  root.uses[1].quantity = 3;
+  child.unitCost = 0;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 0.3, estimatedSubtotal: 0, unpricedUnits: 0 });
+  root.priceKnown = true;
+  root.unitCost = 15;
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 15, estimatedSubtotal: 0, unpricedUnits: 0 });
 });

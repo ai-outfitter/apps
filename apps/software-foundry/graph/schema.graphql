@@ -1,7 +1,13 @@
 type WorkConnection {
+  edges: [WorkConnectionEdge!]!
   nodes: [Work!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type WorkConnectionEdge {
+  cursor: String!
+  node: Work!
 }
 
 type Work {
@@ -19,18 +25,55 @@ scalar JSON
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How Work records are ordered, ties by ID."""
+enum WorkOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input WorkFilter {
+  repository: StringFilter
+  requestId: StringFilter
+  and: [WorkFilter!]
+  or: [WorkFilter!]
+  not: WorkFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 type FoundryProjectConnection {
+  edges: [FoundryProjectConnectionEdge!]!
   nodes: [FoundryProject!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type FoundryProjectConnectionEdge {
+  cursor: String!
+  node: FoundryProject!
 }
 
 type FoundryProject {
@@ -41,6 +84,14 @@ type FoundryProject {
   milestones: JSON!
   revision: Float!
   updatedAt: DateTime!
+}
+
+"""How FoundryProject records are ordered, ties by ID."""
+enum FoundryProjectOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
 }
 
 type ChangeList {
@@ -213,6 +264,26 @@ input EnableRepositoryInput {
   reviewer: String
 }
 
+"""A repository job's started run or saved schedule."""
+type FoundryJobResult {
+  job: String!
+  repository: String!
+  run: ID
+  schedule: ID
+  enabled: Boolean
+}
+
+input RunJobInput {
+  job: String!
+  repository: String!
+}
+
+input ScheduleJobInput {
+  job: String!
+  repository: String!
+  enabled: Boolean
+}
+
 input CreateProjectInput {
   name: String!
   repositories: [String!]
@@ -223,16 +294,17 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: WorkOrder = ID_ASC
+    filter: WorkFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    repository: [String!]
-    requestId: [String!]
   ): WorkConnection!
   foundryProjects(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: FoundryProjectOrder = ID_ASC
 
     """Match text across this collection’s text fields."""
     search: String
@@ -256,7 +328,7 @@ input RequestsInput {
 
 type Mutation {
   """
-  Reserve expiring authenticated PUT links for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
+  Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
   """
   submitReleaseEvidence(input: SubmitReleaseEvidenceInput!): JSON
 
@@ -276,6 +348,16 @@ type Mutation {
   enableRepository(input: EnableRepositoryInput!): EnabledRepository!
 
   """
+  Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.
+  """
+  runJob(input: RunJobInput!): FoundryJobResult!
+
+  """
+  Save a repository job's one schedule on its declared cadence for a repository, with its approved workspace agent; enabled false pauses it. Owners and admins only.
+  """
+  scheduleJob(input: ScheduleJobInput!): FoundryJobResult!
+
+  """
   Add a Foundry project: a named group of repositories work can be routed to, at the lowest priority. Names are upper case and unique; repositories lower case, once each. Owners and admins only.
   """
   createProject(input: CreateProjectInput!): FoundryProject!
@@ -287,6 +369,9 @@ type Mutation {
 
   """Turn Foundry execution on for a repository"""
   repositoryChanges(input: RepositoryChangesInput!): ChangeResults
+
+  """Run or schedule Foundry's repository jobs"""
+  jobChanges(input: JobChangesInput!): ChangeResults
 
   """Apply project changes using explicit actions"""
   projectChanges(input: ProjectChangesInput!): ChangeResults
@@ -342,6 +427,21 @@ input RepositoryChangesInputItemsItem {
 
 enum RepositoryChangesInputItemsItemAction {
   enable
+}
+
+input JobChangesInput {
+  items: [JobChangesInputItemsItem!]!
+}
+
+input JobChangesInputItemsItem {
+  key: String!
+  action: JobChangesInputItemsItemAction!
+  input: JSON!
+}
+
+enum JobChangesInputItemsItemAction {
+  run
+  schedule
 }
 
 input ProjectChangesInput {

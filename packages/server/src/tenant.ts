@@ -243,7 +243,7 @@ export function tenantOrganizationIs(
 // name installed apps. Keep these platform routes ahead of app resolution.
 export const ORGANIZATION_ROUTES: ReadonlySet<string> = new Set([
   "api", "_astro", "app-covers", "images", "fonts", "apps", "c", "p", "templates", "plugins",
-  "connectors", "communities", "workflow-runs", "routines", "workflows", "settings",
+  "connectors", "connections", "automations", "communities", "workflow-runs", "routines", "workflows", "settings",
   "organizations", "__outfitter_route.js", "_server-islands",
 ]);
 

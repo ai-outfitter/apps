@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
   type AnySQLiteColumn,
@@ -32,7 +33,12 @@ export const projects = sqliteTable(
     demoResults: text().notNull().default(""),
     ...audit(),
   },
-  (t) => [index("planning_projects_installation").on(t.installationId)],
+  (t) => [
+    index("planning_projects_installation").on(t.installationId),
+    // Entity list pages: one installation's rows in an advertised order, then ID.
+    index("planning_projects_installation_id").on(t.installationId, t.id),
+    index("planning_projects_installation_name").on(t.installationId, t.name, t.id),
+  ],
 );
 export const issues = sqliteTable(
   "planning_issues",
@@ -64,6 +70,8 @@ export const issues = sqliteTable(
       t.position,
     ),
     index("planning_issues_parent").on(t.parentId),
+    index("planning_issues_installation_id").on(t.installationId, t.id),
+    index("planning_issues_installation_position").on(t.installationId, t.position, t.id),
   ],
 );
 export type Project = typeof projects.$inferSelect;
@@ -247,7 +255,40 @@ export type Digest = typeof digests.$inferSelect;
 
 export const priorityOrder = sqliteTable("planning_priority_order", {
   installationId: text().notNull(),
-  kind: text({ enum: ["projects", "products"] }).notNull(),
+  kind: text({ enum: ["projects", "products", "portfolio-organizations", "portfolio-projects"] }).notNull(),
   items: text().notNull().default("[]"),
   revision: integer().notNull().default(1),
 }, t => [uniqueIndex("planning_priority_order_scope").on(t.installationId, t.kind)]);
+
+/** The organizations this organization's graph records as design partners: a
+ * `customer_of` link to it with `design_partner` set. A cache of the graph, which
+ * stays canonical: a call from another organization has no workflow host scope to
+ * read it, so editors refresh it (RefreshDesignPartners) and accepting reads it again. */
+export const designPartners = sqliteTable("planning_design_partners", {
+  installationId: text().notNull(),
+  organizationId: text().notNull(),
+  /** The partner's Organization node title in this graph. */
+  name: text().notNull(),
+  refreshedAt: integer().notNull(),
+}, (t) => [primaryKey({ columns: [t.installationId, t.organizationId] })]);
+/** A design partner's feature or bug request, filed from its own organization. It
+ * stays here until an editor accepts it (Foundry's RequestChanges files it) or
+ * rejects it. */
+export const partnerRequests = sqliteTable("planning_partner_requests", {
+  id: text().primaryKey(),
+  installationId: text().notNull(),
+  partnerOrganizationId: text().notNull(),
+  /** The partner's own ID for the request; a replay with it returns this row. */
+  requestId: text().notNull(),
+  /** Who filed it: the partner member and the verified actor, as JSON. */
+  submitter: text().notNull(),
+  /** kind, title, problem, acceptanceCriteria, bug and productId, as JSON. */
+  brief: text().notNull(),
+  status: text({ enum: ["proposed", "accepted", "rejected"] }).notNull().default("proposed"),
+  reason: text(),
+  /** Foundry's filed request once accepted { requestId, kind, issue, run }, as JSON. */
+  foundryRequest: text(),
+  decidedBy: text(),
+  ...audit(),
+}, (t) => [uniqueIndex("planning_partner_requests_request").on(t.installationId, t.partnerOrganizationId, t.requestId)]);
+export type PartnerRequest = typeof partnerRequests.$inferSelect;

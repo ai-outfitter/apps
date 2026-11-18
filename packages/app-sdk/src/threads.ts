@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readJSON, respond } from "./server";
+import { entityRef } from "./entities";
 
 /** Shared threads: the public contract between apps and the platform's thread
  * service. The platform stores conversational threads, runs replies and owns
@@ -183,12 +184,16 @@ export const threadTypeDescriptor = z.strictObject({
   kind: z.enum(["conversation", "history"]),
   operations: z.array(z.enum(threadOperationNames)).min(1).max(threadOperationNames.length),
   contexts: z.array(threadTypeName).max(32).optional(),
+  /** Opt-in entry point for the owner's private app agent. Discovery grants no authority. */
+  agent: z.strictObject({ context: threadContext }).optional(),
   parts: z.array(threadTypeName).max(64).optional(),
   notify: z.array(z.enum(["deleted"])).max(1).optional(),
   /** Optional app-owned schemas of this type's contexts, `data` parts and metadata. */
   schemas: z.array(threadSchemaDescriptor).max(32).optional(),
 }).refine((value) => value.kind === "conversation" || value.operations.every((operation) => (historyOperations as readonly string[]).includes(operation)),
   "History types are read-only: list, get and entries only")
+  .refine((value) => !value.agent || (value.kind === "conversation" && value.operations.includes("create") && value.operations.includes("send") && value.contexts?.includes(value.agent.context.type)),
+    "An agent needs a writable conversation and a declared context")
   .refine((value) => JSON.stringify(value.schemas ?? []).length <= threadSchemasBytes, `A type's schemas are at most ${threadSchemasBytes} bytes`)
   .refine((value) => new Set((value.schemas ?? []).map((schema) => `${schema.kind}:${schema.name}:${schema.version}`)).size === (value.schemas ?? []).length,
     "Each schema name and version is published once per kind")
@@ -356,6 +361,11 @@ export const toolDescriptor = z.strictObject({
 });
 /** What a saved entry keeps of a `store: false` tool result. */
 export const omittedToolOutput = { omitted: true } as const;
+/** An authorized entity snapshot reloaded at this exact revision for every reply.
+ * A reference supplies context only; it never claims coverage of thread messages. */
+export const threadContextSource = entityRef.extend({ revision: z.number().int().positive() });
+export type ThreadContextSource = z.infer<typeof threadContextSource>;
+
 export const providerCallbacks = {
   types: { input: z.strictObject({}), output: z.array(threadTypeDescriptor).max(32) },
   prepare: {
@@ -370,7 +380,11 @@ export const providerCallbacks = {
          * this many tokens. Past it, the platform folds the oldest turns into a new checkpoint (down to
          * half), so the prompt only grows at its end between compactions and stays prefix-cacheable.
          * For threads that never end, such as an owner's sidebar thread. */
-        z.strictObject({ budget: z.number().int().min(4_000).max(400_000) }),
+        z.strictObject({ budget: z.number().int().min(4_000).max(400_000),
+          /** Transient, attributed context. Platform reauthorizes and pins revisions every reply;
+           * these sources never replace transcript entries or enter compaction summaries. */
+          sources: z.array(threadContextSource).max(4).optional(),
+        }),
       ]).optional(),
       tools: z.array(toolDescriptor).max(64).default([]),
       maxSteps: z.number().int().min(1).max(16).default(4),

@@ -1,27 +1,16 @@
 import { defineEntity, type EntityProvider, type EntityRef } from "@ai-outfitter/app-sdk/entities";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { and, asc, desc, eq, or, sql, type AnyColumn } from "drizzle-orm";
+import { pageCondition } from "@ai-outfitter/app-sdk/entity-query";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { projects, issues, type Project, type Issue } from "./schema";
+import { priorityOrder, projects, issues, type Project, type Issue } from "./schema";
 import { projectFields, issueFields } from "./fields";
 import { createProject, updateProject, createIssue, updateIssue, type PlanningDatabase } from "./planning";
 
-export const projectSearchQuery = z.string().trim().max(256).default("").describe("Case-insensitive literal substring across project name, goals, user stories, repository, press release and demo data. An empty query returns all projects. No query syntax or wildcards.");
-const projectFilter = z.strictObject({ name: z.string().trim().min(1).max(160).optional(), query: projectSearchQuery.optional() });
-
-export function projectSearch(query?: string) {
-  if (!query) return undefined;
-  // Bound values, not SQL fragments. instr treats %, _ and quotes literally.
-  return or(...[projects.id, projects.name, projects.githubRepository, projects.goals, projects.userStories, projects.pressRelease, projects.demoInstructions, projects.demoResults]
-    .map(column => sql`instr(lower(${column}), lower(${query})) > 0`));
-}
+const projectFilter = z.strictObject({ name: z.string().trim().min(1).max(160).optional() });
+/** The project columns entity search matches: its name, goals, user stories, repository, press release and demo. */
+const projectSearchColumns = [projects.name, projects.githubRepository, projects.goals, projects.userStories, projects.pressRelease, projects.demoInstructions, projects.demoResults];
 const issueFilter = z.strictObject({ projectId: z.uuid().optional(), status: z.enum(["todo", "in-progress", "done"]).optional(), category: z.enum(["stone", "pebble", "sand"]).optional() });
-
-function issueOrder(order?: { field: string; direction: "asc" | "desc" }) {
-  const columns: Record<string, AnyColumn> = { id: issues.id, title: issues.title, position: issues.position };
-  const column = columns[order?.field ?? "id"] ?? issues.id;
-  return order?.direction === "desc" ? desc(column) : asc(column);
-}
 
 export function planningEntities(db: PlanningDatabase, memberIds: () => string[] = () => []): EntityProvider[] {
   const project = async (who: AppIdentity, id: string) => {
@@ -41,11 +30,48 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   const noReferences = (references: EntityRef[]) => {
     if (references.length) throw new Response("Project references are not supported", { status: 400 });
   };
-  return [defineEntity<Project, typeof projectFields, typeof projectFilter>({
+  const portfolioSchema = z.strictObject({ kind: z.enum(["organizations", "projects"]), items: z.array(z.string()).max(500) });
+  const portfolioKinds = ["portfolio-organizations", "portfolio-projects"] as const;
+  const personalOnly = (who: AppIdentity) => {
+    if (who.owner.kind !== "user" || who.organizationId) throw new Response("Personal portfolio only", { status: 403 });
+  };
+  /** The saved portfolio orders of these kinds, by kind: the database matches the kinds (planning_priority_order_scope). */
+  const portfolio = async (who: AppIdentity, kinds: readonly (typeof portfolioKinds)[number][] = portfolioKinds) => {
+    personalOnly(who);
+    const rows = await db.select().from(priorityOrder)
+      .where(and(eq(priorityOrder.installationId, who.installationId), inArray(priorityOrder.kind, [...kinds]))).orderBy(asc(priorityOrder.kind));
+    return rows.map(row => ({
+      id: row.kind.slice("portfolio-".length), revision: row.revision,
+      kind: row.kind.slice("portfolio-".length) as "organizations" | "projects", items: z.array(z.string()).parse(JSON.parse(row.items)),
+    }));
+  };
+  return [defineEntity<{ id: string; revision: number } & z.infer<typeof portfolioSchema>, typeof portfolioSchema>({
+    type: "portfolio-priority", collection: "portfolio-priorities", title: "Personal portfolio priority",
+    description: "Read-only saved personal organization or project ordering. References do not grant access; resolve them against current authorized records. Change through ReorderPersonalPortfolio.",
+    schema: portfolioSchema, name: row => row.kind,
+    // Entity catalog enumeration is shared with organization projects. A
+    // personal-only collection is empty there, while direct reads still refuse.
+    list: async (who, query) => {
+      if (who.owner.kind !== "user" || who.organizationId) return [];
+      const rows = (await portfolio(who)).filter(row => !query.ids || query.ids.includes(row.id)).sort((a, b) => (a.id < b.id ? -1 : 1) * (query.order.direction === "desc" ? -1 : 1));
+      const after = query.after;
+      return rows.filter(row => !after || (query.order.direction === "desc" ? row.id < after.id : row.id > after.id)).slice(0, query.limit);
+    },
+    get: async (who, id) => {
+      personalOnly(who);
+      const kind = portfolioKinds.find(item => item === `portfolio-${id}`);
+      const [row] = kind ? await portfolio(who, [kind]) : [];
+      if (!row) throw new Response("Priority not saved", { status: 404 });
+      return row;
+    },
+  }), defineEntity<Project, typeof projectFields, typeof projectFilter>({
     type: "project", title: "Planning project", description: "The canonical project record: goals, user stories, repository and acceptance documents. Wiki pages reference this record.",
     schema: projectFields, collection: "projects", filterSchema: projectFilter,
-    orderFields: ["id", "name"], selectFields: ["id", ...Object.keys(projectFields.shape)], name: row => row.name,
-    list: (who, offset, limit, filter, order) => db.select().from(projects).where(and(eq(projects.installationId, who.installationId),eq(projects.archived,false), filter?.name === undefined ? undefined : eq(projects.name, filter.name), projectSearch(filter?.query))).orderBy(order?.field === "name" ? (order.direction === "desc" ? desc(projects.name) : asc(projects.name)) : order?.direction === "desc" ? desc(projects.id) : asc(projects.id), asc(projects.id)).offset(offset).limit(limit),
+    orderFields: ["id", "name"], selectFields: ["id", ...Object.keys(projectFields.shape)], searchFields: ["name", "githubRepository", "goals", "userStories", "pressRelease", "demoInstructions", "demoResults"], name: row => row.name,
+    list: (who, query) => {
+      const page = pageCondition(query, { id: projects.id, order: { name: projects.name }, search: projectSearchColumns });
+      return db.select().from(projects).where(and(eq(projects.installationId, who.installationId), eq(projects.archived, false), query.filter?.name === undefined ? undefined : eq(projects.name, query.filter.name), page.where)).orderBy(...page.orderBy).limit(query.limit);
+    },
     get: project,
     create: (who, fields, references) => {
       noReferences(references);
@@ -58,10 +84,14 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
   }), defineEntity<Issue, typeof issueFields, typeof issueFilter>({
     type: "issue", title: "Planning issue", description: "Work in a Planning project. Include its project reference. Assignments require a current member of the owning organization.",
     schema: issueFields, collection: "issues", filterSchema: issueFilter,
-    orderFields: ["id", "title", "position"], selectFields: ["id", "position", ...Object.keys(issueFields.shape)], name: row => row.title,
+    orderFields: ["id", "position"], selectFields: ["id", "position", ...Object.keys(issueFields.shape)], searchFields: ["title", "description"], name: row => row.title,
     outputAttributes: row => ({ position: row.position }),
     references: (row, who) => [{ installationId: who.installationId, type: "project", id: row.projectId }],
-    list: (who, offset, limit, filter, order) => db.select().from(issues).where(and(eq(issues.installationId, who.installationId), filter?.projectId === undefined ? undefined : eq(issues.projectId, filter.projectId), filter?.status === undefined ? undefined : eq(issues.status, filter.status), filter?.category === undefined ? undefined : eq(issues.category, filter.category))).orderBy(issueOrder(order), asc(issues.id)).offset(offset).limit(limit),
+    list: (who, query) => {
+      const { filter } = query;
+      const page = pageCondition(query, { id: issues.id, order: { position: issues.position }, search: [issues.title, issues.description] });
+      return db.select().from(issues).where(and(eq(issues.installationId, who.installationId), filter?.projectId === undefined ? undefined : eq(issues.projectId, filter.projectId), filter?.status === undefined ? undefined : eq(issues.status, filter.status), filter?.category === undefined ? undefined : eq(issues.category, filter.category), page.where)).orderBy(...page.orderBy).limit(query.limit);
+    },
     get: issue,
     create: async (who, input, refs) => {
       checkIssueReference(who, input.projectId, refs);
@@ -74,4 +104,9 @@ export function planningEntities(db: PlanningDatabase, memberIds: () => string[]
       return updateIssue(db, who, current.id, { ...input, revision }, input.assigneeId ? memberIds() : []);
     },
   })];
+}
+
+/** Domain callers select providers by type; catalog order can grow independently. */
+export function planningEntity(db: PlanningDatabase, type: "project" | "issue") {
+  return planningEntities(db).find(provider => provider.type === type)!;
 }

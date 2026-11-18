@@ -1,0 +1,12 @@
+---
+import type { ReportSource } from "../server/day-review";
+interface Props { report: ReportSource }
+const { report } = Astro.props;
+---
+<section class="paper day-source" aria-label={`${report.name} daily report`}>
+  <header><h3>{report.name}</h3><span class="day-source-status">{report.status === "complete" ? "Sources captured" : report.status === "incomplete" ? "Incomplete sources" : report.status === "missing" ? "Not saved" : "Unavailable"}</span></header>
+  <p>{report.summary}</p>
+  {report.work.length > 0 && <ul class="day-work">{report.work.map(work => <li><span class="muted">{work.kind}</span><a href={work.url} target="_blank" rel="noopener noreferrer">{work.title}</a></li>)}</ul>}
+  {report.more && <p class="muted">This preview is bounded. Open the saved report for coverage details and source links.</p>}
+  {report.href && <a href={report.href}>Read saved report</a>}
+</section>

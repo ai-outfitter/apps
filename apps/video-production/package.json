@@ -1,0 +1,49 @@
+{
+  "name": "@ai-outfitter/app-video-production",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": "./app.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "outfitter-app-build",
+    "check": "astro check",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "build:demo": "outfitter-app-build --mode demo",
+    "build:operational": "outfitter-app-build --mode operational",
+    "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
+  },
+  "dependencies": {
+    "@ai-outfitter/app-sdk": "*",
+    "@ai-outfitter/server": "*",
+    "@ai-outfitter/ui": "*",
+    "@astrojs/cloudflare": "^14.3.3",
+    "astro": "^7.3.5",
+    "graphql": "^16.11.0",
+    "zod": "^4.6.5",
+    "@astrojs/react": "^7.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@ai-outfitter/app-build": "*",
+    "@ai-outfitter/app-test": "*",
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@vercel/agent-eval": "2.6.0",
+    "miniflare": "5.20260926.0-alpha",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "2.1.9"
+  },
+  "outfitter": {
+    "kind": "app",
+    "browserTests": true
+  }
+}

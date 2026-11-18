@@ -5,9 +5,8 @@ import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { readProjectWikiBody } from "../src/server/project-wiki-body";
 import { projectReleasesFixture, releaseId, releaseProviders } from "./fixtures/project-releases";
 
-function fixture(refusal?: number) {
+function fixture(refusal?: number, graph = projectReleasesFixture()) {
   const calls: { operation: string; input: Record<string, unknown> }[] = [];
-  const graph = projectReleasesFixture();
   const host = {
     async call(operation: string, input: Record<string, unknown>) {
       calls.push({ operation, input });
@@ -42,3 +41,13 @@ for (const status of [403, 503, 413])
     assert.equal(await readProjectWikiBody(host, "planning", releaseId(9)), null);
     assert.equal(calls.some(call => call.input.action === "graph.read"), false);
   });
+
+
+test("a bounded project body with no release or evidence records retains its project context", async () => {
+  const graph = projectReleasesFixture();
+  graph.nodes = [graph.nodes[0]];
+  graph.edges = [];
+  const { host } = fixture(undefined, graph);
+  const body = await readProjectWikiBody(host, "planning", releaseId(9));
+  assert.deepEqual(body, { goals: [], useCases: [], stories: [], release: null, documents: [] });
+});

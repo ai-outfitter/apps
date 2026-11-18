@@ -31,7 +31,6 @@
   color: var(--muted);
 }
 .ui-section,
-.ui-content section,
 .ui-content .paper {
   background: var(--surface);
   padding: 24px;
@@ -180,7 +179,8 @@
   color: var(--text);
 }
 @media (max-width: 640px) {
-  .ui-content section {
+  .ui-section,
+  .ui-content .paper {
     padding: 20px 16px;
   }
 }

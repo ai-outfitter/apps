@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   mountThreadPath, parseThreadParts, parseThreadRefKey, stableThreadId, threadClient, threadOperations, threadProvider,
-  threadRefKey, threadTypeDescriptor,
+  threadRefKey, threadTypeDescriptor, providerCallbacks,
 } from "../src/threads";
 import { operations, operationAllowed } from "../src/workflow-host";
 
@@ -104,4 +104,14 @@ test("schema descriptors are namespaced, versioned, bounded and travel in thread
   assert.equal(partSchema(out[0].schemas, "acme.card", 1)?.version, 1);
   assert.equal(partSchema(out[0].schemas, "acme.card")?.version, 3, "newest when the part names no known version");
   assert.equal(partSchema(out[0].schemas, "acme.none"), undefined);
+});
+
+
+test("budget history accepts bounded revision-pinned context sources without transcript coverage claims",()=>{
+  const source={installationId:"wiki",type:"document",id:"daily-note",revision:2};
+  const parsed=providerCallbacks.prepare.output.parse({history:{budget:4000,sources:[source]}});
+  assert.deepEqual(parsed.history,{budget:4000,sources:[source]});
+  assert.equal(providerCallbacks.prepare.output.safeParse({history:{budget:4000,sources:[{...source,revision:0}]}}).success,false);
+  assert.equal(providerCallbacks.prepare.output.safeParse({history:{budget:4000,sources:Array(5).fill(source)}}).success,false);
+  assert.equal(providerCallbacks.prepare.output.safeParse({history:{budget:4000,sources:[{...source,throughEntryId:"unverified-cutoff"}]}}).success,false);
 });

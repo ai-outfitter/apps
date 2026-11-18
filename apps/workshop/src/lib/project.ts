@@ -1,8 +1,12 @@
+import {handoff,pinned} from '@ai-outfitter/creative-workflow';
+import {artifactRef} from '@ai-outfitter/app-sdk/evidence';
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { CadPlanSchema, planBounds } from "../model/cad-plan";
 import { AssemblySchema } from "./assembly";
+import { PcbSnapshotSchema } from "./pcb-snapshot";
+import { WorkspaceSchema } from "./workspace";
 import { sensorNodeAssembly } from "./sensor-node";
 export const ParamsSchema = z
   .object({
@@ -68,6 +72,7 @@ const PHASE_IDS = PHASES.map((p) => p.id) as [Phase, ...Phase[]];
 export const ProjectSchema = z
   .object({
     schemaVersion: z.literal(1),
+    creativeHandoffs:z.array(z.object({id:z.uuid(),request:handoff,candidate:pinned,artifact:artifactRef,state:z.enum(["requested","result-recorded"]),result:pinned.optional()}).strict()).max(100).optional(),
     id: z.uuid(),
     revision: z.number().int().nonnegative(),
     createdAt: z.iso.datetime(),
@@ -91,6 +96,8 @@ export const ProjectSchema = z
       .strict()
       .optional(),
     cadPlan: CadPlanSchema.optional(),
+    workspace: WorkspaceSchema.optional(),
+    pcbSnapshots: z.array(PcbSnapshotSchema).max(30).optional(),
     measurementNotes: text,
     circuitNotes: text,
     research: z
@@ -186,7 +193,7 @@ export const ProjectSchema = z
     );
   }, "CAD plan and dimensions must agree")
   .refine(
-    (p) => new TextEncoder().encode(JSON.stringify(p)).length <= 1_500_000,
+    (p) => new TextEncoder().encode(JSON.stringify(p)).length <= 1_900_000,
     "Project exceeds the draft storage limit; shorten notes or remove unused parts/candidates.",
   );
 export type Project = z.infer<typeof ProjectSchema>;

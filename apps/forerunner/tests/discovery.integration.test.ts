@@ -18,7 +18,7 @@ import {
   sourceSample,
 } from "../src/server/discovery";
 
-const defaults = ["Person", "Organization", "Product", "Activity", "Asset", "FinancialObligation", "Goal", "Problem", "participates_in", "owns", "has_obligation", "secured_by", "interacts_with", "uses", "Question", "about"].map((name, i) => ({ id: `10000000-0000-4000-8000-${String(i+1).padStart(12,"0")}`, name, category: i < 8 || name === "Question" ? "node" : "edge", body: name === "Person" ? "A human." : `An identifiable ${name}.` }));
+const defaults = ["Person", "Organization", "Product", "Activity", "Asset", "FinancialObligation", "Goal", "Problem", "participates_in", "owns", "has_obligation", "secured_by", "interacts_with", "uses"].map((name, i) => ({ id: `10000000-0000-4000-8000-${String(i+1).padStart(12,"0")}`, name, category: i < 8 ? "node" : "edge", body: name === "Person" ? "A human." : `An identifiable ${name}.` }));
 const semantic = { entities: [{ key: "bob", name: "Bob", type: "Person", summary: "Named participant in the draft review.", existingId: null, certainty: "mentioned", evidence: ["e0"] }], relationships: [] };
 const who: AppIdentity = {
   installationId: "forerunner",

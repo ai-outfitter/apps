@@ -95,14 +95,12 @@ onPageLoad((signal) => {
   };
   void (async () => {
     try {
-      const [{ items }, { entities }, { suggestions }] = await Promise.all([
+      const [{ items }, { suggestions }] = await Promise.all([
         read<{ items: BoardItem[] }>("items"),
-        read<{ entities: { status: string }[] }>("discovery/entities").catch(() => ({ entities: [] })),
         read<{ suggestions: unknown[] }>("workflows").catch(() => ({ suggestions: [] })),
       ]);
-      const waiting = entities.filter((entity) => entity.status === "pending").length;
       const today = now.toLocaleDateString("en-CA");
-      const blocks = blocksFromBoard(items, waiting, today, suggestions.length);
+      const blocks = blocksFromBoard(items, today, suggestions.length);
       renderTimeline(container, blocks, root);
       if (empty) empty.hidden = blocks.length > 0;
     } catch (e) {

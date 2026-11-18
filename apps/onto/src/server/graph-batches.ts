@@ -18,6 +18,10 @@ import {
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
+import { personalRoot } from "./owner-root";
+import { wikiHome } from "./wiki-home";
+import { requireAnsweredCitations } from "./batch-questions";
+import { readSettings } from "./settings";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -56,7 +60,7 @@ export const memberDecision = (who: AppIdentity, actor: AppActor, rest: Record<s
   kind: "member", by: who.userId, via: actorRef(actor), ...(actor.label ? { viaLabel: actor.label } : {}), ...rest,
 });
 
-async function loadBatch(db: Database, id: string) {
+export async function loadBatch(db: Database, id: string) {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, id));
   if (!batch) fail("Batch not found", 404);
   return batch;
@@ -92,7 +96,10 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
-  const anchors = input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
+  // Every batch is anchored to the root unless it names its own anchors; an empty list
+  // asks for no connectivity requirement.
+  const root = input.anchors === undefined ? await rootNode(db, who) : null;
+  const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
   await db.insert(graphBatches).values({
@@ -101,6 +108,15 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
     createdAt: now, updatedAt: now, expiresAt: now + batchExpiryMs,
   });
   return getBatch(db, who, { batchId: id });
+}
+
+/** The node this Onto belongs to: the Organization bound to an organization's Onto, or the
+ * owner's verified holder or canonical OutfitterUser account in a personal Onto. Null when none or
+ * more than one matches; an unbound Onto then has no default anchor. */
+export async function rootNode(db: Database, who: AppIdentity) {
+  if (who.owner.kind === "user")
+    return personalRoot(db, who);
+  return wikiHome(await readGraph(db, who), who).organizationId ?? null;
 }
 
 /** The saved nodes a batch's anchors name. */
@@ -117,6 +133,10 @@ async function anchorIds(db: Database, who: AppIdentity, anchors: string[]) {
 /** Every node the batch creates must reach an anchor along saved or staged edges, in
  * either direction and through any number of nodes. Returns the titles that do not. */
 function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
+  return looseRows(graph, rows, anchors).map((row) => String((row.operation as { attributes?: Record<string, unknown> }).attributes?.title ?? row.ref));
+}
+/** The created-node rows that reach no anchor. */
+function looseRows(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], anchors: string[]) {
   const index = addressIndex(graph);
   const op = (row: OperationRow) => row.operation as { type?: string; operation?: string; id?: string; attributes?: Record<string, unknown> };
   const idOf = (row: OperationRow) => {
@@ -143,8 +163,19 @@ function unanchored(graph: Awaited<ReturnType<typeof readGraph>>, rows: Operatio
   for (const edge of edges.values()) if (!edge.archived && !archived.has(edge.fromId) && !archived.has(edge.toId)) link(edge.fromId, edge.toId);
   const reached = new Set(anchors), queue = [...anchors];
   while (queue.length) for (const next of links.get(queue.pop()!) ?? []) if (!reached.has(next)) { reached.add(next); queue.push(next); }
-  return rows.filter((row) => ["pending", "awaiting_review"].includes(row.state) && op(row).type === "graph-node" && op(row).operation === "create" && !op(row).attributes?.archived && !reached.has(idOf(row)))
-    .map((row) => String(op(row).attributes?.title ?? row.ref));
+  return rows.filter((row) => ["pending", "awaiting_review"].includes(row.state) && op(row).type === "graph-node" && op(row).operation === "create" && !op(row).attributes?.archived && !reached.has(idOf(row)));
+}
+
+/** A policy commits only what stays traceable: a created node reaches an anchor through
+ * what is saved or commits with it, or it waits for a member with what depends on it. */
+function anchoredSelection(graph: Awaited<ReturnType<typeof readGraph>>, rows: OperationRow[], selected: Set<string>, anchors: string[] | null) {
+  if (!anchors?.length) return selected;
+  for (;;) {
+    const loose = looseRows(graph, rows.filter((row) => row.state === "committed" || selected.has(row.ref)), anchors);
+    if (!loose.length) return selected;
+    for (const row of loose) selected.delete(row.ref);
+    closeSelection(rows, selected);
+  }
 }
 
 /** First-run acceptance applies only before any policy batch of that source has committed;
@@ -161,7 +192,7 @@ async function requireFirstRun(db: Database, kind: string | undefined) {
  * changes only from the app that opened it, never from an agent or a member's session. The
  * platform verifies the actor; an app calling another app's actions is {kind:"app"} and carries
  * no entity writer unless it holds entities.write.delegated, which Forerunner does not. */
-function requireOpen(batch: BatchRow, actor: AppActor) {
+export function requireOpen(batch: BatchRow, actor: AppActor) {
   if (batch.state !== "open") fail("The batch is no longer open", 409);
   if (batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
   if ((batch.policy as { kind?: string }).kind !== "member" && (actor.kind !== "app" || batch.openedVia !== actorRef(actor)))
@@ -195,6 +226,7 @@ export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor
   if (input.proposals.some((item) => item.operation.type === "graph-type")) requireEditor(who);
   const batch = await loadBatch(db, input.batchId);
   requireOpen(batch, actor);
+  await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
   const added = newRows(batch.id, existing, input.proposals, input.replace);
   const liveRefs = new Set(live(existing).map((row) => row.ref));
@@ -322,7 +354,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       evidence: Object.fromEntries(chunk.map((row) => [row.ref, row.evidence])),
       precondition: reviewedRowsUnchanged(batch, chunk),
       finalize: (saved, gate) => [
-        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "policy" ? null : who.userId}
+        ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "member" ? who.userId : null}
           WHERE batchId=${batch.id} AND ref=${row.ref} AND ${gate}`),
         sql`UPDATE graph_batches SET commits=commits+1,updatedAt=${Date.now()} WHERE id=${batch.id} AND ${gate}`,
       ],
@@ -387,29 +419,42 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   if (rows.length) {
     const validation = await validateBatch(db, who, { batchId: batch.id });
     if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
-    const loose = batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
+    // A member batch must connect before submit; a policy batch leaves what does not for a member.
+    const loose = policy.kind === "member" && batch.anchors?.length ? unanchored(graph, rows, batch.anchors) : [];
     if (loose.length) fail(`Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}`, 409);
   }
   const now = Date.now();
-  const jobId = crypto.randomUUID();
   const contentDigest = await batchContentDigest(rows);
+  // The draft's own review carries over when nothing changed since it was queued.
+  const [draft] = batch.reviewJobId ? await db.select().from(ontoReviewJobs).where(eq(ontoReviewJobs.id, batch.reviewJobId)) : [];
+  const reused = draft && draft.contentDigest === contentDigest && ["pending", "running", "complete"].includes(draft.state) ? draft.id : null;
+  const jobId = reused ?? crypto.randomUUID();
   // D1 batch executes these statements atomically: no submitted batch can lose its review work.
   await db.batch([
     db.update(graphBatchOperations).set({ state: "awaiting_review" })
       .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
-    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId })
+    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId, ...(reused ? {} : { review: null }) })
       .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
-    db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
+    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now })]),
   ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run")
-    await commitByPolicy(db, who, submitted, waiting, new Set(waiting.map((row) => row.ref)), policyApproval(policy, "first-run"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"));
   else if (policy.kind === "confidence") {
     const confident = new Set(waiting.filter((row) => (row.confidence ?? 0) >= policy.threshold).map((row) => row.ref));
-    await commitByPolicy(db, who, submitted, waiting, closeSelection(waiting, confident), policyApproval(policy, "confidence"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
   }
   await settle(db, batch.id);
+  // A draft review that carried over and has finished (read after the submit, so one that
+  // finished meanwhile counts): the steward decides now. One still running decides when it ends.
+  if (reused) {
+    const [[job], [fresh]] = await Promise.all([
+      db.select({ state: ontoReviewJobs.state }).from(ontoReviewJobs).where(eq(ontoReviewJobs.id, jobId)),
+      db.select({ review: graphBatches.review }).from(graphBatches).where(eq(graphBatches.id, batch.id)),
+    ]);
+    if (job?.state === "complete" && fresh?.review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, fresh.review);
+  }
   return getBatch(db, who, { batchId: batch.id });
 }
 
@@ -438,7 +483,8 @@ async function validateRows(db: Database, who: AppIdentity, batch: BatchRow, row
     // The whole batch at once, so refs from earlier add calls resolve. Validation
     // writes nothing, so the 100-operation limit of a single apply does not apply.
     await inspectGraphChanges(db, who, { requestKey: `validate:${batch.id}`, operations });
-    const loose = batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
+    // Policy batches may hold loose records: they wait for a member instead of committing.
+    const loose = batchPolicy.parse(batch.policy).kind === "member" && batch.anchors?.length ? unanchored(await readGraph(db, who), rows.filter(row => row.state !== "rejected"), batch.anchors) : [];
     return { valid: loose.length === 0, error: loose.length ? `Connect these to an anchor before submitting: ${loose.slice(0, 20).join(", ")}` : null, operations: operations.length };
   } catch (error) {
     if (!(error instanceof Response) || error.status >= 500) throw error;
@@ -461,6 +507,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   if (batch.policy.kind !== "member" || !["open", "awaiting_review"].includes(batch.state))
     fail("Only an open or submitted member-review batch can be amended", 409);
   if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
+  await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
   const byRef = new Map(existing.map(row => [row.ref, row]));
   const undecided = (row: OperationRow) => ["pending", "awaiting_review", "removed"].includes(row.state);
@@ -513,7 +560,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
   if (batch.state === "awaiting_review") {
     const summary = { ...summarize(rows, new Map(graph.types.map(type => [type.id, type.name]))), text: batch.summary ? JSON.parse(batch.summary).text ?? null : null };
     statements.push(sql`UPDATE graph_batches SET summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
-    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now})`);
+    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now},${crypto.randomUUID()})`);
   } else statements.push(sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`);
   statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`);
   await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before amending");
@@ -541,6 +588,71 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
+}
+
+/** What the steward's approval needs from its review. */
+type StewardReview = {
+  complete: boolean; runId: string | null; prompt: { digest: string };
+  findings: { ref: string | null; refs?: string[]; severity: string; rule: string }[];
+};
+/** What the steward decided after its review: how many operations it approved, and the
+ * refs it left for a member with why. Saved on the review. */
+export type StewardDecision = { approved: number; held: { ref: string; reason: string }[]; at: number };
+
+/** The ontology steward approves what its own review found clean (docs/batch-review.md,
+ * "Steward approval"). A finding of `error` or `warning` severity, a question on the batch,
+ * or anything depending on them waits for a member; so does every operation when the review
+ * failed, read the batch only in part, or flagged the batch as a whole. A batch-level
+ * finding or a question without refs holds everything. Approval is recorded as the
+ * steward's decision citing its review run, never as a member's. */
+export async function stewardApprove(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview): Promise<StewardDecision | null> {
+  const batch = await loadBatch(db, batchId);
+  if (batch.state !== "awaiting_review" || batch.reviewJobId !== jobId) return null;
+  const rows = live(await loadOperations(db, batch.id));
+  const waiting = rows.filter((row) => row.state === "awaiting_review");
+  if (!waiting.length) return null;
+  // The first reason that holds an operation is the one a member sees.
+  const reasons = new Map<string, string>();
+  const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
+  const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
+  if (!review.complete) holdAll("the review read only part of the batch");
+  for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
+    const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];
+    if (!refs.length) holdAll(`${item.rule} on the whole batch`);
+    for (const ref of refs) hold(ref, item.rule);
+  }
+  // An answered question no longer holds anything: the member has settled it.
+  for (const question of (batch.questions ?? []).filter((item) => !item.answer)) {
+    if (!question.refs.length) holdAll(`question ${question.key}`);
+    for (const ref of question.refs) hold(ref, `question ${question.key}`);
+  }
+  const flagged = new Set(waiting.filter((row) => reasons.has(row.ref)).map((row) => row.ref));
+  for (const ref of withDependents(rows, waiting, flagged)) hold(ref, "depends on a held proposal");
+  const graph = await readGraph(db, who);
+  const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
+  const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
+  for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
+  const at = Date.now();
+  const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
+  await commitByPolicy(db, who, batch, rows, chosen, approval);
+  await settle(db, batch.id);
+  // Report what actually happened: a part that no longer applied, or that a member decided
+  // meanwhile, is not counted as the steward's.
+  const after = new Map(live(await loadOperations(db, batch.id)).map((row) => [row.ref, row]));
+  const approved = waiting.filter((row) => after.get(row.ref)?.state === "committed" && (JSON.parse(after.get(row.ref)?.decision ?? "null") as { kind?: string } | null)?.kind === "steward").length;
+  const held = waiting.filter((row) => after.get(row.ref)?.state === "awaiting_review")
+    .map((row) => ({ ref: row.ref, reason: reasons.get(row.ref) ?? "the approved part would not apply" }));
+  return { approved, held, at };
+}
+
+/** Run the steward's approval for a finished (complete-state) review and save its decision on that review. */
+export async function approveAfterReview(db: Database, who: AppIdentity, batchId: string, jobId: string, review: StewardReview) {
+  // An admin can keep every decision with members (Settings, "After the steward reviews").
+  if ((await readSettings(db)).stewardApproval !== "approve") return null;
+  const decision = await stewardApprove(db, who, batchId, jobId, review);
+  if (decision) await db.update(graphBatches).set({ review: { ...review, decision } as never })
+    .where(and(eq(graphBatches.id, batchId), eq(graphBatches.reviewJobId, jobId)));
+  return decision;
 }
 
 /** Rejecting an operation rejects the waiting operations that depend on it. */
@@ -604,7 +716,7 @@ function batchView(batch: BatchRow) {
     state: batch.state, summary: batch.summary ? JSON.parse(batch.summary) : null,
     openedBy: batch.openedBy, openedVia: batch.openedVia, reviewBy: batch.reviewBy,
     createdAt: batch.createdAt, updatedAt: batch.updatedAt, expiresAt: batch.expiresAt, closedAt: batch.closedAt,
-    review: batch.review ?? null, anchors: batch.anchors ?? null,
+    review: batch.review ?? null, anchors: batch.anchors ?? null, questions: batch.questions ?? [],
   };
 }
 
@@ -654,4 +766,12 @@ export async function recordHistory(db: Database, _who: AppIdentity, input: z.in
     /** Revisions before batches were installed have no history row. */
     complete: rows.length > 0 && rows[rows.length - 1].prior === null,
   };
+}
+
+/** The steward's review of a batch while it is queued or running: the reserved workflow run
+ * an agent can wait on, and the job's state. Null once the review has finished. */
+export async function pendingReview(db: Database, batchId: string) {
+  const [row] = await db.select({ id: ontoReviewJobs.id, state: ontoReviewJobs.state, runId: ontoReviewJobs.runId })
+    .from(graphBatches).innerJoin(ontoReviewJobs, eq(ontoReviewJobs.id, graphBatches.reviewJobId)).where(eq(graphBatches.id, batchId));
+  return row && (row.state === "pending" || row.state === "running") && row.runId ? { runId: row.runId, state: row.state } : null;
 }

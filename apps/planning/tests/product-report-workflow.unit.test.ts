@@ -38,3 +38,11 @@ test("roadmap execution and scheduling require editor authority before dispatch"
   assert.equal(calls[1].name, "task.start");
   assert.equal((calls[1].input as {task: string}).task, productReportWorkflow);
 });
+
+
+test("the existing weekly task preserves an explicit historical calendar selection",async()=>{
+ const {host,calls,identity}=fixture();
+ await startProductReport(host,identity,{at:"2026-11-05"});
+ assert.deepEqual((calls[0].input as {inputs:unknown}).inputs,{at:"2026-11-05"});
+ await assert.rejects(startProductReport(host,identity,{at:"2026-02-30"}));
+});

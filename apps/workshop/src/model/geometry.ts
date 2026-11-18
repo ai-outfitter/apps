@@ -1,8 +1,25 @@
-import { makeBox, makeCylinder, measureVolume } from "replicad";
+import { draw, Plane, Solid, makeBox, makeCylinder, measureVolume } from "replicad";
 import { type Params, ParamsSchema } from "../lib/project";
-import { type CadPlan, CadPlanSchema, planBounds } from "./cad-plan";
+import { type CadPlan, CadPlanSchema, AssemblyCadPlanSchema, planBounds } from "./cad-plan";
 
 function featureSolid(feature: CadPlan["features"][number]) {
+  if (feature.kind === "extrusion") {
+    const normal: [number,number,number] = feature.axis==="x" ? [1,0,0] : feature.axis==="y" ? [0,1,0] : [0,0,1];
+    const direction: [number,number,number] = feature.axis==="x" ? [0,1,0] : feature.axis==="y" ? [0,0,1] : [1,0,0];
+    const pen=draw(feature.points[0]);
+    for(const point of feature.points.slice(1)) pen.lineTo(point);
+    const plane=new Plane(feature.base,direction,normal);
+    try {
+      const solid=pen.close().sketchOnPlane(plane).extrude(feature.height);
+      if (!(solid instanceof Solid)) {
+        solid.delete();
+        throw new Error("Profile extrusion did not produce a solid");
+      }
+      return solid;
+    } finally {
+      plane.delete();
+    }
+  }
   if (feature.kind === "box")
     return makeBox(feature.origin, [
       feature.origin[0] + feature.size[0],
@@ -38,7 +55,7 @@ function applyFeature(
 
 /** One solid from a CAD plan alone, as an assembly item stores it. */
 export function buildPlannedModel(planInput: CadPlan) {
-  const plan = CadPlanSchema.parse(planInput);
+  const plan = AssemblyCadPlanSchema.parse(planInput);
   let solid: ReturnType<typeof makeBox> | undefined;
   try {
     for (const [index, feature] of plan.features.entries()) {

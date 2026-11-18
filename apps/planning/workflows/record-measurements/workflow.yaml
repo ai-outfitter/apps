@@ -1,0 +1,39 @@
+version: beta
+id: record-measurements
+summary: Record each Measure's KPI value for the current week or day from the organization's connectors (PostHog, GitHub), one Measurement per window in the Wiki.
+actors: {}
+triggers:
+  - on: manual
+  # An editor saves this schedule; it then runs as them every Monday morning.
+  - on: schedule
+    cron: "0 6 * * 1"
+steps:
+  # No actor fills this step: Planning does, through the workflow host. It
+  # reads every Measure in the Wiki, runs its read-only connector operation for
+  # the current window through the organization's connection, and stages one
+  # Measurement per Measure, linked measurement_of its MetricDefinition and
+  # captured_with the Measure, in one change batch that commits by policy.
+  - id: record
+    outputs:
+      recorded:
+        connector: database
+        record: measurements.recorded
+        schema:
+          type: object
+          properties:
+            measures:
+              type: integer
+              minimum: 0
+              description: Measures in the Wiki with a complete definition
+            recorded:
+              type: integer
+              minimum: 0
+              description: Measurements staged for this window
+            skipped:
+              type: integer
+              minimum: 0
+              description: Measures whose window was already recorded
+          required: [measures, recorded, skipped]
+          additionalProperties: false
+outputs:
+  recorded: record.outputs.recorded

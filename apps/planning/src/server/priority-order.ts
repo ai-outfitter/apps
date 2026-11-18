@@ -6,14 +6,12 @@ import { priorityOrder } from "./schema";
 
 export const orderInput = z.strictObject({kind:z.enum(["projects","products"]), items:z.array(z.uuid()).max(500), revision:z.number().int().nonnegative()});
 export async function readOrder(db:PlanningDatabase, identity:AppIdentity, kind:"projects"|"products") {
-  if (!identity.organizationId) throw new Response("An organization scope is required",{status:400});
   const [row]=await db.select().from(priorityOrder).where(and(eq(priorityOrder.installationId,identity.installationId),eq(priorityOrder.kind,kind)));
   return {items:row ? JSON.parse(row.items) as string[] : [], revision:row?.revision ?? 0};
 }
 export async function saveOrder(db:PlanningDatabase, identity:AppIdentity, raw:unknown, allowed:readonly string[]) {
   requireEditor(identity);
   const input=orderInput.parse(raw);
-  if(!identity.organizationId) throw new Response("An organization scope is required",{status:400});
   if(new Set(input.items).size!==input.items.length || input.items.some(id=>!allowed.includes(id)) || input.items.length!==allowed.length) throw new Response("Reload the complete list before reordering",{status:409});
   const key=and(eq(priorityOrder.installationId,identity.installationId),eq(priorityOrder.kind,input.kind));
   if(input.revision===0) {

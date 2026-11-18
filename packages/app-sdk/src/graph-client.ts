@@ -11,6 +11,7 @@ import {
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord, EntityRef } from "@ai-outfitter/app-sdk/entities";
 import { discoverEntityTypes } from "@ai-outfitter/app-sdk/entity-discovery";
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { wikiGraphRecords } from "@ai-outfitter/app-sdk/graph-records";
 import { type graphQueryInput, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
 import {
@@ -117,6 +118,29 @@ function setupRows(graph: WikiGraph): SetupRow[] {
     return rows.map((fields) => ({ type, fields, identityKeys }));
   });
 }
+/** The graph's references (type endpoints, node and edge types and ends) after `mapped`. */
+function remapFields(fields: SetupRow["fields"], mapped: (id: string) => string): SetupRow["fields"] {
+  const next: Record<string, unknown> = { ...fields };
+  for (const key of ["typeId", "fromId", "toId"])
+    if (typeof next[key] === "string") next[key] = mapped(next[key] as string);
+  const ontology = next.ontology as { endpoints?: Record<string, unknown> } | undefined;
+  if (ontology?.endpoints)
+    next.ontology = {
+      ...ontology,
+      endpoints: Object.fromEntries(
+        Object.entries(ontology.endpoints).map(([end, value]) => [
+          end,
+          Array.isArray(value) ? value.map((id) => (typeof id === "string" ? mapped(id) : id)) : value,
+        ]),
+      ),
+    };
+  return next as SetupRow["fields"];
+}
+/** The ID of the active type with this category and name, when the Wiki has one. */
+async function typeByName(host: Host, installationId: string, fields: SetupRow["fields"]) {
+  const { records } = await host.call("entities.list", { installationId, type: "graph-type", filter: { name: String(fields.name), category: fields.category, archived: false }, limit: 1 });
+  return records[0]?.ref.id;
+}
 /** A UUID-shaped ID derived from `parts`: the same parts always name the same record. */
 export async function stableGraphId(...parts: unknown[]) {
   const digest = new Uint8Array(
@@ -192,27 +216,33 @@ export function wikiAdapter(host: Host, installationId: string) {
     },
     /** Active type IDs by name. */
     async typeIds() {
-      const ids = new Map<string, string>();
-      for (let offset = 0; offset < 10_000; offset += 100) {
-        const page = await host.call("entities.list", {
-          installationId,
-          type: "graph-type",
-          offset,
-          limit: 100,
-        });
-        for (const type of page)
-          if (!type.attributes.archived)
-            ids.set(String(type.attributes.name), type.ref.id);
-        if (page.length < 100) return ids;
-      }
-      throw new Response("Wiki has too many types", { status: 413 });
+      const types = await listEntities(host, { installationId, type: "graph-type", filter: { archived: false } });
+      return new Map(types.map((type) => [String(type.attributes.name), type.ref.id]));
     },
+    /**
+     * Adds the graph's missing records. A type the Wiki already has under its
+     * own ID (same category and name) is kept, and the graph's later rows
+     * point at that ID instead.
+     */
     async setup(input: WikiGraph) {
+      const ids = new Map<string, string>();
+      const mapped = (id: string) => ids.get(id) ?? id;
       const rows = setupRows(wikiGraph.parse(input));
       const result = { created: 0, existing: 0 };
       for (const row of rows) {
-        const created = await ensureRecord(host, installationId, row);
-        result[created ? "created" : "existing"]++;
+        const fields = remapFields(row.fields, mapped);
+        try {
+          const created = await ensureRecord(host, installationId, { ...row, fields });
+          result[created ? "created" : "existing"]++;
+        } catch (error) {
+          const existing =
+            row.type === "graph-type" && error instanceof Response && error.status === 409
+              ? await typeByName(host, installationId, fields).catch(() => undefined)
+              : undefined;
+          if (!existing) throw error;
+          ids.set(row.fields.id, existing);
+          result.existing++;
+        }
       }
       return result;
     },

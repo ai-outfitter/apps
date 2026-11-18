@@ -66,7 +66,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.deepEqual(again.edges.map(edge => edge.ref.id), [ids.$edge.id]);
     assert.equal(again.hash, graph.hash);
     assert.equal(again.nodes.find(node => node.ref.id === ids.$root.id)?.attributes.body, "Authored **Markdown** stays unchanged.", "records come back as stored");
-    const rootsResponse = await select({ query: "query($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title } } }", rootIds: [ids.$root.id] });
+    const rootsResponse = await select({ query: "query($roots: [String!]!) { selectionFacts(filter: { slug: { in: $roots } }) { nodes { id typeId title } } }", rootIds: [ids.$root.id] });
     assert.equal(rootsResponse.status, 200, await rootsResponse.clone().text());
     const rootsOnly = knowledgeGraphSelectResult.parse(await rootsResponse.json());
     assert.deepEqual(rootsOnly.nodes.map(node => node.ref.id), [ids.$root.id]);
@@ -103,7 +103,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.equal(knowledgeGraphRenderResult.parse(await tooSmall.json()).document.complete, false);
     assert.deepEqual((await snapshot()).results, before.results);
     // A saved query without a selection runs as written.
-    const savedQuery = "query Facts($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title edges(types: [\"selection_link\"], direction: OUTGOING) { id typeId fromId toId to { id typeId title } } } } }";
+    const savedQuery = "query Facts($roots: [String!]!) { selectionFacts(filter: { slug: { in: $roots } }) { nodes { id typeId title edges(types: [\"selection_link\"], direction: OUTGOING, first: 100) { nodes { id typeId fromId toId to { id typeId title } } } } } }";
     const savedCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "saved-query", operations: [
       create("$query", "graph-node", { typeId: core.knowledgeGraph, title: "Facts query", body: JSON.stringify({ name: "Facts query", purpose: "A hand-written query.", query: savedQuery }) }),
     ] } } });
@@ -123,7 +123,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.notEqual(wrongHash.status, 200, "a hash that is not the query's sha256 is not saved");
     // A written selection stores what it compiles to: a hand-supplied query naming a type that is gone is replaced.
     const staleBody = { name: "Stale", purpose: "A selection whose stored query names a type that is gone.", rootTypes: ["SelectionFact"],
-      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Stale($roots: [String!]!) { goneFacts(slugs: $roots) { nodes { id } } }" };
+      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Stale($roots: [String!]!) { goneFacts(filter: { slug: { in: $roots } }) { nodes { id } } }" };
     const staleCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "stale-query", operations: [
       create("$stale", "graph-node", { typeId: core.knowledgeGraph, title: "Stale lens", body: JSON.stringify(staleBody) }),
     ] } } });
@@ -133,7 +133,7 @@ test("saved and inline graph selections render stored facts without writes or pr
     assert.deepEqual(stale.nodes.map(node => node.ref.id).sort(), [ids.$root.id, ids.$child.id].sort());
     // A supplied query that validates but omits a hop of the selection is replaced by the compile too.
     const narrowBody = { name: "Narrow", purpose: "A selection whose stored query predates its link type.", rootTypes: ["SelectionFact"],
-      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Narrow($roots: [String!]!) { selectionFacts(slugs: $roots) { nodes { id typeId title } } }" };
+      selection: { relationships: ["selection_link"], maxDepth: 2, maxNodes: 20 }, query: "query Narrow($roots: [String!]!) { selectionFacts(filter: { slug: { in: $roots } }) { nodes { id typeId title } } }" };
     const narrowCall = await app.call(path, owner, { method: "POST", body: { action: "graph.apply", input: { requestKey: "narrow-query", operations: [
       create("$narrow", "graph-node", { typeId: core.knowledgeGraph, title: "Narrow lens", body: JSON.stringify(narrowBody) }),
     ] } } });

@@ -74,11 +74,14 @@ export function stayOnPage(page: Page) {
   };
 }
 
-/** Opens the sidebar's account menu when the link `name` is one of its entries, such as the app's settings. */
+/** Opens the sidebar menu containing `name`, including app settings. */
 export async function openAccountMenuFor(page: Page, name: string) {
   const sidebar = page.locator("#sidebar");
-  if (await sidebar.locator("#account-menu").getByRole("link", { name, exact: true, includeHidden: true }).count() === 0) return;
-  const toggle = sidebar.getByRole("button", { name: "Accounts", exact: true });
+  const settings = sidebar.locator("#app-tools-menu");
+  const inSettings = await settings.getByRole("link", { name, exact: true, includeHidden: true }).count() > 0;
+  const account = sidebar.locator("#account-menu");
+  if (!inSettings && await account.getByRole("link", { name, exact: true, includeHidden: true }).count() === 0) return;
+  const toggle = sidebar.getByRole("button", { name: inSettings ? "Settings" : "Accounts", exact: true });
   if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
 }
 

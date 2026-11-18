@@ -19,6 +19,11 @@ triggers:
   # then runs unattended as them each morning, in their time zone.
   - on: schedule
     cron: 0 7 * * *
+    connection:
+      providers: [gmail, google-calendar, github, slack]
+      inputs:
+        provider: analyze.inputs.provider
+        label: analyze.inputs.label
 steps:
   - id: analyze
     # One model answer per analysis batch proposes up to 16 entities and 18
@@ -31,7 +36,7 @@ steps:
         schema: {type: object}
         default: {}
       provider:
-        schema: {type: string, enum: [gmail, google-calendar]}
+        schema: {type: string, enum: [gmail, google-calendar, github, slack]}
         default: gmail
       label:
         schema: {type: string, maxLength: 300}

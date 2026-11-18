@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";
 import {
   defineAction,
@@ -11,7 +12,7 @@ import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { defaultWiki } from "@ai-outfitter/app-sdk/graph-client";
 import type { PlanningDatabase } from "./planning";
-import { planningEntities } from "./entities";
+import { planningEntity } from "./entities";
 import { projectWork } from "./work-projection";
 import {
   previewWork,
@@ -490,7 +491,7 @@ export class WorkExecution {
     };
   }
   async submissions(projectId: string) {
-    await planningEntities(this.context.db())[0].get(
+    await planningEntity(this.context.db(), "project").get(
       this.context.identity,
       projectId,
     );
@@ -1143,29 +1144,11 @@ export class WorkExecution {
     const foundries: { installationId: string; projects: unknown[] }[] = [],
       governances: { installationId: string; controls: unknown[] }[] = [];
     const wiki = await defaultWiki(this.context.host());
-    const list = async (type: string) => {
-      const rows = [];
-      for (let offset = 0; offset < 100000; offset += 100) {
-        const page = await this.context.host().call("entities.list", {
-          installationId: wiki.installationId,
-          type,
-          offset,
-          limit: 100,
-        });
-        rows.push(...page.filter((record) => !record.attributes.archived));
-        if (page.length < 100) return rows;
-      }
-      throw new Response("Wiki exceeds control discovery limit", {
-        status: 413,
-      });
-    };
-    const types = await list("graph-type"),
-      controlType = types.find(
-        (type) => type.attributes.name === "DecisionControl",
-      );
+    const list = (type: string, filter: Record<string, unknown>) =>
+      listEntities(this.context.host(), { installationId: wiki.installationId, type, filter: { ...filter, archived: false } });
+    const [controlType] = await list("graph-type", { name: "DecisionControl" });
     const controls = controlType
-      ? (await list("graph-node"))
-          .filter((node) => node.attributes.typeId === controlType.ref.id)
+      ? (await list("graph-node", { typeId: controlType.ref.id }))
           .flatMap((node) => {
             try {
               const body = JSON.parse(String(node.attributes.body));

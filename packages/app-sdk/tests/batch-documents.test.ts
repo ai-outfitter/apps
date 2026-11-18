@@ -96,4 +96,6 @@ test("an invalid draft asks the caller to repair it before submission", () => {
   assert.deepEqual(instructions.map(instruction => instruction.code), ["REPAIR_CHANGES"]);
   assert.match(instructions[0].message, /Missing relationship/);
   assert.equal(resultInstructions(key(100), { state: "open", validation: { valid: true } })[0].code, "SUBMIT_CHANGES");
+  assert.equal(resultInstructions(key(100), { state: "open", validation: { valid: true } }, "/o/acme/onto/changes/batch-1")[0].url, "/o/acme/onto/changes/batch-1");
+  assert.equal(resultInstructions(key(101), { state: "awaiting_review" }, "/apps/personal/changes/batch-2")[0].url, "/apps/personal/changes/batch-2");
 });

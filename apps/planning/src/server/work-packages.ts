@@ -12,7 +12,7 @@ import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { readWikiGraph } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { planningEntities } from "./entities";
+import { planningEntity } from "./entities";
 import type { PlanningDatabase } from "./planning";
 import { readProjectSelection, workContextSelection } from "./wiki-subgraph";
 
@@ -162,7 +162,7 @@ async function loadProjectContext(
   input: { projectId: string },
   read: (host: Host, who: AppIdentity, projectId: string) => Promise<Omit<Awaited<ReturnType<typeof readWikiGraph>>, "snapshot">> = (h) => readWikiGraph(h),
 ) {
-  const project = await planningEntities(db)[0].get(
+  const project = await planningEntity(db, "project").get(
     who,
     z.uuid().parse(input.projectId),
   );
@@ -300,7 +300,7 @@ async function workScope(
   graph: GraphSlice,
 ) {
   const issue = input.issueId
-    ? await planningEntities(db)[1].get(who, input.issueId)
+    ? await planningEntity(db, "issue").get(who, input.issueId)
     : undefined;
   if (issue && issue.attributes.projectId !== input.projectId)
     throw new Response("Issue is outside this project", { status: 404 });
@@ -531,12 +531,12 @@ export async function previewWork(
       { status: 409 },
     );
 
-  const currentProject = await planningEntities(db)[0].get(
+  const currentProject = await planningEntity(db, "project").get(
     who,
     context.project.ref.id,
   );
   const currentIssue = issue
-    ? await planningEntities(db)[1].get(who, issue.ref.id)
+    ? await planningEntity(db, "issue").get(who, issue.ref.id)
     : undefined;
   if (
     currentProject.revision !== context.project.revision ||

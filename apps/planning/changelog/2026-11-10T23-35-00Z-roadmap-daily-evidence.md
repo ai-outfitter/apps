@@ -1,0 +1,1 @@
+Weekly roadmap generation requests Governance's daily Planning evidence for its exact calendar period, includes that evidence in inference, and preserves missing or incomplete dependencies in the saved evidence manifest. A generated narrative cannot claim a complete capture when daily reports are unavailable.

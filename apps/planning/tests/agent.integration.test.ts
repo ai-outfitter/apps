@@ -177,7 +177,17 @@ test("the sidebar offers the five proposal tools with their schemas", async () =
   const t = await setup();
   try {
     const thread = await t.conversation("alice");
-    const prepared = await t.planningFor("alice").prepare({ thread, submissionId: crypto.randomUUID(), entry: {} as never, retry: false });
+    const entryId = crypto.randomUUID();
+    const prepareInput = { thread, submissionId: crypto.randomUUID(), entry: { id: entryId } as never, retry: false };
+    const prepared = await t.planningFor("alice").prepare(prepareInput);
+    const replay = await t.planningFor("alice").prepare(prepareInput);
+    const context = prepared.context as any;
+    assert.equal(context.conversationSource.messageId, entryId);
+    assert.equal(context.conversationSource.threadId, thread.id);
+    assert.deepEqual(context.conversationSource, (replay.context as any).conversationSource);
+    assert.ok(context.planningDocuments.write.includes("CreateIntake"));
+    assert.ok(context.planningDocuments.write.includes("SetIntakeReleaseFit"));
+    assert.match(prepared.instructions ?? "", /whose problem|whose|successCriteria/);
     for (const action of actions) assert.deepEqual(prepared.tools?.find(tool => tool.name === action.id)?.inputSchema, action.schema);
   } finally { t.client.close(); }
 });

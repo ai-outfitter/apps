@@ -1,0 +1,45 @@
+version: beta
+id: workshop-workspace
+summary: Build and test project-owned hardware source in an isolated workspace.
+actors:
+  designer:
+    kind: external
+    binding: design.inputs.designerBinding
+  validator:
+    kind: external
+    binding: design.inputs.validatorBinding
+triggers:
+  - on: manual
+steps:
+  - id: design
+    actor: designer
+    inputs:
+      request:
+        schema: {type: object}
+      designerBinding:
+        schema: {type: string}
+      validatorBinding:
+        schema: {type: string}
+    instructions: >-
+      Work only on the assigned project repository and request. Clone its pinned source
+      commit in the workspace. Inspect the source and project instructions, implement
+      the requested parameter or model changes, and run the generic Workshop builder.
+      Keep model source in the project; never modify Workshop application code.
+      Commit source changes to a new workspace branch, push that branch, and return
+      result with candidate.headSha, summary and the project source directory.
+      Do not merge or publish releases. If no source change is needed, use the supplied
+      source commit. Keep build artifacts outside Git under the workspace files directory.
+    outputs:
+      result:
+        schema: {type: object}
+  - id: validate
+    actor: validator
+    inputs:
+      request: design.inputs.request
+      previous: design.outputs.result
+    instructions: Rebuild the exact candidate commit using the approved workspace command.
+    outputs:
+      result:
+        schema: {type: object}
+outputs:
+  result: validate.outputs.result

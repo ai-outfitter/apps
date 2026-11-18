@@ -89,7 +89,7 @@ test("a content map branch adds pillars down to angles, and removing a node remo
     assert.match((await mutate(app, owner, add, { input: { parentId: angle?.id, nodes: [{ title: "Deeper" }] } })).body.errors?.[0]?.message ?? "", /last level/);
     // Children added later go after their siblings.
     await mutate(app, owner, add, { input: { parentId: pillar, nodes: [{ title: "Leaving the shift at the door" }] } });
-    const topics = (await read(app, owner, "query($p: [ID!]) { mapNodes(parentId: $p) { nodes { title position } } }", { p: [pillar] })).mapNodes.nodes;
+    const topics = (await read(app, owner, "query($p: [ID!]) { mapNodes(filter: { parentId: { in: $p } }) { nodes { title position } } }", { p: [pillar] })).mapNodes.nodes;
     assert.deepEqual(topics.map((topic: { title: string; position: number }) => [topic.position, topic.title]).sort((a: (string | number)[], b: (string | number)[]) => Number(a[0]) - Number(b[0])), [[0, "Why rest doesn't feel restful"], [1, "Leaving the shift at the door"]]);
     // A draft written from the idea survives the branch's removal, unlinked.
     const draft = await mutate(app, owner, "mutation SaveDraft($input: SaveDraftInput!) { saveDraft(input: $input) { id revision } }",

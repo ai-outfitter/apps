@@ -29,7 +29,7 @@ export async function githubPullRequests(host: PullRequestHost, repository: stri
   const connection = snapshot.connections.find(item => item.provider === "github" && item.owner === "user" && item.operations.includes("pulls.list"))
     ?? snapshot.connections.find(item => item.provider === "github" && item.owner === "organization" && item.operations.includes("pulls.list"));
   if (!connection) throw new Error("Connect GitHub in Plugins to read pull requests.");
-  if (connection.id === "github:user") {
+  if (connection.owner === "user") {
     const [owner, name] = repository.split("/");
     const response = z.object({ data: z.object({ repository: z.object({ pullRequests: page }).nullable() }).nullable(), errors: z.array(z.unknown()).optional() }).parse(await call("repository.request", {
       connectionId: connection.id, method: "POST", path: "/graphql",

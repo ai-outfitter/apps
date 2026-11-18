@@ -1,7 +1,11 @@
 ---
+import {mount} from "../documents/context";
+const root=mount(Astro.request);
 import Layout from "../components/DocumentLayout.astro";
 ---
 <Layout title="Wiki settings" active="settings" description="Documents, history, and connected information.">
+ <nav aria-label="Document tools"><a href={`${root}documents`}>All documents</a> · <a href={`${root}new`}>Create document</a></nav>
+ <p>Graph types, relationships, and graph changes are managed in Onto.</p>
  <p>Document edits are saved as drafts. Publishing preserves earlier revisions.</p>
  <p>Pages may link to Onto entities. Source access is checked whenever linked information is read.</p>
  <p>Generated updates remain drafts unless automatic publication is enabled for the page. Required approvals still apply.</p>

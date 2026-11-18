@@ -18,6 +18,7 @@ import { randomId } from "../random-id";
 import AgentDebug from "./AgentDebug";
 import { sessionDebugHref, useAgentInspector } from "./agent-debug";
 import AgentSidebar, { type AgentMessage } from "./AgentSidebar";
+import { ResourceLink } from "./resource-link";
 import type { ChatInputDraft } from "./ChatInput";
 import SchemaFields from "./SchemaFields";
 import Timeline, { TimelinePartView, type TimelineEntry } from "./timeline/Timeline";
@@ -529,6 +530,9 @@ export default function AppAgentSidebar({
   const proposalById = new Map(proposals.map((p) => [p.id, p]));
   const renderers = {
     data: {
+      "platform.resource-link": (part: Extract<ThreadPart, { type: "data" }>) => {
+        return <ResourceLink data={part.data as { uri?: unknown; name?: unknown } | null} />;
+      },
       [navigatePartName]: (part: Extract<ThreadPart, { type: "data" }>) => {
         const target = navigatePart.safeParse(part.data);
         const href = target.success ? pageHref(prefix, target.data.location, location.href) : null;
@@ -673,6 +677,10 @@ export default function AppAgentSidebar({
             // biome-ignore lint/suspicious/noArrayIndexKey: entry parts are immutable and ordered.
             <TimelinePartView key={index} part={part} renderers={renderers} markdown={message.entry.role === "assistant"} onOpenThread={(ref, title) => void openRef(ref, title)} />
           ))}
+          {message.entry.parts.filter((part) => part.type === "data" && part.name === "platform.resource-link").map((part, index) => {
+            const data = part.type === "data" ? part.data as { uri?: unknown; name?: unknown } | null : null;
+            return <ResourceLink key={`${typeof data?.uri === "string" ? data.uri : "link"}:${index}`} data={data} />;
+          })}
           {conversationNavigation && !demo && thread && message.entry.status !== "partial" && ["user", "assistant"].includes(message.entry.role) ? (
             <button type="button" className="agent-child-action" onClick={() => void startChild(message.entry)} disabled={status !== "ready"}>
               Start child conversation

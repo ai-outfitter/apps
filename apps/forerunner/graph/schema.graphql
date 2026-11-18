@@ -1,22 +1,45 @@
 type Query {
+  """
+  Read the saved personal daily brief, current priorities, yesterday's project and organization reports, and the full previous calendar week's saved reports. `sections` reads only the named sections (digest, priorities, review, history), so the saved brief never waits on reports. No generation, schedule write or connector read starts.
+  """
+  dailyHome(input: DailyHomeInput!): JSON
+
+  """Read the personal daily brief schedule; no scheduling side effects."""
+  dailyBriefSchedule(input: JSON!): JSON
+
+  """
+  Read the saved research reports and their schedule; no scheduling side effects.
+  """
+  researchReportSchedule(input: JSON!): JSON
+
+  """
+  Read a completed local day's board completion history and saved organization reports in personal priority order. Reads never start report generation; missing and incomplete sources remain explicit.
+  """
+  dayReview(input: DayReviewInput!): JSON
+
+  """
+  Read saved canonical need identities and revisions for a private discovery selection; excludes raw source samples and uncommitted proposals.
+  """
+  planningCandidates(input: PlanningCandidatesInput!): JSON
   items(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: ItemOrder = ID_ASC
+    filter: ItemFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    category: [String!]
-    status: [String!]
   ): ItemConnection!
   discoveryRecords(
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: DiscoveryRecordOrder = ID_ASC
+    filter: DiscoveryRecordFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    kind: [String!]
   ): DiscoveryRecordConnection!
 
   """
@@ -25,10 +48,41 @@ type Query {
   suggestions(status: [String!]): [Suggestion!]!
 }
 
+"""Any JSON value."""
+scalar JSON
+
+input DailyHomeInput {
+  timezone: String
+  includeHistory: Boolean
+  sections: [DailyHomeInputSectionsItem!]
+}
+
+enum DailyHomeInputSectionsItem {
+  digest
+  priorities
+  review
+  history
+}
+
+input DayReviewInput {
+  date: String
+  timezone: String
+}
+
+input PlanningCandidatesInput {
+  previewId: ID!
+}
+
 type ItemConnection {
+  edges: [ItemConnectionEdge!]!
   nodes: [Item!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ItemConnectionEdge {
+  cursor: String!
+  node: Item!
 }
 
 type Item {
@@ -49,24 +103,76 @@ type Item {
 scalar DateTime
 
 type PageInfo {
-  endCursor: String
   hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
-type Aggregate {
-  count: Int!
+"""How Item records are ordered, ties by ID."""
+enum ItemOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
+}
+
+input ItemFilter {
+  category: StringFilter
+  status: StringFilter
+  and: [ItemFilter!]
+  or: [ItemFilter!]
+  not: ItemFilter
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 type DiscoveryRecordConnection {
+  edges: [DiscoveryRecordConnectionEdge!]!
   nodes: [DiscoveryRecord!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type DiscoveryRecordConnectionEdge {
+  cursor: String!
+  node: DiscoveryRecord!
 }
 
 type DiscoveryRecord {
   id: ID!
   kind: String!
   createdAt: DateTime!
+}
+
+"""How DiscoveryRecord records are ordered, ties by ID."""
+enum DiscoveryRecordOrder {
+  ID_ASC
+  ID_DESC
+}
+
+input DiscoveryRecordFilter {
+  kind: StringFilter
+  and: [DiscoveryRecordFilter!]
+  or: [DiscoveryRecordFilter!]
+  not: DiscoveryRecordFilter
 }
 
 """
@@ -100,6 +206,17 @@ type RoutineTask {
   description: String!
   cadence: String
   steps: [String!]!
+}
+
+input CreatePlanningIntakeInput {
+  previewId: ID!
+  entryIndex: Float!
+  expectedId: ID!
+  expectedRevision: Float!
+  planningInstallationId: String!
+  projectId: ID
+  kind: String
+  confirmDestination: Boolean!
 }
 
 input CreateItemInput {
@@ -163,6 +280,31 @@ enum UpdateSuggestionInputStatus {
   dismissed
 }
 
+input SetDailyBriefScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  ifUnset: Boolean
+}
+
+input GenerateDailyBriefInput {
+  timezone: String!
+}
+
+input SetResearchReportScheduleInput {
+  enabled: Boolean!
+  timezone: String!
+  hour: Int
+  reports: [SetResearchReportScheduleInputReportsItem!]!
+}
+
+input SetResearchReportScheduleInputReportsItem {
+  slug: String!
+  title: String!
+  subject: String
+  location: String!
+  topics: [String!]!
+}
+
 """
 The daily discovery run as Settings shows it; times are epoch milliseconds.
 """
@@ -182,6 +324,11 @@ input SetDailyRunInput {
 }
 
 type Mutation {
+  """
+  Explicitly capture one selected saved discovered need in the same owner's authorized Planning installation. Uses only current canonical Wiki content, honors corrected identity and revision, and retries with a deterministic intake request ID. Never copies private source samples or automatically shares across owners.
+  """
+  createPlanningIntake(input: CreatePlanningIntakeInput!): JSON
+
   """
   Add a stone (a top priority), a pebble (a stone's next action, parentId required) or sand (a small task, optionally under a stone) to the caller's board, last in its category. Status is todo, in-progress or done; dueDate an ISO date. At most 500 items.
   """
@@ -208,6 +355,26 @@ type Mutation {
   updateSuggestion(input: UpdateSuggestionInput!): Suggestion!
 
   """
+  Enable or disable the personal daily brief at 05:00 in a saved timezone. `ifUnset` saves the default only when no daily brief schedule exists. No connection is auto-authorized.
+  """
+  setDailyBriefSchedule(input: SetDailyBriefScheduleInput!): JSON
+
+  """
+  Write today's personal brief from saved reports, priorities, goals and role with one cited model answer. A failed answer saves nothing and returns status failed; missing sources stay listed as not known.
+  """
+  generateDailyBrief(input: GenerateDailyBriefInput!): JSON
+
+  """
+  Save this scope's research reports (title, who each is for, place and up to six topics), the hour and the timezone, enabled or not. Each morning's run searches the public web per topic and saves a dated Wiki document per report. Saving replaces the earlier reports.
+  """
+  setResearchReportSchedule(input: SetResearchReportScheduleInput!): JSON
+
+  """
+  Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.
+  """
+  generateResearchReports(input: JSON!): JSON
+
+  """
   Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.
   """
   setDailyRun(input: SetDailyRunInput!): DailyRun!
@@ -232,9 +399,6 @@ type ChangeReceipt {
   result: JSON
   error: JSON
 }
-
-"""Any JSON value."""
-scalar JSON
 
 type ChangeInstruction {
   code: String!

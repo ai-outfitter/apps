@@ -10,7 +10,7 @@ import { intakeFocus } from "../agent-focus";
 import { CARD_PROJECTS, type GoalProgress, type Light, lightOf, organizationCards, statusLabel } from "../project-cards";
 import type { ProjectReadiness } from "../project-readiness";
 import type { PageIssue as Issue, PageProject as Project, ProjectPage } from "../server/project-page";
-import { readinessRules, readinessSummary } from "./readiness-view";
+import { readinessSummary } from "./readiness-view";
 
 function append(parent: Node, ...children: (Node | string)[]) {
   for (const child of children)
@@ -32,14 +32,6 @@ onPageLoad((signal) => {
   const projectHref = (id: string) =>
     `${basePath}/projects/${encodeURIComponent(id)}`;
   const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
-  if (projectId) {
-    const intro = document.querySelector<HTMLElement>(".intro");
-    const back = root.querySelector<HTMLElement>("#project-back");
-    if (intro && back) {
-      intro.querySelector("p")?.remove();
-      intro.insertBefore(back, intro.firstChild);
-    }
-  }
   const get = <T = HTMLDivElement>(id: string) =>
     root.querySelector(`#${id}`) as T;
   const notice = get<HTMLParagraphElement>("planning-notice"),
@@ -63,6 +55,16 @@ onPageLoad((signal) => {
     ["demoResults", "Demo results"],
   ] as const;
   const project = () => projects.find((p) => p.id === projectId);
+  const conversation=document.querySelector<HTMLButtonElement>("[data-project-conversation]");
+  if(conversation) {
+    conversation.disabled=false;
+    conversation.addEventListener("click",()=>{
+      focusProject(project());
+      const toggle=document.querySelector<HTMLButtonElement>('[data-agent-sidebar-toggle][aria-controls="planning-agent"]');
+      if(toggle?.getAttribute("aria-expanded")!=="true")toggle?.click();
+      else document.querySelector<HTMLTextAreaElement>("#planning-agent textarea")?.focus();
+    },{signal});
+  }
   const elem = (tag: string, text = "", className = "") => {
     const node = document.createElement(tag);
     node.textContent = text;
@@ -213,6 +215,7 @@ onPageLoad((signal) => {
     for (const card of organizationCards(projects, organizationGoals)) {
       const section = elem("section", "", "planning-org-card");
       section.setAttribute("aria-label", card.label);
+      section.dataset.organizationKey=card.key;
       const header = elem("header", "", "planning-org-card-header");
       append(header, elem("h2", card.label));
       append(section, header);
@@ -275,7 +278,7 @@ onPageLoad((signal) => {
     }
     const assessment = get("project-readiness");
     assessment.hidden = false;
-    assessment.replaceChildren(readinessSummary(readiness.get(p.id)), readinessRules());
+    assessment.replaceChildren(readinessSummary(readiness.get(p.id), true));
     renderDocuments(p);
     const list = get("issue-list");
     list.replaceChildren();

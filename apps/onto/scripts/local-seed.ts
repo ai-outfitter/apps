@@ -3,6 +3,8 @@
  * exactly from its own exported snapshot, or projected from the private seed when
  * it has none. The viewer's personal Wiki restores the whole personal graph.
  * Nothing here writes to the data directory. */
+import { DatabaseSync } from "node:sqlite";
+import { reconcileWiki } from "./reconcile-wiki";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -26,7 +28,7 @@ import {
   type Graph as WikiGraph,
 } from "../src/lib/graph";
 import { validateKnowledgeGraph } from "../src/lib/knowledge-graph-document";
-import { storeType } from "../src/lib/type-metadata";
+import { readType, storeType } from "../src/lib/type-metadata";
 import { readGraph } from "../src/server/graph";
 import { standardData } from "../src/lib/standard-data";
 import {refreshKnowledgeGraphQueries} from "../src/server/knowledge-graph-refresh";
@@ -114,6 +116,65 @@ function parse<T>(schema: z.ZodType<T>, value: unknown, label: string) {
   return parsed.data;
 }
 
+/** Reuse the trusted migration's legacy endpoint reconciliation, never invent new restrictions from prose. */
+export function reconcileLocalSnapshot(raw:unknown, personal = false) {
+  const data=parse(graph,raw,"local legacy graph"),source=new DatabaseSync(":memory:");
+  try {
+    source.exec("CREATE TABLE graph_types(id TEXT,category TEXT,name TEXT,properties TEXT,payload TEXT); CREATE TABLE graph_nodes(id TEXT,typeId TEXT,payload TEXT); CREATE TABLE graph_edges(id TEXT,typeId TEXT,fromId TEXT,toId TEXT,payload TEXT)");
+    for(const type of data.types)source.prepare("INSERT INTO graph_types VALUES(?,?,?,?,?)").run(type.id,type.category,type.name,JSON.stringify(storeType(type).properties),JSON.stringify(type));
+    for(const node of data.nodes)source.prepare("INSERT INTO graph_nodes VALUES(?,?,?)").run(node.id,node.typeId,JSON.stringify(node));
+    for(const edge of data.edges)source.prepare("INSERT INTO graph_edges VALUES(?,?,?,?,?)").run(edge.id,edge.typeId,edge.fromId,edge.toId,JSON.stringify(edge));
+    const plan=reconcileWiki(source,"local-seed:legacy-ontology");
+    if (personal) {
+      // This shipped declaration omitted Person despite historical personal
+      // commitments targeting people. Repair only that exact known contract;
+      // authored endpoint declarations continue to fail validation unchanged.
+      const id = "86cd3b21-71e2-5dfa-9bd0-000000000015";
+      const type = data.types.find((type) => type.id === id);
+      const shipped = { version: 2, endpoints: {
+        from: ["86cd3b21-71e2-5dfa-9bd0-000000000003"],
+        to: ["86cd3b21-71e2-5dfa-9bd0-000000000001", core.organization, core.product],
+      } };
+      const nodeTypes = new Map(data.nodes.map((node) => [node.id, node.typeId]));
+      if (type?.category === "edge" && type.name === "commitment_subject"
+        && canonical(type.ontology) === canonical(shipped)
+        && data.edges.some((edge) => edge.typeId === id && nodeTypes.get(edge.toId) === core.person)) {
+        const metadata = storeType(type).properties;
+        plan.types[id] = {
+          before: JSON.stringify(metadata),
+          properties: JSON.stringify({ ...metadata, ontology: {
+            ...shipped, endpoints: { ...shipped.endpoints, to: [...shipped.endpoints.to, core.person] },
+          } }),
+          reason: "Repair the shipped personal commitment_subject contract's omitted Person target; preserve historical person-subject commitments and the original explicit definition.",
+        };
+      }
+    }
+    const revisions=Object.entries(plan.types).map(([id,patch])=>{
+      const prior=data.types.find(type=>type.id===id)!;
+      const snapshot=typeRecord.parse({...readType({...prior,properties:JSON.parse(patch.properties)}),revision:(prior.revision??1)+1,updatedBy:plan.actor,updatedAt:plan.createdAt});
+      return {kind:"graph-type",recordId:id,revision:snapshot.revision,batchId:null,ref:"wiki-onto-contract",proposedBy:plan.actor,approval:JSON.stringify({kind:"migration",sourceDigest:plan.sourceDigest,reason:patch.reason}),evidence:"[]",snapshot:JSON.stringify(snapshot),prior:JSON.stringify(prior),createdAt:plan.createdAt};
+    });
+    const replacements=new Map(revisions.map(revision=>[revision.recordId,JSON.parse(revision.snapshot) as Graph["types"][number]]));
+    const reconciled={...data,types:data.types.map(type=>replacements.get(type.id)??type)};
+    validateGraph(reconciled,"reconciled local legacy graph");
+    return {graph:reconciled,revisions};
+  } finally {source.close();}
+}
+
+async function reconcileForInstallation(database:Database,data:Graph,notices:string[],personal = false){
+  const result=reconcileLocalSnapshot(data, personal);
+  for(const revision of result.revisions){
+    const {results:existing}=await database.prepare("SELECT prior,snapshot FROM graph_revisions WHERE kind='graph-type' AND recordId=? AND revision=?").bind(revision.recordId,revision.revision).all<{prior:string;snapshot:string}>();
+    if(!existing[0])continue;
+    const previous=JSON.parse(existing[0].snapshot),proposed=JSON.parse(revision.snapshot);
+    // An identical source replay retains the first migration's audit timestamp and receipt.
+    if(existing[0].prior!==revision.prior || JSON.stringify({...previous,updatedAt:0})!==JSON.stringify({...proposed,updatedAt:0}))throw new Error(`Local type reconciliation conflicts with preserved revision for ${revision.recordId}`);
+    result.graph.types=result.graph.types.map(type=>type.id===revision.recordId?typeRecord.parse(previous):type);
+  }
+  if(result.revisions.length)notices.push(`reconciled ${result.revisions.length} legacy relationship contracts through the canonical Wiki migration; original definitions retained in revision history`);
+  return result;
+}
+
 /** Every reference resolves inside the file and every key is unique, as the Wiki schema requires. */
 function validateGraph(data: Graph, label: string) {
   const unique = (values: string[], what: string) => {
@@ -127,6 +188,7 @@ function validateGraph(data: Graph, label: string) {
   unique(data.edges.map((e) => `${e.typeId}:${e.fromId}:${e.toId}`), "relationship");
   const types = new Map(data.types.map((t) => [t.id, t]));
   const nodes = new Set(data.nodes.map((n) => n.id));
+  const nodeTypes=new Map(data.nodes.map(node=>[node.id,node.typeId]));
   const properties = (record: string, type: Graph["types"][number], values: Record<string, unknown>) => {
     try {
       validateProperties(type, values as Parameters<typeof validateProperties>[1]);
@@ -144,6 +206,10 @@ function validateGraph(data: Graph, label: string) {
     if (type?.category !== "edge") throw new Error(`${label}: relationship ${edge.id} has an unknown relationship type`);
     if (!nodes.has(edge.fromId) || !nodes.has(edge.toId))
       throw new Error(`${label}: relationship ${edge.id} references a missing node`);
+    const endpoints=type.ontology?.endpoints;
+    const allows=(side:"any"|string[]|undefined,id:string|undefined)=>id && (side==="any" || side?.includes(id));
+    // Legacy definitions are reconciled before insertion; explicit contracts must never be weakened.
+    if(endpoints && (!allows(endpoints.from,nodeTypes.get(edge.fromId)) || !allows(endpoints.to,nodeTypes.get(edge.toId))))throw new Error(`${label}: relationship ${edge.id} has endpoint types disallowed by ${type.name}`);
     properties(`relationship ${edge.id}`, type, edge.properties);
   }
 }
@@ -465,7 +531,8 @@ export async function seedLocalInstallation({
   const planned = await plan(dataDirectory, parseSeed(seed), organization, await snapshotFiles(dataDirectory));
   await setupDefaults(database);
   const notices = [...planned.notices];
-  let data = localOrganizationBinding(planned.graph, organization, notices);
+  const reconciled=await reconcileForInstallation(database,localOrganizationBinding(planned.graph, organization, notices),notices);
+  let data = reconciled.graph;
   if (planned.mode === "replace") {
     // Restore authored state, then add only reusable overview definitions below.
     await database.batch([
@@ -474,6 +541,7 @@ export async function seedLocalInstallation({
       database.prepare("DELETE FROM graph_nodes"),
       database.prepare("DELETE FROM graph_types"),
       ...insertAll(database, data),
+      ...reconciled.revisions.map(revision=>database.prepare("INSERT OR IGNORE INTO graph_revisions(kind,recordId,revision,batchId,ref,proposedBy,approval,evidence,snapshot,prior,createdAt) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(revision.kind,revision.recordId,revision.revision,revision.batchId,revision.ref,revision.proposedBy,revision.approval,revision.evidence,revision.snapshot,revision.prior,revision.createdAt)),
     ]);
   } else {
     // A projection adds to the package's defaults; matching IDs keep the stored record.
@@ -491,7 +559,7 @@ export async function seedLocalInstallation({
     const kept = data.types.length - types.length + data.nodes.length - nodes.length;
     if (kept) notices.push(`${kept} seed types or nodes already exist as package defaults; the stored definitions were kept`);
     data = { types, nodes, edges: data.edges.filter((e) => !edgeIds.has(e.id)) };
-    await database.batch(insertAll(database, data));
+    await database.batch([...insertAll(database, data),...reconciled.revisions.filter(revision=>types.some(type=>type.id===revision.recordId)).map(revision=>database.prepare("INSERT OR IGNORE INTO graph_revisions(kind,recordId,revision,batchId,ref,proposedBy,approval,evidence,snapshot,prior,createdAt) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(revision.kind,revision.recordId,revision.revision,revision.batchId,revision.ref,revision.proposedBy,revision.approval,revision.evidence,revision.snapshot,revision.prior,revision.createdAt))]);
   }
   for (const supplement of await appOwnedWikiSeeds(wikiSeeds ?? [], {
     dataDirectory,
@@ -602,7 +670,7 @@ function unsupportedLenses(graph: Records, nodes: Graph["nodes"]) {
 /** The installation's whole graph after restoring the personal seed over `stored`, the package's
  * records. Every seed record, type definitions included, replaces the package record with the same
  * ID; package records the seed lacks are kept. */
-function personalPlan(value: unknown, stored: Records, installations: Record<string, string>) {
+async function personalPlan(value: unknown, stored: Records, installations: Record<string, string>, database?: Database) {
   const seed = parse(personalFile, value, PERSONAL_SEED_FILE);
   const planning = installations[PROJECT_PUBLISHER];
   checkPlacement(seed, planning);
@@ -630,17 +698,28 @@ function personalPlan(value: unknown, stored: Records, installations: Record<str
   const redefined = types.filter((t) => storedTypes.has(t.id)).length;
   const edgeIds = new Set(seed.edges.map((e) => e.id));
   const keptEdges = stored.edges.filter((e) => !edgeIds.has(e.id));
-  const graph = {
+  const restored = {
     types: [...keptTypes, ...seed.types],
     nodes: [...keptNodes, ...nodes],
     edges: [...keptEdges, ...seed.edges],
   };
-  validateGraph(graph, PERSONAL_SEED_FILE);
+  // Personal exports carry the same legacy relationship contracts as organization
+  // snapshots. Migrate before validating/inserting, retaining authored definitions
+  // in revision history rather than weakening explicit endpoint declarations.
+  const reconciliationNotices: string[] = [];
+  const reconciled = database
+    ? await reconcileForInstallation(database, restored, reconciliationNotices, true)
+    : reconcileLocalSnapshot(restored, true);
+  const graph = reconciled.graph;
+  if (!database && reconciled.revisions.length)
+    reconciliationNotices.push(`reconciled ${reconciled.revisions.length} legacy relationship contracts through the canonical Wiki migration; original definitions retained in revision history`);
+  const writeTypeIds = new Set([...types.map((type) => type.id), ...reconciled.revisions.map((revision) => revision.recordId)]);
   const lenses = unsupportedLenses(graph, nodes);
 
   const replaced = stored.nodes.length - keptNodes.length + stored.edges.length - keptEdges.length;
   const kept = keptTypes.length + keptNodes.length + keptEdges.length;
   const notices = [
+    ...reconciliationNotices,
     remapped && `${remapped} exported project references now point to ${planning}`,
     redefined && `${redefined} saved type definitions replace the package's`,
     replaced && `${replaced} package entities and relationships are also in the seed; the seed versions are stored`,
@@ -650,7 +729,8 @@ function personalPlan(value: unknown, stored: Records, installations: Record<str
   ].filter((notice): notice is string => Boolean(notice));
   return {
     graph,
-    write: { types, nodes, edges: seed.edges },
+    write: { types: graph.types.filter((type) => writeTypeIds.has(type.id)), nodes, edges: seed.edges },
+    revisions: reconciled.revisions,
     projects,
     counts: { ...counts(graph), "project pages": projects.length },
     notices,
@@ -659,7 +739,7 @@ function personalPlan(value: unknown, stored: Records, installations: Record<str
 
 /** Validate `personal.local.json` against the package's records without writing anything. */
 export async function inspectPersonalData({ seed, installations }: PersonalContext) {
-  const planned = personalPlan(seed, packageRecords(), installations);
+  const planned = await personalPlan(seed, packageRecords(), installations);
   return { source: PERSONAL_SEED_FILE, counts: planned.counts, notices: planned.notices };
 }
 
@@ -686,13 +766,17 @@ export async function seedPersonalInstallation({
   };
   const stored = await readGraph(drizzle(database), identity);
   // Stored nodes always have a slug (NOT NULL); the shared view type leaves it optional.
-  const planned = personalPlan(seed, {
+  const planned = await personalPlan(seed, {
     ...stored,
     nodes: [...stored.nodes as Graph["nodes"], ...additions.nodes],
     edges: [...stored.edges, ...additions.edges],
-  }, installations);
+  }, installations, database);
   // Validate the complete plan before the first write; both sets commit together.
-  await database.batch([...insertAll(database, additions), ...insertAll(database, planned.write, true)]);
+  await database.batch([
+    ...insertAll(database, additions),
+    ...insertAll(database, planned.write, true),
+    ...planned.revisions.map((revision) => database.prepare("INSERT OR IGNORE INTO graph_revisions(kind,recordId,revision,batchId,ref,proposedBy,approval,evidence,snapshot,prior,createdAt) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(revision.kind, revision.recordId, revision.revision, revision.batchId, revision.ref, revision.proposedBy, revision.approval, revision.evidence, revision.snapshot, revision.prior, revision.createdAt)),
+  ]);
   const [typeIds, nodeIds, edgeIds] = await Promise.all([
     ids(database, "graph_types"),
     ids(database, "graph_nodes"),

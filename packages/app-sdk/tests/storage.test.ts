@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient, type InValue } from "@libsql/client";
 import { migrateAppDatabase } from "../src/migrations";
-import { identityHeaderValues } from "../src/server";
+import { identityHeaderValues, sha256Hex } from "../src/server";
 import {
   type StorageHost,
   type StorageManifest,
   type StorageObjects,
   durationDays,
+  formatDirectUpload,
+  parseDirectUpload,
   maintenanceIdentity,
   storage,
   storageBinding,
@@ -302,6 +304,39 @@ test("maintenance answers only the platform's maintenance identity", async () =>
     );
     const response = await call(maintenanceIdentity);
     assert.deepEqual(await response.json(), { removed: 1 });
+  } finally {
+    app.client.close();
+  }
+});
+
+test("direct uploads stage under _uploads, round-trip their reference and verify bytes before use", async () => {
+  const app = await fixture();
+  try {
+    const files = storage(app.locals(), "main");
+    const bytes = new Uint8Array([4, 5, 6, 7]);
+    const file = { contentType: "image/png", size: bytes.byteLength, sha256: await sha256Hex(bytes) };
+    const target = { space: "runs", key: "run-1/desktop.png" };
+    const ticket = files.uploadTicket(target, file);
+    assert.deepEqual(ticket.headers, { "Content-Type": "image/png", "Content-Length": "4" });
+    const reference = defined(parseDirectUpload(ticket.url) ?? undefined);
+    assert.deepEqual(reference, { bucket: "main", key: `_uploads/${file.sha256}/runs/run-1/desktop.png`, contentType: "image/png", size: 4 });
+    assert.equal(formatDirectUpload(reference), ticket.url);
+    // Nothing is staged yet.
+    assert.equal(await files.takeUpload(target, file), null);
+    const staged = defined(app.buckets.get("main"));
+    staged.set(reference.key, { bytes: new Uint8Array([0, 0, 0, 0]).buffer });
+    await assert.rejects(files.takeUpload(target, file), status(422));
+    assert.equal(staged.has(reference.key), false);
+    staged.set(reference.key, { bytes: bytes.buffer });
+    assert.deepEqual(await files.takeUpload(target, file), bytes);
+    await files.discardUpload(target, file);
+    assert.equal(staged.has(reference.key), false);
+    // Malformed references and keys outside the staging prefix are not tickets.
+    assert.equal(parseDirectUpload("https://example.com/x"), null);
+    assert.equal(parseDirectUpload("outfitter-upload:main/runs/x.png?contentType=image/png&size=4"), null);
+    assert.equal(parseDirectUpload(`outfitter-upload:main/_uploads/${file.sha256}/runs/../x?contentType=image/png&size=4`), null);
+    assert.throws(() => files.uploadTicket(target, { ...file, sha256: "nope" }), status(400));
+    assert.throws(() => files.uploadTicket({ space: "nope", key: "x" }, file), status(400));
   } finally {
     app.client.close();
   }

@@ -1,6 +1,6 @@
 # Onto graph data
 
-- Wiki stores node types, relationship types, nodes and directed edges. Keep storage domain-neutral; consuming apps own their domain meaning.
+- Onto stores node types, relationship types, nodes and directed edges. Keep storage domain-neutral; consuming apps own their domain meaning.
 - Load standard types and records from validated JSON seeds through repeatable initialization. Add missing identities without overwriting authored records. Do not put seed data in SQL migrations.
 
 - Versioned ontology declarations and assertion payloads live in `@ai-outfitter/app-sdk/graph-contracts`; enforce them through the shared ontology validator on every write path. Never derive enforceable rules from prose.

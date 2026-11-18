@@ -2,8 +2,8 @@
 import {requestPageURL} from "@ai-outfitter/app-sdk/server";
 import AppAgentSidebar from "@ai-outfitter/ui/react/AppAgentSidebar";
 import { requestUiPreferences } from "@ai-outfitter/app-sdk/ui-preferences";
-interface Props { app: string; label: string; focusId: string; conversationNavigation?: boolean; }
-const { app, label, focusId, conversationNavigation = false } = Astro.props;
+interface Props { app: string; label: string; focusId: string; conversationNavigation?: boolean; intro?: string; limits?: string; }
+const { app, label, focusId, conversationNavigation = false, intro, limits } = Astro.props;
 const pathname=requestPageURL(Astro.request).pathname;
 const prefix=/^\/o\/[^/]+\/[^/]+/.exec(pathname)?.[0] ?? /^\/apps\/[^/]+/.exec(pathname)?.[0] ?? "";
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
@@ -12,9 +12,9 @@ const initialOpen = requestUiPreferences(Astro.request).agent === `${app}-agent`
 ---
 <span hidden data-action-agent={app} data-focus-id={focusId} data-agent-label={label}></span>
 <AppAgentSidebar client:idle agentName={label} id={`${app}-agent`} {initialOpen} pageId={app} endpoint={`${prefix}/api/apps/${app}/agent`} {demo} {conversationNavigation}
-  intro={`Ask about ${label} and review proposed changes before applying them.`}
+  intro={intro ?? `Ask about ${label} and review proposed changes before applying them.`}
   emptyIntro={`Ask about the saved records available in ${label}.`}
-  limits={demo ? "Read-only demo. Replies are scripted; records cannot change." : "Uses the app's authorized saved records. Proposed actions require your review and current permission."}
+  limits={demo ? "Read-only demo. Replies are scripted; records cannot change." : limits ?? "Uses the app's authorized saved records. Proposed actions require your review and current permission."}
   demoReply="This is a read-only example. No inference ran and no records changed." />
 <script>
  import { agentPage } from "@ai-outfitter/app-sdk/agent-context";

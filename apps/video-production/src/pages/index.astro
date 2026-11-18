@@ -1,0 +1,35 @@
+---
+import Layout from "../components/Layout.astro";
+import { facts, seconds } from "../lib/format";
+import type { Storyboard } from "../server/onto";
+import { pageState } from "../server/page-state";
+
+const { model, signedOut } = await pageState(Astro.request, Astro.locals);
+const groups = [
+  ...model.briefs.map((brief) => ({ brief, storyboards: brief.storyboards })),
+  ...(model.unbriefed.length ? [{ brief: null, storyboards: model.unbriefed }] : []),
+];
+const blocked = (board: Storyboard) => board.shots.filter((shot) => shot.references.some((reference) => !reference.hasFile)).length;
+---
+<Layout title="Storyboards" description="Storyboards in your organization's Onto, by the brief they follow." page="storyboards">
+  {signedOut ? <p class="muted">Sign in to see your organization's storyboards.</p> : null}
+  {!signedOut && !groups.length ? <p class="muted">No storyboards yet. Ask an agent to plan a video from a brief; it saves the storyboard to Onto for you to review.</p> : null}
+  {groups.map(({ brief, storyboards }) => (
+    <section class="brief" id={brief?.id}>
+      <h2>{brief ? brief.title : "No brief"}</h2>
+      {brief ? (
+        <p class="muted">{facts(brief.singleMessage, brief.promotes.length ? `For ${brief.promotes.map((link) => link.title).join(", ")}` : null)}</p>
+      ) : null}
+      {storyboards.length ? (
+        <ul class="boards">
+          {storyboards.map((board) => (
+            <li>
+              <a href={`storyboards/${board.address}`}>{board.title}</a>
+              <span class="muted">{facts(seconds(board.durationSeconds), board.aspectRatio, board.variant, `${board.shots.length} ${board.shots.length === 1 ? "shot" : "shots"}`, blocked(board) ? `${blocked(board)} waiting on references` : null, board.status)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p class="muted">No storyboards follow this brief yet.</p>}
+    </section>
+  ))}
+</Layout>

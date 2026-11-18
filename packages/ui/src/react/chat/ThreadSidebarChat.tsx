@@ -26,8 +26,8 @@ const SHOWN_ENTRIES = 200;
  * The panel's one thread for this member and owner. The platform names its id, so every device and
  * browser continues the same conversation; until the first message it is not stored yet.
  */
-async function sidebarConversation(id: string): Promise<Selected> {
-  const threads = threadClient();
+async function sidebarConversation(id: string, base?: string): Promise<Selected> {
+  const threads = threadClient({ base });
   const thread = await threads.get(id).catch(() => null);
   if (!thread) return { id, messages: [], persisted: false };
   const { entries } = await threads.entries(id, { limit: SHOWN_ENTRIES });
@@ -41,7 +41,7 @@ async function sidebarConversation(id: string): Promise<Selected> {
  * or asked for; turns go to the platform's thread routes. It has no focus:
  * Outfitter does not see the page it sits beside.
  */
-export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label = "Outfitter" }: {
+export default function ThreadSidebarChat({ id, userId, scopeKey, thread, endpoint, label = "Outfitter" }: {
   /** The panel's id, which its header toggle controls. */
   id: string;
   userId: string;
@@ -49,6 +49,8 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
   scopeKey: string;
   /** The member's sidebar thread for this owner (`sidebarThreadId`, `sidebarContext`). */
   thread: SidebarThread;
+  /** Canonical platform endpoint, independent of the currently mounted app. */
+  endpoint?: string;
   label?: string;
 }) {
   // Pages without the ClientRouter reload on navigation; this key carries whether
@@ -60,7 +62,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
   const effort = useRef(defaultEffort);
   const current = useRef(selected);
   current.current = selected;
-  const client = useMemo(() => threadClient(), []);
+  const client = useMemo(() => threadClient({ base: endpoint }), [endpoint]);
   const stored = useRef<Promise<unknown> | null>(null);
 
   // The first open loads the panel's one thread.
@@ -68,7 +70,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
   useEffect(() => {
     if (!open || selected) return;
     let active = true;
-    sidebarConversation(thread.id).catch(() => {
+    sidebarConversation(thread.id, endpoint).catch(() => {
       setNotice("Could not load your earlier messages. Close and reopen the panel to try again.");
       // Still the panel's own thread: sending continues it.
       return { id: thread.id, messages: [], persisted: false };
@@ -138,7 +140,7 @@ export default function ThreadSidebarChat({ id, userId, scopeKey, thread, label 
       focus={null}
       scope={{
         intro: "Ask Outfitter anything while you work.",
-        limits: "Outfitter can't see or change this page.",
+        limits: "Ask about your apps, workflows, schedules and recent runs. I can manage schedules you ask for.",
       }}
       conversation={selected ? { id: selected.id, messages, status, error: error ? error.message || "Could not send your message." : undefined, notice } : null}
       openStorageKey={`${chatKey}:open`}

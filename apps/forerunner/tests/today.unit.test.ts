@@ -29,41 +29,25 @@ test("the operational timeline leads with what is in progress, then due, next st
     item({ id: "p4", category: "pebble", title: "Already done", parentId: "s2", status: "done" }),
     item({ id: "g1", category: "sand", title: "Order the turkey" }),
   ];
-  const blocks = blocksFromBoard(items, 14, "2026-11-03");
+  const blocks = blocksFromBoard(items, "2026-11-03");
   assert.deepEqual(blocks.map((block) => block.id), ["now:p1", "batch:due", "batch:next", "batch:small"]);
   assert.equal(blocks[0].title, "Fix the install bugs");
-  assert.equal(blocks[0].action?.href, "board?item=p1");
+  assert.equal(blocks[0].action?.href, "items/p1");
   assert.deepEqual(blocks[1].items?.map((entry) => [entry.id, entry.action]), [["p2", "Overdue"]]);
   assert.deepEqual(blocks[2].items?.map((entry) => entry.id), ["p3"], "p2 is due, so the next step for s1 is not repeated");
-  assert.deepEqual(blocks[3].items?.map((entry) => entry.id), ["g1", "review:graph"]);
-  assert.equal(blocks[3].items?.[1].title, "Approve 14 changes to your knowledge graph");
-  assert.equal(blocks[3].items?.[1].href, "graph?status=pending");
+  assert.deepEqual(blocks[3].items?.map((entry) => entry.id), ["g1"]);
 });
 
 test("an empty board with nothing waiting draws nothing, so the page shows its empty state", () => {
-  assert.deepEqual(blocksFromBoard([], 0, "2026-11-03"), []);
-  assert.deepEqual(blocksFromBoard([item({ id: "d", category: "stone", title: "Done", status: "done" })], 1, "2026-11-03").map((block) => block.id), ["batch:small"]);
+  assert.deepEqual(blocksFromBoard([], "2026-11-03"), []);
+  assert.deepEqual(blocksFromBoard([item({ id: "d", category: "stone", title: "Done", status: "done" })], "2026-11-03").map((block) => block.id), []);
 });
 
-test("the knowledge graph filter narrows by status, type and search together", async () => {
-  const { filterEntities } = await import("../src/scripts/entities-filter");
-  const base = { foundIn: ["Gmail"], links: 0, addedAt: "2026-11-03T08:00:00Z", runId: "r", wikiSlug: "wiki-map" };
-  const entities = [
-    { ...base, id: "a", title: "Jordan Blake", kind: "Person", status: "pending" as const },
-    { ...base, id: "b", title: "Salon dinner", kind: "Event", status: "accepted" as const },
-    { ...base, id: "c", title: "Jordan's loft", kind: "Place", status: "accepted" as const },
-  ];
-  assert.deepEqual(filterEntities(entities, "", "all", null).map((e) => e.id), ["a", "b", "c"]);
-  assert.deepEqual(filterEntities(entities, "jordan", "all", null).map((e) => e.id), ["a", "c"]);
-  assert.deepEqual(filterEntities(entities, "jordan", "accepted", null).map((e) => e.id), ["c"]);
-  assert.deepEqual(filterEntities(entities, "", "all", "Event").map((e) => e.id), ["b"]);
-});
 
-test("the daily run's open suggestions are a small task before the graph review, which stays last", () => {
-  const [small] = blocksFromBoard([], 2, "2026-11-03", 3);
+test("the daily run's open suggestions are small tasks", () => {
+  const [small] = blocksFromBoard([], "2026-11-03", 3);
   assert.deepEqual(small.items?.map((entry) => [entry.id, entry.title, entry.href]), [
     ["review:suggestions", "Look at 3 suggestions", "workflows#suggestions"],
-    ["review:graph", "Approve 2 changes to your knowledge graph", "graph?status=pending"],
   ]);
-  assert.equal(blocksFromBoard([], 0, "2026-11-03", 1)[0].items?.[0].title, "Look at 1 suggestion");
+  assert.equal(blocksFromBoard([], "2026-11-03", 1)[0].items?.[0].title, "Look at 1 suggestion");
 });

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
-import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
+import type { EntityPage, EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { useCaseTypeId } from "../src/server/use-cases";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 
@@ -72,12 +72,12 @@ test("Planning stores use cases in Wiki, preserves edits on setup, and enforces 
       ((await setup.json()) as { installationId: string }).installationId,
       wiki.installationId,
     );
-    const types = (await (
+    const types = ((await (
       await wiki.call("/api/internal/entities/v1/list", owner, {
         method: "POST",
         body: { type: "graph-type", limit: 100 },
       })
-    ).json()) as EntityRecord[];
+    ).json()) as EntityPage).records;
     for (const [kind, name, title] of [
       ["opportunities", "Problem", "Choosing useful work is difficult"],
       ["customer-segments", "CustomerSegment", "Small teams"],
@@ -192,8 +192,8 @@ test("Planning stores use cases in Wiki, preserves edits on setup, and enforces 
     assert.equal(again.status, 200);
     assert.deepEqual(
       hostCalls,
-      // One discovery (Onto, then the legacy Wiki template), then UseCase, the intake ontology's two types, then the code-change definitions (CodeChange, delivers, merged_into).
-      ["entities.types", "entities.types", ...Array(6).fill("entities.get")],
+      // One discovery (Onto, then the legacy Wiki template), then UseCase, the intake ontology's two types, then the code-change definitions (CodeChange, delivers, merged_into), then the measurement definitions (Measure, Measurement, computes, measurement_of, captured_with).
+      ["entities.types", "entities.types", ...Array(11).fill("entities.get")],
       "navigation checks add-only setup without rediscovering Wiki",
     );
     assert.equal((await call("/use-cases/setup", {})).status, 404);

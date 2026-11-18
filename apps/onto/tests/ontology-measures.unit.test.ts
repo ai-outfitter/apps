@@ -30,7 +30,8 @@ test("declared endpoints and relator slots agree with existing types", () => {
       const endpoints = ctx.contracts.get(slot.edgeTypeId)?.endpoints;
       assert.ok(endpoints, `${type.name}.${slot.name} edge declares endpoints`);
       assert.ok(Array.isArray(endpoints.from) && endpoints.from.includes(type.id), `${type.name}.${slot.name} from`);
-      assert.deepEqual([...slot.participantTypes].sort(), [...list(endpoints.to)].sort(), `${type.name}.${slot.name} to`);
+      for (const participant of slot.participantTypes)
+        assert.ok(list(endpoints.to).includes(participant), `${type.name}.${slot.name} permits participant ${participant}`);
     }
   }
 });

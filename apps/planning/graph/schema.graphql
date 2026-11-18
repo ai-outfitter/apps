@@ -1,6 +1,94 @@
 """Any JSON value."""
 scalar JSON
 
+input ProjectEvidenceInput {
+  projectId: ID!
+  bundleId: ID
+  batchId: ID
+  after: String
+  limit: Int
+}
+
+"""
+A design partner's feature or bug request, filed from its own organization.
+"""
+type PartnerRequest {
+  id: ID!
+
+  """The partner's own ID for it."""
+  requestId: ID!
+  revision: Int!
+
+  """
+  proposed until an editor accepts (Software Foundry files it as an issue) or rejects it.
+  """
+  status: PartnerRequestStatus!
+
+  """feature or bug."""
+  kind: String!
+  title: String!
+  problem: String!
+
+  """[{ id, text }]"""
+  acceptanceCriteria: JSON!
+
+  """Bugs only: { stepsToReproduce, expected, actual, environment? }."""
+  bug: JSON
+
+  """The provider's product record, by the ID both graphs share."""
+  productId: ID
+
+  """{ organizationId, userId, role: "design partner" }"""
+  partner: JSON!
+
+  """Why it was rejected."""
+  reason: String
+
+  """
+  Once accepted: Foundry's request { requestId, kind, issue { number, url }, run }.
+  """
+  foundryRequest: JSON
+
+  """Epoch milliseconds."""
+  createdAt: Float!
+  updatedAt: Float!
+}
+
+enum PartnerRequestStatus {
+  proposed
+  accepted
+  rejected
+}
+
+type DailyReportSourceConnection {
+  edges: [DailyReportSourceConnectionEdge!]!
+  nodes: [DailyReportSource!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type DailyReportSourceConnectionEdge {
+  cursor: String!
+  node: DailyReportSource!
+}
+
+type DailyReportSource {
+  id: ID!
+  name: String!
+  ownerKind: String!
+  ownerId: String!
+  planningInstallationId: String!
+  organizationSlug: String
+  report: JSON
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
 type ProductCard {
   rank: Int
   id: ID!
@@ -40,24 +128,27 @@ type ProductPage {
 }
 
 type ProductPageConnection {
+  edges: [ProductPageConnectionEdge!]!
   nodes: [ProductPage!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
 }
 
-type PageInfo {
-  endCursor: String
-  hasNextPage: Boolean!
-}
-
-type Aggregate {
-  count: Int!
+type ProductPageConnectionEdge {
+  cursor: String!
+  node: ProductPage!
 }
 
 type OrganizationGoalsConnection {
+  edges: [OrganizationGoalsConnectionEdge!]!
   nodes: [OrganizationGoals!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type OrganizationGoalsConnectionEdge {
+  cursor: String!
+  node: OrganizationGoals!
 }
 
 """
@@ -93,9 +184,15 @@ type GoalMetric {
 }
 
 type ProjectConnection {
+  edges: [ProjectConnectionEdge!]!
   nodes: [Project!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ProjectConnectionEdge {
+  cursor: String!
+  node: Project!
 }
 
 type Project {
@@ -197,9 +294,15 @@ type ProjectReadiness {
 }
 
 type ProjectRepositoryConnection {
+  edges: [ProjectRepositoryConnectionEdge!]!
   nodes: [ProjectRepository!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type ProjectRepositoryConnectionEdge {
+  cursor: String!
+  node: ProjectRepository!
 }
 
 type ProjectRepository {
@@ -242,9 +345,15 @@ type GithubPullRequestActivity {
 scalar DateTime
 
 type IssueConnection {
+  edges: [IssueConnectionEdge!]!
   nodes: [Issue!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type IssueConnectionEdge {
+  cursor: String!
+  node: Issue!
 }
 
 type Issue {
@@ -263,10 +372,79 @@ type Issue {
   updatedAt: DateTime!
 }
 
+"""How Issue records are ordered, ties by ID."""
+enum IssueOrder {
+  ID_ASC
+  ID_DESC
+  POSITION_ASC
+  POSITION_DESC
+}
+
+input IssueFilter {
+  projectId: IDFilter
+  status: StringFilter
+  category: StringFilter
+  and: [IssueFilter!]
+  or: [IssueFilter!]
+  not: IssueFilter
+}
+
+"""
+Conditions on one id field of a filter; every one given must hold, and a filter holds at most 20. They run in the database.
+"""
+input IDFilter {
+  isNull: Boolean
+  equalTo: ID
+  notEqualTo: ID
+  in: [ID!]
+  notIn: [ID!]
+  lessThan: ID
+  lessThanOrEqualTo: ID
+  greaterThan: ID
+  greaterThanOrEqualTo: ID
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
+}
+
+input MetricMeasurementsInput {
+  metricIds: [ID!]
+}
+
+input UseCasesInput {
+  projectId: ID!
+}
+
+input IntakeReleaseOptionsInput {
+  projectId: ID!
+}
+
 type IntakeConnection {
+  edges: [IntakeConnectionEdge!]!
   nodes: [Intake!]!
   pageInfo: PageInfo!
-  aggregate: Aggregate!
+  totalCount: Int!
+}
+
+type IntakeConnectionEdge {
+  cursor: String!
+  node: Intake!
 }
 
 type Intake {
@@ -281,6 +459,15 @@ type Intake {
 
   """Wiki records at the revisions the intake was scoped to."""
   sources: JSON!
+
+  """Caller-provided conversation provenance; grants no transcript access."""
+  originatingMessage: JSON
+
+  """
+  Persisted release disposition, existing Release revision, rationale and backlog status.
+  """
+  releaseFit: JSON
+  releaseFitHistory: JSON!
   routes: [IntakeRoute!]!
 
   """
@@ -353,6 +540,19 @@ input ProjectDeliveryInput {
   projectId: ID!
 }
 
+input DailyReportInput {
+  level: DailyReportInputLevel
+  subject: String
+  date: String!
+  timezone: String
+}
+
+enum DailyReportInputLevel {
+  project
+  organization
+  personal
+}
+
 """What changed in a project since its previous digest."""
 type ProjectDigest {
   id: ID!
@@ -386,9 +586,13 @@ input ProjectDigestsInput {
   first: Int
 }
 
-"""The morning digest of every active project, daily at 13:00 UTC."""
+"""
+The local morning report chain: organization projects at 03:00, personal overview at 04:00 by default.
+"""
 type DigestSchedule {
   enabled: Boolean!
+  cron: String
+  timezone: String
 
   """Epoch milliseconds; null when off."""
   nextRunAt: Float
@@ -415,6 +619,260 @@ input IntakeWorkPreviewInputPreviewSupportingSourcesItem {
   type: String!
   id: String!
   revision: Float!
+}
+
+input SubmitEvidenceInput {
+  key: String!
+  batchId: ID!
+  bundle: SubmitEvidenceInputBundle!
+}
+
+input SubmitEvidenceInputBundle {
+  schemaVersion: Float!
+  recordKind: String!
+  project: SubmitEvidenceInputBundleProject!
+  productRevision: SubmitEvidenceInputBundleProductRevision!
+  title: String!
+  summary: String!
+  capturedAt: String!
+  source: SubmitEvidenceInputBundleSource!
+  steps: [SubmitEvidenceInputBundleStepsItem!]!
+  limitations: [String!]
+}
+
+input SubmitEvidenceInputBundleProject {
+  id: ID!
+  revision: Float!
+}
+
+input SubmitEvidenceInputBundleProductRevision {
+  id: ID!
+  revision: Float!
+}
+
+input SubmitEvidenceInputBundleSource {
+  repository: String!
+  commit: String!
+  environment: SubmitEvidenceInputBundleSourceEnvironment!
+  seeded: Boolean!
+  dirty: Boolean!
+  release: String
+  build: String
+}
+
+enum SubmitEvidenceInputBundleSourceEnvironment {
+  local
+  preview
+  production
+}
+
+input SubmitEvidenceInputBundleStepsItem {
+  id: String!
+  title: String!
+  description: String!
+  media: [SubmitEvidenceInputBundleStepsItemMediaItem!]
+  before: SubmitEvidenceInputBundleStepsItemBefore
+}
+
+input SubmitEvidenceInputBundleStepsItemMediaItem {
+  id: String!
+  kind: SubmitEvidenceInputBundleStepsItemMediaItemKind!
+  caption: String!
+  href: String!
+  downloadHref: String
+  contentType: String!
+  sha256: String!
+  owner: String!
+}
+
+enum SubmitEvidenceInputBundleStepsItemMediaItemKind {
+  screenshot
+  video
+}
+
+input SubmitEvidenceInputBundleStepsItemBefore {
+  bundle: SubmitEvidenceInputBundleStepsItemBeforeBundle!
+  stepId: String!
+}
+
+input SubmitEvidenceInputBundleStepsItemBeforeBundle {
+  id: ID!
+  revision: Float!
+}
+
+input BeginVideoTransferInput {
+  id: ID!
+  revision: Float!
+  targetInstallationId: String!
+}
+
+input ImportVideoTransferInput {
+  id: ID!
+  sourceInstallationId: String!
+}
+
+input FinishVideoTransferInput {
+  id: ID!
+  revision: Float!
+}
+
+input SaveVideoProductionInput {
+  id: ID!
+  revision: Float!
+  packet: SaveVideoProductionInputPacket!
+}
+
+input SaveVideoProductionInputPacket {
+  product: SaveVideoProductionInputPacketProduct!
+  productRevision: SaveVideoProductionInputPacketProductRevision
+  brief: SaveVideoProductionInputPacketBrief
+  storyboard: SaveVideoProductionInputPacketStoryboard
+  title: String!
+  audience: String!
+  message: String!
+  channel: SaveVideoProductionInputPacketChannel!
+  style: String!
+  concept: Boolean!
+  shots: [SaveVideoProductionInputPacketShotsItem!]!
+}
+
+input SaveVideoProductionInputPacketProduct {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketProductRevision {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketBrief {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketStoryboard {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+enum SaveVideoProductionInputPacketChannel {
+  instagram
+  facebook
+  x
+  tiktok
+  internal
+}
+
+input SaveVideoProductionInputPacketShotsItem {
+  id: ID!
+  title: String!
+  duration: Int!
+  narration: String
+  prompt: String!
+  source: SaveVideoProductionInputPacketShotsItemSource
+  snapshot: SaveVideoProductionInputPacketShotsItemSnapshot
+}
+
+input SaveVideoProductionInputPacketShotsItemSource {
+  kind: String!
+  label: String!
+  artifact: SaveVideoProductionInputPacketShotsItemSourceArtifact!
+  record: SaveVideoProductionInputPacketShotsItemSourceRecord
+  assetId: ID
+}
+
+input SaveVideoProductionInputPacketShotsItemSourceArtifact {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+}
+
+input SaveVideoProductionInputPacketShotsItemSourceRecord {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input SaveVideoProductionInputPacketShotsItemSnapshot {
+  installationId: String!
+  type: String!
+  id: String!
+  revision: Float!
+}
+
+input PrepareVideoTakeInput {
+  id: ID!
+  productionId: ID!
+  revision: Float!
+  shotId: ID!
+  seed: Int
+}
+
+input UpdateVideoTakeInput {
+  id: ID!
+  revision: Float!
+  state: UpdateVideoTakeInputState!
+  providerRequestId: String
+  error: String
+  assetId: ID
+}
+
+enum UpdateVideoTakeInputState {
+  submitting
+  submitted
+  completed
+  failed
+  uncertain
+}
+
+input ReserveVideoAssetInput {
+  transport: ReserveVideoAssetInputTransport
+  productionId: ID!
+  id: ID!
+  kind: ReserveVideoAssetInputKind!
+  filename: String!
+  contentType: String!
+  size: Float!
+  sha256: String!
+  productionRevision: Float!
+}
+
+enum ReserveVideoAssetInputTransport {
+  direct
+  http
+}
+
+enum ReserveVideoAssetInputKind {
+  frame
+  take
+  final
+  manifest
+}
+
+input CommitVideoAssetInput {
+  productionId: ID!
+  id: ID!
+}
+
+input PublishVideoProductionInput {
+  id: ID!
+  revision: Float!
+}
+
+input GenerateProductReportInput {
+  at: String
 }
 
 input ChangeProductReportScheduleInput {
@@ -696,6 +1154,17 @@ enum ReorderPriorityInputKind {
   products
 }
 
+input ReorderPersonalPortfolioInput {
+  kind: ReorderPersonalPortfolioInputKind!
+  items: [String!]!
+  revision: Float!
+}
+
+enum ReorderPersonalPortfolioInputKind {
+  organizations
+  projects
+}
+
 input SetProjectStateInput {
   project: JSON!
   state: SetProjectStateInputState!
@@ -718,14 +1187,34 @@ input DeleteProjectInput {
   revision: Float!
 }
 
+input SetIntakeReleaseFitInput {
+  intakeId: ID!
+  revision: Float!
+  requestId: ID!
+  disposition: String!
+  rationale: String!
+  release: SetIntakeReleaseFitInputRelease
+}
+
+input SetIntakeReleaseFitInputRelease {
+  id: ID!
+  revision: Float!
+}
+
 input CreateIntakeInput {
   requestId: ID!
   kind: String!
   title: String!
   description: String!
   projectId: ID
+  originatingMessage: CreateIntakeInputOriginatingMessage
   sourceUrls: [String!]
   sources: [CreateIntakeInputSourcesItem!]
+}
+
+input CreateIntakeInputOriginatingMessage {
+  threadId: ID!
+  messageId: String!
 }
 
 input CreateIntakeInputSourcesItem {
@@ -938,17 +1427,80 @@ input ResetIntakeSubmissionInput {
   revision: Float!
 }
 
+input GenerateDailyReportsInput {
+  timezone: String
+  date: String
+}
+
 input GenerateProjectDigestInput {
   projectId: ID!
 }
 
 input ChangeDigestScheduleInput {
   enabled: Boolean!
+  timezone: String
 }
 
 input LinkProjectChangesInput {
   projectId: ID
   days: Int
+}
+
+input RecordMeasurementsInput {
+  measureId: ID
+}
+
+input SubmitPartnerRequestInput {
+  requestId: ID!
+  kind: SubmitPartnerRequestInputKind!
+  title: String!
+  problem: String!
+  acceptanceCriteria: [SubmitPartnerRequestInputAcceptanceCriteriaItem!]!
+  bug: SubmitPartnerRequestInputBug
+  productId: String
+}
+
+enum SubmitPartnerRequestInputKind {
+  feature
+  bug
+}
+
+input SubmitPartnerRequestInputAcceptanceCriteriaItem {
+  id: String!
+  text: String!
+}
+
+input SubmitPartnerRequestInputBug {
+  stepsToReproduce: [String!]!
+  expected: String!
+  actual: String!
+  environment: String
+}
+
+type DesignPartners {
+  designPartners: [DesignPartner!]!
+}
+
+type DesignPartner {
+  organizationId: ID!
+  name: String!
+}
+
+input AcceptPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  target: AcceptPartnerRequestInputTarget!
+}
+
+input AcceptPartnerRequestInputTarget {
+  repository: String
+  project: String
+}
+
+input RejectPartnerRequestInput {
+  id: ID!
+  revision: Float!
+  reason: String!
 }
 
 input SaveUseCaseInput {
@@ -971,7 +1523,22 @@ input SaveUseCaseInputDocument {
 }
 
 type Query {
+  evidenceSchema: JSON!
+
+  """Read project evidence"""
+  projectEvidence(input: ProjectEvidenceInput!): JSON!
+  videoSourceEvidence(productId: ID!, cursor: String): JSON
+  videoTransfer(id: ID): JSON
+  videoTransferReceipt(id: ID): JSON
+  videoProductions(id: ID, productId: ID, revision: Int, after: String, limit: Int): JSON
+
+  """
+  Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.
+  """
+  partnerRequests(status: PartnerRequestStatus): [PartnerRequest!]!
+  dailyReports(first: Int = 100, after: String, ids: [ID!], date: String!, timezone: String): DailyReportSourceConnection!
   priorityOrder(kind: String!): JSON!
+  personalPortfolio(kind: String!): JSON!
   productReportRuns: JSON!
   productReportSchedule: JSON!
   products(at: String): [ProductCard!]!
@@ -992,13 +1559,27 @@ type Query {
     first: Int = 100
     after: String
     ids: [ID!]
+    orderBy: IssueOrder = ID_ASC
+    filter: IssueFilter
 
     """Match text across this collection’s text fields."""
     search: String
-    projectId: [ID!]
-    status: [String!]
-    category: [String!]
   ): IssueConnection!
+
+  """
+  Every MetricDefinition in the Wiki with its latest and previous recorded Measurement ({ value, unit, windowStart, windowEnd, capturedAt }) and the change between them, for KPIs such as this week's GitHub stars and growth since last week. latest is null until a Measure records one.
+  """
+  metricMeasurements(input: MetricMeasurementsInput!): JSON
+
+  """
+  Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.
+  """
+  useCases(input: UseCasesInput!): JSON
+
+  """
+  Read the canonical project's existing Wiki Releases with their IDs, revisions and linked evidence before recording intake release fit.
+  """
+  intakeReleaseOptions(input: IntakeReleaseOptionsInput!): JSON
 
   """
   Customer and competitive intakes with their routed child work, in ID order. Reading routes inspects each intake against Governance, so first defaults to 20.
@@ -1014,6 +1595,11 @@ type Query {
   Read a project's delivery handoff as persisted: requirements with revisions, the latest preparation (routes, questions, conflicts, deferred claims, blockers with remediation), every Workshop and Foundry package with its frozen body and digest, Workshop and Foundry read-backs, milestone readiness from evidence and acceptance criteria still unverified. Changes nothing.
   """
   projectDelivery(input: ProjectDeliveryInput!): JSON
+
+  """
+  Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.
+  """
+  dailyReport(input: DailyReportInput!): JSON
 
   """
   A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.
@@ -1067,10 +1653,54 @@ input IntakeWorkPreviewsInputInputsItemPreviewSupportingSourcesItem {
 }
 
 type Mutation {
+  """Stage a visual capture in a graph batch"""
+  submitEvidence(input: SubmitEvidenceInput!): JSON!
+
   """
-  Regenerate the current weekly product report as a registered task. Editors only.
+  Seal a production for a verified transfer; blocks further source writes.
   """
-  generateProductReport(input: JSON!): JSON
+  beginVideoTransfer(input: BeginVideoTransferInput!): JSON
+
+  """
+  Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.
+  """
+  importVideoTransfer(input: ImportVideoTransferInput!): JSON
+
+  """Verify destination metadata and media before recording completion."""
+  finishVideoTransfer(input: FinishVideoTransferInput!): JSON
+
+  """
+  Save a storyboard at its current revision; zero creates a stable production ID. Editors only.
+  """
+  saveVideoProduction(input: SaveVideoProductionInput!): JSON
+
+  """
+  Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.
+  """
+  prepareVideoTake(input: PrepareVideoTakeInput!): JSON
+
+  """
+  Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.
+  """
+  updateVideoTake(input: UpdateVideoTakeInput!): JSON
+
+  """
+  Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it.
+  """
+  reserveVideoAsset(input: ReserveVideoAssetInput!): JSON
+
+  """Verify uploaded bytes and attach them to the production. Editors only."""
+  commitVideoAsset(input: CommitVideoAssetInput!): JSON
+
+  """
+  Publish the current production packet as an organization graph Document referencing its product and revision.
+  """
+  publishVideoProduction(input: PublishVideoProductionInput!): JSON
+
+  """
+  Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.
+  """
+  generateProductReport(input: GenerateProductReportInput!): JSON
 
   """Enable or disable daily roadmap regeneration. Editors only."""
   changeProductReportSchedule(input: ChangeProductReportScheduleInput!): JSON
@@ -1126,6 +1756,11 @@ type Mutation {
   reorderPriority(input: ReorderPriorityInput!): JSON!
 
   """
+  Save your personal organization or cross-organization project order at the revision read. Does not change shared priorities.
+  """
+  reorderPersonalPortfolio(input: ReorderPersonalPortfolioInput!): JSON!
+
+  """
   Set the project lifecycle state at the revision read; archived projects can be restored.
   """
   setProjectState(input: SetProjectStateInput!): Project!
@@ -1139,6 +1774,11 @@ type Mutation {
   Delete a project that has no issues. Name the revision you read; a changed record is refused (409).
   """
   deleteProject(input: DeleteProjectInput!): Deleted!
+
+  """
+  Record current-release, deferred, needs-research or rejected with rationale, an optional existing project Release revision, and history. Current-release requires a Release; deferred without one stays in intake backlog. Optimistic revision and stable requestId required. Does not approve or start delivery. Editors only.
+  """
+  setIntakeReleaseFit(input: SetIntakeReleaseFitInput!): Intake!
 
   """
   Capture a customer or competitive intake under a stable requestId (replaying it returns the saved intake) and route it: the configured model proposes the child work, each route gated by the one active Governance control for its kind. When routing fails the intake is still saved, with routingError; routeIntake runs it later. Editors only.
@@ -1186,6 +1826,11 @@ type Mutation {
   resetIntakeSubmission(input: ResetIntakeSubmissionInput!): Intake!
 
   """
+  Start one durable task that captures every active project's previous local day, then saves this owner's overview from those exact reports.
+  """
+  generateDailyReports(input: GenerateDailyReportsInput!): JSON!
+
+  """
   Start the project-digest task for one project: the platform runs it durably and records its run; the digest appears in projectDigests when the run completes. Returns { id, task, created }: id is the run, read with digestRuns or the platform's TaskRuns. Editors only.
   """
   generateProjectDigest(input: GenerateProjectDigestInput!): JSON
@@ -1199,6 +1844,31 @@ type Mutation {
   Link the pull requests merged into each project's repositories (its Wiki node's source_in edges) over the last days (default 7) to the project in the Wiki: one change batch of CodeChange records with merged_into and delivers relationships, each with its evidence and reason. Confident links commit by policy; the rest wait for review on the Wiki's Changes page. Returns { runId, batchId, state, pullRequests, proposals, skipped, unread }. Editors only.
   """
   linkProjectChanges(input: LinkProjectChangesInput!): JSON
+
+  """
+  Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.
+  """
+  recordMeasurements(input: RecordMeasurementsInput!): JSON
+
+  """
+  File a feature or bug request with this organization as one of its design partners, from your own organization (graph_mutate with scope set to this organization and fromScope to yours). It waits as proposed until an editor here accepts or rejects it; replay the same requestId to read its status. Design partners only: other customers file an issue on the public repository.
+  """
+  submitPartnerRequest(input: SubmitPartnerRequestInput!): PartnerRequest!
+
+  """
+  Re-read this organization's design partners from its graph: customers whose customer_of link to it has design_partner set, each bound to a platform organization by organization_id. Only they can submit partner requests. Editors only.
+  """
+  refreshDesignPartners(input: JSON!): DesignPartners!
+
+  """
+  Accept a design partner's proposed request: if the graph still flags the partner, Software Foundry's RequestChanges files it as an issue in the repository or project you name, attributed to you, with the partner named in the problem and its product in the context. Name the revision you read; a changed record is refused (409). A refusal keeps it proposed. Editors only.
+  """
+  acceptPartnerRequest(input: AcceptPartnerRequestInput!): PartnerRequest!
+
+  """
+  Reject a design partner's proposed request with a reason the partner reads back. Nothing is filed. Name the revision you read; a changed record is refused (409). Editors only.
+  """
+  rejectPartnerRequest(input: RejectPartnerRequestInput!): PartnerRequest!
 
   """
   Create a use case in the Wiki for a project, or with id and revision replace one's title, summary, document and archived flag, and return the Wiki record. Editors only.

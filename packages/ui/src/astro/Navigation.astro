@@ -2,8 +2,8 @@
 import Icon from "./Icon.astro";
 import type { IconName } from "../icons";
 export interface NavigationLink { label: string; href: string; id?: string; icon?: IconName; active?: boolean; }
-interface Props { links: NavigationLink[]; label?: string; utilities?: boolean; }
-const { links, label = "App navigation", utilities = false } = Astro.props;
+interface Props { links: NavigationLink[]; label?: string; utilities?: boolean; heading?: boolean; }
+const { links, label = "App navigation", utilities = false, heading = false } = Astro.props;
 const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
 function selected(link: NavigationLink) {
   if (link.active !== undefined) return link.active;
@@ -12,5 +12,6 @@ function selected(link: NavigationLink) {
 }
 ---
 <nav class:list={["ui-navigation", { "ui-navigation--utilities": utilities }]} aria-label={label}>
+  {heading && <p class="ui-navigation-heading">{label}</p>}
   {links.map(link => <a id={link.id} class="chat-link" href={link.href} aria-current={selected(link) ? "page" : undefined}>{link.icon && <Icon name={link.icon} />} {link.label}</a>)}
 </nav>

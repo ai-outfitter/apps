@@ -1,3 +1,4 @@
+import { capture } from "./fixtures/visual-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -211,4 +212,15 @@ test("screenshot context uses the longest path and combines only equal-path rece
   ], "/capture/settings/page.png");
   assert.deepEqual(metadata, {path:"settings/page.png",route:"/settings",viewport:"desktop",pageTitle:"Settings"});
   assert.deepEqual(screenshotMetadata([{path: false},{}], "/page.png"), {});
+});
+
+
+test("normalized captures are pinned to their product revision", () => {
+  const graph=evidenceFixture();
+  const latest=fixtureItem(graph.nodes,node=>node.id===ids.latest);
+  const revision=fixtureItem(graph.nodes,node=>node.id===ids.revision);
+  latest.body=JSON.stringify({...capture,productRevision:{id:revision.id,revision:revision.revision}});
+  assert.ok(revisionEvidence(graph,revision).bundles.some(bundle=>bundle.node.id===latest.id));
+  latest.body=JSON.stringify(capture);
+  assert.ok(!revisionEvidence(graph,revision).bundles.some(bundle=>bundle.node.id===latest.id));
 });

@@ -1,0 +1,14 @@
+---
+import { platformHref } from "../platform-href";
+interface Props { href: string; label: string }
+const { href, label } = Astro.props;
+---
+<!-- Managed dispatch keeps HTTP redirects inside the app. Navigate from the browser to the platform instead. -->
+<html lang="en"><head><title>{label} — Outfitter</title><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body><p><a data-platform-destination href={platformHref(Astro.request, href)}>Continue to {label}</a></p></body></html>
+<script>
+  import { onPageLoad } from "@ai-outfitter/ui/page";
+  onPageLoad(() => {
+  const link = document.querySelector<HTMLAnchorElement>("[data-platform-destination]");
+  if (link) window.location.replace(link.href);
+  });
+</script>

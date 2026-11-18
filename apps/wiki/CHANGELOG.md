@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Restore document reading navigation with recent updates, scoped goals/projects/people, existing Profile and Notes trees, and All documents in Settings. Sidebar metadata excludes document bodies; document history and editing remain unchanged.
+
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.4...wiki-map-v0.1.5) (2026-11-17)
+
+
+### Features
+
+* **app-sdk:** queries run in the owning app's database, GraphQL follows Relay connections ([#215](https://github.com/ai-outfitter/apps/issues/215)) ([5be3e24](https://github.com/ai-outfitter/apps/commit/5be3e2491beef8848a00d6a92f37b3dc83fc3cee))
+* deliver personal portfolio and daily reports ([c1a2c03](https://github.com/ai-outfitter/apps/commit/c1a2c03de78105602cc6a17e9aced640f16b33a1))
+* **wiki, forerunner, planning:** one Wiki request per saved document, versioned dependencies, and a daily brief eval ([#216](https://github.com/ai-outfitter/apps/issues/216)) ([36cda66](https://github.com/ai-outfitter/apps/commit/36cda667c44e4dc9e25729f211d9751eb0fbe122))
+
+
+### Bug Fixes
+
+* preserve legacy Wiki pages during Onto cutover ([1b7a619](https://github.com/ai-outfitter/apps/commit/1b7a6192bf9d2f9181157f84632343904135f61e))
+* **test:** prepare cross-app artifacts and open settings menu ([5cacaad](https://github.com/ai-outfitter/apps/commit/5cacaad4f1554f05cf69d502be3b650278e54ff4))
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.3...wiki-map-v0.1.4) (2026-11-10)
 
 

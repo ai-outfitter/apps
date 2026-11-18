@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4](https://github.com/ai-outfitter/apps/compare/creative-team-v0.1.3...creative-team-v0.1.4) (2026-11-17)
+
+
+### Features
+
+* **app-sdk:** queries run in the owning app's database, GraphQL follows Relay connections ([#215](https://github.com/ai-outfitter/apps/issues/215)) ([5be3e24](https://github.com/ai-outfitter/apps/commit/5be3e2491beef8848a00d6a92f37b3dc83fc3cee))
+
+
+### Bug Fixes
+
+* **creative-team:** WebP cover and publish to the platform catalog ([#44](https://github.com/ai-outfitter/apps/issues/44)) ([733329e](https://github.com/ai-outfitter/apps/commit/733329e8c5fb7a7e4200c83263490053d15d5f2a))
+
 ## [0.1.3](https://github.com/ai-outfitter/apps/compare/creative-team-v0.1.2...creative-team-v0.1.3) (2026-11-09)
 
 

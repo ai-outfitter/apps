@@ -4,7 +4,7 @@
 // checkout has Playwright; without either the box runs on without screenshots.
 
 /** The workbench page for a project: its slug may be just the end of the project ID. */
-export const workbenchPath = (project) => `/projects/${String(project.id).slice(-12)}/design`;
+export const workbenchPath = (project) => `/projects/${String(project.id).slice(-12)}/assembly`;
 
 /** Names a screenshot after its step: "1-design.png", "2-follow-up-1.png", "3-export.png". */
 export const screenshotName = (index, step) => `${index}-${step.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
@@ -71,7 +71,7 @@ export async function openWorkbench(box, cookie) {
         const response = await page.goto(`${origin}${workbenchPath(project)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
         // A page that did not load has no 3D view to wait for.
         if (!response?.ok()) throw new Error(`the workbench answered ${response?.status() ?? "nothing"}`);
-        const ready = await page.locator('#viewer[data-ready="true"]').waitFor({ state: "attached", timeout: 120_000 })
+        const ready = await page.locator('#assembly-viewer[data-ready="true"]').waitFor({ state: "attached", timeout: 120_000 })
           .then(() => true, () => false);
         // The frame after the model is added, not the one before.
         await page.waitForTimeout(1000);

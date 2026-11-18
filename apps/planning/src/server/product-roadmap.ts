@@ -16,21 +16,19 @@ function sections(value: unknown) {
 
 /** Follow the quarterly product control's projected occurrence to its own plan. */
 export async function readProductRoadmap(db: GraphDatabase, organizationId: string) {
-  async function list(collection: "types" | "nodes", where: Record<string, unknown>) {
-    const records: EntityRecord[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const page = await db.collection(collection).list({ where, offset, limit: 100 });
-      records.push(...page);
-      if (page.length < 100) return records;
-      if (records.length >= 10000) throw new Response("Roadmap context exceeds its read bound", { status: 413 });
-    }
-  }
-  const types = await list("types", { archived: false });
+  const types = await db.collection("types").all({ where: { names: ["DecisionControlV3", "DecisionControlV5", "ControlOccurrence", "Plan"], archived: false } });
   const typeIds = (names: string[]) => types.filter(t => active(t) && names.includes(String(t.attributes.name))).map(t => t.ref.id);
-  const controls = (await Promise.all(typeIds(["DecisionControlV3", "DecisionControlV5"]).map(typeId => list("nodes", { typeId, archived: false })))).flat()
+  const controlTypes = typeIds(["DecisionControlV3", "DecisionControlV5"]);
+  const occurrenceTypes = typeIds(["ControlOccurrence"]);
+  // Controls and their occurrences in one read; the organization and schedule live in each JSON body.
+  const records: EntityRecord[] = controlTypes.length && occurrenceTypes.length
+    ? await db.collection("nodes").all({ where: { typeIds: [...controlTypes, ...occurrenceTypes], archived: false } })
+    : [];
+  const ofType = (ids: string[]) => records.filter(r => ids.includes(String(r.attributes.typeId)));
+  const controls = ofType(controlTypes)
     .filter(r => { const b = body(r); return active(r) && b.organization_id === organizationId && b.kind === "product_strategy" && (b.schedule as Record<string, unknown> | undefined)?.kind === "quarterly"; });
   const controlIds = new Set(controls.map(r => r.ref.id));
-  const occurrences = (await Promise.all(typeIds(["ControlOccurrence"]).map(typeId => list("nodes", { typeId, archived: false })))).flat()
+  const occurrences = ofType(occurrenceTypes)
     .filter(r => { const b = body(r); return active(r) && b.organization_id === organizationId && controlIds.has(String(b.control_id)) && typeof b.document_id === "string"; })
     .sort((a, b) => String(body(b).due_on ?? "").localeCompare(String(body(a).due_on ?? "")) || a.ref.id.localeCompare(b.ref.id));
   const planTypes = new Set(typeIds(["Plan"]));

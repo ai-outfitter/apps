@@ -1,3 +1,4 @@
+import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -5,7 +6,7 @@ import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { defaultWiki, wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
-import { planningEntities } from "./entities";
+import { planningEntity } from "./entities";
 import type { PlanningDatabase } from "./planning";
 
 export const useCaseTypeId = "ec742645-38b4-4b1e-a25a-77e3757b9f05";
@@ -75,7 +76,7 @@ async function checkProject(
 ) {
   if (!z.uuid().safeParse(id).success)
     throw new Response("Select a valid project", { status: 400 });
-  await planningEntities(db)[0].get(who, id);
+  await planningEntity(db, "project").get(who, id);
 }
 export async function listUseCases(
   db: PlanningDatabase,
@@ -85,24 +86,15 @@ export async function listUseCases(
 ) {
   if (projectId) await checkProject(db, who, projectId);
   const { installationId } = await defaultWiki(host);
-  const result: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await host.call("entities.list", {
-      installationId,
-      type: "graph-node",
-      offset,
-      limit: 100,
-    });
-    result.push(
-      ...page.filter(
-        (r) =>
-          r.attributes.typeId === useCaseTypeId &&
-          !r.attributes.archived &&
-          (!projectId || belongs(r, who, projectId)),
-      ),
-    );
-    if (page.length < 100) return result;
-  }
+  return listEntities(host, {
+    installationId,
+    type: "graph-node",
+    filter: {
+      typeId: useCaseTypeId,
+      archived: false,
+      ...(projectId ? { properties: { planning_installation_id: who.installationId, project_id: projectId } } : {}),
+    },
+  });
 }
 export const useCaseInput = z.strictObject({
   projectId: z.uuid(),

@@ -24,7 +24,7 @@ const state = { pullMerged: true, clock: 0, calls: [], bindingEnabled: true, sub
   issues: new Map([[3, issue(3)], [4, issue(4, { state: "closed" })], [5, issue(5, { html_url: "https://github.com/acme/app/pull/5", pull_request: {} })]]) };
 const inputs = { "triage.inputs.triagerBinding": "b-triager", "triage.inputs.engineerBinding": "b-engineer", "triage.inputs.reviewerBinding": "b-reviewer", "triage.inputs.landerBinding": "b-lander" };
 const denied = (status, message) => ({ denied: { ok: false, status, message } });
-const editorOnly = new Set(["snapshot", "connector.execute", "workflow.start"]);
+const editorOnly = new Set(["snapshot", "connector.execute", "workflow.start", "binding.approve"]);
 function connector(input) {
   if (input.connectionId !== "github" || input.resource !== "1" || !state.operations.includes(input.operation)) return denied(403, "Connector access unavailable");
   const tag = "<!-- outfitter-request:" + String(input.input.marker).toLowerCase() + " -->";
@@ -46,6 +46,14 @@ function connector(input) {
 }
 function answer(operation, input, props) {
   if (editorOnly.has(operation) && !/owner|admin/.test(props.role)) return denied(403, "Workflow host authority unavailable");
+  if (operation === "threads.get") return state.agentThread && input.ref.id === state.agentThread.id ? state.agentThread : { none: true };
+  if (operation === "threads.submission") return { ...input, state: "running", replyEntryIds: [] };
+  if (operation === "threads.append") return {
+    id: "receipt-entry", thread: { id: input.threadId }, role: input.role, parts: input.parts,
+    status: "complete", submissionId: null, sourceKey: input.sourceKey, metadata: null, createdAt: 1, recordedAt: 1,
+    attribution: { actor: { kind: "app", id: "foundry" }, origin: { kind: "member", id: props.user }, userId: props.user, installationId: "foundry" },
+  };
+  if (operation === "binding.approve") return { id: "job-reviewer", revision: "r", reused: false };
   if (operation === "snapshot") return {
     installation: { id: "foundry", activeHash: "hash", hostname: "foundry.acme.localhost", workflows: ["issue-to-merge-actions-ci"] },
     bindings: Object.values(inputs).map((id) => ({ id, workflowId: "issue-to-merge-actions-ci", actor: id.slice(2), kind: "external", label: id, revision: "r", packageHash: "hash", enabled: state.bindingEnabled })),
@@ -85,7 +93,7 @@ function answer(operation, input, props) {
     const prior = state.runs.find((run) => run.id === input.id);
     const request = JSON.stringify([input.workflow, input.inputs]);
     if (prior) return prior.request === request && prior.createdBy === props.user ? { id: input.id, workflow: input.workflow, created: false } : denied(409, "Run ID already claimed with different inputs");
-    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"].issue.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
+    state.runs.unshift({ id: input.id, workflow: input.workflow, subject: input.inputs["triage.inputs.event"]?.issue?.number, status: "running", request, createdBy: props.user, updatedAt: ++state.clock });
     return { id: input.id, workflow: input.workflow, created: true };
   }
   return undefined;
@@ -108,7 +116,7 @@ export default {
     if (url.pathname === "/__state") {
       if (request.method === "GET") return Response.json({ issues: Object.fromEntries(state.issues), comments: Object.fromEntries(state.comments), runs: state.runs });
       const change = await request.json();
-      for (const field of ["failAfterCreate","failAfterStatus","pullMerged","receiptCount","imageCount","nullReview"]) if (change[field] !== undefined) state[field] = change[field];
+      for (const field of ["failAfterCreate","failAfterStatus","pullMerged","receiptCount","imageCount","nullReview","agentThread"]) if (change[field] !== undefined) state[field] = change[field];
       if (change.failAfterCreate && change.failAfterStatus === undefined) state.failAfterStatus = 502;
       if (change.issueState) state.issues.get(change.issueState.number).state = change.issueState.state;
       if (change.clearIssueBody) state.issues.get(change.clearIssueBody).body = "";
@@ -188,6 +196,70 @@ async function installed() {
 }
 
 const codex: AppActor = { kind: "oauth-client", id: "codex-client", label: "Codex" };
+
+test("Foundry publishes its existing private agent and offers UI review only to authorized reviewers", async () => {
+  const f = await installed();
+  try {
+    const response = await f.dispatch("/api/internal/threads/v1/types", { body: {} });
+    assert.equal(response.status, 200);
+    const types = await response.json() as { type: string; agent?: { context: { type: string; id: string } } }[];
+    const agent = types.find((type) => type.type === "software-foundry.conversation");
+    assert.deepEqual(agent?.agent?.context, { type: "software-foundry.page", id: "e9500000-0000-4000-8000-000000000003" });
+    assert.ok(types.filter((type) => type.type !== "software-foundry.conversation").every((type) => !type.agent),
+      "read-only run history is not an invocable agent");
+    const id = "aaaaaaaa-1111-4111-8111-111111111112";
+    const thread = {
+      ref: { id }, id, owner: { kind: "organization", id: "org" }, installationId: "foundry", createdBy: "owner",
+      visibility: "private", type: "software-foundry.conversation", typeVersion: 1, title: "Foundry", status: "active",
+      context: agent!.agent!.context, parent: null, pinned: false, working: true, readOnly: false, createdAt: 1, updatedAt: 1,
+    };
+    const entry = {
+      id: "entry", thread: { id }, role: "user", parts: [{ type: "text", text: "Review the interface" }], status: "complete",
+      submissionId: "aaaaaaaa-1111-4111-8111-111111111113", sourceKey: null, metadata: null, createdAt: 1, recordedAt: null,
+      attribution: { actor: codex, origin: codex, userId: "owner", installationId: "foundry" },
+    };
+    for (const role of ["owner", "admin", "member"]) {
+      const prepared = await f.dispatch("/api/internal/threads/v1/prepare", {
+        role, body: { thread, entry, submissionId: "aaaaaaaa-1111-4111-8111-111111111113", retry: false },
+      });
+      assert.equal(prepared.status, 200, await prepared.clone().text());
+      const body = await prepared.json() as { tools: { name: string; description: string }[] };
+      const job = body.tools.find((tool) => tool.name === "software_foundry_job_run");
+      assert.equal(Boolean(job), role !== "member", `${role} job visibility`);
+      if (job) assert.match(job.description, /private proposal for member review; does not apply/);
+    }
+    assert.ok(!(await f.calls()).some((call) => ["workflow.start", "binding.approve"].includes(call.operation)),
+      "discovery and preparing context do not start a review");
+    await f.change({ agentThread: thread });
+    const propose = (callId: string, role = "owner", selected = thread) => f.dispatch("/api/internal/threads/v1/tool", {
+      role, body: { thread: selected, submissionId: "aaaaaaaa-1111-4111-8111-111111111113", calls: [],
+        call: { id: callId, name: "software_foundry_job_run", input: { job: "ui-review", repository: "acme/app" } } },
+    });
+    assert.equal((await propose("unauthorized", "member")).status, 403);
+    assert.equal((await propose("shared", "owner", { ...thread, visibility: "organization" })).status, 409);
+    const proposal = await propose("review");
+    assert.equal(proposal.status, 200, await proposal.clone().text());
+    const { output } = await proposal.json() as { output: { proposalId: string; status: string } };
+    assert.equal(output.status, "pending");
+    assert.ok(!(await f.calls()).some((call) => ["workflow.start", "binding.approve"].includes(call.operation)),
+      "delegation creates a proposal without approving a binding or starting a job");
+    const approve = (role = "owner", userId = "owner") => f.dispatch(
+      `/api/apps/software-foundry/agent/proposals/${output.proposalId}/approve`, { role, userId, body: { revision: 1 } });
+    assert.equal((await approve("member")).status, 403, "revoked editor access is checked at approval");
+    assert.equal((await approve("owner", "other-owner")).status, 404, "another member cannot approve the private proposal");
+    const approved = await approve();
+    assert.equal(approved.status, 200, await approved.clone().text());
+    const applied = await approved.json() as { proposal: { status: string }; receipt: { run: string } };
+    assert.equal(applied.proposal.status, "applied");
+    const starts = (await f.calls()).filter((call) => call.operation === "workflow.start");
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].input.workflow, "ui-review");
+    assert.equal(starts[0].input.inputs["analyze.inputs.reviewerBinding"], "job-reviewer");
+    assert.equal((await approve()).status, 200);
+    assert.ok(!(await f.calls()).some((call) => call.operation === "workflow.start"), "replaying an applied approval starts nothing twice");
+  } finally { await f.worker.dispose(); }
+});
+
 const requestId = "aaaaaaaa-1111-4111-8111-111111111111";
 const submission = (extra: Record<string, unknown> = {}) => ({
   target: { repository: "acme/app" }, requestId, title: "Add CSV export",
@@ -657,5 +729,28 @@ test("RequestChanges files a bug as one issue and starts the workflow through gr
     const { bug: _bug, ...noDetails } = request;
     assert.match(await mutate("22222222-aaaa-4aaa-8aaa-222222222222", { ...noDetails, requestId: "dddddddd-2222-4222-8222-222222222222" }), /bug requests need bug details/);
     assert.equal(writes(await f.calls()), 0);
+  } finally { await f.worker.dispose(); }
+});
+
+test("a repository job schedule occurrence starts the reserved run with its saved binding", async () => {
+  const f = await installed();
+  const scheduled: Record<string, unknown> = { "analyze.inputs.repository": "acme/app", "analyze.inputs.reviewerBinding": "b-job",
+    "analyze.inputs.fix": { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } } };
+  const occurrence = (workflowId: string, runId: string, inputs: Record<string, unknown> = scheduled) => f.dispatch(workflowHostPath, { phase: "schedule", body: { phase: "schedule", input: {
+    runId, scheduledFor: 1,
+    schedule: { id: "schedule-1", workflowId, inputs, connectionId: null, resource: null },
+  } } });
+  try {
+    const runId = "cccccccc-1111-4111-8111-111111111111";
+    const started = await occurrence("dependency-review", runId);
+    assert.equal(started.status, 200, await started.clone().text());
+    assert.deepEqual(await started.json(), { outcome: "started" });
+    const [start] = (await f.calls()).filter((call) => call.operation === "workflow.start");
+    assert.deepEqual(start?.input, { workflow: "dependency-review", id: runId, inputs: scheduled });
+    const unbound = await occurrence("dependency-review", "eeeeeeee-1111-4111-8111-111111111111", { "analyze.inputs.repository": "acme/app" });
+    assert.match(((await unbound.json()) as { reason: string }).reason, /JobChanges schedule/);
+    const declined = await occurrence("issue-to-merge-actions-ci", "dddddddd-1111-4111-8111-111111111111");
+    assert.equal(((await declined.json()) as { outcome: string }).outcome, "declined");
+    assert.equal(starts(await f.calls()), 0);
   } finally { await f.worker.dispose(); }
 });

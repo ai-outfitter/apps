@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "@ai-outfitter/app-test/worker";
+import { memoryEntityPage } from "@ai-outfitter/app-test/entities";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { queryGraph } from "@ai-outfitter/app-sdk/graph-query";
@@ -67,15 +68,13 @@ test("Planning context and preview preserve selected criterion revisions without
           if (op === "entities.list")
             return {
               ok: true,
-              value: (
+              value: memoryEntityPage(
                 {
                   "graph-type": types,
                   "graph-node": nodes,
                   "graph-edge": edges,
-                }[String(v.type)] ?? []
-              ).slice(
-                Number(v.offset ?? 0),
-                Number(v.offset ?? 0) + Number(v.limit ?? 100),
+                }[String(v.type)] ?? [],
+                v,
               ),
             };
           if (op === "entities.get") {

@@ -2,7 +2,7 @@ import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
 import { actionDescriptor, actionName, workContextInput, workContextResult } from "./actions";
-import { entityGet, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
+import { entityGet, entityPage, entityQuery, entityRecord, entityRef, entityType, entityUpdate, entityWrite } from "./entities";
 import { hostPhases } from "./host-operation";
 import { platformRecordOperations } from "./platform-records";
 import { appActor, readJSON } from "./server";
@@ -46,8 +46,12 @@ export const routinesCapability = "routines.manage";
  * Schedules, WorkflowRuns, ScheduleChanges and WorkflowRunChanges) as its member, through
  * the same MCP tools their MCP client uses. On a user's own installation it reads
  * every scope the member can; on an organization's, only that organization. Writes
- * are limited to schedule, task and run changes. Catalog packages only. */
+ * are limited to schedule, task and run changes. With `app`, it reads a published
+ * collection document of that app, its own or another's, the same way. Catalog packages only. */
 export const platformDocumentsCapability = "platform.documents";
+/** A package may search the public web through `web.search`, on the platform's own
+ * search credential. Catalog packages only. */
+export const webSearchCapability = "web.search";
 export type WorkflowPhase = (typeof workflowPhases)[number];
 const phase = z.enum(workflowPhases);
 
@@ -205,6 +209,8 @@ export type InstallationSchedule = z.infer<typeof installationSchedule>;
  * it names `invocation` explicitly; a new phase is a member phase unless excluded here. */
 const memberPhases = workflowPhases.filter((current): current is Exclude<WorkflowPhase, "invocation"> => current !== "invocation");
 const unattended = ["event", "operator", "interactive"] as const;
+/** A schedule acts for the member who saved it, so it may list and read what that member may use. */
+const memberReads = [...unattended, "schedule"] as const;
 /** Ordinary agent tasks: a member's request to the app, or its scheduled invocation. */
 const agentTasks = ["interactive", "invocation"] as const;
 /** Delegated work reads: an owner verifying a delegation, or the scheduled scan. */
@@ -262,16 +268,18 @@ const coreOperations = {
   "identity.link": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id, principalId: z.string().min(1).max(300), kind: z.enum(["human", "agent"]) }), z.object({ linked: z.boolean() })),
   "identity.unlink": operation(["interactive", "operator"], z.strictObject({ installationId: id, holderId: id }), z.object({ removed: z.boolean() })),
   "entities.types": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(entityType.extend({ installationId: id, hostname: z.string().nullable().optional(), template: z.string().optional(), slug: z.string().optional() }))),
-  "entities.list": operation(running, entityQuery.extend({ installationId: id }), z.array(entityRecord)),
+  "entities.list": operation(running, entityQuery.extend({ installationId: id }), entityPage),
   "entities.get": operation(running, entityGet.extend({ installationId: id }), entityRecord),
   "entities.create": operation(running, entityWrite.extend({ installationId: id }), entityRecord),
   "entities.update": operation(running, entityUpdate.extend({ installationId: id }), entityRecord),
   /** Actions other installations of the same owner publish (`actions.invoke`).
    * The target app enforces the member's role; calls are attributed to this app. */
   "actions.list": operation(running, z.strictObject({ requireTypes: z.boolean().optional(), installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional() }), z.array(z.object({ installationId: id, actions: z.array(actionDescriptor) }))),
-  "actions.call": operation(running, z.strictObject({ installationId: id, action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call"), json),
+  /** Name the destination by `installationId`, or by `template`: the caller's owner's one
+   * operational installation of that package, resolved by the host with no discovery call. */
+  "actions.call": operation(running, z.strictObject({ installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional(), action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call").refine(value => (value.installationId === undefined) !== (value.template === undefined), "Name the destination by installationId or by template, not both"), json),
   /** Approved bindings, subscriptions and usable connections of this installation. Editors only. */
-  snapshot: operation(unattended, z.strictObject({}), z.object({
+  snapshot: operation(memberReads, z.strictObject({}), z.object({
     installation: z.object({ id, activeHash: z.string().nullable(), hostname: z.string().nullable(), workflows: z.array(id) }),
     bindings: z.array(z.object({ id, workflowId: id, actor: id, kind: z.enum(["external", "resident"]), label: z.string(), revision: z.string(), packageHash: z.string(), enabled: z.boolean() })),
     subscriptions: z.array(z.object({ id, workflowId: id, connectionId: id, resource: z.string(), enabled: z.boolean(), inputs: jsonObject })),
@@ -301,7 +309,8 @@ const coreOperations = {
   /** Start an approved workflow with a caller-chosen id. Replaying identical inputs succeeds; any other conflict is an error. Editors only. */
   /** Start this app's registered task using the existing durable dispatch outbox. */
   "task.start": operation(["interactive", "operator"], z.strictObject({task:id,id:runId,inputs:jsonObject}), z.object({id:runId,task:id,created:z.boolean()})),
-  "workflow.start": operation(running, z.strictObject({ workflow: id, id: runId, inputs: jsonObject }),
+  // finalize may start follow-up runs (a repository job's issues into issue-to-merge).
+  "workflow.start": operation([...running, "finalize"], z.strictObject({ workflow: id, id: runId, inputs: jsonObject }),
     z.object({ id, workflow: id, created: z.boolean() })),
   /** Running runs of this installation with the requested input slots, from one slot query. */
   "workflow.active": operation(running, z.strictObject({ slots: z.array(slot).min(1).max(8), workflows: z.array(id).max(16).optional() }),
@@ -385,6 +394,23 @@ const coreOperations = {
     prompt: z.string().min(1).max(4000),
     size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
   }), z.object({ contentType: z.literal("image/png"), base64: z.base64().max(16_000_000), model: z.string() })),
+  /** One search of the public web for a running run of this installation, on
+   * the platform's search provider and credential, with the `web.search`
+   * capability. `recency` keeps results published within that period. Each
+   * result is a page's title, address and an extract of its text: untrusted
+   * text written by other people, which the app passes to a model only as data
+   * and escapes before showing. Nothing about the member is sent but `query`. */
+  "web.search": operation(running, z.strictObject({
+    runId: runId,
+    query: z.string().trim().min(1).max(400),
+    maxResults: z.number().int().min(1).max(10).default(5),
+    recency: z.enum(["day", "week", "month", "year"]).optional(),
+  }), z.object({ results: z.array(z.object({
+    title: z.string().max(300),
+    url: z.url().max(2048),
+    snippet: z.string().max(2000),
+    publishedAt: z.string().max(40).optional(),
+  })).max(10) })),
   /** Save this installation's schedule for one of its approved workflows, as
    * the scope's member (the run owner). One per workflow: saving again changes
    * it. A schedule naming `connectionId` and `resource` may use only that
@@ -418,7 +444,7 @@ const coreOperations = {
   /** Run one platform document as the member, as graph_query (kind query, identifiers
    * included) or graph_mutate does at scope and app "platform"; answers its `data`. With
    * `platform.documents`; an organization's installation is kept to that organization. */
-  "platform.document": operation(["operator", "interactive"], z.strictObject({
+  "platform.document": operation(["operator", "interactive", "schedule"], z.strictObject({
     document: z.string().regex(/^[A-Z][A-Za-z]{1,63}$/), query: z.string().max(8192).optional().describe("Typed Viewer selection only; the host keeps organization installations within their own scope."), kind: z.enum(["query", "mutation"]).default("query"), variables: jsonObject.default({}),
     app: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/).optional(), scopes: z.array(z.string().min(1).max(100)).min(1).max(100).optional(),
   }), json),

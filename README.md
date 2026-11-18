@@ -166,14 +166,20 @@ validation and will be removed when public SDK packages support locked installs.
 
 ## Pull-request previews
 
-`preview.yml` discovers changed apps from the PR merge base, builds each selected
-app, and publishes an isolated read-only demo with a stable hostname per
+`preview.yml` discovers changed apps from the PR merge base, builds each app with
+files changed in its own directory, and publishes an isolated read-only demo with a stable hostname per
 repository ID, PR number and app path. A separate publication job downloads the
 build artifact without checking out caller source or executing app build scripts.
 It verifies `/api/health` against the exact repository, source SHA and app before
 posting the link on the PR. Closing the PR deletes only Workers in that PR's
 preview namespace. Reopening rebuilds them. Deployment environments also link to
-the verified URLs.
+the verified URLs. A change only to shared packages, the lockfile or CI publishes
+no previews.
+
+`check.yml` likewise validates only apps with files changed in their own
+directory. Shared package, lockfile and CI changes no longer fan out to every
+app; the SDK job covers packages, and apps pick up shared changes, with their
+extended tests, at their next release.
 
 The normal `package` adapter uses a caller-owned npm lockfile and each app's
 `preview:build` script. That script produces `dist/preview.json` (override with
@@ -187,8 +193,8 @@ they are not customer installations or authenticated platform integration tests.
 A thin caller invokes the shared workflow on same-repository PR opened,
 synchronize, reopened and closed events, passing `pull-request` and the explicit
 `CLOUDFLARE_API_TOKEN` secret. Keep that secret in the caller's `preview-publish`
-environment and configure `OUTFITTER_PREVIEW_ACCOUNT_ID`. The current provider is
-Cloudflare Workers (`workers.dev`) in the Unsupervised account; SaaS/self-hosted
+environment. The current provider is Cloudflare Workers (`workers.dev`) in the
+Unsupervised account, hard-coded in the shared workflow; SaaS/self-hosted
 installation destinations remain the separate main-branch deploy workflow.
 Fork code is not imported automatically.
 

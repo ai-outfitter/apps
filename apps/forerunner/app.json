@@ -1,6 +1,6 @@
 {
   "id": "outfitter/forerunner",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "modes": {
@@ -30,7 +30,10 @@
         "storage.artifacts.write",
         "routines.manage",
         "platform.documents",
-        "platform.records"
+        "platform.records",
+        "workflow.forerunner-daily-brief.start",
+        "workflow.forerunner-research-report.start",
+        "web.search"
       ]
     }
   },
@@ -50,6 +53,10 @@
       {
         "label": "Today",
         "path": ""
+      },
+      {
+        "label": "Yesterday",
+        "path": "yesterday"
       },
       {
         "label": "Life",
@@ -104,7 +111,8 @@
     },
     "cover": "catalog/cover.png"
   },
-  "dependencies": [
-    "onto"
-  ]
+  "dependencies": {
+    "onto": "*",
+    "wiki-map": ">=0.1.5"
+  }
 }

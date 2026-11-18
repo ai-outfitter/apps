@@ -1,3 +1,4 @@
+import { bomTotals } from "./assembly";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { strToU8, zipSync } from "fflate";
@@ -13,7 +14,7 @@ const csv = (x: unknown) => {
     '"'
   );
 };
-export function projectPackage(p: Project) {
+export function projectPackage(p: Project, bomAssembly = p.assembly) {
   const parameters =
     p.params.design === "custom"
       ? {
@@ -23,6 +24,8 @@ export function projectPackage(p: Project) {
           height: p.params.height,
         }
       : p.params;
+  const root = bomAssembly.items.find(item => item.id === bomAssembly.rootId);
+  const lines = root ? [{item: root, quantity: 1}, ...bomTotals(bomAssembly).lines] : [];
   const files: Record<string, string> = {
     "project.json": JSON.stringify(p, null, 2),
     "requirements.md": `# ${p.name}\n\n${p.brief}\n\n${p.requirements}\n`,
@@ -32,14 +35,11 @@ export function projectPackage(p: Project) {
       2,
     ),
     "bom.csv": [
-      ["Part", "Quantity", "Unit cost USD", "Source", "Notes"],
-      ...p.parts.map((r) => [
-        r.name,
-        r.quantity,
-        r.unitCost,
-        r.source,
-        r.notes,
-      ]),
+      ["Part", "Quantity", "Unit cost USD", "Source", "Notes", "Estimated unit cost USD"],
+      ...(bomAssembly.rootId
+        ? lines.filter(({item}) => item.kind !== "assembly" || item.priceKnown || item.estimatedUnitCost !== undefined)
+            .map(({item, quantity}) => [item.name, quantity, item.priceKnown ? item.unitCost : item.estimatedUnitCost === undefined ? "Unpriced" : "", item.source, item.notes, item.estimatedUnitCost ?? ""])
+        : p.parts.map(part => [part.name, part.quantity, part.unitCost, part.source, part.notes, ""])),
     ]
       .map((r) => r.map(csv).join(","))
       .join("\n"),
@@ -49,6 +49,8 @@ export function projectPackage(p: Project) {
     "evidence.json": JSON.stringify(p.evidence, null, 2),
     "README.md": `# ${p.name} — draft package\n\nProject revision: ${p.revision}.\n${p.productRevision ? `Builds product revision: ${p.productRevision.title || p.productRevision.id}${p.productRevision.url ? ` (${p.productRevision.url})` : ""}.\n` : ""}Physical fit for these dimensions: ${fitReady(p) ? "recorded pass" : "not accepted"}.\nBreadboard: ${pcbReady(p) ? "recorded pass" : "not accepted / not applicable"}.\n\nThis archive records the project. Export matching STEP/STL files from the Design tab. It is not a manufacturing approval. Keep the template source revision with these files.\n`,
   };
+  if(p.workspace)files["workspace.json"]=JSON.stringify(p.workspace,null,2);
+  if(p.assembly.rootId)files["assembly.json"]=JSON.stringify(p.assembly,null,2);
   if (p.cadPlan) files["cad-plan.json"] = JSON.stringify(p.cadPlan, null, 2);
   if (p.kind === "electronics")
     files["electronics/pcb-handoff.md"] =

@@ -7,7 +7,7 @@ export type OntologyType = { id: string; name: string; definition: string };
 export type OntologyRelation = OntologyType & { from: string[]; to: string[] };
 export type DiscoveryOntology = { entities: OntologyType[]; relationships: OntologyRelation[] };
 // Initial discovery focuses on durable context; calendar participation stays source evidence.
-const excluded = new Set(["Goal", "Question", "Activity", "Entity", "participates_in", "participant", "interacts_with", "customer_of"]);
+const excluded = new Set(["Goal", "Activity", "Entity", "participates_in", "participant", "interacts_with", "customer_of"]);
 
 /** Wiki type prose contains an ontological introduction followed by agent guidance.
  * Only the introduction supplies discovery definitions. */

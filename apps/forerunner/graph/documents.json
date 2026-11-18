@@ -3,8 +3,8 @@
     "name": "Board",
     "kind": "query",
     "story": "As an agent, I want the member's unfinished board items with their revisions, so that I can add to, complete or reorder their board without overwriting a change they made.",
-    "query": "query Board {\n  items(first: 500, status: [\"todo\", \"in-progress\"]) {\n    nodes {\n      id\n      category\n      title\n      dueDate\n      status\n      position\n      parentId\n      revision\n    }\n  }\n}",
-    "hash": "ba301b9866220c48e3c4cc9bca8f1fc41890420bc985715ba1a30366869f71fe",
+    "query": "query Board {\n  items(first: 500, filter: {status: {in: [\"todo\", \"in-progress\"]}}) {\n    nodes {\n      id\n      category\n      title\n      dueDate\n      status\n      position\n      parentId\n      revision\n    }\n  }\n}",
+    "hash": "9a927153b08b4e19e525a8ee06c388344ac9e34abb5985dc7bd8402032a98ea1",
     "variables": {
       "type": "object",
       "properties": {},
@@ -32,6 +32,126 @@
     "hidden": true
   },
   {
+    "name": "CreatePlanningIntake",
+    "kind": "mutation",
+    "story": "As a member, I want to confirm one discovered need into my selected owner-scoped Planning installation, so that existing governed intake takes over with source provenance and safe retries.",
+    "query": "mutation CreatePlanningIntake($input: CreatePlanningIntakeInput!) {\n  createPlanningIntake(input: $input)\n}",
+    "hash": "c50b9842c8c17bd0029ba07de8921a87b0387561c136c181fde86c392a31b95e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CreatePlanningIntakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "After explicit confirmation, capture the selected canonical need using existing Planning CreateIntake in the same owner scope. Read PlanningCandidates first; pass its current expectedId/revision and confirmDestination:true. Does not create a new project, choose release fit, or move personal findings into an organization."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createPlanningIntake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DailyBriefSchedule",
+    "kind": "query",
+    "story": "As a member, I want to see when my personal brief runs, so that I can inspect it without changing its schedule.",
+    "query": "query DailyBriefSchedule($input: JSON!) {\n  dailyBriefSchedule(input: $input)\n}",
+    "hash": "b308ddf0f4549e2ef7a25b6ece9aab732458fbfbf541ba5a7bd62bf9ba4eedc6",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the saved daily brief schedule. Does not create or enable schedules."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyBriefSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DailyHome",
+    "kind": "query",
+    "story": "As a member, I want the saved daily roll-up and last week's actual reports on my homepage, with source gaps and a stable Wiki revision, so that I can review progress without triggering jobs.",
+    "query": "query DailyHome($input: DailyHomeInput!) {\n  dailyHome(input: $input)\n}",
+    "hash": "19955401e2b02e7047368ed74ad6de811b27b574648f447bd445641162ad61aa",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DailyHomeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read saved personal daily brief, board priorities and yesterday's saved project and organization reports. Set includeHistory:true to load each day of the previous full Monday-Sunday week. Pass sections (digest, priorities, review, history) to read only those: digest alone returns today's saved brief, its Wiki revision and briefState (saved, missing or unavailable) with latestBrief as the last dated snapshot when today's is missing, without waiting on reports. Uses the saved schedule timezone, or UTC until configured. Missing sources are explicit; no job starts."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyHome": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DayReview",
+    "kind": "query",
+    "story": "As a member, I want yesterday’s completed board tasks and saved reports across my organizations, with earlier dates and source coverage, so that I can review progress without starting new work.",
+    "query": "query DayReview($input: DayReviewInput!) {\n  dayReview(input: $input)\n}",
+    "hash": "cb7b00dbcef7755a63737911fd3a43035a7f314d0aea4c82fd7168247e2e4d96",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DayReviewInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a completed day’s board completion events and saved cross-organization daily reports in personal priority order. Optional date defaults to yesterday; timezone defaults to America/Chicago. Missing reports and partial coverage are explicit; no generation starts."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dayReview": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "DeleteItem",
     "kind": "mutation",
     "story": "As a member, I want to delete one of my items at the revision I last saw, so that finished or mistaken work leaves my board.",
@@ -54,8 +174,8 @@
     "name": "DiscoveryRecords",
     "kind": "query",
     "story": "As a caller, I want to search discoveryRecords with compact results, so that I can select records and continue through every page.",
-    "query": "query DiscoveryRecords($first: Int = 20, $after: String, $ids: [ID!], $search: String, $kind: [String!]) {\n  discoveryRecords(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    kind: $kind\n  ) {\n    nodes {\n      id\n      kind\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "cc0556a8367e79daf4a8fd18b8f48d1dae24d78e2e3f19b33235b20ea62d460f",
+    "query": "query DiscoveryRecords($first: Int = 20, $after: String, $ids: [ID!], $orderBy: DiscoveryRecordOrder, $filter: DiscoveryRecordFilter, $search: String) {\n  discoveryRecords(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      kind\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "d25f7fadd868d5f8fd88b56ec0c20541d8b11410e169da4f85a4cd989ae5af55",
     "variables": {
       "type": "object",
       "properties": {
@@ -71,18 +191,80 @@
           "type": "array",
           "description": "GraphQL [ID!]"
         },
+        "orderBy": {
+          "description": "GraphQL DiscoveryRecordOrder"
+        },
+        "filter": {
+          "description": "GraphQL DiscoveryRecordFilter"
+        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
-        },
-        "kind": {
-          "type": "array",
-          "description": "GraphQL [String!]"
         }
       },
       "required": []
     },
     "hidden": true
+  },
+  {
+    "name": "GenerateDailyBrief",
+    "kind": "mutation",
+    "story": "As a member, I want to explicitly refresh my personal daily Wiki brief from authorized saved sources, so that I can see current priorities and coverage gaps.",
+    "query": "mutation GenerateDailyBrief($input: GenerateDailyBriefInput!) {\n  generateDailyBrief(input: $input)\n}",
+    "hash": "e67e4bb2f3a75130b70136d48fa8a74a68baf28a1dac3e576b1d56d6d40b082e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL GenerateDailyBriefInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Write today's personal Wiki brief now: one model answer over saved, authorized evidence (reports, priorities, goals, role, saved discovery suggestions), each statement citing its source. Records a workflow run and the exact Wiki revision. Unchanged evidence reuses the saved revision; a failed or invalid answer returns status failed with a reason and leaves the saved brief untouched. Missing sources are listed, never inferred."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateDailyBrief": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "GenerateResearchReports",
+    "kind": "mutation",
+    "story": "As a member, I want to run my saved research reports now, so that I can read today's report without waiting for the morning run.",
+    "query": "mutation GenerateResearchReports($input: JSON!) {\n  generateResearchReports(input: $input)\n}",
+    "hash": "fb467e3b93f2dfe04e61cd1b892c96ff3ceca658f345fc9b4223376466a43965",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Run the saved research reports now for today, recording a workflow run and each report's Wiki page, document and revision. Save the reports first."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateResearchReports": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "ItemChanges",
@@ -407,8 +589,8 @@
     "name": "Items",
     "kind": "query",
     "story": "As a caller, I want to search items with compact results, so that I can select records and continue through every page.",
-    "query": "query Items($first: Int = 20, $after: String, $ids: [ID!], $search: String, $category: [String!], $status: [String!]) {\n  items(\n    first: $first\n    after: $after\n    ids: $ids\n    search: $search\n    category: $category\n    status: $status\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "572c81eacda6b9bb8830d70d403d49137d4922de0e02a767dca4ef52122ef83d",
+    "query": "query Items($first: Int = 20, $after: String, $ids: [ID!], $orderBy: ItemOrder, $filter: ItemFilter, $search: String) {\n  items(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      title\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "2f0673d53f817a71191077a2ea7b859345b1c8224bfd1cff6e7b5b0bc9db4e34",
     "variables": {
       "type": "object",
       "properties": {
@@ -424,22 +606,50 @@
           "type": "array",
           "description": "GraphQL [ID!]"
         },
+        "orderBy": {
+          "description": "GraphQL ItemOrder"
+        },
+        "filter": {
+          "description": "GraphQL ItemFilter"
+        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
-        },
-        "category": {
-          "type": "array",
-          "description": "GraphQL [String!]"
-        },
-        "status": {
-          "type": "array",
-          "description": "GraphQL [String!]"
         }
       },
       "required": []
     },
     "hidden": true
+  },
+  {
+    "name": "PlanningCandidates",
+    "kind": "query",
+    "story": "As a member, I want current canonical need identities from my saved discovery, so that I can choose a corrected and reviewed finding for Planning without copying private mail.",
+    "query": "query PlanningCandidates($input: PlanningCandidatesInput!) {\n  planningCandidates(input: $input)\n}",
+    "hash": "38ea0d09667ee6133e241498dacfda7bceb084bd73fdd6a95679300a499faee8",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PlanningCandidatesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read canonical saved needs from a private discovery preview before selecting a Planning handoff. Returns current corrected IDs and revisions, never source email samples."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "planningCandidates": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "ReorderItems",
@@ -461,6 +671,66 @@
     "hidden": true
   },
   {
+    "name": "ResearchReportSchedule",
+    "kind": "query",
+    "story": "As a member, I want to see which research reports run each morning and when, so that I can inspect them without changing anything.",
+    "query": "query ResearchReportSchedule($input: JSON!) {\n  researchReportSchedule(input: $input)\n}",
+    "hash": "cbf7f1e78da03cc23fbfe4c8e522430103a5c7bb087af15c591226dd5b67dd98",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the saved research reports (title, subject, place, topics) and their daily schedule. Does not create or enable schedules."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "researchReportSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SetDailyBriefSchedule",
+    "kind": "mutation",
+    "story": "As a member, I want one standard daily briefing schedule in my timezone, so that I can enable or disable it explicitly.",
+    "query": "mutation SetDailyBriefSchedule($input: SetDailyBriefScheduleInput!) {\n  setDailyBriefSchedule(input: $input)\n}",
+    "hash": "8945afac9390df9f00907acc45d67676001c484ae37835d65e03551bf40f7713",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetDailyBriefScheduleInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Enable or disable Forerunner's 05:00 daily personal Wiki brief in the selected timezone. The run reads saved Planning reports, the board, saved goals, the saved role and saved discovery suggestions; raw mail and analytics adapters are not enabled. With ifUnset:true (and enabled:true) it saves the default only when no daily brief schedule exists and otherwise returns the saved one untouched, so a schedule that was turned off or customized is never changed."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "setDailyBriefSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "SetDailyRun",
     "kind": "mutation",
     "story": "As an editor, I want to turn the daily discovery run on or off and choose the account it reads, so that Forerunner reads my mail or calendar each morning only when I want it to.",
@@ -478,6 +748,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "SetResearchReportSchedule",
+    "kind": "mutation",
+    "story": "As a member, I want a daily report on topics near a place I name, such as local artist events, residencies and volunteer opportunities, saved to my Wiki, so that I see new opportunities without searching for them.",
+    "query": "mutation SetResearchReportSchedule($input: SetResearchReportScheduleInput!) {\n  setResearchReportSchedule(input: $input)\n}",
+    "hash": "d6c0e3a23b33072a22bda7da6136fc25b9d27e67ff3e839a77b5d70e5f646928",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetResearchReportScheduleInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save up to three daily research reports and their schedule: each has a slug, title, optional subject, a place and up to six topics; hour (default 7) and timezone set when it runs; enabled turns it on or off. Each run searches the public web per topic and saves a dated, sourced document per report to the Wiki of the scope it runs in (personal or the organization). Saving replaces the earlier reports. Needs an editor of that scope."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "setResearchReportSchedule": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "SuggestionChanges",

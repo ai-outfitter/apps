@@ -1,0 +1,78 @@
+---
+import Button from "@ai-outfitter/ui/astro/Button.astro";
+import ForerunnerLayout from "../components/ForerunnerLayout.astro";
+import DayReport from "../components/DayReport.astro";
+import { rootHref } from "../root-href";
+import { forerunnerContext } from "../server/context";
+import { documents, runDocument } from "../server/documents";
+import type { DayReview } from "../server/day-review";
+import { reviewPeriod, shiftDate } from "../server/review-period";
+const root = rootHref(Astro.url.pathname, 1);
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const input = { ...(Astro.url.searchParams.get("date") ? { date: Astro.url.searchParams.get("date")! } : {}), timezone: Astro.url.searchParams.get("timezone") ?? "America/Chicago" };
+let model: DayReview | null = null;
+let error = "";
+let validPeriod = false;
+try {
+  if (demo) {
+    const period = reviewPeriod(input);
+    model = { period, latestDate: period.date, previousDate: shiftDate(period.date, -1), nextDate: null, previousWeek: shiftDate(period.date, -7), nextWeek: null, completions: [], organizations: [], overview: null, goals: [], goalCoverage: "unavailable", warnings: ["This is a read-only example. No private reports or completion history are loaded."] };
+  } else {
+    reviewPeriod(input);
+    validPeriod = true;
+    model = (await runDocument(documents.DayReview.document, { input }, forerunnerContext(Astro.request, Astro.locals))).dayReview as DayReview;
+  }
+} catch (failure) {
+  Astro.response.status = failure instanceof Response ? failure.status : validPeriod ? 503 : 400;
+  error = failure instanceof Response ? await failure.text() : validPeriod ? "The saved day could not be read. Retry loading this report." : "Choose a completed date and valid time zone, then retry.";
+}
+const dateLink = (date: string) => `${root}yesterday?${new URLSearchParams({ date, timezone: model?.period.timezone ?? input.timezone })}`;
+const dayLabel = (date: string) => new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(new Date(`${date}T12:00:00Z`));
+const timeLabel = (at: number) => new Intl.DateTimeFormat("en-US", { timeZone: model?.period.timezone, hour: "numeric", minute: "2-digit" }).format(at);
+---
+<ForerunnerLayout title={model && model.period.date !== model.latestDate ? dayLabel(model.period.date) : "Yesterday"} description="Completed board tasks and saved work across your organizations. Browse earlier days without starting new runs." page="yesterday">
+  <div slot="intro-actions" class="day-actions"><Button href={root} variant="secondary">Today</Button><Button href={`${root}board`} variant="secondary">Your board</Button></div>
+  {error && <p role="alert">{error}</p>}
+  {model && <>
+    <nav class="day-navigation" aria-label="Report history">
+      <div class="day-actions">
+        <a href={dateLink(model.previousWeek)}>Previous week</a><a href={dateLink(model.previousDate)}>Previous day</a>
+        {model.nextDate && <a href={dateLink(model.nextDate)}>Next day</a>}
+        {model.nextWeek && <a href={dateLink(model.nextWeek)}>Next week</a>}
+        {model.period.date !== model.latestDate && <a href={dateLink(model.latestDate)}>Yesterday</a>}
+      </div>
+      <form method="get" class="day-picker"><label>Review date<input name="date" type="date" value={model.period.date} max={model.latestDate} required /></label><label>Time zone<input name="timezone" value={model.period.timezone} required /></label><Button type="submit" variant="secondary">View day</Button></form>
+      <div class="day-strip" aria-label="Earlier days">{Array.from({ length: 7 }, (_, index) => shiftDate(model.period.date, index - 6)).map(date => <a href={dateLink(date)} aria-current={date === model!.period.date ? "date" : undefined}>{dayLabel(date)}</a>)}</div>
+    </nav>
+    <p class="muted">{model.period.date} · {model.period.timezone}</p>
+    {model.warnings.map(warning => <p role="status">{warning}</p>)}
+    {model.overview?.href && <p><a href={model.overview.href}>Read your saved daily overview</a></p>}
+    <section aria-labelledby="completed-board-heading" class="day-completions">
+      <h2 id="completed-board-heading">Completed on your board</h2>
+      {model.completions.length ? <ol class="day-work">{model.completions.map(item => <li>{item.available ? <a href={`${root}items/${encodeURIComponent(item.itemId)}`}>{item.title}</a> : <span>{item.title}</span>}<span class="muted">{item.category} · {timeLabel(item.completedAt)}</span></li>)}</ol> : <p>No board completions were recorded for this day.</p>}
+      <p class="muted">Completion history starts when tracking is enabled. Older completed items are not assigned guessed dates. Later edits or reopening do not rewrite this history.</p>
+    </section>
+    <section aria-labelledby="organization-work-heading">
+      <h2 id="organization-work-heading">Across your organizations</h2>
+      <p class="muted">These are saved observations from active project reports. Completed issues were observed done during this window; their earlier transitions may be unavailable. A merged pull request is not proof of deployment.</p>
+      {model.organizations.map(report => <DayReport {report} />)}
+      {!model.organizations.length && <p>No organization report sources are available for this day.</p>}
+    </section>
+  </>}
+</ForerunnerLayout>
+<style>
+  .day-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .day-navigation { display:grid; gap:18px; margin-bottom:24px; }
+  .day-picker { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+  .day-picker label { display:grid; gap:6px; min-width:0; }
+  .day-picker input { max-width:100%; }
+  .day-strip { display:flex; gap:8px; overflow:auto; padding-bottom:8px; }
+  .day-strip a { flex:0 0 auto; border:1px solid var(--border); border-radius:8px; padding:10px; }
+  .day-strip a[aria-current] { font-weight:600; background:var(--soft); }
+  .day-completions { margin:24px 0; }
+  :global(.day-source) { margin:16px 0; }
+  :global(.day-source header) { display:flex; justify-content:space-between; align-items:baseline; gap:16px; }
+  :global(.day-source-status) { color:var(--muted); font-size:.8rem; }
+  :global(.day-work) { display:grid; gap:14px; padding-left:20px; }
+  :global(.day-work li) { display:grid; gap:4px; overflow-wrap:anywhere; }
+</style>

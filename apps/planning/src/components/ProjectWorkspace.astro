@@ -12,6 +12,7 @@ const { projectId = "", model } = Astro.props;
 const project = model.projects.find(project => project.id === projectId);
 const bootstrap = JSON.stringify({ projects: model.projects, issues: model.issues }).replaceAll("<", "\\u003c");
 const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+const personalOrder=!demo && !projectId && !requestIdentity(Astro.request).organizationId && requestIdentity(Astro.request).canEdit;
 const canOrder = !demo && !!requestIdentity(Astro.request).organizationId && requestIdentity(Astro.request).canEdit;
 const href = (target: string) => appHref(Astro.url.pathname, target);
 const body = model.wikiBody ?? null;
@@ -25,24 +26,23 @@ const sections = project ? [
 ].filter((section) => section.records.length || section.text) : [];
 const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll("<", "\\u003c");
 ---
-  <div id="planning" data-can-order={String(canOrder)} data-project-workspace data-project-id={projectId}>
+  <div id="planning" data-can-order={String(canOrder)} data-personal-order={String(personalOrder)} data-project-workspace data-project-id={projectId}>
     <script is:inline type="application/json" id="project-page-data" set:html={bootstrap} />
     <script is:inline type="application/json" id="organization-goals-data" set:html={goalsBootstrap} />
-    {demo && (
+    {demo && !projectId && (
       <p class="planning-notice">
         Read-only demo · These projects and issues are synthetic.
       </p>
     )}
     <p role="status" id="planning-notice" hidden={!model.error}>{model.error}</p>
     <p role="status" id="directory-notice" hidden></p>
-    {projectId && <p id="project-back"><a href={href("/projects")}>← All projects</a></p>}
     <p id="empty" hidden={!!model.projects.length || !!model.error}>
       No projects yet. Create one to describe the outcome and start planning.
     </p>
     <div id="project-readiness" hidden></div>
     <div id="project-cards" hidden={!!projectId} aria-label="Projects">
       {!projectId && organizationCards(model.cards.map(({ project: item, openIssues }) => ({ ...item, openIssues })), model.organizationGoals ?? {}).map((card) => (
-        <section class="planning-org-card" aria-label={card.label}>
+        <section class="planning-org-card" data-organization-key={card.key} aria-label={card.label}>
           <header class="planning-org-card-header"><h2>{card.label}</h2></header>
           {card.goals.length > 0 && (
             <div class="planning-goal-chart" role="group" aria-label={`${card.label} goals`}>
@@ -60,11 +60,12 @@ const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll(
             {card.projects.map((item, index) => { const light = lightOf(item); const decisions = item.readiness?.missing ?? []; const listId = `decisions-${item.id}`; return (
               <li class="planning-org-more" data-order-row={item.id} hidden={index >= CARD_PROJECTS}>
                 <div class="planning-org-project">
-                  <a href={item.href ?? href(`/projects/${item.id}`)} class="planning-org-project-name">{item.name}</a>
+                  <a href={item.href ?? href(`/projects/${item.id}`)} class="planning-org-project-name">{item.name}</a><a class="planning-evidence-link" href={`${item.href ?? href(`/projects/${item.id}`)}/evidence`}>Review changes</a>
                   {canOrder && <button type="button" class="planning-drag-handle" draggable="true" data-drag-id={item.id} aria-label={`Reorder ${item.name}`} title="Drag to reorder; use arrow keys to move">⠿</button>}
                   {item.state && <span class="planning-project-state">{item.state}</span>}
                   {decisions.length > 0 ? <button type="button" class="planning-status" data-light={light} aria-expanded="false" aria-controls={listId}>{statusLabel(item)}</button> : <span class="planning-status" data-light={light}>{statusLabel(item)}</span>}
                 </div>
+                <p class="muted" data-evidence-summary={item.id} data-endpoint={item.href ? `${item.href.split("/projects/")[0]}/api/apps/planning/evidence` : href("/api/apps/planning/evidence")}>Evidence captures</p>
                 {decisions.length > 0 && <ul id={listId} class="planning-decisions" hidden>{decisions.map((need) => <li>{need}</li>)}</ul>}
               </li>
             ); })}
@@ -188,3 +189,7 @@ const goalsBootstrap = JSON.stringify(model.organizationGoals ?? {}).replaceAll(
 </script>
 <script>import "../scripts/code-changes";</script>
 <script>import "../scripts/shipped";</script>
+
+<script>import "../scripts/personal-portfolio";</script>
+
+<script>import "../scripts/evidence-summary";</script>

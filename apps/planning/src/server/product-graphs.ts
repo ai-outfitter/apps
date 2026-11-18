@@ -409,14 +409,7 @@ async function readProductSources(
     context.apps.installation(c.identity.installationId),
     database,
   ]);
-  const projects: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await planning
-      .collection("projects")
-      .list({ offset, limit: 100, select: ["id", "name"] });
-    projects.push(...page);
-    if (page.length < 100) break;
-  }
+  const projects: EntityRecord[] = await planning.collection("projects").all({ select: ["id", "name"] });
   return { graph, projects, context, graphDatabase: graphDb };
 }
 export async function readProductGraphs(

@@ -23,7 +23,12 @@ type Context = {
   view?: Presentation;
   checks: BodyReferenceCheck[];
   showRelationships: boolean;
+  marks?: ProposalMarks;
 };
+/** Records a batch proposes, and where their pages are, when a page is read from a batch. */
+export type ProposalMarks = { proposed: Set<string>; href: (id: string) => string | undefined };
+const proposedMark = (context: Context, id: string) =>
+  context.marks?.proposed.has(id) ? el("span", { class: "node-proposed" }, "proposed") : null;
 const text = (value: unknown): string => {
   if (value === undefined || value === null || value === "")
     return "Not recorded";
@@ -175,7 +180,8 @@ function nodeLinks(context: Context, ids: string[]) {
       el(
         "span",
         { class: "node-reference" },
-        link(node.title, node.id),
+        context.marks?.href(node.id) ? el("a", { href: context.marks.href(node.id) }, node.title) : link(node.title, node.id),
+        proposedMark(context, node.id),
         el(
           "span",
           { class: "node-type-label" },
@@ -211,6 +217,7 @@ function relationships(context: Context) {
         !e.archived &&
         (e.fromId === context.node.id || e.toId === context.node.id),
     )
+    .sort((a, b) => Number(!!context.marks?.proposed.has(b.id)) - Number(!!context.marks?.proposed.has(a.id)))
     .slice(0, 8);
   return section(
     "Related entities",
@@ -228,6 +235,7 @@ function relationships(context: Context) {
                 "dt",
                 {},
                 `${outgoing ? "" : "Referenced by · "}${humanize(type?.title ?? "Related")}`,
+                proposedMark(context, edge.id),
               ),
               el(
                 "dd",
@@ -395,7 +403,7 @@ export function nodeDetails(
   graph: Graph,
   node: GraphNode,
   documentation: () => HTMLElement,
-  options: { showRelationships?: boolean } = {},
+  options: { showRelationships?: boolean; marks?: ProposalMarks } = {},
 ) {
   const type = graph.types.find((t) => t.id === node.typeId);
   const context: Context = {
@@ -404,6 +412,7 @@ export function nodeDetails(
     view: presentation(type),
     checks: bodyGraphReferences(graph, node, type?.jsonSchema),
     showRelationships: options.showRelationships !== false,
+    marks: options.marks,
   };
   const element = el("div", { class: "node-reader" }),
     content = el("div", { role: "tabpanel", id: "node-panel", tabIndex: 0 });
@@ -465,7 +474,7 @@ export function nodeDetails(
       "div",
       { class: "node-navigation" },
       tablist,
-      el(
+      options.marks?.proposed.has(node.id) ? null : el(
         "nav",
         { "aria-label": "Explore entity", class: "node-explore" },
         el("a", { href: `${entityUrl(node.id)}/connections` }, "Connections"),

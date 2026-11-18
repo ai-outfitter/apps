@@ -1,7 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { requestIdentity } from "../server";
 import { type StorageManifest, storageManifest } from "../storage";
-import { databaseHealth } from "./database";
+import { databaseHealth, withInstallationDatabaseRequest } from "./database";
 import { cloudflareStorage, storageHealth } from "./storage";
 
 export type AppMiddlewareOptions = {
@@ -41,7 +41,7 @@ async function health(app: string, storage?: StorageManifest, readOnly?: boolean
  */
 export function appMiddleware({ app, contentSecurityPolicy, readOnly, dev, storage: declared }: AppMiddlewareOptions) {
   const storage = declared && storageManifest.parse(declared);
-  return defineMiddleware(async ({ request, locals }, next) => {
+  const handler = defineMiddleware(async ({ request, locals }, next) => {
     const { pathname } = new URL(request.url);
     const api = !readOnly && pathname.startsWith("/api/");
     if (!api && !["GET", "HEAD"].includes(request.method))
@@ -65,6 +65,9 @@ export function appMiddleware({ app, contentSecurityPolicy, readOnly, dev, stora
     response.headers.set("X-Content-Type-Options", "nosniff");
     return response;
   });
+  return defineMiddleware((context, next) => readOnly
+    ? handler(context, next)
+    : withInstallationDatabaseRequest(() => handler(context, next)));
 }
 
 /** `appMiddleware` for an app that serves its own `/api/*`; prefer `outfitterApp()`. */

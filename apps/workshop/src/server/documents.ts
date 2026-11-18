@@ -11,6 +11,23 @@ import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  SubmitWorkshopPcb: {
+    story: "As a workspace agent, I want to publish a verified PCB package, so that members can review its board, quote and manufacturing files.",
+    document: graphql(`mutation SubmitWorkshopPcb($input: SubmitWorkshopPcbInput!) { submitWorkshopPcb(input: $input) }`),
+  },
+ AcceptCreativeHandoff:{story:"As a member, I want to hand a selected mockup to Workshop with constraints, so that design work starts from a pinned reference.",document:graphql(`mutation AcceptCreativeHandoff($input:AcceptCreativeHandoffInput!){acceptCreativeHandoff(input:$input)}`)},
+ AttachCreativeResult:{story:"As a member, I want to link a result candidate to the original mockup request, so that presentations and marketing can reuse its evidence.",document:graphql(`mutation AttachCreativeResult($input:AttachCreativeResultInput!){attachCreativeResult(input:$input)}`)},
+  RequestWorkshopBuild: {story:"As a member, I want to request a workspace build from pinned source and parameters, so that agents can build a reproducible revision.",document:graphql(`mutation RequestWorkshopBuild($input: RequestWorkshopBuildInput!) { requestWorkshopBuild(input:$input) }`)},
+  ClaimWorkshopBuild: {story:"As a workspace runner, I want to claim a queued build at its observed revision, so that concurrent runners cannot execute the same request.",document:graphql(`mutation ClaimWorkshopBuild($input: ClaimWorkshopBuildInput!) { claimWorkshopBuild(input:$input) }`)},
+  FinishWorkshopBuild: {story:"As a workspace runner, I want to attach verified artifacts and tests, so that members can inspect a revision without replacing newer work.",document:graphql(`mutation FinishWorkshopBuild($input: FinishWorkshopBuildInput!) { finishWorkshopBuild(input:$input) }`)},
+  StartWorkshopDesign: {
+    story: "As a member or an agent working for one, I want to start Workshop's design agent on a part or project request with one mutation, so that design work begins from wherever I am without opening the project page or waiting on the model.",
+    document: graphql(`mutation StartWorkshopDesign($input: StartWorkshopDesignInput!) { startWorkshopDesign(input: $input) }`),
+  },
+  WorkshopDesignRun: {
+    story: "As a member or an agent working for one, I want to read a design run I started, so that I know when the project revision it saved is ready and which project to open.",
+    document: graphql(`query WorkshopDesignRun($input: WorkshopDesignRunInput!) { workshopDesignRun(input: $input) }`),
+  },
   CreateWorkshopProject: {
     story: "As a member, I want to start a project from a starter example on the Workshop page or through an agent, named for the product revision it builds, so that I can refine a working model instead of a blank one.",
     document: graphql(`mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {
@@ -27,6 +44,22 @@ const legacyDocuments = defineDocuments({
     story: "As a member, I want an agent to write a project's brief and requirements and move it through its stages as the work progresses, so that the project page says what we are building and how far along it is.",
     document: graphql(`mutation DescribeWorkshopProject($input: DescribeWorkshopProjectInput!) {
       describeWorkshopProject(input: $input) { id name revision createdBy updatedBy createdAt updatedAt }
+    }`),
+  },
+  ResolvedWorkshopAssembly: {
+    story: "As a prototype builder, I want to inspect the configured assembly and its source revisions, so that I can verify shared CAD and power across projects.",
+    document: graphql(`query ResolvedWorkshopAssembly($input: ResolvedWorkshopAssemblyInput!) { resolvedWorkshopAssembly(input: $input) }`),
+  },
+  WorkshopAssembly: {
+    story: "As a prototype builder, I want my agent to read the saved assembly and its power inputs, so that I can change one quantity and verify its effect.",
+    document: graphql(`query WorkshopAssembly($projectId: ID!) {
+      workshopAssembly(projectId: $projectId) { projectId revision assembly }
+    }`),
+  },
+  UpdateWorkshopAssembly: {
+    story: "As a prototype builder, I want my agent to save my assembly edit at the observed revision, so that concurrent project changes are preserved.",
+    document: graphql(`mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {
+      updateWorkshopAssembly(projectId: $projectId, expectedRevision: $expectedRevision, assembly: $assembly) { projectId revision }
     }`),
   },
   SaveWorkshopAssembly: {
@@ -75,14 +108,22 @@ const legacyDocuments = defineDocuments({
 // the single-action documents stay for Workshop's own pages. Design turns and concept
 // images are Workshop workflows: platform StartTasks and WorkflowRuns with app workshop.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
-  WorkshopProjects: { description: "Find hardware projects by name, product revision or creator. Use includeIdentifiers:true for IDs and revisions before changes.", collection: true },
+  ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits." },
+  WorkshopAssembly: { description: "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision." },
+  UpdateWorkshopAssembly: { description: "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit." },
+  SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
+  WorkshopProjects: { description: "Find hardware projects by name, product revision or creator, with their current revision, before changes or PCB imports. Use includeIdentifiers:true for IDs and revisions.", collection: true },
   WorkshopProjectHandoff: { description: "Read one project as persisted: brief, requirements, stage, product revision and its whole assembly with usage lines. Changes nothing." },
   WorkshopUnits: { description: "Find physical units (boards, parts) by part number, MAC, status or project.", collection: true },
+  CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },
   ProjectChanges: { description: "Create a project from a starter example, write its brief, requirements and stage, or delete it. Edits and deletes need the id and revision from WorkshopProjects; stable item keys make retries safe." },
-  AssemblyChanges: { description: "Replace a project's product structure: assemblies, parts, boards and firmware with quantities and placements. Read WorkshopProjectHandoff first and send its revision; the whole assembly is replaced." },
   UnitChanges: { description: "Record, update or delete physical units by MAC address or serial. Updates and deletes need the id and revision from WorkshopUnits." },
   ConceptChanges: { description: "Publish a project's concept mockups to its product revision in the Wiki, or remove one mockup, at the project's current revision." },
   ProductRevisionChanges: { description: "Name the Wiki product revision a project builds, at the project's current revision." },
+  StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
+  WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
+  AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },
+  AttachCreativeResult: { description: "Link a committed result candidate back to its design request." },
 });
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */

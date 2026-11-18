@@ -40,8 +40,8 @@ jobs:
       sha: ${{ steps.pr.outputs.sha }}
       closed: ${{ steps.pr.outputs.closed }}
       private_authorized: ${{ steps.pr.outputs.private_authorized }}
-      apps: ${{ steps.plan.outputs.apps }}
-      has_apps: ${{ steps.plan.outputs.has_apps }}
+      apps: ${{ steps.direct.outputs.apps }}
+      has_apps: ${{ steps.direct.outputs.has_apps }}
       sdk_sha: ${{ steps.plan.outputs.sdk_sha }}
     steps:
       - uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
@@ -90,6 +90,23 @@ jobs:
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           HEAD_SHA: ${{ steps.pr.outputs.sha }}
+      # Previews show an app's own UI change. A shared package or lockfile
+      # change still validates every dependent app, but only apps with files
+      # changed in their own directory get a preview.
+      - id: direct
+        if: steps.pr.outputs.closed != 'true'
+        env:
+          SELECTED_APPS: ${{ steps.plan.outputs.apps }}
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const paths = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', process.env.BASE_SHA, process.env.HEAD_SHA, '--'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+          const apps = JSON.parse(process.env.SELECTED_APPS).filter(app => paths.some(path => path.startsWith(`${app}/`)));
+          appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(apps)}\nhas_apps=${apps.length > 0}\n`);
+          NODE
   build:
     needs: plan
     if: needs.plan.outputs.has_apps == 'true'
@@ -128,6 +145,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: ${{ inputs.build-mode != 'toolchain' && hashFiles('package-lock.json') != '' && 'npm' || '' }}
       - name: Install reviewed SDK toolchain
         if: inputs.build-mode == 'toolchain'
         run: npm ci
@@ -184,7 +202,7 @@ jobs:
           APP: ${{ matrix.app }}
           PR_NUMBER: ${{ inputs.pull-request }}
           SOURCE_SHA: ${{ needs.plan.outputs.sha }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.OUTFITTER_PREVIEW_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: 52b3dd3372a05fd2be0eb0f8ec36f9d3
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - uses: actions/github-script@v7
         env:
@@ -214,5 +232,5 @@ jobs:
           command: preview-cleanup
         env:
           PR_NUMBER: ${{ inputs.pull-request }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.OUTFITTER_PREVIEW_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: 52b3dd3372a05fd2be0eb0f8ec36f9d3
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,5 +1,6 @@
 import { orgChartView, orgChartLinks } from "./org-chart";
-import { nodeIdentity, nodeDetails } from "./node-details";
+import { nodeIdentity, nodeDetails, type ProposalMarks } from "./node-details";
+import { batchItemPanel, batchPageContext, proposedLine } from "./batch-pages";
 import { assertionReview } from "./assertions";
 import { structuredBodyMarkdown } from "../lib/structured-body";
 import { micromark } from "micromark";
@@ -893,11 +894,13 @@ function bodySchema(g: Graph, node: GraphNode) {
   return g.types.find(type => type.id === node.typeId)?.jsonSchema;
 }
 /** The graphs view describes itself in more detail. */
-function describeEntity(g: Graph, node: GraphNode, view: string) {
+function describeEntity(g: Graph, node: GraphNode, view: string, batch?: { id: string; ref: string | null; state: string | null }) {
   if (view === "graphs") return;
-  agentPage("onto").describe({ title: node.title, summary: `The ${view} view of this entity.`,
-    state: { entity: { id: node.id, title: node.title, type: registryName(g, node.typeId) }, view } });
+  agentPage("onto").describe({ title: node.title, summary: batch ? "A record as a change batch proposes it, with that proposal's review." : `The ${view} view of this entity.`,
+    state: { entity: { id: node.id, title: node.title, type: registryName(g, node.typeId) }, view, ...(batch ? { batch } : {}) } });
 }
+/** A record opened from a batch: its page as proposed, with the line under the title and that proposal's review. */
+type BatchView = { marks: ProposalMarks; line: HTMLElement; panel: HTMLElement; describe: { id: string; ref: string | null; state: string | null } };
 // Tabs sit on the title row, right of the name, so the view starts higher.
 function placeViewTabs(root: HTMLElement, identity: HTMLElement, g: Graph, node: GraphNode, view: string, href: string) {
   const tabs = el("nav", { class: "wiki-view-tabs", "aria-label": "Entity views" },
@@ -909,15 +912,16 @@ function placeViewTabs(root: HTMLElement, identity: HTMLElement, g: Graph, node:
   if (titleRow) titleRow.insertBefore(tabs, titleRow.querySelector("button"));
   else root.appendChild(tabs);
 }
-function entityPage(root: HTMLElement, g: Graph, node: GraphNode) {
+function entityPage(root: HTMLElement, g: Graph, node: GraphNode, batch?: BatchView) {
   root.replaceChildren();
   const identity = nodeIdentity(g, node, () => documentation(root, node));
+  if (batch) identity.querySelector(".node-title-row")?.after(batch.line);
   const intro = root.closest(".ui-content")?.querySelector(".intro");
   if (intro) intro.replaceChildren(identity);
   else root.appendChild(identity);
   document.title = `${node.title} — Onto`;
   const view = params.get("tab") ?? root.dataset.view ?? "overview";
-  describeEntity(g, node, view);
+  describeEntity(g, node, view, batch?.describe);
   const href = entityUrl(node.id);
   // Existing bookmarks become canonical routes without adding a history entry.
   if (params.has("tab")) {
@@ -948,8 +952,35 @@ function entityPage(root: HTMLElement, g: Graph, node: GraphNode) {
     entitySections(root, definition, g, node);
     return;
   }
-  content.appendChild(nodeDetails(g, node, () => entityDocumentation(g, node), { showRelationships: node.typeId !== core.project }));
+  if (batch) content.appendChild(batch.panel);
+  content.appendChild(nodeDetails(g, node, () => entityDocumentation(g, node), { showRelationships: node.typeId !== core.project, marks: batch?.marks }));
   entitySections(root, content, g, node);
+}
+/** `?batch=<id>` on a record's page: the record as that batch proposes it. */
+async function batchRecordPage(target: HTMLElement, g: Graph, batchId: string) {
+  // Astro leaves the route parameter encoded; a proposal's ref may need it.
+  const id = decodeURIComponent(String(target.dataset.nodeId));
+  const { detail, view, proposed, items, item, href } = await batchPageContext(g, batchId, id);
+  const reload = () => location.reload();
+  const describe = { id: detail.batch.id, ref: item?.op?.ref ?? null, state: item?.op?.state ?? null };
+  if (item?.kind === "type" && target.dataset.nodeType === "types") {
+    const type = view.types.find((t) => t.id === item.id);
+    if (!type) return renderGraphPage(target, g, false);
+    typePage(target, view, type);
+    target.firstElementChild?.after(proposedLine(detail, item));
+    target.appendChild(batchItemPanel(detail, view, items, item, reload));
+    agentPage("onto").describe({ title: type.title, summary: "A type as a change batch proposes it, with that proposal's review.", state: { type: type.name, batch: describe } });
+    return;
+  }
+  const node = view.nodes.find((n) => n.id === (item?.id ?? id) && !n.archived);
+  if (!node || !matchesRoute(view, node, target.dataset.nodeType)) return renderGraphPage(target, g, false);
+  // A saved neighbour opened from the batch reads as saved, with the batch's marks on its relationships.
+  entityPage(target, view, node, {
+    marks: { proposed, href },
+    line: item ? proposedLine(detail, item) : el("span", {}),
+    panel: item ? batchItemPanel(detail, view, items, item, reload) : el("span", {}),
+    describe,
+  });
 }
 export function typeAdministration(root: HTMLElement, g: Graph) {
   const list = el("div", { class: "graph-fields" });
@@ -1031,8 +1062,11 @@ function organizationHome(target: HTMLElement, g: Graph) {
 }
 
 const landingViews: Record<string, (target: HTMLElement, graph: Graph) => void> = { home: organizationHome, "context-catalog": contextCatalog };
-function renderGraphPage(target: HTMLElement, g: Graph) {
+function renderGraphPage(target: HTMLElement, g: Graph, fromBatch = true): void | Promise<void> {
   target.setAttribute("aria-busy", "false");
+  const batchId = params.get("batch");
+  if (fromBatch && batchId && target.dataset.nodeId && (target.dataset.view ?? "overview") === "overview")
+    return batchRecordPage(target, g, batchId);
   const landing = landingViews[String(target.dataset.view)];
   if (landing) return landing(target, g);
   if (!target.dataset.nodeId && location.pathname.replace(/\/$/, "").endsWith("/types"))

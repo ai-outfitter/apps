@@ -10,7 +10,7 @@ test("sidebar links swap pages inside the app shell", async ({ page }) => {
   const app = await appWorker("planning", appArtifact(new URL("..", import.meta.url), "demo"));
   try {
     await routeReadOnly(page, origin, app, {});
-    await expectClientNavigation(page, `${origin}/`, ["Operations", "Projects", "Products", "Opportunities", "Use cases", "Customer segments", "Product"],
+    await expectClientNavigation(page, `${origin}/`, ["Projects", "Products", "Opportunities", "Use cases", "Customer segments"],
       () => page.waitForFunction(() => !document.querySelector('[aria-busy="true"]')));
   } finally {
     try {

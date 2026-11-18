@@ -26,6 +26,7 @@ export function parseRequest(value, name = "request") {
     [message(value.message), "message needs 1 to 500 characters"],
     [Array.isArray(followUps) && followUps.length <= 8 && followUps.every(message), "followUps are up to 8 messages of 1 to 500 characters"],
     [value.slug === undefined || slug.test(value.slug), "slug must be a lowercase slug"],
+    [value.via === undefined || value.via === "agent" || value.via === "graphql", "via must be agent or graphql"],
   ]);
   return {
     ...value,

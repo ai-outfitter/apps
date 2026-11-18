@@ -1,10 +1,11 @@
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
+import type { IssueReceipt } from "./forge";
 import { foundryLandingWorkflow, landingContinuation } from "./landing-recovery";
 import { workspaceAgentPermissions, workspaceCoordinatorPermissions, workspaceTarget } from "./execution";
 
-type Unattended = WorkflowHost<"operator" | "interactive" | "event">;
+type Unattended = WorkflowHost<"operator" | "interactive" | "event" | "finalize">;
 type Editor = WorkflowHost<"operator" | "interactive">;
 type Snapshot = OperationOutput<"snapshot">;
 type Resume = { runId: string; requestId: string };
@@ -106,7 +107,8 @@ export function roleTarget(repository: string, resource: string, settings: z.inp
   return {
     resource,
     repository,
-    agentPermissions: { contents: write, pull_requests: write, issues: write, ...workspaceAgentPermissions(policy.role) },
+    // A repository job files issues but never changes code.
+    agentPermissions: { contents: write, pull_requests: write, issues: policy.role === "file-issues" ? "write" : write, ...workspaceAgentPermissions(policy.role) },
     coordinatorPermissions: workspaceCoordinatorPermissions(policy),
     // Read-only linkage queries when publishing evidence; ready/enqueue mutations when finalizing.
     graphql: ["publish", "finalize"] as ("publish" | "finalize")[],
@@ -187,6 +189,114 @@ export async function configureFoundryWorkspaces(
   return { subscriptionId: subscription.id, repository: metadata.full_name, resource, workflow: foundryWorkspaceWorkflow };
 }
 
+/** Foundry's repository jobs, each with the one actor that reads the repository
+ * and files issues. They run in a workspace with an approved binding, like every
+ * other Foundry role, so the binding ID travels in the run's inputs. */
+export const foundryJobs = {
+  "dependency-review": "reviewer",
+  "architecture-reanalysis": "architect",
+  "ui-review": "reviewer",
+} as const;
+export type FoundryJob = keyof typeof foundryJobs;
+export const jobBindingInput = (job: FoundryJob) => `analyze.inputs.${foundryJobs[job]}Binding`;
+
+/** Approve (or reuse) the job's workspace binding on one repository: the run
+ * inputs a manual start or a saved schedule needs. A job's issues are fixed by
+ * issue-to-merge, so the repository must have Foundry turned on first. */
+async function jobInputs(host: Editor, job: FoundryJob, repository: string, model = "gpt-6-luna") {
+  const snapshot = await host.call("snapshot", {});
+  const { metadata } = await approvedRepository(host, snapshot, repository);
+  const subscription = snapshot.subscriptions.find((candidate) => candidate.enabled && candidate.workflowId === foundryWorkspaceWorkflow &&
+    candidate.resource === String(metadata.id));
+  if (!subscription)
+    throw new Response(`Turn Foundry on for ${metadata.full_name} first (RepositoryChanges enable), so the job's issues are fixed and merged`, { status: 409 });
+  const prompt = "You are the analyze agent for an Outfitter Software Foundry repository job. Read the repository, file only the issues your instructions call for, and never change code.";
+  const binding = await host.call("binding.approve", {
+    workflowId: job,
+    actor: foundryJobs[job],
+    label: "Workspace analyze",
+    workspace: roleTarget(metadata.full_name, String(metadata.id), { role: "file-issues", checks: foundryChecks(metadata.full_name), ci: "actions", reviewer: "vega" }),
+    context: { model, profile: { id: "foundry-analyze", digest: await sha256Hex(prompt), systemPrompt: prompt }, capabilities: [] },
+  });
+  // The job's finalize starts issue-to-merge for each issue it filed, with the
+  // repository's approved issue-to-merge bindings.
+  const fix: JobFix = { installation: snapshot.installation.id, resource: subscription.resource, inputs: subscription.inputs as Record<string, string> };
+  return { repository: metadata.full_name, inputs: {
+    "analyze.inputs.repository": metadata.full_name, [jobBindingInput(job)]: binding.id, "analyze.inputs.fix": fix } };
+}
+
+/** Where a repository job's issues go to be fixed: issue-to-merge on the job's repository. */
+export type JobFix = { installation: string; resource: string; inputs: Record<string, string> };
+
+/** Start issue-to-merge for one issue a repository job filed, under the
+ * issue's deterministic run id, so a retried finalize or an issue webhook
+ * reuses the same run. */
+export async function startJobFix(host: Unattended, fix: JobFix, repository: { id: number; name: string },
+  issue: { number: number; title: string; body: string; url: string }) {
+  const id = await foundryIssueRunId(fix.installation, fix.resource, issue.number);
+  return launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
+    { action: "opened", repository: { id: repository.id, full_name: repository.name },
+      issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" } }, id);
+}
+
+/** Failed fix runs an issue gets before its job closes it as not fixable. */
+export const jobFixAttempts = 3;
+/** Most fixes one job run restarts, so a backlog drains over several runs. */
+const jobRetriesPerRun = 5;
+
+/** Every job run also finishes earlier work: each open issue whose last Foundry
+ * fix failed starts again on the same branch, as does an issue Foundry opened
+ * whose fix never started; one that has failed `jobFixAttempts` times is closed with its runs. */
+export async function retryJobFixes(host: Unattended, fix: JobFix, repository: { id: number; name: string },
+  forge: { openIssues(): Promise<(IssueReceipt & { byFoundry: boolean })[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
+  skip: ReadonlySet<number>) {
+  const retried = [];
+  const closed = [];
+  const issues = (await forge.openIssues()).filter((issue) => !skip.has(issue.number));
+  const runsOf = new Map<number, Awaited<ReturnType<typeof issueRuns>>>();
+  if (issues.length)
+    for (const run of await issueRuns(host, fix.resource, issues.map((issue) => issue.number)))
+      runsOf.set(Number(run.subject), [...runsOf.get(Number(run.subject)) ?? [], run]);
+  for (const issue of issues) {
+    if (retried.length >= jobRetriesPerRun) break;
+    const runs = (runsOf.get(issue.number) ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (runs.length ? runs[0].status !== "failed" : !issue.byFoundry) continue;
+    const failures = runs.filter((run) => run.status === "failed");
+    if (failures.length >= jobFixAttempts) {
+      await forge.close(issue.number, `Foundry could not fix this in ${failures.length} attempts (runs ${
+        failures.map((run) => run.id).join(", ")}), so it is closed. A later job run files it again if it still applies.`, "not_planned");
+      closed.push({ number: issue.number, url: issue.url, title: issue.title });
+      continue;
+    }
+    // The retry keeps the failed run's branch, so its open pull request carries on.
+    const prior = runs[0] && await host.call("workflow.read", { id: runs[0].id });
+    const event = prior?.inputs["triage.inputs.event"] as { sourceRunId?: string } | undefined;
+    const id = await foundryIssueRunId(fix.installation, fix.resource, issue.number, `retry-${failures.length}`);
+    const started = await launchFoundryWorkspaceIssue(host, { resource: fix.resource, inputs: fix.inputs },
+      { action: "opened", repository: { id: repository.id, full_name: repository.name },
+        issue: { number: issue.number, title: issue.title, body: issue.body, html_url: issue.url, state: "open" },
+        ...(runs[0] ? { previousRunId: runs[0].id, sourceRunId: z.uuid().parse(event?.sourceRunId ?? runs[0].id) } : {}) },
+      id, undefined, runs);
+    retried.push({ number: issue.number, url: issue.url, title: issue.title, fixRun: started.id });
+  }
+  return { retried, closed };
+}
+
+/** Start a repository job now. */
+export async function runFoundryJob(host: Editor, job: FoundryJob, repository: string) {
+  const { repository: name, inputs } = await jobInputs(host, job, repository);
+  const run = crypto.randomUUID();
+  await host.call("workflow.start", { workflow: job, id: run, inputs });
+  return { job, repository: name, run };
+}
+
+/** Save the job's schedule (one per job) on a repository, on its declared cadence. */
+export async function scheduleFoundryJob(host: Editor, job: FoundryJob, repository: string, enabled = true) {
+  const { repository: name, inputs } = await jobInputs(host, job, repository);
+  const schedule = await host.call("schedule.save", { workflow: job, inputs, enabled, timezone: "UTC" });
+  return { job, repository: name, schedule: schedule.id, enabled: schedule.enabled };
+}
+
 /** The current approved binding of `workflowId`/`actor` for one repository. */
 async function currentBinding(host: Unattended, snapshot: Snapshot, workflowId: string, actor: string, resource: string) {
   const candidates = snapshot.bindings.filter((binding) => binding.workflowId === workflowId && binding.actor === actor &&
@@ -217,14 +327,14 @@ export async function foundryIssueRunId(
 }
 
 /** Runs of one repository's issue across Foundry's issue workflows, newest first. */
-export function issueRuns(host: Unattended, resource: string, issue: number) {
+export function issueRuns(host: Unattended, resource: string, issue: number | number[]) {
   return host.call("workflow.references", {
     selectors: [
       { slot: "triage.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
       { slot: "land.inputs.event", key: "$.repository.id", subject: "$.issue.number", label: "$.issue.title" },
     ],
     key: resource,
-    subjects: [issue],
+    subjects: Array.isArray(issue) ? issue : [issue],
     workflows: issueWorkflows,
     limitPerSubject: 10,
   });

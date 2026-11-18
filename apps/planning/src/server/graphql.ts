@@ -1,31 +1,44 @@
+import { visualEvidenceJSONSchema } from "@ai-outfitter/app-sdk/visual-evidence";
+import { evidenceReadInput, readVisualEvidence, submitEvidenceInput, submitVisualEvidence } from "./visual-evidence";
+import {transferInput,importTransferInput,beginTransfer,exportTransfer,importTransfer,transferReceipt,finishTransfer} from '@ai-outfitter/creative-workflow/video-transfer';
+import { videoReadInput, saveVideoInput, videoTakeInput, takeUpdateInput, videoAssetInput, assetCommitInput, publishVideoInput } from "../lib/video-production";
+import { videoSourceEvidence, readVideos, saveProduction, prepareTake, updateTake, reserveAsset, commitAsset, publishProduction } from "./video-production";
+import { dailyReportReadInput, readDailyReport } from "./digest-wiki";
+import { dailyReportsInput, startDailyReports } from "./digests";
 import { readOrder, saveOrder, orderInput, sortByOrder } from "./priority-order";
-import { connectionType, idList, mutationField, type PageArgs, page, pageArgs, pageStart, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
+import { personalPortfolio, portfolioOrderInput, reorderPersonalPortfolio } from "./personal-portfolio";
+import { connectionType, fieldError, idList, mutationField, type PageArgs, page, pageArgs, pageStart, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
 import { batchSchema, readBatchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import { and, asc, count, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import {
-  GraphQLError, GraphQLBoolean, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
+  GraphQLError, GraphQLBoolean, GraphQLEnumType, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
   GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
 import { z } from "zod";
-import { productReportRuns, productReportSchedule, productReportScheduleInput, changeProductReportSchedule, startProductReport } from "./product-report-workflow";
+import { productReportRuns, productReportSchedule, productReportScheduleInput, changeProductReportSchedule, startProductReport, productReportInput } from "./product-report-workflow";
 import { readProductPage, productPageMarkdown } from "./product-page-data";
 import { batchGroups, readGroups } from "./batch-groups";
 import { linkChangesInput, linkProjectChanges } from "./code-changes";
+import { metricMeasurementsInput, readMetricMeasurements, recordMeasurements, recordMeasurementsInput } from "./measurements";
 import { createWithRequirements, deliveryResult, latestPreparation, loadRequirements, preparationSummary, prepareInput, prepareProject, saveProjectChange } from "./delivery";
 import { deliveryInput, projectDelivery, submitDeliveryPackage, submitPackageInput } from "./delivery-read";
 import { changeDigestSchedule, digestListInput, digestRuns, digestSchedule, digestScheduleInput, generateDigestInput, listDigests, startDigest } from "./digests";
 import { issueFields as issueInput, projectFields } from "./fields";
 import {
-  claimInput, claimWork, createIntake, type IntakeRow, IntakeService, intakeInput, type PlanningContext, previewIntakeInput, previewIntakeWork, publishResult,
+  releaseFitInput, setIntakeReleaseFit, claimInput, claimWork, createIntake, type IntakeRow, IntakeService, intakeInput, type PlanningContext, previewIntakeInput, previewIntakeWork, publishResult,
   recordResult, recordResultInput, resetSubmission, resetSubmissionInput, reviseScope, reviseScopeInput, routeInput, routeIntake, saveDraftInput,
   saveResultDraft, selection, submitIntakeInput, submitIntakeWork,
 } from "./intake";
 import { type OrganizationGoals, readOrganizationGoals } from "./organization-goals";
 import { archiveProject, archiveProjectInput, projectStateInput, setProjectState, createIssue, deleteIssue, deleteProject, patchProjectInput, reorderInput, reorderIssues, revisionField, updateIssue, updateProject, patchProject as patchProjectRecord } from "./planning";
 import { projectContext, projectReadiness, projectSlug } from "./project-context";
+import {
+  acceptPartnerRequest, acceptPartnerRequestInput, listPartnerRequests, partnerRequestInput, refreshDesignPartners, refreshPartnersInput,
+  rejectPartnerRequest, rejectPartnerRequestInput, submitPartnerRequest,
+} from "./partner-requests";
 import { issues, projects } from "./schema";
-import { saveUseCase, useCaseInput } from "./use-cases";
+import { listUseCases, saveUseCase, useCaseInput } from "./use-cases";
 import { repositories, pullRequests } from "./project-repositories";
 import { linkProjectNode, publishRepositories } from "./repository-patch";
 import { githubRepositoryName } from "@ai-outfitter/app-sdk/github-pulls";
@@ -47,6 +60,8 @@ const issueFields = tableType(issues, {
   dates: ["createdAt", "updatedAt"],
   ids: ["projectId", "parentId"],
   filters: ["projectId", "status", "category"],
+  // planning_issues_installation_position (installationId, position, id) gives an installation's issues in position order.
+  orders: ["position"],
   // Every Planning read keeps to the caller's installation.
   scope: context => eq(issues.installationId, context.identity.installationId),
 });
@@ -96,7 +111,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
     id: { type: nonNull(GraphQLID) },
     name: text,
     archived: {type:nonNull(GraphQLBoolean)},
-    rank: { type: GraphQLInt, resolve: async (row, _args, context) => { if (!context.identity.organizationId) return null; const order = await readOrder(context.db(), context.identity, "projects"); const index = order.items.indexOf(row.id); return index < 0 ? null : index; } },
+    rank: { type: GraphQLInt, resolve: async (row, _args, context) => { const order = await readOrder(context.db(), context.identity, "projects"); const index = order.items.indexOf(row.id); return index < 0 ? null : index; } },
     state: { ...text, description: "Project lifecycle: draft, backlog, active, completed or archived." },
     slug: {type:GraphQLString,resolve:(project,_args,context)=>projectSlug(context,project.id)},
     ...contextFields,
@@ -109,7 +124,7 @@ const Project = new GraphQLObjectType<ProjectRow, Context>({
       const ids = idList(args.ids);
       const id = (row: { nodeId: string; edgeId?: string }) => row.edgeId ?? row.nodeId;
       const rows = (await repositories(context, project.id, project.githubRepository)).filter(row => !ids || ids.includes(id(row))).sort((a, b) => id(a).localeCompare(id(b)));
-      return { ...page(context, info, rows.filter(row => !start || id(row) > start), id, first, start), aggregate: { count: rows.length } };
+      return page(context, info, rows.filter(row => !start || id(row) > start), id, first, start, () => rows.length);
     } },
     goals: projectDocument("What the project must achieve"),
     userStories: projectDocument("Who it serves and what they need"),
@@ -165,6 +180,9 @@ const intake = new GraphQLObjectType<IntakeSource, Context>({ name: "Intake", fi
   description: { ...text, resolve: row => row.body.input.description },
   sourceUrls: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), resolve: row => row.body.input.sourceUrls ?? [] },
   sources: { type: nonNull(JSONScalar), description: "Wiki records at the revisions the intake was scoped to.", resolve: row => row.body.input.sources },
+  originatingMessage: { type: JSONScalar, description: "Caller-provided conversation provenance; grants no transcript access.", resolve: row => row.body.input.originatingMessage ?? null },
+  releaseFit: { type: JSONScalar, description: "Persisted release disposition, existing Release revision, rationale and backlog status.", resolve: row => row.body.releaseFit ?? null },
+  releaseFitHistory: { type: nonNull(JSONScalar), resolve: row => row.body.releaseFitHistory ?? [] },
   routes: { type: nonNull(new GraphQLList(nonNull(intakeRoute))), resolve: async (row, _args, context) => (await new IntakeService(context).inspect(row)).body.routes },
   routing: { type: JSONScalar, description: "The automatic routing run: runId and state (running, proposed, complete or failed)." , resolve: row => row.body.routing ?? null },
   routingError: { type: GraphQLString, description: "Set by createIntake when the saved intake could not be routed; route it later." },
@@ -181,8 +199,9 @@ const digest = new GraphQLObjectType({ name: "ProjectDigest", description: "What
   summaryError: { type: GraphQLString, description: "Why there is no summary, when there is none." },
   changes: { type: nonNull(JSONScalar), description: "shipped, started, added, reopened, edited and removed issues ({ id, title, category, status }, at most 20 each); counts (exact); changed project documents by label; delivery { submitted, accepted }; current priorities (in-progress first, then top open stones and pebbles); totals { open, inProgress, done }." },
 } });
-const digestScheduleType = new GraphQLObjectType({ name: "DigestSchedule", description: "The morning digest of every active project, daily at 13:00 UTC.", fields: {
+const digestScheduleType = new GraphQLObjectType({ name: "DigestSchedule", description: "The local morning report chain: organization projects at 03:00, personal overview at 04:00 by default.", fields: {
   enabled: { type: nonNull(GraphQLBoolean) },
+  cron: {type:GraphQLString}, timezone:{type:GraphQLString},
   nextRunAt: { type: GraphQLFloat, description: "Epoch milliseconds; null when off." },
   lastRunAt: { type: GraphQLFloat },
   lastOutcome: { type: GraphQLString },
@@ -233,10 +252,49 @@ async function productsPage(context: Context, at?: string | null) {
     return {...page,products,markdown:productPageMarkdown({...page,products})};
   }catch(error){if(error instanceof Response)throw new GraphQLError(await error.text());throw error;}
 }
+const dailyReportSource=new GraphQLObjectType({name:"DailyReportSource",fields:{id:{type:nonNull(GraphQLID)},name:text,ownerKind:text,ownerId:text,planningInstallationId:text,organizationSlug:{type:GraphQLString},report:{type:JSONScalar}}});
+const partnerRequestStatus = new GraphQLEnumType({ name: "PartnerRequestStatus", values: { proposed: { value: "proposed" }, accepted: { value: "accepted" }, rejected: { value: "rejected" } } });
+const partnerRequest = new GraphQLObjectType({ name: "PartnerRequest", description: "A design partner's feature or bug request, filed from its own organization.", fields: {
+  id: { type: nonNull(GraphQLID) }, requestId: { type: nonNull(GraphQLID), description: "The partner's own ID for it." }, revision: { type: nonNull(GraphQLInt) },
+  status: { type: nonNull(partnerRequestStatus), description: "proposed until an editor accepts (Software Foundry files it as an issue) or rejects it." },
+  kind: { ...text, description: "feature or bug." }, title: text, problem: text,
+  acceptanceCriteria: { type: nonNull(JSONScalar), description: "[{ id, text }]" },
+  bug: { type: JSONScalar, description: "Bugs only: { stepsToReproduce, expected, actual, environment? }." },
+  productId: { type: GraphQLID, description: "The provider's product record, by the ID both graphs share." },
+  partner: { type: nonNull(JSONScalar), description: "{ organizationId, userId, role: \"design partner\" }" },
+  reason: { type: GraphQLString, description: "Why it was rejected." },
+  foundryRequest: { type: JSONScalar, description: "Once accepted: Foundry's request { requestId, kind, issue { number, url }, run }." },
+  createdAt: { type: nonNull(GraphQLFloat), description: "Epoch milliseconds." }, updatedAt: { type: nonNull(GraphQLFloat) },
+} });
+const designPartner = new GraphQLObjectType({ name: "DesignPartner", fields: { organizationId: { type: nonNull(GraphQLID) }, name: text } });
+const designPartnerList = new GraphQLObjectType({ name: "DesignPartners", fields: { designPartners: { type: nonNull(new GraphQLList(nonNull(designPartner))) } } });
+
 const query = new GraphQLObjectType<unknown, Context>({
   name: "Query",
   fields: {
+    evidenceSchema: {type:nonNull(JSONScalar), resolve:()=>visualEvidenceJSONSchema},
+    projectEvidence: mutationField<typeof evidenceReadInput, Context>({name:"ProjectEvidence",description:"Read project evidence",input:evidenceReadInput,output:nonNull(JSONScalar),run:readVisualEvidence}),
+    videoSourceEvidence:{type:JSONScalar,args:{productId:{type:nonNull(GraphQLID)},cursor:{type:GraphQLString}},resolve:(_source,args,context)=>videoSourceEvidence(context,args.productId,args.cursor)},
+    videoTransfer:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>exportTransfer(c,args.id)},videoTransferReceipt:{type:JSONScalar,args:{id:{type:GraphQLID}},resolve:(_s:unknown,args:{id:string},c:Context)=>transferReceipt(c,args.id)},videoProductions: {type: JSONScalar,args:{id:{type:GraphQLID},productId:{type:GraphQLID},revision:{type:GraphQLInt},after:{type:GraphQLString},limit:{type:GraphQLInt}},resolve:(_source,args,context)=>readVideos(context,videoReadInput.parse(args))},
+    partnerRequests: {
+      type: nonNull(new GraphQLList(nonNull(partnerRequest))),
+      description: "Design partners' feature and bug requests, newest first (at most 200), optionally by status. Editors only.",
+      args: { status: { type: partnerRequestStatus } },
+      resolve: async (_source, args: { status?: "proposed" | "accepted" | "rejected" | null }, context) => {
+        try { return await listPartnerRequests(context, args.status ?? undefined); }
+        catch (error) { throw await fieldError(error); }
+      },
+    },
+    dailyReports:{type:nonNull(connectionType(dailyReportSource)),args:{...pageArgs(),date:{type:nonNull(GraphQLString)},timezone:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{date:string;timezone?:string},context,info)=>{
+      const {first,start}=pageStart(args),id=context.identity.installationId;
+      // One record: this installation's report.
+      if(start && id<=start)return page(context,info,[] as {id:string}[],row=>row.id,first,start,()=>1);
+      const report=await readDailyReport(context.host(),context.identity,{date:args.date,timezone:args.timezone});
+      const row={id,name:"Daily report",ownerKind:context.identity.owner.kind,ownerId:context.identity.owner.id,planningInstallationId:id,organizationSlug:null,report};
+      return page(context,info,[row],row=>row.id,first,start,()=>1);
+    }},
     priorityOrder: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>readOrder(context.db(),context.identity,z.enum(["projects","products"]).parse(args.kind))},
+    personalPortfolio: {type:nonNull(JSONScalar),args:{kind:{type:nonNull(GraphQLString)}},resolve:(_source,args:{kind:string},context)=>personalPortfolio(context,z.enum(["organizations","projects"]).parse(args.kind))},
     productReportRuns: {type:nonNull(JSONScalar),resolve:(_source,_args,context)=>productReportRuns(context.host())},
     productReportSchedule: {type:nonNull(JSONScalar),resolve:(_source,_args,context)=>productReportSchedule(context.host())},
     products: {type:nonNull(new GraphQLList(nonNull(productCard))),args:{at:{type:GraphQLString}},resolve:async(_source,args:{at?:string},context)=>(await productsPage(context,args.at)).products},
@@ -245,7 +303,7 @@ const query = new GraphQLObjectType<unknown, Context>({
     productPages: {type:nonNull(connectionType(productPageType)),args:{...pageArgs(),at:{type:GraphQLString}},resolve:async(_source,args:PageArgs&{at?:string},context,info)=>{
       const {first,start}=pageStart(args);
       const row=await productsPage(context,args.at);
-      return page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start);
+      return page(context,info,start && row.id <= start ? [] : [row],row=>row.id,first,start,()=>1);
     }},
 
     organizationGoals: {
@@ -257,7 +315,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const record = await readOrganizationGoals(context.host(), context.identity);
         const rows = record && (!ids || ids.includes(record.id)) ? [record] : [];
-        return { ...page(context, info, rows, (row) => row.id, first, start), aggregate: { count: rows.length } };
+        return page(context, info, rows, (row) => row.id, first, start, () => rows.length);
       },
     },
     projects: {
@@ -270,14 +328,27 @@ const query = new GraphQLObjectType<unknown, Context>({
         if (args.states?.some(state => !["draft", "backlog", "active", "completed", "archived"].includes(state))) throw new GraphQLError("Unknown project state");
         const matching = (after: string | null) => projectRows(context, { ids, active: args.active, archived: args.archived ?? (args.states?.includes("archived") ? null : false), states: args.states, after });
         const rows = await matching(start).orderBy(asc(projects.id)).limit(first + 1);
-        return {
-          ...page(context, info, rows, row => row.id, first, start),
-          // Counted only when selected.
-          aggregate: { count: async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count },
-        };
+        // Counted only when selected.
+        return page(context, info, rows, row => row.id, first, start, async () => (await context.db().select({ count: count() }).from(matching(null).as("matching")))[0].count);
       },
     },
     ...issueFields,
+    metricMeasurements: mutationField<typeof metricMeasurementsInput, Context>({
+      name: "MetricMeasurements",
+      description: "Every MetricDefinition in the Wiki with its latest and previous recorded Measurement ({ value, unit, windowStart, windowEnd, capturedAt }) and the change between them, for KPIs such as this week's GitHub stars and growth since last week. latest is null until a Measure records one.",
+      input: metricMeasurementsInput,
+      run: (context, input) => readMetricMeasurements(context.host(), input),
+    }),
+    useCases: mutationField({
+      name: "UseCases", description: "Read a canonical project's existing use cases with full scenario documents, IDs and revisions before editing.",
+      input: z.strictObject({ projectId: z.uuid() }),
+      run: (context: Context, input) => listUseCases(context.db(), context.identity, context.host(), input.projectId),
+    }),
+    intakeReleaseOptions: mutationField({
+      name: "IntakeReleaseOptions", description: "Read the canonical project's existing Wiki Releases with their IDs, revisions and linked evidence before recording intake release fit.",
+      input: z.strictObject({ projectId: z.uuid() }),
+      run: (context: Context, input) => new IntakeService(context).releaseReview(input.projectId),
+    }),
     intakes: {
       type: nonNull(connectionType(intake)),
       description: "Customer and competitive intakes with their routed child work, in ID order. Reading routes inspects each intake against Governance, so first defaults to 20.",
@@ -287,7 +358,7 @@ const query = new GraphQLObjectType<unknown, Context>({
         const ids = idList(args.ids);
         const service = new IntakeService(context);
         const rows = await service.page(first + 1, start, ids);
-        return { ...page(context, info, rows, row => row.id, first, start), aggregate: { count: () => service.count(ids) } };
+        return page(context, info, rows, row => row.id, first, start, () => service.count(ids));
       },
     },
     intakeOptions: {
@@ -304,6 +375,7 @@ const query = new GraphQLObjectType<unknown, Context>({
       input: deliveryInput,
       run: (context, input) => projectDelivery(context, input),
     }),
+    dailyReport: mutationField<typeof dailyReportReadInput, Context>({name:"DailyReport",description:"Read the exact generated project or owner report for a local calendar date, including source coverage, dependencies and pinned Wiki revision. Missing returns null, not no-change.",input:dailyReportReadInput,output:JSONScalar,run:(context,input)=>readDailyReport(context.host(),context.identity,input)}),
     projectDigests: mutationField<typeof digestListInput, Context>({
       name: "ProjectDigests",
       description: "A project's daily digests, newest first: what shipped, started, was added or reopened since the previous digest, and what is prioritized now. Changes nothing.",
@@ -361,7 +433,14 @@ const revisionRule = "Name the revision you read; a changed record is refused (4
 const mutation = new GraphQLObjectType<unknown, Context>({
   name: "Mutation",
   fields: {
-    generateProductReport: mutationField<z.ZodObject<{}>,Context>({name:"GenerateProductReport",description:"Regenerate the current weekly product report as a registered task. Editors only.",input:z.strictObject({}),run:(context)=>startProductReport(context.host(),context.identity)}),
+    submitEvidence: mutationField<typeof submitEvidenceInput, Context>({name:"SubmitEvidence",description:"Stage a visual capture in a graph batch",input:submitEvidenceInput,output:nonNull(JSONScalar),run:submitVisualEvidence}),
+    beginVideoTransfer:mutationField<typeof transferInput,Context>({name:'BeginVideoTransfer',description:'Seal a production for a verified transfer; blocks further source writes.',input:transferInput,run:beginTransfer}),importVideoTransfer:mutationField<typeof importTransferInput,Context>({name:'ImportVideoTransfer',description:'Read a sealed source through its authorized app and preserve revisions and receipts. Media must still be copied.',input:importTransferInput,run:importTransfer}),finishVideoTransfer:mutationField<typeof publishVideoInput,Context>({name:'FinishVideoTransfer',description:'Verify destination metadata and media before recording completion.',input:publishVideoInput,run:(c,input)=>finishTransfer(c,input.id)}),saveVideoProduction: mutationField<typeof saveVideoInput,Context>({name:"SaveVideoProduction",description:"Save a storyboard at its current revision; zero creates a stable production ID. Editors only.",input:saveVideoInput,run:(context,input)=>saveProduction(context,input)}),
+    prepareVideoTake: mutationField<typeof videoTakeInput,Context>({name:"PrepareVideoTake",description:"Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request.",input:videoTakeInput,run:(context,input)=>prepareTake(context,input)}),
+    updateVideoTake: mutationField<typeof takeUpdateInput,Context>({name:"UpdateVideoTake",description:"Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests.",input:takeUpdateInput,run:(context,input)=>updateTake(context,input)}),
+    reserveVideoAsset: mutationField<typeof videoAssetInput,Context>({name:"ReserveVideoAsset",description:"Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it.",input:videoAssetInput,run:(context,input)=>reserveAsset(context,input)}),
+    commitVideoAsset: mutationField<typeof assetCommitInput,Context>({name:"CommitVideoAsset",description:"Verify uploaded bytes and attach them to the production. Editors only.",input:assetCommitInput,run:(context,input)=>commitAsset(context,input)}),
+    publishVideoProduction: mutationField<typeof publishVideoInput,Context>({name:"PublishVideoProduction",description:"Publish the current production packet as an organization graph Document referencing its product and revision.",input:publishVideoInput,run:(context,input)=>publishProduction(context,input)}),
+    generateProductReport: mutationField<typeof productReportInput,Context>({name:"GenerateProductReport",description:"Regenerate the selected calendar week (at), or current week, as a registered task. Editors only.",input:productReportInput,run:(context,input)=>startProductReport(context.host(),context.identity,input)}),
     changeProductReportSchedule: mutationField<typeof productReportScheduleInput,Context>({name:"ChangeProductReportSchedule",description:"Enable or disable daily roadmap regeneration. Editors only.",input:productReportScheduleInput,run:(context,input)=>changeProductReportSchedule(context.host(),context.identity,input)}),
 
     createIssue: mutationField<typeof issueInput, Context>({
@@ -470,6 +549,10 @@ const mutation = new GraphQLObjectType<unknown, Context>({
         return saveOrder(context.db(),context.identity,input,allowed);
       },
     }),
+    reorderPersonalPortfolio: mutationField<typeof portfolioOrderInput, Context>({
+      name: "ReorderPersonalPortfolio", description: "Save your personal organization or cross-organization project order at the revision read. Does not change shared priorities.",
+      input: portfolioOrderInput, output: nonNull(JSONScalar), run: reorderPersonalPortfolio,
+    }),
     setProjectState: mutationField<typeof projectStateInput, Context>({
       name: "SetProjectState", description: "Set the project lifecycle state at the revision read; archived projects can be restored.",
       input: projectStateInput, output: nonNull(Project), run: async (context, input) => savedProject(context, (await setProjectState(context.db(), context.identity, input)).id),
@@ -483,6 +566,11 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       description: `Delete a project that has no issues. ${revisionRule}`,
       input: recordChange, output: nonNull(deleted),
       run: (context, { id, revision }) => deleteProject(context.db(), context.identity, id, { revision }),
+    }),
+    setIntakeReleaseFit: mutationField<typeof releaseFitInput, Context>({
+      name: "SetIntakeReleaseFit", description: "Record current-release, deferred, needs-research or rejected with rationale, an optional existing project Release revision, and history. Current-release requires a Release; deferred without one stays in intake backlog. Optimistic revision and stable requestId required. Does not approve or start delivery. Editors only.",
+      input: releaseFitInput, output: nonNull(intake),
+      run: (context, input) => setIntakeReleaseFit(intakeService(context), input),
     }),
     createIntake: mutationField<typeof intakeInput, Context>({
       name: "CreateIntake",
@@ -538,6 +626,7 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       input: resetSubmissionInput, output: nonNull(intake),
       run: (context, input) => resetSubmission(intakeService(context), input),
     }),
+    generateDailyReports: mutationField<typeof dailyReportsInput, Context>({name:"GenerateDailyReports",description:"Start one durable task that captures every active project's previous local day, then saves this owner's overview from those exact reports.",input:dailyReportsInput,output:nonNull(JSONScalar),run:(context,input)=>startDailyReports(context.host(),context.identity,input)}),
     generateProjectDigest: mutationField<typeof generateDigestInput, Context>({
       name: "GenerateProjectDigest",
       description: "Start the project-digest task for one project: the platform runs it durably and records its run; the digest appears in projectDigests when the run completes. Returns { id, task, created }: id is the run, read with digestRuns or the platform's TaskRuns. Editors only.",
@@ -555,6 +644,36 @@ const mutation = new GraphQLObjectType<unknown, Context>({
       description: "Link the pull requests merged into each project's repositories (its Wiki node's source_in edges) over the last days (default 7) to the project in the Wiki: one change batch of CodeChange records with merged_into and delivers relationships, each with its evidence and reason. Confident links commit by policy; the rest wait for review on the Wiki's Changes page. Returns { runId, batchId, state, pullRequests, proposals, skipped, unread }. Editors only.",
       input: linkChangesInput,
       run: (context, input) => linkProjectChanges(context.db(), context.host(), context.identity, input),
+    }),
+    recordMeasurements: mutationField<typeof recordMeasurementsInput, Context>({
+      name: "RecordMeasurements",
+      description: "Record every Measure in the Wiki for its last completed window (the previous week from Monday 00:00 UTC, or yesterday): run its connector operation (for example PostHog query.run, Grafana query.run or GitHub repositories.read) through the organization's connection and stage one Measurement per Measure, linked measurement_of its MetricDefinition and captured_with the Measure, in one change batch that commits by policy. A window already recorded is skipped; a failed read records nothing and is listed in unread. Returns { runId, batchId, state, measures, recorded, skipped, unread }. Editors only.",
+      input: recordMeasurementsInput,
+      run: (context, input) => recordMeasurements(context.host(), context.identity, input),
+    }),
+    submitPartnerRequest: mutationField<typeof partnerRequestInput, Context>({
+      name: "SubmitPartnerRequest",
+      description: "File a feature or bug request with this organization as one of its design partners, from your own organization (graph_mutate with scope set to this organization and fromScope to yours). It waits as proposed until an editor here accepts or rejects it; replay the same requestId to read its status. Design partners only: other customers file an issue on the public repository.",
+      input: partnerRequestInput, output: nonNull(partnerRequest), external: true,
+      run: submitPartnerRequest,
+    }),
+    refreshDesignPartners: mutationField<typeof refreshPartnersInput, Context>({
+      name: "RefreshDesignPartners",
+      description: "Re-read this organization's design partners from its graph: customers whose customer_of link to it has design_partner set, each bound to a platform organization by organization_id. Only they can submit partner requests. Editors only.",
+      input: refreshPartnersInput, output: nonNull(designPartnerList),
+      run: context => refreshDesignPartners(context),
+    }),
+    acceptPartnerRequest: mutationField<typeof acceptPartnerRequestInput, Context>({
+      name: "AcceptPartnerRequest",
+      description: `Accept a design partner's proposed request: if the graph still flags the partner, Software Foundry's RequestChanges files it as an issue in the repository or project you name, attributed to you, with the partner named in the problem and its product in the context. ${revisionRule} A refusal keeps it proposed. Editors only.`,
+      input: acceptPartnerRequestInput, output: nonNull(partnerRequest),
+      run: acceptPartnerRequest,
+    }),
+    rejectPartnerRequest: mutationField<typeof rejectPartnerRequestInput, Context>({
+      name: "RejectPartnerRequest",
+      description: `Reject a design partner's proposed request with a reason the partner reads back. Nothing is filed. ${revisionRule} Editors only.`,
+      input: rejectPartnerRequestInput, output: nonNull(partnerRequest),
+      run: rejectPartnerRequest,
     }),
     saveUseCase: mutationField<typeof useCaseInput, Context>({
       name: "SaveUseCase",

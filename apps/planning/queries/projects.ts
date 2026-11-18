@@ -1,11 +1,10 @@
-/** Organization-rooted projects and Wiki goals: used by the page and available to MCP Viewer selections. */
+/** Directory-only fields: detailed story/context summaries belong on the project page. */
 export const projectsViewerQuery = `query PlanningProjects($slugs:[String!],$after:String,$states:[String!]) {
   viewer { orgs(slugs:$slugs) {
     slug
-    projects(first:50,after:$after,states:$states) {
+    projects(first:20,after:$after,states:$states) {
       nodes { id revision name slug githubRepository goals openIssues archived state rank
-        useCases {id title summary revision} customerSegments {id title summary revision}
-        userStories:userStoryRecords {id title summary revision} goalRecords {id title summary revision}
+        goalRecords {id title}
         readiness {stage priority missing signals}
       }
       pageInfo {endCursor hasNextPage}

@@ -1,0 +1,1 @@
+Personal daily overviews capture the owner's Wiki Goal and MetricDefinition records with exact node/relationship revisions. Metric definitions do not imply observed progress: missing measurements and standup sources remain explicitly unknown. Unavailable goal reads retain an incomplete overview for recovery instead of fabricating an empty portfolio.

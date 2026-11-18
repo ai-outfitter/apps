@@ -1,0 +1,53 @@
+---
+import Layout from "../../components/Layout.astro";
+import { facts, seconds } from "../../lib/format";
+import { findStoryboard } from "../../server/onto";
+import { pageState } from "../../server/page-state";
+
+const { model } = await pageState(Astro.request, Astro.locals);
+const board = findStoryboard(model, Astro.params.address ?? "");
+if (!board) return new Response("Not found", { status: 404 });
+const references = [...new Map(board.shots.flatMap((shot) => shot.references).map((reference) => [reference.id, reference])).values()];
+const description = facts(seconds(board.durationSeconds), board.aspectRatio, board.variant, board.status) || "Storyboard";
+---
+<Layout title={board.title} {description} page="storyboard">
+  <p class="muted">
+    {board.brief ? <>Follows <a href={`../#${board.brief.id}`}>{board.brief.title}</a>. </> : null}
+    {board.cutFrom ? <>Cut from <a href={board.cutFrom.address}>{board.cutFrom.title}</a>. </> : null}
+    A plan, not a finished video.
+  </p>
+  {board.opening ? <p>Opens on: {board.opening}</p> : null}
+  {board.shots.length ? (
+    <ol class="shots">
+      {board.shots.map((shot) => (
+        <li class="shot">
+          <div class="shot-head">
+            <span class="shot-number">{shot.sequence ?? "?"}</span>
+            <strong>{shot.title}</strong>
+            <span class="muted">{facts(shot.beat, shot.startSeconds === null ? null : `at ${seconds(shot.startSeconds)}`, seconds(shot.durationSeconds))}</span>
+            {shot.status ? <span class={`status status--${shot.status}`}>{shot.status}</span> : null}
+          </div>
+          {shot.action ? <p>{shot.action}</p> : null}
+          {shot.voiceover ? <p class="voiceover">“{shot.voiceover}”</p> : null}
+          {shot.references.length ? (
+            <p class="muted">Needs {shot.references.map((reference, i) => <>{i ? ", " : ""}{reference.title}{reference.hasFile ? null : <span class="requirement"> (no file yet)</span>}</>)}</p>
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  ) : <p class="muted">No shots yet.</p>}
+  {references.length ? (
+    <section>
+      <h2>Visual references</h2>
+      <ul class="references">
+        {references.map((reference) => (
+          <li>
+            {reference.hasFile ? <a href={reference.fileUri} rel="noopener noreferrer">{reference.title}</a> : <span>{reference.title}</span>}
+            <span class="muted">{facts(reference.version, reference.hasFile ? reference.status : "requirement, no file yet")}</span>
+            {reference.requirements ? <p class="muted">{reference.requirements}</p> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null}
+</Layout>

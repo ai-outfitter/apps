@@ -59,25 +59,13 @@ const toggle = (page: Page) =>
 const panel = (page: Page) =>
   page.getByRole("complementary", { name: "Forerunner chat" });
 
-test("demo Settings is one flat page of daily discovery, sources and more to connect", async ({ page }, info) => {
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(`${origin}/settings`);
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText(["Daily discovery", "Sources", "Connect more sources"]);
-    // No card inside a card.
-    await expect(page.locator(".ui-content :is(section, .paper) :is(section, .paper)")).toHaveCount(0);
-    await page.screenshot({ path: info.outputPath(`forerunner-settings-${width}.png`), fullPage: true });
-  }
-});
-
-test("day and settings stay usable without overflow on desktop and phones", async ({
+test("priorities stay usable without overflow on desktop and phones", async ({
   page,
 }, info) => {
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [path, title] of [
       ["/priorities", "Today's priorities"],
-      ["/settings", "Settings"],
     ]) {
       await page.goto(origin + path);
       await expect(
@@ -113,9 +101,6 @@ test("day and settings stay usable without overflow on desktop and phones", asyn
       ).toBe(false);
     }
   }
-  await expect(
-    page.getByRole("button", { name: "Connect Google" }),
-  ).toBeDisabled();
 
 });
 

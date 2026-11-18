@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.7](https://github.com/ai-outfitter/apps/compare/app-build-v0.1.6...app-build-v0.1.7) (2026-11-17)
+
+
+### Features
+
+* publish checked catalog artifacts directly from app CI ([87d1c88](https://github.com/ai-outfitter/apps/commit/87d1c883bddf48fa2ffadf838748903482a79931))
+* **wiki, forerunner, planning:** one Wiki request per saved document, versioned dependencies, and a daily brief eval ([#216](https://github.com/ai-outfitter/apps/issues/216)) ([36cda66](https://github.com/ai-outfitter/apps/commit/36cda667c44e4dc9e25729f211d9751eb0fbe122))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.4 to 0.1.5
+    * @ai-outfitter/ui bumped from 0.1.5 to 0.1.6
+
 ## [0.1.6](https://github.com/ai-outfitter/apps/compare/app-build-v0.1.5...app-build-v0.1.6) (2026-11-09)
 
 

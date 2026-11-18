@@ -73,6 +73,18 @@ import Button from "@ai-outfitter/ui/astro/Button.astro";
 
 `./astro/ManagedAppLayout.astro` is the full-document shell for installed apps: document metadata, shared frame/navigation, organization link, intro and notice region. App packages import this public entrypoint.
 
+### App headers, sidebar sections and cards
+
+Use `headerStyle="app"` for a single app name in the top bar. The shared
+`.ui-app-label` style applies uppercase; keep the label text in normal case.
+`sidebarSections` accepts `{ label, links }` groups with shared section headings.
+Use `showOrganizationLink={false}` when organization navigation is unnecessary.
+Settings and the account menu share one bottom-aligned sidebar area.
+
+Semantic `<section>` elements have no automatic card appearance. Use the
+`Section` component (`.ui-section`) or an explicit `.paper` for a card. Plain
+sections can group cards without adding another border or layer of padding.
+
 ### Developer run diagnostics
 
 `@ai-outfitter/ui/astro/RunDiagnostics.astro` renders a native modal with private
@@ -86,3 +98,14 @@ standing (`appDiagnosticsEnabled(request)`), then enforce their normal owner and
 member scope. The platform enables this standing only for its local-development
 server, never from a query parameter or forwarded browser header. Older records
 can supply a note explaining which diagnostics were not retained.
+
+### Persistent platform assistant in managed layouts
+
+Operational `ManagedAppLayout` renders Ask Outfitter when trusted platform page
+dispatch supplies `x-outfitter-sidebar-base`. It derives the thread from the
+dispatched member and owner; the endpoint is display configuration, not authority.
+The island persists under `platform-sidebar:<member>:<owner>` and uses an absolute
+platform endpoint independent of app navigation. App agent review panels remain
+separate. Operational consumers need `@astrojs/react` integration and Astro CSP
+hashes enabled for hydration. Demos and pages without this header do not render
+the panel. The platform omits it for confined personal `/apps/<slug>` installs.

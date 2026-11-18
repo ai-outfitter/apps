@@ -70,6 +70,21 @@ export class GithubFoundryForge {
     return { number, repository: this.repository, url: issue.html_url,
       title: issue.title, body: typeof issue.body === "string" ? issue.body : "", state: issue.state };
   }
+  /** The newest 100 open issues, each marked when this app (or a bot) opened it. */
+  async openIssues(): Promise<(IssueReceipt & { byFoundry: boolean })[]> {
+    const issues = await this.api(this.path("/issues?state=open&sort=created&direction=desc&per_page=100"));
+    return (Array.isArray(issues) ? issues : []).filter((issue: any) => !issue.pull_request).map((issue: any) => ({
+      number: issue.number, repository: this.repository, url: issue.html_url, title: issue.title,
+      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const,
+      // An agent's installation token opens issues as the app's bot user; a member's
+      // request through the app is marked as performed by it.
+      byFoundry: issue.performed_via_github_app?.id === this.appId || issue.user?.type === "Bot" }));
+  }
+  /** Close an issue with a closing comment. */
+  async close(number: number, comment: string, reason: "completed" | "not_planned") {
+    await this.api(this.path(`/issues/${number}/comments`), { body: comment });
+    await this.api(this.path(`/issues/${number}`), { state: "closed", state_reason: reason }, "PATCH");
+  }
   async ready(candidate: ChangeReceipt) {
     const path = this.path(`/pulls/${candidate.number}`);
     const pull = await this.api(path);

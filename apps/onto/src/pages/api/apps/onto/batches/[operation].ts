@@ -3,13 +3,14 @@ import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database"
 import { readJSON, requestActor, requestIdentity, requestOriginActor, requireEditor, respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { reviewBatchOntology } from "../../../../../server/batch-review";
+import { answerBatch, batchAnswerInput } from "../../../../../server/batch-questions";
 import {
   batchIdInput, batchListInput, batchReviewInput, getBatch, listBatches, recordHistory, recordHistoryInput,
-  reviewBatch, sealDueBatches, configureBatch, batchConfigureInput, validateBatch,
+  reviewBatch, sealDueBatches, validateBatch,
 } from "../../../../../server/graph-batches";
 
-// The Changes pages: list and read batches, member review, a fresh steward
-// review (a new batch-review run; advisory only), record history.
+// The Changes pages: list and read batches, member review, answers to an agent's questions, a fresh steward
+// review (a new batch-review run; the steward then approves what it found clean), record history.
 // Reading the list first seals batches whose review window has ended.
 export const GET: APIRoute = ({ request, params }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Read-only demo", { status: 403 });
@@ -34,12 +35,13 @@ export const POST: APIRoute = ({ request, params, locals }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Read-only demo", { status: 403 });
   return respond(async () => {
     const who = requestIdentity(request), db = installationDatabase();
-    if (params.operation === "configure") {
-      const input = await readJSON(request, batchConfigureInput, 12000);
-      return { ...await configureBatch(db, who, requestActor(request, who), input), validation: await validateBatch(db, who, input) };
-    }
     if (params.operation === "review")
       return reviewBatch(db, who, requestActor(request, who), requestOriginActor(request, who), await readJSON(request, batchReviewInput, 64000));
+    if (params.operation === "answer") {
+      const input = await readJSON(request, batchAnswerInput, 4000);
+      const detail = await answerBatch(db, who, requestActor(request, who), requestOriginActor(request, who), input);
+      return { ...detail, validation: await validateBatch(db, who, { batchId: input.batchId }) };
+    }
     if (params.operation === "steward-review") {
       requireEditor(who);
       const { batchId } = await readJSON(request, batchIdInput, 4000);

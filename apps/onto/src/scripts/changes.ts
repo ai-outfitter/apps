@@ -2,48 +2,28 @@ import { createKnowledgeGraphViewer, disposeKnowledgeGraphViewers } from "@ai-ou
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import { livePoll } from "@ai-outfitter/ui/live";
-import { addressIndex, nodeAddress, recordAddress } from "../lib/addresses";
-import { micromark } from "micromark";
-import type { Graph, GraphEdge, GraphNode } from "../lib/graph";
+import { recordAddress } from "../lib/addresses";
+import type { Graph } from "../lib/graph";
+import {
+  approvalLabel, approvalText, type Batch, label, type BatchDetail, type BatchItem, type BatchOperation, batchItems, batchUrl, type Citation, citation,
+  edgeTitle, findingList, findingsFor, getBatch, itemUrl, lineSummary, nameIndex, proposalAnchor, proposedGraph, proposedView,
+  questionSection, resolveOperations, type Review, review,
+} from "./batch-pages";
 import { appUrl, call, demoMode, el, entityUrl, loadGraph } from "./data";
 
 // Changes: the batches agents proposed, what each found, its evidence and
 // confidence, and what happens if nobody reviews it. Reviewing is the member's
-// own action; the page never approves on its own. The ontology steward's
-// findings are advisory notes beside each proposal; they decide nothing.
-
-type Citation = { provider: string; recordId: string; uri?: string; quote?: string; observedAt?: string; version?: string };
-type Operation = { operation: "create" | "update"; type: "graph-type" | "graph-node" | "graph-edge"; ref: string; id?: string; attributes: Record<string, unknown> };
-type BatchOperation = {
-  ref: string; operation: Operation; evidence: Citation[]; confidence: number | null; reason: string | null;
-  state: string; decision: Record<string, unknown> | null; recordId: string | null;
-};
-type Batch = {
-  id: string; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
-  policy: { kind: string; threshold?: number }; source: { kind: string; ref: string; label?: string } | null;
-  summary: { counts: Record<string, number>; evidence: number; operations: number; text: string | null } | null;
-  counts?: Record<string, number>;
-  anchors?: string[] | null;
-  review: Review | null;
-};
-type Finding = { ref: string | null; rule: string; severity: "error" | "warning" | "note"; message: string; fix: string | null };
-type Review = {
-  state: "complete" | "failed"; runId: string | null; prompt: { path: string; digest: string };
-  startedAt: number; finishedAt: number; complete: boolean; summary: string; findings: Finding[]; error: string | null;
-};
-type BatchDetail = { batch: Batch; counts: Record<string, number>; operations: BatchOperation[]; canReview: boolean; validation?: { valid: boolean; error: string | null; operations: number } };
+// action or the ontology steward's: after its review the steward approves what it
+// found clean and leaves flagged proposals here for a member. A batch
+// page is the index; each proposal is read and decided on its record's page.
 
 const stateLabels: Record<string, string> = {
   open: "Collecting", awaiting_review: "Waiting for review", committed: "Saved", rejected: "Rejected", discarded: "Discarded",
-};
-const opLabels: Record<string, string> = {
-  pending: "Collecting", awaiting_review: "Waiting", committed: "Saved", rejected: "Rejected",
 };
 const fill = (target: Element, ...children: (Node | string | null | undefined | false)[]) =>
   target.replaceChildren(...children.filter((child): child is Node | string => !!child));
 const time = (at: number) => new Date(at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-export const batchUrl = (id: string) => appUrl(`changes/${encodeURIComponent(id)}`);
 
 export function summaryLine(summary: Batch["summary"]) {
   if (!summary) return "";
@@ -60,93 +40,6 @@ export function deadlineText(batch: Pick<Batch, "state" | "reviewBy" | "policy">
   return "Nothing here is saved until you approve it.";
 }
 
-function title(op: BatchOperation, names: Map<string, string>, types: Map<string, string>) {
-  const a = op.operation.attributes;
-  if (op.operation.type === "graph-edge") {
-    const end = (value: unknown) => names.get(String(value)) ?? "an existing entity";
-    return `${end(a.fromId)} → ${types.get(String(a.typeId)) ?? "related to"} → ${end(a.toId)}`;
-  }
-  return label(op);
-}
-const label = (op: BatchOperation) => String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref);
-
-function citation(item: Citation) {
-  const source = `${item.provider} · ${item.recordId}${item.version ? ` (version ${item.version})` : ""}`;
-  return el("li", {},
-    item.uri ? el("a", { href: item.uri, rel: "noreferrer noopener", target: "_blank" }, source) : el("span", {}, source),
-    item.observedAt ? el("span", { class: "change-meta" }, ` · ${time(Date.parse(item.observedAt))}`) : null,
-    item.quote ? el("blockquote", {}, item.quote) : null,
-  );
-}
-
-/** The Wiki as if this batch were applied: proposed types, nodes and edges over the saved ones. */
-function proposedView(graph: Graph, ops: BatchOperation[]) {
-  const live = ops.filter((op) => op.state !== "rejected");
-  const of = (type: Operation["type"]) => live.filter((op) => op.operation.type === type);
-  const types = new Map(graph.types.map((type) => [type.id, type]));
-  for (const op of of("graph-type")) {
-    const id = recordIdOf(op);
-    types.set(id, { body: "", properties: [], archived: false, ...types.get(id), ...op.operation.attributes, id, title: label(op) } as Graph["types"][number]);
-  }
-  const nodes = new Map<string, GraphNode>();
-  for (const op of of("graph-node")) {
-    const id = recordIdOf(op), a = op.operation.attributes;
-    const saved = graph.nodes.find((node) => node.id === id);
-    nodes.set(id, { ...(saved ?? {}), id, typeId: String(a.typeId ?? saved?.typeId ?? ""), title: String(a.title ?? saved?.title ?? op.ref) } as GraphNode);
-  }
-  const edges: GraphEdge[] = [];
-  for (const op of of("graph-edge")) {
-    const a = op.operation.attributes, fromId = String(a.fromId), toId = String(a.toId);
-    for (const end of [fromId, toId]) addSaved(graph, nodes, end);
-    if (nodes.has(fromId) && nodes.has(toId))
-      edges.push({ id: recordIdOf(op), typeId: String(a.typeId), fromId, toId, title: "", body: "", properties: {}, archived: false } as GraphEdge);
-  }
-  return { types: [...types.values()], nodes: [...nodes.values()], edges };
-}
-function recordIdOf(op: BatchOperation) {
-  const id = op.operation.attributes.id;
-  return op.recordId ?? (typeof id === "string" ? id : op.operation.id) ?? op.ref;
-}
-function addSaved(graph: Graph, nodes: Map<string, GraphNode>, id: string) {
-  const saved = graph.nodes.find((node) => node.id === id);
-  if (saved && !nodes.has(id)) nodes.set(id, saved);
-}
-
-async function review(batchId: string, verdict: "approve" | "reject", refs?: string[]) {
-  return call<BatchDetail>("batches/review", { batchId, verdict, ...(refs ? { refs } : {}) });
-}
-
-function verdictButton(detail: BatchDetail, op: BatchOperation, verdict: "approve" | "reject", rerender: (next: BatchDetail) => void) {
-  const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? "Approve" : "Reject");
-  button.onclick = async () => {
-    button.disabled = true;
-    try { rerender(await review(detail.batch.id, verdict, [op.ref])); }
-    catch (error) { button.disabled = false; button.parentElement?.appendChild(el("p", { role: "alert" }, String(error))); }
-  };
-  return button;
-}
-
-const policyReasons: Record<string, string> = {
-  "first-run": "Created on the first run",
-  "review-window": "Approved when the review window ended",
-  confidence: "Approved automatically: high confidence",
-};
-/** How a committed operation was approved, or its state. */
-function approvalText(op: BatchOperation) {
-  if (op.state !== "committed") return opLabels[op.state] ?? op.state;
-  const decision = op.decision as { kind?: string; reason?: string } | null;
-  if (decision?.kind !== "policy") return "Approved by a member";
-  return policyReasons[decision.reason ?? ""] ?? policyReasons.confidence;
-}
-
-const severityLabels: Record<Finding["severity"], string> = { error: "Error", warning: "Warning", note: "Note" };
-function findingList(findings: Finding[]) {
-  if (!findings.length) return null;
-  return el("ul", { class: "change-findings" }, ...findings.map((item) => el("li", { class: `change-finding change-finding-${item.severity}` },
-    el("strong", {}, `${severityLabels[item.severity]} · ${item.rule}: `), item.message,
-    item.fix ? el("p", { class: "change-meta" }, `Suggested fix: ${item.fix}`) : null)));
-}
-
 /** One line for a batch card: what the steward found. */
 export function reviewLine(review: Review | null) {
   if (!review) return null;
@@ -154,6 +47,16 @@ export function reviewLine(review: Review | null) {
   const warnings = review.findings.filter((item) => item.severity === "warning").length;
   const parts = [errors ? `${errors} ${errors === 1 ? "error" : "errors"}` : null, warnings ? `${warnings} ${warnings === 1 ? "warning" : "warnings"}` : null].filter(Boolean);
   return `Steward: ${parts.length ? parts.join(", ") : "no problems found"}${review.state === "failed" ? " (built-in checks only; the steward did not finish)" : ""}`;
+}
+
+/** What the steward approved after its review, and why the rest waits for a member. */
+export function stewardLine(review: Review) {
+  const decision = review.decision;
+  if (!decision) return null;
+  const held = decision.held.length;
+  const reasons = [...new Set(decision.held.map((item) => item.reason))].slice(0, 3).join(", ");
+  const approved = decision.approved ? `The steward approved ${decision.approved} ${decision.approved === 1 ? "proposal" : "proposals"}.` : "The steward approved nothing.";
+  return el("p", { class: "change-meta" }, held ? `${approved} ${held} ${held === 1 ? "waits" : "wait"} for you: ${reasons}.` : approved);
 }
 
 /** The steward's latest review: its findings, coverage and the run that is its audit trail. */
@@ -178,55 +81,10 @@ function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
       `prompt ${review.prompt.digest.slice(0, 12)}`,
     ].filter(Boolean).join(" · "),
       review.runId ? el("span", { title: "This review's batch-review workflow run, its audit trail" }, ` · run ${review.runId}`) : null),
-    el("p", { class: "change-meta" }, "These findings are advice for whoever reviews the batch. They don't approve, reject or hold anything."),
+    stewardLine(review),
     findingList(general),
     again,
   );
-}
-
-const proposalAnchor = (op: BatchOperation) => `proposal-${encodeURIComponent(op.ref).replaceAll("%", "_")}`;
-
-function documentPreview(op: BatchOperation) {
-  const body = op.operation.attributes.body;
-  if (typeof body !== "string" || !body.trim()) return null;
-  const prose = el("div", { class: "prose" });
-  prose.innerHTML = micromark(body, { allowDangerousHtml: false, allowDangerousProtocol: false });
-  return el("details", { open: true }, el("summary", {}, "Document preview"), prose);
-}
-
-function operationRow(detail: BatchDetail, op: BatchOperation, names: Map<string, string>, types: Map<string, string>, rerender: (next: BatchDetail) => void) {
-  const kind = op.operation.type === "graph-edge" ? "Relationship" : types.get(String(op.operation.attributes.typeId)) ?? "Entry";
-  const actions = detail.canReview && op.state === "awaiting_review"
-    ? el("div", { class: "change-actions" }, verdictButton(detail, op, "approve", rerender), verdictButton(detail, op, "reject", rerender))
-    : null;
-  const how = approvalText(op);
-  return el("li", { id: proposalAnchor(op), class: `change-operation change-${op.state}` },
-    el("div", { class: "change-heading" },
-      el("div", { class: "change-heading-main" },
-        el("span", { class: "change-kind" }, `${op.operation.operation === "update" ? "Update · " : ""}${kind}`),
-        op.recordId && op.state === "committed" ? el("a", { href: entityUrl(op.recordId, typeof op.operation.attributes.typeId === "string" ? op.operation.attributes.typeId : undefined) }, title(op, names, types)) : el("a", { href: `#${proposalAnchor(op)}` }, title(op, names, types)),
-        op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
-      ),
-      actions,
-    ),
-    op.reason ? el("p", {}, op.reason) : null,
-    findingList(detail.batch.review?.findings.filter((item) => item.ref === op.ref) ?? []),
-    documentPreview(op),
-    op.evidence.length
-      ? el("details", {}, el("summary", {}, `Evidence (${op.evidence.length})`), el("ul", { class: "change-evidence" }, ...op.evidence.map(citation)))
-      : el("p", { class: "change-meta" }, "No evidence cited."),
-    el("span", { class: "change-state" }, how),
-  );
-}
-
-/** Titles for records and refs, so relationships read as names. */
-function nameIndex(graph: Graph, operations: BatchOperation[]) {
-  const names = new Map<string, string>(graph.nodes.map((node) => [node.id, node.title]));
-  for (const op of operations.filter((item) => item.operation.type === "graph-node")) {
-    const a = op.operation.attributes;
-    for (const key of [op.ref, op.recordId, a.id]) if (typeof key === "string") names.set(key, String(a.title ?? op.ref));
-  }
-  return names;
 }
 
 function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
@@ -244,73 +102,81 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
     }));
 }
 
-function anchorSection(graph: Graph, detail: BatchDetail, draw: (next: BatchDetail) => void) {
-  const selected = new Set(detail.batch.anchors ?? []);
-  const nodes = graph.nodes.filter(node => !node.archived && node.slug).sort((a, b) => a.title.localeCompare(b.title));
-  const editable = detail.canReview && (detail.batch.state === "open" || detail.batch.state === "awaiting_review" && detail.batch.policy.kind === "member" && !detail.counts.committed && !detail.counts.rejected);
-  const choices = el("div", { class: "change-anchor-options" }, ...nodes.map(node => {
-    const address = nodeAddress(graph.types.find(type => type.id === node.typeId)?.name ?? node.typeId, node.slug!);
-    const check = el("input", { type: "checkbox", value: address, checked: selected.has(node.id), disabled: !editable });
-    return el("label", {}, check, node.title, el("span", { class: "change-meta" }, address));
-  }));
-  const form = el("form", { class: "change-anchors" },
-    el("p", {}, "New nodes must connect to an anchor through saved or proposed relationships. No anchors means no connectivity requirement."),
-    choices, editable ? el("button", { type: "submit" }, "Save anchors") : el("p", { class: "change-meta" }, "Anchors are fixed after review decisions."));
-  form.onsubmit = async event => {
-    event.preventDefault();
-    const button = form.querySelector("button")!;
-    button.disabled = true;
-    try {
-      draw(await call<BatchDetail>("batches/configure", { batchId: detail.batch.id, anchors: [...choices.querySelectorAll<HTMLInputElement>("input:checked")].map(input => input.value) }));
-    } catch (error) { button.disabled = false; form.appendChild(el("p", { role: "alert" }, String(error))); }
+/** What new records must connect to. Members ask an agent to change it. */
+function anchorLine(graph: Graph, detail: BatchDetail) {
+  const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+  const anchors = (detail.batch.anchors ?? []).flatMap(id => nodes.get(id) ?? []);
+  return el("p", { class: "change-anchor change-meta" }, ...(anchors.length
+    ? ["New records connect to ", ...anchors.flatMap((node, i) => [i ? ", " : "", el("a", { href: entityUrl(node.id, node.typeId) }, node.title)])]
+    : ["New records need not connect to anything."]));
+}
+
+/** The batch's index: one line per proposal in walk order, each a link to its page; relationships sit under their node. */
+function proposalIndex(detail: BatchDetail, view: Graph, items: BatchItem[]) {
+  const names = nameIndex(view), types = new Map(view.types.map((type) => [type.id, type.title]));
+  const flags = (op: BatchOperation) => {
+    const found = findingsFor(detail, op.ref), errors = found.filter((item) => item.severity === "error").length, warnings = found.filter((item) => item.severity === "warning").length;
+    const text = [errors ? `${errors} ${errors === 1 ? "error" : "errors"}` : null, warnings ? `${warnings} ${warnings === 1 ? "warning" : "warnings"}` : null].filter(Boolean).join(", ");
+    return el("span", { class: `change-line-flag${errors ? " change-line-error" : ""}` }, text);
   };
-  return el("details", { class: "node-section" }, el("summary", {}, `Anchor nodes (${selected.size})`), form);
+  const kind = (item: BatchItem) => {
+    const typeId = item.op?.operation.attributes.typeId ?? view.nodes.find((node) => node.id === item.id)?.typeId;
+    const name = item.kind === "type" ? "Type" : types.get(String(typeId)) ?? "Entry";
+    return item.op?.operation.operation === "update" ? `Update · ${name}` : name;
+  };
+  const line = (item: BatchItem) => el("li", { class: `change-line${item.op ? ` change-${item.op.state}` : ""}`, ...(item.op ? { id: proposalAnchor(item.op) } : {}) },
+    el("span", { class: "change-kind" }, item.op ? kind(item) : `Saved · ${kind(item)}`),
+    el("a", { href: itemUrl(detail.batch.id, view, item) }, item.title),
+    el("span", { class: "change-line-summary" }, item.op ? lineSummary(item.op) : ""),
+    item.op ? flags(item.op) : el("span", {}),
+    el("span", { class: "change-state" }, item.op ? approvalText(item.op) : ""),
+    item.edges.length ? el("ul", { class: "change-line-edges" }, ...item.edges.map((edge) => el("li", { id: proposalAnchor(edge), class: `change-${edge.state}` },
+      el("span", {}, edgeTitle(edge, names, types)), flags(edge), el("span", { class: "change-state" }, approvalText(edge))))) : null,
+  );
+  return items.length ? el("ul", { class: "change-lines" }, ...items.map(line)) : el("p", {}, "Nothing proposed yet.");
+}
+
+/** A question's proposal, linked to its page (an edge's is its node's page). */
+function questionRef(items: BatchItem[], view: Graph, batchId: string, op: BatchOperation) {
+  const item = items.find((candidate) => candidate.op?.ref === op.ref || candidate.edges.some((edge) => edge.ref === op.ref));
+  const title = item?.op?.ref === op.ref ? item.title : label(op);
+  return el("a", { href: item ? itemUrl(batchId, view, item) : `#${proposalAnchor(op)}` }, title);
+}
+
+/** The batch on its own as a graph; its nodes link to their pages. */
+function batchGraph(root: HTMLElement, graph: Graph, operations: BatchOperation[], href: (id: string) => string | undefined) {
+  const view = proposedView(graph, operations);
+  const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
+  const viewer = view.nodes.length
+    ? createKnowledgeGraphViewer({ ...graph, types: view.types }, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => href(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
+    : null;
+  return { count: view.nodes.length, panel: el("div", { id: "batch-graph", class: "change-graph" }, viewer ?? el("p", {}, "No graph nodes in this batch.")) };
 }
 
 async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSignal) {
-  const [graph, detail] = await Promise.all([loadGraph(), call<BatchDetail>(`batches/get?id=${encodeURIComponent(batchId)}`)]);
+  const [graph, detail] = await Promise.all([loadGraph(), getBatch(batchId)]);
   let currentSignature = "";
-  let activeView = location.hash.startsWith("#proposal-") ? "proposals" : "graph";
-  const index = addressIndex(graph), address = recordAddress(graph);
+  let activeView = "proposals";
+  const address = recordAddress(graph);
   const draw = (current: BatchDetail) => {
     if (signal.aborted) return;
     currentSignature = JSON.stringify(current);
     disposeKnowledgeGraphViewers(root);
     const { batch } = current;
-    // A field may name a saved record by address or a record this batch creates by $ref.
-    const refs = new Map(current.operations.map(op => [op.ref, recordIdOf(op)]));
-    const operations = current.operations.map(op => {
-      const operation = structuredClone(op.operation), a = operation.attributes;
-      if (operation.id) operation.id = index[operation.type].get(operation.id) ?? operation.id;
-      for (const field of ["typeId", "fromId", "toId"] as const) {
-        const value = a[field];
-        if (typeof value === "string") a[field] = refs.get(value) ?? index[field === "typeId" ? "graph-type" : "graph-node"].get(value) ?? value;
-      }
-      return { ...op, operation };
-    });
+    const operations = resolveOperations(graph, current.operations);
     agentPage("onto").describe({
       title: batch.title,
-      summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions.",
-      state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref) },
+      summary: "Review the proposed Wiki changes, evidence, confidence and approval decisions. Each proposal opens on its own page.",
+      state: { batchId: batch.id, state: batch.state, anchors: (batch.anchors ?? []).flatMap(id => address("graph-node", id) ?? []), validation: current.validation, counts: current.counts, proposalRefs: operations.slice(0, 100).map(op => op.ref), questions: (batch.questions ?? []).map(question => ({ key: question.key, answered: !!question.answer })) },
     });
-    const view = proposedView(graph, operations);
-    const types = new Map(view.types.map((type) => [type.id, type.title]));
-    const names = nameIndex(graph, operations);
-    const bulk = bulkActions(current, draw);
-    const proposalLinks = new Map(operations.filter(op => op.operation.type === "graph-node" && ["pending", "awaiting_review"].includes(op.state)).map(op => [recordIdOf(op), `#${proposalAnchor(op)}`]));
-    const nodeTypes = new Map(view.nodes.map(node => [node.id, node.typeId]));
-    const viewer = view.nodes.length
-      ? createKnowledgeGraphViewer({ ...graph, types: view.types }, view, view.nodes[0], { initialScale: 0.85, nodeHref: (id) => proposalLinks.get(id) ?? entityUrl(id, nodeTypes.get(id)), onError: (error) => root.appendChild(el("p", { role: "alert" }, `Unable to arrange graph: ${String(error)}`)) })
-      : null;
-    const groups = (["awaiting_review", "committed", "rejected", "pending"] as const)
-      .map((state) => [state, operations.filter((op) => op.state === state)] as const)
-      .filter(([, ops]) => ops.length);
+    const view = proposedGraph(graph, operations).graph;
+    const items = batchItems(view, operations);
+    const urls = new Map(items.map((item) => [item.id, itemUrl(batch.id, view, item)]));
+    const pictured = batchGraph(root, graph, operations, (id) => urls.get(id));
     const panels = {
-      graph: el("div", { id: "batch-graph", class: "change-graph" }, viewer ?? el("p", {}, "No graph nodes in this batch.")),
-      proposals: el("div", { id: "batch-proposals" }, ...groups.map(([state, ops]) => el("div", { class: "change-proposal-group" },
-        el("h2", {}, `${opLabels[state] ?? state} (${ops.length})`),
-        el("ul", { class: "change-operations" }, ...ops.map(op => operationRow(current, op, names, types, draw)))))),
-      review: el("div", { id: "batch-review" }, anchorSection(graph, current, draw), reviewSection(current, draw)),
+      proposals: el("div", { id: "batch-proposals" }, proposalIndex(current, view, items)),
+      graph: pictured.panel,
+      review: el("div", { id: "batch-review" }, reviewSection(current, draw)),
     };
     const buttons = new Map<string, HTMLButtonElement>();
     const choose = (key: string) => {
@@ -319,15 +185,11 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       for (const [name, button] of buttons) button.setAttribute("aria-pressed", String(name === key));
     };
     const tabs = el("nav", { class: "change-views", "aria-label": "Change batch views" }, ...[
-      ["graph", `Graph (${view.nodes.length})`], ["proposals", `Proposals (${operations.length})`], ["review", "Review & anchors"],
+      ["proposals", `Proposals (${operations.length})`], ["graph", `Graph (${pictured.count})`], ["review", "Review"],
     ].map(([key, label]) => {
       const button = el("button", { type: "button", "aria-controls": `batch-${key}`, onclick: () => choose(key) }, label);
       buttons.set(key, button); return button;
     }));
-    viewer?.addEventListener("click", event => {
-      const link = (event.target as Element).closest("a");
-      if (link?.getAttribute("href")?.startsWith("#proposal-")) choose("proposals");
-    });
     choose(activeView);
     fill(root,
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
@@ -337,15 +199,18 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
         el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
         batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
-      bulk,
+      bulkActions(current, draw),
+      questionSection(current, (op) => questionRef(items, view, batch.id, op), draw),
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
+      anchorLine(graph, current),
       tabs, ...Object.values(panels),
     );
   };
   draw(detail);
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   livePoll(signal, async () => {
     if (root.querySelector("form:focus-within")) return;
-    const next = await call<BatchDetail>(`batches/get?id=${encodeURIComponent(batchId)}`);
+    const next = await getBatch(batchId);
     if (JSON.stringify(next) !== currentSignature) draw(next);
   }, { every: 5000 });
 }
@@ -384,8 +249,7 @@ export function historySection(id: string) {
     section.dataset.loaded = "true";
     try {
       const history = await call<{ revisions: { revision: number; batchId: string | null; batchTitle: string | null; approval: Record<string, unknown>; evidence: Citation[]; createdAt: number; created: boolean }[]; complete: boolean }>(`batches/history?id=${encodeURIComponent(id)}`);
-      const approval = (value: Record<string, unknown>) =>
-        value.kind === "policy" ? `approved by policy (${String(value.reason ?? value.policy)})` : value.kind === "member" ? "approved by a member" : "edited directly";
+      const approval = (value: Record<string, unknown>) => approvalLabel(value, "Edited directly").toLowerCase();
       fill(section,
         el("summary", {}, "History"),
         history.revisions.length

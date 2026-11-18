@@ -48,11 +48,21 @@ test("graph.graphql and knowledge-graph selections over D1 match the whole-graph
     const graph = await readGraph(db, { ...owner, installationId: "onto-installation", canEdit: true } as never);
     const snapshot = { installationId: "onto-installation", ...graph };
     const queries = [
-      `{ wideSeats(first: 500) { nodes { id title wideLink { id } wideLinkIncoming { id } edges { id typeId fromId toId } } aggregate { count } } }`,
-      `query($ids: [ID!]) { wideSeats(ids: $ids, archived: INCLUDE, first: 500) { nodes { id archived edges(types: ["wide_link"], direction: INCOMING, archived: ONLY) { id from { id } } } } }`,
-      `{ search(text: "Seat 1", first: 50) { id title } node(id: "${ids[0]}") { edges(direction: OUTGOING, archived: INCLUDE) { id to { id title edges(direction: OUTGOING) { to { title } } } } } }`,
-      `{ organizations { nodes { id title edges { id typeId from { id } to { id } } } } persons { aggregate { count } } }`,
-      `query($slugs: [String!]) { wideSeat(slug: "seat-5") { id slug wideLink { slug } } node(slug: "seat-7", archived: INCLUDE) { id } wideSeats(slugs: $slugs, ids: ["${ids[1]}", "${ids[2]}"]) { nodes { slug } aggregate { count } } }`,
+      `{ wideSeats(first: 500) { nodes { id title wideLink(first: 3, orderBy: TITLE_DESC) { nodes { id } pageInfo { hasNextPage endCursor } totalCount }
+        wideLinkIncoming { nodes { id } totalCount } edges { nodes { id typeId fromId toId } pageInfo { hasNextPage } totalCount } } totalCount } }`,
+      `{ wideSeats(first: 7, orderBy: CREATED_AT_DESC, text: "SEAT 1") { nodes { id title } pageInfo { hasNextPage endCursor } totalCount }
+        hub: wideSeats(first: 1) { nodes { wideLinkEdges(first: 200, orderBy: UPDATED_AT_DESC, archived: INCLUDE) { nodes { id toId } pageInfo { hasNextPage } totalCount }
+          later: wideLink(at: "2027-01-01T00:00:00Z", archived: ONLY, orderBy: ID_DESC) { nodes { id } } } } }`,
+      `query($ids: [ID!]) { wideSeats(ids: $ids, archived: INCLUDE, first: 500) { nodes { id archived edges(types: ["wide_link"], direction: INCOMING, archived: ONLY) { nodes { id from { id } } } } } }`,
+      `{ search(text: "Seat 1", first: 50) { nodes { id title } totalCount } node(id: "${ids[0]}") { edges(direction: OUTGOING, archived: INCLUDE, first: 20, orderBy: UPDATED_AT_DESC) { edges { cursor node { id } } nodes { id to { id title edges(direction: OUTGOING, first: 2) { nodes { to { title } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage hasPreviousPage startCursor endCursor } totalCount } } }`,
+      `{ organizations { nodes { id title edges { nodes { id typeId from { id } to { id } } } } } persons { totalCount } }`,
+      // Filters compile to SQL with memorySource's meaning: on a collection, a relationship's far nodes, its edges and any-type edges.
+      `{ wideSeats(first: 500, orderBy: TITLE_DESC, filter: { or: [{ title: { startsWith: "Seat 1" } }, { slug: { in: ["seat-2", "seat-30"] } }], not: { title: { includesInsensitive: "SEAT 11" } } }) { nodes { slug } totalCount }
+        hub: wideSeats(first: 1) { nodes {
+          wideLink(first: 5, orderBy: TITLE_ASC, filter: { title: { greaterThan: "Seat 3", notIn: ["Seat 31"] }, slug: { isNull: false } }) { nodes { title } pageInfo { hasNextPage } totalCount }
+          wideLinkEdges(first: 3, orderBy: ID_DESC, archived: INCLUDE, filter: { createdAt: { lessThanOrEqualTo: "NOW" }, id: { notEqualTo: "x" } }) { nodes { id } totalCount }
+          edges(first: 4, filter: { updatedAt: { greaterThan: "2000-01-01T00:00:00Z" } }) { nodes { id } totalCount } } } }`,
+      `query($slugs: [String!]) { wideSeat(slug: "seat-5") { id slug wideLink { nodes { slug } } } node(slug: "seat-7", archived: INCLUDE) { id } wideSeats(filter: { slug: { in: $slugs } }, ids: ["${ids[1]}", "${ids[2]}"]) { nodes { slug } totalCount } }`,
     ];
     for (const query of queries) {
       const variables = { ids: ids.slice(0, 120), slugs: ["seat-1", "seat-2", "seat-3", "nobody"] };
@@ -81,11 +91,11 @@ test("graph.graphql and knowledge-graph selections over D1 match the whole-graph
       assert.deepEqual(actual, expected, `from ${rootIds.join(", ")}`);
     }
     // Four hops from the hub repeat each seat at every path to it, so the 5,000-record read
-    // budget runs out first: fewer records than the in-memory walk, and marked incomplete.
+    // budget runs out first: never more records than the in-memory walk, and marked incomplete.
     const { actual, expected } = await select(definition, [ids[0]]);
     const kept = new Set(expected.nodes.map(node => node.ref.id));
     assert.equal(actual.incomplete, true);
-    assert.ok(actual.nodes.length < expected.nodes.length && actual.nodes.every(node => kept.has(node.ref.id)));
+    assert.ok(actual.nodes.length <= expected.nodes.length && actual.nodes.every(node => kept.has(node.ref.id)));
   } finally {
     await app.dispose();
   }

@@ -7,9 +7,15 @@ import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkApp} from './apps.mjs';
 import {catalogMetadata,catalogContract,catalogContractModule} from '../packages/app-build/src/catalog-metadata.mjs';
+/** A manifest lists its dependencies, or maps each to a version range. */
+const dependencySlugs=app=>Array.isArray(app.dependencies ?? [])?app.dependencies ?? []:Object.keys(app.dependencies);
+
+/** Repositories whose checked apps publish the platform catalog. The platform
+ * separately accepts only registrations it reviewed for each repository. */
+export const catalogRepositories=['ai-outfitter/apps','ai-outfitter/apps-private'];
 
 export async function catalogPublication(appPath,{root=process.cwd(),env=process.env}={}) {
-  assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps','Only official apps publish the platform catalog');
+  assert.ok(catalogRepositories.includes(env.GITHUB_REPOSITORY),'Only official apps publish the platform catalog');
   assert.match(env.GITHUB_SHA || '',/^[a-f0-9]{40}$/,'Expected immutable source SHA');
   assert.match(env.GITHUB_RUN_ID || '',/^\d+$/,'Expected workflow run identity');
   const selected=checkApp(appPath,root);
@@ -41,7 +47,7 @@ export async function catalogPublication(appPath,{root=process.cwd(),env=process
 }
 
 function publicationContext(bundle,env) {
-  assert.equal(env.GITHUB_REPOSITORY,'ai-outfitter/apps');
+  assert.ok(catalogRepositories.includes(env.GITHUB_REPOSITORY),'Only official apps publish the platform catalog');
   assert.equal(env.GITHUB_REF,`refs/heads/${env.DEPLOY_BRANCH || 'main'}`);
   assert.ok(['push','workflow_dispatch'].includes(env.GITHUB_EVENT_NAME));
   assert.equal(bundle.sourceCommit,env.GITHUB_SHA);
@@ -112,7 +118,7 @@ export async function selectCatalogArtifacts(directory,appPaths,{root=process.cw
     if(visited.has(slug)) return;
     assert.ok(!visiting.has(slug),'Cyclic catalog dependencies');visiting.add(slug);
     const bundle=selected.get(slug).bundle;
-    for(const dep of bundle.app.dependencies ?? []) if(selected.has(dep)) visit(dep);
+    for(const dep of dependencySlugs(bundle.app)) if(selected.has(dep)) visit(dep);
     visiting.delete(slug);visited.add(slug);ordered.push(bundle);
   }
   for(const slug of expected) visit(slug);
@@ -127,7 +133,7 @@ export async function publishCatalogSet(bundles,{publish=publishCatalog,reconcil
   function start(bundle) {
     if(pending.has(bundle.slug)) return pending.get(bundle.slug);
     const task=(async()=>{
-      for(const dependency of bundle.app.dependencies ?? [])
+      for(const dependency of dependencySlugs(bundle.app))
         if(bySlug.has(dependency)) await start(bySlug.get(dependency));
       return publish(bundle);
     })();

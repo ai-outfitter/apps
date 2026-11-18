@@ -85,18 +85,13 @@ steps:
     instructions:
       "Implement only the accepted plan in a fresh checkout. Create branch
       outfitter/issue-<issue number>-<event.sourceRunId if present, otherwise assigned runId>.
-      On an explicit resume, fetch and reuse that existing branch and its open PR; preserve its
-      source and push only necessary changes. Never create a duplicate PR for that branch.
-      Follow repository instructions and its
-      lockfile, run targeted checks, capture desktop/mobile screenshots for visual changes outside Git. Commit code only,
-      push this branch and open one draft PR with a native Closes
-      #<issue number> link. Upload screenshots through /opt/workspace/publish-image.mjs
-      into the Foundry run's storage; embed the returned URLs and source commit in the PR Demo.
-      Never commit demo artifacts or use Git LFS. Use gh pr create --body-file. Return a copy of previous with candidate
-      {number,headSha,url,branch}, using actual gh pr view results. Never merge or publish a
-      review. Implementation completes only after the coordinator verifies the actual PR;
-      missing screenshots are recorded for review rather than failing this handoff. Never commit
-      workflow plans, issue notes, galleries or receipt manifests."
+      On an explicit resume, fetch and reuse that existing branch and its open PR and push only
+      necessary changes; never create a duplicate PR for it. Follow repository instructions and its
+      lockfile and run the plan's targeted checks. Commit code only (never plans, issue notes or
+      screenshots), push the branch and open one draft PR with gh pr create --body-file and a native
+      Closes #<issue number> link. Return a copy of previous with candidate {number,headSha,url,branch}
+      from gh pr view. Never merge or publish a review. Missing screenshots are recorded for review,
+      not a failure of this step."
     outputs:
       result:
         schema:

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+  <title>Video production</title>
+  <path fill="#e9edf1" d="M0 0h640v400H0z"/>
+  <rect x="96" y="60" width="448" height="274" rx="18" fill="#fbfcfd"/>
+  <rect x="136" y="104" width="112" height="70" rx="8" fill="#9fb3c4"/><rect x="264" y="104" width="112" height="70" rx="8" fill="#b9c8d5"/><rect x="392" y="104" width="112" height="70" rx="8" fill="#d3dee7"/>
+  <rect x="136" y="186" width="80" height="8" rx="4" fill="#d3dee7"/><rect x="264" y="186" width="80" height="8" rx="4" fill="#d3dee7"/><rect x="392" y="186" width="80" height="8" rx="4" fill="#d3dee7"/>
+  <path d="M136 250h368" stroke="#9fb3c4" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="136" cy="250" r="8" fill="#4f6b82"/><circle cx="264" cy="250" r="8" fill="#4f6b82"/><circle cx="392" cy="250" r="8" fill="#4f6b82"/><circle cx="504" cy="250" r="8" fill="#4f6b82"/>
+</svg>

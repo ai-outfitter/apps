@@ -3,7 +3,7 @@ import opencascade from "replicad-opencascadejs";
 import wasm from "replicad-opencascadejs/wasm?url";
 import { buildModel, buildPlannedModel } from "./geometry";
 
-const ready = opencascade({ locateFile: () => wasm }).then(setOC);
+const ready = opencascade({ locateFile: () => import.meta.env.DEV ? wasm : new URL(wasm.split("/").at(-1)!, import.meta.url).href }).then(setOC);
 self.onmessage = async ({ data }) => {
   try {
     await ready;

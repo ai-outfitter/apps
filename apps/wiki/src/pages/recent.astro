@@ -1,0 +1,14 @@
+---
+import Layout from "../components/DocumentLayout.astro";
+import {context,mount} from "../documents/context";
+import {recentCursor,recentDocuments} from "../documents/navigation";
+import {demoDocument} from "../documents/demo";
+const root=mount(Astro.request),cursor=recentCursor(Astro.url.searchParams);
+const all=import.meta.env.OUTFITTER_APP_MODE==="demo"?[{...demoDocument,updatedAt:0,slug:"welcome"}]:await recentDocuments(context(Astro.request,Astro.locals).database,cursor);
+const documents=all.slice(0,50),last=documents.at(-1);
+---
+<Layout title="Recent updates" description="Documents ordered by their latest update.">
+ <ul class="wiki-list">{documents.map(doc=><li><a href={`${root}p/${encodeURIComponent(doc.slug)}`}>{doc.title}</a><p>{doc.summary}</p><span class="wiki-meta">Revision {doc.revision} · <time datetime={new Date(doc.updatedAt).toISOString()}>{new Date(doc.updatedAt).toISOString().slice(0,10)}</time></span></li>)}</ul>
+ {!documents.length&&<p>No document updates to show.</p>}
+ {all.length>50&&last&&<a href={`?before=${last.updatedAt}&id=${encodeURIComponent(last.id)}`}>Older updates</a>}
+</Layout>

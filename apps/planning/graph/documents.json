@@ -1,5 +1,24 @@
 [
   {
+    "name": "AcceptPartnerRequest",
+    "kind": "mutation",
+    "story": "As an editor, I want to accept a design partner's request for a repository or Foundry project, so that Software Foundry files it as an issue with the partner and its product named.",
+    "query": "mutation AcceptPartnerRequest($input: AcceptPartnerRequestInput!) {\n  acceptPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    productId\n    partner\n    foundryRequest\n    updatedAt\n  }\n}",
+    "hash": "17ec58d172d04e553520d1dce7aa4ede19fd8943145acb6ea7934a13a5dbf1cc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL AcceptPartnerRequestInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
     "name": "ArchiveProject",
     "kind": "mutation",
     "story": "As a member, I want to archive a project without deleting its issues or documents, so that its history stays available.",
@@ -19,11 +38,41 @@
     "hidden": true
   },
   {
+    "name": "BeginVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to seal a production for transfer, so that an active take cannot be submitted twice.",
+    "query": "mutation BeginVideoTransfer($input: BeginVideoTransferInput!) {\n  beginVideoTransfer(input: $input)\n}",
+    "hash": "4475f02e0e3a41c1773cb05491a37eec8aec2e1135a482b02cee7c9949bb570d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL BeginVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "beginVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ChangeDigestSchedule",
     "kind": "mutation",
     "story": "As an editor, I want to turn the morning digest of every project on or off, so that the team gets a daily summary of what shipped and what is prioritized without anyone clicking.",
-    "query": "mutation ChangeDigestSchedule($input: ChangeDigestScheduleInput!) {\n  changeDigestSchedule(input: $input) {\n    enabled\n    nextRunAt\n    lastRunAt\n    lastOutcome\n  }\n}",
-    "hash": "bd0a8639b3f73f06257248c9dc45a926c8d925054efb9b3da175f53c6add1573",
+    "query": "mutation ChangeDigestSchedule($input: ChangeDigestScheduleInput!) {\n  changeDigestSchedule(input: $input) {\n    cron\n    timezone\n    enabled\n    nextRunAt\n    lastRunAt\n    lastOutcome\n  }\n}",
+    "hash": "384fa733bc37b5cd6d947d96afb723aaca06a6beb9c2053173d43b432df4f424",
     "variables": {
       "type": "object",
       "properties": {
@@ -35,7 +84,42 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Enable or disable the existing daily report chain schedule; editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "changeDigestSchedule": {
+          "type": "object",
+          "properties": {
+            "cron": {
+              "type": "string",
+              "nullable": true
+            },
+            "timezone": {
+              "type": "string",
+              "nullable": true
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "nextRunAt": {
+              "type": "number",
+              "nullable": true
+            },
+            "lastRunAt": {
+              "type": "number",
+              "nullable": true
+            },
+            "lastOutcome": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "ChangeProductReportSchedule",
@@ -84,14 +168,62 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Claim assigned research, architecture or prioritization work with a stable requestId; returns the claim token and deterministic context."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "claimWork": {
+          "type": "object",
+          "properties": {
+            "token": {
+              "type": "string"
+            },
+            "context": {
+              "description": "JSON"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "CommitVideoAsset",
+    "kind": "mutation",
+    "story": "As a product editor, I want to verify uploaded bytes and attach them to the production. Editors only, so that production work is reviewable and recoverable.",
+    "query": "mutation CommitVideoAsset($input: CommitVideoAssetInput!) {\n  commitVideoAsset(input: $input)\n}",
+    "hash": "fa2e0ea632e29b14589b15775fe5de4ce3ce000b904e9a7ca829b870e054e865",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL CommitVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Verify uploaded bytes and attach them to the production. Editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "commitVideoAsset": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "CreateIntake",
     "kind": "mutation",
     "story": "As an editor, I want to capture a customer or competitive intake from the intake page or an agent and have it routed, so that the right discovery and delivery work starts under Governance.",
-    "query": "mutation CreateIntake($input: CreateIntakeInput!) {\n  createIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "9a3021f9314ff82c453f51fcface405a8ee10cd69d8c55acbfa1694f5e01dff9",
+    "query": "mutation CreateIntake($input: CreateIntakeInput!) {\n  createIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "3d6537dbb7a81aceb3a1990275103ebb679759d972ced5a582dbf7d50faa19a7",
     "variables": {
       "type": "object",
       "properties": {
@@ -103,7 +235,152 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Persist an intake with a stable requestId and optional originatingMessage provenance, then propose governed child work. Retry the identical input with the same requestId."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "createIntake": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "projectId": {
+              "type": "string",
+              "nullable": true
+            },
+            "kind": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "sourceUrls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sources": {
+              "description": "JSON"
+            },
+            "originatingMessage": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            },
+            "routing": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "routingError": {
+              "type": "string",
+              "nullable": true
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "object",
+                    "properties": {
+                      "installationId": {
+                        "type": "string"
+                      },
+                      "controlId": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "blocker": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "claim": {
+                    "type": "object",
+                    "properties": {
+                      "principal": {
+                        "type": "string"
+                      },
+                      "until": {
+                        "type": "number"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "draft": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "observedAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gateReceipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "gateError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "receipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "submissionIntent": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "subject": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "CreateIssue",
@@ -142,6 +419,130 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "DailyReport",
+    "kind": "query",
+    "story": "As a member or a personal overview workflow, I want this scope's daily report with exact source revisions and coverage, so that an overview depends on persisted source outcomes.",
+    "query": "query DailyReport($input: DailyReportInput!) {\n  dailyReport(input: $input)\n}",
+    "hash": "18715de54a2b490059c65199be46ce855b1d67da41c14927174ad131e094efbc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL DailyReportInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read this owner's exact daily report for a local date, with source coverage, project dependencies and pinned Wiki revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyReport": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "DailyReports",
+    "kind": "query",
+    "story": "As a personal overview workflow, I want one daily report outcome per authorized Planning scope including missing reports, so that dependent reports can wait on exact persisted organization outcomes.",
+    "query": "query DailyReports($date: String!, $timezone: String, $first: Int = 20, $after: String) {\n  dailyReports(date: $date, timezone: $timezone, first: $first, after: $after) {\n    nodes {\n      id\n      name\n      ownerKind\n      ownerId\n      planningInstallationId\n      organizationSlug\n      report\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "7fd10fdd19be4da44b23dae2bce4e34d29a79bdb413bc12129dfb0aae9d7f83d",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "timezone": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "date"
+      ]
+    },
+    "mcp": {
+      "description": "Read daily report outcomes across authorized Planning scopes, preserving missing source rows for dependency readiness.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "dailyReports",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyReports": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "ownerKind": {
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "type": "string"
+                  },
+                  "planningInstallationId": {
+                    "type": "string"
+                  },
+                  "organizationSlug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "report": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "hasNextPage": {
+                  "type": "boolean"
+                },
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "DeleteIssue",
@@ -192,32 +593,100 @@
       "properties": {},
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read daily digest/report run progress and failures."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "digestRuns": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "DigestSchedule",
     "kind": "query",
     "story": "As an editor, I want to see whether the morning digest is on and when it runs next, so that I know the team will get one.",
-    "query": "query DigestSchedule {\n  digestSchedule {\n    enabled\n    nextRunAt\n    lastRunAt\n    lastOutcome\n  }\n}",
-    "hash": "e364b33a193c4693a5353b87a06c2e7239da98c48e16f5b53a6cd00ccd44bccd",
+    "query": "query DigestSchedule {\n  digestSchedule {\n    cron\n    timezone\n    enabled\n    nextRunAt\n    lastRunAt\n    lastOutcome\n  }\n}",
+    "hash": "73b9c3893d21cf5dc84ac9b3fb0ac5eae9cfddb0e11a44b498a812ad0abf426c",
     "variables": {
       "type": "object",
       "properties": {},
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read the existing daily owner report chain schedule."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "digestSchedule": {
+          "type": "object",
+          "properties": {
+            "cron": {
+              "type": "string",
+              "nullable": true
+            },
+            "timezone": {
+              "type": "string",
+              "nullable": true
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "nextRunAt": {
+              "type": "number",
+              "nullable": true
+            },
+            "lastRunAt": {
+              "type": "number",
+              "nullable": true
+            },
+            "lastOutcome": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
   },
   {
-    "name": "GenerateProductReport",
+    "name": "EvidenceSchema",
+    "kind": "query",
+    "story": "As an agent, I want the evidence JSON Schema before capturing a change, so that submissions are valid.",
+    "query": "query EvidenceSchema {\n  evidenceSchema\n}",
+    "hash": "7b24ab39a98a39885a8639723f5c94f636c9b69e90632a0a48ac6a773b0466cc",
+    "variables": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "mcp": {
+      "description": "JSON Schema for visual evidence: capture provenance, ordered steps, optional screenshots/videos and before references."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "evidenceSchema": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "FinishVideoTransfer",
     "kind": "mutation",
-    "story": "As an editor, I want to regenerate this week's product roadmap in a registered workflow, so that updated graph evidence informs a draft for review.",
-    "query": "mutation GenerateProductReport($input: JSON!) {\n  generateProductReport(input: $input)\n}",
-    "hash": "679501cb1b495dcf0bb8c085d7da9ee9b65854658eb5f4e064710a22c5737197",
+    "story": "As an editor, I want to verify destination media, so that migration completes only when downloads are intact.",
+    "query": "mutation FinishVideoTransfer($input: FinishVideoTransferInput!) {\n  finishVideoTransfer(input: $input)\n}",
+    "hash": "a5c4e6d50602470ce3226fb0ec14df1691fc099faf71166c2398da200db1196c",
     "variables": {
       "type": "object",
       "properties": {
         "input": {
-          "description": "GraphQL JSON!"
+          "description": "GraphQL FinishVideoTransferInput!"
         }
       },
       "required": [
@@ -225,7 +694,66 @@
       ]
     },
     "mcp": {
-      "description": "Start the registered product roadmap summary workflow for the current week. Editors only."
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "finishVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "GenerateDailyReports",
+    "kind": "mutation",
+    "story": "As an editor, I want all active project reports for a selected recovery date or previous local day followed by this owner's overview in one durable run, so that failures remain visible and retries preserve captured reports.",
+    "query": "mutation GenerateDailyReports($input: GenerateDailyReportsInput!) {\n  generateDailyReports(input: $input)\n}",
+    "hash": "348f25e1a254587e5cf79e08d3d29901580499d61a28e98a1b2cf354a805ecc5",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL GenerateDailyReportsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start the same-owner daily report chain for a completed recovery date or previous local day as one durable registered task; editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateDailyReports": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "GenerateProductReport",
+    "kind": "mutation",
+    "story": "As an editor, I want to regenerate the selected or current week's product roadmap in a registered workflow, so that updated graph evidence informs a draft for review.",
+    "query": "mutation GenerateProductReport($input: GenerateProductReportInput!) {\n  generateProductReport(input: $input)\n}",
+    "hash": "985dd795dafb92a18718f8a3179580ac64105382ae848a5ef6f76dd616668708",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL GenerateProductReportInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start the registered product roadmap summary workflow for the selected at date or current week. Editors only."
     },
     "outputSchema": {
       "type": "object",
@@ -254,7 +782,48 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Start the registered digest task for one project and save its previous-local-day report; editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "generateProjectDigest": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "ImportVideoTransfer",
+    "kind": "mutation",
+    "story": "As an editor, I want to import sealed production records, so that revisions and receipts survive migration.",
+    "query": "mutation ImportVideoTransfer($input: ImportVideoTransferInput!) {\n  importVideoTransfer(input: $input)\n}",
+    "hash": "a709f6f72aa6103da05f35ba4fff4382afcf9880f7a44bb3666d9cc75c8e1fed",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ImportVideoTransferInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "importVideoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "IntakeChanges",
@@ -332,6 +901,26 @@
                             "type": "string",
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "originatingMessage": {
+                            "type": "object",
+                            "properties": {
+                              "threadId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "messageId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "threadId",
+                              "messageId"
+                            ],
+                            "additionalProperties": false
                           },
                           "sourceUrls": {
                             "maxItems": 32,
@@ -881,17 +1470,224 @@
     }
   },
   {
+    "name": "IntakeReleaseOptions",
+    "kind": "query",
+    "story": "As an editor, I want the intake project's existing Releases and their revisions, so that I choose a real Release when recording release fit.",
+    "query": "query IntakeReleaseOptions($input: IntakeReleaseOptionsInput!) {\n  intakeReleaseOptions(input: $input)\n}",
+    "hash": "70dbf4d09980630b6d5bb1a6d871a216d9aa762dc08b5b249aa85e5b9cf08ee9",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL IntakeReleaseOptionsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read existing project-linked Release records and revisions before deciding release fit. Does not create Releases."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "intakeReleaseOptions": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "Intakes",
     "kind": "query",
     "story": "As an agent, I want the intakes with their routed work, each route's blocker and draft, and the active Governance work gates, so that I can find work that is ready, see which routes are gated, and follow review and delivery.",
-    "query": "query Intakes {\n  intakeOptions\n  intakes {\n    nodes {\n      id\n      revision\n      projectId\n      kind\n      title\n      description\n      sourceUrls\n      sources\n      routing\n      routingError\n      routes {\n        id\n        revision\n        kind\n        dependsOn\n        rationale\n        gate {\n          installationId\n          controlId\n        }\n        blocker\n        claim {\n          principal\n          until\n        }\n        draft\n        result\n        observedAt\n        gateReceipt\n        gateError\n        receipt\n        submissionIntent\n        subject\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "dadc8aa238d986aedf7e21d8816e9f3a93e22482e530688dc1bfea5f5e296724",
+    "query": "query Intakes($first: Int = 20, $after: String) {\n  intakeOptions\n  intakes(first: $first, after: $after) {\n    nodes {\n      id\n      revision\n      projectId\n      kind\n      title\n      description\n      sourceUrls\n      sources\n      originatingMessage\n      releaseFit\n      releaseFitHistory\n      routing\n      routingError\n      routes {\n        id\n        revision\n        kind\n        dependsOn\n        rationale\n        gate {\n          installationId\n          controlId\n        }\n        blocker\n        claim {\n          principal\n          until\n        }\n        draft\n        result\n        observedAt\n        gateReceipt\n        gateError\n        receipt\n        submissionIntent\n        subject\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "14daa6e9edaff8a9e305413475163c4dc16094a9f88b246105b5713513d14fb1",
     "variables": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read persisted conversational intakes, release fit and history, routed discovery, blockers and delivery receipts. Read IDs and revisions before writing."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "intakeOptions": {
+          "description": "JSON"
+        },
+        "intakes": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "sourceUrls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sources": {
+                    "description": "JSON"
+                  },
+                  "originatingMessage": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "releaseFit": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "releaseFitHistory": {
+                    "description": "JSON"
+                  },
+                  "routing": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "routingError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "routes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "revision": {
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "dependsOn": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rationale": {
+                          "type": "string"
+                        },
+                        "gate": {
+                          "type": "object",
+                          "properties": {
+                            "installationId": {
+                              "type": "string"
+                            },
+                            "controlId": {
+                              "type": "string"
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "blocker": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "claim": {
+                          "type": "object",
+                          "properties": {
+                            "principal": {
+                              "type": "string"
+                            },
+                            "until": {
+                              "type": "number"
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "draft": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "result": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "gateReceipt": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "gateError": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "receipt": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "submissionIntent": {
+                          "description": "JSON",
+                          "nullable": true
+                        },
+                        "subject": {
+                          "description": "JSON",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "IntakeWorkPreview",
@@ -910,7 +1706,18 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Preview ready implementation with current discovery sources and release-fit revision. Changes nothing."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "intakeWorkPreview": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "IntakeWorkPreviews",
@@ -1506,8 +2313,8 @@
     "name": "Issues",
     "kind": "query",
     "story": "As a member or agent, I want to page through a project's issues with their IDs, revisions and order, so that I can reconcile issue changes and avoid duplicate work.",
-    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!]) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    projectId: $projectId\n    status: $status\n    category: $category\n  ) {\n    nodes {\n      id\n      projectId\n      parentId\n      title\n      description\n      category\n      status\n      assigneeId\n      dueDate\n      position\n      revision\n      createdAt\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "f9969fdd40a7af3540809902cf8a259e500828605727c0e84d653c49750e16d3",
+    "query": "query Issues($first: Int = 20, $after: String, $ids: [ID!], $projectId: [ID!], $status: [String!], $category: [String!], $orderBy: IssueOrder = ID_ASC) {\n  issues(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: {projectId: {in: $projectId}, status: {in: $status}, category: {in: $category}}\n  ) {\n    nodes {\n      id\n      projectId\n      parentId\n      title\n      description\n      category\n      status\n      assigneeId\n      dueDate\n      position\n      revision\n      createdAt\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "7317b20d9ac9fde190c17c944437e0b8ec9c80356098c5cf69d3736c22eb5a47",
     "variables": {
       "type": "object",
       "properties": {
@@ -1534,12 +2341,15 @@
         "category": {
           "type": "array",
           "description": "GraphQL [String!]"
+        },
+        "orderBy": {
+          "description": "GraphQL IssueOrder"
         }
       },
       "required": []
     },
     "mcp": {
-      "description": "Read issues in this installation, filtered by projectId, status or category. Results page in ID order; position gives the category order. Use includeIdentifiers:true for IDs and revisions before changes.",
+      "description": "Read issues in this installation, filtered by projectId, status or category. Results page in ID order, or in category order with orderBy POSITION_ASC (keep orderBy unchanged while paging). Use includeIdentifiers:true for IDs and revisions before changes.",
       "collection": true
     },
     "federation": {
@@ -1630,6 +2440,25 @@
       "properties": {
         "input": {
           "description": "GraphQL LinkProjectChangesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "MetricMeasurements",
+    "kind": "query",
+    "story": "As a member, I want each metric's latest and previous recorded values and the change between them, so that I and agents can see this week's KPI and its growth since last week.",
+    "query": "query MetricMeasurements($input: MetricMeasurementsInput!) {\n  metricMeasurements(input: $input)\n}",
+    "hash": "d81e7a0ed70bdb45362108e905a5dbde1d1336e93436c53baec29366dbd1e0cf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL MetricMeasurementsInput!"
         }
       },
       "required": [
@@ -2700,6 +3529,23 @@
     }
   },
   {
+    "name": "PartnerRequests",
+    "kind": "query",
+    "story": "As an editor, I want the requests our design partners filed, with their status, so that I accept or reject each one.",
+    "query": "query PartnerRequests($status: PartnerRequestStatus) {\n  partnerRequests(status: $status) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    problem\n    acceptanceCriteria\n    bug\n    productId\n    partner\n    reason\n    foundryRequest\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "cd2a7f3504071c88d53a9b0324a56fab9a6d94a5f15862ffe712b4438c8e7699",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "description": "GraphQL PartnerRequestStatus"
+        }
+      },
+      "required": []
+    },
+    "hidden": true
+  },
+  {
     "name": "PatchProject",
     "kind": "mutation",
     "story": "As a member, I want to apply only my project's edited fields, so that omitted documents remain unchanged.",
@@ -2719,6 +3565,116 @@
     "hidden": true
   },
   {
+    "name": "PersonalPortfolio",
+    "kind": "query",
+    "story": "As a personal user, I want my authorized organizations and projects in my own order, so that I can focus without changing shared priorities.",
+    "query": "query PersonalPortfolio($kind: String!) {\n  personalPortfolio(kind: $kind)\n}",
+    "hash": "9dd574157422c7ce23ce7e5393fc586d2875cb2336a0984e71de8c85afdf2c48",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "mcp": {
+      "description": "Read personal organization or cross-organization project order, authorized records and revision. Personal scope only; kind is organizations or projects."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "personalPortfolio": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "PortfolioProjects",
+    "kind": "query",
+    "story": "As a personal portfolio owner, I want a small authorized project index without loading every project's graph, so that ordering stays responsive.",
+    "query": "query PortfolioProjects($first: Int = 100, $after: String) {\n  projects(first: $first, after: $after, archived: false) {\n    nodes {\n      id\n      name\n      state\n      archived\n      revision\n      rank\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "c1792418a3e4da74703eaf359f1dcffdff4739a7774106f9931a5d30fc33aa32",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read a compact authorized project index for personal portfolio ordering; no linked graph or provider activity is loaded.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "projects",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "rank": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "PrepareProject",
     "kind": "mutation",
     "story": "As an editor or agent, I want to retry a project's delivery preparation after its dispatch failed, so that a saved requirement change is never lost or prepared twice.",
@@ -2736,6 +3692,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "PrepareVideoTake",
+    "kind": "mutation",
+    "story": "As a product editor, I want to freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request, so that production work is reviewable and recoverable.",
+    "query": "mutation PrepareVideoTake($input: PrepareVideoTakeInput!) {\n  prepareVideoTake(input: $input)\n}",
+    "hash": "d336c9e891f8992c6524c24bd37ad6a9e289d523d0d3cefcbcf0abb32e9d1ae4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PrepareVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Freeze one shot for a new take ID. Does not spend; an authorized executor submits the returned request."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "prepareVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "PriorityOrder",
@@ -3655,7 +4641,78 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Read the preserved Planning digest history for a project."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectDigests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "type": "string"
+              },
+              "trigger": {
+                "type": "string"
+              },
+              "since": {
+                "description": "DateTime",
+                "nullable": true
+              },
+              "createdAt": {
+                "description": "DateTime"
+              },
+              "summary": {
+                "type": "string",
+                "nullable": true
+              },
+              "summaryError": {
+                "type": "string",
+                "nullable": true
+              },
+              "changes": {
+                "description": "JSON"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "ProjectEvidence",
+    "kind": "query",
+    "story": "As a reviewer, I want the same ordered visual capture the browser displays, so that review uses the same evidence.",
+    "query": "query ProjectEvidence($input: ProjectEvidenceInput!) {\n  projectEvidence(input: $input)\n}",
+    "hash": "44c0fd345f250a0bd4787060801e780fe78e11c3489d8f11a0c3f372c9290b25",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ProjectEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read an authorized project evidence index or exact bundle. Browser and MCP use the same projection."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectEvidence": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "ProjectRepositories",
@@ -4205,19 +5262,262 @@
         "input"
       ]
     },
+    "mcp": {
+      "description": "Publish recorded findings as proposed Wiki assertions; does not approve their claims."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishResult": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PublishVideoProduction",
+    "kind": "mutation",
+    "story": "As a product editor, I want to publish the current production packet as an organization graph Document referencing its product and revision, so that production work is reviewable and recoverable.",
+    "query": "mutation PublishVideoProduction($input: PublishVideoProductionInput!) {\n  publishVideoProduction(input: $input)\n}",
+    "hash": "543f201e9a75eb09f70ea2449c5ab9f86f55d27918795c2e479821d05594a994",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PublishVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Publish the current production packet as an organization graph Document referencing its product and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "publishVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "RecordMeasurements",
+    "kind": "mutation",
+    "story": "As an editor, I want to record this week's KPI values from our connectors (PostHog, GitHub) from Planning or an agent, so that each metric has an observed value per week instead of a definition alone.",
+    "query": "mutation RecordMeasurements($input: RecordMeasurementsInput!) {\n  recordMeasurements(input: $input)\n}",
+    "hash": "a2e247443744579660ce0f7dcfc146c1d7d34a2fb36194080beb6b823851ea44",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordMeasurementsInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
     "hidden": true
   },
   {
     "name": "RecordResult",
     "kind": "mutation",
     "story": "As an assigned agent or Recommend holder, I want to submit findings or my saved draft under my claim and have Governance asked to review them, or ask again when that request failed or a perform-only worker recorded them, so that dependent work can proceed once they are approved.",
-    "query": "mutation RecordResult($input: RecordResultInput!) {\n  recordResult(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "0439029463628d6d2c4a288f643d6fd0ab619d71bbb956a44c3cf4302eb8b82a",
+    "query": "mutation RecordResult($input: RecordResultInput!) {\n  recordResult(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "2cc44e0c15d03d22e3bf3c12eeb3c818a8896d80c5cf6798b58ae06da2e1794d",
     "variables": {
       "type": "object",
       "properties": {
         "input": {
           "description": "GraphQL RecordResultInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Submit complete research, architecture or prioritization findings under a claim and request the existing Governance review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "recordResult": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "projectId": {
+              "type": "string",
+              "nullable": true
+            },
+            "kind": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "sourceUrls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sources": {
+              "description": "JSON"
+            },
+            "originatingMessage": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            },
+            "routing": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "routingError": {
+              "type": "string",
+              "nullable": true
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "object",
+                    "properties": {
+                      "installationId": {
+                        "type": "string"
+                      },
+                      "controlId": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "blocker": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "claim": {
+                    "type": "object",
+                    "properties": {
+                      "principal": {
+                        "type": "string"
+                      },
+                      "until": {
+                        "type": "number"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "draft": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "observedAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gateReceipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "gateError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "receipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "submissionIntent": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "subject": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "RefreshDesignPartners",
+    "kind": "mutation",
+    "story": "As an editor, I want to refresh our design partners from our graph after flagging a customer, so that the new partner can submit requests and a removed one no longer can.",
+    "query": "mutation RefreshDesignPartners($input: JSON!) {\n  refreshDesignPartners(input: $input) {\n    designPartners {\n      organizationId\n      name\n    }\n  }\n}",
+    "hash": "ddba215d2d64111d30e57b8f57d4d4f256e49379dde4568ecc78b40ed397d489",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL JSON!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "hidden": true
+  },
+  {
+    "name": "RejectPartnerRequest",
+    "kind": "mutation",
+    "story": "As an editor, I want to reject a design partner's request with a reason, so that the partner knows why and nothing is filed.",
+    "query": "mutation RejectPartnerRequest($input: RejectPartnerRequestInput!) {\n  rejectPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    title\n    partner\n    reason\n    updatedAt\n  }\n}",
+    "hash": "0c1e7f38991bcd8d5fc357dd14390c32c5646db02c52024241a67cb45ad20cbf",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RejectPartnerRequestInput!"
         }
       },
       "required": [
@@ -4244,6 +5544,35 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "ReorderPersonalPortfolio",
+    "kind": "mutation",
+    "story": "As a personal user, I want to reorder my organizations or cross-organization projects, so that my daily overview follows my priorities.",
+    "query": "mutation ReorderPersonalPortfolio($input: ReorderPersonalPortfolioInput!) {\n  reorderPersonalPortfolio(input: $input)\n}",
+    "hash": "6c510cd66e90ca62bbad5064148c099f2b20fc5ca6f4d1cacbb412e410a1ffeb",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReorderPersonalPortfolioInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save the complete personal portfolio order at its revision. Personal scope only; shared organization priorities are unchanged."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reorderPersonalPortfolio": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "ReorderPriority",
@@ -4275,11 +5604,41 @@
     }
   },
   {
+    "name": "ReserveVideoAsset",
+    "kind": "mutation",
+    "story": "As a product editor, I want to reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it, so that production work is reviewable and recoverable.",
+    "query": "mutation ReserveVideoAsset($input: ReserveVideoAssetInput!) {\n  reserveVideoAsset(input: $input)\n}",
+    "hash": "26e7aeafe8d1b99f88451730ecaa69d345b1a0cb864d105d51a24135069b7c97",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReserveVideoAssetInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Reserve a private file upload with exact size and SHA256. PUT the returned upload then commit it."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reserveVideoAsset": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ResetIntakeSubmission",
     "kind": "mutation",
     "story": "As an editor, I want to reset a submission Foundry rejected before any delivery was created, so that I can correct the package and submit again.",
-    "query": "mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {\n  resetIntakeSubmission(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "4d6957056c705c82e7bcdec16c9ac599bb4ad076d258417b7b86b55412f5428c",
+    "query": "mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {\n  resetIntakeSubmission(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "82ddf52d4596201bd22d0f8b1c9f61e3686fc04cc74497e823b715da3f363cf5",
     "variables": {
       "type": "object",
       "properties": {
@@ -4291,7 +5650,152 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Reset a rejected delivery submission at the current intake revision when no delivery record exists."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "resetIntakeSubmission": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "projectId": {
+              "type": "string",
+              "nullable": true
+            },
+            "kind": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "sourceUrls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sources": {
+              "description": "JSON"
+            },
+            "originatingMessage": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            },
+            "routing": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "routingError": {
+              "type": "string",
+              "nullable": true
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "object",
+                    "properties": {
+                      "installationId": {
+                        "type": "string"
+                      },
+                      "controlId": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "blocker": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "claim": {
+                    "type": "object",
+                    "properties": {
+                      "principal": {
+                        "type": "string"
+                      },
+                      "until": {
+                        "type": "number"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "draft": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "observedAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gateReceipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "gateError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "receipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "submissionIntent": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "subject": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "ResultChanges",
@@ -4809,8 +6313,8 @@
     "name": "ReviseIntakeScope",
     "kind": "mutation",
     "story": "As an editor, I want to approve a changed scope for an intake, so that new routes replace the old ones while previous results stay in history and old decisions cannot authorize the change.",
-    "query": "mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {\n  reviseIntakeScope(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "ebe2b0f1ab047614ce089544064f350e1fe0fa1c7d5c06887ac9887ab50ecb3c",
+    "query": "mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {\n  reviseIntakeScope(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "584a92452972f8518e74b1ba86d7791df15534667fee0d1e0f1f788e25c8dfb1",
     "variables": {
       "type": "object",
       "properties": {
@@ -4822,14 +6326,159 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Approve revised intake scope, retaining history and resetting route and release-fit decisions. Submitted delivery remains frozen."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reviseIntakeScope": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "projectId": {
+              "type": "string",
+              "nullable": true
+            },
+            "kind": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "sourceUrls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sources": {
+              "description": "JSON"
+            },
+            "originatingMessage": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            },
+            "routing": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "routingError": {
+              "type": "string",
+              "nullable": true
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "object",
+                    "properties": {
+                      "installationId": {
+                        "type": "string"
+                      },
+                      "controlId": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "blocker": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "claim": {
+                    "type": "object",
+                    "properties": {
+                      "principal": {
+                        "type": "string"
+                      },
+                      "until": {
+                        "type": "number"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "draft": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "observedAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gateReceipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "gateError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "receipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "submissionIntent": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "subject": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "RouteIntake",
     "kind": "mutation",
     "story": "As an editor, I want to route an intake again, set its routes and decision controls myself, or assign its canonical Planning project, so that unstarted work follows the plan I chose and is delivered against the right project.",
-    "query": "mutation RouteIntake($input: RouteIntakeInput!) {\n  routeIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
-    "hash": "9b1646e55a2f09e7282a7bdb6a78b18537f6315994e70cfc044940c223b2cea6",
+    "query": "mutation RouteIntake($input: RouteIntakeInput!) {\n  routeIntake(input: $input) {\n    id\n    revision\n    projectId\n    kind\n    title\n    description\n    sourceUrls\n    sources\n    originatingMessage\n    releaseFit\n    releaseFitHistory\n    routing\n    routingError\n    routes {\n      id\n      revision\n      kind\n      dependsOn\n      rationale\n      gate {\n        installationId\n        controlId\n      }\n      blocker\n      claim {\n        principal\n        until\n      }\n      draft\n      result\n      observedAt\n      gateReceipt\n      gateError\n      receipt\n      submissionIntent\n      subject\n    }\n  }\n}",
+    "hash": "d8f8d1c964abe4f1b6674f8d87ff365d1b9bcece19e084ad96e5fb002f868099",
     "variables": {
       "type": "object",
       "properties": {
@@ -4841,7 +6490,152 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Assign a project or route unstarted intake work with existing Governance controls; requires current intake revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "routeIntake": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "projectId": {
+              "type": "string",
+              "nullable": true
+            },
+            "kind": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "sourceUrls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sources": {
+              "description": "JSON"
+            },
+            "originatingMessage": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            },
+            "routing": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "routingError": {
+              "type": "string",
+              "nullable": true
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "object",
+                    "properties": {
+                      "installationId": {
+                        "type": "string"
+                      },
+                      "controlId": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "blocker": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "claim": {
+                    "type": "object",
+                    "properties": {
+                      "principal": {
+                        "type": "string"
+                      },
+                      "until": {
+                        "type": "number"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "draft": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "result": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "observedAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gateReceipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "gateError": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "receipt": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "submissionIntent": {
+                    "description": "JSON",
+                    "nullable": true
+                  },
+                  "subject": {
+                    "description": "JSON",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "SaveResultDraft",
@@ -4860,7 +6654,18 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Save incomplete findings under the current assigned claim without requesting review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveResultDraft": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "SaveUseCase",
@@ -4879,7 +6684,92 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Save a complete use case against an existing project: actor, goal, trigger, steps, alternatives and observable successCriteria. Editors only. Read UseCases first; edits require both ID and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveUseCase": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SaveVideoProduction",
+    "kind": "mutation",
+    "story": "As a product editor, I want to save a storyboard at its current revision; zero creates a stable production ID. Editors only, so that production work is reviewable and recoverable.",
+    "query": "mutation SaveVideoProduction($input: SaveVideoProductionInput!) {\n  saveVideoProduction(input: $input)\n}",
+    "hash": "d001f330d8e88f33a60032c62f5301181b54fa5541c3ca84ecad6f358d32557a",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SaveVideoProductionInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Save a storyboard at its current revision; zero creates a stable production ID. Editors only."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "saveVideoProduction": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SetIntakeReleaseFit",
+    "kind": "mutation",
+    "story": "As an editor, I want to record how a conversational intake fits an existing project Release, or defer it in backlog, so that discovery and delivery use the persisted decision and its rationale.",
+    "query": "mutation SetIntakeReleaseFit($input: SetIntakeReleaseFitInput!) {\n  setIntakeReleaseFit(input: $input) {\n    id\n    revision\n    releaseFit\n    releaseFitHistory\n  }\n}",
+    "hash": "379ee75c7af14ed3328183965b77b48e475e0c66379f7258ff8077e5888b0b69",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SetIntakeReleaseFitInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Record an explicit release disposition and rationale at the intake revision. Current-release requires an existing linked Release revision. Deferred without a release stays in backlog. Does not authorize delivery."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "setIntakeReleaseFit": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "releaseFit": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "releaseFitHistory": {
+              "description": "JSON"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "SetProjectState",
@@ -4947,6 +6837,35 @@
     "hidden": true
   },
   {
+    "name": "SubmitEvidence",
+    "kind": "mutation",
+    "story": "As an agent, I want to stage an exact captured walkthrough for graph review without duplicating media, so that retries preserve the capture.",
+    "query": "mutation SubmitEvidence($input: SubmitEvidenceInput!) {\n  submitEvidence(input: $input)\n}",
+    "hash": "523fd2958f4bfb010385c8774eed4e8ec30b5cc8fa910f57bd42f3fd78510263",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Validate and stage a frozen capture in an existing open graph batch. Reuse key and batchId on retry. Requires current project/product revisions. Submit/review that batch separately; staged is not applied."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitEvidence": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "SubmitIntakeWork",
     "kind": "mutation",
     "story": "As an editor, I want to submit an intake's ready implementation work to Foundry under its Governance control, so that delivery starts from the reviewed package and is recorded on the intake.",
@@ -4957,6 +6876,36 @@
       "properties": {
         "input": {
           "description": "GraphQL SubmitIntakeWorkInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Submit the reviewed implementation package through existing Foundry contracts and Governance checks. Requires the current preview digest and stable requestId."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "submitIntakeWork": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "SubmitPartnerRequest",
+    "kind": "mutation",
+    "story": "As a design partner's agent, I want to file a feature or bug request for my provider's product from my own organization, so that the provider's team reviews it and files it with Software Foundry, and I can read back whether it was accepted.",
+    "query": "mutation SubmitPartnerRequest($input: SubmitPartnerRequestInput!) {\n  submitPartnerRequest(input: $input) {\n    id\n    requestId\n    revision\n    status\n    kind\n    title\n    problem\n    acceptanceCriteria\n    bug\n    productId\n    partner\n    reason\n    foundryRequest\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "6623bb64f2e517a519fa7b3ffc285a0b6ff1453e95723f35a2a75f87a0d642cc",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL SubmitPartnerRequestInput!"
         }
       },
       "required": [
@@ -5002,6 +6951,36 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "UpdateVideoTake",
+    "kind": "mutation",
+    "story": "As a product editor, I want to claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests, so that production work is reviewable and recoverable.",
+    "query": "mutation UpdateVideoTake($input: UpdateVideoTakeInput!) {\n  updateVideoTake(input: $input)\n}",
+    "hash": "7421089cea01ed2dd2efbeebab3fd00a808c4f77817a16a9cd50fc11bd874409",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UpdateVideoTakeInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Claim submission before calling the provider; persist the receipt before polling; never automatically resubmit uncertain requests."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "updateVideoTake": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "UseCaseChanges",
@@ -5152,6 +7131,178 @@
         "input"
       ],
       "additionalProperties": false
+    }
+  },
+  {
+    "name": "UseCases",
+    "kind": "query",
+    "story": "As a member, I want a project's complete existing use-case scenarios and revisions, so that I can author and safely revise their actor, trigger, steps, alternatives and success evidence.",
+    "query": "query UseCases($input: UseCasesInput!) {\n  useCases(input: $input)\n}",
+    "hash": "9c5df024ce2b2ac1309afe43e4ef5a40e0e3d42b5c7d769247bd279762bc903c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UseCasesInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read complete project-linked use-case documents and revisions before authoring scenarios or editing. Names and summaries alone are insufficient for scenario review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "useCases": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoProductions",
+    "kind": "query",
+    "story": "As a product owner, I want to inspect saved storyboards, source citations, takes and finished videos, so that I can review what the agent built.",
+    "query": "query VideoProductions($id: ID, $productId: ID, $revision: Int, $after: String, $limit: Int = 20) {\n  videoProductions(\n    id: $id\n    productId: $productId\n    revision: $revision\n    after: $after\n    limit: $limit\n  )\n}",
+    "hash": "e1f4f4ae55abc9c89ce4b3da6d1dd141e413dfb15dc5175a7d1619d8a52a04d1",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "productId": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Read versioned productions with shots, evidence, takes and private uploaded assets; follow next even when product filtering returns no items."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoProductions": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoSourceEvidence",
+    "kind": "query",
+    "story": "As a video agent, I want the product revisions and evidence bundles with their original records and citations, so that shots use verified product sources.",
+    "query": "query VideoSourceEvidence($productId: ID!, $cursor: String) {\n  videoSourceEvidence(productId: $productId, cursor: $cursor)\n}",
+    "hash": "917b41eedf0398806497ad71fc347f244cdc30cd76163e1e075c667cd2141af5",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        },
+        "cursor": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "productId"
+      ]
+    },
+    "mcp": {
+      "description": "Read a bounded product neighborhood including revisions, evidence bundles and members. Preserve returned cursor and omitted/truncation indicators; missing evidence is not product proof."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoSourceEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransfer",
+    "kind": "query",
+    "story": "As an agent, I want to read a sealed transfer, so that migration preserves exact metadata.",
+    "query": "query VideoTransfer($id: ID!) {\n  videoTransfer(id: $id)\n}",
+    "hash": "039eb9563ec5cedaf069e7979b199e80dfff2b7950410a0c6a951f1243a55645",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransfer": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VideoTransferReceipt",
+    "kind": "query",
+    "story": "As an agent, I want to verify imported media, so that source links switch only after validation.",
+    "query": "query VideoTransferReceipt($id: ID!) {\n  videoTransferReceipt(id: $id)\n}",
+    "hash": "e19a1ddcffad719feee556e08d84b09d1a08e0c8ef7ecc3646333c237a1ed9f2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "mcp": {
+      "description": "Transfer video records with sealing and media verification."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "videoTransferReceipt": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
     }
   }
 ]

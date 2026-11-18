@@ -105,6 +105,39 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/video-production": {
+      "release-type": "node",
+      "component": "video-production",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/marketing": {
+      "release-type": "node",
+      "component": "marketing",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/presentations": {
+      "release-type": "node",
+      "component": "presentations",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

@@ -5,6 +5,7 @@ import {
   requireOrganization,
   type AppIdentity,
 } from "@ai-outfitter/app-sdk/server";
+import { metricMeasurements, type MetricReading } from "./measurements";
 
 type Context = ReturnType<typeof appDataContext>;
 export type ProgressGraph = {
@@ -100,6 +101,7 @@ function metricKpi(
   id: string,
   metric: EntityRecord,
   definition: Record<string, unknown>,
+  latest: MetricReading | null,
 ) {
   const metricId = metric.ref.id;
   const measurement = body(metric);
@@ -132,7 +134,9 @@ function metricKpi(
   return {
     id: `${id}:${metricId}`,
     title: metric.title,
-    actual: "Not connected",
+    actual: latest
+      ? `${new Intl.NumberFormat("en-US").format(latest.value)}${latest.unit ? ` ${latest.unit}` : ""}`
+      : "Not connected",
     target: `${target}${definition.unit === "users" ? " users" : ""}`,
     windowDays: Number(definition.windowDays),
     staged: definition.staged === true || measurement.staged === true,
@@ -145,6 +149,7 @@ function goalKpis(
   nodes: Map<string, EntityRecord>,
   metricType: string | undefined,
   measuredBy: string | undefined,
+  latest: Map<string, MetricReading | null>,
 ) {
   const id = goal.ref.id;
   const definition = goalDefinition(goal);
@@ -163,7 +168,7 @@ function goalKpis(
   for (const metricId of metrics) {
     const metric = nodes.get(metricId);
     if (!metric || metric.attributes.typeId !== metricType) continue;
-    const kpi = metricKpi(id, metric, definition);
+    const kpi = metricKpi(id, metric, definition, latest.get(metricId) ?? null);
     if (kpi) kpis.push(kpi);
   }
   return kpis;
@@ -191,10 +196,11 @@ function progressKpis(
       .map((edge) => String(edge.attributes.toId)),
   );
   const kpis: OrganizationProgress["kpis"] = [];
+  const latest = new Map(metricMeasurements(graph).map((item) => [item.metricId, item.latest]));
   for (const id of goals) {
     const goal = nodes.get(id);
     if (!goal || goal.attributes.typeId !== goalType) continue;
-    kpis.push(...goalKpis(graph, goal, nodes, metricType, measuredBy));
+    kpis.push(...goalKpis(graph, goal, nodes, metricType, measuredBy, latest));
   }
   return kpis;
 }
@@ -279,35 +285,21 @@ async function deliveryDocumentEdges(
   documentsType: string,
 ) {
   const edges = database.collection("edges");
-  const ids = new Set<string>();
-  const documentEdges: EntityRecord[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await edges.list({
-      where: {
-        typeId: documentsType,
-        toId: organization.ref.id,
-        archived: false,
-      },
-      select: ["typeId", "fromId", "toId", "archived"],
-      offset,
-      limit: 100,
-    });
-    for (const edge of page)
-      if (
-        active(edge) &&
-        edge.attributes.typeId === documentsType &&
-        edge.attributes.toId === organization.ref.id
-      ) {
-        ids.add(String(edge.attributes.fromId));
-        documentEdges.push(edge);
-      }
-    if (ids.size > 1000)
-      throw new Response(
-        "Organization delivery context exceeds its read bound",
-        { status: 413 },
-      );
-    if (page.length < 100) break;
-  }
+  // The Wiki filters by type, target and archived; nothing is re-checked here.
+  const documentEdges: EntityRecord[] = await edges.all({
+    where: {
+      typeId: documentsType,
+      toId: organization.ref.id,
+      archived: false,
+    },
+    select: ["typeId", "fromId", "toId", "archived"],
+  }, 1100);
+  const ids = new Set(documentEdges.map((edge) => String(edge.attributes.fromId)));
+  if (ids.size > 1000)
+    throw new Response(
+      "Organization delivery context exceeds its read bound",
+      { status: 413 },
+    );
   return { ids, documentEdges };
 }
 
@@ -329,23 +321,10 @@ export async function readOrganizationProgress(
     documentsType,
   );
   const cached = new Map(graph.nodes.map((record) => [record.ref.id, record]));
-  const documents: EntityRecord[] = [];
-  const pending = [...ids];
-  for (let offset = 0; offset < pending.length; offset += 8) {
-    const records = await Promise.all(
-      pending.slice(offset, offset + 8).map(async (id) => {
-        if (cached.has(id)) return cached.get(id);
-        try {
-          return await database.collection("nodes").get(id);
-        } catch (error) {
-          if (error instanceof Response && error.status === 404)
-            return undefined;
-          throw error;
-        }
-      }),
-    );
-    for (const record of records) if (record) documents.push(record);
-  }
+  const nodes = database.collection("nodes");
+  const documents = (await Promise.all(
+    [...ids].map((id) => cached.get(id) ?? nodes.load(id)),
+  )).filter((record) => !!record);
   return organizationProgressView(
     { ...graph, edges: [...graph.edges, ...documentEdges] },
     identity,

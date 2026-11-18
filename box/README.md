@@ -277,3 +277,16 @@ docker run --rm --network container:<box> -w /app \
   and the independent review.
 - Replayed model answers for a run with no network at all.
 - A Workshop box on the forge: change requests as PRs with BOM and cost diffs.
+
+### Shared visual capture
+
+`capture-evidence.mjs` exports `captureEvidence(page, {url, readySelector,
+previewSelector})` for authenticated Playwright pages inside a box/workspace.
+It waits for the caller's ready marker, captures 1440×1000 and 390×844 views,
+optionally captures the model element, and returns PNG bytes, dimensions,
+SHA-256 hashes, browser version and capture time. A page error fails capture.
+Consumers publish through their app's authorized artifact API and retain the
+receipt alongside the images. Workshop's `box/capture-previews.mjs` implements
+that path, binding the receipt to a model revision and source/build identity.
+These captures are visual evidence, not a substitute for behavioral acceptance
+checks. Foundry's PR/release evidence publication remains its existing workflow.

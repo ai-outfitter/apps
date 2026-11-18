@@ -1,0 +1,1 @@
+Plan our launch videos and save the plan to our Onto. I want one 15-second video each for the SNY-1 sensor and the microgreen growing system. Each video needs a storyboard of four shots: what we see, how long the shot runs and which beat it is (hook, demo, payoff, close).

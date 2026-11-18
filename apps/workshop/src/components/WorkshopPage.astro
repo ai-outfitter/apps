@@ -1,22 +1,53 @@
 ---
-import AppLayout from "@ai-outfitter/ui/astro/ManagedAppLayout.astro";
+import AppLayout from "./WorkshopLayout.astro";
 import "../styles/workshop.css";
-import { projectPath, SECTIONS, type SectionId } from "../lib/sections";
-import Content from "./Workshop.astro";
+import { appHref } from "../app-href";
+import { SECTIONS, projectPath, slugId, type SectionId } from "../lib/sections";
+import Content from "./Workspace.astro";
+import PCBReview from "./PCBReview.astro";
 
-interface Props { section: SectionId; slug: string }
-const { section, slug } = Astro.props;
-const current = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { projectBySlugId } from "../server/projects";
+import { hasPcbReview } from "../lib/pcb-review";
+
+interface Props { section?: SectionId; slug: string }
+const { slug } = Astro.props;
+let projectName: string | undefined;
+let hasPcb = false;
+if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
+  try {
+    const project = await projectBySlugId(installationDatabase(), slugId(slug)!);
+    projectName = project?.name;
+    hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
+  } catch { /* The workspace reports loading errors. */ }
+}
+const section = Astro.props.section ?? (hasPcb ? "pcb" : "models");
+const path = (target: string) => appHref(Astro.url.pathname, target);
+const current = SECTIONS.find(page => page.id === section)!;
+const assemblies = Astro.url.searchParams.get("kind") === "assembly";
+const links = SECTIONS.filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
+  label: page.label,
+  href: path(projectPath(slug, page.id)),
+  active: page.id === section && !assemblies && !Astro.url.searchParams.has("item"),
+}));
 ---
 <AppLayout
+  persistKey={`workshop:${slug}:${section}:${Astro.url.search}`}
   name="Workshop"
+  headerStyle="app"
+  showOrganizationLink={false}
+  introVisuallyHidden
   title={current.label}
-  description="Research, design and record what works on your bench."
+  description="Inspect models, parts and product revisions."
   active="home"
-  sidebarLinks={[
-    { label: "All projects", href: "/", active: false },
-    ...SECTIONS.map((s) => ({ label: s.label, href: projectPath(slug, s.id), active: s.id === section })),
+  sidebarSections={[
+    { label: "Workspace", links: [{ label: "All projects", href: path("/"), active: false }, { label: "New model", href: path("/new"), active: false }] },
+    { label: projectName ?? "Project", links },
+    { label: "Assembly views", links: [
+      { label: "Browse assemblies", href: path(projectPath(slug,"models")+"?kind=assembly"), active: section === "models" && assemblies },
+      { label: "Power budget", href: path(projectPath(slug,"assembly")+"#power-panel"), active: false },
+    ] },
   ]}
 >
-  <Content section={section} slug={slug} />
+  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} />}
 </AppLayout>

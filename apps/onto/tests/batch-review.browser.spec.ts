@@ -68,15 +68,14 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
     });
     await test.step("the batch page shows each finding beside its proposal, and decides nothing", async () => {
       await page.goto(`${origin}/changes/${batch.id}`);
-      await page.getByRole("button", { name: "Review & anchors", exact: true }).click();
+      await page.getByRole("button", { name: "Review", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Ontology review", exact: true })).toBeVisible();
       await expect(page.getByText("2 findings: VEG-05 is NASA's experiment, not Artera's project.")).toBeVisible();
       await expect(page.locator(".change-review")).toContainText(/run [0-9a-f-]{36}/);
       await page.getByRole("button", { name: /^Proposals/ }).click();
-      const project = page.locator(".change-operation").filter({ hasText: "A space crop experiment." });
-      await expect(project.locator(".change-finding-error")).toContainText("project.foreign");
-      await expect(project).toContainText("Waiting");
-      await expect(page.locator(".change-operation").filter({ has: page.locator(".change-finding-warning") })).toContainText("NASA has no relationship to Artera.");
+      const line = (title: string) => page.locator(".change-line").filter({ has: page.getByRole("link", { name: title, exact: true }) }).locator("> .change-line-flag");
+      await expect(line("VEG-05")).toHaveText("1 error");
+      await expect(line("NASA")).toHaveText("1 warning");
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await info.attach(`batch-review-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
@@ -84,8 +83,19 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
           await page.screenshot({ path: `${process.env.WIKI_SCREENSHOTS}/batch-review-${width}.png`, fullPage: true });
       }
       await page.setViewportSize({ width: 1440, height: 900 });
+    });
+    await test.step("each proposal's page shows its own findings, and decides nothing", async () => {
+      await page.locator(".change-line").getByRole("link", { name: "VEG-05", exact: true }).click();
+      await expect(page.locator(".batch-proposed-line")).toHaveText("Proposed in Space crop research, not saved");
+      const project = page.locator(".batch-item");
+      await expect(project).toContainText("A space crop experiment.");
+      await expect(project.locator(".change-finding-error")).toContainText("project.foreign");
+      await expect(project.locator(".batch-item-decision")).toContainText("Waiting");
+      await expect(project.locator(".batch-item-edges")).toContainText("VEG-05 → ");
       await info.attach("batch-review-proposal", { body: await project.screenshot(), contentType: "image/png" });
       if (process.env.WIKI_SCREENSHOTS) await project.screenshot({ path: `${process.env.WIKI_SCREENSHOTS}/batch-review-proposal.png` });
+      await page.getByRole("link", { name: "← Previous: NASA", exact: true }).click();
+      await expect(page.locator(".batch-item .change-finding-warning")).toContainText("NASA has no relationship to Artera.");
     });
   } finally {
     await page.unrouteAll({ behavior: "wait" });

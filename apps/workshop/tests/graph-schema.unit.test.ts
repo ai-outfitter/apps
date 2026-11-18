@@ -8,9 +8,11 @@ test("the committed GraphQL schema, types and documents match what graph.graphql
   // The routes' own documents, plus the collection reads and *Changes batch documents agents discover.
   const committed = JSON.parse(await readFile(new URL("../graph/documents.json", import.meta.url), "utf8"));
   assert.deepEqual(committed.map((row: { name: string; kind: string }) => [row.name, row.kind]), [
-    ["AssemblyChanges", "mutation"], ["ConceptChanges", "mutation"], ["CreateWorkshopProject", "mutation"], ["DeleteWorkshopProject", "mutation"], ["DeleteWorkshopUnit", "mutation"],
-    ["DescribeWorkshopProject", "mutation"], ["NameWorkshopProductRevision", "mutation"], ["ProductRevisionChanges", "mutation"], ["ProjectChanges", "mutation"], ["PublishWorkshopConcepts", "mutation"],
-    ["RecordWorkshopUnit", "mutation"], ["RemoveWorkshopConcept", "mutation"], ["SaveWorkshopAssembly", "mutation"], ["UnitChanges", "mutation"], ["UpdateWorkshopUnit", "mutation"], ["WorkshopProjectHandoff", "query"],
+    ["AcceptCreativeHandoff","mutation"], ["AssemblyChanges", "mutation"], ["AttachCreativeResult","mutation"], ["ClaimWorkshopBuild", "mutation"], ["ConceptChanges", "mutation"], ["CreateWorkshopProject", "mutation"], ["DeleteWorkshopProject", "mutation"], ["DeleteWorkshopUnit", "mutation"],
+    ["DescribeWorkshopProject", "mutation"], ["FinishWorkshopBuild", "mutation"], ["NameWorkshopProductRevision", "mutation"], ["ProductRevisionChanges", "mutation"], ["ProjectChanges", "mutation"], ["PublishWorkshopConcepts", "mutation"],
+    ["RecordWorkshopUnit", "mutation"], ["RemoveWorkshopConcept", "mutation"], ["RequestWorkshopBuild", "mutation"], ["ResolvedWorkshopAssembly","query"], ["SaveWorkshopAssembly", "mutation"], ["StartWorkshopDesign", "mutation"], ["SubmitWorkshopPcb", "mutation"], ["UnitChanges", "mutation"], ["UpdateWorkshopAssembly", "mutation"], ["UpdateWorkshopUnit", "mutation"], ["WorkshopAssembly", "query"], ["WorkshopDesignRun", "query"], ["WorkshopProjectHandoff", "query"],
     ["WorkshopProjects", "query"], ["WorkshopUnits", "query"],
   ]);
+  // Public documents are the operations a workspace agent can discover.
+  assert.deepEqual(committed.filter((row: { hidden?: boolean }) => !row.hidden).map((row: { name: string }) => row.name), ["AcceptCreativeHandoff", "AttachCreativeResult", "ConceptChanges", "CreateWorkshopProject", "ProductRevisionChanges", "ProjectChanges", "ResolvedWorkshopAssembly", "StartWorkshopDesign", "SubmitWorkshopPcb", "UnitChanges", "UpdateWorkshopAssembly", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopProjectHandoff", "WorkshopProjects", "WorkshopUnits"]);
 });

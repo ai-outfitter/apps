@@ -64,6 +64,8 @@ for (const width of [1440, 390])
     });
     expect(created.status).toBe(200);
     const project = (await created.json()) as { id: string };
+    await app.database.prepare("INSERT INTO planning_preparations(id,installationId,projectId,projectRevision,state,changes,plan,revision,createdBy,createdAt,updatedAt) VALUES (?,?,?,1,'prepared',?,?,1,?,1,1)")
+      .bind(crypto.randomUUID(),"planning",project.id,JSON.stringify({requirements:[],changed:[]}),JSON.stringify({blockers:[{code:"governance",message:"No active Governance work gate governs implementation work",remediation:"Review the implementation gate in Governance."}]}),owner.userId).run();
     const issue = await app.call("/api/apps/planning/issues", owner, {
       method: "POST",
       body: {
@@ -148,6 +150,11 @@ for (const width of [1440, 390])
       expect(
         (await page.goto(`${origin}/projects/${project.id}`))?.status(),
       ).toBe(200);
+      await expect(page.getByRole("heading",{name:"Needs you",exact:true})).toBeVisible();
+      await expect(page.getByRole("heading",{name:"What changed",exact:true})).toBeVisible();
+      await expect(page.locator("#project-next-action [data-delivery-blockers]")).toContainText("No active Governance work gate governs implementation work");
+      await page.screenshot({path:test.info().outputPath(`project-next-action-${width}.png`),fullPage:true});
+      await page.getByText("Project documents and work details",{exact:true}).click();
       await expect(page.locator("#project-documents")).toContainText(
         "Visible without client loading",
       );

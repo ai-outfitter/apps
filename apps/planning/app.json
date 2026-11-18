@@ -1,6 +1,6 @@
 {
   "id": "outfitter/planning",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "runtime": "cloudflare-workers-for-platforms",
   "dataLocation": "installation-database",
   "modes": {
@@ -28,9 +28,14 @@
         "workflow.project-changes.start",
         "connector.github.commits.list",
         "connector.github.pulls.list",
+        "connector.github.repositories.read",
+        "connector.posthog.query.run",
+        "connector.grafana.query.run",
+        "workflow.record-measurements.start",
         "entities.write.delegated",
         "platform.documents",
-        "workflow.product-roadmap-summary.start"
+        "workflow.product-roadmap-summary.start",
+        "storage.buckets"
       ]
     }
   },
@@ -67,9 +72,23 @@
     },
     "cover": "catalog/cover.png"
   },
-  "dependencies": [
-    "onto",
-    "governance"
-  ],
-  "initialize": true
+  "dependencies": {
+    "onto": "*",
+    "governance": "*",
+    "wiki-map": ">=0.1.5"
+  },
+  "initialize": true,
+  "storage": {
+    "buckets": {
+      "video": {
+        "spaces": {
+          "productions": {
+            "visibility": "organization",
+            "ttl": "1y",
+            "maxTtl": "1y"
+          }
+        }
+      }
+    }
+  }
 }

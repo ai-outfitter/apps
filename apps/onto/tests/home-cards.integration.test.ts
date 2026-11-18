@@ -308,7 +308,7 @@ test("organization-goals projects outgoing pursues to active Goals, bounded on a
         method: "POST",
         body: { type: "organization-goals", limit: 100 },
       })
-    ).json()) as EntityRecord[];
+    ).json() as { records: EntityRecord[] }).records;
     // Seeded starter Organizations are listed too; archived ones never are.
     const listed = list.map((row) => row.ref.id);
     assert.ok(listed.includes(root) && listed.includes(other));

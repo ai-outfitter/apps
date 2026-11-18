@@ -1,10 +1,9 @@
 ---
 import Button from "@ai-outfitter/ui/astro/Button.astro";
-import { rootHref } from "../root-href";
-const root = rootHref(Astro.url.pathname, 1);
+import { platformHref } from "../platform-href";
 ---
 <div id="discovery" data-page="activity">
-  <div class="discovery-heading activity-toolbar"><p>Your runs, suggestions, and saved changes.</p><Button href={`${root}sources`}>Rerun a source</Button></div>
+  <div class="discovery-heading activity-toolbar"><p>Your runs, suggestions, and saved changes.</p><Button href={platformHref(Astro.request, "/automations/forerunner/forerunner-discovery")}>Manage discovery</Button></div>
   <p id="discovery-error" role="alert" hidden></p>
   <div id="activity-timeline" aria-label="Activity timeline"><p role="status">Loading activity…</p></div>
   <p id="activity-limit"></p>

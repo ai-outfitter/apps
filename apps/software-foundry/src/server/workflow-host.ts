@@ -4,6 +4,8 @@ import {
   finalizeInput,
   type PhaseInput,
   prepareInput,
+  scheduleInput,
+  type scheduleResult,
   type WorkflowHost,
   workflowPhaseHandler,
 } from "@ai-outfitter/app-sdk/workflow-host";
@@ -14,6 +16,9 @@ import { inspectFoundryWorkspace } from "./workspace/inspection";
 import { publishFoundryEvidence } from "./workspace/publication";
 import {
   configureFoundryWorkspaces,
+  type FoundryJob,
+  foundryJobs,
+  jobBindingInput,
   issueToMergeWorkflows,
   launchFoundryMergeChecks,
   launchFoundryWorkspaceIssue,
@@ -52,6 +57,18 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
     : { outcome: "started" };
 }
 
+/** A repository job's schedule occurrence starts the reserved run with the
+ * schedule's saved inputs, which carry the job's approved binding. */
+async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z.input<typeof scheduleResult>> {
+  const { runId, schedule } = scheduleInput.parse(raw);
+  if (!Object.hasOwn(foundryJobs, schedule.workflowId))
+    return { outcome: "declined", reason: `Foundry does not schedule ${schedule.workflowId}` };
+  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as FoundryJob)] !== "string" || !schedule.inputs["analyze.inputs.fix"])
+    return { outcome: "declined", reason: "Save this schedule again with Foundry's JobChanges schedule action, so it carries the job's approved agent" };
+  await host.call("workflow.start", { workflow: schedule.workflowId, id: runId, inputs: schedule.inputs });
+  return { outcome: "started" };
+}
+
 async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<PhaseInput> {
   const input = operatorInput.parse(raw);
   const result = input.operation === "inspect"
@@ -69,6 +86,7 @@ export function foundryPhases(locals: StorageLocals, origin: string) {
   return workflowPhaseHandler({
     event: (input, host) => event(host, input),
     operator: (input, host) => operator(host, input),
+    schedule: (input, host) => schedule(host, input),
     prepare: async (input, host) => prepareWorkspaceNode(host, prepareInput.parse(input)),
     publish: async (input, host) => publishFoundryEvidence(host, locals, origin, input),
     finalize: async (input, host) => finalizeWorkspaceNode(host, files, finalizeInput.parse(input)) as Promise<PhaseInput>,
