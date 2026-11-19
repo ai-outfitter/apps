@@ -133,6 +133,99 @@
     }
   },
   {
+    "name": "DailyAppUpdates",
+    "kind": "query",
+    "story": "As a member, I want the app updates saved for a local calendar date across my Wikis, so that my personal brief can cite each reporting timezone and exact revision.",
+    "query": "query DailyAppUpdates($date: String!, $first: Int = 50, $after: String) {\n  dailyAppUpdates(date: $date, first: $first, after: $after) {\n    nodes {\n      id\n      slug\n      app\n      summary\n      complete\n      revision\n      timezone\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "2c0188e688b99f9af2db3c603016297f3b4fa2d2ca8f7bd89c32b39ceaf915a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "date"
+      ]
+    },
+    "mcp": {
+      "description": "Read dated app summaries and their Wiki revisions across authorized personal and organization scopes.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "dailyAppUpdates",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "dailyAppUpdates": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "app": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "summary": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "complete": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "PublishDocument",
     "kind": "mutation",
     "story": "As an editor, I want to publish an eligible revision, so that readers see reviewed content.",

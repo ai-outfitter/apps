@@ -1,3 +1,4 @@
+import { collectAppUpdates } from "./app-daily-updates";
 import { organizationRollup, projectRollup } from "./report-summary";
 import { z } from "zod";
 import type {AppIdentity} from "@ai-outfitter/app-sdk/server";
@@ -31,10 +32,12 @@ export async function savePersonalOverview(host:WorkflowHost<"interactive">,acto
    return {organizationSlug:row.organizationSlug,...parsed.data,dependencies:sortByOrder(parsed.data.dependencies,order.projects,item=>`${row.organizationSlug}:${z.object({projectId:z.string()}).parse(item).projectId}`)};
   });
  }catch{status="incomplete";reason="Organization report discovery failed or was incomplete; retry after source outcomes are available.";}
+ const appUpdates=await collectAppUpdates(host,actor,local.period,local.projects,runId);
+ if(appUpdates.some(row=>row.status==="incomplete"))status="incomplete";
  const goalContext=await capturePersonalGoalContext(host,actor,now);
  if(!goalContext.complete){status="incomplete";reason=[reason,...goalContext.errors].filter(Boolean).join(" ");}
  organizations=sortByOrder(organizations,order.organizations,row=>String(row.organizationSlug));
  const personalProjects=sortByOrder(local.projects,order.projects,row=>`personal:${row.projectId}`);
- const overview=await saveReportNote(host,actor,{level:"personal",subject:actor.owner.id,title:`Personal daily overview — ${local.period.date}`,period:local.period,runId,capturedAt:now,status,content:{summary:`${organizationRollup(organizations)}${personalProjects.length ? ` ${projectRollup(personalProjects)}` : ""}`,outcome:status==="complete"?"source-reports-captured":"source-reports-incomplete",personalProjects,organizations,goalContext,reason,coverage:"Current member-authorized installed Planning organization sources plus personal Planning projects. Organizations without Planning, external connectors and conversation history are outside this capture.",completeness:{sourceReads:status,history:"limited"}}});
+ const overview=await saveReportNote(host,actor,{level:"personal",subject:actor.owner.id,title:`Personal daily overview — ${local.period.date}`,period:local.period,runId,capturedAt:now,status,content:{appUpdates,summary:`${organizationRollup(organizations)}${personalProjects.length ? ` ${projectRollup(personalProjects)}` : ""}`,outcome:status==="complete"?"source-reports-captured":"source-reports-incomplete",personalProjects,organizations,goalContext,reason,coverage:"Current member-authorized installed Planning organization sources plus personal Planning projects. Organizations without Planning, external connectors and conversation history are outside this capture.",completeness:{sourceReads:status,history:"limited"}}});
  return {...local,overview,status};
 }

@@ -203,3 +203,43 @@ test('recent updates use descending timestamp/id pagination without bodies or ar
   assert.throws(()=>relatedType('Secret'),error=>error instanceof Response&&error.status===400);
  }finally{sqlite.close();}
 });
+
+test("daily app publication reaches the federated document with exact date, revision and coverage", async () => {
+ const {db,sqlite}=fixture();
+ try {
+  const {serveGraphql}=await import("@ai-outfitter/app-sdk/app-graphql");
+  const {documents}=await import("../src/documents/documents");
+  const {writeAppUpdate}=await import("@ai-outfitter/app-sdk/daily-update");
+  const {reportPeriodForDate}=await import("@ai-outfitter/app-sdk/daily-period");
+  const {parse,print}=await import("graphql");
+  const execute=(query:string,variables:Record<string,unknown>,operation:"query"|"mutation"="query")=>
+   serveGraphql({schema:graphqlSchema,query,variables,context:{database:db,identity:who},operation});
+  const host={call:async(op:string,request:any)=>{
+   if(op==="inference.generate")return {output:{summary:"Saved the revised design."}};
+   assert.equal(request.template,"wiki-map");
+   if(request.action==="graph.mutate")assert.equal(print(parse(request.input.query)),print(parse(documents.SaveGeneratedDocument.document as string)));
+   return execute(request.input.query,request.input.variables,request.action==="graph.mutate"?"mutation":"query");
+  }} as never;
+  const period=reportPeriodForDate("2026-11-18","Asia/Tokyo");
+  const record=()=>Promise.resolve({rows:[{revision:3}],complete:true});
+  await writeAppUpdate(host,{...who,installationId:"workshop"},"Workshop",period,"one",record);
+  await writeAppUpdate(host,{...who,installationId:"workshop"},"Workshop",period,"retry",record);
+  await writeAppUpdate(host,{...who,installationId:"onto"},"Onto",period,"two",async()=>{throw new Error("Source unavailable");});
+  const query=documents.DailyAppUpdates.document as string;
+  const read=async(date:string,after?:string)=>{
+   const answer=await execute(query,{date,first:1,...(after?{after}:{})});
+   assert.equal(answer.errors,undefined,JSON.stringify(answer));
+   return answer.data!.dailyAppUpdates as {nodes:{id:string;slug:string;revision:number;summary:string;app:string;complete:boolean;timezone:string}[];pageInfo:{endCursor:string;hasNextPage:boolean}};
+  };
+  const first=await read(period.date);
+  assert.ok(first.pageInfo.hasNextPage);
+  const second=await read(period.date,first.pageInfo.endCursor);
+  assert.equal(second.pageInfo.hasNextPage,false);
+  const rows=[...first.nodes,...second.nodes];
+  assert.deepEqual(rows.map(row=>[row.app,row.revision,row.complete,row.timezone]).sort(),[["Onto",1,false,"Asia/Tokyo"],["Workshop",1,true,"Asia/Tokyo"]]);
+  assert.equal(rows.find(row=>row.app==="Workshop")?.summary,"Saved the revised design.");
+  assert.deepEqual((await read("2026-11-17")).nodes,[]);
+  await archiveDocument(db,who,{id:first.nodes[0].id,revision:1});
+  assert.deepEqual((await read(period.date)).nodes,second.nodes);
+ }finally{sqlite.close();}
+});

@@ -61,7 +61,7 @@ export async function runReportChain(db:PlanningDatabase,host:Host,actor:AppIden
    completedIssues:((content.changes as {issues?:{id:string;title:string;currentStatus:string;updatedAt:number;updatedInWindow:boolean}[]}|undefined)?.issues??[]).filter(issue=>issue.currentStatus==="done"&&issue.updatedInWindow).map(issue=>({id:issue.id,title:issue.title,observedAt:issue.updatedAt})),
    omittedIssueObservations:(content.changes as {omittedIssues?:number}|undefined)?.omittedIssues??0,repositoryEvidence})});
  }
- let status=children.some(child=>child.status==="incomplete")?"incomplete":"complete";
+ let status:ReportChain["status"]=children.some(child=>child.status==="incomplete")?"incomplete":"complete";
  if(!includeOverview)return {period,projects:children,overview:null,status};
  const level=actor.owner.kind==="organization"?"organization":"personal";
  const appUpdates=level==="organization"?await collectAppUpdates(host,actor,period,children,runId):[];

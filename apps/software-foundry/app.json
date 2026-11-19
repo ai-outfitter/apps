@@ -47,6 +47,7 @@
         "connector.github.actions.dispatch",
         "connector.github.repositories.commit",
         "connector.github.pulls.read",
+        "connector.github.pulls.list",
         "connector.github.pulls.create",
         "connector.github.pulls.update",
         "connector.github.pulls.review-evidence",

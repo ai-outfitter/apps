@@ -1,6 +1,6 @@
 version: beta
 id: software-foundry-daily-update
-summary: Summarize the previous local calendar day in the organization Wiki.
+summary: Summarize the previous local calendar day in the owner’s Wiki.
 actors: {}
 triggers:
   - on: schedule
