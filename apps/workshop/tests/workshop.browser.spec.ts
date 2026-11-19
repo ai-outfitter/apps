@@ -32,6 +32,7 @@ test("seeded BOM keeps supplier links and scopes prices and power to the selecte
    .toHaveAttribute("href", "https://www.adafruit.com/product/3809");
   await rows.getByRole("link", {name: "Electronics sub-assembly"}).click();
   await page.locator("#project-bom").click();
+  await page.waitForURL(url => url.pathname.endsWith("/parts") && url.searchParams.has("item"));
   await page.reload();
   await expect(page.getByRole("heading", {name: "Bill of materials · Electronics sub-assembly"})).toBeVisible();
   await page.locator("#pricing summary").click();
