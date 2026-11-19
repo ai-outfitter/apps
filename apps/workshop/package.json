@@ -55,7 +55,11 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0"
+    "@types/react-dom": "^19.3.0",
+    "@ai-sdk/mcp": "2.0.91",
+    "@ai-sdk/openai": "4.0.111",
+    "ai": "7.0.163",
+    "@vercel/agent-eval": "2.6.0"
   },
   "outfitter": {
     "kind": "app",

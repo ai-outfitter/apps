@@ -46,3 +46,5 @@ one GraphQL mutation and answers the run at once; `WorkshopDesignRun` reads it
 until the project revision is saved. Both are published to MCP clients, and
 the platform's `StartTasks` starts the same `workshop-design` task. See
 [box/README.md](box/README.md) for the evals that drive this path.
+
+The [assembly file MCP eval](agent-evals/mcp/evals/attach-assembly-files/README.md) runs a live agent through discovery, file uploads, a concurrent edit and stored-byte verification using Vercel Agent Eval.

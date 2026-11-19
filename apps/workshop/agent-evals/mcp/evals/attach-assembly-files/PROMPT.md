@@ -1,0 +1,1 @@
+I build field instruments. In the named Workshop project, add the supplied STL as the display model for the Probe spacer and its STEP file as a fabrication download. The STL uses local millimeters. A teammate is adjusting another part while you work. Keep their edit. Verify both stored files against the originals and tell me the saved revision.
