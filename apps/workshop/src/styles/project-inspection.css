@@ -44,6 +44,8 @@
  .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
  .workspace[data-section="overview"] .model-stage canvas {height:clamp(200px,calc(43svh - 48px),400px);min-height:0;border-radius:10px 10px 0 0}
  .workspace[data-section="overview"] .model-stage .stage-bar {position:relative;order:1;inset:auto;max-width:none;padding:6px;justify-content:flex-end;border-top:1px solid var(--border)}
+ .workspace[data-section="overview"] .stage-bar :is(button,summary) {padding-inline:8px}
+ .workspace[data-section="overview"] .view-tools {gap:4px}
  .workspace #project-inspection {height:clamp(230px,43svh,480px)}
  .workspace #project-inspection [role="tab"] {padding-inline:8px}
 }
