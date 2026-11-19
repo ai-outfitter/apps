@@ -10,9 +10,9 @@
  display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
 }
 .workspace[data-section="overview"] .model-stage {position:relative;overflow:visible}
-.workspace[data-section="overview"] .model-stage canvas {height:var(--panel-height);border-radius:10px}
+.workspace[data-section="overview"] .model-stage canvas {height:calc(var(--panel-height) - 49px);border-radius:10px 10px 0 0}
 .workspace[data-section="overview"] .model-stage .stage-bar {
- max-width:calc(100% - 24px);position:absolute;z-index:2;bottom:12px;right:12px;padding:0;border:0;gap:6px;
+ position:relative;z-index:2;order:1;padding:6px;justify-content:flex-end;border:0;border-top:1px solid var(--border);gap:6px;
 }
 .workspace[data-section="overview"] .stage-bar :is(button,summary) {
  font-size:13px;min-height:36px;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;
@@ -43,7 +43,6 @@
  .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column}
  .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
  .workspace[data-section="overview"] .model-stage canvas {height:clamp(200px,calc(43svh - 48px),400px);min-height:0;border-radius:10px 10px 0 0}
- .workspace[data-section="overview"] .model-stage .stage-bar {position:relative;order:1;inset:auto;max-width:none;padding:6px;justify-content:flex-end;border-top:1px solid var(--border)}
  .workspace[data-section="overview"] .stage-bar :is(button,summary) {padding-inline:8px}
  .workspace[data-section="overview"] .view-tools {gap:4px}
  .workspace #project-inspection {height:clamp(230px,43svh,480px)}
