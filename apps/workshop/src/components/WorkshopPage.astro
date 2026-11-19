@@ -32,6 +32,7 @@ const links = SECTIONS.filter(page => !["parts", "power", "assembly"].includes(p
 }));
 ---
 <AppLayout
+  hideReferences={section === "overview"}
   persistKey={`workshop:${slug}:${section}:${Astro.url.search}`}
   name="Workshop"
   headerStyle="app"

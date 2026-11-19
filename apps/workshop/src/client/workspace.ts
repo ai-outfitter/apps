@@ -1,3 +1,4 @@
+import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import type { ResolvedAssembly } from "../lib/assembly-resolution";
 import { boxPlan } from "../model/cad-plan";
@@ -13,6 +14,7 @@ import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
 import { fileBase, filePath, fileType } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
+import { inspectionTree, projectInspection } from "./project-inspection";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
 if(!root)return;
@@ -35,7 +37,7 @@ const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
  if(source.parameters)params.set("parameters",JSON.stringify(source.parameters));
  return appBase(location.pathname)+projectPath(source.projectId.slice(-12),"assembly")+(params.size?"?"+params:"");
 };
-const urlFor = (section: "models" | "assembly" | "parts" | "power", item?: string) => {
+const urlFor = (section: "overview" | "models" | "assembly" | "parts" | "power", item?: string) => {
  const params = new URLSearchParams(selection);
  if (item) params.set("item", item);
  if (section === "assembly" && query.get("view") === "top") params.set("view","top");
@@ -55,6 +57,35 @@ function renderCatalog() {
 }
 let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
+const overview = section === "overview";
+let renderedPowerFor: string | undefined;
+function describeInspection(tab: string) {
+ agentPage("workshop").describe({title: project.name, state: {
+  tab, projectId: project.id, revision: project.revision,
+  ...(selected && {selectedItem: {id: selected.id, name: selected.name, number: selected.number}}),
+ }});
+}
+const inspection = overview ? projectInspection($("project-inspection"), tab => {
+ describeInspection(tab);
+ if (tab === "bom") renderBom();
+ if (tab === "power" && renderedPowerFor !== inspectedAssembly().rootId) {
+  renderPower();
+  renderedPowerFor = inspectedAssembly().rootId;
+ }
+}) : undefined;
+if (inspection) {
+ $("pane-description").append($("project-brief"), $("revision-label"));
+ $("pane-selected").append($("item-details"), $("isolate-item"), $("open-component"));
+ $("pane-bom").append($("bom-panel"));
+ $("pane-power").append($("power-panel"));
+ $("motion-popover").append($("motion-controls"), $("drive-turns"), $("drive-review-status"), $("motion-preview"));
+ $("show-all").hidden = true;
+ $("motion-reset").hidden = true;
+}
+function inspectedAssembly() {
+ const item = inspection && selected?.kind === "assembly" ? selected.id : query.get("item");
+ return modelView(assembly, item);
+}
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
 if (section === "assembly" || section === "overview") {
  try {
@@ -79,10 +110,10 @@ let savedAxes: NonNullable<ReturnType<typeof installedDriveMotion>>["axes"] | un
 let savedRotations: PlacedRotation[]=[];
 let motionGeneration=0;
 // The trigger and shelf picker sit beside the viewer; the review record stays below it. Both show and hide together.
-const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible;};
+const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible; if(inspection) $("motion-menu").hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
-const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
+const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
 $("motion-reset").onclick=()=>{stopMotion();applyMotion(0);$<HTMLSelectElement>("motion-level").value="";};
@@ -119,7 +150,7 @@ function descendants(item: Item) {
 let selectionPath: string | undefined;
 function select(item:Item, path?:string){
  selectionPath=path;
- selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+ selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor(overview ? "overview" : "assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
 if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
 a.href=sourceUrl(source);details.append(a);}
 if(item.uses.length){
@@ -127,7 +158,7 @@ if(item.uses.length){
  for(const {item:child,labels} of assemblyChildren(assembly,item.id)){
    const button=element("button",child.name+(labels.length ? " · "+labels.join(", ") : ""));
    button.onclick=()=>{
-     select(child,path);
+     select(child);
    };
    children.append(button);
  }
@@ -149,7 +180,14 @@ for (const file of item.files ?? []) {
  }
 }
 appendPartSource(details, item.source);
-$<HTMLDetailsElement>("inspector").open = true;
+if (inspection) {
+ const scope = inspectedAssembly();
+ $("tab-bom").hidden = legacy ? !project.parts.length : !assemblyChildren(scope).length;
+ $("tab-power").hidden = !assembly.power || (scope.rootId !== assembly.rootId && !bomRows(scope).some(row => row.item.power?.loads.length));
+ $("tab-selected").hidden = false;
+ inspection.open("selected");
+ if (root?.contains(document.activeElement) && document.activeElement?.closest("#project-inspection")) $("tab-selected").focus({preventScroll:true});
+} else $<HTMLDetailsElement>("inspector").open = true;
 }
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 function itemPrice(item: Item) {
@@ -169,7 +207,7 @@ function appendPartSource(container: HTMLElement, source: string) {
  container.append(link);
 }
 function renderBom(){
- if (!assembly || section!=="parts") return;
+ if (!assembly || (!inspection && section!=="parts")) return;
  $("bom-view").hidden = legacy;
  if(legacy){
   const total=project.parts.reduce((sum,part)=>sum+part.unitCost*part.quantity,0);
@@ -184,7 +222,8 @@ function renderBom(){
   }));
   return;
  }
- const view=modelView(assembly,query.get("item"));
+ const view = inspectedAssembly();
+ if (inspection) $("bom-heading").textContent = assembly.items.find(i => i.id === view.rootId)?.name ?? "Bill of materials";
  const {knownSubtotal,estimatedSubtotal,unpricedUnits}=buildPrice(view);
  $("bom-price").textContent=!assembly.rootId ? "No assembly selected." :
    `${unpricedUnits?"Partial one-build subtotal":"One-build price"} ${usd.format(knownSubtotal+estimatedSubtotal)} · ${usd.format(knownSubtotal)} known · ${usd.format(estimatedSubtotal)} estimated · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`;
@@ -196,7 +235,7 @@ function renderBom(){
   const title = element("div", "");
   const link = document.createElement("a");
   link.textContent = item.name;
-  link.href = urlFor("assembly", item.id);
+  link.href = urlFor(overview ? "overview" : "assembly", item.id);
   title.append(link, element("small", `${"↳ ".repeat(Math.min(depth, 3))}${item.number} · ${item.revision}`));
   const info = element("div", item.kind);
   const price = element("span", " · " + itemPrice(item));
@@ -207,7 +246,26 @@ function renderBom(){
   return row;
  }));
 }
+function renderPower() {
+ renderPowerPanel($("power-panel"),assembly,inspectedAssembly().rootId,
+  !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
+   const editable = structuredClone(project.assembly);
+   if (resolved) {
+    for (const local of editable.items) {
+     if (local.power) local.power = next.items.find(i=>i.id===local.id)?.power;
+    }
+   }
+   const saved = resolved ? editable : next;
+   const receipt=await request(`/api/apps/workshop/projects/${project.id}/assembly`,"PUT",{expectedRevision:project.revision,assembly:saved});
+   project.revision=receipt.revision;
+   project.assembly=saved;
+   assembly=next;
+   if(resolved)resolved.assembly=next;
+   $("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
+  }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
+}
 function showBuild(run?:BuildRequest, snapshot=false){
+ renderedPowerFor = undefined;
  const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
  stopMotion();motion=undefined;motionOffset=0;showMotion(false);
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
@@ -241,22 +299,18 @@ function showBuild(run?:BuildRequest, snapshot=false){
  $("project-views").hidden=!root?.querySelector("#project-views a:not([hidden])");
  $("bom-panel").hidden = section !== "parts" || !hasBom;
  if (section === "parts" && !hasBom && assembly.rootId) notice("This model has no bill of materials.");
- if(section==="power") renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
-  !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
-   const editable = structuredClone(project.assembly);
-   if (resolved) {
-    for (const local of editable.items) {
-     if (local.power) local.power = next.items.find(i=>i.id===local.id)?.power;
-    }
-   }
-   const saved = resolved ? editable : next;
-   const receipt=await request(`/api/apps/workshop/projects/${project.id}/assembly`,"PUT",{expectedRevision:project.revision,assembly:saved});
-   project.revision=receipt.revision;
-   project.assembly=saved;
-   assembly=next;
-   if(resolved)resolved.assembly=next;
-   $("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
-  }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
+ if (inspection) {
+  describeInspection("components");
+  $("project-views").hidden = true;
+  if (focused) $("project-name").textContent = project.name + " / " + focused.name;
+  $("tab-bom").hidden = !hasBom;
+  $("tab-power").hidden = !hasPower;
+  $("bom-panel").hidden = false;
+  $("power-panel").hidden = false;
+  $("inspection-tree").replaceChildren(inspectionTree(view, !historical && resolved ? resolved.sources : [], sourceUrl, select));
+  if (!children.length) $("inspection-tree").textContent = "No child components";
+ }
+ if (section === "power") renderPower();
  if(selection.size && !historical) $("revision-label").textContent=`Source revision ${resolved?.revision ?? project.revision}${selection.get("configuration") ? " · "+selection.get("configuration") : ""}`;
  else if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
@@ -298,7 +352,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
   $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
   if(motion)applyMotion(0);
  });
- if(focused){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
+ if(focused && !inspection){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
  renderCatalog();
  $("component-summary").textContent = children.length ? `${children.length} immediate ${children.length===1?"component":"components"} · quantities in this assembly` : "No child components";
  $("component-tree").replaceChildren(...children.map(({item,quantity,labels})=>{
@@ -340,7 +394,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
  }
 
  if(manifest){const download=element("a","Download revision bundle") as HTMLAnchorElement;download.href=`/api/apps/workshop/projects/${project.id}/bundle?build=${run!.id}`;evidence.append(download);evidence.append(element("p",`${manifest.runner} · ${manifest.compiler}`),element("p",`Source commit: ${manifest.sourceCommit}`),element("p",manifest.notes));for(const t of manifest.tests)evidence.append(element("p",`${t.status.toUpperCase()} · ${t.name}: ${t.detail}`));}
- if(run?.result?.error)evidence.append(element("p",run.result.error));renderBom();
+ if(run?.result?.error)evidence.append(element("p",run.result.error));
+ if(section==="parts") renderBom();
 }
 function render(){
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
@@ -356,7 +411,7 @@ function render(){
  showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
 $("top-view").onclick=()=>viewer?.topView();
-$("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected)viewer?.isolate(descendants(selected),selectionPath);};
+$("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();if(inspection)$("show-all").hidden=true;$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected){viewer?.isolate(descendants(selected),selectionPath);if(inspection)$("show-all").hidden=false;}};
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
 if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";

@@ -1,0 +1,47 @@
+.workspace[data-section="overview"] {
+ --panel-height: clamp(420px, 70vh, 800px);
+}
+.workspace[data-section="overview"] #model-panel > :is(.toolbar,details,form,#assembly-references,#assembly-parents),
+.workspace[data-section="overview"] #assembly-viewer[data-ready="true"]:not([data-empty]) + #assembly-status,
+.workspace[data-section="overview"] #top-view { display:none }
+.workspace[data-section="overview"] .model-layout {
+ display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
+}
+.workspace[data-section="overview"] .model-stage {position:relative;overflow:visible}
+.workspace[data-section="overview"] .model-stage canvas {height:var(--panel-height);border-radius:10px}
+.workspace[data-section="overview"] .model-stage .stage-bar {
+ position:absolute;z-index:2;bottom:12px;right:12px;padding:0;border:0;gap:6px;
+}
+.workspace[data-section="overview"] .stage-bar :is(button,summary) {
+ font-size:13px;min-height:36px;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;
+ background:var(--surface);color:var(--text);padding:8px 12px;
+}
+.workspace #motion-menu {margin:0;padding:0;border:0}
+.workspace #motion-popover {position:absolute;right:0;bottom:calc(100% + 6px);width:min(320px,78vw);max-height:36vh;
+ overflow:auto;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.workspace #project-inspection {height:var(--panel-height);max-height:none;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.workspace #project-inspection [role="tablist"] {display:flex;flex:none;gap:2px;overflow:auto;border-bottom:1px solid var(--border)}
+.workspace #project-inspection [role="tab"] {border:0;border-radius:0;border-bottom:2px solid transparent;padding:8px 6px;min-width:max-content;
+ background:transparent;color:var(--muted);font-size:14px}
+.workspace #project-inspection [role="tab"][aria-selected="true"] {border-color:var(--text);color:var(--text);font-weight:650}
+.workspace #project-inspection [role="tabpanel"] {overflow:auto;min-height:0;overflow-wrap:anywhere;padding:12px 2px}
+.workspace #project-inspection #project-brief {margin:0 0 1rem;color:var(--text)}
+.workspace #project-inspection #power-panel {padding:0;margin:0;border:0;background:none}
+.workspace #project-inspection h2 {font-size:18px}
+.workspace #project-inspection #bom-panel .toolbar {align-items:start;flex-direction:column;gap:4px}
+.workspace #project-inspection .bom-row {grid-template-columns:1fr auto;gap:4px;padding:10px}
+.workspace #project-inspection .bom-row > div:last-child {grid-column:1/-1}
+.workspace #inspection-tree ul {padding:0;margin:0;list-style:none}
+.workspace #inspection-tree ul ul {margin-left:14px;padding-left:8px;border-left:1px solid var(--border)}
+.workspace .tree-line {position:relative;padding:8px 0 10px 28px;border-bottom:1px solid var(--border)}
+.workspace .tree-line button {padding:0;min-height:32px;border:0;background:transparent;text-align:left;font-weight:550}
+.workspace .tree-line .tree-toggle {position:absolute;left:0;width:26px;text-align:center;color:var(--muted)}
+.workspace .tree-line a {font-size:13px}
+.workspace #pane-selected > a {margin-left:10px}
+@media(max-width:900px){
+ .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column}
+ .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
+ .workspace[data-section="overview"] .model-stage canvas {height:clamp(230px,43svh,440px);min-height:0}
+ .workspace #project-inspection {height:clamp(230px,43svh,480px)}
+ .workspace #project-inspection [role="tab"] {padding-inline:8px}
+}

@@ -1,4 +1,6 @@
 ---
+import ProjectInspection from "./ProjectInspection.astro";
+import "../styles/project-inspection.css";
 interface Props { slug:string; section:string }
 const {slug,section}=Astro.props;
 ---
@@ -22,6 +24,7 @@ const {slug,section}=Astro.props;
       <div class="model-stage workspace-card">
         <div class="stage-bar">
           <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div>
+          {section === "overview" && <details id="motion-menu" hidden><summary>Motion</summary><div id="motion-popover"></div></details>}
           <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
             <strong id="motion-heading">Unverified motion study</strong>
             <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
@@ -33,7 +36,8 @@ const {slug,section}=Astro.props;
         <p id="drive-turns" role="status" hidden></p>
         <p id="drive-review-status" hidden>Mechanical review: incomplete. Animation does not establish a working drive.</p>
       </div>
-      <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
+      {section === "overview" && <ProjectInspection />}
+      <aside id="assembly-components" class="workspace-card" hidden={section === "overview"}><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
     <p id="assembly-references" hidden></p>
     <div id="motion-preview" hidden>

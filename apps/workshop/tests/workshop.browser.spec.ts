@@ -12,8 +12,14 @@ test("inspect an assembly and open its BOM",async({page})=>{
  await expect(row.locator('svg.thumb polygon').first()).toBeVisible();
  await row.getByRole('link').click();await expect(page.locator('#assembly-viewer')).toHaveAttribute('data-ready','true',{timeout:60000});
  const canvas=page.locator('#assembly-viewer');const before=await canvas.screenshot();const box=(await canvas.boundingBox())!;await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.75,box.y+box.height*.65,{steps:12});await page.mouse.up();await page.waitForTimeout(300);expect(Buffer.compare(before,await canvas.screenshot())).not.toBe(0);
- await expect(page.locator('#project-power')).toBeHidden();
- await page.locator('#project-bom').click();
+ const model = await canvas.elementHandle();
+ const frame = await canvas.boundingBox();
+ await expect(page.getByRole('tab',{name:'Power'})).toHaveCount(0);
+ await page.getByRole('tab',{name:'Description'}).click();
+ await expect(page.locator('#project-brief')).toBeVisible();
+ await page.getByRole('tab',{name:'BOM'}).click();
+ expect(await model!.evaluate(el => el === document.querySelector("#assembly-viewer"))).toBe(true);
+ expect(await canvas.boundingBox()).toEqual(frame);
  await expect(page.locator('.bom-row')).toContainText('M3 mounting screws');
  await expect(page.locator('#bom-price')).toBeHidden();
  await page.getByText('Pricing',{exact:true}).click();
@@ -41,6 +47,28 @@ test("seeded BOM keeps supplier links and scopes prices and power to the selecte
   await expect(page.getByRole("heading", {name: "Power · Electronics sub-assembly"})).toBeVisible();
  } finally {
   await page.unrouteAll({behavior: "ignoreErrors"});
+  await app.dispose();
+ }
+});
+
+test("project tabs keep a selected subassembly in view", async ({page}) => {
+ const app = await appWorker("workshop", appArtifact(new URL("..", import.meta.url), "demo"));
+ try {
+  await routeReadOnly(page, origin, app, {});
+  await page.goto(origin + "/projects/node-000000000106");
+  await page.getByRole("button", {name:"Electronics sub-assembly", exact:true}).click();
+  await expect(page.getByRole("tab", {name:"Selected"})).toHaveAttribute("aria-selected","true");
+  await page.getByRole("tab", {name:"BOM"}).click();
+  await page.locator("#pricing summary").click();
+  await expect(page.locator("#bom-price")).toContainText("$44.49 estimated");
+  await page.getByRole("tab", {name:"Power"}).click();
+  await expect(page.locator("#power-panel h2")).toContainText("Electronics sub-assembly");
+  await page.getByRole("tab", {name:"Selected"}).click();
+  await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
+  await page.getByRole("button",{name:"Back to components"}).click();
+  await expect(page.getByRole("tab",{name:"Components"})).toBeFocused();
+ } finally {
+  await page.unrouteAll({behavior:"ignoreErrors"});
   await app.dispose();
  }
 });

@@ -84,7 +84,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   camera.up.set(0, 0, 1);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
+  // Keep the inspection angle fixed as soon as the user releases the model.
   scene.add(new THREE.AmbientLight("#ffffff", 2));
   const light = new THREE.DirectionalLight("#fff8e9", 3);
   light.position.set(80, -120, 240);
@@ -218,6 +218,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     isolatedPath=undefined;
     canvas.dataset.ready = "false";
     const list = placements(assembly);
+    canvas.toggleAttribute("data-empty", !list.length);
     if (!list.length) {
       clear();
       frame = undefined;
