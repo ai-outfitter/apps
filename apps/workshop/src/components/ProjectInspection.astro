@@ -1,17 +1,18 @@
 ---
 const tabs = [
-  ["components", "Components"], ["description", "Description"], ["bom", "BOM"],
+  ["description", "Description"], ["components", "Components"], ["bom", "BOM"],
   ["power", "Power"], ["selected", "Selected"],
 ];
+const initialTab = tabs[0][0];
 ---
 <aside id="project-inspection" aria-label="Project inspection">
   <div role="tablist" aria-label="Project information">
     {tabs.map(([id, label]) => <button type="button" role="tab" id={`tab-${id}`} aria-controls={`pane-${id}`}
-      aria-selected={id === "components" ? "true" : "false"} tabindex={id === "components" ? 0 : -1}
+      aria-selected={id === initialTab ? "true" : "false"} tabindex={id === initialTab ? 0 : -1}
       hidden={["bom","power","selected"].includes(id)}>{label}</button>)}
   </div>
   {tabs.map(([id]) => <section role="tabpanel" id={`pane-${id}`} aria-labelledby={`tab-${id}`}
-    hidden={id !== "components"} tabindex="0">
+    hidden={id !== initialTab} tabindex="0">
     {id === "components" && <div id="inspection-tree"></div>}
     {id === "selected" && <button id="back-components" type="button">Back to components</button>}
   </section>)}

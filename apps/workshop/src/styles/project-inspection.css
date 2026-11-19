@@ -1,5 +1,7 @@
+.ui-content:has(.workspace[data-section="overview"]),
+.workspace[data-section="overview"] {max-width:none}
 .workspace[data-section="overview"] {
- --panel-height: clamp(420px, 70vh, 800px);
+ --panel-height: max(420px, calc(100svh - 200px));
 }
 .workspace[data-section="overview"] #model-panel > :is(.toolbar,details,form,#assembly-references,#assembly-parents),
 .workspace[data-section="overview"] #assembly-viewer[data-ready="true"]:not([data-empty]) + #assembly-status,

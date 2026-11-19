@@ -300,7 +300,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  $("bom-panel").hidden = section !== "parts" || !hasBom;
  if (section === "parts" && !hasBom && assembly.rootId) notice("This model has no bill of materials.");
  if (inspection) {
-  describeInspection("components");
+  describeInspection($("project-inspection").querySelector('[aria-selected="true"]')!.id.slice(4));
   $("project-views").hidden = true;
   if (focused) $("project-name").textContent = project.name + " / " + focused.name;
   $("tab-bom").hidden = !hasBom;

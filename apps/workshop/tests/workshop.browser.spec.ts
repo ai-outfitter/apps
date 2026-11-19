@@ -15,7 +15,7 @@ test("inspect an assembly and open its BOM",async({page})=>{
  const model = await canvas.elementHandle();
  const frame = await canvas.boundingBox();
  await expect(page.getByRole('tab',{name:'Power'})).toHaveCount(0);
- await page.getByRole('tab',{name:'Description'}).click();
+ await expect(page.getByRole('tab',{name:'Description'})).toHaveAttribute('aria-selected','true');
  await expect(page.locator('#project-brief')).toBeVisible();
  await page.getByRole('tab',{name:'BOM'}).click();
  expect(await model!.evaluate(el => el === document.querySelector("#assembly-viewer"))).toBe(true);
@@ -56,6 +56,7 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
  try {
   await routeReadOnly(page, origin, app, {});
   await page.goto(origin + "/projects/node-000000000106");
+  await page.getByRole("tab", {name:"Components"}).click();
   await page.getByRole("button", {name:"Electronics sub-assembly", exact:true}).click();
   await expect(page.getByRole("tab", {name:"Selected"})).toHaveAttribute("aria-selected","true");
   await page.getByRole("tab", {name:"BOM"}).click();
