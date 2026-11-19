@@ -73,14 +73,14 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   }
   await page.getByRole("tab", {name:"Selected"}).click();
   await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
-  await page.getByRole("button",{name:"Back to components"}).click();
+  await page.getByRole("tab",{name:"Components"}).click();
   await expect(page.getByRole("tab",{name:"Components"})).toBeFocused();
   await page.getByRole("tab", {name:"Selected"}).click();
   await page.locator("#item-details").getByRole("button", {name:/ESP32/}).click();
   await expect(page.getByRole("tab", {name:"BOM"})).toHaveCount(0);
   await page.getByRole("tab", {name:"Power"}).click();
   await expect(page.locator("#power-panel h2")).toContainText("ESP32");
-  await page.getByRole("button", {name:"Show all",exact:true}).click();
+  await page.getByRole("button", {name:"Clear selection",exact:true}).click();
   await expect(page.getByRole("tab", {name:"Selected"})).toHaveCount(0);
   await page.getByRole("tab", {name:"BOM"}).click();
   await expect(page.locator("#bom-price")).toContainText("$70.85 estimated");

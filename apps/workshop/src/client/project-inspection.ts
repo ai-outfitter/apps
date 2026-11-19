@@ -26,10 +26,6 @@ export function projectInspection(host: HTMLElement, onOpen: (name: string) => v
    target.click();
   };
  }
- host.querySelector<HTMLButtonElement>("#back-components")!.onclick = () => {
-  open("components");
-  host.querySelector<HTMLButtonElement>("#tab-components")!.focus();
- };
  return {open};
 }
 

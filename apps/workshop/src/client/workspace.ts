@@ -115,7 +115,7 @@ let motionGeneration=0;
 const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible; if(inspection) $("motion-menu").hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
-const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
+const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Offset from saved pose · ${Number(offset.toFixed(1))} mm`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
 $("motion-reset").onclick=()=>{stopMotion();applyMotion(0);$<HTMLSelectElement>("motion-level").value="";};
@@ -152,20 +152,50 @@ function descendants(item: Item) {
 let selectionPath: string | undefined;
 function select(item:Item, path?:string){
  selectionPath=path;
- selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor(overview ? "overview" : "assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
-if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
-a.href=sourceUrl(source);details.append(a);}
-if(item.uses.length){
- const children=element("div",""); children.className="inspection-children";
- for(const {item:child,labels} of assemblyChildren(assembly,item.id)){
-   const button=element("button",child.name+(labels.length ? " · "+labels.join(", ") : ""));
-   button.onclick=()=>{
-     select(child, path);
-   };
-   children.append(button);
+ selected=item;
+ viewer?.select(descendants(item),path,item.id);
+ $("isolate-item").hidden=!viewer;
+ $("selected-name").textContent=item.name;
+ $("selected-meta").textContent=[item.kind, "Rev "+item.revision].join(" · ");
+ const details=$("selected-body");
+ details.replaceChildren();
+ if(item.notes) details.append(element("p",item.notes));
+ const facts=element("dl","");
+ details.append(facts);
+ function fact(label:string,value:HTMLElement|string){
+   const entry=element("dd","");
+   entry.append(value);
+   facts.append(element("dt",label),entry);
  }
- details.append(children);
-}
+ const model=element("a",item.number) as HTMLAnchorElement;
+ model.href=urlFor(overview ? "overview" : "assembly",item.id);
+ model.setAttribute("aria-label","Open model "+item.number);
+ fact("Model",model);
+ fact("Geometry",item.provenance);
+ fact("Unit price",itemPrice(item));
+ const supplier=element("span","");
+ appendPartSource(supplier,item.source);
+ if(supplier.childElementCount) fact("Supplier",supplier);
+ const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+ if(source){
+   const link=element("a",source.name+" · Rev "+source.revision+(source.configuration ? " · "+source.configuration : "")) as HTMLAnchorElement;
+   link.href=sourceUrl(source);
+   fact("Source model",link);
+ }
+ const children=assemblyChildren(assembly,item.id);
+ if(children.length){
+   const list=element("div","");
+   list.className="inspection-children";
+   details.append(element("h4","Components"),list);
+   for(const {item:child,quantity,labels} of children){
+     const button=element("button",child.name);
+     if(labels.length) button.title=labels.join(", ");
+     button.append(element("small","×"+quantity));
+     button.onclick=()=>select(child,path);
+     list.append(button);
+   }
+ }
+if(item.files?.length) details.append(element("h4","Files"));
 for (const file of item.files ?? []) {
  const url=appBase(location.pathname)+fileBase(file)+filePath(file);
  const link=document.createElement("a");
@@ -181,10 +211,10 @@ for (const file of item.files ?? []) {
    image.src=url; image.alt=file.fileName; image.style.maxWidth="100%"; details.append(image);
  }
 }
-appendPartSource(details, item.source);
 if (inspection) {
  updateBudgetTabs(inspectedAssembly());
  $("tab-selected").hidden = false;
+ $("show-all").textContent = viewer?.isolated ? "Show all" : "Clear selection";
  $("show-all").hidden = false;
  inspection.open("selected");
  if (root?.contains(document.activeElement) && document.activeElement?.closest("#project-inspection")) $("tab-selected").focus({preventScroll:true});
@@ -272,6 +302,7 @@ function renderPower() {
 }
 function showBuild(run?:BuildRequest, snapshot=false){
  selected = undefined;
+ $("isolate-item").hidden=true;
  selectionPath = undefined;
  if (inspection) {
   $("tab-selected").hidden = true;
@@ -358,13 +389,17 @@ function showBuild(run?:BuildRequest, snapshot=false){
   }
   showMotion(Boolean(motion));
   $("motion-heading").textContent=savedRotations.length?"Saved assembly motion":"Unverified motion study";
-  $("drive-review-status").textContent=savedRotations.length?"Motion uses the saved build’s shafts, pulleys and carriage geometry. Physical load and safety testing remain separate acceptance gates.":"Mechanical review: incomplete. Animation does not establish a working drive.";
+  if(motion){
+   const span=motion.levels.at(-1)!.offset-motion.levels[0].offset;
+   $("drive-review-status").textContent=savedRotations.length
+     ? `${motion.levels.length} saved positions across ${Number(span.toFixed(1))} mm of travel.`
+     : "Preview the proposed drive across its shelf positions.";
+  }
   $("drive-inspection-controls").hidden=Boolean(motionArtifact || inline);
   driveReview=motion && !motionArtifact && !inline?arteraDriveReview(assembly,view):undefined;
   $("drive-findings").replaceChildren(...(driveReview?.findings??[]).map(finding=>element("li",finding)));
   const inspect=$<HTMLInputElement>("inspect-drive");inspect.checked=false;inspect.disabled=!driveReview?.drives.length;
-  $("drive-turns").textContent="Z shaft turns from saved pose: 0.00 · X and Y held stationary";
-  const prompt=element("option","Choose a shelf") as HTMLOptionElement;prompt.value="";
+  const prompt=element("option","Choose position") as HTMLOptionElement;prompt.value="";
   $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
   if(motion)applyMotion(0);
  });
@@ -437,6 +472,7 @@ $("show-all").onclick = () => {
  viewer?.isolate();
  viewer?.select();
  selected = undefined;
+ $("isolate-item").hidden=true;
  selectionPath = undefined;
  if (!inspection) $<HTMLDetailsElement>("inspector").open = false;
  if (inspection) {
@@ -447,7 +483,12 @@ $("show-all").onclick = () => {
  }
 };
 $("isolate-item").onclick = () => {
- if (selected) viewer?.isolate(descendants(selected), selectionPath);
+ if (selected) {
+  viewer?.isolate(descendants(selected), selectionPath);
+  $("isolate-item").hidden=true;
+  $("show-all").textContent = "Show all";
+  $("show-all").focus({preventScroll:true});
+ }
 };
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;

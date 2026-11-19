@@ -27,14 +27,16 @@ const MotionContainer = overview ? "details" : "div";
     <div class="model-layout">
       <div class="model-stage workspace-card">
         <div class="stage-bar">
-          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all" hidden={overview}>Show all</button></div>
+          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden={overview}>Show all</button></div>
           <MotionContainer id={overview ? "motion-menu" : undefined} hidden={overview}>
             {overview && <summary>Motion</summary>}
             <div id={overview ? "motion-popover" : undefined}>
               <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
                 <strong id="motion-heading">Unverified motion study</strong>
-                <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
+                <p id="drive-review-status" hidden></p>
+                <label><span class="visually-hidden">Target position</span><select id="motion-level"></select></label>
                 <button id="motion-play">Play motion</button><button id="motion-reset" hidden={overview}>Reset pose</button>
+                <small id="drive-turns" hidden></small>
               </div>
             {overview && <MotionDetails />}
             </div>
