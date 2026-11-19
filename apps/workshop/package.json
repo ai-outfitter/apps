@@ -41,7 +41,8 @@
     "@astrojs/react": "^7.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "@ai-outfitter/creative-workflow": "*"
+    "@ai-outfitter/creative-workflow": "*",
+    "@ai-outfitter/workflow-workshop-daily-update": "0.1.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

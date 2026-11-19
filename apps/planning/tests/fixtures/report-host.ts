@@ -9,6 +9,11 @@ export function reportHost(installationId="wiki",platformRead:()=>Promise<unknow
   if(operation==="entities.types")return input.template==="onto"?["graph-type","graph-node","graph-edge"].map(type=>({type,installationId,template:"onto",writable:true})):[];
   if(operation==="actions.list")return [{installationId,actions:[{name:"graph.describe",access:"read",permitted:true}]}];
   if(operation==="actions.call"){
+   if(input.action==="graph.graphql" && input.input.query.includes("query DailyUpdates")){
+    if(input.template==="software-foundry")return {data:{changes:{changes:[],complete:true}}};
+    const field=input.template==="workshop"?"workshopProjects":"changeBatches";
+    return {data:{[field]:{nodes:[],pageInfo:{endCursor:null,hasNextPage:false}}}};
+   }
    // Documents reach the owner's Wiki by package name; graph records still name their installation.
    if(input.template!==undefined)assert.equal(input.template,"wiki-map","documents go to the owner's Wiki package");
    else assert.equal(input.installationId,installationId,"a report writes only its scoped Wiki");
@@ -31,7 +36,7 @@ export function reportHost(installationId="wiki",platformRead:()=>Promise<unknow
    const id=crypto.randomUUID();pages.set(value.slug,id);documents.set(id,{id,revision:1,generatedBody:"",body:value.body,archived:false});
    return {data:{saveDocument:{id,revision:1,publishedRevision:null}}};
   }
-  if(operation==="schedules")return [];
+  if(operation==="schedules")return [{id:"daily",timezone:"America/Chicago"}];
   if(operation==="platform.document")return platformRead();
   if(operation==="workflow.start")return {id:input.id,workflow:input.workflow,created:true};
   if(operation==="workflow.collect")return {run:{},steps:[]};

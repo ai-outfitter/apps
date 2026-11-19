@@ -74,7 +74,8 @@
         "entities.read",
         "entities.write",
         "actions.invoke",
-        "platform.records"
+        "platform.records",
+        "workflow.software-foundry-daily-update.start"
       ]
     }
   },
@@ -93,7 +94,7 @@
     "presentation": {
       "outcome": "Turn your backlog into reviewed, tested changes your team can ship.",
       "connectors": [
-        "GitHub App · selected repositories"
+        "GitHub App \u00b7 selected repositories"
       ],
       "workflow": "issue-to-review",
       "access": "Actors would receive access only to approved repositories and actions. Creating a draft pull request would not grant merge or repository administration access.",

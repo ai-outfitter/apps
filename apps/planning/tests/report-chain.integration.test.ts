@@ -1,3 +1,4 @@
+import { writeAppUpdate } from "@ai-outfitter/app-sdk/daily-update";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {fileURLToPath} from "node:url";
@@ -18,6 +19,15 @@ const organization:AppIdentity={installationId:"planning-org",userId:"member",or
 const personal:AppIdentity={installationId:"planning-personal",userId:"member",owner:{kind:"user",id:"member"},role:"owner",canEdit:true};
 const fields={name:"Launch",githubRepository:"",goals:"",userStories:"",pressRelease:"",demoInstructions:"",demoResults:""};
 const now=Date.parse("2026-11-02T14:00:00Z");
+async function publishAppUpdates(fixture:ReturnType<typeof reportHost>){
+ for(const app of ["Workshop","Software Foundry","Onto"]){
+  const start=fixture.calls.length;
+  const identity={...organization,installationId:app+"-installation"};
+  await writeAppUpdate(fixture.host,identity,app,previousReportPeriod(now),crypto.randomUUID(),async()=>({rows:[],complete:true}));
+  const write=fixture.calls.slice(start).find(call=>call.input.input?.query?.includes("mutation SaveGeneratedDocument"));
+  assert.equal(write?.input.input.variables.input.provenance.installationId,identity.installationId);
+ }
+}
 async function setup(){const client=createClient({url:":memory:"}),db=drizzle(client);await migrate(db,{migrationsFolder:fileURLToPath(new URL("../migrations",import.meta.url))});return {client,db};}
 
 test("calendar capture filters actual previous-day records, persists project then org, and revises changed generated input",async()=>{
@@ -26,7 +36,10 @@ test("calendar capture filters actual previous-day records, persists project the
   const work=await planning.createIssue(db,organization,{projectId:target.id,title:"Yesterday work",description:"",category:"stone",status:"done",assigneeId:null,dueDate:null,parentId:null},[]);
   await db.update(projects).set({createdAt:period.start-100,updatedAt:period.start-100}).where(eq(projects.id,target.id));
   await db.update(issues).set({createdAt:period.start,updatedAt:period.end-1}).where(eq(issues.id,work.id));
-  const {host,documents,calls}=reportHost();
+  const fixture=reportHost();
+  await publishAppUpdates(fixture);
+  const {host,documents,calls}=fixture;
+  const planningStart=calls.length;
   const first=await runReportChain(db,host,organization,[{...target,createdAt:period.start-100,updatedAt:period.start-100}],"run-1",{now});
   assert.equal(first.period.end-first.period.start,25*3600000,"fall-back day is 25 hours");
   assert.equal(first.status,"complete");
@@ -37,9 +50,10 @@ test("calendar capture filters actual previous-day records, persists project the
   const projectRead=await readDailyReport(host,organization,{date:period.date,level:"project",subject:target.id});
   assert.match(JSON.stringify(projectRead),/Yesterday work/);
   assert.match(JSON.stringify(report),/"history":"limited"/);
-  const generated=calls.filter(call=>call.input.input?.query?.includes("mutation SaveGeneratedDocument"));
+  const generated=calls.slice(planningStart).filter(call=>call.input.input?.query?.includes("mutation SaveGeneratedDocument"));
   assert.equal(generated[0].input.input.variables.input.slug,first.projects[0].report?.slug);
-  assert.equal(generated[1].input.input.variables.input.slug,first.overview?.slug);
+  assert.deepEqual((report.appUpdates as {app:string}[]).map(update=>update.app),["Workshop","Software Foundry","Planning","Onto"]);
+  assert.equal(generated.at(-1)!.input.input.variables.input.slug,first.overview?.slug);
   const unchanged=await runReportChain(db,host,organization,[{...target,createdAt:period.start-100,updatedAt:period.start-100}],"run-2",{now});
   assert.equal(unchanged.projects[0].report?.revision,first.projects[0].report?.revision);
   const projectDoc=documents.get(first.projects[0].report!.documentId)!;projectDoc.body="Keep authored notes";
@@ -67,6 +81,7 @@ test("calendar capture filters actual previous-day records, persists project the
 test("personal overview reads pinned organization outcomes, never writes org Wiki, and records missing dependencies as incomplete",async()=>{
  const {client,db}=await setup();try{
   const orgHost=reportHost("org-wiki"),personalHost=reportHost("personal-wiki",async()=>({data:{dailyReports:[{ownerKind:"organization",ownerId:"org",planningInstallationId:organization.installationId,organizationSlug:"example",report:await readDailyReport(orgHost.host,organization,{date:previousReportPeriod(now).date})}]}}),now);
+  await publishAppUpdates(orgHost);
   await runReportChain(db,orgHost.host,organization,[],"org-run",{now});
   const local=await runReportChain(db,personalHost.host,personal,[],"personal-run",{now,includeOverview:false});
   const complete=await savePersonalOverview(personalHost.host,personal,local,"personal-run",now);
@@ -89,7 +104,7 @@ test("personal overview reads pinned organization outcomes, never writes org Wik
 test("an explicit daily recovery date keeps the same Wiki identity after midnight and new task dispatch",async()=>{
  const {client,db}=await setup();try{
   const project=await planning.createProject(db,organization,fields);
-  const fixture=reportHost();let anchor=Date.parse("2026-11-02T14:00:00Z");
+  const fixture=reportHost();await publishAppUpdates(fixture);let anchor=Date.parse("2026-11-02T14:00:00Z");
   const call=fixture.host.call.bind(fixture.host);
   fixture.host.call=(async(operation:string,input:any)=>operation==="workflow.read"?{run:{createdAt:anchor}}:call(operation as never,input as never)) as typeof fixture.host.call;
   await runDigestTask(db,fixture.host,organization,{runId:"77777777-7777-4777-8777-777777777777",task:"project-digest",inputs:{projectId:project.id,timezone:"America/Chicago"}});
@@ -105,7 +120,7 @@ test("an explicit daily recovery date keeps the same Wiki identity after midnigh
   assert.equal(after.projects[0].report.revision,before.projects[0].report.revision);
   assert.equal(after.overview.documentId,before.overview.documentId);
   assert.deepEqual(await db.select().from(digests),rolling,"historical recovery leaves rolling digest snapshots and cursor untouched");
-  assert.equal(fixture.calls.some(call=>call.operation==="inference.generate"),false,"historical recovery runs no current rolling-digest inference");
+  assert.equal(fixture.calls.some(call=>call.operation==="inference.generate" && call.input.data?.date!=="2026-11-01"),false,"historical recovery runs no current rolling-digest inference");
  }finally{client.close();}
 });
 

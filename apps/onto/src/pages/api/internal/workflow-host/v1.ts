@@ -1,3 +1,4 @@
+import {dailyUpdate,dailyWorkflow} from "../../../../server/daily-update";
 import { failExpiredReviewJobs, processReviewJob, reviewWorkflow } from "../../../../server/batch-review";
 import { ontoReviewJobs } from "../../../../server/schema";
 import { and, or, eq, lte, sql } from "drizzle-orm";
@@ -18,6 +19,7 @@ export const POST: APIRoute = ({ request, locals }) =>
       const identity = requestIdentity(request);
       const host = workflowHost<"schedule">(locals);
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
+      if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);
       if (schedule.workflowId === reviewWorkflow) {
         const now = Date.now();
         await failExpiredReviewJobs(installationDatabase(), now);
