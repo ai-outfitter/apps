@@ -37,6 +37,12 @@ test("an attachment preserves the saved assembly, checks the file and requires t
   assert.equal(receipt.status,"attached");
   assert.deepEqual(await upload(),receipt);
   assert.equal((await graph("VerifyWorkshopAssemblyFile",{input:verify})).file.sha256,input.sha256);
+  const saved=ProjectSchema.parse(await (await app.call("/api/apps/workshop/projects/"+project.id,member)).json());
+  const assembly=structuredClone(saved.assembly);
+  assembly.items[0].files![0].projectId=randomUUID();
+  await assert.rejects(graph("UpdateWorkshopAssembly",{projectId:project.id,expectedRevision:receipt.revision,assembly}),/UploadWorkshopAssemblyFile/);
+  const download=await app.call(receipt.file.downloadPath,member);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()),bytes);
   await assert.rejects(graph("UploadWorkshopAssemblyFile",{input:{...input,fileName:"other.step"}}),/changed/i);
  } finally {await app.dispose();}
 });
