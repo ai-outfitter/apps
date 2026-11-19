@@ -10,6 +10,8 @@ import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  UploadWorkshopAssemblyFile:{story:"As a designer, I want to attach a fabrication file to a saved item, so that members can inspect the original CAD and clips.",document:graphql(`mutation UploadWorkshopAssemblyFile($input:UploadWorkshopAssemblyFileInput!){uploadWorkshopAssemblyFile(input:$input)}`)},
+  VerifyWorkshopAssemblyFile:{story:"As a designer, I want to verify an attached file, so that I can confirm its stored bytes match my source.",document:graphql(`query VerifyWorkshopAssemblyFile($input:VerifyWorkshopAssemblyFileInput!){verifyWorkshopAssemblyFile(input:$input)}`)},
   SubmitWorkshopPcb: {
     story: "As a workspace agent, I want to publish a verified PCB package, so that members can review its board, quote and manufacturing files.",
     document: graphql(`mutation SubmitWorkshopPcb($input: SubmitWorkshopPcbInput!) { submitWorkshopPcb(input: $input) }`),
@@ -144,6 +146,8 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
   ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits." },
   WorkshopAssembly: { description: "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision." },
   UpdateWorkshopAssembly: { description: "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit." },
+  UploadWorkshopAssemblyFile:{description:"Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."},
+  VerifyWorkshopAssemblyFile:{description:"Supply projectId, itemId and fileName. Rehash the stored file and return verified digest, size, revision and installation-relative downloadPath."},
   SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
   CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },

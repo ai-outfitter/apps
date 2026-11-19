@@ -2,6 +2,8 @@ import type { Project } from "./project";
 
 /** A project's sections, one page each, in the order the sidebar lists them. */
 export const SECTIONS = [
+  { id: "overview", label: "Project", path: "" },
+  { id: "power", label: "Power", path: "/power" },
   { id: "pcb", label: "PCB review", path: "/pcb" },
   { id: "models", label: "Models and parts", path: "/models" },
   { id: "assembly", label: "Full assembly", path: "/assembly" },
@@ -31,7 +33,7 @@ export function projectSlug(p: Pick<Project, "id" | "name">) {
 export const slugId = (slug: string) => /(?:^|-)([0-9a-f]{12})$/.exec(slug)?.[1];
 
 /** A project section's path, relative to the app's base. */
-export function projectPath(slug: string, section: SectionId = "assembly") {
+export function projectPath(slug: string, section: SectionId = "overview") {
   return `/projects/${slug}${SECTIONS.find((s) => s.id === section)?.path ?? ""}`;
 }
 

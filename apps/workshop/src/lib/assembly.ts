@@ -1,5 +1,6 @@
 import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
+import { assemblyFile } from "./assembly-file";
 import { ArtifactPathSchema } from "./artifact";
 import { ItemPowerSchema, PowerSystemSchema, validateAssemblyPower } from "./power";
 import { Matrix4, Euler, Quaternion, Vector3 } from "three";
@@ -16,6 +17,8 @@ const url = z
   .max(2000)
   .refine((s) => !s || /^https?:\/\//i.test(s), "Use an http or https URL");
 const coordinate = z.number().min(-10000).max(10000);
+
+export const meshBounds = z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])}).refine(b=>b.min.every((n,i)=>n<=b.max[i]),"Invalid mesh bounds");
 
 export const UsageSchema = z
   .object({
@@ -84,7 +87,8 @@ export const ItemSchema = z
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
     geometry: AssemblyCadPlanSchema.optional(),
-    mesh: z.object({path:ArtifactPathSchema, bounds:z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])})}).optional(),
+    mesh: z.object({path:ArtifactPathSchema, bounds:meshBounds}).optional(),
+    files: z.array(assemblyFile).optional(),
     priceKnown: z.boolean().default(false),
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
@@ -97,7 +101,7 @@ export const ItemSchema = z
     uses: z.array(UsageSchema).max(50).default([]),
   })
   .strict()
-  .refine(item => !item.reference || (item.kind === "assembly" && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
+  .refine(item => !item.reference || (item.kind === "assembly" && !item.files?.length && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
   .refine((item) => item.kind === "assembly" || !item.uses.length, "Only an assembly contains other items")
   .refine((item) => (item.kind === "firmware") === Boolean(item.firmware), "Firmware items, and only they, name a repository and ref")
   .refine((item) => item.kind !== "firmware" || !item.geometry, "Firmware has no geometry");
@@ -151,6 +155,7 @@ function assemblySchema(uniquePartNumbers: boolean) { return z
         }
       }
       collect(owner.id);
+      if (!spec.viewRootIds.includes(owner.id)) fail("Motion view roots must include the owning drive assembly");
       if (spec.viewRootIds.some(id => !reachable.has(id))) fail("Motion view root must belong to its source assembly");
       if (spec.z.translationUsageIds.some(id => usages.get(id)?.length !== 1)) fail("Motion translation needs a unique source usage");
       for (const r of spec.z.rotations) {
@@ -216,7 +221,7 @@ export function bomRows(assembly: Assembly): BomRow[] {
   return rows;
 }
 
-/** Total quantity of each item for one top assembly, with its cost. */
+/** Total quantity of each item for one top assembly. */
 export function bomTotals(assembly: Assembly) {
   const totals = new Map<string, { item: Item; quantity: number }>();
   for (const row of bomRows(assembly).slice(1)) {
@@ -224,11 +229,7 @@ export function bomTotals(assembly: Assembly) {
     entry.quantity += row.quantity;
     totals.set(row.item.id, entry);
   }
-  const lines = [...totals.values()];
-  return {
-    lines,
-    cost: lines.reduce((sum, line) => sum + line.quantity * line.item.unitCost, 0),
-  };
+  return { lines: [...totals.values()] };
 }
 
 /** Purchase price for one build. A quoted assembly covers its children. */

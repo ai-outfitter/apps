@@ -1,3 +1,4 @@
+import {uploadInput, verifyInput, uploadAssemblyFile, verifyAssemblyFile} from "./assembly-files";
 import { PcbSubmission, submitWorkshopPcb } from "./pcb-snapshots";
 import {creativeHandoffInput,resultInput,acceptCreativeHandoff,attachCreativeResult} from './creative';
 import { requestBuildInput, claimBuildInput, finishBuildInput, requestBuild, claimBuild, finishBuild } from "./workspace";
@@ -84,6 +85,7 @@ resolvedAssembly.extensions = { completeResult: true };
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    uploadWorkshopAssemblyFile: mutationField<typeof uploadInput,WorkshopContext>({name:"UploadWorkshopAssemblyFile",description:"Reserve or attach a verified CAD or animation file on one saved item.",input:uploadInput,run:uploadAssemblyFile}),
     submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
       name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
     }),
@@ -197,7 +199,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

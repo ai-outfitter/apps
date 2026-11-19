@@ -487,6 +487,40 @@
                                         "bounds"
                                       ]
                                     },
+                                    "files": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "projectId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "fileName": {
+                                            "type": "string",
+                                            "maxLength": 160,
+                                            "pattern": "^[a-z0-9_][a-z0-9_.-]*\\.(stl|step|stp|mp4|webm|gif)$"
+                                          },
+                                          "sha256": {
+                                            "type": "string",
+                                            "pattern": "^[a-f0-9]{64}$"
+                                          },
+                                          "bytes": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 26214400
+                                          }
+                                        },
+                                        "required": [
+                                          "projectId",
+                                          "fileName",
+                                          "sha256",
+                                          "bytes"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
                                     "priceKnown": {
                                       "default": false,
                                       "type": "boolean"
@@ -2359,6 +2393,66 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "UploadWorkshopAssemblyFile",
+    "kind": "mutation",
+    "story": "As a designer, I want to attach a fabrication file to a saved item, so that members can inspect the original CAD and clips.",
+    "query": "mutation UploadWorkshopAssemblyFile($input: UploadWorkshopAssemblyFileInput!) {\n  uploadWorkshopAssemblyFile(input: $input)\n}",
+    "hash": "b2f8fc910630db8adbba23da82d084af61d1befd220c75a84d7ed6a62ed05cc2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UploadWorkshopAssemblyFileInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "uploadWorkshopAssemblyFile": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "VerifyWorkshopAssemblyFile",
+    "kind": "query",
+    "story": "As a designer, I want to verify an attached file, so that I can confirm its stored bytes match my source.",
+    "query": "query VerifyWorkshopAssemblyFile($input: VerifyWorkshopAssemblyFileInput!) {\n  verifyWorkshopAssemblyFile(input: $input)\n}",
+    "hash": "df26a1b469749259d8323aa92e1577d6a9dea2a27710f46b070436b98f5215f7",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL VerifyWorkshopAssemblyFileInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Supply projectId, itemId and fileName. Rehash the stored file and return verified digest, size, revision and installation-relative downloadPath."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "verifyWorkshopAssemblyFile": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
   },
   {
     "name": "WorkshopAssembly",

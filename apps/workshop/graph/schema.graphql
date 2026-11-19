@@ -25,6 +25,9 @@ type Query {
     search: String
   ): WorkshopUnitConnection!
 
+  """Hash the attached file bytes and compare with the saved receipt."""
+  verifyWorkshopAssemblyFile(input: VerifyWorkshopAssemblyFileInput!): JSON
+
   """Read the whole saved assembly at one project revision."""
   workshopAssembly(projectId: ID!): WorkshopAssemblyResult!
 
@@ -298,6 +301,12 @@ input StringFilter {
   startsWithInsensitive: String
 }
 
+input VerifyWorkshopAssemblyFileInput {
+  projectId: ID!
+  itemId: ID!
+  fileName: String!
+}
+
 type WorkshopAssemblyResult {
   projectId: ID!
   revision: Int!
@@ -317,6 +326,21 @@ input WorkshopProjectHandoffInput {
 
 input WorkshopDesignRunInput {
   id: ID!
+}
+
+input UploadWorkshopAssemblyFileInput {
+  projectId: ID!
+  fileName: String!
+  sha256: String!
+  bytes: Int!
+  itemId: ID!
+  expectedRevision: Float!
+  meshBounds: UploadWorkshopAssemblyFileInputMeshBounds
+}
+
+input UploadWorkshopAssemblyFileInputMeshBounds {
+  min: [JSON!]!
+  max: [JSON!]!
 }
 
 input SubmitWorkshopPcbInput {
@@ -430,6 +454,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   color: String
   geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
   mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
+  files: [FinishWorkshopBuildInputManifestAssemblyItemsItemFilesItem!]
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
@@ -470,6 +495,13 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemMesh {
 input FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds {
   min: [JSON!]!
   max: [JSON!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemFilesItem {
+  projectId: ID!
+  fileName: String!
+  sha256: String!
+  bytes: Int!
 }
 
 enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
@@ -708,6 +740,7 @@ input WorkshopAssemblyInputItemsItem {
   color: String
   geometry: WorkshopAssemblyInputItemsItemGeometry
   mesh: WorkshopAssemblyInputItemsItemMesh
+  files: [WorkshopAssemblyInputItemsItemFilesItem!]
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
@@ -748,6 +781,13 @@ input WorkshopAssemblyInputItemsItemMesh {
 input WorkshopAssemblyInputItemsItemMeshBounds {
   min: [JSON!]!
   max: [JSON!]!
+}
+
+input WorkshopAssemblyInputItemsItemFilesItem {
+  projectId: ID!
+  fileName: String!
+  sha256: String!
+  bytes: Int!
 }
 
 enum WorkshopAssemblyInputItemsItemProvenance {
@@ -910,6 +950,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   color: String
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
   mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
+  files: [SaveWorkshopAssemblyInputAssemblyItemsItemFilesItem!]
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
@@ -950,6 +991,13 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemMesh {
 input SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds {
   min: [JSON!]!
   max: [JSON!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemFilesItem {
+  projectId: ID!
+  fileName: String!
+  sha256: String!
+  bytes: Int!
 }
 
 enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
@@ -1136,6 +1184,9 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """Reserve or attach a verified CAD or animation file on one saved item."""
+  uploadWorkshopAssemblyFile(input: UploadWorkshopAssemblyFileInput!): JSON
+
   """Upload a KiCad package and attach its verified snapshot."""
   submitWorkshopPcb(input: SubmitWorkshopPcbInput!): JSON
 

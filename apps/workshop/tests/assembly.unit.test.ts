@@ -14,10 +14,10 @@ test("the SNY-1 node is an assembly with an electronics sub-assembly, an ESP32-S
   assert.equal(at("SNY-C001")?.refdes, "U1");
   assert.deepEqual(at("SNY-F001")?.item.firmware, { repository: "", path: "firmware/sny-1", ref: "v0.1.0", target: "esp32s3" });
   assert.equal(at("SNY-C008")?.quantity, 4);
-  // Cost per top assembly counts every line once per use.
-  const { lines, cost } = bomTotals(assembly);
+  const { lines } = bomTotals(assembly);
   assert.equal(lines.length, 12);
-  assert.equal(Math.round(cost * 100) / 100, 70.85);
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 0, estimatedSubtotal: 70.85, unpricedUnits: 0 });
+  assert.equal(buildPrice({ ...assembly, rootId: at("SNY-A002")!.item.id }).estimatedSubtotal, 44.49);
 });
 
 test("placements put each solid in world coordinates through its sub-assembly", () => {
@@ -64,6 +64,7 @@ test("build price covers quoted assemblies once and reports missing physical uni
   root.uses = [child, screw].map(item => ({
     id: crypto.randomUUID(), itemId: item.id, quantity: 2, position: [0,0,0], rotation: 0, refdes: "",
   }));
+  delete screw.estimatedUnitCost;
   child.unitCost = 10;
   child.priceKnown = true;
   assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 0, unpricedUnits: 2 });
