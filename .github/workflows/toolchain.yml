@@ -67,6 +67,20 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: toolchain/package-lock.json
+      - name: Identify the locked toolchain browser set
+        id: playwright
+        working-directory: toolchain
+        run: |
+          version=$(jq -r '.packages["node_modules/playwright-core"].version // empty' package-lock.json)
+          if [[ -n "$version" ]]; then
+            echo "key=playwright-chromium-$ImageOS-$RUNNER_ARCH-$version" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Cache Chromium and Playwright helpers
+        if: steps.playwright.outputs.key != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright.outputs.key }}
       - run: npm ci
         working-directory: toolchain
       - uses: ai-outfitter/apps@bfd11f32d1e16031ec5eab7fe5f9e109a9e5bc71

@@ -31,6 +31,9 @@ for (const width of [1440, 390])
     const hash = (bytes: Buffer) =>
       createHash("sha256").update(bytes).digest("hex");
     const body = structuredClone(capture);
+    const sourceUrl = "https://github.com/ai-outfitter/apps";
+    body.summary += ` [Source repository](${sourceUrl})`;
+    body.steps[0].description += `\n\nReviewer requested a retry case. [Review log](${sourceUrl}/issues)`;
     body.steps[0].media[0].sha256 = hash(image);
     if (process.env.EVIDENCE_CAPTURE_MANIFEST) {
       const captured = JSON.parse(
@@ -166,6 +169,8 @@ for (const width of [1440, 390])
         timings.push(performance.now() - start);
       }
       expect(reads).toBe(5); // One graph selection per page; no full graph or duplicate context reads.
+      await expect(page.getByRole("link", { name: "Source repository", exact: true })).toHaveAttribute("href", sourceUrl);
+      await expect(page.getByRole("link", { name: "Review log", exact: true })).toHaveAttribute("href", sourceUrl + "/issues");
       await expect(page.locator(".evidence-media img")).toBeVisible();
       await page.screenshot({
         path: info.outputPath(`evidence-walkthrough-${width}.png`),
