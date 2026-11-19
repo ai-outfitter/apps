@@ -21,3 +21,25 @@ test("inspect an assembly and open its BOM",async({page})=>{
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
  }finally{await page.unrouteAll({behavior:'ignoreErrors'});await app.dispose();}
 });
+
+test("seeded BOM keeps supplier links and scopes prices and power to the selected assembly", async ({page}) => {
+ const app = await appWorker("workshop", appArtifact(new URL("..", import.meta.url), "demo"));
+ try {
+  await routeReadOnly(page, origin, app, {});
+  await page.goto(origin + "/projects/node-000000000106/parts");
+  const rows = page.locator("#bom-rows");
+  await expect(rows.getByRole("link", {name: "Open part source at adafruit.com"}))
+   .toHaveAttribute("href", "https://www.adafruit.com/product/3809");
+  await rows.getByRole("link", {name: "Electronics sub-assembly"}).click();
+  await page.locator("#project-bom").click();
+  await page.reload();
+  await expect(page.getByRole("heading", {name: "Bill of materials · Electronics sub-assembly"})).toBeVisible();
+  await page.locator("#pricing summary").click();
+  await expect(page.locator("#bom-price")).toContainText("$44.49 estimated");
+  await page.locator("#project-power").click();
+  await expect(page.getByRole("heading", {name: "Power · Electronics sub-assembly"})).toBeVisible();
+ } finally {
+  await page.unrouteAll({behavior: "ignoreErrors"});
+  await app.dispose();
+ }
+});

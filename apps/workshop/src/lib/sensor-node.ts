@@ -47,7 +47,6 @@ export function sensorNodeAssembly(): Assembly {
   const item = (fields: Partial<Item> & Pick<Item, "number" | "name" | "kind">): Item => ({
     id: id(),
     priceKnown: false,
-    estimatedUnitCost: fields.unitCost,
     provenance: "provisional",
     revision: "A",
     manufacturer: "",
@@ -70,48 +69,48 @@ export function sensorNodeAssembly(): Assembly {
 
   const esp = item({
     number: "SNY-C001", name: "ESP32-S3-DevKitC-1-N8R8", kind: "cots", manufacturer: "Espressif",
-    mpn: "ESP32-S3-DevKitC-1-N8R8", unitCost: 15, trackBy: "mac", color: "#1f3a5f", geometry: devkit,
+    mpn: "ESP32-S3-DevKitC-1-N8R8", estimatedUnitCost: 15, trackBy: "mac", color: "#1f3a5f", geometry: devkit,
     source: "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html",
     notes: "Envelope: 69 × 25.4 mm board with the WROOM-1 module (18 × 25.5 × 3.1 mm). Check against Espressif's dimension drawing.",
   });
   const scd41 = item({
     number: "SNY-C002", name: "SCD41 CO2 sensor breakout", kind: "cots", manufacturer: "Sensirion",
-    mpn: "SCD41-D-R2", unitCost: 20, color: "#2d6a4f", geometry: breakout([10.1, 10.1, 6.5]),
+    mpn: "SCD41-D-R2", estimatedUnitCost: 20, color: "#2d6a4f", geometry: breakout([10.1, 10.1, 6.5]),
     notes: "Single-shot mode every 5 to 10 minutes keeps it within the solar budget.",
   });
   const veml = item({
     number: "SNY-C003", name: "VEML7700 lux sensor breakout", kind: "cots", manufacturer: "Vishay",
-    mpn: "VEML7700-TT", unitCost: 1.41, color: "#2d6a4f", geometry: breakout([6.8, 2.35, 1]),
+    mpn: "VEML7700-TT", estimatedUnitCost: 1.41, color: "#2d6a4f", geometry: breakout([6.8, 2.35, 1]),
     notes: "LCSC lists VEML7700-TT as not recommended for new designs; check Vishay's successor.",
   });
   const charger = item({
     number: "SNY-C004", name: "CN3791 MPPT solar charger module", kind: "cots", manufacturer: "Consonance",
-    mpn: "CN3791", unitCost: 5.99, color: "#264653",
+    mpn: "CN3791", estimatedUnitCost: 5.99, color: "#264653",
     geometry: plan(box([-17.5, -11.5, 0], [35, 23, 1.6]), box([-4, -4, 1.6], [8, 8, 5])),
   });
   const cell = item({
     number: "SNY-C005", name: "IFR18650 LiFePO4 cell, 1500 mAh", kind: "cots", manufacturer: "Powersonic",
-    mpn: "PSL-FP-IFR18650EC", unitCost: 3.5, color: "#6c757d",
+    mpn: "PSL-FP-IFR18650EC", estimatedUnitCost: 3.5, color: "#6c757d",
     geometry: plan(cylinder([-32.5, 0, 0], 9, 65, "x")),
   });
   const panel = item({
     number: "SNY-C006", name: "6 V 1 W solar panel", kind: "cots", manufacturer: "Adafruit",
-    mpn: "3809", unitCost: 19.95, color: "#14213d",
+    mpn: "3809", source: "https://www.adafruit.com/product/3809", estimatedUnitCost: 19.95, color: "#14213d",
     geometry: plan(box([-56.5, -44.5, 0], [113, 89, 2.5])),
     notes: "Also the light-energy meter: short-circuit current through a shunt tracks irradiance.",
   });
   const probe = item({
-    number: "SNY-C007", name: "Capacitive soil moisture probe v1.2", kind: "cots", unitCost: 1.3, color: "#9d0208",
+    number: "SNY-C007", name: "Capacitive soil moisture probe v1.2", kind: "cots", estimatedUnitCost: 1.3, color: "#9d0208",
     geometry: plan(box([-11.5, -0.6, -98], [23, 1.2, 108])),
   });
-  const screws = item({ number: "SNY-C008", name: "M3 × 8 screw", kind: "cots", mpn: "ISO 7380 M3x8", unitCost: 0.1 });
+  const screws = item({ number: "SNY-C008", name: "M3 × 8 screw", kind: "cots", mpn: "ISO 7380 M3x8", estimatedUnitCost: 0.1 });
   const firmware = item({
     number: "SNY-F001", name: "SNY-1 sensor firmware", kind: "firmware",
     firmware: { repository: "", path: "firmware/sny-1", ref: "v0.1.0", target: "esp32s3" },
     notes: "Built from the firmware repository; the repository is not chosen yet.",
   });
-  const base = item({ number: "SNY-P001", name: "Enclosure base", kind: "printed", unitCost: 2.4, color: "#d8c3a5", geometry: enclosure, notes: "PETG or ASA for outdoor use." });
-  const top = item({ number: "SNY-P002", name: "Enclosure lid", kind: "printed", unitCost: 0.9, color: "#d8c3a5", geometry: lid });
+  const base = item({ number: "SNY-P001", name: "Enclosure base", kind: "printed", estimatedUnitCost: 2.4, color: "#d8c3a5", geometry: enclosure, notes: "PETG or ASA for outdoor use." });
+  const top = item({ number: "SNY-P002", name: "Enclosure lid", kind: "printed", estimatedUnitCost: 0.9, color: "#d8c3a5", geometry: lid });
   const electronics = item({
     number: "SNY-A002", name: "Electronics sub-assembly", kind: "assembly",
     notes: "Wired on a perfboard for rev A; a PCB replaces it at rev B.",

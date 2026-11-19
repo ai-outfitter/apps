@@ -217,7 +217,7 @@ export function bomRows(assembly: Assembly): BomRow[] {
   return rows;
 }
 
-/** Total quantity of each item for one top assembly, with its cost. */
+/** Total quantity of each item for one top assembly. */
 export function bomTotals(assembly: Assembly) {
   const totals = new Map<string, { item: Item; quantity: number }>();
   for (const row of bomRows(assembly).slice(1)) {
@@ -225,11 +225,7 @@ export function bomTotals(assembly: Assembly) {
     entry.quantity += row.quantity;
     totals.set(row.item.id, entry);
   }
-  const lines = [...totals.values()];
-  return {
-    lines,
-    cost: lines.reduce((sum, line) => sum + line.quantity * line.item.unitCost, 0),
-  };
+  return { lines: [...totals.values()] };
 }
 
 /** Purchase price for one build. A quoted assembly covers its children. */

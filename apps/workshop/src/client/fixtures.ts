@@ -65,8 +65,6 @@ node.assembly.power = {
   version: 1, notes: "Illustrative sensor budget", scenarios: [{id:"sampling",name:"Sampling",notes:"Illustrative development-board load."}],
   rails: [{id:"usb",name:"USB input",kind:"dc",voltage:5,efficiency:1,notes:""}],
 };
-const solarPanel = node.assembly.items.find(item => item.number === "SNY-C006")!;
-solarPanel.source = "https://www.adafruit.com/product/3809";
 const board = node.assembly.items.find(item => item.number === "SNY-C001")!;
 board.power = {loads:[{id:"board",name:"Controller",rail:"usb",evidence:"assumed",source:"Demo assumption",notes:"",
   scenarios:{sampling:{averageW:0.4,operatingW:0.5,peakW:1}}}]};

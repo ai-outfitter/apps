@@ -4,7 +4,8 @@ const node=(tag:string,text="")=>{const n=document.createElement(tag);n.textCont
 const fmt=(v:number|null,unit="W")=>v===null?"Unknown":`${v.toLocaleString(undefined,{maximumFractionDigits:2})} ${unit}`;
 /** Power follows the viewed item; saved inputs belong to the full assembly. */
 export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:string|undefined,save?: (next:Assembly)=>Promise<void>,editableItems?:Set<string>){
- host.replaceChildren(node("h2","Power"));
+ const focused = itemId !== assembly.rootId && assembly.items.find(item => item.id === itemId);
+ host.replaceChildren(node("h2", focused ? `Power · ${focused.name}` : "Power"));
  if(!assembly.power){host.append(node("p","No power budget saved with this assembly. Missing data is not zero demand."));return;}
  const model=assembly.power;
  const select=document.createElement("select");select.id="power-scenario";select.setAttribute("aria-label","Power scenario");
