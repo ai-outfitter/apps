@@ -142,7 +142,8 @@ function appendPartSource(container: HTMLElement, source: string) {
  if (!source) return;
  const link = document.createElement("a");
  link.href = source;
- link.textContent = new URL(source).hostname.replace(/^www\./, "");
+ if (!link.hostname || !["https:", "http:"].includes(link.protocol)) return;
+ link.textContent = link.hostname.replace(/^www\./, "");
  link.setAttribute("aria-label", `Open part source at ${link.textContent}`);
  link.target = "_blank";
  link.rel = "noopener noreferrer";
