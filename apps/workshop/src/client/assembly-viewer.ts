@@ -56,7 +56,7 @@ export function placedNode(placement: Placement, reply: MeshReply) {
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void, enableDamping = true) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
@@ -84,7 +84,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   camera.up.set(0, 0, 1);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
+  controls.enableDamping = enableDamping;
   scene.add(new THREE.AmbientLight("#ffffff", 2));
   const light = new THREE.DirectionalLight("#fff8e9", 3);
   light.position.set(80, -120, 240);
@@ -218,6 +218,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     isolatedPath=undefined;
     canvas.dataset.ready = "false";
     const list = placements(assembly);
+    canvas.toggleAttribute("data-empty", !list.length);
     if (!list.length) {
       clear();
       frame = undefined;

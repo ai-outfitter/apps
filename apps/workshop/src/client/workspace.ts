@@ -1,3 +1,4 @@
+import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import type { ResolvedAssembly } from "../lib/assembly-resolution";
 import { boxPlan } from "../model/cad-plan";
@@ -13,6 +14,7 @@ import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
 import { fileBase, filePath, fileType } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
+import { inspectionTree, projectInspection } from "./project-inspection";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
 if(!root)return;
@@ -35,7 +37,7 @@ const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
  if(source.parameters)params.set("parameters",JSON.stringify(source.parameters));
  return appBase(location.pathname)+projectPath(source.projectId.slice(-12),"assembly")+(params.size?"?"+params:"");
 };
-const urlFor = (section: "models" | "assembly" | "parts" | "power", item?: string) => {
+const urlFor = (section: "overview" | "models" | "assembly" | "parts" | "power", item?: string) => {
  const params = new URLSearchParams(selection);
  if (item) params.set("item", item);
  if (section === "assembly" && query.get("view") === "top") params.set("view","top");
@@ -55,6 +57,37 @@ function renderCatalog() {
 }
 let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
+const overview = section === "overview";
+let renderedPowerFor: string | undefined;
+function describeInspection(tab: string) {
+ agentPage("workshop").describe({title: project.name, state: {
+  tab, projectId: project.id, revision: project.revision,
+  ...(selected && {selectedItem: {id: selected.id, name: selected.name, number: selected.number}}),
+ }});
+}
+const inspection = overview ? projectInspection($("project-inspection"), tab => {
+ describeInspection(tab);
+ if (tab === "bom") renderBom();
+ if (tab === "power" && renderedPowerFor !== inspectedAssembly().rootId) {
+  renderPower();
+  renderedPowerFor = inspectedAssembly().rootId;
+ }
+}) : undefined;
+function inspectedAssembly() {
+ const item = inspection && selected ? selected.id : query.get("item");
+ return modelView(assembly, item);
+}
+function availableBudgets(view: Assembly) {
+ return {
+  bom: legacy ? project.parts.length > 0 : !!view.items.find(item => item.id === view.rootId)?.uses.length,
+  power: !!view.power && (view.rootId === assembly.rootId || bomRows(view).some(row => row.item.power?.loads.length)),
+ };
+}
+function updateBudgetTabs(view: Assembly) {
+ const {bom, power} = availableBudgets(view);
+ $("tab-bom").hidden = !bom;
+ $("tab-power").hidden = !power;
+}
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
 if (section === "assembly" || section === "overview") {
  try {
@@ -63,7 +96,7 @@ if (section === "assembly" || section === "overview") {
   viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, (id,path) => {
     const item = assembly?.items.find(candidate => candidate.id === id);
     if (item) select(item,path);
-  });
+  }, !overview);
  } catch {
   if (signal.aborted) return;
   $("assembly-status").textContent = "3D preview unavailable in this browser.";
@@ -79,10 +112,10 @@ let savedAxes: NonNullable<ReturnType<typeof installedDriveMotion>>["axes"] | un
 let savedRotations: PlacedRotation[]=[];
 let motionGeneration=0;
 // The trigger and shelf picker sit beside the viewer; the review record stays below it. Both show and hide together.
-const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible;};
+const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible; if(inspection) $("motion-menu").hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
 signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
-const applyMotion=(offset:number)=>{motionOffset=offset;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
+const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Z shaft turns from saved pose: ${(offset/70).toFixed(2)} · X and Y held stationary`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
 $("motion-reset").onclick=()=>{stopMotion();applyMotion(0);$<HTMLSelectElement>("motion-level").value="";};
@@ -119,7 +152,7 @@ function descendants(item: Item) {
 let selectionPath: string | undefined;
 function select(item:Item, path?:string){
  selectionPath=path;
- selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor("assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+ selected=item;viewer?.select(descendants(item),path,item.id);$<HTMLAnchorElement>("open-component").href=urlFor(overview ? "overview" : "assembly",item.id);const details=$("item-details");details.replaceChildren(element("h3",item.name),element("p",`${item.number} · revision ${item.revision} · ${item.kind}`),element("p",item.notes),element("p",`Geometry: ${item.provenance}. Price: ${itemPrice(item)}`));const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
 if(source){const a=element("a",`Open ${source.name} · revision ${source.revision}${source.configuration ? " · "+source.configuration : ""}`) as HTMLAnchorElement;
 a.href=sourceUrl(source);details.append(a);}
 if(item.uses.length){
@@ -127,7 +160,7 @@ if(item.uses.length){
  for(const {item:child,labels} of assemblyChildren(assembly,item.id)){
    const button=element("button",child.name+(labels.length ? " · "+labels.join(", ") : ""));
    button.onclick=()=>{
-     select(child,path);
+     select(child, path);
    };
    children.append(button);
  }
@@ -149,7 +182,13 @@ for (const file of item.files ?? []) {
  }
 }
 appendPartSource(details, item.source);
-$<HTMLDetailsElement>("inspector").open = true;
+if (inspection) {
+ updateBudgetTabs(inspectedAssembly());
+ $("tab-selected").hidden = false;
+ $("show-all").hidden = false;
+ inspection.open("selected");
+ if (root?.contains(document.activeElement) && document.activeElement?.closest("#project-inspection")) $("tab-selected").focus({preventScroll:true});
+} else $<HTMLDetailsElement>("inspector").open = true;
 }
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 function itemPrice(item: Item) {
@@ -169,7 +208,7 @@ function appendPartSource(container: HTMLElement, source: string) {
  container.append(link);
 }
 function renderBom(){
- if (!assembly || section!=="parts") return;
+ if (!assembly || (!inspection && section!=="parts")) return;
  $("bom-view").hidden = legacy;
  if(legacy){
   const total=project.parts.reduce((sum,part)=>sum+part.unitCost*part.quantity,0);
@@ -184,7 +223,8 @@ function renderBom(){
   }));
   return;
  }
- const view=modelView(assembly,query.get("item"));
+ const view = inspectedAssembly();
+ if (inspection) $("bom-heading").textContent = assembly.items.find(i => i.id === view.rootId)?.name ?? "Bill of materials";
  const {knownSubtotal,estimatedSubtotal,unpricedUnits}=buildPrice(view);
  $("bom-price").textContent=!assembly.rootId ? "No assembly selected." :
    `${unpricedUnits?"Partial one-build subtotal":"One-build price"} ${usd.format(knownSubtotal+estimatedSubtotal)} · ${usd.format(knownSubtotal)} known · ${usd.format(estimatedSubtotal)} estimated · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`;
@@ -196,7 +236,12 @@ function renderBom(){
   const title = element("div", "");
   const link = document.createElement("a");
   link.textContent = item.name;
-  link.href = urlFor("assembly", item.id);
+  link.href = urlFor(overview ? "overview" : "assembly", item.id);
+  if (inspection) link.onclick = event => {
+   if (event.button || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+   event.preventDefault();
+   select(item);
+  };
   title.append(link, element("small", `${"↳ ".repeat(Math.min(depth, 3))}${item.number} · ${item.revision}`));
   const info = element("div", item.kind);
   const price = element("span", " · " + itemPrice(item));
@@ -207,41 +252,8 @@ function renderBom(){
   return row;
  }));
 }
-function showBuild(run?:BuildRequest, snapshot=false){
- const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
- stopMotion();motion=undefined;motionOffset=0;showMotion(false);
- build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
- const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
- assembly=(!historical && resolved?.assembly) || (parsed.success?parsed.data:{items:[]});
- if(!parsed.success)notice("This assembly failed validation; its geometry and power cannot be displayed.");
- else if(historical&&!run?.result?.manifest?.assembly)notice("This build has no saved assembly. Current project data is not shown here.");
- $("revision-label").textContent=run?`${run.id.slice(0,8)} · ${run.id===project.workspace?.currentBuildId?"Current":"Historical"}`:`Project save ${project.revision}`;
- legacy=parsed.success&&!historical&&!assembly.rootId;
- if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
- const focused = assembly.items.find(item => item.id === query.get("item"));
- const view = modelView(assembly, focused?.id);
- const references=$("assembly-references");
- references.hidden=historical || !resolved?.sources.length;
- if(!references.hidden && resolved){
-  const links=resolved.sources.map(s=>{
-   const a=element("a",`${s.name} · ${s.pinned?"pinned":"current"} revision ${s.revision}${s.configuration ? " · "+s.configuration : ""}`) as HTMLAnchorElement;
-   a.href=sourceUrl(s);
-   return a;
-  });
-  references.replaceChildren(element("strong","Source assemblies: "),...links.flatMap((a,i)=>i?[document.createTextNode(" · "),a]:[a]));
- }
- $("assembly-title").textContent = focused?.name ?? "Full assembly";
- $("bom-heading").textContent = focused && focused.id !== assembly.rootId ? `Bill of materials · ${focused.name}` : "Bill of materials";
- const children = assemblyChildren(view);
- const hasBom = legacy ? project.parts.length > 0 : children.length > 0;
- const hasPower=Boolean(assembly.power) && (!focused || focused.id===assembly.rootId || bomRows(view).some(row=>row.item.power?.loads.length));
- for(const [id,target,visible] of [["project-model","assembly",section==="parts" || section==="power"],["project-bom","parts",hasBom && section!=="parts"],["project-power","power",hasPower && section!=="power"]] as const){
-  const link=$<HTMLAnchorElement>(id);link.href=urlFor(target,focused?.id);link.hidden=!visible;
- }
- $("project-views").hidden=!root?.querySelector("#project-views a:not([hidden])");
- $("bom-panel").hidden = section !== "parts" || !hasBom;
- if (section === "parts" && !hasBom && assembly.rootId) notice("This model has no bill of materials.");
- if(section==="power") renderPowerPanel($("power-panel"),assembly,focused?.id??assembly.rootId,
+function renderPower() {
+ renderPowerPanel($("power-panel"),assembly,inspectedAssembly().rootId,
   !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? async next=>{
    const editable = structuredClone(project.assembly);
    if (resolved) {
@@ -257,6 +269,64 @@ function showBuild(run?:BuildRequest, snapshot=false){
    if(resolved)resolved.assembly=next;
    $("revision-label").textContent=`Project save ${project.revision}${build?` · geometry build ${build.id.slice(0,8)}`:""}`;notice(`Power values saved with assembly revision ${project.revision}. Derived climate assumptions must be recalculated in the source budget if loads change.`);
   }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
+}
+function showBuild(run?:BuildRequest, snapshot=false){
+ selected = undefined;
+ selectionPath = undefined;
+ if (inspection) {
+  $("tab-selected").hidden = true;
+  $("show-all").hidden = true;
+ }
+ renderedPowerFor = undefined;
+ const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
+ stopMotion();motion=undefined;motionOffset=0;showMotion(false);
+ build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
+ const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
+ assembly=(!historical && resolved?.assembly) || (parsed.success?parsed.data:{items:[]});
+ if(!parsed.success)notice("This assembly failed validation; its geometry and power cannot be displayed.");
+ else if(historical&&!run?.result?.manifest?.assembly)notice("This build has no saved assembly. Current project data is not shown here.");
+ $("revision-label").textContent=run?`${run.id.slice(0,8)} · ${run.id===project.workspace?.currentBuildId?"Current":"Historical"}`:`Project save ${project.revision}`;
+ legacy=parsed.success&&!historical&&!assembly.rootId;
+ if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
+ const focused = assembly.items.find(item => item.id === query.get("item"));
+ const view = modelView(assembly, focused?.id);
+ const references=$("assembly-references");
+ references.hidden=historical || !resolved?.sources.length;
+ if(section === "assembly" && !references.hidden && resolved){
+  const links=resolved.sources.map(s=>{
+   const a=element("a",`${s.name} · ${s.pinned?"pinned":"current"} revision ${s.revision}${s.configuration ? " · "+s.configuration : ""}`) as HTMLAnchorElement;
+   a.href=sourceUrl(s);
+   return a;
+  });
+  references.replaceChildren(element("strong","Source assemblies: "),...links.flatMap((a,i)=>i?[document.createTextNode(" · "),a]:[a]));
+ }
+ $("assembly-title").textContent = focused?.name ?? "Full assembly";
+ $("bom-heading").textContent = focused && focused.id !== assembly.rootId ? `Bill of materials · ${focused.name}` : "Bill of materials";
+ const children = assemblyChildren(view);
+ if (inspection) {
+  $("project-inspection").inert = false;
+  inspection.open("description");
+  if (focused && focused.id !== assembly.rootId) $("project-name").textContent = project.name + " / " + focused.name;
+  updateBudgetTabs(view);
+  $("inspection-tree").replaceChildren(children.length
+   ? inspectionTree(view, !historical && resolved ? resolved.sources : [], sourceUrl, select)
+   : "No child components");
+ } else {
+  const {bom, power} = availableBudgets(view);
+  for (const [id, target, visible] of [
+   ["project-model", "assembly", section === "parts" || section === "power"],
+   ["project-bom", "parts", bom && section !== "parts"],
+   ["project-power", "power", power && section !== "power"],
+  ] as const) {
+   const link = $<HTMLAnchorElement>(id);
+   link.href = urlFor(target, focused?.id);
+   link.hidden = !visible;
+  }
+  $("project-views").hidden = !$("project-views").querySelector("a:not([hidden])");
+  $("bom-panel").hidden = section !== "parts" || !bom;
+  if (section === "parts" && !bom && assembly.rootId) notice("This model has no bill of materials.");
+ }
+ if (section === "power") renderPower();
  if(selection.size && !historical) $("revision-label").textContent=`Source revision ${resolved?.revision ?? project.revision}${selection.get("configuration") ? " · "+selection.get("configuration") : ""}`;
  else if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("assembly");
@@ -298,25 +368,28 @@ function showBuild(run?:BuildRequest, snapshot=false){
   $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
   if(motion)applyMotion(0);
  });
- if(focused){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
+ if(focused && !inspection){select(focused);viewer?.select();$<HTMLDetailsElement>("inspector").open=false;}
  renderCatalog();
- $("component-summary").textContent = children.length ? `${children.length} immediate ${children.length===1?"component":"components"} · quantities in this assembly` : "No child components";
- $("component-tree").replaceChildren(...children.map(({item,quantity,labels})=>{
-  const row=element("div", ""); row.className="component-row";
-  const link=element("a",`${item.name} ×${quantity}`) as HTMLAnchorElement; link.href=urlFor("assembly",item.id);
-  row.append(link,element("small",`${item.number} · ${item.kind}${labels.length > 1 ? " · " + labels.join(", ") : ""}`));
-  const inspect=element("button","Details");inspect.setAttribute("aria-label",`Details for ${item.name}`);inspect.onclick=()=>select(item);row.append(inspect);
-  return row;
- }));
+ if (section === "assembly") {
+  $("component-summary").textContent = children.length ? `${children.length} immediate ${children.length===1?"component":"components"} · quantities in this assembly` : "No child components";
+  $("component-tree").replaceChildren(...children.map(({item,quantity,labels})=>{
+   const row=element("div", ""); row.className="component-row";
+   const link=element("a",`${item.name} ×${quantity}`) as HTMLAnchorElement; link.href=urlFor("assembly",item.id);
+   row.append(link,element("small",`${item.number} · ${item.kind}${labels.length > 1 ? " · " + labels.join(", ") : ""}`));
+   const inspect=element("button","Details");inspect.setAttribute("aria-label",`Details for ${item.name}`);inspect.onclick=()=>select(item);row.append(inspect);
+   return row;
+  }));
+ }
  const path=assemblyPath(assembly,view.rootId);
  // At the root the heading already names the full assembly; a one-link trail only repeats it.
  $("assembly-breadcrumbs").hidden=path.length<2;
  $("assembly-breadcrumbs").replaceChildren(...path.flatMap((item,index)=>{
   const link=element("a",index===0 && item.id===assembly.rootId ? "Full assembly" : item.name) as HTMLAnchorElement;
-  link.href=urlFor("assembly",item.id===assembly.rootId?undefined:item.id);
+  link.href=urlFor(overview ? "overview" : "assembly",item.id===assembly.rootId?undefined:item.id);
   if(index===path.length-1)link.setAttribute("aria-current","page");
   return index ? [element("span"," / "),link] : [link];
  }));
+ if (inspection) return;
  const parents=assembly.items.filter(item=>item.uses.some(use=>use.itemId===view.rootId));
  $("assembly-parents").replaceChildren(...parents.map(item=>{
   const link=element("a",`Back to ${item.name}`) as HTMLAnchorElement;link.href=urlFor("assembly",item.id===assembly.rootId?undefined:item.id);return link;
@@ -340,13 +413,16 @@ function showBuild(run?:BuildRequest, snapshot=false){
  }
 
  if(manifest){const download=element("a","Download revision bundle") as HTMLAnchorElement;download.href=`/api/apps/workshop/projects/${project.id}/bundle?build=${run!.id}`;evidence.append(download);evidence.append(element("p",`${manifest.runner} · ${manifest.compiler}`),element("p",`Source commit: ${manifest.sourceCommit}`),element("p",manifest.notes));for(const t of manifest.tests)evidence.append(element("p",`${t.status.toUpperCase()} · ${t.name}: ${t.detail}`));}
- if(run?.result?.error)evidence.append(element("p",run.result.error));renderBom();
+ if(run?.result?.error)evidence.append(element("p",run.result.error));
+ if(section==="parts") renderBom();
 }
 function render(){
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
- $("project-brief").textContent=project.brief;
- $("project-brief").hidden=section!=="overview" || !project.brief;
+ if (overview) {
+  $("project-brief").textContent = project.brief;
+  $("project-brief").hidden = !project.brief;
+ }
  const runs=project.workspace?.requests??[];$("runner-status").textContent=runs.length?`${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}`:"No workspace connected. Existing CAD remains inspectable.";
  $("revision-help").textContent="Build records preserve their inputs and evidence. Private downloads are retained for one year; source stays in the project repository. Geometry checks do not establish physical acceptance.";
  $("revision-list").replaceChildren(...[...runs].reverse().map(r=>{const row=element("article","");row.className="run-row";const b=element("button",`${r.id.slice(0,8)} · ${r.status}${r.result?.stale?" · newer work exists":""}`);b.onclick=()=>showBuild(r,true);row.append(b,element("p",r.instructions),element("small",`${r.createdAt} · ${r.sourceCommit}`));return row;}));
@@ -356,7 +432,23 @@ function render(){
  showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
 $("top-view").onclick=()=>viewer?.topView();
-$("reset-view").onclick=()=>viewer?.reset();$("show-all").onclick=()=>{viewer?.isolate();viewer?.select();$<HTMLDetailsElement>("inspector").open=false;};$("isolate-item").onclick=()=>{if(selected)viewer?.isolate(descendants(selected),selectionPath);};
+$("reset-view").onclick = () => viewer?.reset();
+$("show-all").onclick = () => {
+ viewer?.isolate();
+ viewer?.select();
+ selected = undefined;
+ selectionPath = undefined;
+ if (!inspection) $<HTMLDetailsElement>("inspector").open = false;
+ if (inspection) {
+  $("show-all").hidden = true;
+  $("tab-selected").hidden = true;
+  updateBudgetTabs(inspectedAssembly());
+  inspection.open("components");
+ }
+};
+$("isolate-item").onclick = () => {
+ if (selected) viewer?.isolate(descendants(selected), selectionPath);
+};
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
 if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
