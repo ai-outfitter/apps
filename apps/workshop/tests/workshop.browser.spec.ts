@@ -64,6 +64,13 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   await expect(page.locator("#bom-price")).toContainText("$44.49 estimated");
   await page.getByRole("tab", {name:"Power"}).click();
   await expect(page.locator("#power-panel h2")).toContainText("Electronics sub-assembly");
+  await page.setViewportSize({width:320,height:844});
+  const budgets = page.locator("#power-panel .power-scroll");
+  await expect(budgets).toHaveCount(2);
+  for (const budget of await budgets.all()) {
+   await expect(budget.locator(".power-field-label").first()).toBeVisible();
+   expect(await budget.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
   await page.getByRole("tab", {name:"Selected"}).click();
   await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
   await page.getByRole("button",{name:"Back to components"}).click();
