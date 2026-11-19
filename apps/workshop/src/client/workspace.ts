@@ -138,6 +138,16 @@ function itemPrice(item: Item) {
  if(item.estimatedUnitCost !== undefined) return `$${item.estimatedUnitCost} estimated`;
  return "Unpriced";
 }
+function appendPartSource(container: HTMLElement, source: string) {
+ if (!source) return;
+ const link = document.createElement("a");
+ link.href = source;
+ link.textContent = new URL(source).hostname.replace(/^www\./, "");
+ link.setAttribute("aria-label", `Open part source at ${link.textContent}`);
+ link.target = "_blank";
+ link.rel = "noopener noreferrer";
+ container.append(link);
+}
 function renderBom(){
  if (!assembly || section!=="parts") return;
  if(legacy && project.parts.length){
@@ -146,7 +156,10 @@ function renderBom(){
   $("bom-rows").replaceChildren(...project.parts.map(part=>{
    const row=element("article","");row.className="bom-row";
    const price=element("span",part.unitCost.toLocaleString("en-US",{style:"currency",currency:"USD"})+" each");price.className="line-price";
-   row.append(element("strong",part.name),element("span",`Qty ${part.quantity}`),price);return row;
+   const details=element("div","");
+   details.append(price);
+   appendPartSource(details,part.source);
+   row.append(element("strong",part.name),element("span",`Qty ${part.quantity}`),details);return row;
   }));
   return;
  }
@@ -157,7 +170,7 @@ function renderBom(){
    `${unpricedUnits?"Partial one-build subtotal":"One-build price"} ${usd.format(knownSubtotal+estimatedSubtotal)} · ${usd.format(knownSubtotal)} known · ${usd.format(estimatedSubtotal)} estimated · ${unpricedUnits} unpriced ${unpricedUnits===1?"unit":"units"}`;
  const mode=$<HTMLSelectElement>("bom-mode").value;
  const rows=mode==="hierarchy"?bomRows(view):bomTotals(view).lines.filter(r=>r.item.kind!=="assembly"&&(mode!=="cots"||r.item.kind==="cots")).map(r=>({...r,depth:0}));
- $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("a",item.name) as HTMLAnchorElement;button.href=urlFor("assembly",item.id);title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",item.kind);const price=element("span"," · "+itemPrice(item));price.className="line-price";info.append(price);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
+ $("bom-rows").replaceChildren(...rows.map(({item,quantity,depth})=>{const row=element("article","");row.className="bom-row";const title=element("div","");const button=element("a",item.name) as HTMLAnchorElement;button.href=urlFor("assembly",item.id);title.append(button,element("small",`${"↳ ".repeat(Math.min(depth,3))}${item.number} · ${item.revision}`));const info=element("div",item.kind);const price=element("span"," · "+itemPrice(item));price.className="line-price";info.append(price);info.append(element("small",[item.manufacturer,item.mpn,item.provenance].filter(Boolean).join(" · ")));appendPartSource(info,item.source);row.append(title,element("span",`Qty ${quantity}`),info);return row;}));
 }
 function showBuild(run?:BuildRequest, snapshot=false){
  const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
