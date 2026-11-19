@@ -17,6 +17,8 @@ test("the SNY-1 node is an assembly with an electronics sub-assembly, an ESP32-S
   // Cost per top assembly counts every line once per use.
   const { lines, cost } = bomTotals(assembly);
   assert.equal(lines.length, 12);
+  assert.deepEqual(buildPrice(assembly), { knownSubtotal: 0, estimatedSubtotal: 70.85, unpricedUnits: 0 });
+  assert.equal(buildPrice({ ...assembly, rootId: at("SNY-A002")!.item.id }).estimatedSubtotal, 44.49);
   assert.equal(Math.round(cost * 100) / 100, 70.85);
 });
 
@@ -64,6 +66,7 @@ test("build price covers quoted assemblies once and reports missing physical uni
   root.uses = [child, screw].map(item => ({
     id: crypto.randomUUID(), itemId: item.id, quantity: 2, position: [0,0,0], rotation: 0, refdes: "",
   }));
+  delete screw.estimatedUnitCost;
   child.unitCost = 10;
   child.priceKnown = true;
   assert.deepEqual(buildPrice(assembly), { knownSubtotal: 20, estimatedSubtotal: 0, unpricedUnits: 2 });

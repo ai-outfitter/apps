@@ -47,6 +47,7 @@ export function sensorNodeAssembly(): Assembly {
   const item = (fields: Partial<Item> & Pick<Item, "number" | "name" | "kind">): Item => ({
     id: id(),
     priceKnown: false,
+    estimatedUnitCost: fields.unitCost,
     provenance: "provisional",
     revision: "A",
     manufacturer: "",
