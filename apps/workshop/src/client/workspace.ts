@@ -214,6 +214,7 @@ for (const file of item.files ?? []) {
 if (inspection) {
  updateBudgetTabs(inspectedAssembly());
  $("tab-selected").hidden = false;
+ $("show-all").textContent = viewer?.isolated ? "Show all" : "Clear selection";
  $("show-all").hidden = false;
  inspection.open("selected");
  if (root?.contains(document.activeElement) && document.activeElement?.closest("#project-inspection")) $("tab-selected").focus({preventScroll:true});
@@ -485,6 +486,7 @@ $("isolate-item").onclick = () => {
  if (selected) {
   viewer?.isolate(descendants(selected), selectionPath);
   $("isolate-item").hidden=true;
+  $("show-all").textContent = "Show all";
   $("show-all").focus({preventScroll:true});
  }
 };

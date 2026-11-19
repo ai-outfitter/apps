@@ -12,7 +12,7 @@
 .workspace[data-section="overview"] .model-stage {position:relative;overflow:visible}
 .workspace[data-section="overview"] .model-stage canvas {height:var(--panel-height);border-radius:10px}
 .workspace[data-section="overview"] .model-stage .stage-bar {
- position:absolute;z-index:2;bottom:12px;right:12px;padding:0;border:0;gap:6px;
+ max-width:calc(100% - 24px);position:absolute;z-index:2;bottom:12px;right:12px;padding:0;border:0;gap:6px;
 }
 .workspace[data-section="overview"] .stage-bar :is(button,summary) {
  font-size:13px;min-height:36px;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;
@@ -42,7 +42,8 @@
 @media(max-width:900px){
  .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column}
  .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
- .workspace[data-section="overview"] .model-stage canvas {height:clamp(230px,43svh,440px);min-height:0}
+ .workspace[data-section="overview"] .model-stage canvas {height:clamp(200px,calc(43svh - 48px),400px);min-height:0;border-radius:10px 10px 0 0}
+ .workspace[data-section="overview"] .model-stage .stage-bar {position:relative;order:1;inset:auto;max-width:none;padding:6px;justify-content:flex-end;border-top:1px solid var(--border)}
  .workspace #project-inspection {height:clamp(230px,43svh,480px)}
  .workspace #project-inspection [role="tab"] {padding-inline:8px}
 }
@@ -52,7 +53,7 @@
 .workspace #selected-body dt {color:var(--muted)}
 .workspace #selected-body dd {margin:0}
 .workspace #selected-body p {white-space:pre-line}
-.workspace[data-section="overview"] .model-stage .stage-bar {max-width:calc(100% - 24px)}
+
 
 .workspace #selected-body h4 {margin:16px 0 4px;font-size:.9rem}
 .workspace #selected-body .inspection-children {display:grid;gap:0;margin:0}

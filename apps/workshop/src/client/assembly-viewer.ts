@@ -299,6 +299,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       canvas.dataset.motionSolids = String(moved);
     },
     /** Show one item at full strength and fade the rest; undefined shows all. */
+    get isolated() { return isolated !== undefined; },
     isolate(items?: Set<string>, path?: string) {isolated=items;isolatedPath=path;highlight();},
     select(items?: Set<string>, path?: string, itemId?: string) {
       selectedItem = itemId;
