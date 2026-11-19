@@ -1,4 +1,6 @@
 import type { MeshSource } from "../lib/assembly-resolution";
+import { attachedMesh } from "../lib/assembly-file";
+import { appBase } from "../lib/sections";
 import { verifiedArtifact, type ArtifactRecord } from "../lib/artifact";
 import { savedMotionMatrix, type PlacedRotation } from "../lib/saved-drive-motion";
 import { createZDriveInspection } from "./z-drive-inspection";
@@ -228,8 +230,8 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     try {
       const replies = await meshItems(list.filter(p=>!p.item.mesh),legacy);
       for(const {item} of list)if(item.mesh&&!external.has(item.id)){
-        const src=sources[item.id];
-        external.set(item.id,new STLLoader().parse(await verifiedArtifact(src?.base ?? artifactBase,item.mesh.path,src ? [src.artifact] : artifacts,signal)));
+        const src=sources[item.id] ?? attachedMesh(item);
+        external.set(item.id,new STLLoader().parse(await verifiedArtifact(src?.base ?? artifactBase,item.mesh.path,src ? [src.artifact] : artifacts,signal,(url,init)=>fetch(appBase(location.pathname)+url,init))));
       }
       if (current !== version) return;
       clear();

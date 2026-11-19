@@ -1,6 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { buildPrice, type Assembly, type AssemblyReference, type Item } from "./assembly";
+import { attachedMesh } from "./assembly-file";
 import type { ArtifactRecord } from "./artifact";
 import type { Project } from "./project";
 
@@ -97,7 +98,9 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         }
         items.set(viewId,view);
         if (scope && item.power?.loads.length) mergePower(assembly.power);
-        if (scope && item.mesh) {
+        const uploaded = attachedMesh(item);
+        if (uploaded) result.meshes[viewId]=uploaded;
+        else if (scope && item.mesh) {
           const run = source.workspace?.requests.find(r=>r.id===source.workspace?.currentBuildId)?.result;
           const artifact=(source.meshBuild?.artifacts ?? run?.manifest?.artifacts)?.find(a=>a.path===item.mesh!.path);
           const base=source.meshBuild?.base ?? run?.artifactBase;

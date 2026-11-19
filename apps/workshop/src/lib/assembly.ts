@@ -1,5 +1,6 @@
 import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
+import { assemblyFile } from "./assembly-file";
 import { ArtifactPathSchema } from "./artifact";
 import { ItemPowerSchema, PowerSystemSchema, validateAssemblyPower } from "./power";
 import { Matrix4, Euler, Quaternion, Vector3 } from "three";
@@ -16,6 +17,8 @@ const url = z
   .max(2000)
   .refine((s) => !s || /^https?:\/\//i.test(s), "Use an http or https URL");
 const coordinate = z.number().min(-10000).max(10000);
+
+export const meshBounds = z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])}).refine(b=>b.min.every((n,i)=>n<=b.max[i]),"Invalid mesh bounds");
 
 export const UsageSchema = z
   .object({
@@ -84,7 +87,8 @@ export const ItemSchema = z
     /** Solid geometry in the item's own coordinates. For COTS parts it is an
      * envelope, not the manufacturer's model. */
     geometry: AssemblyCadPlanSchema.optional(),
-    mesh: z.object({path:ArtifactPathSchema, bounds:z.object({min:z.tuple([coordinate,coordinate,coordinate]),max:z.tuple([coordinate,coordinate,coordinate])})}).optional(),
+    mesh: z.object({path:ArtifactPathSchema, bounds:meshBounds}).optional(),
+    files: z.array(assemblyFile).optional(),
     priceKnown: z.boolean().default(false),
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
@@ -97,7 +101,7 @@ export const ItemSchema = z
     uses: z.array(UsageSchema).max(50).default([]),
   })
   .strict()
-  .refine(item => !item.reference || (item.kind === "assembly" && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
+  .refine(item => !item.reference || (item.kind === "assembly" && !item.files?.length && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
   .refine((item) => item.kind === "assembly" || !item.uses.length, "Only an assembly contains other items")
   .refine((item) => (item.kind === "firmware") === Boolean(item.firmware), "Firmware items, and only they, name a repository and ref")
   .refine((item) => item.kind !== "firmware" || !item.geometry, "Firmware has no geometry");

@@ -11,6 +11,7 @@ import type { Project } from "../lib/project";
 import { bomRows,bomTotals,buildPrice,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
+import { fileBase, filePath, fileType } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
@@ -131,6 +132,21 @@ if(item.uses.length){
    children.append(button);
  }
  details.append(children);
+}
+for (const file of item.files ?? []) {
+ const url=appBase(location.pathname)+fileBase(file)+filePath(file);
+ const link=document.createElement("a");
+ link.href=url; link.download=file.fileName; link.textContent="Download "+file.fileName;
+ details.append(link);
+ const type=fileType(file.fileName);
+ if(type.startsWith("video/")){
+   const video=document.createElement("video");
+   video.controls=true; video.preload="none"; video.src=url; video.style.maxWidth="100%";
+   details.append(video);
+ } else if(type==="image/gif"){
+   const image=document.createElement("img");
+   image.src=url; image.alt=file.fileName; image.style.maxWidth="100%"; details.append(image);
+ }
 }
 appendPartSource(details, item.source);
 $<HTMLDetailsElement>("inspector").open = true;
