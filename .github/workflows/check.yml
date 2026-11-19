@@ -136,6 +136,24 @@ jobs:
         with:
           command: plan
           config-path: ${{ inputs.config-path }}
+      - name: Identify the locked Playwright browser set
+        if: steps.config.outputs.validation == 'scripts'
+        id: playwright
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          if jq -e '.outfitter.browserTests == true' "$APP/package.json" > /dev/null; then
+            version=$(jq -r '.packages["node_modules/playwright-core"].version // empty' package-lock.json)
+            if [[ -n "$version" ]]; then
+              echo "key=playwright-chromium-$ImageOS-$RUNNER_ARCH-$version" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Cache Chromium and Playwright helpers
+        if: steps.playwright.outputs.key != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright.outputs.key }}
       - uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
         with:
           command: ${{ steps.config.outputs.validation == 'scripts' && 'run' || 'check' }}
