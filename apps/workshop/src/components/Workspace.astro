@@ -27,7 +27,7 @@ const MotionContainer = overview ? "details" : "div";
     <div class="model-layout">
       <div class="model-stage workspace-card">
         <div class="stage-bar">
-          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all" hidden={overview}>Show all</button></div>
+          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden={overview}>Show all</button></div>
           <MotionContainer id={overview ? "motion-menu" : undefined} hidden={overview}>
             {overview && <summary>Motion</summary>}
             <div id={overview ? "motion-popover" : undefined}>

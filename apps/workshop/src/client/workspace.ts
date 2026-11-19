@@ -154,11 +154,34 @@ function select(item:Item, path?:string){
  selectionPath=path;
  selected=item;
  viewer?.select(descendants(item),path,item.id);
- $<HTMLAnchorElement>("open-component").href=urlFor(overview ? "overview" : "assembly",item.id);
+ $("isolate-item").hidden=!viewer;
  $("selected-name").textContent=item.name;
- $("selected-meta").textContent=[item.number, "Rev "+item.revision, item.kind].join(" · ");
+ $("selected-meta").textContent=[item.kind, "Rev "+item.revision].join(" · ");
  const details=$("selected-body");
  details.replaceChildren();
+ if(item.notes) details.append(element("p",item.notes));
+ const facts=element("dl","");
+ details.append(facts);
+ function fact(label:string,value:HTMLElement|string){
+   const entry=element("dd","");
+   entry.append(value);
+   facts.append(element("dt",label),entry);
+ }
+ const model=element("a",item.number) as HTMLAnchorElement;
+ model.href=urlFor(overview ? "overview" : "assembly",item.id);
+ model.setAttribute("aria-label","Open model "+item.number);
+ fact("Model",model);
+ fact("Geometry",item.provenance);
+ fact("Unit price",itemPrice(item));
+ const supplier=element("span","");
+ appendPartSource(supplier,item.source);
+ if(supplier.childElementCount) fact("Supplier",supplier);
+ const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
+ if(source){
+   const link=element("a",source.name+" · Rev "+source.revision+(source.configuration ? " · "+source.configuration : "")) as HTMLAnchorElement;
+   link.href=sourceUrl(source);
+   fact("Source model",link);
+ }
  const children=assemblyChildren(assembly,item.id);
  if(children.length){
    const list=element("div","");
@@ -172,17 +195,7 @@ function select(item:Item, path?:string){
      list.append(button);
    }
  }
- const specs=element("details","");
- specs.append(element("summary","Part details"));
- if(item.notes) specs.append(element("p",item.notes));
- specs.append(element("p","Geometry · "+item.provenance),element("p","Unit price · "+itemPrice(item)));
- details.append(specs);
- const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
- if(source){
-   const link=element("a",source.name+" · Rev "+source.revision+(source.configuration ? " · "+source.configuration : "")) as HTMLAnchorElement;
-   link.href=sourceUrl(source);
-   details.prepend(link);
- }
+if(item.files?.length) details.append(element("h4","Files"));
 for (const file of item.files ?? []) {
  const url=appBase(location.pathname)+fileBase(file)+filePath(file);
  const link=document.createElement("a");
@@ -198,7 +211,6 @@ for (const file of item.files ?? []) {
    image.src=url; image.alt=file.fileName; image.style.maxWidth="100%"; details.append(image);
  }
 }
-appendPartSource(details, item.source);
 if (inspection) {
  updateBudgetTabs(inspectedAssembly());
  $("tab-selected").hidden = false;
@@ -289,6 +301,7 @@ function renderPower() {
 }
 function showBuild(run?:BuildRequest, snapshot=false){
  selected = undefined;
+ $("isolate-item").hidden=true;
  selectionPath = undefined;
  if (inspection) {
   $("tab-selected").hidden = true;
@@ -458,6 +471,7 @@ $("show-all").onclick = () => {
  viewer?.isolate();
  viewer?.select();
  selected = undefined;
+ $("isolate-item").hidden=true;
  selectionPath = undefined;
  if (!inspection) $<HTMLDetailsElement>("inspector").open = false;
  if (inspection) {
@@ -468,7 +482,11 @@ $("show-all").onclick = () => {
  }
 };
 $("isolate-item").onclick = () => {
- if (selected) viewer?.isolate(descendants(selected), selectionPath);
+ if (selected) {
+  viewer?.isolate(descendants(selected), selectionPath);
+  $("isolate-item").hidden=true;
+  $("show-all").focus({preventScroll:true});
+ }
 };
 $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
