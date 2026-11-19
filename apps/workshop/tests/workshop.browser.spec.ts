@@ -75,6 +75,23 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
   await page.getByRole("button",{name:"Back to components"}).click();
   await expect(page.getByRole("tab",{name:"Components"})).toBeFocused();
+  await page.getByRole("tab", {name:"Selected"}).click();
+  await page.locator("#item-details").getByRole("button", {name:/ESP32/}).click();
+  await expect(page.getByRole("tab", {name:"BOM"})).toHaveCount(0);
+  await page.getByRole("tab", {name:"Power"}).click();
+  await expect(page.locator("#power-panel h2")).toContainText("ESP32");
+  await page.getByRole("button", {name:"Show all",exact:true}).click();
+  await expect(page.getByRole("tab", {name:"Selected"})).toHaveCount(0);
+  await page.getByRole("tab", {name:"BOM"}).click();
+  await expect(page.locator("#bom-price")).toContainText("$70.85 estimated");
+  const canvas = await page.locator("#assembly-viewer").elementHandle();
+  await page.locator("#bom-rows").getByRole("link", {name:"Electronics sub-assembly"}).click();
+  await expect(page.getByRole("tab", {name:"Selected"})).toHaveAttribute("aria-selected","true");
+  expect(await canvas!.evaluate(el => document.querySelector("#assembly-viewer") === el)).toBe(true);
+  await page.setViewportSize({width:1440,height:900});
+  await page.goto(origin + "/projects/node-000000000106/power");
+  await expect(page.locator(".power-table th").first()).toBeVisible();
+  await expect(page.locator(".power-field-label").first()).toBeHidden();
  } finally {
   await page.unrouteAll({behavior:"ignoreErrors"});
   await app.dispose();

@@ -1,12 +1,16 @@
 ---
+import BillOfMaterials from "./BillOfMaterials.astro";
+import SelectedComponent from "./SelectedComponent.astro";
+import MotionDetails from "./MotionDetails.astro";
 import ProjectInspection from "./ProjectInspection.astro";
 import "../styles/project-inspection.css";
 interface Props { slug:string; section:string }
 const {slug,section}=Astro.props;
+const overview = section === "overview";
+const MotionContainer = overview ? "details" : "div";
 ---
 <div class="workspace" data-slug={slug} data-section={section}>
-  <header><div><h1 id="project-name">Loading project…</h1></div><span id="revision-label"></span></header>
-  <p id="project-brief" hidden></p>
+  <header><div><h1 id="project-name">Loading project…</h1></div>{!overview && <span id="revision-label"></span>}</header>
   <nav id="project-views" aria-label="Model pages" hidden>
     <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
   </nav>
@@ -23,35 +27,34 @@ const {slug,section}=Astro.props;
     <div class="model-layout">
       <div class="model-stage workspace-card">
         <div class="stage-bar">
-          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all">Show all</button></div>
-          {section === "overview" && <details id="motion-menu" hidden><summary>Motion</summary><div id="motion-popover"></div></details>}
-          <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
-            <strong id="motion-heading">Unverified motion study</strong>
-            <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
-            <button id="motion-play">Play motion</button><button id="motion-reset">Reset pose</button>
-          </div>
+          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="show-all" hidden={overview}>Show all</button></div>
+          <MotionContainer id={overview ? "motion-menu" : undefined} hidden={overview}>
+            {overview && <summary>Motion</summary>}
+            <div id={overview ? "motion-popover" : undefined}>
+              <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
+                <strong id="motion-heading">Unverified motion study</strong>
+                <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
+                <button id="motion-play">Play motion</button><button id="motion-reset" hidden={overview}>Reset pose</button>
+              </div>
+            {overview && <MotionDetails />}
+            </div>
+          </MotionContainer>
         </div>
         <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
         <p id="assembly-status" role="status">Loading geometry…</p>
-        <p id="drive-turns" role="status" hidden></p>
-        <p id="drive-review-status" hidden>Mechanical review: incomplete. Animation does not establish a working drive.</p>
+        {!overview && <MotionDetails />}
       </div>
-      {section === "overview" && <ProjectInspection />}
+      {overview && <ProjectInspection />}
       <aside id="assembly-components" class="workspace-card" hidden={section === "overview"}><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
     <p id="assembly-references" hidden></p>
-    <div id="motion-preview" hidden>
-      <div id="drive-inspection-controls"><label><input id="inspect-drive" type="checkbox" /> Inspect proposed Z belt drive (cutaway)</label>
-      <p>The cutaway replaces the saved axis/motor envelopes with a proposed alignment. Amber: assumed motor placement. Red outlines: unresolved flange and carriage belt attachment. Belt markers and shaft stripes show motion at 70 mm per revolution; internal placement is schematic, not supplier CAD.</p>
-      <details><summary>Drive review — unresolved connections</summary><ul id="drive-findings"></ul><p><a href="https://www.igus.com/us/pdf/DrylinSlideTables.pdf" target="_blank" rel="noopener">igus ZLW belt-drive dimensions and transmission ratio (pages 22.11–22.12)</a></p></details></div>
-    </div>
 
-    <details id="inspector"><summary>Selected component</summary><div id="item-details"></div><button id="isolate-item">Isolate component</button> <a id="open-component" href="#">Open model</a></details>
+    {!overview && <details id="inspector"><summary>Selected component</summary><SelectedComponent /></details>}
     <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
     <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
-  <section id="power-panel" class="workspace-card" aria-label="Assembly power budget" hidden={section !== "power"}></section>
-  <section id="bom-panel" hidden><div class="toolbar"><h2 id="bom-heading">Bill of materials</h2><label id="bom-view">View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><details id="pricing"><summary>Pricing</summary><p id="bom-price"></p></details><div id="bom-rows"></div></section>
+  {!overview && <section id="power-panel" class="workspace-card" aria-label="Assembly power budget" hidden={section !== "power"}></section>}
+  {!overview && <BillOfMaterials hidden />}
   <section id="revisions-panel" hidden={section !== "release"}><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
 </div>
 <script>import "../client/workspace";</script>

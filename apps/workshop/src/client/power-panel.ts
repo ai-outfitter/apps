@@ -20,7 +20,6 @@ function powerTable(caption: string, columns: string[]) {
    if (index > 0) {
     const label = node("span", columns[index]);
     label.className = "power-field-label";
-    label.setAttribute("aria-hidden", "true");
     cell.prepend(label);
    }
    row.append(cell);

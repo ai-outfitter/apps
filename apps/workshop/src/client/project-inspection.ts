@@ -44,8 +44,6 @@ export function inspectionTree(assembly: Assembly, sources: ResolvedAssembly["so
    const pick = document.createElement("button");
    pick.textContent = item.name;
    pick.onclick = () => select(item);
-   const expand = document.createElement("button");
-   expand.className = "tree-toggle";
    const source = sources.find(s => s.itemId === item.id);
    const meta = document.createElement("small");
    meta.textContent = item.number + " · " + item.kind + (quantity > 1 ? " ×" + quantity : "");
@@ -58,6 +56,8 @@ export function inspectionTree(assembly: Assembly, sources: ResolvedAssembly["so
    }
    row.append(line);
    if (item.uses.length) {
+    const expand = document.createElement("button");
+    expand.className = "tree-toggle";
     expand.textContent = "▸";
     expand.setAttribute("aria-label", "Expand " + item.name);
     expand.setAttribute("aria-expanded", "false");
