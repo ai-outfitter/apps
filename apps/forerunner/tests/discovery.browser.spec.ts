@@ -192,7 +192,7 @@ for (const width of [1440, 390])
       await expect(page.getByRole("link",{name:/^Inputs/})).toHaveAttribute("aria-current","page");
       await expect(page.locator("#run-mail-detail")).toContainText("Please review the revised sketch.");
       await expect(page.locator("#run-mail-detail .run-conclusion")).toContainText("Studio client");
-      await expect(page.locator("#run-mail-detail .run-conclusion")).toContainText("Added");
+      await expect(page.locator("#run-mail-detail .run-conclusion")).toContainText("Waiting for review");
       await page.screenshot({path:info.outputPath(`run-inputs-${width}.png`)});
       const downloaded=page.waitForEvent("download");
       await page.getByRole("button",{name:"Export run"}).click();
@@ -211,8 +211,17 @@ for (const width of [1440, 390])
       await expect(page.locator("#run-mail-list")).toHaveCount(0);
       await visit.expectSame();
       await expect(page.getByRole("link",{name:/^Changes/})).toContainText("1");
-      await expect(page.locator("#discovery-entries")).toContainText("Added");
+      await expect(page.locator("#discovery-entries")).toContainText("Waiting for review");
       expect(applies).toBe(1);
+      // This person has no relationship to the organization root. Onto holds
+      // the proposal until a member approves it; correction needs a saved node.
+      const reviewLink = await page.getByRole("link", {name:"Review 1 change",exact:true}).getAttribute("href");
+      const batchId = reviewLink?.split("/").at(-1);
+      expect(batchId).toBeTruthy();
+      const approved = await wiki.call("/api/apps/onto/batches/review", owner, {
+        method:"POST", body:{batchId, verdict:"approve"},
+      });
+      expect(approved.status, await approved.clone().text()).toBe(200);
       await expect(page.getByRole("group",{name:"Person",exact:true})).toBeVisible();
       await expect(page.getByRole("button",{name:"Correct match",exact:true})).toBeHidden();
       await expect(page.getByRole("button",{name:"Save reviewed entries to Wiki"})).toHaveCount(0);
