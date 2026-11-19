@@ -64,6 +64,7 @@ test('installed drive binds both reference hops and uses the mounted Z axis', as
   if(project!==source){
    assert.notEqual(owner.id,rack.id);
    assert.notEqual(owner.driveMotion!.z.rotations[0].usageId,moving.id);
+   assert.equal(owner.uses[1].id,fixed.id);
    assert.deepEqual(owner.driveMotion!.viewRootIds,[owner.id]);
    assert.ok([...motion.axes.values()][0].distanceTo(new Vector3(0,-1,0))<1e-10);
   }

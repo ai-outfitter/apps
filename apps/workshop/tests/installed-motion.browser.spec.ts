@@ -35,7 +35,13 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
   });
   await page.goto(origin+'/projects/'+projectSlug(consumer)+'/assembly');
   const play=page.getByRole('button',{name:'Play motion',exact:true});
-  await expect(play).toBeVisible({timeout:60000});await play.click();
+  await expect(play).toBeVisible({timeout:60000});
+  for (const [width,height] of [[1440,900],[390,844]]) {
+   await page.setViewportSize({width,height});
+   await expect(play).toBeInViewport({ratio:1});
+   await expect(page.locator('#motion-level')).toBeInViewport({ratio:1});
+  }
+  await play.click();
   await expect(page.getByRole('button',{name:'Pause motion'})).toBeVisible();
   await page.selectOption('#motion-level','1');
   const canvas=page.locator('#assembly-viewer');

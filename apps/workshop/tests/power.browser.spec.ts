@@ -35,6 +35,7 @@ test('power scenario stays selected after save; empty historical builds never sh
   });
   await page.goto(origin+`/projects/${projectSlug(p)}/assembly`);
   await expect(page.locator('#assembly-status')).toContainText('3D preview unavailable');
+  await page.locator('#project-power').click();
   await page.selectOption('#power-scenario','high');
   await page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true}).fill('7');
   await page.getByRole('button',{name:'Save power values'}).click();
@@ -49,8 +50,10 @@ test('power scenario stays selected after save; empty historical builds never sh
   await expect(page.locator('.model-card')).toHaveCount(1);
   await page.goto(origin+`/projects/${projectSlug(p)}/assembly?build=${p.workspace.requests[0].id}`);
   await expect(page.locator('#workspace-notice')).toContainText('no saved assembly');
-  await expect(page.locator('#power-panel')).toContainText('No power budget');
+  await expect(page.locator('#project-power')).toBeHidden();
   await expect(page.locator('#component-tree .component-row')).toHaveCount(0);
+  await page.goto(origin+`/projects/${projectSlug(p)}/power?build=${p.workspace.requests[0].id}`);
+  await expect(page.locator('#power-panel')).toContainText('No power budget saved');
   const consumer=await(await app.call('/api/apps/workshop/projects',member,{method:'POST',body:{example:'cube'}})).json() as any;
   const linked={id:crypto.randomUUID(),number:'LINK',revision:'A',name:'Source controls',kind:'assembly',reference:{projectId:p.id}};
   const linkReceipt=await app.call(`/api/apps/workshop/projects/${consumer.id}/assembly`,member,{method:'PUT',body:{
@@ -58,10 +61,12 @@ test('power scenario stays selected after save; empty historical builds never sh
   }});
   expect(linkReceipt.status).toBe(200);
   await page.goto(origin+`/projects/${projectSlug(consumer)}/assembly`);
+  await expect(page.locator('#assembly-references')).toContainText(p.name);
+  await page.locator('#project-power').click();
   await page.selectOption('#power-scenario','high');
   await expect(page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true})).toBeDisabled();
   await expect(page.locator('#power-summary')).toContainText('7 W simultaneous');
-  await expect(page.locator('#assembly-references')).toContainText(p.name);
+
   const source=await(await app.call(path,member)).json() as any;
   source.assembly.items[0].power.loads[0].scenarios.high.peakW=8;
   expect((await app.call(path+'/assembly',member,{method:'PUT',body:{expectedRevision:source.revision,assembly:source.assembly}})).status).toBe(200);
