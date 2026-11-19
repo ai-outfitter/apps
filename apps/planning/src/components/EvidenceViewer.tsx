@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Markdown from "@ai-outfitter/ui/react/Markdown";
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import type { EvidenceView } from "@ai-outfitter/app-sdk/visual-evidence";
 import "../evidence.css";
@@ -127,7 +128,7 @@ export default function EvidenceViewer({
           {bundle.source?.dirty ? " · Modified working tree" : ""}
         </p>
         <h2>{bundle.title}</h2>
-        <p>{bundle.summary}</p>
+        <Markdown>{bundle.summary}</Markdown>
         <p className="muted">
           {bundle.capturedAt
             ? `Captured ${bundle.capturedAt}`
@@ -211,7 +212,7 @@ export default function EvidenceViewer({
                   Step {index + 1} of {bundle.steps.length}
                 </p>
                 <h3>{step.title}</h3>
-                <p>{step.description}</p>
+                <Markdown>{step.description}</Markdown>
                 <div className={compare && step.before ? "evidence-comparison" : ""}>
                   {compare && step.before && (
                     <section>
