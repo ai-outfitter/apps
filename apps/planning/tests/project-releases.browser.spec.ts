@@ -187,13 +187,13 @@ for (const width of [1440, 390])
   });
 
 test("read-only Planning demo exposes a synthetic release review without an owner host", async ({
-  page,
+  page, baseURL,
 }) => {
-  const app = await appWorker(
+  const app = baseURL ? undefined : await appWorker(
     "planning",
     appArtifact(new URL("..", import.meta.url), "demo"),
   );
-  await page.route(`${origin}/**`, async (route) =>
+  if (app) await page.route(`${origin}/**`, async (route) =>
     fulfillFrom(
       route,
       await app.call(
@@ -203,7 +203,7 @@ test("read-only Planning demo exposes a synthetic release review without an owne
     ),
   );
   try {
-    const project = `${origin}/projects/00000000-0000-4000-8000-000000000001`;
+    const project = `${baseURL ?? origin}/projects/00000000-0000-4000-8000-000000000001`;
     await page.goto(`${project}/releases`);
     await expect(
       page.getByText(
@@ -219,6 +219,7 @@ test("read-only Planning demo exposes a synthetic release review without an owne
       page.getByRole("link", { name: "Wiki source", exact: true }),
     ).toHaveCount(0);
     await page.goto(`${project}/evidence`);
+    await expect(page.locator("astro-island:not([ssr]) .evidence-review")).toBeVisible();
     await page.getByText("Source records and JSON", {exact:true}).click();
     await expect(
       page.getByText("Read-only demo · These evidence records are synthetic."),
@@ -230,6 +231,6 @@ test("read-only Planning demo exposes a synthetic release review without an owne
       page.getByRole("link", { name: "Wiki source", exact: true }),
     ).toHaveCount(0);
   } finally {
-    await app.dispose();
+    await app?.dispose();
   }
 });
