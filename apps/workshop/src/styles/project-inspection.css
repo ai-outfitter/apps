@@ -47,3 +47,19 @@
  .workspace #project-inspection {height:clamp(230px,43svh,480px)}
  .workspace #project-inspection [role="tab"] {padding-inline:8px}
 }
+
+.workspace #item-details h3 {font-size:1.35rem;line-height:1.2;margin:4px 0}
+.workspace .selected-actions {display:flex;align-items:center;gap:16px;margin:12px 0 16px}
+.workspace #selected-body h4 {margin:16px 0 4px;font-size:.9rem}
+.workspace #selected-body .inspection-children {display:grid;gap:0;margin:0}
+.workspace #selected-body .inspection-children button {display:flex;justify-content:space-between;gap:12px;text-align:left;align-items:center;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:8px 2px;background:transparent}
+.workspace #selected-body .inspection-children button:hover {background:var(--hover)}
+.workspace #selected-body details {padding:0;border:0}
+.workspace #selected-body summary {font-size:.9rem;color:var(--muted)}
+.workspace #selected-body > a {display:block;margin:8px 0}
+.workspace #selected-body img,.workspace #selected-body video {display:block;max-width:100%}
+.workspace #motion-controls > :is(strong,p,small) {flex-basis:100%;margin:0}
+.workspace #motion-controls > strong {font-size:1rem;color:var(--text)}
+.workspace #motion-controls select {flex:1 1 9rem}
+.workspace #motion-controls small {font-variant-numeric:tabular-nums}
+.workspace #motion-preview:has(#drive-inspection-controls[hidden]) {display:none}

@@ -73,7 +73,7 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   }
   await page.getByRole("tab", {name:"Selected"}).click();
   await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
-  await page.getByRole("button",{name:"Back to components"}).click();
+  await page.getByRole("tab",{name:"Components"}).click();
   await expect(page.getByRole("tab",{name:"Components"})).toBeFocused();
   await page.getByRole("tab", {name:"Selected"}).click();
   await page.locator("#item-details").getByRole("button", {name:/ESP32/}).click();

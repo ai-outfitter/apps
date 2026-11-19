@@ -2,8 +2,8 @@
 import BillOfMaterials from "./BillOfMaterials.astro";
 import SelectedComponent from "./SelectedComponent.astro";
 const tabs = [
-  ["description", "Description"], ["components", "Components"], ["bom", "BOM"],
-  ["power", "Power"], ["selected", "Selected"],
+  ["description", "Description"], ["components", "Components"], ["selected", "Selected"],
+  ["bom", "BOM"], ["power", "Power"],
 ];
 const initialTab = tabs[0][0];
 ---
@@ -19,6 +19,6 @@ const initialTab = tabs[0][0];
     {id === "bom" && <BillOfMaterials />}
     {id === "power" && <section id="power-panel" aria-label="Assembly power budget"></section>}
     {id === "components" && <div id="inspection-tree"></div>}
-    {id === "selected" && <><button id="back-components" type="button">Back to components</button><SelectedComponent /></>}
+    {id === "selected" && <SelectedComponent />}
   </section>)}
 </aside>

@@ -193,13 +193,21 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
       node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !(inspectionVisible && inspectionPaths.has(path));
       const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
+      const picked = selected !== undefined && !dim;
       node.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           const material = child.material as THREE.MeshStandardMaterial;
-          material.opacity = dim ? Math.min(0.12, child.userData.opacity) : child.userData.opacity;
+          child.userData.baseColor ??= material.color.getHex();
+          material.color.setHex(picked ? 0x1676a3 : child.userData.baseColor);
+          material.opacity = dim ? Math.min(0.12, child.userData.opacity) : picked ? Math.max(0.34, child.userData.opacity) : child.userData.opacity;
           material.transparent = material.opacity < 1;
           material.depthWrite = !material.transparent;
           material.needsUpdate = true;
+        } else if (child instanceof THREE.LineSegments) {
+          const edge = child.material as THREE.LineBasicMaterial;
+          child.userData.baseOpacity ??= edge.opacity;
+          edge.color.setHex(picked ? 0x154c68 : 0x2b2b2b);
+          edge.opacity = picked ? 0.75 : dim ? 0.08 : child.userData.baseOpacity;
         }
       });
     }

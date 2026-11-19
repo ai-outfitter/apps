@@ -33,8 +33,10 @@ const MotionContainer = overview ? "details" : "div";
             <div id={overview ? "motion-popover" : undefined}>
               <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
                 <strong id="motion-heading">Unverified motion study</strong>
-                <label><span class="visually-hidden">Target level</span><select id="motion-level"></select></label>
+                <p id="drive-review-status" hidden></p>
+                <label><span class="visually-hidden">Target position</span><select id="motion-level"></select></label>
                 <button id="motion-play">Play motion</button><button id="motion-reset" hidden={overview}>Reset pose</button>
+                <small id="drive-turns" hidden></small>
               </div>
             {overview && <MotionDetails />}
             </div>
