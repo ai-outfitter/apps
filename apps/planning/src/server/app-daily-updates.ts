@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { projectRollup } from "./report-summary";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import {
@@ -14,14 +16,39 @@ export async function collectAppUpdates(
   projects: ReportChain["projects"],
   runId: string,
 ) {
+  const producers = ["Workshop", "Software Foundry", "Planning", "Onto"];
+  let expected = ["Planning"];
+  if (actor.owner.kind === "organization") {
+    try {
+      const viewer = await host.call("platform.document", {
+        document: "Viewer",
+        kind: "query",
+        variables: {},
+        query: "query { viewer { orgs { appSlugs } } }",
+      });
+      const { appSlugs } = z
+        .object({
+          viewer: z.object({
+            orgs: z.tuple([z.object({ appSlugs: z.array(z.string()) })]),
+          }),
+        })
+        .parse(viewer).viewer.orgs[0];
+      expected = producers.filter(
+        (app) =>
+          app === "Planning" ||
+          appSlugs.includes(app.toLowerCase().replaceAll(" ", "-")),
+      );
+    } catch {
+      // When installation discovery fails, keep every possible missing producer visible.
+      expected = producers;
+    }
+  }
   return Promise.all(
-    (actor.owner.kind === "user"
-      ? ["Planning"]
-      : ["Workshop", "Software Foundry", "Planning", "Onto"]
-    ).map(async (app) => {
+    expected.map(async (app) => {
       try {
         if (app === "Planning")
           await writeAppUpdate(host, actor, app, period, runId, async () => ({
+            summary: projectRollup(projects).slice(0, 650),
             rows: projects.map((p) => ({
               project: p.summary.name,
               summary: p.summary.summary,

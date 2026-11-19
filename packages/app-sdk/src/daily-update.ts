@@ -10,7 +10,7 @@ import { stableGraphId } from "./graph-client";
 import type { AppIdentity } from "./server";
 
 type Host = Pick<WorkflowHost<"interactive">, "call">;
-export type Evidence = { rows: unknown[]; complete: boolean };
+export type Evidence = { rows: unknown[]; complete: boolean; summary?: string };
 const bodySchema = z.object({
   summary: z.string().min(1).max(650),
   complete: z.boolean(),
@@ -65,7 +65,10 @@ export async function writeAppUpdate(
   const slug = await slugFor(app, period);
   const page = await readWikiPage(host, slug);
   if (page?.archived) throw new Response("Archived update", { status: 409 });
-  const source = await collect().catch(() => ({ rows: [], complete: false }));
+  const source: Evidence = await collect().catch(() => ({
+    rows: [],
+    complete: false,
+  }));
   const facts = source.rows
     .slice(0, 30)
     .map((row) => JSON.stringify(row).slice(0, 500));
@@ -78,6 +81,7 @@ export async function writeAppUpdate(
     actor.installationId,
     period,
     facts,
+    source.summary ?? null,
     complete,
   );
   if (page?.generatedBody.includes("\nEvidence digest: " + digest + "\n"))
@@ -85,7 +89,8 @@ export async function writeAppUpdate(
   let summary = complete
     ? "No activity observed in the checked records."
     : "Activity coverage is incomplete.";
-  if (facts.length) {
+  if (source.summary) summary = bodySchema.shape.summary.parse(source.summary);
+  else if (facts.length) {
     const schema = bodySchema.pick({ summary: true });
     const response = await host.call("inference.generate", {
       runId,

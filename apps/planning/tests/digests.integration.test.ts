@@ -32,6 +32,7 @@ function host(inference: "answer" | "fail" = "answer") {
   const fixture=reportHost();
   const call=fixture.host.call.bind(fixture.host) as (operation:string,input:Input)=>Promise<unknown>;
   fixture.host.call=(async(operation:string,input:Input)=>{
+    if(operation==="platform.document" && input.document==="Viewer")return {viewer:{orgs:[{appSlugs:["planning"]}]}};
     if(operation === "inference.generate"){
       fixture.calls.push({operation,input});
       if(inference === "fail")throw new Response("Inference unavailable",{status:502});
@@ -152,7 +153,7 @@ test("recurrence selects explicit active state and writes a complete no-change d
   assert.equal((await scheduledDigests(db,second.host,editor,"quiet")).unchanged,1);
   const writes=second.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate");
   const generated=writes.filter(call=>call.input.input.query.includes("SaveGeneratedDocument"));
-  assert.equal(generated.length,2,"project note then dependent organization overview");
+  assert.equal(generated.length,3,"project note, Planning update, then dependent organization overview");
   const draft=generated[0].input.input.variables.input;
   assert.match(draft.generatedBody,/no-observed-changes/);
   assert.match(draft.generatedBody,/"reads": "complete"/);
@@ -201,7 +202,7 @@ test("repeated runs preserve identical generated reports without creating more r
   const attempt=host();
   await scheduledDigests(db,attempt.host,editor,"quiet-1");
   await scheduledDigests(db,attempt.host,editor,"quiet-2");
-  assert.equal(attempt.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate").length,2);
+  assert.equal(attempt.calls.filter(call=>call.operation==="actions.call" && call.input.action==="graph.mutate").length,3);
  } finally {client.close();}
 });
 
