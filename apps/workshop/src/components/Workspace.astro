@@ -4,16 +4,20 @@ const {slug,section}=Astro.props;
 ---
 <div class="workspace" data-slug={slug} data-section={section}>
   <header><div><h1 id="project-name">Loading project…</h1></div><span id="revision-label"></span></header>
+  <p id="project-brief" hidden></p>
+  <nav id="project-views" aria-label="Model pages" hidden>
+    <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
+  </nav>
   <p id="workspace-notice" role="status"></p>
-  <section id="models-panel" hidden>
+  <section id="models-panel" hidden={section !== "models"}>
     <div class="toolbar"><div><h2>Models and parts</h2><p id="models-summary" role="status"></p></div><a id="open-assembly" href="#">View full assembly</a></div>
     <div class="catalog-controls"><label>Search models<input id="model-search" type="search" placeholder="Name, part number or manufacturer" /></label><label>Show<select id="model-filter"><option value="all">All items</option><option value="assembly">Assemblies</option><option value="modeled">With geometry</option><option value="cots">COTS parts</option><option value="fabricated">Fabricated parts</option><option value="unmodeled">Awaiting geometry</option></select></label></div>
     <div id="model-catalog" class="model-catalog"></div><p id="models-empty" hidden>No models match your search.</p>
   </section>
-  <section id="model-panel">
+  <section id="model-panel" hidden={section !== "assembly" && section !== "overview"}>
     <div class="toolbar"><h2 id="assembly-title">Full assembly</h2><div><a id="browse-models" href="#">Browse all models</a><span id="full-assembly-link"> · <a id="full-assembly" href="#">Full assembly</a></span></div></div>
     <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
-    <p id="assembly-references" hidden></p>
+
     <div class="model-layout">
       <div class="model-stage workspace-card">
         <div class="stage-bar">
@@ -31,18 +35,20 @@ const {slug,section}=Astro.props;
       </div>
       <aside class="workspace-card"><h2>Components</h2><p id="component-summary"></p><div id="component-tree"></div></aside>
     </div>
+    <p id="assembly-references" hidden></p>
     <div id="motion-preview" hidden>
       <div id="drive-inspection-controls"><label><input id="inspect-drive" type="checkbox" /> Inspect proposed Z belt drive (cutaway)</label>
       <p>The cutaway replaces the saved axis/motor envelopes with a proposed alignment. Amber: assumed motor placement. Red outlines: unresolved flange and carriage belt attachment. Belt markers and shaft stripes show motion at 70 mm per revolution; internal placement is schematic, not supplier CAD.</p>
       <details><summary>Drive review — unresolved connections</summary><ul id="drive-findings"></ul><p><a href="https://www.igus.com/us/pdf/DrylinSlideTables.pdf" target="_blank" rel="noopener">igus ZLW belt-drive dimensions and transmission ratio (pages 22.11–22.12)</a></p></details></div>
     </div>
-    <section id="power-panel" class="workspace-card" aria-label="Assembly power budget"></section>
+
     <details id="inspector"><summary>Selected component</summary><div id="item-details"></div><button id="isolate-item">Isolate component</button> <a id="open-component" href="#">Open model</a></details>
     <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
     <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
-  <section id="bom-panel" hidden><div class="toolbar"><h2>Bill of materials</h2><label>View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><p id="bom-price"></p><div id="bom-rows"></div></section>
-  <section id="revisions-panel" hidden><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
+  <section id="power-panel" class="workspace-card" aria-label="Assembly power budget" hidden={section !== "power"}></section>
+  <section id="bom-panel" hidden><div class="toolbar"><h2 id="bom-heading">Bill of materials</h2><label id="bom-view">View <select id="bom-mode"><option value="hierarchy">Assembly hierarchy</option><option value="totals">Consolidated parts</option><option value="cots">COTS</option></select></label></div><details id="pricing"><summary>Pricing</summary><p id="bom-price"></p></details><div id="bom-rows"></div></section>
+  <section id="revisions-panel" hidden={section !== "release"}><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>
 </div>
 <script>import "../client/workspace";</script>
 <style is:global>
@@ -56,10 +62,10 @@ const {slug,section}=Astro.props;
 .workspace .workspace-card h2 { margin:0 0 12px; }
 .workspace header { margin-bottom:20px; }
 .workspace #workspace-notice:empty { display:none; }
+.workspace .bom-row a[target="_blank"] { display:block; margin-top:4px; }
 .workspace .bom-row { background:var(--surface); }
 .workspace .component-row { border:0; background:transparent; padding:8px; margin:0; }
 .workspace .component-row:hover { background:var(--hover); }
-.workspace .bom-row button { border:0; background:none; padding:0; text-align:left; min-height:32px; }
 </style>
 
 <style is:global>
@@ -84,8 +90,17 @@ const {slug,section}=Astro.props;
 .workspace #motion-play{background:var(--text);color:var(--surface);border-color:var(--text);font-weight:600}
 .workspace .model-stage>p{margin:8px 12px}.workspace #drive-turns,.workspace #drive-review-status{margin-top:0;color:var(--muted);font-size:14px}
 @media(min-width:701px){.workspace .model-layout>aside{align-self:start}}.workspace #assembly-parents:empty{display:none}
-.workspace #assembly-references{margin:0 0 16px;font-size:14px;color:var(--muted)}.workspace #assembly-references strong{color:var(--text)}
+.workspace #assembly-references{margin:1rem 0 16px;font-size:14px;color:var(--muted)}.workspace #assembly-references strong{color:var(--text)}
 .workspace .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .workspace .model-stage canvas{border-radius:0}.workspace .stage-bar:not(:has(>:not([hidden]))){display:none}
 @media(max-width:700px){.workspace .stage-bar{padding:8px}.workspace .stage-bar button{min-height:44px;padding:6px 10px;font-size:15px}.workspace .motion-controls{width:100%}.workspace .motion-controls strong{flex-basis:100%}.workspace .motion-controls select{flex:1 1 115px}}
+</style>
+
+<style is:global>
+.workspace #project-views{display:flex;gap:1.25rem;flex-wrap:wrap;margin:1rem 0}
+.workspace #project-views a{padding:.4rem 0}
+.workspace #project-brief{max-width:72ch;color:var(--muted)}
+.workspace:has(#pricing:not([open])) .line-price{display:none}
+.workspace .model-stage{display:flex;flex-direction:column}
+.workspace .stage-bar:has(#motion-controls[hidden]){order:1;border-bottom:0;border-top:1px solid var(--border)}
 </style>

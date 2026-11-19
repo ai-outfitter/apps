@@ -69,7 +69,7 @@ onPageLoad((signal) => {
     $("#notice").textContent = message;
     $("#notice").hidden = !message;
   };
-  const open = (p: Pick<Project, "id" | "name">, section: SectionId = "assembly") => {
+  const open = (p: Pick<Project, "id" | "name">, section: SectionId = "overview") => {
     // A link, so the client router swaps the page in place.
     const link = document.createElement("a");
     link.href = `${base}${projectPath(projectSlug(p), section)}`;
