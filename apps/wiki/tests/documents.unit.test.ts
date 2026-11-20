@@ -273,3 +273,22 @@ test("document series select the latest edition and revision independently",asyn
   assert.equal(await read(',version:"001",revision:3'),null);
  }finally{sqlite.close();}
 });
+
+test("WikiDocuments batches search phrases and slug or ID reads at a pinned revision",async()=>{
+ const {sqlite,db}=fixture();try{
+  const a=await saveDocument(db,who,{title:"Launch",slug:"launch-notes",body:"Public preview"});
+  const b=await saveDocument(db,who,{title:"Model",slug:"mount",body:"New bracket"});
+  await saveDocument(db,who,{id:"launch-notes",revision:1,title:"Launch",body:"Release"});
+  const {documents}=await import("../src/documents/documents");
+  async function read(variables:Record<string,unknown>){
+   const result=await graphql({schema:graphqlSchema,source:String(documents.WikiDocuments.document),variableValues:variables,contextValue:{identity:who,database:db}});
+   assert.equal(result.errors,undefined);return JSON.parse(JSON.stringify(result.data)).searchDocuments;
+  }
+  const matches=await read({search:["RELEASE","bracket"]});
+  assert.deepEqual(matches.documents.map((r:{slug:string})=>r.slug).sort(),["launch-notes","mount"]);
+  const pinned=await read({refs:[b.id,"launch-notes",a.id],revision:1,includeBody:true,first:1});
+  assert.ok(pinned.next);const more=await read({refs:[b.id,"launch-notes"],revision:1,includeBody:true,after:pinned.next});
+  assert.deepEqual([...pinned.documents,...more.documents].map(r=>r.body).sort(),["New bracket","Public preview"]);
+  assert.equal(more.next,null);
+ }finally{sqlite.close();}
+});

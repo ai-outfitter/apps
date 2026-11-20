@@ -3,8 +3,8 @@
     "name": "ArchiveDocument",
     "kind": "mutation",
     "story": "As an editor, I want to archive a document, so that I can remove it from browsing without losing history.",
-    "query": "mutation ArchiveDocument($input: ArchiveDocumentInput!) {\n  archiveDocument(input: $input) {\n    id\n    revision\n    archived\n  }\n}",
-    "hash": "4030c430b601168b1dd27131aeb27f3d663695807efaff0be7a92f1688685c14",
+    "query": "mutation ArchiveDocument($input: ArchiveDocumentInput!) {\n  archiveDocument(input: $input) {\n    slug\n    id\n    revision\n    archived\n  }\n}",
+    "hash": "b723771201326467dbc65878459ef7ec31fbd71b116b92ce2a5b64132fa5017a",
     "variables": {
       "type": "object",
       "properties": {
@@ -25,6 +25,10 @@
         "archiveDocument": {
           "type": "object",
           "properties": {
+            "slug": {
+              "type": "string",
+              "nullable": true
+            },
             "id": {
               "type": "string",
               "nullable": true
@@ -72,7 +76,7 @@
       ]
     },
     "mcp": {
-      "description": "Compare the authored and generated content of two immutable revisions."
+      "description": "Compare two exact revisions. Pass a document slug (or ID) in id."
     },
     "outputSchema": {
       "type": "object",
@@ -229,8 +233,8 @@
     "name": "PublishDocument",
     "kind": "mutation",
     "story": "As an editor, I want to publish an eligible revision, so that readers see reviewed content.",
-    "query": "mutation PublishDocument($input: PublishDocumentInput!) {\n  publishDocument(input: $input) {\n    id\n    revision\n    publishedRevision\n  }\n}",
-    "hash": "4ea167f42f59bf130d994b30f480ef12c3bc2b41d5c318aed6b7dc274f15cfc7",
+    "query": "mutation PublishDocument($input: PublishDocumentInput!) {\n  publishDocument(input: $input) {\n    slug\n    id\n    revision\n    publishedRevision\n  }\n}",
+    "hash": "4c4ba1a8a36a1f841c23da904208e9bf97af267b549b433d62f83a4daf588e8e",
     "variables": {
       "type": "object",
       "properties": {
@@ -251,6 +255,10 @@
         "publishDocument": {
           "type": "object",
           "properties": {
+            "slug": {
+              "type": "string",
+              "nullable": true
+            },
             "id": {
               "type": "string",
               "nullable": true
@@ -287,7 +295,7 @@
       ]
     },
     "mcp": {
-      "description": "Save a draft with an optimistic revision check."
+      "description": "Save a draft. For updates pass the document slug (or ID) in input.id and its exact revision."
     },
     "outputSchema": {
       "type": "object",
@@ -447,92 +455,14 @@
         "id"
       ]
     },
-    "mcp": {
-      "description": "Read a Wiki document and its preserved revisions."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "document": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string",
-              "nullable": true
-            },
-            "documentId": {
-              "type": "string",
-              "nullable": true
-            },
-            "title": {
-              "type": "string",
-              "nullable": true
-            },
-            "summary": {
-              "type": "string",
-              "nullable": true
-            },
-            "body": {
-              "type": "string",
-              "nullable": true
-            },
-            "generatedBody": {
-              "type": "string",
-              "nullable": true
-            },
-            "provenance": {
-              "type": "string",
-              "nullable": true
-            },
-            "revision": {
-              "type": "integer",
-              "nullable": true
-            },
-            "publishedRevision": {
-              "type": "integer",
-              "nullable": true
-            },
-            "archived": {
-              "type": "boolean",
-              "nullable": true
-            }
-          },
-          "nullable": true
-        },
-        "documentRevisions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "revision": {
-                "type": "integer",
-                "nullable": true
-              },
-              "title": {
-                "type": "string",
-                "nullable": true
-              },
-              "editorId": {
-                "type": "string",
-                "nullable": true
-              },
-              "createdAt": {
-                "type": "string",
-                "nullable": true
-              }
-            }
-          },
-          "nullable": true
-        }
-      }
-    }
+    "hidden": true
   },
   {
-    "name": "WikiDocuments",
+    "name": "WikiDocumentListing",
     "kind": "query",
     "story": "As a member, I want to browse documents, so that I can find current knowledge.",
-    "query": "query WikiDocuments($after: ID, $first: Int = 50) {\n  documents(after: $after, first: $first) {\n    id\n    title\n    summary\n    revision\n    publishedRevision\n  }\n  pages {\n    id\n    slug\n    documentId\n    entityRef\n    parentId\n    revision\n    autoPublish\n    policyRef\n  }\n}",
-    "hash": "cedfc5a02d2734a07ddbbc12630dd66127485451dd448f68d0d71cc5319cb975",
+    "query": "query WikiDocumentListing($after: ID, $first: Int = 50) {\n  documents(after: $after, first: $first) {\n    id\n    title\n    summary\n    revision\n    publishedRevision\n  }\n  pages {\n    id\n    slug\n    documentId\n    entityRef\n    parentId\n    revision\n    autoPublish\n    policyRef\n  }\n}",
+    "hash": "a0de5d9c7b073259b6724cdfb9a096b04297178f5d38b3e29c46cb32bc5d97f0",
     "variables": {
       "type": "object",
       "properties": {
@@ -547,78 +477,97 @@
       },
       "required": []
     },
+    "hidden": true
+  },
+  {
+    "name": "WikiDocuments",
+    "kind": "query",
+    "story": "As a member, I want to search several topics or read several document slugs together, so that I can find and cite the relevant revisions in one request.",
+    "query": "query WikiDocuments($refs: [String!], $search: [String!], $revision: Int, $after: String, $first: Int = 20, $includeBody: Boolean = false) {\n  searchDocuments(\n    refs: $refs\n    search: $search\n    revision: $revision\n    after: $after\n    first: $first\n    includeBody: $includeBody\n  ) {\n    documents {\n      slug\n      id\n      title\n      summary\n      revision\n      publishedRevision\n      body @include(if: $includeBody)\n      generatedBody @include(if: $includeBody)\n    }\n    next\n  }\n}",
+    "hash": "4e74c13af84822066909ce2a7f02c623f1e23a4a6a2c199cd86d3d153c07282b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "refs": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "search": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "includeBody": {
+          "type": "boolean",
+          "description": "GraphQL Boolean"
+        }
+      },
+      "required": []
+    },
     "mcp": {
-      "description": "Browse Wiki documents and page links."
+      "description": "Start here for Wiki documents. Batch related search phrases in search (matches any), or pass all known slugs together in refs; document IDs also work. Prefer slugs when citing or reading again. Set includeBody:true when you need content. Omit revision for current drafts. For more results pass next as after."
     },
     "outputSchema": {
       "type": "object",
       "properties": {
-        "documents": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "nullable": true
+        "searchDocuments": {
+          "type": "object",
+          "properties": {
+            "documents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "title": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "summary": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "publishedRevision": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "body": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "generatedBody": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
               },
-              "title": {
-                "type": "string",
-                "nullable": true
-              },
-              "summary": {
-                "type": "string",
-                "nullable": true
-              },
-              "revision": {
-                "type": "integer",
-                "nullable": true
-              },
-              "publishedRevision": {
-                "type": "integer",
-                "nullable": true
-              }
-            }
-          },
-          "nullable": true
-        },
-        "pages": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "nullable": true
-              },
-              "slug": {
-                "type": "string",
-                "nullable": true
-              },
-              "documentId": {
-                "type": "string",
-                "nullable": true
-              },
-              "entityRef": {
-                "type": "string",
-                "nullable": true
-              },
-              "parentId": {
-                "type": "string",
-                "nullable": true
-              },
-              "revision": {
-                "type": "integer",
-                "nullable": true
-              },
-              "autoPublish": {
-                "type": "boolean",
-                "nullable": true
-              },
-              "policyRef": {
-                "type": "string",
-                "nullable": true
-              }
+              "nullable": true
+            },
+            "next": {
+              "type": "string",
+              "nullable": true
             }
           },
           "nullable": true
@@ -717,51 +666,6 @@
         "slug"
       ]
     },
-    "mcp": {
-      "description": "Open a Wiki page by its permanent address."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "page": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string",
-              "nullable": true
-            },
-            "slug": {
-              "type": "string",
-              "nullable": true
-            },
-            "documentId": {
-              "type": "string",
-              "nullable": true
-            },
-            "entityRef": {
-              "type": "string",
-              "nullable": true
-            },
-            "parentId": {
-              "type": "string",
-              "nullable": true
-            },
-            "revision": {
-              "type": "integer",
-              "nullable": true
-            },
-            "autoPublish": {
-              "type": "boolean",
-              "nullable": true
-            },
-            "policyRef": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          "nullable": true
-        }
-      }
-    }
+    "hidden": true
   }
 ]

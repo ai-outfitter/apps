@@ -61,3 +61,13 @@ generated provenance `kind` and a lexically sortable string in `version`
 use their provenance `date`. Omit version to read the greatest edition, or
 supply version and optionally revision. Editing an older edition does not
 make it the latest edition. The returned ID and revision pin the exact content.
+
+For MCP, start with `WikiDocuments`. Pass multiple literal phrases in `search`
+to match any of them across slugs, titles, summaries, authored text, and generated
+text. Pass several known slugs or document IDs in `refs` to read them together.
+When both filters are present, each hit must match both groups. Use
+`includeBody: true` for content and `revision` to pin a read. Prefer the returned
+slug for links and subsequent operations. If the result has a `next` cursor,
+pass it as `after`. Wiki pages provide navigation and may link to a document or
+entity. The Wiki document entity adapter exposes the same records to the
+platform’s generic entity interface.
