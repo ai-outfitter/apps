@@ -27,7 +27,7 @@ jobs:
         env:
           RELEASE_TOKEN: ${{ secrets.release-token || github.token }}
         run: test -n "$RELEASE_TOKEN"
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.release-token || github.token }}
           config-file: ${{ inputs.config-file }}
