@@ -243,3 +243,17 @@ test("daily app publication reaches the federated document with exact date, revi
   assert.deepEqual((await read(period.date)).nodes,second.nodes);
  }finally{sqlite.close();}
 });
+
+test("latestDailyBrief reads an existing personal brief, skips archived pages and scopes its provenance",async()=>{
+ const {sqlite,db}=fixture();
+ try {
+  for(const [date,member] of [["2026-11-18","member"],["2026-11-19","member"],["2026-11-20","other"]]){
+   const doc=await saveGeneratedDocument(db,who,{title:"Daily brief",slug:"forerunner-brief-"+date+"-key",generatedBody:"Saved "+date,
+    provenance:{kind:"forerunner.daily-brief",owner:{kind:"user",id:member},date,timezone:"America/Chicago",status:"complete"}});
+   if(date==="2026-11-19")await archiveDocument(db,who,{id:doc.id,revision:doc.revision});
+  }
+  const result=await graphql({schema:graphqlSchema,source:"{latestDailyBrief{date markdown revision}}",contextValue:{identity:who,database:db}});
+  assert.equal(result.errors,undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.data)),{latestDailyBrief:{date:"2026-11-18",markdown:"Saved 2026-11-18",revision:1}});
+ }finally{sqlite.close();}
+});

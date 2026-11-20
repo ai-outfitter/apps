@@ -1,5 +1,6 @@
 type Query {
   dailyAppUpdates(first: Int = 100, after: String, ids: [ID!], date: String!): AppDailyUpdateConnection!
+  latestDailyBrief: SavedDailyBrief
   documents(after: ID, first: Int): [WikiDocument]
   document(id: ID!, revision: Int): WikiDocument
   documentRevisions(id: ID!, before: Int): [DocumentRevision]
@@ -34,6 +35,17 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+type SavedDailyBrief {
+  documentId: ID
+  revision: Int
+  slug: String
+  date: String
+  timezone: String
+  status: String
+  markdown: String
+  savedAt: String
 }
 
 type WikiDocument {
