@@ -33,7 +33,8 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
    const url=new URL(route.request().url());
    await fulfillFrom(route,await app.call(url.pathname+url.search,member));
   });
-  await page.goto(origin+'/projects/'+projectSlug(consumer)+'/assembly');
+  await page.goto(origin+'/projects/'+projectSlug(consumer));
+  await page.locator('#motion-menu > summary').click();
   const play=page.getByRole('button',{name:'Play motion',exact:true});
   await expect(play).toBeVisible({timeout:60000});
   for (const [width,height] of [[1440,900],[390,844]]) {

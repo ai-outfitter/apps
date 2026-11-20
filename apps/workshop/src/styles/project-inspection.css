@@ -3,9 +3,7 @@
 .workspace[data-section="overview"] {
  --panel-height: max(420px, calc(100svh - 200px));
 }
-.workspace[data-section="overview"] #model-panel > :is(.toolbar,details,form,#assembly-references,#assembly-parents),
-.workspace[data-section="overview"] #assembly-viewer[data-ready="true"]:not([data-empty]) + #assembly-status,
-.workspace[data-section="overview"] #top-view { display:none }
+.workspace[data-section="overview"] #assembly-viewer[data-ready="true"]:not([data-empty]) + #assembly-status { display:none }
 .workspace[data-section="overview"] .model-layout {
  display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
 }
@@ -43,6 +41,9 @@
  .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column}
  .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
  .workspace[data-section="overview"] .model-stage canvas {height:clamp(230px,43svh,440px);min-height:0}
+ .workspace[data-section="overview"] .model-stage .stage-bar {position:static;order:1;max-width:none;padding:8px}
+ .workspace #motion-menu[open] {width:100%}
+ .workspace #motion-popover {position:static;width:auto;max-height:none}
  .workspace #project-inspection {height:clamp(230px,43svh,480px)}
  .workspace #project-inspection [role="tab"] {padding-inline:8px}
 }

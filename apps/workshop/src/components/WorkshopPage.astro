@@ -24,11 +24,10 @@ if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
 const section = Astro.props.section ?? "overview";
 const path = (target: string) => appHref(Astro.url.pathname, target);
 const current = SECTIONS.find(page => page.id === section)!;
-const assemblies = Astro.url.searchParams.get("kind") === "assembly";
-const links = SECTIONS.filter(page => !["parts", "power", "assembly"].includes(page.id) || page.id === section).filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
+const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || page.id === section).filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
   label: page.label,
   href: path(projectPath(slug, page.id)),
-  active: page.id === section && !assemblies && !Astro.url.searchParams.has("item"),
+  active: page.id === section,
 }));
 ---
 <AppLayout

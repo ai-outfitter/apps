@@ -37,13 +37,13 @@ test("seeded BOM keeps supplier links and scopes prices and power to the selecte
   await expect(rows.getByRole("link", {name: "Open part source at adafruit.com"}))
    .toHaveAttribute("href", "https://www.adafruit.com/product/3809");
   await rows.getByRole("link", {name: "Electronics sub-assembly"}).click();
-  await page.locator("#project-bom").click();
-  await page.waitForURL(url => url.pathname.endsWith("/parts") && url.searchParams.has("item"));
+  await page.waitForURL(url => url.pathname.endsWith("/node-000000000106") && url.searchParams.has("item"));
   await page.reload();
-  await expect(page.getByRole("heading", {name: "Bill of materials · Electronics sub-assembly"})).toBeVisible();
+  await page.getByRole("tab", {name:"BOM"}).click();
+  await expect(page.locator("#bom-heading")).toHaveText("Electronics sub-assembly");
   await page.locator("#pricing summary").click();
   await expect(page.locator("#bom-price")).toContainText("$44.49 estimated");
-  await page.locator("#project-power").click();
+  await page.getByRole("tab", {name:"Power"}).click();
   await expect(page.getByRole("heading", {name: "Power · Electronics sub-assembly"})).toBeVisible();
  } finally {
   await page.unrouteAll({behavior: "ignoreErrors"});
