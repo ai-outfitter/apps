@@ -31,7 +31,8 @@ export function reportHost(installationId="wiki",platformRead:()=>Promise<unknow
    const id=crypto.randomUUID();pages.set(value.slug,id);documents.set(id,{id,revision:1,generatedBody:"",body:value.body,archived:false});
    return {data:{saveDocument:{id,revision:1,publishedRevision:null}}};
   }
-  if(operation==="schedules")return [];
+  if(operation==="schedules")return [{id:"daily",timezone:"America/Chicago"}];
+  if(operation==="platform.document" && input.document==="Viewer")return {viewer:{orgs:[{appSlugs:["workshop","software-foundry","planning","onto"]}]}};
   if(operation==="platform.document")return platformRead();
   if(operation==="workflow.start")return {id:input.id,workflow:input.workflow,created:true};
   if(operation==="workflow.collect")return {run:{},steps:[]};

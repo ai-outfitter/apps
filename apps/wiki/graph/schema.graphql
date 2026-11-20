@@ -1,9 +1,39 @@
 type Query {
+  dailyAppUpdates(first: Int = 100, after: String, ids: [ID!], date: String!): AppDailyUpdateConnection!
   documents(after: ID, first: Int): [WikiDocument]
   document(id: ID!, revision: Int): WikiDocument
   documentRevisions(id: ID!, before: Int): [DocumentRevision]
   pages: [WikiPage]
   page(slug: String!): WikiPage
+}
+
+type AppDailyUpdateConnection {
+  edges: [AppDailyUpdateConnectionEdge!]!
+  nodes: [AppDailyUpdate!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type AppDailyUpdateConnectionEdge {
+  cursor: String!
+  node: AppDailyUpdate!
+}
+
+type AppDailyUpdate {
+  id: ID
+  slug: String
+  app: String
+  summary: String
+  complete: Boolean
+  revision: Int
+  timezone: String
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
 type WikiDocument {

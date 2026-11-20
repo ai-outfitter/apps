@@ -1,3 +1,5 @@
+import {requestIdentity} from "@ai-outfitter/app-sdk/server";
+import {dailyUpdate,dailyWorkflow} from "./daily-update";
 import {
   eventInput,
   type eventResult,
@@ -81,12 +83,12 @@ async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<P
 }
 
 /** Software Foundry's workflow policy, served at the reserved workflow host path. */
-export function foundryPhases(locals: StorageLocals, origin: string) {
+export function foundryPhases(locals: StorageLocals, origin: string,request:Request) {
   const files = { locals, origin };
   return workflowPhaseHandler({
     event: (input, host) => event(host, input),
     operator: (input, host) => operator(host, input),
-    schedule: (input, host) => schedule(host, input),
+    schedule: (input, host) => scheduleInput.parse(input).schedule.workflowId===dailyWorkflow ? dailyUpdate(host,requestIdentity(request),input) : schedule(host, input),
     prepare: async (input, host) => prepareWorkspaceNode(host, prepareInput.parse(input)),
     publish: async (input, host) => publishFoundryEvidence(host, locals, origin, input),
     finalize: async (input, host) => finalizeWorkspaceNode(host, files, finalizeInput.parse(input)) as Promise<PhaseInput>,

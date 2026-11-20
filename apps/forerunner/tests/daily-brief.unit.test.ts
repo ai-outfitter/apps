@@ -314,3 +314,29 @@ test("another member's installation cannot generate, and an organization install
   await assert.rejects(() => captureDailyBrief({} as never, { ...who, owner: { kind: "organization", id: "org" } }, host, { ...run, runId: "x" }, now), e => e instanceof Response && e.status === 403);
   assert.equal(called, false);
 });
+
+test("the brief reads personal and organization app updates over all Wiki result pages", async () => {
+  const { readAppUpdates } = await import("../src/server/app-updates");
+  const row = (scope: string, app: string) => ({
+    scope, app, slug: "app-daily-abc", id: scope+"-doc", revision: 3, complete: scope !== "team-b",
+    timezone: "UTC", summary: "Saved the revised design.",
+  });
+  const calls: unknown[] = [];
+  const host = {call: async (op: string, input: any) => {
+    assert.equal(op, "platform.document");
+    assert.equal(input.app, "wiki-map");
+    assert.equal(input.document, "DailyAppUpdates");
+    assert.equal(input.scopes, undefined);
+    calls.push(input.variables);
+    return input.variables.cursor
+      ? {data:{dailyAppUpdates:[row("team-b","Onto")]}}
+      : {data:{dailyAppUpdates:[row("personal","Workshop"),row("team-a","Workshop")]},next:"next-page"};
+  }} as never;
+  const appUpdates = await readAppUpdates(host, "2026-11-10");
+  assert.deepEqual(calls,[{date:"2026-11-10",limit:50},{date:"2026-11-10",limit:50,cursor:"next-page"}]);
+  const {evidence,gaps}=gatherEvidence(inputs({appUpdates}));
+  assert.deepEqual(evidence.filter(item=>item.kind==="app-update").map(item=>item.href),[
+    "/apps/wiki-map/p/app-daily-abc?revision=3","/o/team-a/wiki-map/p/app-daily-abc?revision=3","/o/team-b/wiki-map/p/app-daily-abc?revision=3",
+  ]);
+  assert.ok(gaps.some(gap=>gap.includes("team-b")&&gap.includes("incomplete")));
+});

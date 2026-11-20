@@ -67,7 +67,9 @@
     "./workflow-inference": "./src/workflow-inference.ts",
     "./workflow-session": "./src/workflow-session.ts",
     "./wiki-documents": "./src/wiki-documents.ts",
-    "./visual-evidence": "./src/visual-evidence.ts"
+    "./visual-evidence": "./src/visual-evidence.ts",
+    "./daily-update": "./src/daily-update.ts",
+    "./daily-period": "./src/daily-period.ts"
   },
   "dependencies": {
     "@ai-outfitter/connector-core": "0.1.2",

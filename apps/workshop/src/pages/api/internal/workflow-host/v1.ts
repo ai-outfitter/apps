@@ -1,3 +1,5 @@
+import {dailyUpdate} from "../../../../server/daily-update";
+import {requestIdentity} from "@ai-outfitter/app-sdk/server";
 import type { APIRoute } from "astro";
 import { workshopContext } from "../../../../server/context";
 import { runDesignTask } from "../../../../server/design";
@@ -6,5 +8,6 @@ import { workspacePhases } from "../../../../server/workspace-host";
 // Besides the workspace phases, Workshop carries out one registered task: a design turn
 // started by StartWorkshopDesign or the platform's StartTasks.
 export const POST:APIRoute=({request,locals})=>workspacePhases({
+  schedule:(input,host)=>dailyUpdate(host,requestIdentity(request),input),
   interactive:async(input,host)=>JSON.parse(JSON.stringify(await runDesignTask(workshopContext(request,locals),input,host))),
 })(request,locals as never);
