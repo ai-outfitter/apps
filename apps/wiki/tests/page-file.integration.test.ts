@@ -45,5 +45,8 @@ test("a Wiki editor can attach verified bytes and a member can reopen the source
   const download = await app.call(("/" + receipt.downloadUrl),member);
   assert.equal(download.status,200);
   assert.deepEqual(Buffer.from(await download.arrayBuffer()),bytes);
+  const key = receipt.downloadUrl.slice("files/main/".length);
+  await bucket.put(key,Buffer.alloc(bytes.length));
+  await assert.rejects(upload(),/Stored attachment differs/);
  } finally {await app.dispose();}
 });

@@ -1,4 +1,4 @@
-import { requireEditor } from "@ai-outfitter/app-sdk/server";
+import { requireEditor, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { directUploadReference } from "@ai-outfitter/app-sdk/storage";
 import { z } from "zod";
 import type { Context } from "./graphql";
@@ -21,15 +21,18 @@ export async function uploadPageFile(ctx: Context, input: z.infer<typeof pageFil
   const { fileName, contentType, size, sha256 } = input;
   const file = { contentType, size, sha256 };
   const target = { space: "assets", key: `${page.id}/${sha256}-${fileName}` };
-  let ref = await store.head(target);
-  if (!ref) {
+  let object = await store.get(target);
+  if (!object) {
     const bytes = await store.takeUpload(target, file);
     if (!bytes) return { status: "awaiting_upload", upload: store.uploadTicket(target, file) };
-    ref = await store.put(target.space, target.key, bytes, { contentType });
+    await store.put(target.space, target.key, bytes, { contentType });
+    object = await store.get(target);
     await store.discardUpload(target, file);
   }
-  if (ref.sha256 !== sha256 || ref.size !== size || ref.contentType !== contentType)
-    throw new Response("Stored attachment metadata differs from the declaration", { status: 409 });
+  if (!object) throw new Response("Stored attachment is unavailable", { status: 503 });
+  const stored = await new Response(object.body).arrayBuffer();
+  if (stored.byteLength !== size || await sha256Hex(stored) !== sha256 || object.contentType !== contentType)
+    throw new Response("Stored attachment differs from the declaration", { status: 409 });
   return { status: "attached", pageSlug: page.slug, pageId: page.id, fileName, ...file,
-    expiresAt: ref.expiresAt, downloadUrl: store.url(target).slice(1) };
+    expiresAt: object.expiresAt, downloadUrl: store.url(target).slice(1) };
 }
