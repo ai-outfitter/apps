@@ -113,6 +113,9 @@ type WikiPage {
 }
 
 type Mutation {
+  """Attach verified source bytes to an existing Wiki page."""
+  uploadWikiPageFile(input: UploadWikiPageFileInput!): JSON
+
   """
   Revise only the generated draft section while preserving authored and published content.
   """
@@ -131,6 +134,17 @@ type Mutation {
   archiveDocument(input: ArchiveDocumentInput!): WikiDocument
 }
 
+"""Any JSON value."""
+scalar JSON
+
+input UploadWikiPageFileInput {
+  pageSlug: String!
+  fileName: String!
+  contentType: String!
+  size: Int!
+  sha256: String!
+}
+
 input SaveGeneratedDocumentInput {
   id: String
   revision: Float
@@ -139,9 +153,6 @@ input SaveGeneratedDocumentInput {
   generatedBody: String!
   provenance: JSON!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 input SaveDocumentInput {
   id: String

@@ -22,6 +22,10 @@ if(page.entityRef && !demo){try{entity=await workflowHost<"interactive">(Astro.l
 const comparisonRevision=Astro.url.searchParams.get("compare");
 if(comparisonRevision && !/^[1-9][0-9]*$/.test(comparisonRevision)) return new Response("Invalid comparison revision",{status:400});
 const comparison=doc&&comparisonRevision&&!demo ? await run("CompareDocumentRevisions",{id:doc.id,before:Number(comparisonRevision),after:doc.revision},ctx!) as {before:typeof doc;after:typeof doc}:undefined;
+const assets = ctx?.storage();
+const files = !requested && assets ? await assets.list("assets", {
+ prefix: page.id + "/", after: Astro.url.searchParams.get("afterFile") ?? "", limit: 51,
+}) : [];
 const title=doc?.title ?? entity?.title ?? page.slug;
 ---
 <Layout {title} description={doc?.summary ?? "A page connected to Onto."}>
@@ -32,6 +36,7 @@ const title=doc?.title ?? entity?.title ?? page.slug;
  {doc&&<p class="wiki-meta">Revision {doc.revision} · {doc.publishedRevision===doc.revision?"Published":"Draft"}{doc.publishedRevision&&doc.publishedRevision!==doc.revision&&<> · <a href={`?revision=${doc.publishedRevision}`}>View published revision</a></>}</p>}
  {doc&&<article class="wiki-doc" set:html={micromark(doc.body)}/>}
  {doc?.generatedBody&&<section class="wiki-doc"><h2>Generated summary</h2><div set:html={generatedMarkdown(doc.generatedBody)}/></section>}
+ {files.length>0&&assets&&<section class="wiki-doc"><h2>Source files</h2><ul>{files.slice(0,50).map(file=><li><a href={root + assets.url(file).slice(1)}>{file.key.slice(page.id.length+1).replace(/^[a-f0-9]{64}-/,"")}</a></li>)}</ul>{files.length>50&&<a href={`?afterFile=${encodeURIComponent(files[49].key)}`}>More source files</a>}</section>}
  {entity&&<section class="wiki-doc"><h2>Current information from Onto</h2><p>{entity.title}</p><p>{String(entity.attributes.summary ?? "")}</p><div set:html={micromark(String(entity.attributes.body ?? ""))}/></section>}
  {entityError&&<p>Linked information is currently unavailable. This page does not grant access to its source.</p>}
  {history.length>0&&<details><summary>Revision history</summary><ul>{history.map(row=><li><a href={`?revision=${row.revision}`}>Revision {row.revision}: {row.title}</a>{doc&&row.revision!==doc.revision&&<> · <a href={`?${requested?`revision=${requested}&`:""}compare=${row.revision}`}>Compare with revision {doc.revision}</a></>}</li>)}</ul></details>}

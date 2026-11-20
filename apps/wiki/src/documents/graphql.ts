@@ -1,3 +1,5 @@
+import { pageFileInput, uploadPageFile } from "./page-file";
+import type { storage } from "@ai-outfitter/app-sdk/storage";
 import {searchDocuments} from "./search";
 import { documentVersion } from "./document-version";
 import { dailyAppUpdates } from "./daily-updates";
@@ -7,7 +9,7 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { generatedInput, saveGeneratedDocument, archiveDocument, getDocument, getPage, listDocuments, listPages, pageInput, publishDocument, revisions, saveDocument, saveInput, savePage, transitionInput, type PolicyCheck, type Document as StoredDocument, type DocumentRevision as StoredRevision, type Page as StoredPage } from "./store";
 
-export type Context = ActionContext & { database: AgentDatabase; policyCheck?: PolicyCheck };
+export type Context = ActionContext & { database: AgentDatabase; storage: () => ReturnType<typeof storage>; policyCheck?: PolicyCheck };
 const revisionFields = {
  documentId:{type:GraphQLID}, revision:{type:GraphQLInt}, title:{type:GraphQLString},summary:{type:GraphQLString},body:{type:GraphQLString},generatedBody:{type:GraphQLString},
  provenance:{type:GraphQLString,resolve:(row:{provenance:string|null})=>{
@@ -36,6 +38,7 @@ export const graphqlSchema = new GraphQLSchema({
   page:{type:Page,args:{slug:{type:new GraphQLNonNull(GraphQLString)}},resolve:async(_,args,ctx)=>{try{return await getPage(ctx.database,args.slug);}catch(error){if(error instanceof Response && error.status===404)return null;throw error;}}},
  }}),
  mutation:new GraphQLObjectType<unknown,Context>({name:"Mutation",fields:{
+  uploadWikiPageFile:mutationField({name:"UploadWikiPageFile",description:"Attach verified source bytes to an existing Wiki page.",input:pageFileInput,run:uploadPageFile}),
   saveGeneratedDocument:mutationField({name:"SaveGeneratedDocument",description:"Revise only the generated draft section while preserving authored and published content.",input:generatedInput,output:Document,run:(ctx:Context,input)=>saveGeneratedDocument(ctx.database,ctx.identity,input)}),
   saveDocument:mutationField({name:"SaveDocument",description:"Save a revisioned draft without publishing it.",input:saveInput,output:Document,run:(ctx:Context,input)=>saveDocument(ctx.database,ctx.identity,input)}),
   savePage:mutationField({name:"SavePage",description:"Create or configure a Wiki page.",input:pageInput,output:Page,run:(ctx:Context,input)=>savePage(ctx.database,ctx.identity,input)}),

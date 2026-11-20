@@ -434,6 +434,36 @@
     }
   },
   {
+    "name": "UploadWikiPageFile",
+    "kind": "mutation",
+    "story": "As a Wiki editor, I want to attach an original source file to an existing page, so that organization members can retrieve the verified bytes.",
+    "query": "mutation UploadWikiPageFile($input: UploadWikiPageFileInput!) {\n  uploadWikiPageFile(input: $input)\n}",
+    "hash": "d69b5e76325593b01a843669570a8eb2200cf474a8207139d8d5dc4a3400a62c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL UploadWikiPageFileInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Attach a source PDF, transcript, recording or other file to an existing page. Pass input.pageSlug, fileName (letters, numbers, dots, dashes and underscores), contentType, size (1 byte to 25 MiB), and lowercase sha256. PUT raw bytes to upload.url with upload.headers, then repeat the identical mutation for the verified receipt and organization-only downloadUrl."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "uploadWikiPageFile": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "WikiDocument",
     "kind": "query",
     "story": "As a member, I want to read a document and its revisions, so that I can understand its history.",
