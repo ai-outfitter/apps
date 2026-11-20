@@ -1,3 +1,5 @@
+import {searchDocuments} from "./search";
+import { documentVersion } from "./document-version";
 import { dailyAppUpdates } from "./daily-updates";
 import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
@@ -18,6 +20,7 @@ const revisionFields = {
 const Revision = new GraphQLObjectType<StoredRevision>({ name:"DocumentRevision", fields:revisionFields });
 const Document = new GraphQLObjectType<StoredDocument,Context>({name:"WikiDocument",fields:{
  // With `id` and `revision` this is the document's whole address, so a reader that reached this Wiki by package name can still cite it.
+ slug:{type:GraphQLString,resolve:async(doc,_,ctx)=>(await ctx.database.query({sql:"SELECT slug FROM wiki_pages WHERE documentId=? ORDER BY slug LIMIT 1",params:[doc.id]}))[0]?.slug ?? null},
  ...revisionFields,id:{type:GraphQLID},installationId:{type:GraphQLID,resolve:(_,__,ctx)=>ctx.identity.installationId},publishedRevision:{type:GraphQLInt},archived:{type:GraphQLBoolean,resolve:value=>!!value.archived},
 }});
 const Page = new GraphQLObjectType<StoredPage,Context>({name:"WikiPage",fields:{id:{type:GraphQLID},slug:{type:GraphQLString},documentId:{type:GraphQLID},
@@ -25,7 +28,7 @@ const Page = new GraphQLObjectType<StoredPage,Context>({name:"WikiPage",fields:{
  document:{type:Document,args:{revision:{type:GraphQLInt}},resolve:async(page,args,ctx)=>{if(!page.documentId)return null;try{return await getDocument(ctx.database,page.documentId,args.revision);}catch(error){if(error instanceof Response && error.status===404)return null;throw error;}}},entityRef:{type:GraphQLString},parentId:{type:GraphQLID},revision:{type:GraphQLInt},autoPublish:{type:GraphQLBoolean,resolve:value=>!!value.autoPublish},policyRef:{type:GraphQLString}}});
 export const graphqlSchema = new GraphQLSchema({
  query:new GraphQLObjectType<unknown,Context & import("@ai-outfitter/app-sdk/graph-graphql").GraphContext>({name:"Query",fields:{
-  dailyAppUpdates,
+  dailyAppUpdates, documentVersion, searchDocuments,
   documents:{type:new GraphQLList(Document),args:{after:{type:GraphQLID},first:{type:GraphQLInt}},resolve:(_,args,ctx)=>listDocuments(ctx.database,args.after ?? "",args.first ?? 50)},
   document:{type:Document,args:{id:{type:new GraphQLNonNull(GraphQLID)},revision:{type:GraphQLInt}},resolve:(_,args,ctx)=>getDocument(ctx.database,args.id,args.revision)},
   documentRevisions:{type:new GraphQLList(Revision),args:{id:{type:new GraphQLNonNull(GraphQLID)},before:{type:GraphQLInt}},resolve:(_,args,ctx)=>revisions(ctx.database,args.id,args.before)},

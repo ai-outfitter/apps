@@ -26,12 +26,12 @@ export async function listDocuments(db: AgentDatabase, after = "", limit = 50): 
  return await db.query(stmt(`SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=d.revision WHERE d.archived=0 AND d.id>? ORDER BY d.id LIMIT ?`,after,Math.max(1,Math.min(limit,100)))) as Document[];
 }
 export async function getDocument(db: AgentDatabase, documentId: string, revision?: number): Promise<Document> {
- const rows = await db.query(stmt(`SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=COALESCE(?,d.revision) WHERE d.id=?`, revision ?? null,documentId));
+ const rows = await db.query(stmt(`SELECT d.*,r.* FROM wiki_documents d JOIN wiki_document_revisions r ON r.documentId=d.id AND r.revision=COALESCE(?,d.revision) WHERE d.id=coalesce((SELECT id FROM wiki_documents WHERE id=?),(SELECT documentId FROM wiki_pages WHERE slug=?))`, revision ?? null,documentId,documentId));
  if (!rows[0]) throw new Response("Document not found",{status:404});
  return rows[0] as Document;
 }
 export async function revisions(db: AgentDatabase, documentId: string, before = Number.MAX_SAFE_INTEGER): Promise<DocumentRevision[]> {
- return await db.query(stmt("SELECT * FROM wiki_document_revisions WHERE documentId=? AND revision<? ORDER BY revision DESC LIMIT 100",documentId,before)) as DocumentRevision[];
+ return await db.query(stmt("SELECT * FROM wiki_document_revisions WHERE documentId=coalesce((SELECT id FROM wiki_documents WHERE id=?),(SELECT documentId FROM wiki_pages WHERE slug=?)) AND revision<? ORDER BY revision DESC LIMIT 100",documentId,documentId,before)) as DocumentRevision[];
 }
 export async function listPages(db: AgentDatabase): Promise<Page[]> {
  return await db.query(stmt("SELECT * FROM wiki_pages ORDER BY slug LIMIT 500")) as Page[];
@@ -65,6 +65,7 @@ export async function saveDocument(db: AgentDatabase, who: AppIdentity, raw: z.i
   return getDocument(db,documentId);
  }
  const current=await getDocument(db,input.id);
+ input.id=current.id;
  if(input.revision!==current.revision || current.archived) throw conflict();
  await guarded(db,"SELECT count(*)=1 FROM wiki_documents WHERE id=? AND revision=? AND archived=0",[input.id,input.revision],[
   stmt("INSERT INTO wiki_document_revisions(documentId,revision,title,summary,body,generatedBody,provenance,editorId,createdAt) VALUES(?,?,?,?,?,?,?,?,?)",input.id,current.revision+1,input.title,input.summary,input.body,current.generatedBody,current.provenance,who.userId,now),
@@ -74,7 +75,7 @@ export async function saveDocument(db: AgentDatabase, who: AppIdentity, raw: z.i
 }
 export async function savePage(db: AgentDatabase, who: AppIdentity, raw: z.input<typeof pageInput>): Promise<Page> {
  requireEditor(who); const input=pageInput.parse(raw), pageId=input.id ?? crypto.randomUUID(), now=Date.now();
- if(input.documentId) await getDocument(db,input.documentId);
+ if(input.documentId) input.documentId=(await getDocument(db,input.documentId)).id;
  const parents=await listPages(db);
  const existing=parents.find(page=>page.id===pageId);
  if(input.policyRef || input.autoPublish || existing?.policyRef || existing?.autoPublish) requireAccess(who,"admin");
@@ -87,6 +88,7 @@ export async function savePage(db: AgentDatabase, who: AppIdentity, raw: z.input
 }
 export async function archiveDocument(db: AgentDatabase, who: AppIdentity, input: z.input<typeof transitionInput>) {
  requireEditor(who); const value=transitionInput.parse(input);
+ value.id=(await getDocument(db,value.id)).id;
  await guarded(db,"SELECT count(*)=1 FROM wiki_documents WHERE id=? AND revision=?",[value.id,value.revision],[stmt("UPDATE wiki_documents SET archived=1,updatedAt=? WHERE id=?",Date.now(),value.id)]);
  return getDocument(db,value.id);
 }
@@ -98,6 +100,7 @@ export async function documentDigest(document: DocumentRevision) {
 }
 export async function publishDocument(db: AgentDatabase, who: AppIdentity, raw: z.input<typeof transitionInput>, check?: PolicyCheck) {
  requireEditor(who); const input=transitionInput.parse(raw), current=await getDocument(db,input.id);
+ input.id=current.id;
  if(current.revision!==input.revision || current.archived) throw conflict();
  const digest=await documentDigest(current);
  const pages=await db.query(stmt("SELECT * FROM wiki_pages WHERE documentId=?",input.id)) as Page[];
@@ -136,6 +139,7 @@ export async function saveGeneratedDocument(db:AgentDatabase,who:AppIdentity,raw
   return getDocument(db,documentId);
  }
  const current=await getDocument(db,input.id);
+ input.id=current.id;
  if(current.revision!==input.revision || current.archived)throw conflict();
  const provenance=JSON.stringify(input.provenance);
  if(current.generatedBody===input.generatedBody && current.provenance===provenance)return current;
