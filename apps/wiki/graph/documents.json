@@ -627,6 +627,79 @@
     }
   },
   {
+    "name": "WikiDocumentVersion",
+    "kind": "query",
+    "story": "As a reader, I want the current revision of a document series or a pinned edition and revision, so that I can cite the exact content.",
+    "query": "query WikiDocumentVersion($key: String!, $version: String, $revision: Int) {\n  documentVersion(key: $key, version: $version, revision: $revision) {\n    documentId\n    slug\n    version\n    revision\n    title\n    body\n    generatedBody\n    savedAt\n  }\n}",
+    "hash": "16422cda44e75e69cf2eedb6e4e9f33aa91f8df4db7e00297a930fbfa6e6845e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "version": {
+          "type": "string",
+          "description": "GraphQL String"
+        },
+        "revision": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": [
+        "key"
+      ]
+    },
+    "mcp": {
+      "description": "Read the latest version and revision of a generated document series, or select an exact version and revision."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "documentVersion": {
+          "type": "object",
+          "properties": {
+            "documentId": {
+              "type": "string",
+              "nullable": true
+            },
+            "slug": {
+              "type": "string",
+              "nullable": true
+            },
+            "version": {
+              "type": "string",
+              "nullable": true
+            },
+            "revision": {
+              "type": "integer",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "body": {
+              "type": "string",
+              "nullable": true
+            },
+            "generatedBody": {
+              "type": "string",
+              "nullable": true
+            },
+            "savedAt": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "WikiPage",
     "kind": "query",
     "story": "As a member, I want to open a page by its permanent address, so that links keep working regardless of list size.",

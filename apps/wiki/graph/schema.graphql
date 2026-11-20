@@ -1,6 +1,10 @@
 type Query {
   dailyAppUpdates(first: Int = 100, after: String, ids: [ID!], date: String!): AppDailyUpdateConnection!
-  latestDailyBrief: SavedDailyBrief
+
+  """
+  Read a generated document series. Defaults to its greatest version (lexical order) and that document's current draft revision. Supply version and revision to pin both.
+  """
+  documentVersion(key: String!, version: String, revision: Int): WikiDocumentVersion
   documents(after: ID, first: Int): [WikiDocument]
   document(id: ID!, revision: Int): WikiDocument
   documentRevisions(id: ID!, before: Int): [DocumentRevision]
@@ -37,14 +41,16 @@ type PageInfo {
   endCursor: String
 }
 
-type SavedDailyBrief {
+type WikiDocumentVersion {
   documentId: ID
   revision: Int
   slug: String
-  date: String
+  version: String
+  title: String
+  body: String
+  generatedBody: String
   timezone: String
   status: String
-  markdown: String
   savedAt: String
 }
 
