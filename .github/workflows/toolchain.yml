@@ -30,7 +30,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
           TOOLCHAIN_SHA: ${{ vars.OUTFITTER_TOOLCHAIN_SHA }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
@@ -50,12 +50,12 @@ jobs:
       matrix:
         app: ${{ fromJSON(needs.plan.outputs.apps) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source_sha }}
           path: source
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ai-outfitter/webapp
           ref: ${{ vars.OUTFITTER_TOOLCHAIN_SHA }}

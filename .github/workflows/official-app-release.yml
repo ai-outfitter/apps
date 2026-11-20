@@ -22,12 +22,12 @@ jobs:
       artifact: ${{ steps.package.outputs.artifact }}
       commit: ${{ steps.package.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
       # The release tooling is this workflow's own, even when the app source is an older tag.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: .release-tooling
           persist-credentials: false
@@ -60,7 +60,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
