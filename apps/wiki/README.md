@@ -48,3 +48,16 @@ revisions and publication receipts, and retain the converted database and object
 storage. Prefer repairing the external package forward. If restoring an earlier
 snapshot is necessary, reconcile post-cutover document writes before switching;
 do not reopen the archived graph for edits or discard newly authored history.
+
+Read a document by ID with `document(id: …)`, or by stable page slug with
+`page(slug: …) { document { … } }`. Both document fields return the current draft
+revision by default and accept an explicit revision. Published revision is a
+separate pointer. Use `documentRevisions` for the edit history.
+
+For a recurring document whose editions have separate IDs, use
+`documentVersion(key: "workshop.catalog")`. Producers set the series key in
+generated provenance `kind` and a lexically sortable string in `version`
+(e.g. an ISO date or zero-padded edition number). Existing dated reports can
+use their provenance `date`. Omit version to read the greatest edition, or
+supply version and optionally revision. Editing an older edition does not
+make it the latest edition. The returned ID and revision pin the exact content.

@@ -16,11 +16,11 @@ const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:
 function fixture(withImportRevision=true) {
  const sqlite=new DatabaseSync(":memory:"); sqlite.exec("PRAGMA foreign_keys=ON");
  const folder=new URL("../migrations/",import.meta.url);
- for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && !n.startsWith('0012') && !n.startsWith('0013')).sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
+ for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n<'0012').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
  sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
  INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',1,'member','{}','[]','{"title":"First","body":"First body"}',1);`);
  sqlite.exec(readFileSync(new URL('0012_documents.sql',folder),'utf8'));
- if(withImportRevision) sqlite.exec(readFileSync(new URL('0013_imported_revision.sql',folder),'utf8'));
+ if(withImportRevision) for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n>='0013').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
  const db:AgentDatabase={query:async s=>sqlite.prepare(s.sql).all(...(s.params ?? []) as never[]) as Record<string,unknown>[],batch:async steps=>{
   sqlite.exec('BEGIN');try{for(const s of steps)sqlite.prepare(s.sql).run(...(s.params ?? []) as never[]);sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}
  }};
@@ -244,7 +244,7 @@ test("daily app publication reaches the federated document with exact date, revi
  }finally{sqlite.close();}
 });
 
-test("latestDailyBrief reads an existing personal brief, skips archived pages and scopes its provenance",async()=>{
+test("documentVersion reads an existing personal brief, skips archived pages and scopes its provenance",async()=>{
  const {sqlite,db}=fixture();
  try {
   for(const [date,member] of [["2026-11-18","member"],["2026-11-19","member"],["2026-11-20","other"]]){
@@ -252,8 +252,24 @@ test("latestDailyBrief reads an existing personal brief, skips archived pages an
     provenance:{kind:"forerunner.daily-brief",owner:{kind:"user",id:member},date,timezone:"America/Chicago",status:"complete"}});
    if(date==="2026-11-19")await archiveDocument(db,who,{id:doc.id,revision:doc.revision});
   }
-  const result=await graphql({schema:graphqlSchema,source:"{latestDailyBrief{date markdown revision}}",contextValue:{identity:who,database:db}});
+  const result=await graphql({schema:graphqlSchema,source:'{documentVersion(key:"forerunner.daily-brief"){date:version markdown:generatedBody revision}}',contextValue:{identity:who,database:db}});
   assert.equal(result.errors,undefined);
-  assert.deepEqual(JSON.parse(JSON.stringify(result.data)),{latestDailyBrief:{date:"2026-11-18",markdown:"Saved 2026-11-18",revision:1}});
+  assert.deepEqual(JSON.parse(JSON.stringify(result.data)),{documentVersion:{date:"2026-11-18",markdown:"Saved 2026-11-18",revision:1}});
+ }finally{sqlite.close();}
+});
+
+test("document series select the latest edition and revision independently",async()=>{
+ const {sqlite,db}=fixture();try{
+  const publish=async(version:string)=>saveGeneratedDocument(db,who,{title:"Workshop catalog",slug:"parts-"+version,generatedBody:"Original",provenance:{kind:"workshop.catalog",version}});
+  const first=await publish("001");await publish("002");
+  await saveGeneratedDocument(db,who,{id:first.id,revision:1,generatedBody:"Corrected",provenance:{kind:"workshop.catalog",version:"001"}});
+  const read=async(args:string)=>{
+   const result=await graphql({schema:graphqlSchema,source:'{documentVersion(key:"workshop.catalog"'+args+'){version revision generatedBody}}',contextValue:{identity:who,database:db}});
+   assert.equal(result.errors,undefined);return JSON.parse(JSON.stringify(result.data)).documentVersion;
+  };
+  assert.deepEqual(await read(""),{version:"002",revision:1,generatedBody:"Original"});
+  assert.deepEqual(await read(',version:"001"'),{version:"001",revision:2,generatedBody:"Corrected"});
+  assert.deepEqual(await read(',version:"001",revision:1'),{version:"001",revision:1,generatedBody:"Original"});
+  assert.equal(await read(',version:"001",revision:3'),null);
  }finally{sqlite.close();}
 });
