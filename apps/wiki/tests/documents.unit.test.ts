@@ -292,3 +292,20 @@ test("WikiDocuments batches search phrases and slug or ID reads at a pinned revi
   assert.equal(more.next,null);
  }finally{sqlite.close();}
 });
+
+test("page file migration restores the shared storage index after the legacy graph cutover", () => {
+ const db = new DatabaseSync(":memory:");
+ try {
+  for (const table of ["graph_assets", "app_storage_objects"]) {
+   db.exec(`CREATE TABLE ${table}(id INTEGER PRIMARY KEY)`);
+   for (const op of ["INSERT", "UPDATE", "DELETE"]) {
+    db.exec(`CREATE TRIGGER _onto_cutover_${table}_${op} BEFORE ${op} ON ${table}
+             BEGIN SELECT RAISE(ABORT,'Wiki graph migrated to Onto'); END`);
+   }
+  }
+  assert.throws(() => db.exec("INSERT INTO app_storage_objects VALUES (1)"), /graph migrated/);
+  db.exec(readFileSync(new URL("../migrations/0015_page_file_storage.sql", import.meta.url), "utf8"));
+  db.exec("INSERT INTO app_storage_objects VALUES (1); UPDATE app_storage_objects SET id=2; DELETE FROM app_storage_objects");
+  assert.throws(() => db.exec("INSERT INTO graph_assets VALUES (1)"), /graph migrated/);
+ } finally { db.close(); }
+});
