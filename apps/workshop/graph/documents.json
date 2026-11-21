@@ -2820,6 +2820,36 @@
     }
   },
   {
+    "name": "WorkshopSourceFile",
+    "kind": "query",
+    "story": "As a designer, I want to read CAD from my connected Forgejo repository, so that I can verify the exact source used by my project.",
+    "query": "query WorkshopSourceFile($input: WorkshopSourceFileInput!) {\n  workshopSourceFile(input: $input)\n}",
+    "hash": "cdb1c20a4fb583f9b01f367a80bc1a1e0724efd613fb9831e26525b31b430a69",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopSourceFileInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read a CAD source file from the organization's connected Forgejo repository. Supply repository, path and ref. Returns base64 content, byte size and Git blob SHA."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopSourceFile": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "WorkshopUnits",
     "kind": "query",
     "story": "As a caller, I want to search workshopUnits with compact results, so that I can select records and continue through every page.",

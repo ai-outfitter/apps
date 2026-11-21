@@ -20,6 +20,9 @@ type Query {
     search: String
   ): WorkshopUnitConnection!
 
+  """Read a file at a ref from a connected Forgejo repository."""
+  workshopSourceFile(input: WorkshopSourceFileInput!): JSON
+
   """Hash the attached file bytes and compare with the saved receipt."""
   verifyWorkshopAssemblyFile(input: VerifyWorkshopAssemblyFileInput!): JSON
 
@@ -180,6 +183,12 @@ input StringFilter {
 
 """Any JSON value."""
 scalar JSON
+
+input WorkshopSourceFileInput {
+  repository: String!
+  path: String!
+  ref: String!
+}
 
 input VerifyWorkshopAssemblyFileInput {
   projectId: ID!
