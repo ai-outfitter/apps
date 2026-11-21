@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.7](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.6...software-foundry-v0.3.7) (2026-11-21)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
 ## [0.3.6](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.5...software-foundry-v0.3.6) (2026-11-17)
 
 
