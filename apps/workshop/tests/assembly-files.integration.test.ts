@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
@@ -44,5 +45,25 @@ test("an attachment preserves the saved assembly, checks the file and requires t
   const download=await app.call(receipt.file.downloadPath,member);
   assert.deepEqual(Buffer.from(await download.arrayBuffer()),bytes);
   await assert.rejects(graph("UploadWorkshopAssemblyFile",{input:{...input,fileName:"other.step"}}),/changed/i);
+  const original=await readFile(new URL("../examples/mini-itx-case/exploded.png",import.meta.url));
+  const image={...input, fileName:"purchase.PNG",expectedRevision:receipt.revision,bytes:original.length,sha256:createHash("sha256").update(original).digest("hex")};
+  const attach=()=>graph("UploadWorkshopAssemblyFile",{input:image});
+  const pending=parseDirectUpload((await attach()).upload.url);
+  assert.ok(pending);
+  await bucket.put(pending.key,original);
+  const attached=await attach();
+  assert.equal(attached.file.contentType,"image/png");
+  const selection={...verify,fileName:image.fileName,expectedSha256:image.sha256};
+  const parts:Buffer[]=[];
+  let byteOffset:number|null=0;
+  while(byteOffset!==null){
+    const page=await graph("VerifyWorkshopAssemblyFile",{input:{...selection,byteOffset}});
+    assert.equal(page.byteOffset,byteOffset);
+    parts.push(Buffer.from(page.base64,"base64"));
+    byteOffset=page.nextByteOffset;
+  }
+  assert.deepEqual(Buffer.concat(parts),original);
+  await assert.rejects(graph("VerifyWorkshopAssemblyFile",{input:{...selection,expectedSha256:"0".repeat(64),byteOffset:0}}),/changed/);
+
  } finally {await app.dispose();}
 });
