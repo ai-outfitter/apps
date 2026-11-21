@@ -412,7 +412,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
   });
   $("project-inspection").inert = false;
   const references=$("reference-images");
-  const photos=new Map<string,HTMLFigureElement>();
+  const photos=new Map<string,HTMLElement>();
   for(const item of view.items) for(const file of item.files??[]) {
    if(!isReferenceImage(file.fileName))continue;
    const href=appBase(location.pathname)+fileBase(file)+filePath(file);
