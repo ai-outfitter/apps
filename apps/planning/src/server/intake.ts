@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { researchBrief, researchConclusion, validateResearchResult } from "./research-contract";
 import {
   canonicalActionValue,
   defineAction,
@@ -51,6 +52,7 @@ export const intakeInput = z.strictObject({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(16000),
   projectId: z.uuid().optional(),
+  research: researchBrief.optional(),
   /** Caller-provided provenance only; never grants thread access or copies messages. */
   originatingMessage: z.strictObject({ threadId: z.uuid(), messageId: z.string().min(1).max(200) }).optional(),
   sourceUrls: z
@@ -75,6 +77,7 @@ export const routeProposal = z.strictObject({
   routes: z.array(routeItem).min(1).max(6),
 });
 const result = z.strictObject({
+  research: researchConclusion.optional(),
   summary: z.string().min(1).max(16000),
   sources: z
     .array(
@@ -588,6 +591,7 @@ export class IntakeService {
       attributes: {
         title: row.body.input.title,
         description: row.body.input.description,
+        ...(row.body.input.research ? { research: row.body.input.research } : {}),
         kind: child.kind,
         intakeId: row.id,
         gate: child.gate ?? null,
@@ -717,7 +721,9 @@ export class IntakeService {
       stance: "supports",
       status: "proposed",
       uncertainty: {
-        reason: [child.result.summary, ...child.result.gaps]
+        reason: [
+          ...(child.result.research ? [`Research outcome: ${child.result.research.outcome}`, `Stopped: ${child.result.research.stopReason.slice(0, 400)}`, `Gaps: ${child.result.gaps.join("; ").slice(0, 400)}`, child.result.research.conclusion.slice(0, 800)] : []),
+          child.result.summary, ...child.result.gaps]
           .join("\n")
           .slice(0, 2000),
       },
@@ -1204,6 +1210,7 @@ export async function recordResult(s: IntakeService, v: z.output<typeof recordRe
   if (!liveClaim(s, child, v.token) || !(await s.assigned(child)))
     throw new Response("Current assigned claim required", { status: 403 });
   const complete = completeResult(child, submitted);
+  if (child.kind === "research") validateResearchResult(row.body.input.research, complete);
   await s.revisable(row, child);
   if (child.result)
     child.resultHistory = [
@@ -1239,6 +1246,7 @@ export const reviseScopeInput = z.strictObject({
   title: intakeInput.shape.title,
   description: intakeInput.shape.description,
   sources: intakeInput.shape.sources,
+  research: researchBrief.optional(),
 });
 
 /** Approve a revised scope under `requestId`: previous scope and results stay in history and
@@ -1251,7 +1259,8 @@ export async function reviseScope(s: IntakeService, v: z.output<typeof reviseSco
       row.body.input.title !== v.title ||
       row.body.input.description !== v.description ||
       canonicalActionValue(row.body.input.sources) !==
-        canonicalActionValue(v.sources)
+        canonicalActionValue(v.sources) ||
+      (v.research !== undefined && canonicalActionValue(row.body.input.research) !== canonicalActionValue(v.research))
     )
       throw conflict("Scope revision request already has different content");
     return row;
@@ -1267,6 +1276,7 @@ export async function reviseScope(s: IntakeService, v: z.output<typeof reviseSco
     title: v.title,
     description: v.description,
     sources: v.sources,
+    ...(v.research !== undefined ? { research: v.research } : {}),
   };
   await s.fresh({ ...row, body: { ...row.body, input } });
   row.body.scopeReviews = [
@@ -1438,6 +1448,7 @@ export function intakeEntities(context: () => IntakeContext): EntityProvider[] {
   const schema = z.object({
     title: z.string(),
     description: z.string(),
+    research: researchBrief.optional(),
     gate: z.json(),
     kind: z.string(),
     intakeId: z.string(),

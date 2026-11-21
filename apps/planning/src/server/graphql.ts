@@ -180,6 +180,7 @@ const intake = new GraphQLObjectType<IntakeSource, Context>({ name: "Intake", fi
   description: { ...text, resolve: row => row.body.input.description },
   sourceUrls: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), resolve: row => row.body.input.sourceUrls ?? [] },
   sources: { type: nonNull(JSONScalar), description: "Wiki records at the revisions the intake was scoped to.", resolve: row => row.body.input.sources },
+  research: { type: JSONScalar, description: "Optional bounded research brief; a guided contract, not execution authority.", resolve: row => row.body.input.research ?? null },
   originatingMessage: { type: JSONScalar, description: "Caller-provided conversation provenance; grants no transcript access.", resolve: row => row.body.input.originatingMessage ?? null },
   releaseFit: { type: JSONScalar, description: "Persisted release disposition, existing Release revision, rationale and backlog status.", resolve: row => row.body.releaseFit ?? null },
   releaseFitHistory: { type: nonNull(JSONScalar), resolve: row => row.body.releaseFitHistory ?? [] },

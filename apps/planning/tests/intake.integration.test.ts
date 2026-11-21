@@ -1,5 +1,7 @@
 import { intakeAgent, intakeAgentFocus, prepareIntakeAction } from "../src/server/intake-agent";
 import assert from "node:assert/strict";
+import { graphql } from "graphql";
+import { graphqlSchema } from "../src/server/graphql";
 import test from "node:test";
 import { createClient, type InValue } from "@libsql/client";
 import type { z } from "zod";
@@ -905,5 +907,43 @@ test("intake sidebar prepares canonical next questions and release-fit proposals
     assert.ok(first.tools?.some(tool => /projects/.test(tool.name)));
     assert.match(first.instructions, /successCriteria/);
     assert.equal(prepareIntakeAction("intake.release-fit", { rationale: "Later" }, "stable-request").requestId, "stable-request");
+  } finally { f.client.close(); }
+});
+
+test("guided research persists bounds, validates conclusions and preserves revised scope", async () => {
+  const f = await fixture();
+  try {
+    const research = { question: "Does the competitor support offline operation?", decision: "Investigate interoperability", owner: "Product owner", scope: ["Official documentation"], exclusions: ["Vendor outreach"], stoppingCriteria: ["Cited answer or timebox exhausted"], timeboxMinutes: 30, successMeasure: "Cited answer within 30 minutes" };
+    let row = await f.service.create({ ...input, research });
+    assert.deepEqual((await f.service.get(row.id)).body.input.research, research);
+    await assert.rejects(f.service.create({ ...input, research: { ...research, timeboxMinutes: 60 } }), status(409));
+    row = await f.service.route(row, { routes: [{ kind: "research", dependsOn: [], rationale: "Bounded comparison", gate }] });
+    const child = row.body.routes[0];
+    assert.deepEqual(f.service.record(row, child).attributes.research, research);
+    const queried = await graphql({ schema: graphqlSchema, source: "{ intakes { nodes { id research } } }", contextValue: {
+      ...f.context,
+      budget: { records: 0, maxRecords: 5000, fields: 0, maxFields: 200000, bytes: 0, maxBytes: 4 * 1024 * 1024, exceeded: false },
+      truncated: [], pages: new Map(),
+    } });
+    assert.equal(queried.errors, undefined);
+    assert.deepEqual((queried.data?.intakes as { nodes: { research: unknown }[] }).nodes[0].research, research);
+    const claim = await intake.claim(f.context, { intakeId: row.id, childId: child.id, requestId: crypto.randomUUID() }) as { token: string };
+    assert.match((await f.service.context(`${row.id}_${child.id}`, child.revision)).markdown, /Does the competitor support offline operation/);
+    const result = { summary: "No accessible official evidence", sources: [], gaps: ["Documentation requires access"], wikiRefs: [] };
+    await assert.rejects(intake.recordResult(f.context, { intakeId: row.id, childId: child.id, token: claim.token, result }), status(422));
+    const completed = { ...result, research: { outcome: "blocked" as const, conclusion: "Cannot determine offline capability", stopReason: "Access boundary reached", elapsedMinutes: 5, artifacts: [] } };
+    await intake.recordResult(f.context, { intakeId: row.id, childId: child.id, token: claim.token, result: completed });
+    row = await f.service.get(row.id);
+    assert.deepEqual(row.body.routes[0].result?.research, completed.research);
+    const revision = row.body.routes[0].revision;
+    await intake.recordResult(f.context, { intakeId: row.id, childId: child.id, token: claim.token, result: completed });
+    row = await f.service.get(row.id);
+    assert.equal(row.body.routes[0].revision, revision);
+    const oldRevision = row.revision;
+    row = await intake.reviseScope(f.context, { intakeId: row.id, revision: row.revision, requestId: crypto.randomUUID(), title: input.title, description: input.description, sources: input.sources, research: { ...research, question: "Is there a public offline example?" } });
+    assert.notEqual(row.body.routes[0].id, child.id);
+    assert.equal(row.body.routes[0].result, undefined);
+    assert.deepEqual(row.body.scopeReviews?.[0].input.research, research);
+    await assert.rejects(intake.reviseScope(f.context, { intakeId: row.id, revision: oldRevision, requestId: crypto.randomUUID(), title: input.title, description: input.description, sources: input.sources, research }), status(409));
   } finally { f.client.close(); }
 });
