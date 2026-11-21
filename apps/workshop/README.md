@@ -33,11 +33,26 @@ Project-specific models and dimensions must never be added to app source.
 ## Sidebar assistant
 
 Ask Workshop opens the shared private conversation sidebar on every page, including
-New model. It reads up to 20 saved projects with assembly items and current build
-evaluations (vision tier 2 inspection). It cannot modify models or start builds;
+New model. It reads the project list through the same `WorkshopProjects` document
+MCP clients run, and the open project's assembly items and current build evaluations (vision tier 2 inspection). It cannot modify models or start builds;
 the existing creation and workspace flows perform those actions. Conversations use
 the platform thread service and the installation-scoped agent tables. Demo replies
 are scripted. Operational installations need `threads.use` and `threads.provide`.
+
+## Reading models from outside the page
+
+Three read documents are published to MCP clients (`graph_documents`, then
+`graph_query` with app `workshop`):
+
+- `WorkshopProjects` lists projects across every organization the caller can
+  reach: slug, stage, kind, brief and the Wiki product revision each builds.
+  The page's project list runs the same document.
+- `WorkshopProject` opens one project by `slug`: requirements, measurement and
+  circuit notes, workspace builds (newest first) with their tests and artifacts,
+  bench evidence, research and concepts. The model itself (CAD, BOM, power and
+  build price) is `ResolvedWorkshopAssembly`'s.
+- `WorkshopUnits` lists the physical units in stock with the firmware each last
+  flashed.
 
 ## Starting design work from outside the page
 

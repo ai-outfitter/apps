@@ -8,6 +8,11 @@ type Query {
 
     """Match text across this collection’s text fields."""
     search: String
+
+    """
+    Projects by slug, as the project page addresses them; a renamed project keeps its old slug.
+    """
+    slugs: [String!]
   ): WorkshopProjectConnection!
   workshopUnits(
     first: Int = 100
@@ -62,10 +67,31 @@ type WorkshopProjectConnectionEdge {
   node: WorkshopProject!
 }
 
+"""
+A Workshop project: a device or part on its way from concept to manufacture.
+"""
 type WorkshopProject {
   id: ID!
+
+  """
+  The address the project page and documents use; it ends with the last 12 hex digits of the id, so a rename keeps it working.
+  """
+  slug: String!
   name: String!
   revision: Float!
+
+  """concept, prototyping, validation, pilot or manufacturing."""
+  phase: String!
+
+  """mechanical or electronics."""
+  kind: String!
+
+  """What the project builds and for whom."""
+  brief: String!
+
+  """What the design must meet."""
+  requirements: String!
+  productRevision: WorkshopProductRevision
   wikiInstallationId: ID
   productRevisionId: ID
   productRevisionTitle: String
@@ -73,10 +99,112 @@ type WorkshopProject {
   updatedBy: ID!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """What was measured and what is still assumed."""
+  measurementNotes: String!
+  circuitNotes: String!
+
+  """Workspace builds, newest first, with their tests and artifacts."""
+  builds: [WorkshopBuild!]!
+
+  """Bench observations, oldest first."""
+  evidence: [WorkshopEvidence!]!
+  research: [WorkshopResearch!]!
+  concepts: [WorkshopConcept!]!
+}
+
+"""The Wiki ProductRevision a project builds."""
+type WorkshopProductRevision {
+  id: ID!
+  title: String!
+  url: String!
+  wikiInstallationId: String
 }
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
+
+"""One workspace build: the pinned source it compiled and what it proved."""
+type WorkshopBuild {
+  id: ID!
+
+  """queued, running, succeeded or failed."""
+  status: String!
+
+  """Whether this build is the project's current one."""
+  current: Boolean!
+
+  """
+  Whether the project changed after the build, so its results no longer describe the model.
+  """
+  stale: Boolean!
+  repository: String!
+  sourceDir: String!
+  sourceCommit: String!
+  runner: String!
+  instructions: String!
+  parameters: JSON!
+  createdAt: DateTime!
+  finishedAt: DateTime
+  compiler: String
+  error: String
+  tests: [WorkshopBuildTest!]!
+  artifacts: [WorkshopBuildArtifact!]!
+}
+
+"""Any JSON value."""
+scalar JSON
+
+type WorkshopBuildTest {
+  name: String!
+
+  """pass, fail or unverified."""
+  status: String!
+  detail: String!
+}
+
+type WorkshopBuildArtifact {
+  path: String!
+  bytes: Int!
+  contentType: String!
+  sha256: String!
+}
+
+"""
+A bench observation: a measurement, fit test, breadboard or PCB bring-up and its outcome.
+"""
+type WorkshopEvidence {
+  stage: String!
+
+  """Pass, Fail or Observation."""
+  outcome: String!
+  note: String!
+  operator: String!
+  at: DateTime!
+  serialLog: String!
+}
+
+type WorkshopResearch {
+  name: String!
+
+  """COTS, Open design or Prior art."""
+  kind: String!
+  url: String!
+  notes: String!
+
+  """Investigate, Use, Adapt or Reject."""
+  decision: String!
+}
+
+"""
+A concept mockup: what the product is meant to look like. The image is served by the project page.
+"""
+type WorkshopConcept {
+  caption: String!
+  prompt: String!
+  model: String!
+  createdAt: DateTime!
+}
 
 type PageInfo {
   hasNextPage: Boolean!
@@ -180,9 +308,6 @@ input StringFilter {
   startsWith: String
   startsWithInsensitive: String
 }
-
-"""Any JSON value."""
-scalar JSON
 
 input WorkshopSourceFileInput {
   repository: String!
