@@ -97,3 +97,22 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   await app.dispose();
  }
 });
+
+// Tier 2: a case/instrument maker browses products separately from bought models.
+test("home separates manufactured products from reusable components",async({page})=>{
+ const app=await appWorker("workshop",appArtifact(new URL("..",import.meta.url),"demo"));
+ try {
+  await routeReadOnly(page,origin,app,{});
+  await page.goto(origin+"/");
+  await expect(page.locator(".project-row")).toHaveCount(3);
+  await expect(page.locator(".project-row").filter({hasText:"ESP32 reference board"})).toHaveCount(0);
+  await page.locator("#project-purpose").selectOption("component");
+  await expect(page.locator(".project-row")).toHaveCount(1);
+  await expect(page.locator(".project-row")).toContainText("ESP32 reference board");
+  await page.locator("#project-purpose").selectOption("all");
+  await expect(page.locator(".project-row")).toHaveCount(4);
+  await page.locator(".project-row").filter({hasText:"ESP32 reference board"}).getByRole("link").click();
+  await expect(page.locator("#project-purpose")).toHaveValue("component");
+  await expect(page.locator("#project-purpose")).toBeDisabled();
+ } finally {await page.unrouteAll({behavior:"ignoreErrors"});await app.dispose();}
+});

@@ -65,6 +65,7 @@ type WorkshopProjectConnectionEdge {
 type WorkshopProject {
   id: ID!
   name: String!
+  purpose: String!
   revision: Float!
   wikiInstallationId: ID
   productRevisionId: ID
@@ -96,6 +97,7 @@ enum WorkshopProjectOrder {
 input WorkshopProjectFilter {
   createdBy: IDFilter
   productRevisionId: IDFilter
+  purpose: StringFilter
   and: [WorkshopProjectFilter!]
   or: [WorkshopProjectFilter!]
   not: WorkshopProjectFilter
@@ -114,6 +116,25 @@ input IDFilter {
   lessThanOrEqualTo: ID
   greaterThan: ID
   greaterThanOrEqualTo: ID
+}
+
+"""
+Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
+"""
+input StringFilter {
+  isNull: Boolean
+  equalTo: String
+  notEqualTo: String
+  in: [String!]
+  notIn: [String!]
+  lessThan: String
+  lessThanOrEqualTo: String
+  greaterThan: String
+  greaterThanOrEqualTo: String
+  includes: String
+  includesInsensitive: String
+  startsWith: String
+  startsWithInsensitive: String
 }
 
 type WorkshopUnitConnection {
@@ -160,25 +181,6 @@ input WorkshopUnitFilter {
   and: [WorkshopUnitFilter!]
   or: [WorkshopUnitFilter!]
   not: WorkshopUnitFilter
-}
-
-"""
-Conditions on one string field of a filter; every one given must hold, and a filter holds at most 20. They run in the database. includes and startsWith match literally; Insensitive ignores ASCII case.
-"""
-input StringFilter {
-  isNull: Boolean
-  equalTo: String
-  notEqualTo: String
-  in: [String!]
-  notIn: [String!]
-  lessThan: String
-  lessThanOrEqualTo: String
-  greaterThan: String
-  greaterThanOrEqualTo: String
-  includes: String
-  includesInsensitive: String
-  startsWith: String
-  startsWithInsensitive: String
 }
 
 """Any JSON value."""
@@ -608,6 +610,7 @@ input StartWorkshopDesignInput {
 input CreateWorkshopProjectInput {
   example: CreateWorkshopProjectInputExample!
   name: String
+  purpose: CreateWorkshopProjectInputPurpose
   productRevision: CreateWorkshopProjectInputProductRevision
 }
 
@@ -617,6 +620,11 @@ enum CreateWorkshopProjectInputExample {
   button
   node
   sensor
+}
+
+enum CreateWorkshopProjectInputPurpose {
+  product
+  component
 }
 
 input CreateWorkshopProjectInputProductRevision {
@@ -643,9 +651,15 @@ input DescribeWorkshopProjectInput {
   id: String!
   revision: Float!
   name: String
+  purpose: DescribeWorkshopProjectInputPurpose
   phase: DescribeWorkshopProjectInputPhase
   brief: String
   requirements: String
+}
+
+enum DescribeWorkshopProjectInputPurpose {
+  product
+  component
 }
 
 enum DescribeWorkshopProjectInputPhase {
@@ -1243,7 +1257,7 @@ type Mutation {
   nameWorkshopProductRevision(input: NameWorkshopProductRevisionInput!): WorkshopProject!
 
   """
-  Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.
+  Set a project's purpose (product to manufacture or component library model), name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.
   """
   describeWorkshopProject(input: DescribeWorkshopProjectInput!): WorkshopProject!
 

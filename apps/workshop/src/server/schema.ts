@@ -10,6 +10,7 @@ export const workshopProjects = sqliteTable(
   {
     id: text().primaryKey(),
     name: text().notNull(),
+    purpose: text({ enum: ["product", "component"] }).notNull().default("product"),
     revision: integer().notNull(),
     data: text().notNull(),
     // The Wiki ProductRevision the project builds, copied from `data` so
