@@ -1,0 +1,25 @@
+---
+import BillOfMaterials from "./BillOfMaterials.astro";
+import SelectedComponent from "./SelectedComponent.astro";
+const tabs = [
+  ["description", "Description"], ["components", "Components"], ["selected", "Selected"],
+  ["sizing", "Sizing"], ["bom", "BOM"], ["power", "Power"],
+];
+const initialTab = tabs[0][0];
+---
+<aside id="project-inspection" aria-label="Project inspection" inert>
+  <div role="tablist" aria-label="Project information">
+    {tabs.map(([id, label]) => <button type="button" role="tab" id={`tab-${id}`} aria-controls={`pane-${id}`}
+      aria-selected={id === initialTab ? "true" : "false"} tabindex={id === initialTab ? 0 : -1}
+      hidden={["bom","power","selected","sizing"].includes(id)}>{label}</button>)}
+  </div>
+  {tabs.map(([id]) => <section role="tabpanel" id={`pane-${id}`} aria-labelledby={`tab-${id}`}
+    hidden={id !== initialTab} tabindex="0">
+    {id === "description" && <><p id="project-brief"></p><span id="revision-label"></span></>}
+    {id === "bom" && <BillOfMaterials />}
+    {id === "power" && <section id="power-panel" aria-label="Assembly power budget"></section>}
+    {id === "components" && <><p>Select a component to inspect or hide an installed instance.</p><div id="inspection-tree"></div></>}
+    {id === "sizing" && <div id="model-sizing"></div>}
+    {id === "selected" && <SelectedComponent />}
+  </section>)}
+</aside>

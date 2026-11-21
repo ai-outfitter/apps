@@ -4,7 +4,8 @@ import { z } from "zod";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
-import { AssemblySchema } from "../lib/assembly";
+import { attachedMesh, filePath } from "../lib/assembly-file";
+import { AssemblySchema, type Assembly } from "../lib/assembly";
 import { EXAMPLES, makeProject, type Project, ProjectSchema } from "../lib/project";
 import { workshopProjects } from "./schema";
 
@@ -109,6 +110,20 @@ export async function getWorkshopProject(db: WorkshopDatabase, id: string) {
   return ProjectSchema.parse(JSON.parse((await workshopProjectRow(db,id)).data));
 }
 
+/** Ordinary assembly edits can keep or remove receipts. Only a verified upload adds one. */
+function checkSavedFiles(next: Assembly, previous?: Assembly) {
+  const byId = new Map(previous?.items.map(item => [item.id, item]));
+  for (const item of next.items) {
+    const old = byId.get(item.id);
+    for (const file of item.files ?? []) {
+      if (!old?.files?.some(saved => saved.projectId === file.projectId && saved.bytes === file.bytes && filePath(saved) === filePath(file)))
+        throw new Response("Attach new files with UploadWorkshopAssemblyFile", {status:400});
+    }
+    if (old && attachedMesh(old) && item.mesh?.path === old.mesh?.path && !attachedMesh(item))
+      throw new Response("Remove the mesh binding when removing its STL attachment", {status:400});
+  }
+}
+
 /** Stores `project` as its first revision, within the installation's cap. */
 export async function createWorkshopProject(
   db: WorkshopDatabase,
@@ -117,6 +132,7 @@ export async function createWorkshopProject(
 ) {
   if (input.workspace) throw new Response("Import model source, not workspace execution records", {status:400});
   if (input.pcbSnapshots?.length) throw new Response("Import PCB evidence through the snapshot API", {status:400});
+  checkSavedFiles(input.assembly);
   const project: Project = { ...input, revision: 1 };
   const exists = async () =>
     (
@@ -128,7 +144,7 @@ export async function createWorkshopProject(
   if (await exists())
     throw new Response("Project already exists.", { status: 409 });
   const linked = revisionColumns(project);
-  const guard = project.assembly.items.some(i=>i.reference) ? await assemblyGuard(db,project) : sql`1`;
+  const guard = project.assembly.items.some(i=>i.reference || i.operations?.length) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
   await db.run(sql`INSERT INTO workshop_projects (id, name, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
     SELECT ${project.id}, ${project.name}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
@@ -168,7 +184,9 @@ export async function updateWorkshopProject(
       { status: 400 },
     );
   const next = parsed.data;
-  const guard = JSON.stringify(next.assembly) !== JSON.stringify(JSON.parse(previous.data).assembly) ? await assemblyGuard(db,next) : undefined;
+  const previousAssembly = JSON.parse(previous.data).assembly as Assembly | undefined;
+  checkSavedFiles(next.assembly, previousAssembly);
+  const guard = JSON.stringify(next.assembly) !== JSON.stringify(previousAssembly) ? await assemblyGuard(db,next) : undefined;
   const [updated] = await db
     .update(workshopProjects)
     .set({
@@ -249,7 +267,10 @@ export function describeWorkshopProject(db: WorkshopDatabase, identity: AppIdent
 
 /** Replaces a project's product structure: its items and the usage lines between them. */
 export function saveWorkshopAssembly(db: WorkshopDatabase, identity: AppIdentity, { id, revision, assembly }: z.output<typeof assemblyInput>) {
-  return patchWorkshopProject(db, identity, { id, revision }, () => ({ assembly }));
+  return patchWorkshopProject(db, identity, { id, revision }, current => {
+    checkSavedFiles(assembly, current.assembly);
+    return { assembly };
+  });
 }
 
 export async function exportWorkshopProject(db: WorkshopDatabase, id: string) {

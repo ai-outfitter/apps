@@ -42,7 +42,8 @@
     "@astrojs/react": "^7.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "@ai-outfitter/creative-workflow": "*"
+    "@ai-outfitter/creative-workflow": "*",
+    "@ai-outfitter/workflow-workshop-daily-update": "0.1.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",
@@ -56,7 +57,11 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0"
+    "@types/react-dom": "^19.3.0",
+    "@ai-sdk/mcp": "2.0.91",
+    "@ai-sdk/openai": "4.0.111",
+    "ai": "7.0.163",
+    "@vercel/agent-eval": "2.6.0"
   },
   "outfitter": {
     "kind": "app",

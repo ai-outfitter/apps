@@ -15,7 +15,11 @@
 import { fileURLToPath } from "node:url";
 import { runBoxEvals } from "@ai-outfitter/box/eval";
 
-await runBoxEvals(fileURLToPath(new URL(".", import.meta.url)), {
+const project = fileURLToPath(new URL(".", import.meta.url));
+if (process.argv[2] === "mcp-attachments") {
+  const { runAttachments } = await import("./mcp/run");
+  await runAttachments(project, process.argv.slice(3));
+} else await runBoxEvals(project, {
   name: "workshop-box", displayName: "Workshop box", image: "outfitter/workshop-box:dev",
 }, {
   // A fixture without request.json is a design request made from its PROMPT.md.

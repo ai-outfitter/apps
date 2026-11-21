@@ -1,0 +1,21 @@
+version: beta
+id: workshop-daily-update
+summary: Summarize the previous local calendar day in the owner’s Wiki.
+actors: {}
+triggers:
+  - on: schedule
+    cron: "0 2 * * *"
+steps:
+  - id: summarize
+    inference: {maxOutputTokens: 1000}
+    outputs:
+      update:
+        connector: database
+        record: daily-update.saved
+        schema:
+          type: object
+          properties:
+            date: {type: string}
+          required: [date]
+outputs:
+  update: summarize.outputs.update

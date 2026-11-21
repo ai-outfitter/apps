@@ -43,6 +43,8 @@ function scopedId(scope: string, id: string) {
 export async function resolveAssembly(root: AssemblySource, load: (ref: AssemblyReference)=>Promise<AssemblySource>, selection?: AssemblyReference): Promise<ResolvedAssembly> {
   const base = configuredAssembly(root.assembly, selection);
   const items = new Map<string,Item>();
+  // Legacy drives scope some usage IDs. Resolve authored paths one installation at a time.
+  const usageAliases = new Map<string, (id:string)=>string>();
   const result: Omit<ResolvedAssembly,"buildPrice"> = {projectId:root.id,revision:root.revision,
     assembly:{...(base.rootId && {rootId:base.rootId}),items:[],...(base.power && {power:base.power})},sources:[],meshes:{}};
   function mergePower(power: Assembly["power"]) {
@@ -96,6 +98,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
             translationUsageIds:z.translationUsageIds.map(usageIdFor),
             rotations:z.rotations.map(r=>({...r,usageId:usageIdFor(r.usageId)}))}};
         }
+        usageAliases.set(viewId,usageIdFor);
         items.set(viewId,view);
         if (scope && item.power?.loads.length) mergePower(assembly.power);
         const uploaded = attachedMesh(item);
@@ -115,6 +118,26 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
     return rootId;
   }
   await expand(root,base,"",new Set([root.id]));
+  for (const owner of items.values()) {
+    if (!owner.operations?.length) continue;
+    function bind(path:string, needsJoint=false) {
+      let parent = owner;
+      return path.split("/").map((segment,index,parts) => {
+        const [raw,copy] = segment.split("#");
+        const id = usageAliases.get(parent.id)!(raw);
+        const matches = parent.uses.filter(use=>use.id===id);
+        const use = matches[0];
+        if (matches.length!==1 || Number(copy)>=use.quantity || (needsJoint && index===parts.length-1 && !use.joint))
+          throw Error(`Invalid operation path on ${owner.number}: ${path}`);
+        parent = items.get(use.itemId)!;
+        return id+"#"+copy;
+      }).join("/");
+    }
+    owner.operations = owner.operations.map(op=>({...op,
+      tracks: op.tracks.map(t=>({...t,path:bind(t.path,true)})),
+      ...(op.handoffs && {handoffs:op.handoffs.map(e=>({...e,propPath:bind(e.propPath),...(e.carrierPath && {carrierPath:bind(e.carrierPath)})}))}),
+    }));
+  }
   result.assembly.items=[...items.values()];
   return {...result, buildPrice: buildPrice(result.assembly)};
 }

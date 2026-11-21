@@ -16,7 +16,7 @@ Metadata validation is not full app validation. Deployment acceptance is not
 activation. Private SDK preview access requires reviewed dispatch or explicit caller
 authorization of both the same-repository PR author and triggering actor.
 
-PR previews use demo packages only. Keep build and publication jobs separate;
+PR previews use demo packages only. Build and publish each app in one job. Isolate PR build scripts in a disposable container and
 never expose hosting credentials to app builds. The private SDK preview adapter
 uses a read-only deploy key and a pinned toolchain. Automatic private SDK builds
 require both author and triggering actor in the caller's explicit allowlist; forks

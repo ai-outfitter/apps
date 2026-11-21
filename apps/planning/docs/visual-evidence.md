@@ -15,6 +15,8 @@ Evidence is a captured walkthrough of an exact application version. Planning ren
 
 External media requires an explicit load unless it is same-origin or the existing Foundry evidence host. Retrieval still enforces its owner's authorization. Media errors do not erase descriptions. Video uses native controls and loads on demand. No arbitrary manifest URLs are fetched by the reader.
 
+Use Markdown links with descriptive labels in the bundle summary and step descriptions. Link to the exact document revision, conversation or receipt that supports the step. When a reviewer gave feedback, name the reviewing role, describe the requested change, and record the author’s response and the review outcome if known.
+
 ## Existing captures
 
 `import-visual-evidence.ts` converts an existing capture manifest plus explicit subject/media/step mapping into a validated bundle. It does not generate media, infer current source state, upload, or apply graph changes. Keep the old source records and versioned media intact. Legacy Demonstration media URLs remain displayable; unknown provenance stays unknown.
@@ -26,3 +28,7 @@ The evidence page authenticates the canonical project and performs one bounded g
 Index responses paginate the bounded review result. Project card summaries are loaded when visible, with at most three requests in flight; they do not block initial HTML. This is not a materialized global evidence index. The existing graph-provider lookup is deduplicated per request. Video bytes are not prefetched.
 
 Browser tests measure five repeat page navigations, enforce one graph query per evidence page, and verify playable/downloadable media when `EVIDENCE_CAPTURE_IMAGE` and `EVIDENCE_CAPTURE_VIDEO` point at existing captures. These local worker measurements are not production performance claims.
+
+## Testing the evidence page during development
+
+From the repository root, run `npm run test:dev -w apps/planning` to start a local Astro demo server and exercise the release and evidence pages in Chromium. This smoke test reads the synthetic project fixture directly and needs no packaged app. For repeated local checks, keep the server running with `OUTFITTER_APP_MODE=demo npm run dev -w apps/planning -- --host 127.0.0.1 --port 4518`. Playwright reuses that server locally. The operational browser tests use a packaged worker with a simulated organization, Wiki records and authenticated requests.

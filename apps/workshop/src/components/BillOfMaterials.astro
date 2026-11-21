@@ -1,0 +1,17 @@
+---
+interface Props { hidden?: boolean }
+---
+<section id="bom-panel" hidden={Astro.props.hidden}>
+  <div class="toolbar">
+    <h2 id="bom-heading">Bill of materials</h2>
+    <label id="bom-view">View
+      <select id="bom-mode">
+        <option value="hierarchy">Assembly hierarchy</option>
+        <option value="totals">Consolidated parts</option>
+        <option value="cots">COTS</option>
+      </select>
+    </label>
+  </div>
+  <details id="pricing"><summary>Pricing</summary><p id="bom-price"></p></details>
+  <div id="bom-rows"></div>
+</section>

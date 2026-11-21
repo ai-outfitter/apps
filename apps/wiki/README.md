@@ -48,3 +48,26 @@ revisions and publication receipts, and retain the converted database and object
 storage. Prefer repairing the external package forward. If restoring an earlier
 snapshot is necessary, reconcile post-cutover document writes before switching;
 do not reopen the archived graph for edits or discard newly authored history.
+
+Read a document by ID with `document(id: …)`, or by stable page slug with
+`page(slug: …) { document { … } }`. Both document fields return the current draft
+revision by default and accept an explicit revision. Published revision is a
+separate pointer. Use `documentRevisions` for the edit history.
+
+For a recurring document whose editions have separate IDs, use
+`documentVersion(key: "workshop.catalog")`. Producers set the series key in
+generated provenance `kind` and a lexically sortable string in `version`
+(e.g. an ISO date or zero-padded edition number). Existing dated reports can
+use their provenance `date`. Omit version to read the greatest edition, or
+supply version and optionally revision. Editing an older edition does not
+make it the latest edition. The returned ID and revision pin the exact content.
+
+For MCP, start with `WikiDocuments`. Pass multiple literal phrases in `search`
+to match any of them across slugs, titles, summaries, authored text, and generated
+text. Pass several known slugs or document IDs in `refs` to read them together.
+When both filters are present, each hit must match both groups. Use
+`includeBody: true` for content and `revision` to pin a read. Prefer the returned
+slug for links and subsequent operations. If the result has a `next` cursor,
+pass it as `after`. Wiki pages provide navigation and may link to a document or
+entity. The Wiki document entity adapter exposes the same records to the
+platform’s generic entity interface.

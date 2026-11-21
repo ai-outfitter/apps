@@ -10,7 +10,7 @@ if(!demo) {
 }
 // Install checks request this shell before initialization, without member scope.
 const canRead=demo||!!requestContext;
-const data=demo?{documents:[demoDocument],pages:[demoPage]}:requestContext?await run("WikiDocuments",{after:Astro.url.searchParams.get("after") ?? ""},requestContext):{documents:[],pages:[]};
+const data=demo?{documents:[demoDocument],pages:[demoPage]}:requestContext?await run("WikiDocumentListing",{after:Astro.url.searchParams.get("after") ?? ""},requestContext):{documents:[],pages:[]};
 const documents=data.documents as typeof demoDocument[],pages=data.pages as typeof demoPage[];
 const root=mount(Astro.request);
 ---

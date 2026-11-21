@@ -79,7 +79,7 @@ export async function assemblyGuard(db: WorkshopDatabase, next: AssemblySource, 
     for (const id of affected) {
       if (deleting && id===next.id) continue;
       const source = await load({projectId:id});
-      if(source.assembly.items.some(i=>i.reference)) await resolveAssembly(source,load);
+      if(source.assembly.items.some(i=>i.reference || i.operations?.length)) await resolveAssembly(source,load);
     }
   } catch(error) { if(error instanceof Error) throw refuse(error.message); throw error; }
   const observed: Record<string,number> = {};

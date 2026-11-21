@@ -1,3 +1,4 @@
+import { JointSchema, OperationSchema } from "./operation-schema";
 import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
 import { assemblyFile } from "./assembly-file";
@@ -24,6 +25,7 @@ export const UsageSchema = z
   .object({
     id: z.uuid(),
     itemId: z.uuid(),
+    joint: JointSchema.optional(),
     quantity: z.number().int().min(1).max(1000),
     /** Reference designators or a find number, such as "U1" or "Find 3". */
     refdes: z.string().trim().max(60).default(""),
@@ -93,6 +95,7 @@ export const ItemSchema = z
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
     /** Pick this assembly when a user clicks one of its installed parts. */
+    operations: z.array(OperationSchema).optional(),
     driveMotion: SavedDriveMotionSchema.optional(),
     selectAsUnit: z.boolean().optional(),
     firmware: FirmwareSchema.optional(),
@@ -139,6 +142,10 @@ function assemblySchema(uniquePartNumbers: boolean) { return z
       }
     }
     for (const owner of assembly.items) {
+      if (owner.operations?.length) {
+        if (owner.kind !== "assembly" || owner.reference) fail("Operations belong on the source assembly");
+        if (new Set(owner.operations.map(op=>op.name)).size !== owner.operations.length) fail("Operation names must be unique within an assembly");
+      }
       const spec = owner.driveMotion;
       if (!spec) continue;
       if (owner.reference || owner.kind !== "assembly") fail("Drive motion belongs on a source assembly");
@@ -272,15 +279,15 @@ export type Placement = {
 };
 
 /** Every solid in the top assembly, placed in world coordinates. */
-export function placements(assembly: Assembly, options?: { maxVisits?: number; skipCoincidentCopies?: boolean; onVisit?: (item: Item, path: string, matrix: Matrix4) => void }): Placement[] {
+export function placements(assembly: Assembly, options?: { maxVisits?: number; skipCoincidentCopies?: boolean; onVisit?: (item: Item, path: string, matrix: Matrix4, usage?: Usage) => void }): Placement[] {
   const byId = new Map(assembly.items.map((item) => [item.id, item]));
   const root = assembly.rootId ? byId.get(assembly.rootId) : undefined;
   if (!root) return [];
   const out: Placement[] = [];
   let remaining = options?.maxVisits ?? Infinity;
-  const walk = (item: Item, matrix: Matrix4, path: string, pickGroup?: Placement["pickGroup"]) => {
+  const walk = (item: Item, matrix: Matrix4, path: string, pickGroup?: Placement["pickGroup"], usage?: Usage) => {
     remaining--;
-    options?.onVisit?.(item,path,matrix);
+    options?.onVisit?.(item,path,matrix,usage);
     const pos = new Vector3().setFromMatrixPosition(matrix);
     if (!pickGroup && item !== root && item.selectAsUnit && item.kind === "assembly") pickGroup = { id: item.id, path };
     if (item.geometry || item.mesh) out.push({item,path,pickGroup,position:pos.toArray() as [number,number,number],rotation:Math.round(new Euler().setFromRotationMatrix(matrix).z*180/Math.PI*1e9)/1e9,matrix:matrix.toArray()});
@@ -290,7 +297,7 @@ export function placements(assembly: Assembly, options?: { maxVisits?: number; s
       const angles=use.orientation ?? [0,0,use.rotation];
       const local=new Matrix4().compose(new Vector3(...use.position),new Quaternion().setFromEuler(new Euler(...angles.map(v=>v*Math.PI/180) as [number,number,number],"XYZ")),new Vector3(1,1,1));
       const copies = options?.skipCoincidentCopies ? 1 : use.quantity;
-      for(let copy=0;copy<copies && remaining>0;copy++)walk(child,matrix.clone().multiply(local),`${path}/${use.id}#${copy}`,pickGroup);
+      for(let copy=0;copy<copies && remaining>0;copy++)walk(child,matrix.clone().multiply(local),`${path}/${use.id}#${copy}`,pickGroup,use);
     }
   };
   walk(root,new Matrix4(),root.id);

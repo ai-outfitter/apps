@@ -1,4 +1,11 @@
 type Query {
+  dailyAppUpdates(first: Int = 100, after: String, ids: [ID!], date: String!): AppDailyUpdateConnection!
+
+  """
+  Read a generated document series. Defaults to its greatest version (lexical order) and that document's current draft revision. Supply version and revision to pin both.
+  """
+  documentVersion(key: String!, version: String, revision: Int): WikiDocumentVersion
+  searchDocuments(refs: [String!], search: [String!], revision: Int, after: String, first: Int = 20, includeBody: Boolean = false): WikiSearchResults
   documents(after: ID, first: Int): [WikiDocument]
   document(id: ID!, revision: Int): WikiDocument
   documentRevisions(id: ID!, before: Int): [DocumentRevision]
@@ -6,7 +13,66 @@ type Query {
   page(slug: String!): WikiPage
 }
 
+type AppDailyUpdateConnection {
+  edges: [AppDailyUpdateConnectionEdge!]!
+  nodes: [AppDailyUpdate!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type AppDailyUpdateConnectionEdge {
+  cursor: String!
+  node: AppDailyUpdate!
+}
+
+type AppDailyUpdate {
+  id: ID
+  slug: String
+  app: String
+  summary: String
+  complete: Boolean
+  revision: Int
+  timezone: String
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type WikiDocumentVersion {
+  documentId: ID
+  revision: Int
+  slug: String
+  version: String
+  title: String
+  body: String
+  generatedBody: String
+  timezone: String
+  status: String
+  savedAt: String
+}
+
+type WikiSearchResults {
+  documents: [WikiSearchHit]
+  next: String
+}
+
+type WikiSearchHit {
+  slug: String
+  id: ID
+  revision: Int
+  publishedRevision: Int
+  title: String
+  summary: String
+  body: String
+  generatedBody: String
+}
+
 type WikiDocument {
+  slug: String
   documentId: ID
   revision: Int
   title: String
@@ -47,6 +113,9 @@ type WikiPage {
 }
 
 type Mutation {
+  """Attach verified source bytes to an existing Wiki page."""
+  uploadWikiPageFile(input: UploadWikiPageFileInput!): JSON
+
   """
   Revise only the generated draft section while preserving authored and published content.
   """
@@ -65,6 +134,17 @@ type Mutation {
   archiveDocument(input: ArchiveDocumentInput!): WikiDocument
 }
 
+"""Any JSON value."""
+scalar JSON
+
+input UploadWikiPageFileInput {
+  pageSlug: String!
+  fileName: String!
+  contentType: String!
+  size: Int!
+  sha256: String!
+}
+
 input SaveGeneratedDocumentInput {
   id: String
   revision: Float
@@ -73,9 +153,6 @@ input SaveGeneratedDocumentInput {
   generatedBody: String!
   provenance: JSON!
 }
-
-"""Any JSON value."""
-scalar JSON
 
 input SaveDocumentInput {
   id: String

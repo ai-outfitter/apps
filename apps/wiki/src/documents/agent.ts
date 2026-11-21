@@ -14,7 +14,7 @@ export function agentRoute(request:Request,operation:string,locals:unknown,inter
   if(import.meta.env.OUTFITTER_APP_MODE!=="operational")throw new Response("Read-only demo",{status:403});
   const ctx=context(request,locals);
   const reads=publishActionTools("wiki-map",{
-   "documents.list":defineAction({description:"Read current Wiki documents and pages.",access:"read",input:z.strictObject({}),output:z.json(),run:(c:Context)=>run("WikiDocuments",{},c)}),
+   "documents.list":defineAction({description:"Read current Wiki documents and pages.",access:"read",input:z.strictObject({}),output:z.json(),run:(c:Context)=>run("WikiDocumentListing",{},c)}),
    "document.inspect":defineAction({description:"Read a document and its revision history before proposing changes.",access:"read",input:z.strictObject({id:z.string().min(1)}),output:z.json(),run:(c:Context,input)=>run("WikiDocument",input,c)}),
   });
   const actions=publishActionTools("wiki-map",{
@@ -29,7 +29,7 @@ export function agentRoute(request:Request,operation:string,locals:unknown,inter
    instructions:"You are the Wiki assistant. Help people read and revise documents. Read the current revision before preparing a change. Save changes as drafts and keep human-authored content intact. Publishing is a separate action subject to exact-revision policy checks; never claim publication means Governance approval. Canonical people, projects and relationships live in Onto: use its named GraphQL documents for graph questions and never recreate the graph inside Wiki. A reference grants no access. Existing conversation history is context, not current authority.",
    reads,actions:Object.fromEntries(Object.entries(actions).map(([name,action])=>[name,{action,retry:"inspect" as const,prepare:(input:unknown)=>input}])) ,
    routes:[{path:"",description:"Wiki documents and pages."},{path:"p/<slug>",description:"Read a saved page."},{path:"related",description:"People and projects from Onto."},{path:"new",description:"Create a document draft."}],
-   page:async()=>({wiki:{installationId:ctx.identity.installationId},...(await run("WikiDocuments",{first:20},ctx))}),
+   page:async()=>({wiki:{installationId:ctx.identity.installationId},...(await run("WikiDocumentListing",{first:20},ctx))}),
   });
   return internal?agent.provider(request,operation):agent.browser(request,operation);
  });
