@@ -48,6 +48,12 @@ const legacyDocuments = defineDocuments({
       describeWorkshopProject(input: $input) { id name revision createdBy updatedBy createdAt updatedAt }
     }`),
   },
+  ResolvedWorkshopAssemblyPage: {
+    story: "As a prototype builder, I want to page through a resolved assembly, so that I can verify its entire CAD and animation record.",
+    document: graphql(`query ResolvedWorkshopAssemblyPage($input: ResolvedWorkshopAssemblyPageInput!) {
+      resolvedWorkshopAssemblyPage(input:$input) { projectId revision sha256 offset totalBytes jsonText nextCursor }
+    }`),
+  },
   ResolvedWorkshopAssembly: {
     story: "As a prototype builder, I want to inspect the configured assembly and its source revisions, so that I can verify shared CAD and power across projects.",
     document: graphql(`query ResolvedWorkshopAssembly($input: ResolvedWorkshopAssemblyInput!) { resolvedWorkshopAssembly(input: $input) }`),
@@ -107,7 +113,8 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
-  ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits." },
+  ResolvedWorkshopAssemblyPage: { description: "Read large resolved records including geometry, motion, meshes, sources and build price. Use includeIdentifiers:true. Pass input.projectId and optional configuration, parameters, revision. Repeat the same input with cursor set to nextCursor until null. Concatenate jsonText chunks in order, verify UTF-8 totalBytes and sha256, then JSON.parse. If the source graph changed, restart at page one." },
+  ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. On RESPONSE_TOO_LARGE use ResolvedWorkshopAssemblyPage. Use WorkshopAssembly for edits." },
   WorkshopAssembly: { description: "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements, joints, named operations and power inputs, with its current project revision." },
   UpdateWorkshopAssembly: { description: "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit." },
   UploadWorkshopAssemblyFile:{description:"Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."},

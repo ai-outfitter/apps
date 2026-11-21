@@ -2103,13 +2103,66 @@
       ]
     },
     "mcp": {
-      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. Use WorkshopAssembly for edits."
+      "description": "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. On RESPONSE_TOO_LARGE use ResolvedWorkshopAssemblyPage. Use WorkshopAssembly for edits."
     },
     "outputSchema": {
       "type": "object",
       "properties": {
         "resolvedWorkshopAssembly": {
           "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "ResolvedWorkshopAssemblyPage",
+    "kind": "query",
+    "story": "As a prototype builder, I want to page through a resolved assembly, so that I can verify its entire CAD and animation record.",
+    "query": "query ResolvedWorkshopAssemblyPage($input: ResolvedWorkshopAssemblyPageInput!) {\n  resolvedWorkshopAssemblyPage(input: $input) {\n    projectId\n    revision\n    sha256\n    offset\n    totalBytes\n    jsonText\n    nextCursor\n  }\n}",
+    "hash": "48087b1c25ae78d7ab63184ae9c922e80983d02f74daadac2758b3dc1e9131e8",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ResolvedWorkshopAssemblyPageInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read large resolved records including geometry, motion, meshes, sources and build price. Use includeIdentifiers:true. Pass input.projectId and optional configuration, parameters, revision. Repeat the same input with cursor set to nextCursor until null. Concatenate jsonText chunks in order, verify UTF-8 totalBytes and sha256, then JSON.parse. If the source graph changed, restart at page one."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "resolvedWorkshopAssemblyPage": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "sha256": {
+              "type": "string"
+            },
+            "offset": {
+              "type": "integer"
+            },
+            "totalBytes": {
+              "type": "integer"
+            },
+            "jsonText": {
+              "type": "string"
+            },
+            "nextCursor": {
+              "type": "string",
+              "nullable": true
+            }
+          }
         }
       }
     }

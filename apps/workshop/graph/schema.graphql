@@ -32,6 +32,11 @@ type Query {
   resolvedWorkshopAssembly(input: ResolvedWorkshopAssemblyInput!): JSON!
 
   """
+  Read a complete resolved assembly across byte-bounded, snapshot-checked pages.
+  """
+  resolvedWorkshopAssemblyPage(input: ResolvedWorkshopAssemblyPageInput!): ResolvedWorkshopAssemblyPageResult!
+
+  """
   Read one project as persisted: name, revision, stage, brief, requirements, the product revision it builds and its whole assembly (items and usage lines). A proposed assembly is not evidence of purchased parts, CAD, fabrication or fit. Changes nothing.
   """
   workshopProjectHandoff(input: WorkshopProjectHandoffInput!): JSON!
@@ -193,6 +198,24 @@ input ResolvedWorkshopAssemblyInput {
   revision: Float
   configuration: String
   parameters: JSON
+}
+
+type ResolvedWorkshopAssemblyPageResult {
+  projectId: ID!
+  revision: Int!
+  sha256: String!
+  offset: Int!
+  totalBytes: Int!
+  jsonText: String!
+  nextCursor: String
+}
+
+input ResolvedWorkshopAssemblyPageInput {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+  cursor: String
 }
 
 input WorkshopProjectHandoffInput {

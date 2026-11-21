@@ -129,3 +129,14 @@ assembly. **Close hinge** removes that offset.
 and build parameters when present. **Preview configuration** opens the resolved
 configuration with the entered values. **Request build with parameters** submits
 the typed inputs through the existing workspace build request.
+
+### Reading a large resolved assembly
+
+If `ResolvedWorkshopAssembly` returns `RESPONSE_TOO_LARGE`, call
+`ResolvedWorkshopAssemblyPage` with the same `input` and `includeIdentifiers:true`.
+For each following page, add `input.cursor` from the preceding `nextCursor`. Stop when
+it is null. Concatenate `jsonText` in order, verify its UTF-8 length and SHA-256
+against `totalBytes` and `sha256`, then parse it as JSON. The result has the same
+shape and content as the full read, including geometry, operations and mesh
+descriptors. Offsets count UTF-8 bytes. If any source changes during the read,
+discard the partial text and start again.
