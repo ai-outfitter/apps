@@ -113,6 +113,9 @@ const legacyDocuments = defineDocuments({
   },
 });
 
+// Only these reach MCP clients, on the platform's /mcp and on Workshop's own /mcp/workshop;
+// the single-action documents stay for Workshop's own pages. Design turns and concept
+// images are Workshop workflows: platform StartTasks and WorkflowRuns with app workshop.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
   WorkshopSourceFile:{description:"Read a CAD source file from the organization's connected Forgejo repository. Supply repository, path and ref. Returns base64 content, byte size and Git blob SHA."},
   ResolvedWorkshopAssemblyPage: { description: "Read large resolved records including geometry, motion, meshes, sources and build price. Use includeIdentifiers:true. Pass input.projectId and optional configuration, parameters, revision. Repeat the same input with cursor set to nextCursor until null. Concatenate jsonText chunks in order, verify UTF-8 totalBytes and sha256, then JSON.parse. If the source graph changed, restart at page one." },
@@ -122,14 +125,19 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
   UploadWorkshopAssemblyFile:{description:"Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."},
   VerifyWorkshopAssemblyFile:{description:"Supply projectId, itemId and fileName. Rehash the stored file and return verified digest, size, revision and installation-relative downloadPath."},
   SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
-  WorkshopProjects: { description: "Find a Workshop project and its current revision before importing PCB files." },
+  WorkshopProjects: { description: "Find hardware projects by name, product revision or creator, with their current revision, before changes or PCB imports. Use includeIdentifiers:true for IDs and revisions.", collection: true },
+  WorkshopProjectHandoff: { description: "Read one project as persisted: brief, requirements, stage, product revision and its whole assembly with usage lines. Changes nothing." },
+  WorkshopUnits: { description: "Find physical units (boards, parts) by part number, MAC, status or project.", collection: true },
   CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },
+  ProjectChanges: { description: "Create a project from a starter example, write its brief, requirements and stage, or delete it. Edits and deletes need the id and revision from WorkshopProjects; stable item keys make retries safe." },
+  UnitChanges: { description: "Record, update or delete physical units by MAC address or serial. Updates and deletes need the id and revision from WorkshopUnits." },
+  ConceptChanges: { description: "Publish a project's concept mockups to its product revision in the Wiki, or remove one mockup, at the project's current revision." },
+  ProductRevisionChanges: { description: "Name the Wiki product revision a project builds, at the project's current revision." },
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
   WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
   AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },
   AttachCreativeResult: { description: "Link a committed result candidate back to its design request." },
 });
-
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */
 export const runDocument = documentRunner<WorkshopContext>(() => graphqlSchema);

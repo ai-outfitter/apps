@@ -1,0 +1,26 @@
+{
+  // Workshop as its own product, with no Outfitter platform in front of it
+  // (docs/standalone-apps.md at the repository root). `npm run standalone`
+  // serves it from this config; `OUTFITTER_STANDALONE=1 astro build` then
+  // `wrangler deploy -c wrangler.standalone.jsonc` ships it as one Worker.
+  // Secrets (SESSION_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+  // INFERENCE_API_KEY) go in .dev.vars locally and `wrangler secret put` when deployed.
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "workshop",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  "assets": {
+    "binding": "ASSETS",
+  },
+  // The app applies its own migrations on the first request.
+  "d1_databases": [{ "binding": "DB", "database_name": "workshop", "database_id": "local" }],
+  "r2_buckets": [{ "binding": "STORAGE_MAIN", "bucket_name": "workshop-main" }],
+  "vars": {
+    "INFERENCE_MODEL": "gpt-5-mini",
+    "IMAGE_MODEL": "gpt-image-1",
+  },
+}
