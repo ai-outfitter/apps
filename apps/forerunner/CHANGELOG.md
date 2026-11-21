@@ -4,6 +4,13 @@
 
 - The daily brief also reads issues in progress in your organizations' Planning, each linked to its project. A failed read is listed as not known.
 
+## [0.1.3](https://github.com/ai-outfitter/apps/compare/forerunner-v0.1.2...forerunner-v0.1.3) (2026-11-21)
+
+
+### Features
+
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
 ## [0.1.2](https://github.com/ai-outfitter/apps/compare/forerunner-v0.1.1...forerunner-v0.1.2) (2026-11-17)
 
 
