@@ -77,7 +77,16 @@ Object.assign(node, {
   owner: "Sunny",
 });
 
+// Tier 2: a sensor designer reuses this purchased board without manufacturing it.
+const libraryBoard = {...board!, power:undefined};
+const boardModel = ProjectSchema.parse({...makeProject("cube"),
+  id:"00000000-0000-4000-8000-000000000107", name:"ESP32 reference board", purpose:"component",
+  brief:"Purchased controller model reused by the soil sensor project.",
+  assembly:{rootId:"00000000-0000-4000-8000-000000000108",
+    items:[{id:"00000000-0000-4000-8000-000000000108",number:"ESP32-MODEL",revision:"A",name:"ESP32 model",kind:"assembly",uses:[{id:"00000000-0000-4000-8000-000000000109",itemId:libraryBoard.id,quantity:1}]},libraryBoard]}});
+
 export const fixtureProjects: Project[] = [
+  boardModel,
   ProjectSchema.parse(node),
   ProjectSchema.parse(cable),
   ProjectSchema.parse(sensor),
@@ -88,7 +97,7 @@ export function fixtureRequest<T>(path: string, method: string): T {
   if (!path)
     return fixtureProjects.map(project => ({
       brief: project.brief, thumbnail: projectThumbnail(project),
-      id: project.id, name: project.name, revision: project.revision, updatedAt: project.updatedAt, phase: project.phase,
+      id: project.id, name: project.name, purpose: project.purpose, revision: project.revision, updatedAt: project.updatedAt, phase: project.phase,
     })) as T;
   const found = fixtureProjects.find((item) => item.id === path.slice(1));
   if (!found) throw new Error("Project not found");

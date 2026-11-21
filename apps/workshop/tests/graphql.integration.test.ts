@@ -82,3 +82,27 @@ test("a project's Wiki product revision is saved with it and served, filterable,
     await app.dispose();
   }
 });
+
+// Tier 2: the owner classifies a purchased motherboard without replacing its model.
+test("the model purpose control saves revision-checked classification through the installed route", async () => {
+  const app = await appWorker("workshop", artifact(), "project-purpose");
+  try {
+    const created = await app.call("/api/apps/workshop/projects", member, {method:"POST",body:{example:"cube",name:"Purchased board"}});
+    assert.equal(created.status,201);
+    const original = await created.json() as Project;
+    const path = `/api/apps/workshop/projects/${original.id}`;
+    const changed = await app.call(path+"/purpose", member, {method:"PATCH",body:{revision:1,purpose:"component"}});
+    assert.equal(changed.status,200,await changed.clone().text());
+    const component = await changed.json() as Project;
+    assert.equal(component.purpose,"component");
+    assert.equal(component.revision,2);
+    assert.deepEqual(component.assembly,original.assembly);
+    const stale = await app.call(path+"/purpose",member,{method:"PATCH",body:{revision:1,purpose:"product"}});
+    assert.equal(stale.status,409);
+    const listed = await app.call("/api/apps/workshop/projects",member);
+    assert.equal((await listed.json() as {id:string,purpose:string}[]).find(row=>row.id===original.id)?.purpose,"component");
+    const restored = await app.call(path+"/purpose",member,{method:"PATCH",body:{revision:2,purpose:"product"}});
+    assert.equal(restored.status,200);
+    assert.equal((await restored.json() as Project).purpose,"product");
+  } finally {await app.dispose();}
+});

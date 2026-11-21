@@ -1511,8 +1511,8 @@
     "name": "CreateWorkshopProject",
     "kind": "mutation",
     "story": "As a member, I want to start a project from a starter example on the Workshop page or through an agent, named for the product revision it builds, so that I can refine a working model instead of a blank one.",
-    "query": "mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {\n  createWorkshopProject(input: $input) {\n    id\n    name\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "07731f6899c2d64fdeb36f17a4f0a72a42d2987a5de35d51ccaabcb6c64f19cd",
+    "query": "mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {\n  createWorkshopProject(input: $input) {\n    id\n    name\n    purpose\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "3489ec57f1ce76abbe75855c5d333bf95681bfde77179287d6f49a17f1311676",
     "variables": {
       "type": "object",
       "properties": {
@@ -1537,6 +1537,9 @@
               "type": "string"
             },
             "name": {
+              "type": "string"
+            },
+            "purpose": {
               "type": "string"
             },
             "revision": {
@@ -1609,8 +1612,8 @@
     "name": "DescribeWorkshopProject",
     "kind": "mutation",
     "story": "As a member, I want an agent to write a project's brief and requirements and move it through its stages as the work progresses, so that the project page says what we are building and how far along it is.",
-    "query": "mutation DescribeWorkshopProject($input: DescribeWorkshopProjectInput!) {\n  describeWorkshopProject(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "5ef67e2d134fc13324cadb4b3695bc8870b974959cb0baa402317fb7d0eaed18",
+    "query": "mutation DescribeWorkshopProject($input: DescribeWorkshopProjectInput!) {\n  describeWorkshopProject(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "1b79846bea9b2d4188fdddf8a1186ac9a15c4066de8444364964b7c5003f50a3",
     "variables": {
       "type": "object",
       "properties": {
@@ -1647,8 +1650,8 @@
     "name": "NameWorkshopProductRevision",
     "kind": "mutation",
     "story": "As a member, I want to name the Wiki product revision a project builds, so that its concepts and evidence publish to the right release chain.",
-    "query": "mutation NameWorkshopProductRevision($input: NameWorkshopProductRevisionInput!) {\n  nameWorkshopProductRevision(input: $input) {\n    id\n    name\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "675c0385f6c1b8ba14ac35d0ddf51c1ed6d50828624b2e72cb1fddb4540d88d3",
+    "query": "mutation NameWorkshopProductRevision($input: NameWorkshopProductRevisionInput!) {\n  nameWorkshopProductRevision(input: $input) {\n    id\n    name\n    purpose\n    revision\n    productRevisionId\n    productRevisionTitle\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "8f448fc523e66fe4073c56b7c5b738ec5cdaeaae3fa4c4289cae7be608548083",
     "variables": {
       "type": "object",
       "properties": {
@@ -1847,6 +1850,13 @@
                             "minLength": 1,
                             "maxLength": 100
                           },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "product",
+                              "component"
+                            ]
+                          },
                           "productRevision": {
                             "type": "object",
                             "properties": {
@@ -1919,6 +1929,13 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 100
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "product",
+                              "component"
+                            ]
                           },
                           "phase": {
                             "type": "string",
@@ -2051,8 +2068,8 @@
     "name": "RemoveWorkshopConcept",
     "kind": "mutation",
     "story": "As a member, I want to remove a concept mockup that no longer shows what we mean to build, so that the gallery and the next publish carry only current design intent.",
-    "query": "mutation RemoveWorkshopConcept($input: RemoveWorkshopConceptInput!) {\n  removeWorkshopConcept(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "94e75c4f923762e525588891ef66f00c7ef6d1140e20facad78cef19e1bde2a3",
+    "query": "mutation RemoveWorkshopConcept($input: RemoveWorkshopConceptInput!) {\n  removeWorkshopConcept(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "d57f87f6b0f2e1944f92616d6f961fdac0a5253613b1a71555d13c63cdcfc173",
     "variables": {
       "type": "object",
       "properties": {
@@ -2171,8 +2188,8 @@
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
-    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "2c2e8819ec5c620695a613658205f746726353fffc69d21c37177eee4fd4c7fb",
+    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
+    "hash": "8446bb2cff33cb76794a0d14b3a61fcd06f429b38cdec3d34b7f1a7a9fceef59",
     "variables": {
       "type": "object",
       "properties": {
@@ -2774,7 +2791,7 @@
       "required": []
     },
     "mcp": {
-      "description": "Find a Workshop project and its current revision before importing PCB files."
+      "description": "Find products or reusable component library models and their current revision. Filter purpose to product or component; references can use either."
     },
     "outputSchema": {
       "type": "object",

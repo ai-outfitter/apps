@@ -13,6 +13,7 @@ const overview = section === "overview";
     <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
   </nav>
   <p id="workspace-notice" role="status"></p>
+  <label>Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label>
   <section id="models-panel" hidden={section !== "models"}>
     <div class="toolbar"><div><h2>Models and parts</h2><p id="models-summary" role="status"></p></div><a id="open-assembly" href="#">Project overview</a></div>
     <div class="catalog-controls"><label>Search models<input id="model-search" type="search" placeholder="Name, part number or manufacturer" /></label><label>Show<select id="model-filter"><option value="all">All items</option><option value="assembly">Assemblies</option><option value="modeled">With geometry</option><option value="cots">COTS parts</option><option value="fabricated">Fabricated parts</option><option value="unmodeled">Awaiting geometry</option></select></label></div>
