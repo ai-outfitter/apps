@@ -64,3 +64,48 @@ Save the optional `driveMotion` object on the owning assembly item in the source
 ```
 
 Offsets are millimetres along the mounted rack’s Z axis. Supply 2–16 levels in strictly increasing offset order. Each translation usage moves its placed descendants. Each rotation usage must identify one saved leaf solid with geometry or a mesh; axis and pivot are in that solid’s own coordinates (unit vector and millimetres). The nonzero signed rotation rate is radians per millimetre of travel. A shared part on another usage remains stationary. Each referenced usage ID must be unambiguous within the owner. `ResolvedWorkshopAssembly` remaps both root and usage IDs; use the authored source IDs for saves.
+
+### Named operations and installed joints
+
+For a robotics team coordinating a tray and gripper (tier 4), read the authored record with
+`WorkshopAssembly(projectId)` and `includeIdentifiers:true`. Save the complete assembly
+with `UpdateWorkshopAssembly(projectId, expectedRevision, assembly)`. On a conflict,
+reread before retrying. Use the source project's usage IDs for edits across references.
+
+* Put `joint: {kind, axis, pivot?}` on an installed usage in `item.uses`. A prismatic
+  joint translates in mm. A revolute joint rotates in degrees by the right-hand rule.
+  The unit axis and optional pivot (mm, default origin) are local to the installed
+  part at rest, after its configured placement. Nest joints to compose axes.
+* Put `operations` on the source assembly item that contains all participants.
+  Give each operation a unique name within that item. Each track targets one installed joint.
+  The path is relative to the owner, one saved usage UUID and zero-based quantity
+  index per segment, separated by slashes. At a project reference, continue with the
+  configured source root's usages. Use the same convention for prop and carrier paths.
+* Keys start at time zero with value zero, advance strictly in seconds and end at or
+  before the positive duration. Values interpolate linearly and hold after the last key.
+* At each handoff the prop retains its pose. Its whole subtree follows the new carrier
+  from that instant. Omit the carrier to leave the prop in the owner's frame. Events
+  for each prop advance strictly. Props cannot contain another prop or a carrier.
+
+For example, replace the placeholders below with actual usage UUIDs. The tool picks up
+the tray at 1 s and leaves it in place at 3 s.
+
+```json
+{
+  "name": "Harvest",
+  "durationSeconds": 4,
+  "tracks": [
+    {"path": "<arm>#0/<slide>#0", "keys": [{"time":0,"value":0},{"time":3,"value":60}]},
+    {"path": "<arm>#0/<slide>#0/<wrist>#0", "keys": [{"time":0,"value":0},{"time":2,"value":90}]}
+  ],
+  "handoffs": [
+    {"time":1,"propPath":"<tray>#0","carrierPath":"<arm>#0/<slide>#0/<wrist>#0"},
+    {"time":3,"propPath":"<tray>#0"}
+  ]
+}
+```
+
+In the overview, open Motion and select the operation for the installed assembly.
+Play advances to the end. Drag Time to inspect an instant or choose Reset operation
+to restore the saved pose. Selecting a moving solid still opens its part details.
+Legacy drive motion is available in the same selector when both are present.

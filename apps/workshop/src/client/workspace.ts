@@ -1,3 +1,4 @@
+import { installedOperations } from "../lib/installed-operations";
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { onPageLoad } from "@ai-outfitter/ui/page";
 import type { ResolvedAssembly } from "../lib/assembly-resolution";
@@ -110,7 +111,45 @@ let motionGeneration=0;
 // The trigger and shelf picker sit beside the viewer; the review record stays below it. Both show and hide together.
 const showMotion=(visible:boolean)=>{for(const id of ["motion-controls","drive-turns","drive-review-status","motion-preview"])$(id).hidden=!visible; if(inspection) $("motion-menu").hidden=!visible;};
 const stopMotion=()=>{cancelAnimationFrame(motionFrame);motionFrame=0;$("motion-play").textContent="Play motion";};
-signal.addEventListener("abort",()=>{motionGeneration++;stopMotion();viewer?.dispose();},{once:true});
+const opSelect=$<HTMLSelectElement>("operation-select"), scrub=$<HTMLInputElement>("operation-time");
+let operations:ReturnType<typeof installedOperations>=[];
+let opFrame=0;
+function pauseOperation() {
+ cancelAnimationFrame(opFrame);opFrame=0;$("operation-play").textContent="Play operation";
+}
+function seek(time:number) {
+ const entry=operations[opSelect.selectedIndex];
+ if(!entry)return;
+ scrub.value=String(time);
+ $("operation-clock").textContent=time.toFixed(2)+" s";
+ viewer?.previewPose(entry.pose(time));
+}
+function chooseOperation() {
+ pauseOperation();stopMotion();
+ const entry=operations[opSelect.selectedIndex];
+ $("operation-timeline").hidden=!entry;
+ showMotion(!entry && Boolean(motion));
+ $("motion-menu").hidden=!operations.length && !motion;
+ viewer?.inspectDrive([],false);
+ $<HTMLInputElement>("inspect-drive").checked=false;
+ if(entry){scrub.max=String(entry.operation.durationSeconds);seek(0);}
+ else if(motion)applyMotion(0);
+}
+opSelect.onchange=chooseOperation;
+scrub.oninput=()=>{pauseOperation();seek(Number(scrub.value));};
+$("operation-reset").onclick=()=>{pauseOperation();seek(0);};
+$("operation-play").onclick=()=>{
+ if(opFrame){pauseOperation();return;}
+ const duration=Number(scrub.max), current=Number(scrub.value);
+ const start=performance.now()-1000*(current>=duration?0:current);
+ $("operation-play").textContent="Pause operation";
+ function tick(now:number) {
+  const time=Math.max(0,Math.min(duration,(now-start)/1000));seek(time);
+  if(time<duration) opFrame=requestAnimationFrame(tick);else pauseOperation();
+ }
+ opFrame=requestAnimationFrame(tick);
+};
+signal.addEventListener("abort",()=>{motionGeneration++;pauseOperation();stopMotion();viewer?.dispose();},{once:true});
 const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Offset from saved pose · ${Number(offset.toFixed(1))} mm`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
@@ -305,6 +344,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  }
  renderedPowerFor = undefined;
  const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
+ pauseOperation();operations=[];$("operation-controls").hidden=true;
  stopMotion();motion=undefined;motionOffset=0;showMotion(false);
  build=run;historical=snapshot || Boolean(run && run.id!==project.workspace?.currentBuildId);
  const parsed=(historical?BuildAssemblySchema:AssemblySchema).safeParse(historical?(run?.result?.manifest?.assembly??{items:[]}):project.assembly);
@@ -396,6 +436,18 @@ function showBuild(run?:BuildRequest, snapshot=false){
   const prompt=element("option","Choose position") as HTMLOptionElement;prompt.value="";
   $<HTMLSelectElement>("motion-level").replaceChildren(prompt,...(motion?.levels??[]).map((level,index)=>{const option=element("option",level.label) as HTMLOptionElement;option.value=String(index);return option;}));
   if(motion)applyMotion(0);
+  operations=installedOperations(view);
+  if(operations.length){
+   const labels=new Map<string,number>();
+   const options=operations.map(entry=>{
+    const index=(labels.get(entry.label) ?? 0)+1;
+    labels.set(entry.label,index);
+    return element("option",entry.label+(index>1?" ("+index+")":""));
+   });
+   if(motion)options.push(element("option","Drive motion"));
+   opSelect.replaceChildren(...options);
+   $("operation-controls").hidden=false;chooseOperation();
+  }
  });
  if (inspection && focused) select(focused);
  renderCatalog();

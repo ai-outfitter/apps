@@ -333,6 +333,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
+  operations: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItem!]
   driveMotion: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: FinishWorkshopBuildInputManifestAssemblyItemsItemFirmware
@@ -392,6 +393,29 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemReference {
   parameters: JSON
 }
 
+input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItem {
+  name: String!
+  durationSeconds: Float!
+  tracks: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItem!]!
+  handoffs: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemHandoffsItem!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItem {
+  path: String!
+  keys: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItemKeysItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItemKeysItem {
+  time: Float!
+  value: Float!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemHandoffsItem {
+  time: Float!
+  propPath: String!
+  carrierPath: String
+}
+
 input FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion {
   version: Float!
   viewRootIds: [ID!]!
@@ -447,11 +471,23 @@ enum FinishWorkshopBuildInputManifestAssemblyItemsItemPowerLoadsItemEvidence {
 input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
+  joint: FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJoint
   quantity: Int!
   refdes: String
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJoint {
+  kind: FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind!
+  axis: [JSON!]!
+  pivot: [JSON!]
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind {
+  prismatic
+  revolute
 }
 
 input FinishWorkshopBuildInputManifestAssemblyConfigurationsItem {
@@ -619,6 +655,7 @@ input WorkshopAssemblyInputItemsItem {
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
+  operations: [WorkshopAssemblyInputItemsItemOperationsItem!]
   driveMotion: WorkshopAssemblyInputItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: WorkshopAssemblyInputItemsItemFirmware
@@ -678,6 +715,29 @@ input WorkshopAssemblyInputItemsItemReference {
   parameters: JSON
 }
 
+input WorkshopAssemblyInputItemsItemOperationsItem {
+  name: String!
+  durationSeconds: Float!
+  tracks: [WorkshopAssemblyInputItemsItemOperationsItemTracksItem!]!
+  handoffs: [WorkshopAssemblyInputItemsItemOperationsItemHandoffsItem!]
+}
+
+input WorkshopAssemblyInputItemsItemOperationsItemTracksItem {
+  path: String!
+  keys: [WorkshopAssemblyInputItemsItemOperationsItemTracksItemKeysItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemOperationsItemTracksItemKeysItem {
+  time: Float!
+  value: Float!
+}
+
+input WorkshopAssemblyInputItemsItemOperationsItemHandoffsItem {
+  time: Float!
+  propPath: String!
+  carrierPath: String
+}
+
 input WorkshopAssemblyInputItemsItemDriveMotion {
   version: Float!
   viewRootIds: [ID!]!
@@ -733,11 +793,23 @@ enum WorkshopAssemblyInputItemsItemPowerLoadsItemEvidence {
 input WorkshopAssemblyInputItemsItemUsesItem {
   id: ID!
   itemId: ID!
+  joint: WorkshopAssemblyInputItemsItemUsesItemJoint
   quantity: Int!
   refdes: String
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input WorkshopAssemblyInputItemsItemUsesItemJoint {
+  kind: WorkshopAssemblyInputItemsItemUsesItemJointKind!
+  axis: [JSON!]!
+  pivot: [JSON!]
+}
+
+enum WorkshopAssemblyInputItemsItemUsesItemJointKind {
+  prismatic
+  revolute
 }
 
 input WorkshopAssemblyInputConfigurationsItem {
@@ -829,6 +901,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
+  operations: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItem!]
   driveMotion: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
   firmware: SaveWorkshopAssemblyInputAssemblyItemsItemFirmware
@@ -888,6 +961,29 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemReference {
   parameters: JSON
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItem {
+  name: String!
+  durationSeconds: Float!
+  tracks: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItem!]!
+  handoffs: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemHandoffsItem!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItem {
+  path: String!
+  keys: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItemKeysItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItemKeysItem {
+  time: Float!
+  value: Float!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemHandoffsItem {
+  time: Float!
+  propPath: String!
+  carrierPath: String
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion {
   version: Float!
   viewRootIds: [ID!]!
@@ -943,11 +1039,23 @@ enum SaveWorkshopAssemblyInputAssemblyItemsItemPowerLoadsItemEvidence {
 input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
+  joint: SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJoint
   quantity: Int!
   refdes: String
   position: [JSON!]
   rotation: Float
   orientation: [JSON!]
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJoint {
+  kind: SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind!
+  axis: [JSON!]!
+  pivot: [JSON!]
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind {
+  prismatic
+  revolute
 }
 
 input SaveWorkshopAssemblyInputAssemblyConfigurationsItem {

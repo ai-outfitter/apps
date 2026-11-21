@@ -567,6 +567,93 @@
                                       ],
                                       "additionalProperties": false
                                     },
+                                    "operations": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 100
+                                          },
+                                          "durationSeconds": {
+                                            "type": "number",
+                                            "exclusiveMinimum": 0
+                                          },
+                                          "tracks": {
+                                            "minItems": 1,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "path": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "keys": {
+                                                  "minItems": 2,
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "time": {
+                                                        "type": "number",
+                                                        "minimum": 0
+                                                      },
+                                                      "value": {
+                                                        "type": "number"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "time",
+                                                      "value"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                }
+                                              },
+                                              "required": [
+                                                "path",
+                                                "keys"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "handoffs": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "time": {
+                                                  "type": "number",
+                                                  "minimum": 0
+                                                },
+                                                "propPath": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "carrierPath": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                }
+                                              },
+                                              "required": [
+                                                "time",
+                                                "propPath"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "durationSeconds",
+                                          "tracks"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
                                     "driveMotion": {
                                       "type": "object",
                                       "properties": {
@@ -862,6 +949,57 @@
                                             "type": "string",
                                             "format": "uuid",
                                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "joint": {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "prismatic",
+                                                  "revolute"
+                                                ]
+                                              },
+                                              "axis": {
+                                                "type": "array",
+                                                "prefixItems": [
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "number"
+                                                  }
+                                                ],
+                                                "items": false,
+                                                "minItems": 3,
+                                                "maxItems": 3
+                                              },
+                                              "pivot": {
+                                                "type": "array",
+                                                "prefixItems": [
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "number"
+                                                  }
+                                                ],
+                                                "items": false,
+                                                "minItems": 3,
+                                                "maxItems": 3
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "axis"
+                                            ],
+                                            "additionalProperties": false
                                           },
                                           "quantity": {
                                             "type": "integer",
@@ -2356,7 +2494,7 @@
       ]
     },
     "mcp": {
-      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. On conflict, reread and reapply the intended edit."
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit."
     },
     "outputSchema": {
       "type": "object",
@@ -2473,7 +2611,7 @@
       ]
     },
     "mcp": {
-      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements and power inputs, with its current project revision."
+      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements, joints, named operations and power inputs, with its current project revision."
     },
     "outputSchema": {
       "type": "object",

@@ -279,6 +279,13 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       highlight();
       canvas.dataset.driveInspection=String(inspectionVisible);
     },
+    previewPose(pose:Map<string,THREE.Matrix4>) {
+      for (const node of group.children) {
+        node.matrixAutoUpdate=false;
+        node.matrix.copy(pose.get(node.userData.path) ?? node.userData.restMatrix);
+        node.matrixWorldNeedsUpdate=true;
+      }
+    },
     /** View-only world Z displacement, restoring the original matrix on each call. */
     previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = [], axes?:Map<string,THREE.Vector3>) {
       let moved = 0;
