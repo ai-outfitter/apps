@@ -16,7 +16,7 @@ import type { Project } from "../lib/project";
 import { bomRows,bomTotals,buildPrice,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
 import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
-import { fileBase, filePath, fileType } from "../lib/assembly-file";
+import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
 import { inspectionTree, projectInspection } from "./project-inspection";
 async function start(signal:AbortSignal){
@@ -248,7 +248,7 @@ for (const file of item.files ?? []) {
    const video=document.createElement("video");
    video.controls=true; video.preload="none"; video.src=url; video.style.maxWidth="100%";
    details.append(video);
- } else if(type==="image/gif"){
+ } else if(type.startsWith("image/")){
    const image=document.createElement("img");
    image.src=url; image.alt=file.fileName; image.style.maxWidth="100%"; details.append(image);
  }
@@ -411,6 +411,22 @@ function showBuild(run?:BuildRequest, snapshot=false){
     }:undefined,
   });
   $("project-inspection").inert = false;
+  const references=$("reference-images");
+  const photos=new Map<string,HTMLElement>();
+  for(const item of view.items) for(const file of item.files??[]) {
+   if(!isReferenceImage(file.fileName))continue;
+   const href=appBase(location.pathname)+fileBase(file)+filePath(file);
+   if(photos.has(href))continue;
+   const figure=document.createElement("figure");
+   const link=document.createElement("a");
+   link.href=href;link.download=file.fileName;
+   const image=document.createElement("img");
+   image.loading="lazy"; image.src=href; image.alt=file.fileName;
+   link.append(image);figure.append(link,element("figcaption",item.name));
+   photos.set(href,figure);
+  }
+  references.querySelector("div")!.replaceChildren(...photos.values());
+  references.hidden=!photos.size;
   inspection.open("description");
   if (focused && focused.id !== assembly.rootId) $("project-name").textContent = project.name + " / " + focused.name;
   updateBudgetTabs(view);
