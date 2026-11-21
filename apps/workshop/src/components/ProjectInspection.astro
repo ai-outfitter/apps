@@ -15,7 +15,7 @@ const initialTab = tabs[0][0];
   </div>
   {tabs.map(([id]) => <section role="tabpanel" id={`pane-${id}`} aria-labelledby={`tab-${id}`}
     hidden={id !== initialTab} tabindex="0">
-    {id === "description" && <><p id="project-brief"></p><span id="revision-label"></span></>}
+    {id === "description" && <><p id="project-brief"></p><span id="revision-label"></span><section id="reference-images" hidden><h3>Reference images</h3><div></div></section></>}
     {id === "bom" && <BillOfMaterials />}
     {id === "power" && <section id="power-panel" aria-label="Assembly power budget"></section>}
     {id === "components" && <><p>Select a component to inspect or hide an installed instance.</p><div id="inspection-tree"></div></>}

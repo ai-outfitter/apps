@@ -196,6 +196,8 @@ input VerifyWorkshopAssemblyFileInput {
   projectId: ID!
   itemId: ID!
   fileName: String!
+  byteOffset: Float
+  expectedSha256: String
 }
 
 type WorkshopAssemblyResult {

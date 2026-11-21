@@ -9,7 +9,7 @@ import { getWorkshopProject, patchWorkshopProject } from "./projects";
 export const uploadInput = assemblyFile.extend({
   itemId:z.uuid(), expectedRevision:z.number().int().nonnegative(), meshBounds:meshBounds.optional(),
 }).refine(i=>(fileType(i.fileName)==="model/stl")===Boolean(i.meshBounds),"Supply meshBounds for STL only");
-export const verifyInput = z.object({projectId:z.uuid(), itemId:z.uuid(), fileName}).strict();
+export const verifyInput = z.object({projectId:z.uuid(), itemId:z.uuid(), fileName, byteOffset:z.number().int().nonnegative().optional(), expectedSha256:assemblyFile.shape.sha256.optional()}).strict();
 const target = (file:AssemblyFile) => ({space:"builds",key:file.projectId+"/assembly/"+filePath(file)});
 const receipt = (file:AssemblyFile) => ({...file,contentType:fileType(file.fileName),downloadPath:fileBase(file)+filePath(file)});
 
@@ -45,10 +45,16 @@ export async function verifyAssemblyFile(c:WorkshopContext,input:z.infer<typeof 
   const project=await getWorkshopProject(c.db(),input.projectId);
   const file=project.assembly.items.find(i=>i.id===input.itemId)?.files?.find(f=>f.fileName===input.fileName);
   if (!file) throw new Response("File is not attached to this item",{status:404});
+  if(input.expectedSha256 && file.sha256!==input.expectedSha256) throw new Response("Attachment changed; restart the read",{status:409});
+  if(input.byteOffset!==undefined && input.byteOffset>=file.bytes) throw new Response("Offset is outside the attachment",{status:400});
   const object=await c.storage().get(target(file));
   if (!object) throw new Response("Attached file is missing or expired",{status:410});
   const bytes=new Uint8Array(await new Response(object.body).arrayBuffer());
   if (object.contentType!==fileType(file.fileName) || bytes.length!==file.bytes || bytesToHex(sha256(bytes))!==file.sha256)
     throw new Response("Stored file differs from its saved receipt",{status:409});
-  return {status:"verified",revision:project.revision,itemId:input.itemId,file:receipt(file)};
+  const result={status:"verified",revision:project.revision,itemId:input.itemId,file:receipt(file)};
+  if(input.byteOffset===undefined) return result;
+  const end=Math.min(bytes.length,input.byteOffset+24*1024);
+  const base64=btoa(String.fromCharCode(...bytes.subarray(input.byteOffset,end)));
+  return {...result,byteOffset:input.byteOffset,base64,nextByteOffset:end<bytes.length?end:null};
 }

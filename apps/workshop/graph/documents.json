@@ -500,7 +500,7 @@
                                           "fileName": {
                                             "type": "string",
                                             "maxLength": 160,
-                                            "pattern": "^[a-z0-9_][a-z0-9_.-]*\\.(stl|step|stp|mp4|webm|gif)$"
+                                            "pattern": "^[a-z0-9_][a-z0-9_.-]*\\.(stl|step|stp|mp4|webm|gif|jpg|jpeg|png)$"
                                           },
                                           "sha256": {
                                             "type": "string",
@@ -2625,7 +2625,7 @@
       ]
     },
     "mcp": {
-      "description": "Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."
+      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."
     },
     "outputSchema": {
       "type": "object",
@@ -2655,7 +2655,7 @@
       ]
     },
     "mcp": {
-      "description": "Supply projectId, itemId and fileName. Rehash the stored file and return verified digest, size, revision and installation-relative downloadPath."
+      "description": "Supply projectId, itemId and fileName. Rehash the stored original and return its digest, size and downloadPath. To read original bytes through MCP, pass byteOffset:0 and includeIdentifiers:true. Decode each base64 page and follow nextByteOffset with expectedSha256 set to the receipt digest until null."
     },
     "outputSchema": {
       "type": "object",
