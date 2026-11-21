@@ -44,6 +44,8 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
    const url=new URL(route.request().url());
    await fulfillFrom(route,await app.call(url.pathname+url.search,member));
   });
+  const workers:string[]=[];
+  page.on('worker',worker=>workers.push(worker.url()));
   await page.goto(origin+'/projects/'+projectSlug(consumer));
   await page.locator('#motion-menu > summary').click();
   const selector=page.getByRole('combobox',{name:'Operation',exact:true});
@@ -70,5 +72,38 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
   await expect(canvas).toHaveAttribute('data-motion-offset','70');
   await expect(canvas).toHaveAttribute('data-motion-solids','1');
   await expect(canvas).toHaveAttribute('data-saved-rotors','1');
+  expect(workers).toHaveLength(1);
+  workers.length=0;
+  await page.reload();
+  await expect(canvas).toHaveAttribute('data-ready','true',{timeout:60000});
+  expect(workers).toEqual([]);
+  await expect(page.locator('#assembly-poster')).toBeHidden();
+
+  // Reopen the same authorized snapshot without WebGL. Its last rendered
+  // image must remain visible even though the interactive viewer cannot start.
+  await page.addInitScript(()=>{
+   const getContext=HTMLCanvasElement.prototype.getContext;
+   HTMLCanvasElement.prototype.getContext=function(this:HTMLCanvasElement,...args:Parameters<typeof getContext>){
+    return args[0].includes('webgl') ? null : getContext.apply(this,args);
+   } as typeof getContext;
+  });
+  await page.reload();
+  const poster=page.getByRole('img',{name:'Saved assembly snapshot'});
+  await expect(poster).toBeVisible();
+  await expect(page.locator('#assembly-status')).toContainText('3D preview unavailable');
+
+  const sourcePath='/api/apps/workshop/projects/'+root.id;
+  const source=await (await app.call(sourcePath,member)).json() as import('../src/lib/project').Project;
+  source.assembly.items.find(i=>i.id===shaft.id)!.geometry!.features.push({
+    kind:'box',mode:'add',origin:[0,0,0],size:[20,10,5],
+  });
+  const edit=await app.call(sourcePath+'/assembly',member,{method:'PUT',body:{
+    assembly:source.assembly,expectedRevision:source.revision,
+  }});
+  expect(edit.status).toBe(200);
+  await page.reload();
+  await expect(page.locator('#assembly-references')).toContainText('current revision '+(source.revision+1));
+  await expect(page.locator('#assembly-poster')).toBeVisible();
+  await expect(poster).toHaveCount(0);
  }finally{await page.unrouteAll({behavior:'ignoreErrors'});await app.dispose();}
 });

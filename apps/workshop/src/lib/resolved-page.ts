@@ -2,7 +2,8 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { ResolvedAssembly } from "./assembly-resolution";
 
-const pageBytes = 64 * 1024;
+// Leave space in the default 64 KiB GraphQL budget for JSON escaping and the receipt.
+const pageBytes = 28 * 1024;
 export const pageCursor = /^([a-f0-9]{64}):([1-9][0-9]{0,15})$/;
 
 /** A single item can exceed the GraphQL limit. Page the serialized record so even

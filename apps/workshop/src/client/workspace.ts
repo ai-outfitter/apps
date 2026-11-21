@@ -1,3 +1,4 @@
+import { assemblyPoster } from "./assembly-poster";
 import { inspectionControls } from "./inspection-controls";
 import { modelSizing } from "./model-sizing";
 import { installedOperations } from "../lib/installed-operations";
@@ -105,6 +106,7 @@ if (overview) {
   $("isolate-item").hidden = true;
  }
 }
+const poster=overview ? assemblyPoster($("assembly-poster")) : undefined;
 let motionFrame = 0, motionOffset = 0;
 let driveReview: ReturnType<typeof arteraDriveReview> | undefined;
 let motion: ReturnType<typeof arteraMotionPreview>;
@@ -361,6 +363,10 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
  const focused = assembly.items.find(item => item.id === query.get("item"));
  const view = modelView(assembly, focused?.id);
+ const posterKey=JSON.stringify([project.id,project.revision,view.rootId,run?.id,location.search,resolved?.sources]);
+ const captureUrl=!historical && !focused && !selection.size && !query.has("view") && import.meta.env.OUTFITTER_APP_MODE!=="demo"
+   ? appBase(location.pathname)+`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&thumbnail=1` : undefined;
+ const finishPoster=poster?.show(project,view,posterKey,captureUrl);
  const references=$("assembly-references");
  references.hidden=historical || !resolved?.sources.length;
  if(overview && !references.hidden && resolved){
@@ -438,6 +444,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal,historical?{}:resolved?.meshes).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
   if(query.get("view")==="top") viewer?.topView();
+  finishPoster?.($("assembly-viewer").hasAttribute("data-empty") || selected ? undefined : ()=>viewer!.snapshot());
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;showMotion(Boolean(motion));
   let inline, inlineFailed=false;
@@ -563,8 +570,22 @@ $("model-search").oninput=renderCatalog;
 if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
 $("model-filter").onchange=renderCatalog;
 $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
-try{const projects:Project[]=import.meta.env.OUTFITTER_APP_MODE==="demo"?(await import("./fixtures")).fixtureProjects:await request("/api/apps/workshop/projects");const found=projects.find(p=>p.id.replaceAll("-","").endsWith(root.dataset.slug!.split("-").at(-1)!));if(!found)throw Error("Project not found");project=import.meta.env.OUTFITTER_APP_MODE==="demo"?found:await request(`/api/apps/workshop/projects/${found.id}`);
-const recordPath=`/api/apps/workshop/projects/${found.id}`;
+try{
+ if(import.meta.env.OUTFITTER_APP_MODE==="demo"){
+   const {fixtureProjects}=await import("./fixtures");
+   const found=fixtureProjects.find(p=>p.id.endsWith(root.dataset.slug!.split("-").at(-1)!));
+   if(!found)throw Error("Project not found");
+   project=found;
+ }else{
+   let id=root.dataset.projectId;
+   if(!id){
+     const projects:{id:string}[]=await request("/api/apps/workshop/projects");
+     id=projects.find(p=>p.id.endsWith(root.dataset.slug!.split("-").at(-1)!))?.id;
+   }
+   if(!id)throw Error("Project not found");
+   project=await request(`/api/apps/workshop/projects/${id}`);
+ }
+ const recordPath=`/api/apps/workshop/projects/${project.id}`;
 const savedBuild=query.get("build") && project.workspace?.requests.some(r=>r.id===query.get("build"));
 if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
  const readView=():Promise<ResolvedAssembly>=>request(recordPath+"/assembly?"+selection);
