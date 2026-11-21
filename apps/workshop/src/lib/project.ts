@@ -79,6 +79,8 @@ export const ProjectSchema = z
     updatedAt: z.iso.datetime(),
     name: z.string().trim().min(1).max(100),
     kind: z.enum(["mechanical", "electronics"]),
+    /** Products are what we build; components are reusable purchased or reference models. */
+    purpose: z.enum(["product", "component"]).default("product"),
     phase: z.enum(PHASE_IDS).default("concept"),
     brief: text,
     owner: z.string().max(100),
@@ -270,6 +272,7 @@ export function makeProject(example: string): Project {
     updatedAt: now,
     name: EXAMPLES[example as keyof typeof EXAMPLES].name,
     kind: "mechanical",
+    purpose: "product",
     phase: "concept",
     brief: "Keep charging cables within reach at the edge of a desk.",
     owner: "",

@@ -20,7 +20,7 @@ type Context = TableContext;
 const database = (context: Context) => context.db() as WorkshopDatabase;
 /** A stored row: the list's columns, or the whole row (with `data`) a mutation answers. */
 export type ProjectSource = {
-  id: string; name: string; revision: number; wikiInstallationId: string | null; productRevisionId: string | null; productRevisionTitle: string | null;
+  id: string; name: string; purpose: string; revision: number; wikiInstallationId: string | null; productRevisionId: string | null; productRevisionTitle: string | null;
   createdBy: string; updatedBy: string; createdAt: string; updatedAt: string;
   data?: string;
 };
@@ -117,6 +117,7 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
     id: { type: nn(GraphQLID) },
     slug: { ...str, description: "The address the project page and documents use; it ends with the last 12 hex digits of the id, so a rename keeps it working.", resolve: (p) => projectSlug(p) },
     name: str,
+    purpose: { ...str, description: "product, or component: a reusable library model other assemblies reference." },
     revision: num,
     phase: listed("phase", "concept, prototyping, validation, pilot or manufacturing."),
     kind: listed("kind", "mechanical or electronics."),
@@ -139,10 +140,10 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
  * and `slugs` narrows it to the projects those slugs address. */
 const table = tableType(workshopProjects, {
   field: "workshopProjects", type: "WorkshopProject",
-  fields: ["name", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
+  fields: ["name", "purpose", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
   dates: ["createdAt", "updatedAt"],
   ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
-  filters: ["createdBy", "productRevisionId"],
+  filters: ["createdBy", "productRevisionId", "purpose"],
   // workshop_projects_updated_idx.
   orders: ["updatedAt"],
 }).workshopProjects;

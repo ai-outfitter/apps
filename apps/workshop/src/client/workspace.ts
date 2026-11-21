@@ -531,6 +531,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
 function render(){
  if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
+ $<HTMLSelectElement>("project-purpose").value=project.purpose ?? "product";
+ $<HTMLSelectElement>("project-purpose").disabled=import.meta.env.OUTFITTER_APP_MODE==="demo" || Boolean(query.get("revision") || query.get("build"));
  if (overview) {
   $("project-brief").textContent = project.brief;
   $("project-brief").hidden = !project.brief;
@@ -543,6 +545,17 @@ function render(){
  if(requested&&!run)notice("That build was not found. Showing the current assembly.");
  showBuild(run ?? runs.find(r=>r.id===project.workspace?.currentBuildId),Boolean(requested && run));
 }
+$("project-purpose").onchange=async()=>{
+ const control=$<HTMLSelectElement>("project-purpose");
+ control.disabled=true;
+ try {
+  const response=await fetch(`/api/apps/workshop/projects/${project.id}/purpose`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({revision:project.revision,purpose:control.value}),signal});
+  if(!response.ok)throw Error(await response.text());
+  project=await response.json();
+  notice(project.purpose==="component"?"Saved in the component library. Existing assembly references are preserved.":"Saved as a product to manufacture.");
+ } catch(error) {if(!signal.aborted){control.value=project.purpose??"product";notice((error as Error).message);}}
+ finally {if(!signal.aborted)control.disabled=false;}
+};
 $("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick = () => viewer?.reset();
 $("show-all").onclick = () => {

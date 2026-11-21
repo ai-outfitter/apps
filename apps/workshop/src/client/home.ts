@@ -4,7 +4,7 @@ import { appBase, projectPath, projectSlug, type SectionId } from "../lib/sectio
 
 // A build-time constant, so the demo bundle carries no API calls.
 const readOnly = import.meta.env.OUTFITTER_APP_MODE === "demo";
-type Summary = Pick<Project, "id" | "name" | "revision" | "updatedAt" | "phase" | "brief"> & { thumbnail?: string };
+type Summary = Pick<Project, "id" | "name" | "revision" | "updatedAt" | "phase" | "brief" | "purpose"> & { thumbnail?: string };
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => {
   const node = document.querySelector<T>(s);
@@ -86,9 +86,11 @@ onPageLoad((signal) => {
       const projects = await api<Summary[]>("");
       if (signal.aborted) return;
       // Most recently changed first.
-      const rows = [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((p) => projectRow({ ...p, phase: p.phase ?? "concept" }, base));
+      const purpose = $<HTMLSelectElement>("#project-purpose").value;
+      const rows = projects.filter(p => purpose === "all" || (p.purpose ?? "product") === purpose).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((p) => projectRow({ ...p, phase: p.phase ?? "concept" }, base));
       list.replaceChildren(...rows);
       $("#projects-empty").hidden = rows.length > 0;
+      $("#projects-empty").textContent = purpose === "component" ? "No component models yet. Classify a model as a component on its page." : "No products yet. Select New model to get started.";
 
     } catch (e) {
       notice((e as Error).message);
@@ -96,6 +98,7 @@ onPageLoad((signal) => {
       list.removeAttribute("aria-busy");
     }
   }
+  $("#project-purpose").addEventListener("change", () => { void load(); }, { signal });
   void load();
   }
 
