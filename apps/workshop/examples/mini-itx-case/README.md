@@ -33,3 +33,17 @@ openscad -D 'part="assembly"' -D '$t=0.5' -o frame.png case.scad   # $t from 0 t
 ## What this shows about Workshop
 
 Workshop's assembly model can already hold these items and their positions. What it cannot do yet is what this example needs: a design agent that lays out purchased envelopes and designs the printed parts around them, mounting patterns carried by the envelope (the board's hole pattern, the inlet on the power supply) so the fit checks come from the data instead of being written by hand, and an eval that runs these checks on the agent's output.
+
+## Quality checks
+
+`workspace.json` runs the parts through the workspace build's quality checks
+(box/README.md, "Quality checks and studies"). On a 220 mm bed with PETG at
+0.2 mm layers, 3 walls and 15% infill:
+
+| Check | Result |
+| --- | --- |
+| Bed fit | Fails for all three printed parts: each is 224 mm wide. A 250 x 210 mm bed or larger fits them |
+| Plastic | Base 91 g, shell 194 g, top 98 g: 384 g, not the 300 g the persona expects |
+| Overhangs | Shell 795 mm2 steeper than 45 degrees (vent slots and openings): `unverified` until it is printed or supported |
+| Interference | 15 pairs of the 6 placed solids, none overlapping, which agrees with `part="interference"`. Moving the PSU 10 mm right (`psu_x=187`) fails it: the shell and top overlap the PSU by 38,060 mm3, against 38,044 mm3 from OpenSCAD |
+| Standoff boss | 500 N of M3 clamp (about 0.3 N m) gives 25 MPa on average under a 5.5 mm screw head, over the 23.5 MPa allowed for printed PETG. A 7 mm washer roughly halves it |
