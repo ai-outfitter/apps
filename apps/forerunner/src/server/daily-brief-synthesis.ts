@@ -2,6 +2,7 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
 import type { DayReview, ReportSource } from "./day-review";
+import type { AppUpdates } from "./app-updates";
 import type { PlanningWork } from "./planning-work";
 
 // The daily digest is written by one model answer over saved, authorized evidence.
@@ -22,12 +23,13 @@ export type BriefInputs = {
   priorities: { id: string; title: string; category: string; status: string; dueDate?: string | null }[];
   /** Issues in progress in the member's organizations' Planning. Absent means it was not read. */
   work?: PlanningWork;
+  appUpdates?: AppUpdates;
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
 };
-type Kind = "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
+type Kind = "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
 export type Evidence = {
   ref: string; kind: Kind;
   /** What the member reads in the source list. */
@@ -60,6 +62,19 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   else if (!input.review.goals.length) gaps.push("Goals: no personal goals are saved.");
   for (const item of input.priorities.slice(0, 30)) add("priority", "p", { label: `Priority: ${cut(item.title, 160)}`, text: cut(`${item.title} (${item.category}, ${item.status}${item.dueDate ? `, due ${item.dueDate}` : ""})`, 300), recordId: item.id });
   if (!input.priorities.length) gaps.push("Priorities: no open priorities are on your board.");
+  if (input.appUpdates) {
+    for (const row of input.appUpdates.rows) {
+      const owner = row.scope === "personal" ? "Personal" : row.scope;
+      const label = `${owner} · ${row.app} (${input.review.period.date}, ${row.timezone})`;
+      const mount = row.scope === "personal" ? "/apps" : `/o/${encodeURIComponent(row.scope)}`;
+      add("app-update", "app", { label, text: cut(`${label}: ${row.summary}`, 800), scope: row.scope,
+        status: row.complete ? "complete" : "incomplete", recordId: row.id, revision: row.revision,
+        href: `${mount}/wiki-map/p/${encodeURIComponent(row.slug)}?revision=${row.revision}` });
+      if (!row.complete) gaps.push(`${label}: the app reported incomplete coverage.`);
+    }
+    if (!input.appUpdates.complete) gaps.push("Some app updates could not be read.");
+    else if (!input.appUpdates.rows.length) gaps.push("No app updates were saved for this reporting date.");
+  }
   const work = input.work;
   for (const issue of work?.issues.slice(0, 30) ?? []) add("work", "w", { label: `In progress in ${cut(issue.organization, 80)}: ${cut(issue.title, 160)}`, text: cut(`${issue.title} (${issue.organization}, ${issue.category}, in progress${issue.dueDate ? `, due ${issue.dueDate}` : ""})`, 300), scope: issue.scope, href: issue.href });
   if (!work || work.status === "unavailable") gaps.push("Planning issues: in-progress issues in your organizations could not be read.");

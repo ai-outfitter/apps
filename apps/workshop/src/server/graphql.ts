@@ -1,3 +1,4 @@
+import { pageCursor, resolvedPage } from "../lib/resolved-page";
 import {uploadInput, verifyInput, uploadAssemblyFile, verifyAssemblyFile} from "./assembly-files";
 import { PcbSubmission, submitWorkshopPcb } from "./pcb-snapshots";
 import {creativeHandoffInput,resultInput,acceptCreativeHandoff,attachCreativeResult} from './creative';
@@ -12,7 +13,7 @@ import type { storage } from "@ai-outfitter/app-sdk/storage";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import { z } from "zod";
-import { type GraphQLFieldConfig, GraphQLID, GraphQLInt, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, getNamedType } from "graphql";
+import { type GraphQLFieldConfig, GraphQLID, GraphQLInt, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString, getNamedType } from "graphql";
 import { designRun, designRunInput, startDesign, startDesignInput } from "./design-start";
 import { publishConcepts, publishInput, removeConcept, removeInput } from "./concepts";
 import {
@@ -76,6 +77,19 @@ const resolvedAssembly = mutationField<typeof AssemblyReferenceSchema, WorkshopC
   run: (context,input) => resolvedProject(context.db(),input),
 });
 resolvedAssembly.extensions = { completeResult: true };
+
+const resolvedPageInput = AssemblyReferenceSchema.extend({cursor:z.string().regex(pageCursor).optional()});
+const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopContext>({
+  name:"ResolvedWorkshopAssemblyPage",
+  description:"Read a complete resolved assembly across byte-bounded, snapshot-checked pages.",
+  input:resolvedPageInput,
+  output:new GraphQLNonNull(new GraphQLObjectType({name:"ResolvedWorkshopAssemblyPageResult",fields:{
+    projectId, revision, sha256:{type:new GraphQLNonNull(GraphQLString)}, offset:{type:new GraphQLNonNull(GraphQLInt)},
+    totalBytes:{type:new GraphQLNonNull(GraphQLInt)}, jsonText:{type:new GraphQLNonNull(GraphQLString)},
+    nextCursor:{type:GraphQLString},
+  }})),
+  run:async(context,{cursor,...ref})=>resolvedPage(await resolvedProject(context.db(),ref),cursor),
+});
 
 // Workshop's writes that fit a document: every member starts, describes, links and deletes
 // projects, saves the product structure, removes and publishes design concepts and keeps the
@@ -199,7 +213,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

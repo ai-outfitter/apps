@@ -37,7 +37,8 @@
     "react-dom": "^19.3.0",
     "zod": "^4.6.5",
     "@ai-outfitter/connector-github": "*",
-    "@ai-outfitter/creative-workflow": "*"
+    "@ai-outfitter/creative-workflow": "*",
+    "@ai-outfitter/workflow-onto-daily-update": "0.1.0"
   },
   "devDependencies": {
     "@ai-outfitter/app-build": "*",

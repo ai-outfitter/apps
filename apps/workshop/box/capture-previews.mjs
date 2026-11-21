@@ -34,7 +34,7 @@ export async function capturePreviews({ origin='http://outfitter.localhost:8787'
       if(!context) await openBrowser();
       page=await context.newPage();
         // Slug identity is its UUID suffix; names can change without breaking links.
-        const url=`${origin}${appPath}/projects/${project.id.slice(-12)}/assembly`;
+        const url=`${origin}${appPath}/projects/${project.id.slice(-12)}`;
         const evidence=await captureEvidence(page,{url,readySelector:'#assembly-viewer[data-ready]',previewSelector:'#assembly-viewer'});
         const directory=join(output,project.id,String(project.revision));mkdirSync(directory,{recursive:true});
         for(const image of evidence.images) writeFileSync(join(directory,image.kind+'.png'),image.bytes);

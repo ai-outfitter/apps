@@ -2,6 +2,31 @@ import { AssemblySchema, type Assembly } from "../lib/assembly";
 import { powerRollup } from "../lib/power";
 const node=(tag:string,text="")=>{const n=document.createElement(tag);n.textContent=text;return n;};
 const fmt=(v:number|null,unit="W")=>v===null?"Unknown":`${v.toLocaleString(undefined,{maximumFractionDigits:2})} ${unit}`;
+function powerTable(caption: string, columns: string[]) {
+ const table = document.createElement("table");
+ table.className = "power-table";
+ table.createCaption().textContent = caption;
+ const header = table.createTHead().insertRow();
+ for (const name of columns) {
+  const th = document.createElement("th");
+  th.scope = "col";
+  th.textContent = name;
+  header.append(th);
+ }
+ const body = table.createTBody();
+ function addRow(cells: HTMLElement[]) {
+  const row = body.insertRow();
+  cells.forEach((cell, index) => {
+   if (index > 0) {
+    const label = node("span", columns[index]);
+    label.className = "power-field-label";
+    cell.prepend(label);
+   }
+   row.append(cell);
+  });
+ }
+ return {table, addRow};
+}
 /** Power follows the viewed item; saved inputs belong to the full assembly. */
 export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:string|undefined,save?: (next:Assembly)=>Promise<void>,editableItems?:Set<string>){
  const focused = itemId !== assembly.rootId && assembly.items.find(item => item.id === itemId);
@@ -22,27 +47,28 @@ export function renderPowerPanel(host:HTMLElement,assembly:Assembly,itemId:strin
   content.append(summary,node("p","Totals describe one instance of this assembly, including its child quantities. Rail rows include their downstream demand and must not be added together. Peak excludes unrecorded startup surges."));
   if(!result.rows.length)return;
   content.append(node("p",`${result.unrecorded} placed parts have no direct load record (mechanical parts may need none). Only recorded loads are included.`));
-  const railTable=node("table");railTable.className="power-table";
-  railTable.append(node("caption","Supply rails — downstream demand and conversion losses included"));
-  const head=node("tr");for(const t of ["Rail","24-hour average","Operating","Running peak","Peak DC current"])head.append(node("th",t));railTable.append(head);
-  for(const r of result.rails){
-   const tr=node("tr");for(const t of [`${r.name} (${r.voltage} V ${r.kind.toUpperCase()})`,fmt(r.values.averageW),fmt(r.values.operatingW),fmt(r.values.peakW),r.kind==="dc"?fmt(r.values.peakW===null?null:r.values.peakW/r.voltage,"A"):"Requires power factor"])tr.append(node("td",t));railTable.append(tr);
+  const rails = powerTable("Supply rails — downstream demand and conversion losses included",
+   ["Rail", "24-hour average", "Operating", "Running peak", "Peak DC current"]);
+  for (const r of result.rails) {
+   const current = r.kind === "dc" ? fmt(r.values.peakW === null ? null : r.values.peakW / r.voltage, "A") : "Requires power factor";
+   rails.addRow([`${r.name} (${r.voltage} V ${r.kind.toUpperCase()})`, fmt(r.values.averageW),
+    fmt(r.values.operatingW), fmt(r.values.peakW), current].map(value => node("td", value)));
   }
-  const wrap=node("div");wrap.className="power-scroll";wrap.append(railTable);content.append(wrap);
-  const form=document.createElement("form"),table=node("table");table.className="power-table";
-  table.append(node("caption","Component input loads — values per part instance; quantity applied in totals"));
-  const heading=node("tr");for(const t of ["Component / load","Qty","Input rail","Average W","Operating W","Peak W","Evidence"])heading.append(node("th",t));table.append(heading);
+  const wrap=node("div");wrap.className="power-scroll";wrap.append(rails.table);content.append(wrap);
+  const form=document.createElement("form");
+  const loads = powerTable("Component input loads — values per part instance; quantity applied in totals",
+   ["Component / load", "Qty", "Input rail", "Average W", "Operating W", "Peak W", "Evidence"]);
   const edits:{itemId:string;loadId:string;inputs:HTMLInputElement[]}[]=[];
   for(const row of result.rows){
-   const tr=node("tr"),title=node("td",`${row.itemName} · ${row.load.name}`);title.append(node("small",row.number),node("small",row.load.notes));
-   tr.append(title,node("td",String(row.quantity)),node("td",row.load.rail));
+   const title=node("td",`${row.itemName} · ${row.load.name}`);title.append(node("small",row.number),node("small",row.load.notes));
+   const cells = [title, node("td", String(row.quantity)), node("td", row.load.rail)];
    const inputs:HTMLInputElement[]=[];
    for(const field of ["averageW","operatingW","peakW"] as const){
-    const td=node("td"),input=document.createElement("input");input.type="number";input.min="0";input.step="any";input.placeholder="Unknown";input.value=row.load.scenarios[select.value][field]?.toString()??"";input.disabled=!save || Boolean(editableItems && !editableItems.has(row.itemId));input.setAttribute("aria-label",`${row.number} ${row.load.name} ${field}`);inputs.push(input);td.append(input);tr.append(td);
+    const td=node("td"),input=document.createElement("input");input.type="number";input.min="0";input.step="any";input.placeholder="Unknown";input.value=row.load.scenarios[select.value][field]?.toString()??"";input.disabled=!save || Boolean(editableItems && !editableItems.has(row.itemId));input.setAttribute("aria-label",`${row.number} ${row.load.name} ${field}`);inputs.push(input);td.append(input);cells.push(td);
    }
-   const evidence=node("td",row.load.evidence);evidence.append(node("small",row.load.source));tr.append(evidence);table.append(tr);if (!editableItems || editableItems.has(row.itemId)) edits.push({itemId:row.itemId,loadId:row.load.id,inputs});
+   const evidence=node("td",row.load.evidence);evidence.append(node("small",row.load.source));cells.push(evidence);loads.addRow(cells);if (!editableItems || editableItems.has(row.itemId)) edits.push({itemId:row.itemId,loadId:row.load.id,inputs});
   }
-  const scroll=node("div");scroll.className="power-scroll";scroll.append(table);form.append(scroll);
+  const scroll=node("div");scroll.className="power-scroll";scroll.append(loads.table);form.append(scroll);
   const status=node("p");status.id="power-save-status";status.setAttribute("role","status");
   if(save && edits.length){
    const button=node("button","Save power values") as HTMLButtonElement;button.type="submit";form.append(button);

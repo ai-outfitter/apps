@@ -26,9 +26,11 @@ export async function saveReportNote(host:Host,actor:AppIdentity,input:{
  const writeInput={...(current?{id:current.id,revision:current.revision}:{slug,title:input.title}),generatedBody,provenance:source};
  if(new TextEncoder().encode(JSON.stringify({input:writeInput})).byteLength>32768)throw new Response("Daily report preview exceeds the bounded write size; no document was changed",{status:413});
  if(current?.generatedBody===generatedBody)return {installationId:current.installationId,documentId:current.id,revision:current.revision,slug,inputDigest,status:input.status};
- const saved=await wikiDocuments(host,"graph.mutate","mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id installationId revision}}",{input:writeInput});
- const receipt=z.object({saveGeneratedDocument:z.object({id:z.string(),installationId:z.string(),revision:z.number()})}).parse(saved).saveGeneratedDocument;
- return {installationId:receipt.installationId,documentId:receipt.id,revision:receipt.revision,slug,inputDigest,status:input.status};
+ const saved=await wikiDocuments(host,"graph.mutate","mutation SaveGeneratedDocument($input:SaveGeneratedDocumentInput!){saveGeneratedDocument(input:$input){id revision publishedRevision}}",{input:writeInput});
+ const receipt=z.object({saveGeneratedDocument:z.object({id:z.string(),revision:z.number()})}).parse(saved).saveGeneratedDocument;
+ const wiki=current ?? await readWikiPage(host,slug);
+ if(!wiki || wiki.id!==receipt.id)throw new Error("Saved report could not be located in its Wiki");
+ return {installationId:wiki.installationId,documentId:receipt.id,revision:receipt.revision,slug,inputDigest,status:input.status};
 }
 
 export const dailyReportReadInput=z.strictObject({

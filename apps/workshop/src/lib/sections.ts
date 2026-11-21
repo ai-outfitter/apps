@@ -2,18 +2,17 @@ import type { Project } from "./project";
 
 /** A project's sections, one page each, in the order the sidebar lists them. */
 export const SECTIONS = [
-  { id: "overview", label: "Project", path: "" },
+  { id: "overview", label: "Project overview", path: "" },
   { id: "power", label: "Power", path: "/power" },
   { id: "pcb", label: "PCB review", path: "/pcb" },
   { id: "models", label: "Models and parts", path: "/models" },
-  { id: "assembly", label: "Full assembly", path: "/assembly" },
   { id: "parts", label: "Bill of materials", path: "/parts" },
   { id: "release", label: "Build revisions", path: "/release" },
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
-export const isSection = (id: string): id is SectionId => SECTIONS.some((s) => s.id === id);
+export const isSection = (id: string): id is SectionId => SECTIONS.some((s) => s.path === "/" + id);
 
 /** A readable slug that ends with the last 12 hex digits of the project's ID,
  * so a rename keeps old links working. */

@@ -1,10 +1,15 @@
+import { pageFileInput, uploadPageFile } from "./page-file";
+import type { storage } from "@ai-outfitter/app-sdk/storage";
+import {searchDocuments} from "./search";
+import { documentVersion } from "./document-version";
+import { dailyAppUpdates } from "./daily-updates";
 import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { generatedInput, saveGeneratedDocument, archiveDocument, getDocument, getPage, listDocuments, listPages, pageInput, publishDocument, revisions, saveDocument, saveInput, savePage, transitionInput, type PolicyCheck, type Document as StoredDocument, type DocumentRevision as StoredRevision, type Page as StoredPage } from "./store";
 
-export type Context = ActionContext & { database: AgentDatabase; policyCheck?: PolicyCheck };
+export type Context = ActionContext & { database: AgentDatabase; storage: () => ReturnType<typeof storage>; policyCheck?: PolicyCheck };
 const revisionFields = {
  documentId:{type:GraphQLID}, revision:{type:GraphQLInt}, title:{type:GraphQLString},summary:{type:GraphQLString},body:{type:GraphQLString},generatedBody:{type:GraphQLString},
  provenance:{type:GraphQLString,resolve:(row:{provenance:string|null})=>{
@@ -17,13 +22,15 @@ const revisionFields = {
 const Revision = new GraphQLObjectType<StoredRevision>({ name:"DocumentRevision", fields:revisionFields });
 const Document = new GraphQLObjectType<StoredDocument,Context>({name:"WikiDocument",fields:{
  // With `id` and `revision` this is the document's whole address, so a reader that reached this Wiki by package name can still cite it.
+ slug:{type:GraphQLString,resolve:async(doc,_,ctx)=>(await ctx.database.query({sql:"SELECT slug FROM wiki_pages WHERE documentId=? ORDER BY slug LIMIT 1",params:[doc.id]}))[0]?.slug ?? null},
  ...revisionFields,id:{type:GraphQLID},installationId:{type:GraphQLID,resolve:(_,__,ctx)=>ctx.identity.installationId},publishedRevision:{type:GraphQLInt},archived:{type:GraphQLBoolean,resolve:value=>!!value.archived},
 }});
 const Page = new GraphQLObjectType<StoredPage,Context>({name:"WikiPage",fields:{id:{type:GraphQLID},slug:{type:GraphQLString},documentId:{type:GraphQLID},
  // A page and its document in one request; a page whose document is gone reads as no document.
  document:{type:Document,args:{revision:{type:GraphQLInt}},resolve:async(page,args,ctx)=>{if(!page.documentId)return null;try{return await getDocument(ctx.database,page.documentId,args.revision);}catch(error){if(error instanceof Response && error.status===404)return null;throw error;}}},entityRef:{type:GraphQLString},parentId:{type:GraphQLID},revision:{type:GraphQLInt},autoPublish:{type:GraphQLBoolean,resolve:value=>!!value.autoPublish},policyRef:{type:GraphQLString}}});
 export const graphqlSchema = new GraphQLSchema({
- query:new GraphQLObjectType<unknown,Context>({name:"Query",fields:{
+ query:new GraphQLObjectType<unknown,Context & import("@ai-outfitter/app-sdk/graph-graphql").GraphContext>({name:"Query",fields:{
+  dailyAppUpdates, documentVersion, searchDocuments,
   documents:{type:new GraphQLList(Document),args:{after:{type:GraphQLID},first:{type:GraphQLInt}},resolve:(_,args,ctx)=>listDocuments(ctx.database,args.after ?? "",args.first ?? 50)},
   document:{type:Document,args:{id:{type:new GraphQLNonNull(GraphQLID)},revision:{type:GraphQLInt}},resolve:(_,args,ctx)=>getDocument(ctx.database,args.id,args.revision)},
   documentRevisions:{type:new GraphQLList(Revision),args:{id:{type:new GraphQLNonNull(GraphQLID)},before:{type:GraphQLInt}},resolve:(_,args,ctx)=>revisions(ctx.database,args.id,args.before)},
@@ -31,6 +38,7 @@ export const graphqlSchema = new GraphQLSchema({
   page:{type:Page,args:{slug:{type:new GraphQLNonNull(GraphQLString)}},resolve:async(_,args,ctx)=>{try{return await getPage(ctx.database,args.slug);}catch(error){if(error instanceof Response && error.status===404)return null;throw error;}}},
  }}),
  mutation:new GraphQLObjectType<unknown,Context>({name:"Mutation",fields:{
+  uploadWikiPageFile:mutationField({name:"UploadWikiPageFile",description:"Attach verified source bytes to an existing Wiki page.",input:pageFileInput,run:uploadPageFile}),
   saveGeneratedDocument:mutationField({name:"SaveGeneratedDocument",description:"Revise only the generated draft section while preserving authored and published content.",input:generatedInput,output:Document,run:(ctx:Context,input)=>saveGeneratedDocument(ctx.database,ctx.identity,input)}),
   saveDocument:mutationField({name:"SaveDocument",description:"Save a revisioned draft without publishing it.",input:saveInput,output:Document,run:(ctx:Context,input)=>saveDocument(ctx.database,ctx.identity,input)}),
   savePage:mutationField({name:"SavePage",description:"Create or configure a Wiki page.",input:pageInput,output:Page,run:(ctx:Context,input)=>savePage(ctx.database,ctx.identity,input)}),

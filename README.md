@@ -168,8 +168,9 @@ validation and will be removed when public SDK packages support locked installs.
 
 `preview.yml` discovers changed apps from the PR merge base, builds each app with
 files changed in its own directory, and publishes an isolated read-only demo with a stable hostname per
-repository ID, PR number and app path. A separate publication job downloads the
-build artifact without checking out caller source or executing app build scripts.
+repository ID, PR number and app path. Each app builds and publishes on one runner. App scripts run inside a disposable
+container that receives the source and writes a single bundle. After the container
+exits, the publisher validates that bundle and deploys it.
 It verifies `/api/health` against the exact repository, source SHA and app before
 posting the link on the PR. Closing the PR deletes only Workers in that PR's
 preview namespace. Reopening rebuilds them. Deployment environments also link to
@@ -202,7 +203,7 @@ While the SDK is private, the optional `toolchain` preview adapter requires
 a reviewed manual dispatch or both the same-repository PR author and triggering
 actor in the explicit `trusted-build-actors` JSON allowlist. It also requires a
 pinned `toolchain-sha` and a
-repository-read-only `OUTFITTER_TOOLCHAIN_SSH_KEY` in the separate `preview-build`
+repository-read-only `OUTFITTER_TOOLCHAIN_SSH_KEY` passed by the caller or stored in the `preview-publish`
 environment. It runs the existing private adapter's checks/tests/packaging, then
 builds the demo mode. No Cloudflare credential is available during that build.
 The default allowlist is empty. Personal repositories can opt their trusted

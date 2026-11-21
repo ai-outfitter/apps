@@ -1,3 +1,4 @@
+import { collectAppUpdates } from "./app-daily-updates";
 import { projectRollup } from "./report-summary";
 import { z } from "zod";
 import { and,asc,eq,sql } from "drizzle-orm";
@@ -60,10 +61,12 @@ export async function runReportChain(db:PlanningDatabase,host:Host,actor:AppIden
    completedIssues:((content.changes as {issues?:{id:string;title:string;currentStatus:string;updatedAt:number;updatedInWindow:boolean}[]}|undefined)?.issues??[]).filter(issue=>issue.currentStatus==="done"&&issue.updatedInWindow).map(issue=>({id:issue.id,title:issue.title,observedAt:issue.updatedAt})),
    omittedIssueObservations:(content.changes as {omittedIssues?:number}|undefined)?.omittedIssues??0,repositoryEvidence})});
  }
- const status=children.some(child=>child.status==="incomplete")?"incomplete":"complete";
+ let status:ReportChain["status"]=children.some(child=>child.status==="incomplete")?"incomplete":"complete";
  if(!includeOverview)return {period,projects:children,overview:null,status};
  const level=actor.owner.kind==="organization"?"organization":"personal";
+ const appUpdates=level==="organization"?await collectAppUpdates(host,actor,period,children,runId):[];
+ if(appUpdates.some(update=>update.status==="incomplete"))status="incomplete";
  let overview:ReportRef|null=null;
- try{overview=await saveReportNote(host,actor,{level,subject:actor.owner.id,title:`${level==="organization"?"Organization":"Personal"} daily overview — ${period.date}`,period,runId,capturedAt:now,status,content:{summary:projectRollup(children),outcome:status==="complete"?"project-reports-captured":"project-reports-incomplete",completeness:{projectReads:status,history:"limited"},dependencies:children,coverage:level==="personal"?"Personal Planning projects only; organization reports require a separate authorized cross-scope read.":"This organization's active Planning projects only."}});}catch{return {period,projects:children,overview:null,status:"incomplete"};}
+ try{overview=await saveReportNote(host,actor,{level,subject:actor.owner.id,title:`${level==="organization"?"Organization":"Personal"} daily overview — ${period.date}`,period,runId,capturedAt:now,status,content:{appUpdates,summary:[...appUpdates.map(update=>update.app+": "+update.summary),projectRollup(children)].join(" "),outcome:status==="complete"?"project-reports-captured":"project-reports-incomplete",completeness:{projectReads:status,history:"limited"},dependencies:children,coverage:level==="personal"?"Personal Planning projects only; organization reports require a separate authorized cross-scope read.":"Organization app updates and active Planning projects."}});}catch{return {period,projects:children,overview:null,status:"incomplete"};}
  return {period,projects:children,overview,status};
 }

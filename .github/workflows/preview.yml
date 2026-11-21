@@ -107,12 +107,14 @@ jobs:
           const apps = JSON.parse(process.env.SELECTED_APPS).filter(app => paths.some(path => path.startsWith(`${app}/`)));
           appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(apps)}\nhas_apps=${apps.length > 0}\n`);
           NODE
-  build:
+  build-and-publish:
     needs: plan
     if: needs.plan.outputs.has_apps == 'true'
     runs-on: ubuntu-latest
-    environment: preview-build
-    timeout-minutes: 25
+    environment:
+      name: preview-publish
+      url: ${{ steps.publish.outputs.url }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -120,6 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          path: source
           ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
       - name: Validate public SDK pin
@@ -132,7 +135,7 @@ jobs:
         with:
           repository: ai-outfitter/apps
           ref: ${{ inputs.sdk-sha || needs.plan.outputs.sdk_sha }}
-          path: .outfitter-sdk
+          path: source/.outfitter-sdk
           persist-credentials: false
       - uses: actions/checkout@v4
         if: inputs.build-mode == 'toolchain'
@@ -141,46 +144,43 @@ jobs:
           ref: ${{ inputs.toolchain-sha }}
           ssh-key: ${{ secrets.OUTFITTER_TOOLCHAIN_SSH_KEY }}
           persist-credentials: false
-          path: .preview-toolchain
-      - uses: actions/setup-node@v4
+          path: source/.preview-toolchain
+      - name: Check out pinned preview builder
+        uses: actions/checkout@v4
         with:
-          node-version: 24
-          cache: ${{ inputs.build-mode != 'toolchain' && hashFiles('package-lock.json') != '' && 'npm' || '' }}
-      - name: Install reviewed SDK toolchain
-        if: inputs.build-mode == 'toolchain'
-        run: npm ci
-        working-directory: .preview-toolchain
-      - uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
-        with:
-          command: preview-build
-          app: ${{ matrix.app }}
-          build-mode: ${{ inputs.build-mode }}
-          toolchain-path: ${{ github.workspace }}/.preview-toolchain
-          config-path: ${{ inputs.config-path }}
+          repository: ai-outfitter/apps
+          ref: 33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
+          path: builder
+          sparse-checkout: scripts
+          persist-credentials: false
+      - name: Build demo package in a disposable container
         env:
-          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          APP: ${{ matrix.app }}
+          CONFIG_PATH: ${{ inputs.config-path }}
+          PREVIEW_BUILD_MODE: ${{ inputs.build-mode }}
           PRIVATE_PREVIEW_AUTHORIZED: ${{ needs.plan.outputs.private_authorized }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
-          path: .outfitter-preview/bundle.json
-          include-hidden-files: true
-          retention-days: 3
-          if-no-files-found: error
-  publish:
-    needs: [plan, build]
-    if: needs.plan.outputs.has_apps == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: preview-publish
-      url: ${{ steps.publish.outputs.url }}
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJSON(needs.plan.outputs.apps) }}
-    steps:
-      # Deliberately no caller checkout, installs or app script execution here.
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          mkdir .outfitter-preview
+          touch .outfitter-preview/bundle.json
+          marker=$(uuidgen)
+          echo "::stop-commands::$marker"
+          trap 'echo "::$marker::"' EXIT
+          docker run --rm --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -v "$PWD/source:/source:ro" -v "$PWD/builder:/builder:ro" \
+            -v "$PWD/.outfitter-preview/bundle.json:/output.json" \
+            -e APP -e CONFIG_PATH -e CI -e GITHUB_EVENT_NAME -e GITHUB_REPOSITORY \
+            -e PREVIEW_BUILD_MODE -e PRIVATE_PREVIEW_AUTHORIZED -e SOURCE_SHA \
+            -e HOME=/tmp -e TOOLCHAIN_PATH=/tmp/build/.preview-toolchain \
+            docker.io/library/node:24-bookworm@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496 bash -eu -c '
+              mkdir /tmp/build
+              cd /tmp/build
+              cp -R /source/. .
+              if [[ "$PREVIEW_BUILD_MODE" == toolchain ]]; then
+                (cd "$TOOLCHAIN_PATH" && npm ci)
+              fi
+              node /builder/scripts/preview.mjs build "$APP"
+              cat .outfitter-preview/bundle.json > /output.json'
       - uses: actions/github-script@v7
         env:
           PR_NUMBER: ${{ inputs.pull-request }}
@@ -189,10 +189,6 @@ jobs:
           script: |
             const {data: pr} = await github.rest.pulls.get({...context.repo,pull_number:Number(process.env.PR_NUMBER)});
             if(pr.state !== 'open' || pr.head.sha !== process.env.SOURCE_SHA) throw Error('PR closed or source superseded');
-      - uses: actions/download-artifact@v4
-        with:
-          name: preview-build-${{ strategy.job-index }}-${{ github.run_attempt }}
-          path: .outfitter-preview
       - uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
         id: publish
         with:

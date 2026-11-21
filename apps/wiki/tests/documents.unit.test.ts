@@ -16,11 +16,11 @@ const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:
 function fixture(withImportRevision=true) {
  const sqlite=new DatabaseSync(":memory:"); sqlite.exec("PRAGMA foreign_keys=ON");
  const folder=new URL("../migrations/",import.meta.url);
- for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && !n.startsWith('0012') && !n.startsWith('0013')).sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
+ for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n<'0012').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
  sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
  INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',1,'member','{}','[]','{"title":"First","body":"First body"}',1);`);
  sqlite.exec(readFileSync(new URL('0012_documents.sql',folder),'utf8'));
- if(withImportRevision) sqlite.exec(readFileSync(new URL('0013_imported_revision.sql',folder),'utf8'));
+ if(withImportRevision) for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n>='0013').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
  const db:AgentDatabase={query:async s=>sqlite.prepare(s.sql).all(...(s.params ?? []) as never[]) as Record<string,unknown>[],batch:async steps=>{
   sqlite.exec('BEGIN');try{for(const s of steps)sqlite.prepare(s.sql).run(...(s.params ?? []) as never[]);sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}
  }};
@@ -202,4 +202,110 @@ test('recent updates use descending timestamp/id pagination without bodies or ar
   assert.equal(relatedType('Goal'),'Goal');assert.equal(relatedType(null),undefined);
   assert.throws(()=>relatedType('Secret'),error=>error instanceof Response&&error.status===400);
  }finally{sqlite.close();}
+});
+
+test("daily app publication reaches the federated document with exact date, revision and coverage", async () => {
+ const {db,sqlite}=fixture();
+ try {
+  const {serveGraphql}=await import("@ai-outfitter/app-sdk/app-graphql");
+  const {documents}=await import("../src/documents/documents");
+  const {writeAppUpdate}=await import("@ai-outfitter/app-sdk/daily-update");
+  const {reportPeriodForDate}=await import("@ai-outfitter/app-sdk/daily-period");
+  const {parse,print}=await import("graphql");
+  const execute=(query:string,variables:Record<string,unknown>,operation:"query"|"mutation"="query")=>
+   serveGraphql({schema:graphqlSchema,query,variables,context:{database:db,identity:who},operation});
+  const host={call:async(op:string,request:any)=>{
+   if(op==="inference.generate")return {output:{summary:"Saved the revised design."}};
+   assert.equal(request.template,"wiki-map");
+   if(request.action==="graph.mutate")assert.equal(print(parse(request.input.query)),print(parse(documents.SaveGeneratedDocument.document as string)));
+   return execute(request.input.query,request.input.variables,request.action==="graph.mutate"?"mutation":"query");
+  }} as never;
+  const period=reportPeriodForDate("2026-11-18","Asia/Tokyo");
+  const record=()=>Promise.resolve({rows:[{revision:3}],complete:true});
+  await writeAppUpdate(host,{...who,installationId:"workshop"},"Workshop",period,"one",record);
+  await writeAppUpdate(host,{...who,installationId:"workshop"},"Workshop",period,"retry",record);
+  await writeAppUpdate(host,{...who,installationId:"onto"},"Onto",period,"two",async()=>{throw new Error("Source unavailable");});
+  const query=documents.DailyAppUpdates.document as string;
+  const read=async(date:string,after?:string)=>{
+   const answer=await execute(query,{date,first:1,...(after?{after}:{})});
+   assert.equal(answer.errors,undefined,JSON.stringify(answer));
+   return answer.data!.dailyAppUpdates as {nodes:{id:string;slug:string;revision:number;summary:string;app:string;complete:boolean;timezone:string}[];pageInfo:{endCursor:string;hasNextPage:boolean}};
+  };
+  const first=await read(period.date);
+  assert.ok(first.pageInfo.hasNextPage);
+  const second=await read(period.date,first.pageInfo.endCursor);
+  assert.equal(second.pageInfo.hasNextPage,false);
+  const rows=[...first.nodes,...second.nodes];
+  assert.deepEqual(rows.map(row=>[row.app,row.revision,row.complete,row.timezone]).sort(),[["Onto",1,false,"Asia/Tokyo"],["Workshop",1,true,"Asia/Tokyo"]]);
+  assert.equal(rows.find(row=>row.app==="Workshop")?.summary,"Saved the revised design.");
+  assert.deepEqual((await read("2026-11-17")).nodes,[]);
+  await archiveDocument(db,who,{id:first.nodes[0].id,revision:1});
+  assert.deepEqual((await read(period.date)).nodes,second.nodes);
+ }finally{sqlite.close();}
+});
+
+test("documentVersion reads an existing personal brief, skips archived pages and scopes its provenance",async()=>{
+ const {sqlite,db}=fixture();
+ try {
+  for(const [date,member] of [["2026-11-18","member"],["2026-11-19","member"],["2026-11-20","other"]]){
+   const doc=await saveGeneratedDocument(db,who,{title:"Daily brief",slug:"forerunner-brief-"+date+"-key",generatedBody:"Saved "+date,
+    provenance:{kind:"forerunner.daily-brief",owner:{kind:"user",id:member},date,timezone:"America/Chicago",status:"complete"}});
+   if(date==="2026-11-19")await archiveDocument(db,who,{id:doc.id,revision:doc.revision});
+  }
+  const result=await graphql({schema:graphqlSchema,source:'{documentVersion(key:"forerunner.daily-brief"){date:version markdown:generatedBody revision}}',contextValue:{identity:who,database:db}});
+  assert.equal(result.errors,undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.data)),{documentVersion:{date:"2026-11-18",markdown:"Saved 2026-11-18",revision:1}});
+ }finally{sqlite.close();}
+});
+
+test("document series select the latest edition and revision independently",async()=>{
+ const {sqlite,db}=fixture();try{
+  const publish=async(version:string)=>saveGeneratedDocument(db,who,{title:"Workshop catalog",slug:"parts-"+version,generatedBody:"Original",provenance:{kind:"workshop.catalog",version}});
+  const first=await publish("001");await publish("002");
+  await saveGeneratedDocument(db,who,{id:first.id,revision:1,generatedBody:"Corrected",provenance:{kind:"workshop.catalog",version:"001"}});
+  const read=async(args:string)=>{
+   const result=await graphql({schema:graphqlSchema,source:'{documentVersion(key:"workshop.catalog"'+args+'){version revision generatedBody}}',contextValue:{identity:who,database:db}});
+   assert.equal(result.errors,undefined);return JSON.parse(JSON.stringify(result.data)).documentVersion;
+  };
+  assert.deepEqual(await read(""),{version:"002",revision:1,generatedBody:"Original"});
+  assert.deepEqual(await read(',version:"001"'),{version:"001",revision:2,generatedBody:"Corrected"});
+  assert.deepEqual(await read(',version:"001",revision:1'),{version:"001",revision:1,generatedBody:"Original"});
+  assert.equal(await read(',version:"001",revision:3'),null);
+ }finally{sqlite.close();}
+});
+
+test("WikiDocuments batches search phrases and slug or ID reads at a pinned revision",async()=>{
+ const {sqlite,db}=fixture();try{
+  const a=await saveDocument(db,who,{title:"Launch",slug:"launch-notes",body:"Public preview"});
+  const b=await saveDocument(db,who,{title:"Model",slug:"mount",body:"New bracket"});
+  await saveDocument(db,who,{id:"launch-notes",revision:1,title:"Launch",body:"Release"});
+  const {documents}=await import("../src/documents/documents");
+  async function read(variables:Record<string,unknown>){
+   const result=await graphql({schema:graphqlSchema,source:String(documents.WikiDocuments.document),variableValues:variables,contextValue:{identity:who,database:db}});
+   assert.equal(result.errors,undefined);return JSON.parse(JSON.stringify(result.data)).searchDocuments;
+  }
+  const matches=await read({search:["RELEASE","bracket"]});
+  assert.deepEqual(matches.documents.map((r:{slug:string})=>r.slug).sort(),["launch-notes","mount"]);
+  const pinned=await read({refs:[b.id,"launch-notes",a.id],revision:1,includeBody:true,first:1});
+  assert.ok(pinned.next);const more=await read({refs:[b.id,"launch-notes"],revision:1,includeBody:true,after:pinned.next});
+  assert.deepEqual([...pinned.documents,...more.documents].map(r=>r.body).sort(),["New bracket","Public preview"]);
+  assert.equal(more.next,null);
+ }finally{sqlite.close();}
+});
+
+test("page file migration restores the shared storage index after the legacy graph cutover", () => {
+ const db = new DatabaseSync(":memory:");
+ try {
+  for (const table of ["graph_assets", "app_storage_objects"]) {
+   db.exec(`CREATE TABLE ${table}(id INTEGER PRIMARY KEY)`);
+   for (const op of ["INSERT", "UPDATE", "DELETE"]) {
+    db.exec(`CREATE TRIGGER _onto_cutover_${table}_${op} BEFORE ${op} ON ${table}
+             BEGIN SELECT RAISE(ABORT,'Wiki graph migrated to Onto'); END`);
+   }
+  }
+  assert.throws(() => db.exec("INSERT INTO app_storage_objects VALUES (1)"), /graph migrated/);
+  db.exec(readFileSync(new URL("../migrations/0015_page_file_storage.sql", import.meta.url), "utf8"));
+  db.exec("INSERT INTO app_storage_objects VALUES (1); UPDATE app_storage_objects SET id=2; DELETE FROM app_storage_objects");
+  assert.throws(() => db.exec("INSERT INTO graph_assets VALUES (1)"), /graph migrated/);
+ } finally { db.close(); }
 });

@@ -15,6 +15,7 @@
     "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
     "test:integration": "node --import tsx --test tests/*.integration.test.ts",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
+    "test:dev": "playwright test --config playwright.dev.config.ts",
     "test:e2e": "playwright test --config playwright.config.ts",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
   },

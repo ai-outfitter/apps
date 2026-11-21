@@ -2,6 +2,8 @@ import {fulfillFrom, fulfillPlatformIdentity} from '@ai-outfitter/app-test/playw
 import {appArtifact} from '@ai-outfitter/app-test/prepare';
 import {appWorker} from '@ai-outfitter/app-test/worker';
 import {expect,test} from '@playwright/test';
+import {documentText} from '@ai-outfitter/app-sdk/graph-graphql-typed';
+import {documents} from '../src/server/documents';
 import {projectSlug} from '../src/lib/sections';
 
 // Tier 4: a prototype builder plays the installed drive without a consumer build.
@@ -13,13 +15,22 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
  const usage=(itemId:string)=>({id:crypto.randomUUID(),itemId,quantity:1});
  async function create(name:string, assembly:unknown){
   const project=await(await app.call('/api/apps/workshop/projects',member,{method:'POST',body:{name,example:'cube'}})).json() as {id:string;revision:number;name:string};
-  const saved=await app.call('/api/apps/workshop/projects/'+project.id+'/assembly',member,{method:'PUT',body:{expectedRevision:project.revision,assembly}});
-  expect(saved.status).toBe(200);
+  const graph=async(name:'WorkshopAssembly'|'UpdateWorkshopAssembly',variables:unknown)=>{
+   const response=await app.call('/api/internal/actions/v1/call',member,{method:'POST',body:{
+    action:name==='WorkshopAssembly'?'graph.graphql':'graph.mutate',input:{query:documentText(documents[name].document),variables}
+   }});
+   const result=await response.json() as {data?:unknown;errors?:unknown};
+   expect(result.errors).toBeUndefined();
+   return result.data;
+  };
+  await graph('UpdateWorkshopAssembly',{projectId:project.id,expectedRevision:project.revision,assembly});
+  expect(await graph('WorkshopAssembly',{projectId:project.id})).toMatchObject({workshopAssembly:{assembly}});
   return project;
  }
  try{
   const arm=item('Arm'),shaft=item('Shaft','cots'),moving=usage(shaft.id);
-  const root=await create('Source',{rootId:arm.id,items:[{...arm,uses:[moving,usage(shaft.id)],driveMotion:{version:1,viewRootIds:[arm.id],z:{
+  const root=await create('Source',{rootId:arm.id,items:[{...arm,uses:[{...moving,joint:{kind:'prismatic',axis:[0,0,1]}},usage(shaft.id)],
+   operations:[{name:'Sow',durationSeconds:2,tracks:[{path:moving.id+'#0',keys:[{time:0,value:0},{time:2,value:70}]}]}],driveMotion:{version:1,viewRootIds:[arm.id],z:{
    translationUsageIds:[moving.id],levels:[{label:'Low',offset:0},{label:'High',offset:70}],
    rotations:[{usageId:moving.id,axis:[1,0,0],pivot:[0,0,0],radiansPerMillimeter:0.09}],
   }}},{...shaft,geometry:{version:1,units:'mm',features:[{kind:'box',mode:'add',origin:[0,0,0],size:[12,5,3]}]}}]});
@@ -33,7 +44,18 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
    const url=new URL(route.request().url());
    await fulfillFrom(route,await app.call(url.pathname+url.search,member));
   });
-  await page.goto(origin+'/projects/'+projectSlug(consumer)+'/assembly');
+  await page.goto(origin+'/projects/'+projectSlug(consumer));
+  await page.locator('#motion-menu > summary').click();
+  const selector=page.getByRole('combobox',{name:'Operation',exact:true});
+  await expect(selector.locator('option').first()).toHaveText('Arm · Sow');
+  await page.getByRole('button',{name:'Play operation'}).click();
+  await expect(page.locator('#operation-clock')).not.toHaveText('0.00 s');
+  await page.getByRole('button',{name:'Reset operation'}).click();
+  await expect(page.locator('#operation-clock')).toHaveText('0.00 s');
+  await page.locator('#operation-time').focus();
+  await page.keyboard.press('End');
+  await expect(page.locator('#operation-clock')).toHaveText('2.00 s');
+  await selector.selectOption({label:'Drive motion'});
   const play=page.getByRole('button',{name:'Play motion',exact:true});
   await expect(play).toBeVisible({timeout:60000});
   for (const [width,height] of [[1440,900],[390,844]]) {

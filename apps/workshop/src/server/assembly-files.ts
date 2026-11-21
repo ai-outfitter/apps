@@ -4,7 +4,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { assemblyFile, fileName, filePath, fileBase, fileType, type AssemblyFile } from "../lib/assembly-file";
 import { meshBounds } from "../lib/assembly";
 import type { WorkshopContext } from "./graphql";
-import { getWorkshopProject, saveWorkshopAssembly } from "./projects";
+import { getWorkshopProject, patchWorkshopProject } from "./projects";
 
 export const uploadInput = assemblyFile.extend({
   itemId:z.uuid(), expectedRevision:z.number().int().nonnegative(), meshBounds:meshBounds.optional(),
@@ -36,7 +36,7 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
   if (!alreadyAttached) {
     item.files=[...(item.files??[]).filter(f=>f.fileName!==file.fileName),file];
     if (bounds) item.mesh={path,bounds};
-    revision=(await saveWorkshopAssembly(c.db(),c.identity,{id:project.id,revision:expectedRevision,assembly:project.assembly})).revision;
+    revision=(await patchWorkshopProject(c.db(),c.identity,{id:project.id,revision:expectedRevision},()=>({assembly:project.assembly}))).revision;
   }
   return {status:"attached",projectId:project.id,itemId,revision,file:receipt(file)};
 }

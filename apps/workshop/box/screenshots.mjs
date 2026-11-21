@@ -4,7 +4,7 @@
 // checkout has Playwright; without either the box runs on without screenshots.
 
 /** The workbench page for a project: its slug may be just the end of the project ID. */
-export const workbenchPath = (project) => `/projects/${String(project.id).slice(-12)}/assembly`;
+export const workbenchPath = (project) => `/projects/${String(project.id).slice(-12)}`;
 
 /** Names a screenshot after its step: "1-design.png", "2-follow-up-1.png", "3-export.png". */
 export const screenshotName = (index, step) => `${index}-${step.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
