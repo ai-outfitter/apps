@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/threads-v0.1.5...threads-v0.1.6) (2026-11-21)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.5 to 0.1.6
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/threads-v0.1.4...threads-v0.1.5) (2026-11-17)
 
 

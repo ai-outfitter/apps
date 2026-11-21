@@ -6,6 +6,21 @@
 - `actions.call` accepts `template` in place of `installationId`: the host finds the owner's one installation of that package. `wiki-documents` uses it: `readWikiPage`, `readWikiPages` and `wikiDocuments` replace `documentWiki` and `readWikiDocument`, and no longer discover the Wiki.
 - Route personal GitHub pull request reads by account ownership, retaining the actual connection ID instead of requiring a synthetic ID.
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.5...app-sdk-v0.1.6) (2026-11-21)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* **planning:** review screenshots and video as revision evidence ([#232](https://github.com/ai-outfitter/apps/issues/232)) ([79981a0](https://github.com/ai-outfitter/apps/commit/79981a02c0e6b0a5cff7f784d94993267d116dfc))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+* **workshop:** publish revision-checked assembly reads and saves ([c4ae915](https://github.com/ai-outfitter/apps/commit/c4ae9158e2f564e5f8d474b605de7711ca85b79b))
+
+
+### Bug Fixes
+
+* **graphql:** preserve complete fields alongside paged results ([027287c](https://github.com/ai-outfitter/apps/commit/027287cd0b04f9039c9e515096a064cb83690f9d))
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.4...app-sdk-v0.1.5) (2026-11-17)
 
 
