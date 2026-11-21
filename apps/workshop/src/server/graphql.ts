@@ -39,10 +39,10 @@ export type WorkshopContext = ActionContext & WorkshopServices;
 
 const projects = tableType(workshopProjects, {
   field: "workshopProjects", type: "WorkshopProject",
-  fields: ["name", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
+  fields: ["name", "purpose", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
   dates: ["createdAt", "updatedAt"],
   ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
-  filters: ["createdBy", "productRevisionId"],
+  filters: ["createdBy", "productRevisionId", "purpose"],
   // workshop_projects_updated_idx.
   orders: ["updatedAt"],
 });
@@ -137,7 +137,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
     }),
     describeWorkshopProject: mutationField<typeof describeInput, WorkshopContext>({
       name: "DescribeWorkshopProject",
-      description: "Set a project's name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.",
+      description: "Set a project's purpose (product to manufacture or component library model), name, stage (concept, prototyping, validation, pilot, manufacturing), brief or requirements at the revision the caller saw; a field left out keeps its value and a stale revision is refused. Answers the project at its next revision.",
       input: describeInput, output: row,
       run: async (context, input) => workshopProjectRow(context.db(), (await describeWorkshopProject(context.db(), context.identity, input)).id),
     }),

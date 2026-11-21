@@ -38,6 +38,7 @@ export const exampleInput = z
   .object({
     example: z.enum(Object.keys(EXAMPLES) as (keyof typeof EXAMPLES)[]),
     name: ProjectSchema.shape.name.optional(),
+    purpose: ProjectSchema.shape.purpose.unwrap().optional(),
     productRevision: productRevisionInput.optional(),
   })
   .strict();
@@ -56,6 +57,7 @@ export const describeInput = z
   .object({
     ...atRevision,
     name: ProjectSchema.shape.name.optional(),
+    purpose: ProjectSchema.shape.purpose.unwrap().optional(),
     phase: ProjectSchema.shape.phase.unwrap().optional(),
     brief: ProjectSchema.shape.brief.optional(),
     requirements: ProjectSchema.shape.requirements.optional(),
@@ -66,9 +68,9 @@ export const assemblyUpdateBody = z.strictObject({ expectedRevision: z.int32().n
 export const assemblyInput = z.object({ ...atRevision, assembly: AssemblySchema }).strict();
 
 /** The starter project an example makes, named and linked as the caller asked. */
-export function projectFrom({ example, name, productRevision }: z.output<typeof exampleInput>): Project {
+export function projectFrom({ example, name, purpose, productRevision }: z.output<typeof exampleInput>): Project {
   const project = makeProject(example);
-  return { ...project, ...(name ? { name } : {}), ...(productRevision ? { productRevision } : {}) };
+  return { ...project, ...(purpose ? { purpose } : {}), ...(name ? { name } : {}), ...(productRevision ? { productRevision } : {}) };
 }
 
 export async function listWorkshopProjects(db: WorkshopDatabase) {
@@ -76,6 +78,7 @@ export async function listWorkshopProjects(db: WorkshopDatabase) {
     .select({
       id: workshopProjects.id,
       name: workshopProjects.name,
+      purpose: workshopProjects.purpose,
       revision: workshopProjects.revision,
       updatedAt: workshopProjects.updatedAt,
       brief: sql<string>`substr(trim(coalesce(nullif(trim(json_extract(${workshopProjects.data}, '$.brief')), ''), json_extract(${workshopProjects.data}, '$.requirements'), '')), 1, 200)`,
@@ -146,8 +149,8 @@ export async function createWorkshopProject(
   const linked = revisionColumns(project);
   const guard = project.assembly.items.some(i=>i.reference || i.operations?.length) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
-  await db.run(sql`INSERT INTO workshop_projects (id, name, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
-    SELECT ${project.id}, ${project.name}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
+  await db.run(sql`INSERT INTO workshop_projects (id, name, purpose, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
+    SELECT ${project.id}, ${project.name}, ${project.purpose}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
     WHERE (SELECT count(*) FROM workshop_projects) < ${PROJECT_LIMIT} AND ${guard}`);
   if (!(await exists())) throw new Response(project.assembly.items.some(i=>i.reference) ? "Project limit reached or a reference changed. Reload before creating." : full, { status: 409 });
   return project;
@@ -191,6 +194,7 @@ export async function updateWorkshopProject(
     .update(workshopProjects)
     .set({
       name: next.name,
+      purpose: next.purpose,
       revision: next.revision,
       data: JSON.stringify(next),
       ...revisionColumns(next),
@@ -241,6 +245,7 @@ export async function patchWorkshopProject(
     .update(workshopProjects)
     .set({
       name: next.name,
+      purpose: next.purpose,
       revision: next.revision,
       data: JSON.stringify(next),
       ...revisionColumns(next),

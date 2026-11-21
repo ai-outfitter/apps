@@ -10,7 +10,7 @@ import { documents, runDocument } from "../src/server/documents";
 import { graphqlSchema, type WorkshopContext } from "../src/server/graphql";
 import { AssemblySchema } from "../src/lib/assembly";
 import { unzipSync, strFromU8 } from "fflate";
-import { exportWorkshopProject, getWorkshopProject } from "../src/server/projects";
+import { exportWorkshopProject, getWorkshopProject, listWorkshopProjects } from "../src/server/projects";
 
 // Each mutation document runs through graph.mutate as the platform's graph_mutate calls it,
 // admitting every member as the page does: a starter example becomes a first-revision
@@ -232,5 +232,37 @@ test("a shared gripper propagates through two configurations and a nested consum
     assert.match(strFromU8(files["bom.csv"]), /"Gripper","4","","","","2.75"/);
     assert.ok(JSON.parse(strFromU8(files["assembly.json"])).items.some((i: {reference?:unknown})=>i.reference));
     assert.equal((await getWorkshopProject(db,r.id)).assembly.items.length,1);
+  } finally {close();}
+});
+
+// Tier 2: a case designer keeps the purchased motherboard in a reusable library.
+test("component classification preserves identities, referenced geometry and old product defaults", async () => {
+  const { db, close } = await workshopDatabase();
+  try {
+    const ctx = member(db);
+    const component = answer(await run(ctx, "CreateWorkshopProject", {example:"cube",name:"Purchased board",purpose:"component"}), "createWorkshopProject");
+    const product = answer(await run(ctx, "CreateWorkshopProject", {example:"cube",name:"Printable case"}), "createWorkshopProject");
+    assert.equal(component.purpose, "component");
+    assert.equal(product.purpose, "product");
+    const itemId = crypto.randomUUID();
+    const rootId = crypto.randomUUID();
+    const source = AssemblySchema.parse({rootId,items:[{id:rootId,number:"LIBRARY",revision:"A",name:"Board model",kind:"assembly",uses:[{id:crypto.randomUUID(),itemId,quantity:1}]},{id:itemId,number:"BOARD",revision:"A",name:"Purchased board",kind:"cots",geometry:{version:1,units:"mm",features:[{kind:"box",mode:"add",origin:[0,0,0],size:[170,170,1.6]}]}}]});
+    await runDocument(documents.UpdateWorkshopAssembly.document, {projectId:String(component.id),expectedRevision:1,assembly:source}, ctx);
+    const reference = AssemblySchema.parse({rootId:itemId,items:[{id:itemId,number:"REF",revision:"A",name:"Board reference",kind:"assembly",uses:[],reference:{projectId:component.id,revision:2}}]});
+    await runDocument(documents.UpdateWorkshopAssembly.document, {projectId:String(product.id),expectedRevision:1,assembly:reference}, ctx);
+    const before = (await runDocument(documents.ResolvedWorkshopAssembly.document, {input:{projectId:String(product.id)}}, ctx)).resolvedWorkshopAssembly;
+    assert.equal((await run(ctx, "DescribeWorkshopProject", {id:component.id,revision:2,purpose:"product"})).errors, undefined);
+    assert.equal((await run(ctx, "DescribeWorkshopProject", {id:component.id,revision:2,purpose:"component"})).errors?.[0]?.extensions?.status,409);
+    const after = (await runDocument(documents.ResolvedWorkshopAssembly.document, {input:{projectId:String(product.id)}}, ctx)).resolvedWorkshopAssembly;
+    assert.deepEqual(after, before, "classification must not change pinned assembly geometry");
+    await run(ctx, "DescribeWorkshopProject", {id:component.id,revision:3,purpose:"component"});
+    assert.equal((await listWorkshopProjects(db)).find(p=>p.id===component.id)?.purpose,"component");
+    const read = await serveGraphql({schema:graphqlSchema,context:ctx,query:'{workshopProjects(filter:{purpose:{equalTo:"component"}}){nodes{id purpose} totalCount}}'}) as {data:{workshopProjects:{nodes:{id:string}[],totalCount:number}}};
+    assert.equal(read.data.workshopProjects.totalCount,1);
+    assert.equal(read.data.workshopProjects.nodes[0].id,component.id);
+    assert.equal((await getWorkshopProject(db,String(component.id))).purpose,"component");
+    const { ProjectSchema, makeProject } = await import("../src/lib/project");
+    const {purpose, ...legacy} = makeProject("cube");
+    assert.equal(ProjectSchema.parse(legacy).purpose,"product");
   } finally {close();}
 });

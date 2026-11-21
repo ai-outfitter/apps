@@ -50,3 +50,26 @@ the platform's `StartTasks` starts the same `workshop-design` task. See
 [box/README.md](box/README.md) for the evals that drive this path.
 
 The [assembly file MCP eval](agent-evals/mcp/evals/attach-assembly-files/README.md) runs a live agent through discovery, file uploads, a concurrent edit and stored-byte verification using Vercel Agent Eval.
+
+## Products and component library
+
+For tier 2 assembly builders, `purpose: "product"` identifies the hardware they
+intend to manufacture. `purpose: "component"` identifies a purchased component
+or reference model they reuse. The home page opens on Products; Component
+library and All models remain available. Model purpose can be changed on a
+model page, or through `DescribeWorkshopProject` / `ProjectChanges` using the
+observed revision. Creation also accepts `purpose`.
+
+This is independent of mechanical/electronics kind, manufacturing phase and an
+assembly item's COTS/printed/fabricated kind. No models are reclassified from
+names or child parts. Existing documents and migration 0007 default to product;
+classify established component models explicitly after release. The underlying
+record IDs, URLs, files, historical assemblies and cross-model references stay
+unchanged. `WorkshopProjects` accepts `filter.purpose.equalTo` for discovery;
+REST listing continues to return both purposes for existing reference consumers.
+
+Normal official catalog publication follows app PR review/merge and successful
+main CI: the separate catalog publication job sends the checked artifacts, and
+the platform reconciles installations. Verify the active Graph contract before
+classifying existing records. A branch push or preview is not activation; a
+separate component release is not required by this catalog pipeline.
