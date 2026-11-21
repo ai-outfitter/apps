@@ -3,7 +3,7 @@
 .workspace[data-section="overview"] {
  --panel-height: max(420px, calc(100svh - 200px));
 }
-.workspace[data-section="overview"] #assembly-viewer[data-ready="true"]:not([data-empty]) + #assembly-status { display:none }
+.workspace[data-section="overview"] .viewer-frame:has(#assembly-viewer[data-ready="true"]:not([data-empty])) + #assembly-status { display:none }
 .workspace[data-section="overview"] .model-layout {
  display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
 }
@@ -73,3 +73,9 @@
 .workspace #model-sizing :is(input,select),.workspace #part-inspection-actions select {min-width:0;max-width:100%;box-sizing:border-box}
 .workspace #model-sizing dl {display:grid;grid-template-columns:max-content auto;gap:4px 16px}
 .workspace #model-sizing dd {margin:0;font-variant-numeric:tabular-nums}
+
+.workspace .viewer-frame {position:relative}
+.workspace #assembly-poster {position:absolute;inset:0;background:#e8ede5;overflow:hidden;border-radius:inherit}
+.workspace #assembly-poster > :is(img,svg,canvas) {display:block;width:100%;height:100%;min-height:0;object-fit:contain}
+.workspace .viewer-frame:has(canvas[hidden]) {height:var(--panel-height)}
+@media(max-width:900px){.workspace .viewer-frame:has(canvas[hidden]) {height:clamp(230px,43svh,440px)}}

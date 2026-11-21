@@ -12,6 +12,7 @@ test("a robotics builder can reconstruct one oversized CAD record across Unicode
   const first=page.nextCursor!;
   assert.ok(first);
   while(page.nextCursor){
+    assert.ok(Buffer.byteLength(JSON.stringify(page)) < 65536);
     page=resolvedPage(record,page.nextCursor);
     assert.equal(page.offset,Buffer.byteLength(text));
     text+=page.jsonText;

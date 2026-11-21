@@ -1,8 +1,8 @@
+import {repositoryName as repository} from "./source-file";
 import { z } from "zod";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { workflowPhaseHandler, prepareInput, finalizeInput, type WorkflowHost, type WorkflowPhaseHandlers } from "@ai-outfitter/app-sdk/workflow-host";
 const workflow="workshop-workspace";
-const repository=z.string().regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/);
 const sourceDir=z.string().regex(/^[A-Za-z0-9_./-]+$/).refine(s=>!s.startsWith("/")&&!s.split('/').includes('..'));
 const configure=z.object({operation:z.literal("configure"),repository,sourceDir,model:z.string().default("gpt-6-luna")});
 const start=z.object({operation:z.literal("start"),projectId:z.uuid(),buildId:z.uuid(),workflowRunId:z.uuid(),repository,sourceDir,sourceCommit:z.string().regex(/^[a-f0-9]{40}$/),instructions:z.string().max(5000),parameters:z.record(z.string(),z.union([z.string(),z.number(),z.boolean()])).default({})});

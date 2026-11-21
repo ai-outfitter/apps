@@ -3,11 +3,11 @@ import BillOfMaterials from "./BillOfMaterials.astro";
 import MotionDetails from "./MotionDetails.astro";
 import ProjectInspection from "./ProjectInspection.astro";
 import "../styles/project-inspection.css";
-interface Props { slug:string; section:string }
-const {slug,section}=Astro.props;
+interface Props { slug:string; section:string; projectId?:string; preview?:string }
+const {slug,section,projectId,preview}=Astro.props;
 const overview = section === "overview";
 ---
-<div class="workspace" data-slug={slug} data-section={section}>
+<div class="workspace" data-slug={slug} data-project-id={projectId} data-section={section}>
   <header><div><h1 id="project-name">Loading project…</h1></div>{!overview && <span id="revision-label"></span>}</header>
   <nav id="project-views" aria-label="Model pages" hidden>
     <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
@@ -48,7 +48,10 @@ const overview = section === "overview";
             </div>
           </details>
         </div>
-        <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
+        <div class="viewer-frame">
+          <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
+          <div id="assembly-poster" hidden={!preview}>{preview && <img src={preview} alt="Static assembly preview" />}</div>
+        </div>
         <p id="assembly-status" role="status">Loading geometry…</p>
       </div>
       {overview && <ProjectInspection />}

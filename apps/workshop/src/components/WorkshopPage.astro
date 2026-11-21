@@ -14,15 +14,20 @@ interface Props { section?: SectionId; slug: string }
 const { slug } = Astro.props;
 let projectName: string | undefined;
 let hasPcb = false;
+let projectId:string|undefined, revision:number|undefined;
 if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
   try {
     const project = await projectBySlugId(installationDatabase(), slugId(slug)!);
     projectName = project?.name;
+    projectId = project?.id;
+    revision = project?.revision;
     hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
   } catch { /* The workspace reports loading errors. */ }
 }
 const section = Astro.props.section ?? "overview";
 const path = (target: string) => appHref(Astro.url.pathname, target);
+const defaultView=section==="overview" && !["item","configuration","parameters","revision","build","view"].some(key=>Astro.url.searchParams.has(key));
+const preview=projectId && defaultView ? path(`/api/apps/workshop/projects/${projectId}/preview?revision=${revision}&thumbnail=1`) : undefined;
 const current = SECTIONS.find(page => page.id === section)!;
 const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || page.id === section).filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
   label: page.label,
@@ -45,5 +50,5 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
     { label: projectName ?? "Project", links },
   ]}
 >
-  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} />}
+  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} projectId={projectId} preview={preview} />}
 </AppLayout>

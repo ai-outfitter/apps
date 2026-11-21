@@ -11,6 +11,7 @@ import { graphql } from "../../graph/graphql";
 import { graphqlSchema, type WorkshopContext } from "./graphql";
 
 const legacyDocuments = defineDocuments({
+  WorkshopSourceFile:{story:"As a designer, I want to read CAD from my connected Forgejo repository, so that I can verify the exact source used by my project.",document:graphql(`query WorkshopSourceFile($input:WorkshopSourceFileInput!){workshopSourceFile(input:$input)}`)},
   UploadWorkshopAssemblyFile:{story:"As a designer, I want to attach a fabrication file to a saved item, so that members can inspect the original CAD and clips.",document:graphql(`mutation UploadWorkshopAssemblyFile($input:UploadWorkshopAssemblyFileInput!){uploadWorkshopAssemblyFile(input:$input)}`)},
   VerifyWorkshopAssemblyFile:{story:"As a designer, I want to verify an attached file, so that I can confirm its stored bytes match my source.",document:graphql(`query VerifyWorkshopAssemblyFile($input:VerifyWorkshopAssemblyFileInput!){verifyWorkshopAssemblyFile(input:$input)}`)},
   SubmitWorkshopPcb: {
@@ -116,6 +117,7 @@ const legacyDocuments = defineDocuments({
 // the single-action documents stay for Workshop's own pages. Design turns and concept
 // images are Workshop workflows: platform StartTasks and WorkflowRuns with app workshop.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
+  WorkshopSourceFile:{description:"Read a CAD source file from the organization's connected Forgejo repository. Supply repository, path and ref. Returns base64 content, byte size and Git blob SHA."},
   ResolvedWorkshopAssemblyPage: { description: "Read large resolved records including geometry, motion, meshes, sources and build price. Use includeIdentifiers:true. Pass input.projectId and optional configuration, parameters, revision. Repeat the same input with cursor set to nextCursor until null. Concatenate jsonText chunks in order, verify UTF-8 totalBytes and sha256, then JSON.parse. If the source graph changed, restart at page one." },
   ResolvedWorkshopAssembly: { description: "Read the expanded CAD, BOM and power assembly, buildPrice (knownSubtotal, estimatedSubtotal and unpricedUnits), and source revisions. Supply input.projectId and optional revision, configuration and numeric parameters. On RESPONSE_TOO_LARGE use ResolvedWorkshopAssemblyPage. Use WorkshopAssembly for edits." },
   WorkshopAssembly: { description: "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements, joints, named operations and power inputs, with its current project revision." },

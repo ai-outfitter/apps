@@ -1,3 +1,4 @@
+import { openMeshCache, readMeshes, storeMeshes } from "./cad-mesh-cache";
 import { hingeTransforms, type Hinge } from "../lib/inspection-placements";
 import type { MeshSource } from "../lib/assembly-resolution";
 import { attachedMesh } from "../lib/assembly-file";
@@ -25,12 +26,15 @@ const KIND_COLORS: Record<string, string> = {
   assembly: "#bc7c4a",
 };
 
-/** A solid with its edges; a see-through solid keeps its opacity in userData. */
-export function solidNode(reply: MeshReply, color: string, opacity = 1) {
+function solidGeometry(reply:MeshReply) {
   const faces = new THREE.BufferGeometry();
   const edges = new THREE.BufferGeometry();
   syncFaces(faces, reply.faces);
   syncLines(edges, reply.edges);
+  return {faces,edges};
+}
+
+function solidNode({faces,edges}:ReturnType<typeof solidGeometry>, color:string, opacity:number) {
   const solid = new THREE.Mesh(
     faces,
     new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, polygonOffset: true, polygonOffsetFactor: 1 }),
@@ -42,9 +46,9 @@ export function solidNode(reply: MeshReply, color: string, opacity = 1) {
 }
 
 /** One placed item: its faces in the item's color (see-through when printed) and its edges. */
-export function placedNode(placement: Placement, reply: MeshReply) {
+function placedNode(placement: Placement, geometry:ReturnType<typeof solidGeometry>) {
   const { item } = placement;
-  const node = solidNode(reply, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.opacity ?? (item.kind === "printed" ? 0.3 : 1));
+  const node = solidNode(geometry, item.color ?? KIND_COLORS[item.kind] ?? "#888888", item.opacity ?? (item.kind === "printed" ? 0.3 : 1));
   node.userData.itemId = item.id;
   node.userData.pickGroup = placement.pickGroup;
   node.userData.path = placement.path;
@@ -59,24 +63,32 @@ export function placedNode(placement: Placement, reply: MeshReply) {
  * electronics inside stay visible. */
 export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  const worker = new Worker(import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url), { type: "module" });
+  const engine = import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url).href;
+  const scope = appBase(location.pathname);
+  const db = import.meta.env.DEV ? Promise.resolve(undefined) : openMeshCache();
+  let worker:Worker | undefined;
   const pending = new Map<number, { resolve: (reply: MeshReply) => void; reject: (e: Error) => void }>();
   let id = 0;
   let version = 0;
-  worker.onmessage = ({ data }) => {
-    const p = pending.get(data.id);
-    pending.delete(data.id);
-    data.error ? p?.reject(new Error(data.error)) : p?.resolve(data);
-  };
-  worker.onerror = (e) => {
-    for (const p of pending.values()) p.reject(new Error(e.message || "CAD engine failed"));
-    pending.clear();
-    report("CAD engine failed. Reload the page to retry.");
-  };
+  function cadWorker() {
+    if (worker) return worker;
+    worker=new Worker(engine,{type:"module"});
+    worker.onmessage = ({ data }) => {
+      const p = pending.get(data.id);
+      pending.delete(data.id);
+      data.error ? p?.reject(new Error(data.error)) : p?.resolve(data);
+    };
+    worker.onerror = (e) => {
+      for (const p of pending.values()) p.reject(new Error(e.message || "CAD engine failed"));
+      pending.clear();
+      report("CAD engine failed. Reload the page to retry.");
+    };
+    return worker;
+  }
   const mesh = (plan: unknown, legacy?: {params:unknown;plan:unknown}) =>
     new Promise<MeshReply>((resolve, reject) => {
       pending.set(++id, { resolve, reject });
-      worker.postMessage({ id, plan, ...legacy });
+      cadWorker().postMessage({ id, plan, ...legacy });
     });
 
   const scene = new THREE.Scene();
@@ -91,6 +103,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   scene.add(light);
   const group = new THREE.Group();
   scene.add(group);
+  let dirty=true;
+  const invalidate=()=>{dirty=true;};
+  controls.addEventListener("change",invalidate);
   let frame: { min: number[]; max: number[] } | undefined;
   let selected: Set<string> | undefined;
   let selectedPath: string | undefined;
@@ -100,6 +115,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   let hidden:ReadonlySet<string>=new Set(), openHinges:Hinge[]=[];
   let operationPose:Map<string,THREE.Matrix4>|undefined;
   function applyHinges() {
+    invalidate();
     const transforms=hingeTransforms(openHinges,operationPose);
     for(const node of group.children) {
       const path:string=node.userData.path;
@@ -122,6 +138,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     const h = canvas.clientHeight;
     if (w && h) {
       renderer.setSize(w, h, false);
+      invalidate();
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
@@ -130,7 +147,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   renderer.setAnimationLoop(() => {
     if (canvas.offsetParent) {
       controls.update();
-      renderer.render(scene, camera);
+      if(dirty){renderer.render(scene,camera);dirty=false;}
     }
   });
 
@@ -188,17 +205,21 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   function clear() {
+    invalidate();
     clearInspection();
+    const geometries=new Set<THREE.BufferGeometry>();
     group.traverse((child) => {
       if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
-        child.geometry.dispose();
+        geometries.add(child.geometry);
         (child.material as THREE.Material).dispose();
       }
     });
     group.clear();
+    for(const geometry of geometries)geometry.dispose();
   }
 
   function highlight() {
+    invalidate();
     const hiddenPaths=Array.from(hidden);
     for (const node of group.children) {
       const id = node.userData.itemId as string;
@@ -227,10 +248,30 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   /** Each distinct item meshed once, however many places use it. */
-  async function meshItems(list: Placement[],legacy?: {params:unknown;plan:unknown}) {
+  async function meshItems(currentVersion:number,list: Placement[],legacy?: {params:unknown;plan:unknown}) {
     const items = new Map(list.map(({ item }) => [item.id, item]));
-    const replies = await Promise.all([...items.values()].map((item) => mesh(item.geometry,legacy)));
-    return new Map([...items.keys()].map((id, i) => [id, replies[i]]));
+    if (!items.size) return new Map<string,MeshReply>();
+    const cache = await db;
+    const previous = await readMeshes(cache,scope,engine);
+    if (currentVersion!==version) return new Map<string,MeshReply>();
+    const current = new Map<string,Promise<MeshReply>>();
+    let misses = 0;
+    const replies = await Promise.all([...items.values()].map(async item=>{
+      const key = JSON.stringify(legacy ?? item.geometry);
+      let pending = current.get(key);
+      if (!pending) {
+        const saved = previous.get(key);
+        if (!saved) misses++;
+        pending = saved ? Promise.resolve(saved) : mesh(item.geometry,legacy);
+        current.set(key,pending);
+      }
+      return [item.id,await pending] as const;
+    }));
+    if (misses && currentVersion===version) {
+      const meshes = new Map(await Promise.all([...current].map(async ([key,result])=>[key,await result] as const)));
+      storeMeshes(cache,scope,{engine,meshes});
+    }
+    return new Map(replies);
   }
 
   async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal, sources:Record<string,MeshSource>={}) {
@@ -251,18 +292,37 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     report(`Building ${list.length} placed solids…`);
     const external=new Map<string,THREE.BufferGeometry>();
     try {
-      const replies = await meshItems(list.filter(p=>!p.item.mesh),legacy);
-      for(const {item} of list)if(item.mesh&&!external.has(item.id)){
-        const src=sources[item.id] ?? attachedMesh(item);
-        external.set(item.id,new STLLoader().parse(await verifiedArtifact(src?.base ?? artifactBase,item.mesh.path,src ? [src.artifact] : artifacts,signal,(url,init)=>fetch(appBase(location.pathname)+url,init))));
+      const meshes = new Map(list.filter(p=>p.item.mesh).map(p=>[p.item.id,p.item]));
+      const queue = meshes.values();
+      async function loadMeshes() {
+        for (const item of queue) {
+          if (current !== version) return;
+          const src=sources[item.id] ?? attachedMesh(item);
+          const bytes=await verifiedArtifact(src?.base ?? artifactBase,item.mesh!.path,src ? [src.artifact] : artifacts,signal,(url,init)=>fetch(appBase(location.pathname)+url,init));
+          if (current !== version) return;
+          external.set(item.id,new STLLoader().parse(bytes));
+        }
       }
+      const loading = Array.from({length:Math.min(6,meshes.size)},loadMeshes);
+      // Wait for all parsers before disposing their geometries, even on failure.
+      const [cad,...stls] = await Promise.allSettled([meshItems(current,list.filter(p=>!p.item.mesh),legacy),...loading] as const);
+      if (cad.status==="rejected") throw cad.reason;
+      for (const stl of stls) if(stl.status==="rejected")throw stl.reason;
+      const replies=cad.value;
       if (current !== version) return;
       clear();
+      const solids=new Map<MeshReply,ReturnType<typeof solidGeometry>>();
       for (const placement of list) {
         const geometry=external.get(placement.item.id);
-        if(!geometry){group.add(placedNode(placement,replies.get(placement.item.id) as MeshReply));continue;}
+        if(!geometry){
+          const reply=replies.get(placement.item.id)!;
+          let buffers=solids.get(reply);
+          if(!buffers){buffers=solidGeometry(reply);solids.set(reply,buffers);}
+          group.add(placedNode(placement,buffers));
+          continue;
+        }
         const node=new THREE.Group();node.userData.pickGroup=placement.pickGroup;node.userData.itemId=placement.item.id;node.userData.path=placement.path;
-        const solid=new THREE.Mesh(geometry.clone(),new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=placement.item.opacity ?? 1;node.add(solid);
+        const solid=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:placement.item.color??"#8b9f91",roughness:0.65}));solid.userData.opacity=placement.item.opacity ?? 1;node.add(solid);
         if(placement.matrix){node.matrix.fromArray(placement.matrix);node.matrixAutoUpdate=false;}
         group.add(node);
       }
@@ -273,6 +333,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       reset();
       report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
       canvas.dataset.ready = "true";
+      external.clear(); // The scene now owns these buffers.
     } catch (e) {
       if (current === version) {
         canvas.dataset.ready = "false";
@@ -285,6 +346,16 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     render,
     reset,
     topView,
+    snapshot() {
+      // Copy immediately after drawing. WebGL need not retain its framebuffer.
+      renderer.render(scene,camera);
+      const image=document.createElement("canvas");
+      const scale=Math.min(1,640/Math.max(canvas.width,canvas.height));
+      image.width=Math.max(1,Math.round(canvas.width*scale));
+      image.height=Math.max(1,Math.round(canvas.height*scale));
+      image.getContext("2d")!.drawImage(canvas,0,0,image.width,image.height);
+      return image.toDataURL("image/jpeg",0.82);
+    },
     inspectDrive(drives: ZDriveInspection[], visible: boolean) {
       clearInspection();
       if(visible && drives.length){
@@ -341,10 +412,12 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       renderer.setAnimationLoop(null);
       canvas.removeEventListener("pointerdown", pointerDown);
       canvas.removeEventListener("pointerup", pointerUp);
+      controls.removeEventListener("change",invalidate);
       controls.dispose();
       clear();
       renderer.dispose();
-      worker.terminate();
+      worker?.terminate();
+      void db.then(cache=>cache?.close());
       for (const p of pending.values()) p.reject(new Error("The 3D preview closed."));
       pending.clear();
     },
