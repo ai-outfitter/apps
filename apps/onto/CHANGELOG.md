@@ -4,6 +4,15 @@
 
 - Restore personal local graphs through audited legacy endpoint reconciliation, preserving source records and type revision history. Repair the exact shipped commitment-subject contract omission for historical Person subjects; fresh seeds include Person and custom explicit contracts remain enforced.
 
+## [0.1.8](https://github.com/ai-outfitter/apps/compare/onto-v0.1.7...onto-v0.1.8) (2026-11-21)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* **onto:** Ontology document, one read of types, relationship ends, root and staging ([#201](https://github.com/ai-outfitter/apps/issues/201)) ([57fb11b](https://github.com/ai-outfitter/apps/commit/57fb11b276ab7f4817cd33422f336379545f2099))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
 ## [0.1.7](https://github.com/ai-outfitter/apps/compare/onto-v0.1.6...onto-v0.1.7) (2026-11-17)
 
 
