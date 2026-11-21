@@ -1625,7 +1625,43 @@
         "input"
       ]
     },
-    "hidden": true
+    "mcp": {
+      "description": "Set model purpose to product (hardware to manufacture) or component (purchased/reference library model), and optionally update name, phase, brief or requirements. Supply input.id and observed input.revision; fields omitted remain unchanged. Classification preserves geometry and cross-model references."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "describeWorkshopProject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "purpose": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "number"
+            },
+            "createdBy": {
+              "type": "string"
+            },
+            "updatedBy": {
+              "type": "string"
+            },
+            "createdAt": {
+              "description": "DateTime"
+            },
+            "updatedAt": {
+              "description": "DateTime"
+            }
+          }
+        }
+      }
+    }
   },
   {
     "name": "FinishWorkshopBuild",

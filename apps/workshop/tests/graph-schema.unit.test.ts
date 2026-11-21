@@ -14,5 +14,5 @@ test("the committed GraphQL schema, types and documents match what graph.graphql
     ["WorkshopProjects", "query"], ["WorkshopSourceFile", "query"], ["WorkshopUnits", "query"],
   ]);
   // Public documents are the operations a workspace agent can discover.
-  assert.deepEqual(committed.filter((row: { hidden?: boolean }) => !row.hidden).map((row: { name: string }) => row.name), ["AcceptCreativeHandoff", "AttachCreativeResult", "CreateWorkshopProject", "ResolvedWorkshopAssembly", "ResolvedWorkshopAssemblyPage", "StartWorkshopDesign", "SubmitWorkshopPcb", "UpdateWorkshopAssembly", "UploadWorkshopAssemblyFile", "VerifyWorkshopAssemblyFile", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopProjects", "WorkshopSourceFile"]);
+  assert.deepEqual(committed.filter((row: { hidden?: boolean }) => !row.hidden).map((row: { name: string }) => row.name), ["AcceptCreativeHandoff", "AttachCreativeResult", "CreateWorkshopProject", "DescribeWorkshopProject", "ResolvedWorkshopAssembly", "ResolvedWorkshopAssemblyPage", "StartWorkshopDesign", "SubmitWorkshopPcb", "UpdateWorkshopAssembly", "UploadWorkshopAssemblyFile", "VerifyWorkshopAssemblyFile", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopProjects", "WorkshopSourceFile"]);
 });
