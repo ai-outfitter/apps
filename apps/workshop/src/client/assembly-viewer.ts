@@ -1,3 +1,4 @@
+import { hingeTransforms, type Hinge } from "../lib/inspection-placements";
 import type { MeshSource } from "../lib/assembly-resolution";
 import { attachedMesh } from "../lib/assembly-file";
 import { appBase } from "../lib/sections";
@@ -96,6 +97,18 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   let selectedItem: string | undefined;
   let isolated: Set<string> | undefined;
   let isolatedPath: string | undefined;
+  let hidden:ReadonlySet<string>=new Set(), openHinges:Hinge[]=[];
+  let operationPose:Map<string,THREE.Matrix4>|undefined;
+  function applyHinges() {
+    const transforms=hingeTransforms(openHinges,operationPose);
+    for(const node of group.children) {
+      const path:string=node.userData.path;
+      node.matrix.copy(node.userData.motionMatrix ?? node.userData.restMatrix);
+      for(const hinge of transforms) if(path===hinge.path || path.startsWith(hinge.path+"/")) node.matrix.premultiply(hinge.delta);
+      node.matrixAutoUpdate=false;
+      node.matrixWorldNeedsUpdate=true;
+    }
+  }
   let driveInspection: ReturnType<typeof createZDriveInspection> | undefined;
   let inspectionPaths = new Set<string>();
   let inspectionVisible = false;
@@ -186,11 +199,12 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
 
   function highlight() {
+    const hiddenPaths=Array.from(hidden);
     for (const node of group.children) {
       const id = node.userData.itemId as string;
       const path = node.userData.path as string;
       const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
-      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !(inspectionVisible && inspectionPaths.has(path));
+      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !hiddenPaths.some(inside) && !(inspectionVisible && inspectionPaths.has(path));
       const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
       const picked = selected !== undefined && !dim;
       node.traverse((child) => {
@@ -221,6 +235,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   async function render(assembly: Assembly, artifactBase = "", legacy?: {params:unknown;plan:unknown}, artifacts:ArtifactRecord[]=[], signal?:AbortSignal, sources:Record<string,MeshSource>={}) {
     const current = ++version;
+    operationPose=undefined;
     isolated=undefined;
     isolatedPath=undefined;
     canvas.dataset.ready = "false";
@@ -253,6 +268,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       }
       for (const node of group.children) { if (node.matrixAutoUpdate) node.updateMatrix(); node.userData.restMatrix = node.matrix.clone(); }
       highlight();
+      if(openHinges.length) applyHinges();
       frame = assemblyBounds(list);
       reset();
       report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
@@ -279,25 +295,32 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       highlight();
       canvas.dataset.driveInspection=String(inspectionVisible);
     },
+    inspectParts(paths:ReadonlySet<string>,hinges:Hinge[]) {
+      const visibilityChanged=paths.size!==hidden.size || Array.from(paths).some(path=>!hidden.has(path));
+      hidden=paths;openHinges=hinges;
+      if(visibilityChanged)highlight();
+      applyHinges();
+    },
     previewPose(pose:Map<string,THREE.Matrix4>) {
-      for (const node of group.children) {
-        node.matrixAutoUpdate=false;
-        node.matrix.copy(pose.get(node.userData.path) ?? node.userData.restMatrix);
-        node.matrixWorldNeedsUpdate=true;
-      }
+      operationPose=pose;
+      for(const node of group.children)node.userData.motionMatrix=pose.get(node.userData.path);
+      applyHinges();
     },
     /** View-only world Z displacement, restoring the original matrix on each call. */
     previewTranslation(paths: Set<string>, offset: number, rotations: PlacedRotation[] = [], axes?:Map<string,THREE.Vector3>) {
+      operationPose=undefined;
       let moved = 0;
       for (const node of group.children) {
         const rest = node.userData.restMatrix as THREE.Matrix4 | undefined;
         if (!rest) continue;
         node.matrixAutoUpdate = false;
         const translate=paths.has(node.userData.path);
-        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.matrix,axes?.get(node.userData.path));
+        node.userData.motionMatrix ??= new THREE.Matrix4();
+        savedMotionMatrix(rest,offset,translate,rotations.filter(r=>r.path===node.userData.path),node.userData.motionMatrix,axes?.get(node.userData.path));
         if(translate)moved++;
         node.matrixWorldNeedsUpdate = true;
       }
+      applyHinges();
       driveInspection?.update(offset);
       canvas.dataset.savedRotors=String(rotations.length);
       canvas.dataset.zDriveTurns=String(zDriveTurns(offset));

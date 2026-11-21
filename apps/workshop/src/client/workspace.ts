@@ -1,3 +1,5 @@
+import { inspectionControls } from "./inspection-controls";
+import { modelSizing } from "./model-sizing";
 import { installedOperations } from "../lib/installed-operations";
 import { agentPage } from "@ai-outfitter/app-sdk/agent-context";
 import { onPageLoad } from "@ai-outfitter/ui/page";
@@ -70,8 +72,9 @@ const inspection = overview ? projectInspection($("project-inspection"), tab => 
   renderedPowerFor = inspectedAssembly().rootId;
  }
 }) : undefined;
+let inspectingParts=false;
 function inspectedAssembly() {
- const item = inspection && selected ? selected.id : query.get("item");
+ const item = inspection && selected && !inspectingParts ? selected.id : query.get("item");
  return modelView(assembly, item);
 }
 function availableBudgets(view: Assembly) {
@@ -149,7 +152,7 @@ $("operation-play").onclick=()=>{
  }
  opFrame=requestAnimationFrame(tick);
 };
-signal.addEventListener("abort",()=>{motionGeneration++;pauseOperation();stopMotion();viewer?.dispose();},{once:true});
+signal.addEventListener("abort",()=>{partInspection?.stop();motionGeneration++;pauseOperation();stopMotion();viewer?.dispose();},{once:true});
 const applyMotion=(offset:number)=>{motionOffset=offset;if(inspection) $("motion-reset").hidden=offset===0;if(motion)viewer?.previewTranslation(motion.paths,offset,savedRotations,savedAxes);$("drive-turns").textContent=`Offset from saved pose · ${Number(offset.toFixed(1))} mm`;};
 $<HTMLInputElement>("inspect-drive").onchange=()=>{viewer?.inspectDrive(driveReview?.drives??[],$<HTMLInputElement>("inspect-drive").checked);applyMotion(motionOffset);};
 $("motion-level").onchange=()=>{stopMotion();if($<HTMLSelectElement>("motion-level").value===""){applyMotion(0);return;}const level=motion?.levels[Number($<HTMLSelectElement>("motion-level").value)];if(level)applyMotion(level.offset);};
@@ -184,10 +187,12 @@ function descendants(item: Item) {
   visit(item);
   return result;
 }
+let partInspection:ReturnType<typeof inspectionControls>|undefined;
 let selectionPath: string | undefined;
 function select(item:Item, path?:string){
  selectionPath=path;
  selected=item;
+ partInspection?.select(item,path);
  viewer?.select(descendants(item),path,item.id);
  $("isolate-item").hidden=!viewer;
  $("selected-name").textContent=item.name;
@@ -369,6 +374,36 @@ function showBuild(run?:BuildRequest, snapshot=false){
  $("bom-heading").textContent = focused && focused.id !== assembly.rootId ? `Bill of materials · ${focused.name}` : "Bill of materials";
  const children = assemblyChildren(view);
  if (inspection) {
+  partInspection?.stop();
+  partInspection=inspectionControls(view,$("part-inspection-actions"),$<HTMLButtonElement>("restore-inspection"),(hidden,hinges)=>{
+    viewer?.inspectParts(hidden,hinges);
+    const changed=Boolean(hidden.size || hinges.length);
+    if(inspectingParts===changed)return;
+    inspectingParts=changed;
+    updateBudgetTabs(inspectedAssembly());
+    if($("tab-bom").getAttribute("aria-selected")==="true") renderBom();
+    if($("tab-power").getAttribute("aria-selected")==="true") renderPower();
+  },select,()=>{
+    pauseOperation();stopMotion();
+    if(operations[opSelect.selectedIndex])seek(0);
+    else if(motion){applyMotion(0);$<HTMLSelectElement>("motion-level").value="";}
+    viewer?.isolate();viewer?.inspectDrive([],false);$<HTMLInputElement>("inspect-drive").checked=false;
+  });
+  $("part-inspection-actions").hidden=!viewer;
+  const inputs=run?.result?.manifest?.parameters ?? run?.parameters;
+  $("tab-sizing").hidden=!modelSizing($("model-sizing"),{
+    bounds:partInspection.bounds,preset:legacy?project.params:undefined,inputs,
+    sources:historical ? undefined : resolved?.sources
+      .filter(source=>source.configuration && partInspection!.instances.has(source.itemId))
+      .map(source=>({label:source.name+" · "+source.configuration,href:sourceUrl(source),parameters:source.parameters})),
+    configurations:!historical && (!resolved || project.revision===resolved.revision) ? project.assembly.configurations : undefined,
+    requestBuild:project.workspace && !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? values=>{
+      $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(values,null,2);
+      const instruction=$<HTMLInputElement>("instruction");
+      if(!instruction.value.trim())instruction.value="Rebuild with the selected model parameters.";
+      $<HTMLFormElement>("build-request").requestSubmit();
+    }:undefined,
+  });
   $("project-inspection").inert = false;
   inspection.open("description");
   if (focused && focused.id !== assembly.rootId) $("project-name").textContent = project.name + " / " + focused.name;

@@ -5,7 +5,8 @@ export const JointSchema = z.object({
   kind: z.enum(["prismatic", "revolute"]),
   axis: vector.refine(v => Math.abs(Math.hypot(...v) - 1) < 1e-6, "Joint axis must be a unit vector"),
   pivot: vector.optional(),
-}).strict();
+  openDegrees: z.number().min(-360).max(360).refine(value=>value!==0, "Open angle must be nonzero").optional(),
+}).strict().refine(joint=>joint.openDegrees===undefined || joint.kind==="revolute", "An inspection hinge requires a revolute joint");
 const segment = /^([0-9a-f-]{36})#(0|[1-9]\d*)$/i;
 const path = z.string().min(1).refine(value => value.split("/").every(part => {
   const match = segment.exec(part);

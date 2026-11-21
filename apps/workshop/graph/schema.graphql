@@ -483,6 +483,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJoint {
   kind: FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind!
   axis: [JSON!]!
   pivot: [JSON!]
+  openDegrees: Float
 }
 
 enum FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind {
@@ -805,6 +806,7 @@ input WorkshopAssemblyInputItemsItemUsesItemJoint {
   kind: WorkshopAssemblyInputItemsItemUsesItemJointKind!
   axis: [JSON!]!
   pivot: [JSON!]
+  openDegrees: Float
 }
 
 enum WorkshopAssemblyInputItemsItemUsesItemJointKind {
@@ -1051,6 +1053,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJoint {
   kind: SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind!
   axis: [JSON!]!
   pivot: [JSON!]
+  openDegrees: Float
 }
 
 enum SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind {

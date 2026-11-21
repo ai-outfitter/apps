@@ -66,3 +66,10 @@
 .workspace #motion-controls select {flex:1 1 9rem}
 .workspace #motion-controls small {font-variant-numeric:tabular-nums}
 .workspace #motion-preview:has(#drive-inspection-controls[hidden]) {display:none}
+
+.workspace #part-inspection-actions,.workspace #model-sizing form {display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;margin:12px 0}
+.workspace #model-sizing form {flex-direction:column}
+.workspace #model-sizing form > div,.workspace #model-sizing label,.workspace #part-inspection-actions label {display:grid;gap:4px;max-width:100%}
+.workspace #model-sizing :is(input,select),.workspace #part-inspection-actions select {min-width:0;max-width:100%;box-sizing:border-box}
+.workspace #model-sizing dl {display:grid;grid-template-columns:max-content auto;gap:4px 16px}
+.workspace #model-sizing dd {margin:0;font-variant-numeric:tabular-nums}

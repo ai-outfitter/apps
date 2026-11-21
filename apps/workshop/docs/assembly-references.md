@@ -109,3 +109,23 @@ In the overview, open Motion and select the operation for the installed assembly
 Play advances to the end. Drag Time to inspect an instant or choose Reset operation
 to restore the saved pose. Selecting a moving solid still opens its part details.
 Legacy drive motion is available in the same selector when both are present.
+
+### Inspecting an installation
+
+Open **Components**, select a lid or cover, and choose **Hide component**. If the
+same item is installed several times, choose its instance first. **Show component**
+restores that installation. **Restore assembly** restores all hidden components
+and closes inspection hinges. Reloading opens the assembled view again.
+These controls change only the viewer. The BOM and power tabs show the assembly
+being inspected while components are hidden or hinges are open.
+
+For a hinged door, add `openDegrees` to its installed usage's revolute joint,
+for example `{"kind":"revolute","axis":[0,0,1],"pivot":[0,0,0],"openDegrees":95}`.
+Use a signed, nonzero angle between −360° and 360°. **Open hinge** adds the
+inspection angle to the current pose so the door can travel with a playing
+assembly. **Close hinge** removes that offset.
+
+**Sizing** shows the assembled CAD extents in mm, numeric configuration inputs,
+and build parameters when present. **Preview configuration** opens the resolved
+configuration with the entered values. **Request build with parameters** submits
+the typed inputs through the existing workspace build request.

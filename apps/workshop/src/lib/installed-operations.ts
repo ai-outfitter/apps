@@ -14,7 +14,7 @@ function sample(keys:Operation["tracks"][number]["keys"], time:number) {
   return a.value+(b.value-a.value)*(time-a.time)/(b.time-a.time);
 }
 
-function jointMatrix(joint:Joint, value:number) {
+export function jointMatrix(joint:Joint, value:number) {
   const axis = new Vector3(...joint.axis);
   if (joint.kind==="prismatic") return new Matrix4().makeTranslation(axis.multiplyScalar(value));
   const pivot = new Vector3(...(joint.pivot ?? [0,0,0]));

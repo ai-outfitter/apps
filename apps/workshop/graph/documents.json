@@ -993,6 +993,11 @@
                                                 "items": false,
                                                 "minItems": 3,
                                                 "maxItems": 3
+                                              },
+                                              "openDegrees": {
+                                                "type": "number",
+                                                "minimum": -360,
+                                                "maximum": 360
                                               }
                                             },
                                             "required": [
