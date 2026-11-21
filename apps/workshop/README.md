@@ -66,6 +66,8 @@ record IDs, URLs, files, historical assemblies and cross-model references stay
 unchanged. `WorkshopProjects` accepts `filter.purpose.equalTo` for discovery;
 REST listing continues to return both purposes for existing reference consumers.
 
-Normal publication follows app PR review/merge, the Workshop release-please
-component release, and the platform's hosted build/activation receipt. A branch
-push or preview does not enable this field in an existing installation.
+Normal official catalog publication follows app PR review/merge and successful
+main CI: the separate catalog publication job sends the checked artifacts, and
+the platform reconciles installations. Verify the active Graph contract before
+classifying existing records. A branch push or preview is not activation; a
+separate component release is not required by this catalog pipeline.
