@@ -29,9 +29,10 @@ export type ScheduleStatus = {
 const off: ScheduleStatus = { enabled: false, connectionId: null, timezone: null, nextRunAt: null, lastRunAt: null, lastOutcome: null };
 
 /** The daily run as Settings shows it. Editors only. */
-export async function scheduleStatus(host: WorkflowHost<"interactive">, who: AppIdentity): Promise<ScheduleStatus> {
+export async function scheduleStatus(host: WorkflowHost<"interactive">, who: AppIdentity, connectionId?: string): Promise<ScheduleStatus> {
   requireEditor(who);
-  const schedule = (await host.call("schedules", {})).find((item) => item.workflowId === discoveryWorkflow);
+  const rows = (await host.call("schedules", {})).filter(item => item.workflowId === discoveryWorkflow);
+  const schedule = connectionId ? rows.find(item => item.connectionId === connectionId) : rows.find(item => item.enabled) ?? rows[0];
   return schedule
     ? {
         enabled: schedule.enabled, connectionId: schedule.connectionId, timezone: schedule.timezone,
@@ -51,10 +52,11 @@ export const scheduleChange = z.strictObject({
 export async function changeSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, input: z.infer<typeof scheduleChange>, db?: Database) {
   requireEditor(who);
   if (!input.enabled) {
-    const current = (await host.call("schedules", {})).find((item) => item.workflowId === discoveryWorkflow);
-    if (current) await host.call("schedule.save", { workflow: discoveryWorkflow, timezone: current.timezone, inputs: current.inputs,
+    const id = input.source?.slice("connection:".length);
+    const rows = (await host.call("schedules", {})).filter(item => item.workflowId === discoveryWorkflow && (!id || item.connectionId === id));
+    for (const current of rows) await host.call("schedule.save", { workflow: discoveryWorkflow, timezone: current.timezone, cron: current.cron, inputs: current.inputs,
       ...(current.connectionId && current.resource ? { connectionId: current.connectionId, resource: current.resource } : {}), enabled: false });
-    return scheduleStatus(host, who);
+    return scheduleStatus(host, who, id);
   }
   if (!input.source) throw new Response("Choose a connected account for the daily run", { status: 400 });
   const id = input.source.slice("connection:".length);
@@ -67,7 +69,7 @@ export async function changeSchedule(host: WorkflowHost<"interactive">, who: App
     connectionId: connection.id, resource: connection.resource,
     inputs: scheduleInputs(connection),
   });
-  return scheduleStatus(host, who);
+  return scheduleStatus(host, who, id);
 }
 
 export const scheduleDefault = z.strictObject({ timezone: timezone.default("UTC") });

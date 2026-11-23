@@ -14,7 +14,14 @@ export async function legacyGraphDigest(db:AgentDatabase) {
   const name=String(table.name);
   if(!/^graph_[a-z_]+$/.test(name))throw new Error("Invalid legacy table");
   const rows=await db.query({sql:`SELECT * FROM "${name}"`});
-  snapshot.push([name,rows.map(canonicalJSON).sort()]);
+  // The seed migrations stamp seed nodes and type definitions with the installation time.
+  // The digest still covers their IDs, revisions, authors and full definitions.
+  const encoded=rows.map(row=>{
+   if((name==="graph_types" || name==="graph_nodes") && (row.updatedBy==="migration:product-documentation" || row.updatedBy==="migration:consolidate-products"))
+    return canonicalJSON({...row,updatedAt:0});
+   return canonicalJSON(row);
+  });
+  snapshot.push([name,encoded.sort()]);
  }
  return sha256Hex(canonicalJSON(snapshot));
 }
