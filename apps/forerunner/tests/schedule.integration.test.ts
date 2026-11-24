@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {parse,print} from "graphql";
+import {readFileSync} from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -90,6 +92,12 @@ test("the scheduled run reads only its connection and leaves an unsure finding f
     { kind: "confidence", threshold: 0.95, version: "forerunner-discovery-2026-11", reviewWindow: { until: "end-of-day", timezone: "Europe/London" } },
   ]);
   const staged = actions.find((a) => a.action === "graph.mutate" && (a.input as { operationName: string }).operationName === "StageChanges");
+  // The platform compares the complete normalized mutation against the installed catalog.
+  const catalog=JSON.parse(readFileSync(new URL("../../onto/graph/documents.json",import.meta.url),"utf8")) as {name:string;query:string}[];
+  for(const call of actions.filter(a=>a.action==="graph.mutate")){
+    const {operationName,query}=call.input as {operationName:string;query:string};
+    assert.equal(print(parse(query)),catalog.find(doc=>doc.name===operationName)?.query);
+  }
   assert.ok(staged);
   assert.equal(staged.installationId,"personal-onto");
   const added = (staged.input as { variables: { input: { proposals: { confidence: number; evidence: { provider: string; recordId: string }[] }[] } } }).variables.input;
