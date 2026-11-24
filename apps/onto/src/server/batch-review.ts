@@ -256,7 +256,7 @@ export function batchChecks(graph: Graph, who: AppIdentity, rows: Row[], batchId
   const partOf = (id: string) => edges.filter((edge) => edge.type === "part_of" && edge.fromId === id).map((edge) => edge.toId);
   // The owner and its business units: what a Project may be part_of.
   const ownerScope = new Set(owner ? [owner.id, ...edges.filter((edge) => edge.type === "part_of" && edge.toId === owner.id).map((edge) => edge.fromId)] : []);
-  const findings = organizationDuplicates(graph, live);
+  const findings: Finding[] = organizationDuplicates(graph, live);
   for (const row of live.filter((item) => item.operation.type === "graph-node" && item.operation.operation === "create")) {
     const id = idOf(row), typeName = typeNames.get(String(row.operation.attributes.typeId));
     const title = String(row.operation.attributes.title ?? row.ref);
