@@ -8,7 +8,6 @@ import type { APIRoute } from "astro";
 import { knowledgeGraphRenderInput, knowledgeGraphRenderResult } from "@ai-outfitter/app-sdk/graph-templates";
 import { renderKnowledgeGraphRecords } from "../../../../../server/knowledge-graph-select";
 import { z } from "zod";
-import type { AppActor, AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { wikiGraphReadInput, wikiGraphReadResult } from "@ai-outfitter/app-sdk/graph-contracts";
 import { readGraphSnapshot } from "../../../../../server/graph-read";
 import { graphQueryInput, graphQueryLimits, graphQueryResult } from "@ai-outfitter/app-sdk/graph-query";
@@ -18,7 +17,7 @@ import { graphqlGraphRecords } from "../../../../../server/graph-graphql";
 import { actionAPI, defineAction } from "@ai-outfitter/app-sdk/actions";
 import { mutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import { agentDatabase, installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import { reviewDraftInBackground, reviewInBackground } from "../../../../../server/batch-review";
+import { queueDraftReview } from "../../../../../server/batch-review";
 import { askBatch, batchAskInput } from "../../../../../server/batch-questions";
 import { applyGraphChanges, graphChangeInput, graphChangeReceipt } from "../../../../../server/graph-changes";
 import { graphqlSchema } from "../../../../../server/graphql";
@@ -64,11 +63,7 @@ export const wikiActions = {
   "batch.submit": defineAction({
     description: "Freeze an open batch and apply its policy: confidence or first-run commits what it may now; the rest waits for review. Refused while validation fails. Optional summary text for the person reviewing. The ontology steward then reviews it in the background (batch.review, null until it finishes) and approves what it found clean; flagged proposals, questioned ones and what depends on them wait for a member.",
     access: "write", canInvoke: writer, input: batchSubmitInput, output: batchResult,
-    run: async ({ identity, actor, afterSubmit }: { identity: AppIdentity; actor: AppActor; afterSubmit?: (batchId: string) => void }, input) => {
-      const result = await submitBatch(installationDatabase(), identity, actor, input);
-      afterSubmit?.(input.batchId);
-      return result;
-    },
+    run: ({ identity, actor }, input) => submitBatch(installationDatabase(), identity, actor, input),
   }),
   "batch.get": defineAction({
     description: "Read one batch: its state, policy, summary, review deadline, the ontology steward's latest review (findings by operation ref, its batch-review run, and decision: what it approved and what it held for a member) and every operation with evidence, confidence, reason, decision and committed record.",
@@ -120,10 +115,9 @@ export const ALL: APIRoute = ({ request, params, locals }) => {
       access: "write", input: z.strictObject({}), output: z.json(),
       run: () => enableAuditSchedule(workflowHost<"interactive">(locals)),
     }),
-  }, (identity) => ({
+  }, () => ({
     db: () => installationDatabase(),
     host: () => workflowHost<"interactive">(locals),
-    afterSubmit: (batchId: string) => reviewInBackground(locals, installationDatabase(), identity, batchId),
-    afterStage: (batchId: string) => reviewDraftInBackground(locals, installationDatabase(), identity, batchId),
+    afterStage: (batchId: string) => queueDraftReview(installationDatabase(), batchId),
   }));
 };
