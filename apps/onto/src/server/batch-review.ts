@@ -6,7 +6,7 @@
 // is a new run. Once a submitted batch's review finishes, the steward approves what it
 // found clean and leaves the rest for a member (stewardApprove, docs/batch-review.md).
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
-import { type WorkflowHost, workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
@@ -21,9 +21,9 @@ export const reviewWorkflow = "batch-review";
 export const reviewStep = "review";
 export const promptPath = "apps/onto/agent/ontology-steward.md";
 /** An abandoned final lease is terminal and must not remain running forever. */
-export async function failExpiredReviewJobs(db: Database, now = Date.now()) {
+async function failExpiredReviewJobs(db: Database, now = Date.now()) {
   return db.update(ontoReviewJobs).set({state:"failed",leaseId:null,leaseUntil:null,error:"Review lease expired after maximum attempts"})
-    .where(and(eq(ontoReviewJobs.state,"running"),lte(ontoReviewJobs.leaseUntil,now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
+    .where(and(eq(ontoReviewJobs.state, "running"),lte(ontoReviewJobs.leaseUntil, now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
 }
 /** Each model call's data stays well under the platform's 64 KB step cap. */
 export const partBudget = 48 * 1024;
@@ -305,12 +305,23 @@ function savedFinding(graph: Graph, batchId: string, refs: Set<string>, item: z.
 }
 
 /** Run `work` over `items`, at most `limit` at a time, in order. */
-async function pooled<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>) {
-  const results: R[] = new Array(items.length);
+async function pooled<T, R>(items: T[], limit: number, latestStart: number, work: (item: T) => Promise<R>) {
+  const results: R[] = [];
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) { const index = next++; results[index] = await work(items[index]); }
-  }));
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length && Date.now() < latestStart) {
+      const index = next++;
+      try {
+        results[index] = await work(items[index]);
+      } catch (error) {
+        next = items.length;
+        throw error;
+      }
+    }
+  });
+  for (const result of await Promise.allSettled(workers)) {
+    if (result.status === "rejected") throw result.reason;
+  }
   return results;
 }
 
@@ -322,8 +333,7 @@ const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
  * that cannot run is recorded as failed, and the batch is unaffected either way.
  * The steward reads it in parts that each fit the platform's step cap, one model
  * call per part; the built-in checks cover the whole batch. */
-async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string): Promise<BatchReview> {
-  const startedAt = Date.now();
+async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string, startedAt: number): Promise<BatchReview> {
   const prompt = { path: promptPath, digest: await sha256Hex(stewardPrompt) };
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
   if (!batch) throw new Response("Batch not found", { status: 404 });
@@ -339,7 +349,8 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   try {
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
-    const answers = await pooled(parts, partConcurrency, async (part) => {
+    // Allow five minutes for the last inference and at least one minute for settlement.
+    const answers = await pooled(parts, partConcurrency, startedAt + 8 * 60_000, async (part) => {
       const { output } = await host.call("inference.generate", {
         runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
         // Plain JSON: this part's records, the checks about them and the prompt digest.
@@ -347,11 +358,14 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
       });
       return stewardAnswer.parse(output);
     });
+    if (!answers.length && parts.length) throw new Error("No steward inference completed within the review budget");
     const findings = merge(checks, answers.flatMap((answer) => answer.findings.map((item) => savedFinding(graph, batch.id, refs, item))));
+    coverage.read = parts.slice(0, answers.length).reduce((sum, part) => sum + part.refs.length, 0);
+    coverage.parts = answers.length;
     const read = coverage.read === coverage.operations ? "" : ` Read ${coverage.read} of ${coverage.operations} operations.`;
     const summary = answers.length === 1 ? `${answers[0].summary}${read}`
       : `Read in ${coverage.parts} parts.${read} ${answers.map((answer) => answer.summary).filter(Boolean).join(" ")}`;
-    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
+    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete: complete && answers.length === parts.length, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
   } catch (error) {
     const message = error instanceof Response ? `${error.status} ${await error.text().catch(() => "")}`.trim() : String(error);
     review = { state: "failed", runId, prompt, startedAt, finishedAt: Date.now(), complete: false, coverage: { ...coverage, read: 0 }, stage, summary: "", findings: checks, error: message.slice(0, 500) };
@@ -368,11 +382,11 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
 }
 
 const maxAttempts = 4;
-/** Long enough for every part's model call. */
-const leaseMs = 600_000;
+// The host allows 14 minutes for a schedule. Fence abandoned work beyond that deadline.
+const leaseMs = 15 * 60_000;
 
 /** Claim and execute one durable job. A lease token fences late completions. */
-export async function processReviewJob(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, jobId: string, reservedRunId?: string): Promise<BatchReview | null> {
+export async function processReviewJob(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, jobId: string, reservedRunId?: string, dispatchStartedAt = Date.now()): Promise<BatchReview | null> {
   const now = Date.now(), leaseId = crypto.randomUUID();
   const [job] = await db.update(ontoReviewJobs).set({ state: "running", leaseId, leaseUntil: now + leaseMs, attempts: sql`${ontoReviewJobs.attempts} + 1` })
     .where(and(eq(ontoReviewJobs.id, jobId), sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
@@ -388,17 +402,16 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
         .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
       return null;
     }
-    // Each attempt starts the run the job names, so a receipt can name it; a scheduled pickup
-    // brings its own run and records it.
-    const runId = reservedRunId ?? job.runId ?? crypto.randomUUID();
+    // Honor the run ID already returned to an agent waiting for this review.
+    const runId = job.runId ?? reservedRunId ?? crypto.randomUUID();
     if (runId !== job.runId) await db.update(ontoReviewJobs).set({ runId }).where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId)));
-    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId);
+    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId, dispatchStartedAt);
     const failed = review.state === "failed";
     // A retry gets a new run to name; the failed one stays in the run log.
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
       ...(failed ? { runId: crypto.randomUUID() } : {}), nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
       .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`)).returning();
-    if (!settled.length) return null;
+    if (!settled.length) throw new Response("Review lease expired before settlement", { status: 409 });
     // A finished review of a batch that is (by now) submitted approves what it found clean.
     if (review.state !== "complete") return review;
     const decision = await approveAfterReview(db, who, job.batchId, job.id, review);
@@ -427,16 +440,24 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
   return review;
 }
 
-/** Process a bounded number of due jobs using a member-authorized interactive host. */
-export async function processDueReviewJobs(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, limit = 10) {
+/** A stale job must not use an occurrence reserved for a live batch. */
+export async function processScheduledReview(db: Database, who: AppIdentity, host: WorkflowHost<"schedule">, runId: string) {
   const now = Date.now();
-  // A worker may die during its final lease; make that terminal on recovery.
   await failExpiredReviewJobs(db, now);
-  const jobs = await db.select().from(ontoReviewJobs).where(and(sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
-    or(and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
-      and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now))))).limit(Math.min(limit, 10));
-  for (const job of jobs) await processReviewJob(db, who, host, job.id).catch(() => null);
-  return jobs.length;
+  // Joining the batch pointer excludes every detached job, regardless of queue depth.
+  // If a candidate is superseded or claimed concurrently, select the next current one.
+  while (Date.now() - now < 5000) {
+    const [job] = await db.select({ id: ontoReviewJobs.id }).from(ontoReviewJobs)
+      .innerJoin(graphBatches, eq(graphBatches.reviewJobId, ontoReviewJobs.id))
+      .where(and(sql`${ontoReviewJobs.attempts} < ${maxAttempts}`, or(
+        and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
+        and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now)))))
+      .orderBy(ontoReviewJobs.nextAttemptAt, ontoReviewJobs.createdAt, ontoReviewJobs.id).limit(1);
+    if (!job) return null;
+    const review = await processReviewJob(db, who, host, job.id, runId, now);
+    if (review) return review;
+  }
+  return null;
 }
 
 /** Queue a review of an open member batch's current draft. Each distinct draft is reviewed
@@ -457,20 +478,4 @@ export async function queueDraftReview(db: Database, batchId: string) {
     db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
   ]);
   return id;
-}
-
-type RequestLocals = { cfContext?: { waitUntil?: (work: Promise<unknown>) => void } };
-/** After staging: review the draft while the agent can still change it. Best effort, like submit's. */
-export function reviewDraftInBackground(locals: unknown, db: Database, who: AppIdentity, batchId: string) {
-  const work = queueDraftReview(db, batchId).then((jobId) => jobId ? processReviewJob(db, who, workflowHost<"interactive">(locals as never), jobId) : null).catch(() => null);
-  (locals as RequestLocals).cfContext?.waitUntil?.(work);
-}
-
-/** Best effort immediate wake-up; the job itself is already durable. */
-export function reviewInBackground(locals: unknown, db: Database, who: AppIdentity, batchId: string) {
-  const work = (async () => {
-    const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
-    if (batch?.reviewJobId) await processReviewJob(db, who, workflowHost<"interactive">(locals as never), batch.reviewJobId);
-  })().catch(() => null);
-  (locals as RequestLocals).cfContext?.waitUntil?.(work);
 }

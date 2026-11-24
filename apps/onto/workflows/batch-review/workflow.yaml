@@ -14,10 +14,11 @@ steps:
   # and the records they touch, and saves the findings on the batch with this
   # run's ID. This run is the review's audit trail; a re-review is a new run.
   - id: review
-    inference: {maxOutputTokens: 4000, timeoutMs: 60000}
+    inference: {maxOutputTokens: 4000, timeoutMs: 300000}
     inputs:
       batchId:
-        schema: {type: string, format: uuid, description: The reviewed change batch}
+        schema: {anyOf: [{type: string, format: uuid}, {type: "null"}], description: The batch selected when the review starts}
+        default: null
     outputs:
       findings:
         connector: database

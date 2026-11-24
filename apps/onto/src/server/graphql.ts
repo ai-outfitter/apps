@@ -36,10 +36,8 @@ import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchR
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
   /** The workflow host, for live reads an exploration opens (pull requests); absent where there is none. */
   host?: () => PullRequestHost;
-  /** Starts the ontology steward's review of a submitted batch in the background (graph.mutate only). */
-  afterSubmit?: (batchId: string) => void;
-  /** Starts the steward's review of an open batch's current draft in the background (graph.mutate only). */
-  afterStage?: (batchId: string) => void };
+  /** Persist the member's draft review before returning a receipt. */
+  afterStage?: (batchId: string) => Promise<unknown> };
 type MutationContext = ChangeContext & ActionContext;
 
 const nonNull = <T extends GraphQLNullableType>(type: T) => new GraphQLNonNull(type);
@@ -275,7 +273,6 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.",
       run: async (context: MutationContext, input) => {
         const revised = await reviseBatch(context.db(), context.identity, context.actor, context.originActor, input);
-        if (revised.batch.state === "awaiting_review") context.afterSubmit?.(input.batchId);
         return view(revised);
       },
     }),
@@ -317,7 +314,8 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
         const batchId = input.batchId ?? (await openBatch(db, context.identity, context.actor, { title: input.title ?? "", purpose: input.purpose ?? "", ...(input.source ? { source: input.source } : {}), ...(input.anchors ? { anchors: input.anchors } : {}), policy: { kind: "member" } })).batch.id;
         if (input.batchId && input.anchors) await configureBatch(db, context.identity, context.actor, { batchId, anchors: input.anchors });
         await addToBatch(db, context.identity, context.actor, { batchId, proposals: input.proposals, replace: input.replace });
-        context.afterStage?.(batchId);
+        // The draft was saved. Submission separately guarantees a durable review.
+        await context.afterStage?.(batchId).catch(() => console.warn("Could not queue draft review", batchId));
         return view(await getBatch(db, context.identity, { batchId }));
       },
     }),
@@ -339,7 +337,6 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       run: async (context: MutationContext, input) => {
         const db = context.db();
         await submitBatch(db, context.identity, context.actor, input);
-        context.afterSubmit?.(input.batchId);
         return view(await getBatch(db, context.identity, { batchId: input.batchId }));
       },
     }),

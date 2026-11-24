@@ -66,11 +66,16 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
     app.call(`/api/apps/onto/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
   /** The batch once its background review has been saved. */
   const waitFor = async (batchId: string, done: (read: Json) => boolean, failure: string) => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const read = await json(await action("batch.get", { batchId }));
-      if (done(read)) return read;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    const current = await json(await action("batch.get", { batchId }));
+    if (done(current)) return current;
+    await json(await app.call("/api/internal/workflow-host/v1", owner, {
+      method: "POST",
+      body: { phase: "schedule", input: { runId: crypto.randomUUID(), scheduledFor: Date.now(),
+        schedule: { id: "queue", workflowId: "batch-review", inputs: {}, connectionId: null, resource: null } } },
+      workflowHost: { ...scope, phase: "schedule", scheduleId: "queue" },
+    }));
+    const reviewed = await json(await action("batch.get", { batchId }));
+    if (done(reviewed)) return reviewed;
     throw new Error(failure);
   };
   const reviewed = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review, "The review was not saved");
@@ -104,6 +109,7 @@ test("a batch adding an external Project gets an error finding, and nothing that
   assert.equal(submitted.batch.state, "awaiting_review");
   // Submitting does not wait for the review; it is saved in the background.
   assert.equal(submitted.batch.review, null);
+  assert.equal(f.calls.length, 0);
 
   const { review } = (await f.reviewed(batchId)).batch;
   assert.equal(review.state, "complete", review.error ?? undefined);

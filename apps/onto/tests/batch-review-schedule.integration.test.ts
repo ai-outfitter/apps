@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { missingRunInputs } from "@ai-outfitter/workflow-core/engine";
+import { readWorkflowFile } from "@ai-outfitter/workflow-core/files";
+import { Workflow } from "@ai-outfitter/workflow-core/schema";
 import { createHash } from "node:crypto";
 import { identityHeaderValues } from "@ai-outfitter/app-sdk/server";
 import {
@@ -8,6 +12,12 @@ import {
 } from "@ai-outfitter/app-sdk/workflow-host";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "./fixtures/initialized-worker";
+
+test("the six-hour queue schedule can be saved without a batch ID", () => {
+  const definition = Workflow.parse(readWorkflowFile(fileURLToPath(new URL("../workflows/batch-review/workflow.yaml", import.meta.url))));
+  assert.deepEqual(missingRunInputs(definition, {}), []);
+  assert.equal(definition.steps[0].inference?.timeoutMs, 300_000);
+});
 
 test("review schedule requires editor identity and uses its reserved run", async (t) => {
   const calls: { operation: string; input: Record<string, unknown> }[] = [];
@@ -67,6 +77,9 @@ test("review schedule requires editor identity and uses its reserved run", async
     )
     .bind(job, batch, digest, "pending", 1, 1)
     .run();
+  await worker.database.prepare(
+    "INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt) VALUES(?,?,?,?,?,?)",
+  ).bind(crypto.randomUUID(), batch, digest, "pending", 0, 0).run();
   const runId = "b10351d9-3485-4b63-9fe9-1ce2b5c37f87";
   const body = {
     phase: "schedule",
@@ -123,4 +136,5 @@ test("review schedule requires editor identity and uses its reserved run", async
   const start = calls.find((c) => c.operation === "workflow.start");
   assert.equal(start?.input.workflow, "batch-review");
   assert.equal(start?.input.id, runId);
+  assert.deepEqual(start?.input.inputs, { "review.inputs.batchId": batch });
 });
