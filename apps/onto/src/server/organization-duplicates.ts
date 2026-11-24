@@ -62,6 +62,7 @@ export function organizationDuplicates(graph: Graph, rows: Proposal[]): Duplicat
       if (name && names.includes(name)) match = "matching normalized organization name";
       for (const domain of proposedHosts) if (hosts.has(domain)) match = "matching organization domain " + domain;
       for (const domain of accounts) {
+        if (match) break;
         // The mailbox scopes the source. Only use it when the proposal itself names that
         // domain. An outside vendor mentioned by the mailbox is not the mailbox owner.
         const labels = domain.split(".");
@@ -78,7 +79,7 @@ export function organizationDuplicates(graph: Graph, rows: Proposal[]): Duplicat
     findings.push({
       ref: row.ref, rule: "node.duplicate", severity: "warning",
       organizationCandidates: candidates.slice(0, 5),
-      message: ambiguous ? `Found ${candidates.length} possible existing Organizations. A member must disambiguate before creating another.`
+      message: ambiguous ? `Found ${candidates.length} possible existing Organizations${candidates.length > 5 ? " (showing five)" : ""}. A member must disambiguate before creating another.`
         : `Possible existing Organization "${first.title}" (${first.id}): ${first.match}.`,
       fix: ambiguous ? "Compare the existing candidate IDs and confirm the intended Organization before revising dependent proposals."
         : `Confirm the match, then withdraw the duplicate create and point supported references to existing Organization ${first.id}. A mailbox alone does not establish employment.`,

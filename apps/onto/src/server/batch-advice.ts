@@ -21,10 +21,12 @@ export const finding = z.strictObject({
   severity: z.enum(["error", "warning", "note"]),
   message: z.string().min(1).max(1000),
   fix: z.string().max(1000).nullable(),
-  organizationCandidates: z.array(z.object({ id: z.uuid(), title: z.string(), slug: z.string().optional(), match: z.string() })).max(5).optional(),
   stage: stageFix.optional(),
 });
-export type Finding = z.infer<typeof finding>;
+export type Finding = z.infer<typeof finding> & {
+  /** Resolved by Onto against saved nodes in this Wiki. */
+  organizationCandidates?: { id: string; title: string; slug?: string; match: string }[];
+};
 
 export type AdviceRow = {
   ref: string;
