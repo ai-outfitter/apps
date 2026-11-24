@@ -18,6 +18,7 @@ import {
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
+import { isOrganizationCreate, organizationDuplicates } from "./organization-duplicates";
 import { personalRoot } from "./owner-root";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
@@ -440,10 +441,10 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run")
-    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"), graph);
   else if (policy.kind === "confidence") {
     const confident = new Set(waiting.filter((row) => (row.confidence ?? 0) >= policy.threshold).map((row) => row.ref));
-    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
+    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"), graph);
   }
   await settle(db, batch.id);
   // A draft review that carried over and has finished (read after the submit, so one that
@@ -459,7 +460,17 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
 }
 
 /** A policy subset that fails validation commits nothing and waits for a member. */
-async function commitByPolicy(db: Database, who: AppIdentity, batch: BatchRow, rows: OperationRow[], refs: Set<string>, approval: (row: OperationRow) => Approval) {
+async function commitByPolicy(db: Database, who: AppIdentity, batch: BatchRow, rows: OperationRow[], refs: Set<string>, approval: (row: OperationRow) => Approval, graph?: Awaited<ReturnType<typeof readGraph>>) {
+  if (!refs.size) return 0;
+  const creating = rows.filter(row => refs.has(row.ref) && isOrganizationCreate(row));
+  if (creating.length) {
+    const duplicates = organizationDuplicates(graph ?? await readGraph(db, who), creating);
+    if (duplicates.length) {
+      for (const duplicate of duplicates) refs.delete(duplicate.ref);
+      closeSelection(rows, refs);
+      if (graph) anchoredSelection(graph, rows, refs, batch.anchors);
+    }
+  }
   if (!refs.size) return 0;
   try {
     return await commitOperations(db, who, batch, rows, refs, approval);
@@ -634,7 +645,7 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
   const at = Date.now();
   const approval = (): Approval => ({ kind: "steward", runId: review.runId, prompt: review.prompt.digest, reason: "clean review", at });
-  await commitByPolicy(db, who, batch, rows, chosen, approval);
+  await commitByPolicy(db, who, batch, rows, chosen, approval, graph);
   await settle(db, batch.id);
   // Report what actually happened: a part that no longer applied, or that a member decided
   // meanwhile, is not counted as the steward's.

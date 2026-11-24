@@ -15,6 +15,7 @@ import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
 import { readGraph } from "./graph";
 import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
+import { organizationDuplicates } from "./organization-duplicates";
 import { wikiHome } from "./wiki-home";
 
 export const reviewWorkflow = "batch-review";
@@ -186,6 +187,7 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
   const touches = (row: Row) => [row.operation.id, row.operation.attributes.id, row.operation.attributes.fromId, row.operation.attributes.toId]
     .filter((value): value is string => typeof value === "string" && nodes.has(value));
   const shortCheck = (item: Finding) => ({ ref: item.ref, ...(item.refs ? { refs: item.refs.slice(0, 20), moreRefs: Math.max(0, item.refs.length - 20) } : {}),
+    ...(item.organizationCandidates ? { organizationCandidates: item.organizationCandidates } : {}),
     rule: item.rule, severity: item.severity, message: cut(item.message, 300), fix: cut(item.fix, 300), staged: item.stage ? item.stage.proposals.length : undefined });
   // Every type by ID, unless that alone would crowd out the operations: then the ones the batch names.
   const named = new Set(rows.flatMap((row) => [row.operation.attributes.typeId, row.operation.id].map(String)));
@@ -254,7 +256,7 @@ export function batchChecks(graph: Graph, who: AppIdentity, rows: Row[], batchId
   const partOf = (id: string) => edges.filter((edge) => edge.type === "part_of" && edge.fromId === id).map((edge) => edge.toId);
   // The owner and its business units: what a Project may be part_of.
   const ownerScope = new Set(owner ? [owner.id, ...edges.filter((edge) => edge.type === "part_of" && edge.toId === owner.id).map((edge) => edge.fromId)] : []);
-  const findings: Finding[] = [];
+  const findings = organizationDuplicates(graph, live);
   for (const row of live.filter((item) => item.operation.type === "graph-node" && item.operation.operation === "create")) {
     const id = idOf(row), typeName = typeNames.get(String(row.operation.attributes.typeId));
     const title = String(row.operation.attributes.title ?? row.ref);
@@ -327,7 +329,7 @@ async function pooled<T, R>(items: T[], limit: number, latestStart: number, work
 
 const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
   live(await loadOperations(db, batchId))
-    .map((row) => ({ ref: row.ref, operation: row.operation as unknown as Op, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: row.state }));
+    .map((row) => ({ ref: row.ref, recordId: row.recordId, operation: row.operation as unknown as Op, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: row.state }));
 
 /** Review a batch, open or submitted, and save the findings on it. Never throws: a review
  * that cannot run is recorded as failed, and the batch is unaffected either way.

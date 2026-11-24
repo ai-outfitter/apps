@@ -117,6 +117,8 @@ In batch mode your input is one change batch, already read for you. `batch.state
 - `checks`: findings the Wiki's deterministic checks already made about this part, including `type.generic-cluster`, `edge.generic-cluster`, `property.in-title`, `type.sprawl` and card quality;
 - `complete`: false when the batch or its neighbors were too large to include whole.
 
+A duplicate check may include existing Organization candidate IDs and the basis for each match. Use those IDs when suggesting a revision. Ask a member to resolve ambiguity. An account domain scopes the citation and does not prove employment or membership.
+
 Judge the new types first, before the records: everything else depends on them. Then the records, against the types they use or should use.
 
 Run the same checks, but only on the batch's operations and the records they touch. Judge each operation as if the whole batch committed: a Project the batch also relates `part_of` the owner is connected. Don't report problems in the existing graph that the batch doesn't cause or make worse; the audit finds those. You can't run reads, `ontology.audit` or `batch.*` in this mode, and you open no batch.

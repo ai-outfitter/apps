@@ -455,3 +455,33 @@ test("an admin can keep every decision with members: the steward then only revie
   const page = await json(await f.app.call("/api/apps/onto/settings", owner, {}));
   assert.equal(page.stewardApproval, "review");
 });
+
+test("scoped Calendar evidence holds the duplicate and its dependent even before the model reviews it", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "organization-profile", operations: [
+    { operation: "update", ref: "$profile", type: "graph-node", id: uuid(1), revision: 1,
+      attributes: { website: "https://outfitter.ncrmro.com/o/artera" } },
+  ] }));
+  const { batch } = await json(await f.action("batch.open", { title: "Calendar discovery", policy: {kind:"confidence", threshold:0.95, version:"test"}, anchors:[] }, forerunner));
+  const evidence = [{provider:"google-calendar",recordId:"ncrmro@artera.space/event-id"}];
+  await json(await f.action("batch.add", {batchId:batch.id, proposals:[
+    {operation:node("$candidate",84,core.organization,"Artera Space"),evidence,confidence:0.99},
+    {operation:edge("$relationship",85,partOf,"$candidate",uuid(1)),evidence,confidence:0.99},
+    {operation:node("$unrelated",86,core.document,"Independent note"),evidence,confidence:0.99},
+  ]},forerunner));
+  const submitted = await json(await f.action("batch.submit", {batchId:batch.id},forerunner));
+  assert.deepEqual(submitted.operations.map((op:Json)=>op.state),["awaiting_review","awaiting_review","committed"]);
+  await f.reviewed(batch.id);
+  const {batch:saved} = await json(await f.action("batch.get",{batchId:batch.id}));
+  const duplicate = saved.review.findings.find((i:Json)=>i.rule==="node.duplicate");
+  assert.equal(duplicate.ref,"$candidate");
+  assert.deepEqual(duplicate.organizationCandidates,[{id:uuid(1),title:"Artera",slug:"artera",match:"organization name corroborated by scoped account domain artera.space"}]);
+  assert.ok(duplicate.fix.includes(uuid(1)));
+  const input=f.calls.find(c=>c.operation==="inference.generate")!.input;
+  assert.deepEqual(input.data.checks.find((c:Json)=>c.rule==="node.duplicate").organizationCandidates,duplicate.organizationCandidates);
+  assert.equal(saved.review.decision.approved,0);
+  const graph=await json(await f.action("graph.read",{}));
+  assert.equal(graph.nodes.some((n:Json)=>n.id===uuid(84)),false);
+  assert.equal(graph.edges.some((e:Json)=>e.id===uuid(85)),false);
+});
