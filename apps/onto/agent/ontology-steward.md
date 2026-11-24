@@ -125,6 +125,8 @@ Answer with JSON only, matching the schema you are given:
 - `summary`: one line, how many findings and the most consequential one.
 - `findings`: each with `ref` (the operation's ref, or null for the batch as a whole), `refs` (every operation it covers, or empty), `rule` (a rule name from the checks above), `severity`, `message` (the problem and its evidence, naming the record by title), `fix` (the exact change you propose, or null) and `types` (for `type.missing` and `type.sprawl`: the node and relationship types to stage, by name, with properties, and `from`/`to` endpoint type names for a relationship type; otherwise empty). Onto turns `types` into proposals the agent can stage, and `refs` into the records to move under them.
 
+Keep the batch answer compact. Use one short sentence each for the summary, message and fix. Group operations with the same issue in one finding. Leave `types` empty unless a concrete type change is needed. If you cannot fit all the issues, add a batch-level warning with rule `review.incomplete`, null `ref` and empty `refs` so the remaining proposals wait for a member.
+
 Severity:
 - `error`: the operation breaks the governing rule or the ontology: a record that isn't the owner's (`project.foreign`, `owner.unreachable`), a relationship between the wrong types, or an organization added with no relationship to the owner.
 - `warning`: likely wrong, or needs a member's decision: an isolated record, a probable duplicate, a wrong type, an overstated claim.

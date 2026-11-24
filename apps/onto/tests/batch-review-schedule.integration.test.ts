@@ -16,7 +16,7 @@ import { appWorker } from "./fixtures/initialized-worker";
 test("the six-hour queue schedule can be saved without a batch ID", () => {
   const definition = Workflow.parse(readWorkflowFile(fileURLToPath(new URL("../workflows/batch-review/workflow.yaml", import.meta.url))));
   assert.deepEqual(missingRunInputs(definition, {}), []);
-  assert.equal(definition.steps[0].inference?.timeoutMs, 300_000);
+  assert.deepEqual(definition.steps[0].inference, { maxOutputTokens: 4000, timeoutMs: 300_000, reasoningEffort: "none" });
 });
 
 test("review schedule requires editor identity and uses its reserved run", async (t) => {
