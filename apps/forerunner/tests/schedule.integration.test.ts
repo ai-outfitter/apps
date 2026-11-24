@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {parse,print} from "graphql";
+import {readFileSync} from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -47,7 +49,9 @@ function fakeHost(confidence: number, opened: { batchState: string; firstRunTake
     "session.append": () => ({}),
     "inference.generate": () => ({ output: semantic(confidence) }),
     "entities.types": (input) => input.template === "wiki-map" ? [] : ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "personal-onto", writable: true })),
-    "connector.execute": (input) => input.operation === "messages.list"
+    "connector.execute": (input) => input.operation === "events.list"
+      ? {items:[{id:"event-1",summary:"Meet Bob",start:{date:"2026-11-02"}}]}
+      : input.operation === "messages.list"
       ? { messages: [{ id: "m1" }] }
       : { id: "m1", subject: "Draft", snippet: "Bob: here is the draft.", from: "Bob <bob@example.test>", date: "2026-11-02" },
     "actions.call": (input) => wikiAction(input, opened),
@@ -73,11 +77,13 @@ const occurrence = (runId: string) => ({
   schedule: { id: "50000000-0000-4000-8000-000000000001", workflowId: "forerunner-discovery", inputs: { "analyze.inputs.provider": "gmail", "analyze.inputs.label": "Alice" }, connectionId: connection.id, resource: connection.resource },
 });
 
-test("the scheduled run reads only its connection and leaves an unsure finding for review until end of day", async (t) => {
+for (const provider of ["gmail","google-calendar"]) test(`scheduled ${provider} stages and submits an unsure finding to personal Onto`, async (t) => {
   const { client, db } = await database();
   t.after(() => client.close());
   const { host, calls } = fakeHost(0.7, { batchState: "open", firstRunTaken: true });
-  const result = await scheduledDiscovery(db, who, occurrence("90000000-0000-4000-8000-000000000001"), host);
+  const input=occurrence("90000000-0000-4000-8000-000000000001");
+  input.schedule.inputs["analyze.inputs.provider"]=provider;
+  const result = await scheduledDiscovery(db, who, input, host);
   assert.deepEqual(result, { outcome: "started" });
   // The reserved run id starts the workflow run.
   assert.equal(calls.find((c) => c.name === "workflow.start")?.input.id, "90000000-0000-4000-8000-000000000001");
@@ -90,11 +96,17 @@ test("the scheduled run reads only its connection and leaves an unsure finding f
     { kind: "confidence", threshold: 0.95, version: "forerunner-discovery-2026-11", reviewWindow: { until: "end-of-day", timezone: "Europe/London" } },
   ]);
   const staged = actions.find((a) => a.action === "graph.mutate" && (a.input as { operationName: string }).operationName === "StageChanges");
+  // The platform compares the complete normalized mutation against the installed catalog.
+  const catalog=JSON.parse(readFileSync(new URL("../../onto/graph/documents.json",import.meta.url),"utf8")) as {name:string;query:string}[];
+  for(const call of actions.filter(a=>a.action==="graph.mutate")){
+    const {operationName,query}=call.input as {operationName:string;query:string};
+    assert.equal(print(parse(query)),catalog.find(doc=>doc.name===operationName)?.query);
+  }
   assert.ok(staged);
   assert.equal(staged.installationId,"personal-onto");
   const added = (staged.input as { variables: { input: { proposals: { confidence: number; evidence: { provider: string; recordId: string }[] }[] } } }).variables.input;
   assert.equal(added.proposals[0].confidence, 0.7);
-  assert.equal(added.proposals[0].evidence[0].provider, "gmail");
+  assert.equal(added.proposals[0].evidence[0].provider, provider);
   const preview = await getPreview(db, who);
   assert.equal(preview?.batch?.policy, "confidence");
   assert.deepEqual(preview?.receipt, { batchId: "b0000000-0000-4000-8000-000000000001", state: "awaiting_review", reviewBy: 1_800_000_000_000, counts: { awaiting_review: 1 }, waiting: [String(preview?.operations[0].attributes.id)] });

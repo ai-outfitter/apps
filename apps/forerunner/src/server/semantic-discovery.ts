@@ -102,10 +102,11 @@ export async function semanticProposal(host: WorkflowHost<"interactive">, graph:
       await checkpoint(`analysis.batch.${index}`,"analysis",{batch:index,data,schema});
       const response = await host.call("inference.generate", { runId: run.id, step: "analyze", checkpointId:`analysis.batch.${index}`, instructions, data, schema });
       const answer = analysis.parse(response.output);
-      // Validate before filters can hide duplicate keys or unsupported citations.
-      validateAnalysis({ ...answer, relationships: [] }, batchRefs, candidates, ontology);
+
       const prefix = batches.length === 1 ? "" : `b${index}_`;
       appendAnalysis(rawOutput, answer, prefix);
+      validateEntities(answer.entities, batchRefs, candidates);
+      warnings.push(...resolveRepeatedKeys(answer));
       warnings.push(...retainNamedEntities(answer, batchRefs), ...retainValidRelationships(answer, batchRefs, candidates, ontology));
       validateIdentityTypes(answer,candidates,types);
       // Model-local keys may repeat. Keep separate anchors separate; only explicit Wiki IDs resolve together.
@@ -233,13 +234,33 @@ function observedAt(date: string | undefined): { observedAt?: string } {
   return Number.isFinite(time) ? { observedAt: new Date(time).toISOString() } : {};
 }
 
+// Keys are local to a single model answer. Never guess which entity an ambiguous edge names.
+function resolveRepeatedKeys(answer: Analysis): string[] {
+  const unique = new Map<string, Analysis["entities"][number]>();
+  const ambiguous = new Set<string>();
+  for (const entity of answer.entities) {
+    const previous = unique.get(entity.key);
+    if (!previous) unique.set(entity.key, entity);
+    else if (JSON.stringify(previous) !== JSON.stringify(entity)) ambiguous.add(entity.key);
+  }
+  answer.entities = [...unique.values()].filter(entity => !ambiguous.has(entity.key));
+  answer.relationships = answer.relationships.filter(edge => !ambiguous.has(edge.from) && !ambiguous.has(edge.to));
+  return ambiguous.size ? ["Omitted entities with conflicting model keys and their relationships."] : [];
+}
+
+function validateEntities(entities: Analysis["entities"], refs: Map<string, unknown>, candidates: Graph["nodes"]) {
+  for (const entity of entities) {
+    if (entity.evidence.some(ref => !refs.has(ref))) throw new Error("Model returned unsupported evidence; retry preview.");
+    if (entity.existingId && !candidates.some(n => n.ref.id === entity.existingId)) throw new Error("Model returned an unknown identity match; retry preview.");
+  }
+}
+
 export function validateAnalysis(output: Analysis, refs: Map<string, unknown>, candidates: Graph["nodes"], ontology: DiscoveryOntology) {
   const keys = new Set(output.entities.map(e => e.key));
   if (keys.size !== output.entities.length) throw new Error("Model returned duplicate entity keys; retry preview.");
-  for (const row of [...output.entities, ...output.relationships])
+  validateEntities(output.entities, refs, candidates);
+  for (const row of output.relationships)
     if (row.evidence.some(ref => !refs.has(ref))) throw new Error("Model returned unsupported evidence; retry preview.");
-  for (const entity of output.entities)
-    if (entity.existingId && !candidates.some(n => n.ref.id === entity.existingId)) throw new Error("Model returned an unknown identity match; retry preview.");
   for (const relation of output.relationships) {
     if (!keys.has(relation.from) || !keys.has(relation.to) || relation.from === relation.to) throw new Error("Model returned invalid relationship endpoints; retry preview.");
     const definition = ontology.relationships.find(t => t.name === relation.type);
