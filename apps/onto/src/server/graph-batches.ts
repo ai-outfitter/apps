@@ -18,6 +18,7 @@ import {
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedGraphBatch } from "./graph-batch";
+import { isOrganizationCreate, organizationDuplicates } from "./organization-duplicates";
 import { personalRoot } from "./owner-root";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
@@ -439,11 +440,11 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   ]);
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
-  if (policy.kind === "first-run")
-    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, new Set(waiting.map((row) => row.ref)), batch.anchors), policyApproval(policy, "first-run"));
-  else if (policy.kind === "confidence") {
-    const confident = new Set(waiting.filter((row) => (row.confidence ?? 0) >= policy.threshold).map((row) => row.ref));
-    await commitByPolicy(db, who, submitted, waiting, anchoredSelection(graph, waiting, closeSelection(waiting, confident), batch.anchors), policyApproval(policy, "confidence"));
+  if (policy.kind === "first-run" || policy.kind === "confidence") {
+    const eligible = new Set(waiting.filter(row => policy.kind === "first-run" || (row.confidence ?? 0) >= policy.threshold).map(row => row.ref));
+    for (const duplicate of organizationDuplicates(graph, waiting)) eligible.delete(duplicate.ref);
+    const chosen = anchoredSelection(graph, waiting, closeSelection(waiting, eligible), batch.anchors);
+    await commitByPolicy(db, who, submitted, waiting, chosen, policyApproval(policy, policy.kind));
   }
   await settle(db, batch.id);
   // A draft review that carried over and has finished (read after the submit, so one that
@@ -626,9 +627,11 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
     if (!question.refs.length) holdAll(`question ${question.key}`);
     for (const ref of question.refs) hold(ref, `question ${question.key}`);
   }
+  // Check current candidates as well: another batch may have added an Organization during inference.
+  const graph = await readGraph(db, who);
+  for (const duplicate of organizationDuplicates(graph, waiting)) hold(duplicate.ref, duplicate.message);
   const flagged = new Set(waiting.filter((row) => reasons.has(row.ref)).map((row) => row.ref));
   for (const ref of withDependents(rows, waiting, flagged)) hold(ref, "depends on a held proposal");
-  const graph = await readGraph(db, who);
   const clean = new Set(waiting.filter((row) => !reasons.has(row.ref)).map((row) => row.ref));
   const chosen = anchoredSelection(graph, rows, closeSelection(rows, clean), batch.anchors);
   for (const row of waiting) if (!chosen.has(row.ref)) hold(row.ref, "does not connect to an anchor without a held proposal");
@@ -699,7 +702,11 @@ export async function sealDueBatches(db: Database, who: AppIdentity, now = Date.
     const policy = batchPolicy.parse(batch.policy);
     const rows = live(await loadOperations(db, batch.id));
     const waiting = rows.filter((row) => row.state === "awaiting_review");
-    const chosen = closeSelection(rows, new Set(waiting.map((row) => row.ref)));
+    const eligible = new Set(waiting.map(row => row.ref));
+    if (waiting.some(isOrganizationCreate)) {
+      for (const duplicate of organizationDuplicates(await readGraph(db, who), waiting)) eligible.delete(duplicate.ref);
+    }
+    const chosen = closeSelection(rows, eligible);
     const committed = await commitByPolicy(db, who, batch, rows, chosen, policyApproval(policy, "review-window"));
     sealed += committed;
     // A failed seal (a concurrent edit, or a subset that no longer validates)
