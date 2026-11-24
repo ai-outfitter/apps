@@ -180,7 +180,7 @@ test("direct graph.apply writes record history without a batch", async (t) => {
 
 // The documents agents run: graph_mutate sends them to graph.mutate, graph_query to graph.graphql.
 const run = (f: Awaited<ReturnType<typeof fixture>>, name: keyof typeof documents, variables: object, identity: object = agent) =>
-  f.action(name === "ChangeBatch" ? "graph.graphql" : "graph.mutate", { query: typeof documents[name].document === "string" ? documents[name].document : print(documents[name].document), operationName: name, variables }, identity).then(json);
+  f.action(["ChangeBatch","BatchSubmission"].includes(name) ? "graph.graphql" : "graph.mutate", { query: typeof documents[name].document === "string" ? documents[name].document : print(documents[name].document), operationName: name, variables }, identity).then(json);
 
 test("an agent stages, takes back and submits changes with documents; a member commits them", async (t) => {
   const f = await fixture();
@@ -398,7 +398,7 @@ test("a member's own agent connection reviews a batch with the member's identity
   assert.equal(await f.exists(uuid(121)), true);
   // The decision names the member and the connection it came through.
   const { operations } = await json(await f.action("batch.get", { batchId: id }));
-  assert.deepEqual({ ...operations[0].decision, at: 0 }, { kind: "member", by: "owner", via: "oauth-client:claude-desktop", viaLabel: "Claude", verdict: "approve", comment: "Looks right", at: 0 });
+  assert.deepEqual({ ...operations[0].decision, at: 0 }, { kind: "member", by: "owner", via: "oauth-client:claude-desktop", viaLabel: "Claude", submittedVersion: 1, verdict: "approve", comment: "Looks right", at: 0 });
 });
 
 test("agents repair one draft by ref and get anchor and ontology validation in mutation results", async t => {
@@ -463,10 +463,17 @@ test("member amendments replace and add proposals without committing; invalid or
   assert.equal(after.operations[0].operation.attributes.title, "Ada revised");
   assert.equal(after.operations[0].position, before.operations[0].position);
   assert.equal(await f.exists(uuid(201)), false); assert.equal(await f.exists(uuid(204)), false);
+  assert.equal(revised.data.reviseBatch.submittedVersion, 2);
+  const version = async (n: number) => (await run(f, "BatchSubmission", { id: batchId, version: n })).data.changeBatch.submission;
+  assert.equal((await version(1)).proposals[0].operation.attributes.title, "Ada");
+  assert.equal((await version(2)).proposals[0].evidence[0].recordId, "revised-source");
+  const stale = await run(f, "ReviseBatch", { input: { ...amendment, expectedVersion: 1 } }, connection);
+  assert.equal(stale.errors[0].extensions.status, 409);
+  assert.equal((await f.review({batchId, expectedVersion: 1, verdict: "approve"})).status, 409);
   const invalid = await run(f, "ReviseBatch", { input: { batchId, remove: ["$bea"] } }, connection);
   assert.equal(invalid.errors[0].extensions.status, 409);
   assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 4);
-  for (const identity of [agent, { ...connection, role: "member" }, { ...owner, entityWriter: { installationId: "delegator" } }]) {
+  for (const identity of [{ ...connection, role: "member" }]) {
     const denied = await f.action("graph.mutate", { query: documents.ReviseBatch.document, operationName: "ReviseBatch", variables: { input: amendment } }, identity);
     if (denied.status === 200) assert.equal((await denied.json() as any).errors[0].extensions.status, 403);
     else assert.equal(denied.status, 403);
@@ -474,7 +481,7 @@ test("member amendments replace and add proposals without committing; invalid or
   await json(await f.review({ batchId, refs: ["$ada"], verdict: "approve" }));
   const decided = await run(f, "ReviseBatch", { input: amendment }, connection);
   assert.equal(decided.errors[0].extensions.status, 409);
-  const amended = await run(f, "ChangeBatchChanges", { input: { items: [{ key: uuid(205), action: "amend", input: { batchId, remove: ["$friends"] } }] } }, connection);
+  const amended = await run(f, "ChangeBatchChanges", { input: { items: [{ key: uuid(205), action: "amend", input: { batchId, expectedVersion: 2, remove: ["$friends"] } }] } }, agent);
   assert.equal(amended.errors, undefined);
   assert.equal(amended.data.changeBatchChanges.items[0].result.state, "awaiting_review");
   assert.equal(await f.exists(uuid(204)), false);
@@ -597,4 +604,50 @@ test("one Ontology read names every type, each relationship's ends, and how to s
   // A projection is derived, so it is not offered for writing.
   assert.equal(ontology.relationshipTypes.some((type: { name: string }) => type.name === "test_spouse_of"), false);
   assert.match(ontology.staging, /ChangeBatchChanges/);
+});
+
+test("MCP resubmits edits that reuse a saved person across four independent batches", async t => {
+  const f = await fixture(); t.after(() => f.app.dispose());
+  const canonical = person("$canonical", 700, "Nicholas Romero");
+  await json(await f.action("graph.apply", { requestKey: "canonical", operations: [canonical] }));
+  let duplicates = 0, relationships = 0;
+  for (const [index, count] of [3, 3, 3, 2].entries()) {
+    const people = Array.from({ length: index < 2 ? 2 : 1 }, (_, n) =>
+      person(`$duplicate${n}`, 710 + duplicates++, "Nicholas Romero"));
+    const peers = Array.from({ length: count }, (_, n) => person(`$peer${n}`, 800 + relationships + n, `Peer ${index}-${n}`));
+    const edges = peers.map((peer, n) => ({
+      operation: create(`$edge${n}`, "graph-edge", {
+        id: uuid(900 + relationships++), typeId: ids.friend,
+        fromId: n % 2 ? uuid(710 + duplicates - people.length + n % people.length) : people[n % people.length].ref, toId: peer.ref,
+      }), evidence: cite(`meeting-${index}-${n}`),
+    }));
+    const staged = await run(f, "StageChanges", { input: { title: `Meeting ${index}`, proposals: [
+      ...[...people, ...peers].map(operation => ({ operation })), ...edges,
+    ] } });
+    const batchId = staged.data.stageChanges.id;
+    await run(f, "SubmitBatch", { input: { batchId } });
+    // One peer already has a decision. The relationship is still a proposal.
+    await json(await f.review({ batchId, verdict: "approve", refs: [peers[0].ref] }));
+    const before = await json(await f.action("batch.get", {batchId}));
+    const proposals = edges.map(edge => ({ ...edge, operation: { ...edge.operation,
+      attributes: { ...edge.operation.attributes, fromId: "Person:nicholas-romero" },
+    } }));
+    const input = { items: [{ key: crypto.randomUUID(), action: "amend", input: {
+      batchId, expectedVersion: 1, proposals, remove: people.map(op => op.ref),
+    } }] };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await run(f, "ChangeBatchChanges", {input});
+      assert.equal(response.data.changeBatchChanges.items[0].result?.submittedVersion, 2, JSON.stringify(response));
+    }
+    const after = await json(await f.action("batch.get", {batchId}));
+    assert.deepEqual(after.operations.filter((r: any) => r.state === "committed"), before.operations.filter((r: any) => r.state === "committed"));
+    for (const edge of proposals) {
+      const saved = after.operations.find((r: any) => r.ref === edge.operation.ref);
+      assert.equal(saved.state, "awaiting_review");
+      assert.deepEqual(saved.operation, edge.operation);
+      assert.deepEqual(saved.evidence, edge.evidence);
+    }
+    assert.ok(people.every(op => !after.operations.some((r: any) => r.ref === op.ref)));
+  }
+  assert.deepEqual([duplicates, relationships], [6, 11]);
 });

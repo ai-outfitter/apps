@@ -7,6 +7,7 @@ import type { AppArchive } from "@ai-outfitter/app-sdk/data-transfer";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const digest = "a".repeat(64);
 const fixtures: Record<string, Record<string, string | number | null>> = {
+  graph_batch_submissions: { batchId: "forged-batch", version: 1, at: 1, author: "fake", via: "member:fake", proposals: "[]" },
   onto_review_jobs: {
     id: "forged-review-job",
     batchId: "forged-batch",

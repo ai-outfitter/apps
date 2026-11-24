@@ -19,7 +19,7 @@ export type Review = {
   decision?: { approved: number; held: { ref: string; reason: string }[]; at: number };
 };
 export type Batch = {
-  id: string; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
+  id: string; submittedVersion?: number; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
   policy: { kind: string; threshold?: number }; source: { kind: string; ref: string; label?: string } | null;
   summary: { counts: Record<string, number>; evidence: number; operations: number; text: string | null } | null;
   counts?: Record<string, number>;
@@ -35,8 +35,8 @@ export type BatchItem = { kind: "type" | "node"; id: string; title: string; op: 
 
 export const batchUrl = (id: string) => appUrl(`changes/${encodeURIComponent(id)}`);
 export const getBatch = (id: string) => call<BatchDetail>(`batches/get?id=${encodeURIComponent(id)}`);
-export const review = (batchId: string, verdict: "approve" | "reject", refs?: string[]) =>
-  call<BatchDetail>("batches/review", { batchId, verdict, ...(refs ? { refs } : {}) });
+export const review = (batchId: string, verdict: "approve" | "reject", refs?: string[], expectedVersion?: number) =>
+  call<BatchDetail>("batches/review", { batchId, verdict, expectedVersion, ...(refs ? { refs } : {}) });
 
 export const waiting = (op: BatchOperation) => op.state === "pending" || op.state === "awaiting_review";
 export const label = (op: BatchOperation) => String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref);
@@ -180,7 +180,7 @@ export function verdictLinks(detail: BatchDetail, refs: string[], done: (next: B
     const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? "Approve" : "Reject");
     button.onclick = async () => {
       button.disabled = true;
-      try { done(await review(detail.batch.id, verdict, refs)); }
+      try { done(await review(detail.batch.id, verdict, refs, detail.batch.submittedVersion)); }
       catch (error) { button.disabled = false; button.parentElement?.appendChild(el("p", { role: "alert" }, String(error))); }
     };
     return button;

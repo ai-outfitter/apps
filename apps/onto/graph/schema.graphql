@@ -90,6 +90,16 @@ type ChangeBatch {
   title: String!
   purpose: String!
 
+  """
+  Latest recorded submission; zero for drafts and batches predating version tracking.
+  """
+  submittedVersion: Int!
+
+  """
+  Immutable proposal content and submitter for this version; legacy baseline zero has unknown authorship.
+  """
+  submission(version: Int!): JSON
+
   """open, awaiting_review, committed, rejected or discarded."""
   state: String!
   source: JSON
@@ -326,6 +336,7 @@ type OntoSettings {
 
 input ReviseBatchInput {
   batchId: ID!
+  expectedVersion: Float
   proposals: [ReviseBatchInputProposalsItem!]
   remove: [String!]
 }
@@ -385,6 +396,7 @@ enum SaveSettingsInputStewardApproval {
 }
 
 input ReviewBatchInput {
+  expectedVersion: Float
   batchId: ID!
   refs: [String!]
   verdict: ReviewBatchInputVerdict!
@@ -523,7 +535,7 @@ input SubmitBatchInput {
 
 type Mutation {
   """
-  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.
+  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.
   """
   reviseBatch(input: ReviseBatchInput!): ChangeBatch!
 

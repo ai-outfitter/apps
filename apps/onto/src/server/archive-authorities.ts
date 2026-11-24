@@ -12,5 +12,6 @@ export const archiveImportExclusions = [
   "wiki_map_agent_proposals",
   "wiki_map_proposals",
   "onto_review_jobs",
+  "graph_batch_submissions",
   "onto_settings",
 ] as const;

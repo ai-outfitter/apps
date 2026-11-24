@@ -73,6 +73,7 @@ test("read a proposed document from Changes before approving its saved entity", 
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("link", { name: "Hardware milestone research", exact: true }).click();
       await expect(page).toHaveURL(batchUrl);
+      await expect(page.getByText(/Submitted v1/)).toBeVisible();
       await page.setViewportSize({ width: 1920, height: 1000 });
       const widths = await page.locator("#changes").evaluate(element => {
         const content = element.closest(".ui-content")!;

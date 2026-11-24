@@ -1,7 +1,7 @@
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { ontologyGuide } from "./ontology-guide";
 import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
-import { graphBatches, graphBatchOperations } from "./schema";
+import { graphBatches, graphBatchOperations, batchSubmissions } from "./schema";
 import { connectionType, idList, type PageArgs, page, pageArgs, pageStart } from "@ai-outfitter/app-sdk/app-graphql";
 import { within } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import { instructionType, resultInstructions } from "@ai-outfitter/app-sdk/batch-documents";
@@ -105,6 +105,14 @@ const ChangeBatch = new GraphQLObjectType({
   name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until they commit: by policy, by the ontology steward after its review, or by a member on the Changes page.",
   fields: {
     id: { type: nonNull(GraphQLID) }, title: text, purpose: text,
+    submittedVersion: { type: nonNull(GraphQLInt), description: "Latest recorded submission; zero for drafts and batches predating version tracking." },
+    submission: { type: JSONScalar, args: { version: { type: nonNull(GraphQLInt) } },
+      description: "Immutable proposal content and submitter for this version; legacy baseline zero has unknown authorship.",
+      resolve: async (batch, {version}, context: ChangeContext) => {
+        const [saved] = await context.db().select().from(batchSubmissions)
+          .where(and(eq(batchSubmissions.batchId, batch.id), eq(batchSubmissions.version, version)));
+        return saved ?? null;
+      } },
     state: { ...text, description: "open, awaiting_review, committed, rejected or discarded." },
     source: { type: JSONScalar }, createdAt: { type: nonNull(DateTimeScalar) },
     anchors: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Anchor node addresses; every created node must connect to one.", resolve: async (batch, _args, context: ChangeContext) => {
@@ -270,7 +278,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   fields: {
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
-      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.",
+      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.",
       run: async (context: MutationContext, input) => {
         const revised = await reviseBatch(context.db(), context.identity, context.actor, context.originActor, input);
         return view(revised);

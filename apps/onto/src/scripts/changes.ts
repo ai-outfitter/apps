@@ -95,7 +95,7 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
       const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? `Approve all ${waiting.length}` : "Reject all");
       button.onclick = async () => {
         button.disabled = true;
-        try { draw(await review(detail.batch.id, verdict)); }
+        try { draw(await review(detail.batch.id, verdict, undefined, detail.batch.submittedVersion)); }
         catch (error) { button.disabled = false; button.parentElement?.appendChild(el("p", { role: "alert" }, String(error))); }
       };
       return button;
@@ -215,7 +215,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     fill(root,
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
       el("h2", {}, batch.title),
-      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state} · ${time(batch.createdAt)}`),
+      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state}${batch.submittedVersion ? ` · Submitted v${batch.submittedVersion}` : ""} · ${time(batch.createdAt)}`),
       el("details", { class: "change-description" }, el("summary", {}, "Batch summary"),
         el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
         batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),

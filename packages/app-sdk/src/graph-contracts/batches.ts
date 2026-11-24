@@ -69,6 +69,7 @@ export const batchSubmitInput = z.strictObject({
   summary: z.string().max(2000).optional(),
 });
 export const batchReviewInput = z.strictObject({
+  expectedVersion: z.number().int().nonnegative().optional(),
   batchId: z.uuid(),
   /** Omit refs to decide every operation still waiting. */
   refs: z.array(ref).min(1).max(batchOperationCap).optional(),

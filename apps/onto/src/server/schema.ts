@@ -178,6 +178,7 @@ export const graphBatches = sqliteTable("graph_batches", {
   openedBy: text().notNull(),
   openedVia: text().notNull(),
   reviewBy: integer(),
+  submittedVersion: integer().notNull().default(0),
   commits: integer().notNull().default(0),
   createdAt: integer().notNull(),
   updatedAt: integer().notNull(),
@@ -191,6 +192,15 @@ export const graphBatches = sqliteTable("graph_batches", {
   /** Questions an agent asks a member about this batch, with their answers. */
   questions: text({ mode: "json" }).$type<BatchQuestion[]>(),
 });
+
+export const batchSubmissions = sqliteTable("graph_batch_submissions", {
+  batchId: text().notNull().references(() => graphBatches.id),
+  version: integer().notNull(),
+  at: integer().notNull(),
+  author: text().notNull(),
+  via: text().notNull(),
+  proposals: text({ mode: "json" }).$type<unknown[]>().notNull(),
+}, t => [primaryKey({ columns: [t.batchId, t.version] })]);
 
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
   id: text().primaryKey(),

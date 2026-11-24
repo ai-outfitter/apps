@@ -1,17 +1,9 @@
-# Amend a batch without approving it
+# Editing a proposed batch through MCP
 
-Use the published `ReviseBatch` document, or `ChangeBatchChanges` with action
-`amend` and a stable item key. Pass `batchId`, `proposals` and/or `remove` refs.
-A proposal with an existing ref replaces that undecided proposal; a new ref adds
-one. Record addresses and staged refs use the same format as `stage`.
+Read the batch with `ChangeBatches(details:true)`. Send one `ChangeBatchChanges` item with action `amend`, a stable item key, the batch ID and its observed `expectedVersion`. In `proposals`, an existing ref replaces that pending proposal and a new ref adds one. List refs to withdraw in `remove`. Include the evidence and metadata you intend to retain on replacement proposals.
 
-Only an editor using their own member session or OAuth connection may amend a
-member-review batch. Apps, delegated writers and resident principals cannot.
-Decided proposals cannot be replaced or withdrawn. Policy batches cannot be
-amended through this operation.
+To reuse a saved Person, replace the pending relationships with copies whose relevant endpoints name the canonical Person address. Withdraw the redundant Person create in the same edit. Onto validates the resulting batch and its anchors together. Previously decided records keep their decisions.
 
-An open batch remains open. A submitted batch remains `awaiting_review`, keeps
-its policy and deadline, validates the complete proposed graph and anchors, and
-queues a fresh steward review. Amendment never approves or commits records.
-Concurrent graph changes or decisions cause a conflict; reload before retrying.
-Stable `ChangeBatchChanges` keys reconcile lost responses without repeating writes.
+Submitting a draft records version 1. Amending a submitted batch records the new proposal content, increments submittedVersion and queues a fresh steward review under the existing policy. Use `BatchSubmission(id, version)` to compare what was submitted. Draft edits stay open. A zero version means no tracked submission yet. For a legacy submitted batch, the first edit retains the observed baseline at version zero with unknown authorship.
+
+Editors and delegated entity writers may edit member-policy proposals. Graph type changes require an editor. On batches with automatic commit policies the originating app or a member reviewer may edit. A conflict means another submission or review changed the batch. Reread it before reapplying an edit. Retry a lost response with the identical item key and inputs.

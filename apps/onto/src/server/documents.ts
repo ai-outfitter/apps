@@ -16,7 +16,7 @@ const changeDocuments = defineDocuments({
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
   ReviseBatch: {
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
-    document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
+    document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id submittedVersion title state counts reviewBy reviewUrl } }`,
   },
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions review reviewRun instructions { code itemKey actor required message taskId url }\n")},
   Ontology: {
@@ -27,10 +27,14 @@ const changeDocuments = defineDocuments({
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
       changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+        nodes { id submittedVersion title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,
+  },
+  BatchSubmission: {
+    story: "As a reviewer, I want to inspect exactly which proposals were submitted in a particular version, so that I can compare edits before review.",
+    document: `query BatchSubmission($id:ID!, $version:Int!) { changeBatch(id:$id) { id submittedVersion submission(version:$version) } }`,
   },
   OntoSettings: {
     story: "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
@@ -84,7 +88,8 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
  CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
-  ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend." },
+  BatchSubmission: { description: "Read the original proposals, author and time of one submitted batch version." },
+  ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Entity writers may edit member batches and submit a new version for review." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
     "collection": true
@@ -111,6 +116,6 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
     "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
   },
   "ChangeBatchChanges": {
-    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
+    "description": "Stage and submit proposals. To edit a submitted batch, amend with expectedVersion, replacement proposals and removed refs. This submits the next version for fresh review. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
   }
 });

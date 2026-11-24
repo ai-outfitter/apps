@@ -408,6 +408,10 @@ function summarize(rows: OperationRow[], types: Map<string, string>) {
   return { counts, evidence, operations: rows.length };
 }
 
+function proposalSnapshot(rows: OperationRow[]) {
+  return live(rows).map(({ ref, operation, evidence, reason, confidence }) => ({ ref, operation, evidence, reason, confidence }));
+}
+
 export async function submitBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchSubmitInput>) {
   requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
@@ -431,13 +435,23 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   const reused = draft && draft.contentDigest === contentDigest && ["pending", "running", "complete"].includes(draft.state) ? draft.id : null;
   const jobId = reused ?? crypto.randomUUID();
   // D1 batch executes these statements atomically: no submitted batch can lose its review work.
-  await db.batch([
-    db.update(graphBatchOperations).set({ state: "awaiting_review" })
-      .where(and(eq(graphBatchOperations.batchId, batch.id), eq(graphBatchOperations.state, "pending"))),
-    db.update(graphBatches).set({ state: "awaiting_review", summary: JSON.stringify(summary), reviewBy: reviewDeadline(policy, now), updatedAt: now, reviewJobId: jobId, ...(reused ? {} : { review: null }) })
-      .where(and(eq(graphBatches.id, batch.id), eq(graphBatches.state, "open"))),
-    ...(reused ? [] : [db.insert(ontoReviewJobs).values({ id: jobId, batchId: batch.id, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now })]),
-  ]);
+  const guard = `submit:${crypto.randomUUID()}`;
+  await guardedGraphBatch(db, who, graph, [
+    sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+      VALUES(${who.userId},${guard},'submit',CASE WHEN ${reviewedRowsUnchanged(batch, rows)}
+        AND (SELECT count(*) FROM graph_batch_operations WHERE batchId=${batch.id} AND state!='removed')=${rows.length}
+        AND EXISTS (SELECT 1 FROM graph_batches WHERE id=${batch.id} AND anchors IS ${batch.anchors ? JSON.stringify(batch.anchors) : null})
+        THEN ${guard} ELSE NULL END,'{}')`,
+    sql`UPDATE graph_batch_operations SET state='awaiting_review' WHERE batchId=${batch.id} AND state='pending'`,
+    sql`INSERT INTO graph_batch_submissions(batchId,version,at,author,via,proposals)
+      VALUES(${batch.id},1,${now},${who.userId},${actorRef(actor)},${JSON.stringify(proposalSnapshot(rows))})`,
+    sql`UPDATE graph_batches SET submittedVersion=1,state='awaiting_review',summary=${JSON.stringify(summary)},
+      reviewBy=${reviewDeadline(policy, now)},updatedAt=${now},reviewJobId=${jobId},
+      review=CASE WHEN ${reused} IS NULL THEN NULL ELSE review END WHERE id=${batch.id}`,
+    ...(reused ? [] : [sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
+      VALUES(${jobId},${batch.id},${contentDigest},'pending',${now},${now},${crypto.randomUUID()})`]),
+    sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
+  ], "Batch or graph changed; reload before submitting");
   const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run" || policy.kind === "confidence") {
@@ -495,22 +509,30 @@ async function validateRows(db: Database, who: AppIdentity, batch: BatchRow, row
 
 export const batchReviseInput = z.strictObject({
   batchId: z.uuid(),
+  expectedVersion: z.number().int().nonnegative().optional(),
   proposals: batchAddInput.shape.proposals.optional().default([]),
   remove: batchRemoveInput.shape.refs.optional().default([]),
 }).refine(input => input.proposals.length + input.remove.length > 0, "Name proposals to change or refs to remove");
 
-/** Amend only undecided member proposals. The graph snapshot and full batch snapshot
+/** Amend undecided proposals. The graph snapshot and full batch snapshot
  * are checked in the same transaction as the write; a concurrent review cannot be
  * overwritten. No policy is evaluated and no graph record is committed here. */
 export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: z.infer<typeof batchReviseInput>) {
-  requireMemberReview(who, actor, origin);
+  requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
-  if (batch.policy.kind !== "member" || !["open", "awaiting_review"].includes(batch.state))
-    fail("Only an open or submitted member-review batch can be amended", 409);
+  if (!["open", "awaiting_review"].includes(batch.state))
+    fail("Only an open or submitted batch can be edited", 409);
+  if (batch.policy.kind !== "member" && !(actor.kind === "app" && batch.openedVia === actorRef(actor)))
+    requireMemberReview(who, actor, origin);
+  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion)
+    fail("Proposal version changed; read the current batch before editing", 409);
   if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
   await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
   const byRef = new Map(existing.map(row => [row.ref, row]));
+  if (input.proposals.some(item => item.operation.type === "graph-type") ||
+      [...input.remove, ...input.proposals.map(item => item.operation.ref)].some(ref => byRef.get(ref)?.operation.type === "graph-type"))
+    requireEditor(who);
   const undecided = (row: OperationRow) => ["pending", "awaiting_review", "removed"].includes(row.state);
   const refs = new Set(input.proposals.map(item => item.operation.ref));
   if (refs.size !== input.proposals.length || new Set(input.remove).size !== input.remove.length)
@@ -560,7 +582,14 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
     ON CONFLICT(batchId,ref) DO UPDATE SET operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state`);
   if (batch.state === "awaiting_review") {
     const summary = { ...summarize(rows, new Map(graph.types.map(type => [type.id, type.name]))), text: batch.summary ? JSON.parse(batch.summary).text ?? null : null };
-    statements.push(sql`UPDATE graph_batches SET summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
+    const version = batch.submittedVersion + 1;
+    // Legacy installations have no historical submissions. Preserve their observed
+    // baseline as version zero without attributing it to the original submitter.
+    if (!batch.submittedVersion) statements.push(sql`INSERT INTO graph_batch_submissions
+      VALUES(${batch.id},0,${now},'','',${JSON.stringify(proposalSnapshot(existing))})`);
+    statements.push(sql`INSERT INTO graph_batch_submissions VALUES
+      (${batch.id},${version},${now},${who.userId},${actorRef(actor)},${JSON.stringify(proposalSnapshot(rows))})`);
+    statements.push(sql`UPDATE graph_batches SET submittedVersion=${version},summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
     statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now},${crypto.randomUUID()})`);
   } else statements.push(sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`);
   statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`);
@@ -573,11 +602,12 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   requireMemberReview(who, actor, origin);
   const batch = await loadBatch(db, input.batchId);
   if (batch.state !== "awaiting_review") fail("Only a submitted batch waiting for review can be decided", 409);
+  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion) fail("Proposal version changed; reload before reviewing", 409);
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
   if (!chosen.size) fail("No waiting operations match", 409);
-  const decision = memberDecision(who, actor, { verdict: input.verdict, comment: input.comment ?? null, at: Date.now() });
+  const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at: Date.now() });
   if (input.verdict === "reject") {
     const rejected = withDependents(rows, waiting, chosen);
     const graph = await readGraph(db, who), guard = `reject:${crypto.randomUUID()}`;
@@ -719,7 +749,7 @@ export async function sealDueBatches(db: Database, who: AppIdentity, now = Date.
 
 function batchView(batch: BatchRow) {
   return {
-    id: batch.id, title: batch.title, purpose: batch.purpose, source: batch.source, policy: batch.policy,
+    submittedVersion: batch.submittedVersion, id: batch.id, title: batch.title, purpose: batch.purpose, source: batch.source, policy: batch.policy,
     state: batch.state, summary: batch.summary ? JSON.parse(batch.summary) : null,
     openedBy: batch.openedBy, openedVia: batch.openedVia, reviewBy: batch.reviewBy,
     createdAt: batch.createdAt, updatedAt: batch.updatedAt, expiresAt: batch.expiresAt, closedAt: batch.closedAt,
