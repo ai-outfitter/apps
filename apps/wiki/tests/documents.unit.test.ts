@@ -13,11 +13,12 @@ import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
 import { saveGeneratedDocument,archiveDocument,documentDigest,getDocument,listPages,publishDocument,revisions,saveDocument,savePage } from "../src/documents/store";
 
 const who={userId:"member",installationId:"wiki",owner:{kind:"user" as const,id:"member"},role:"owner",canEdit:true};
-function fixture(withImportRevision=true) {
+function fixture(withImportRevision=true, authored=true, migrationTime?:number) {
  const sqlite=new DatabaseSync(":memory:"); sqlite.exec("PRAGMA foreign_keys=ON");
+ if(migrationTime!==undefined) sqlite.function("unixepoch",()=>migrationTime);
  const folder=new URL("../migrations/",import.meta.url);
  for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n<'0012').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
- sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
+ if(authored) sqlite.exec(`INSERT INTO graph_nodes(id,typeId,slug,title,body,revision,createdAt,updatedAt) VALUES('legacy',(SELECT id FROM graph_types WHERE name='Document'),'old-page','Original','Original body',2,1,2);
  INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',1,'member','{}','[]','{"title":"First","body":"First body"}',1);`);
  sqlite.exec(readFileSync(new URL('0012_documents.sql',folder),'utf8'));
  if(withImportRevision) for(const name of readdirSync(folder).filter(n=>n.endsWith('.sql') && n>='0013').sort()) sqlite.exec(readFileSync(new URL(name,folder),'utf8'));
@@ -308,4 +309,16 @@ test("page file migration restores the shared storage index after the legacy gra
   db.exec("INSERT INTO app_storage_objects VALUES (1); UPDATE app_storage_objects SET id=2; DELETE FROM app_storage_objects");
   assert.throws(() => db.exec("INSERT INTO graph_assets VALUES (1)"), /graph migrated/);
  } finally { db.close(); }
+});
+
+test('install time does not require a cutover but edited seed definitions do',async()=>{
+ const unavailable=workflowHost<"interactive">({props:{workflowHost:{async call(){throw new Error("Onto receipt required");}}}});
+ for(const at of [1000,2000]){
+  const {sqlite,db}=fixture(true,false,at);
+  try{
+   await requireGraphCutover(db,who,unavailable);
+   sqlite.exec("UPDATE graph_types SET body='authored change' WHERE updatedBy='migration:product-documentation'");
+   await assert.rejects(requireGraphCutover(db,who,unavailable),/Onto receipt required/);
+  } finally {sqlite.close();}
+ }
 });

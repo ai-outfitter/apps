@@ -114,7 +114,7 @@ const mutation = new GraphQLObjectType<unknown, ForerunnerContext>({
     generateResearchReports: mutationField({ name: "GenerateResearchReports", description: "Run the saved research reports now for today, recording a workflow run and each report's Wiki document and revision.", input: generateResearchReportsInput, run: (context: ForerunnerContext) => generateResearchReports(context.identity, context.host()) }),
     setDailyRun: mutationField<typeof scheduleChange, ForerunnerContext>({
       name: "SetDailyRun",
-      description: "Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.",
+      description: "Schedule daily discovery for one authorized source (connection:<id>) in its timezone. Personal installations retain each account independently. Disable a named source to pause it, or omit source when disabling to pause all discovery. Editors only.",
       input: scheduleChange, output: nonNull(dailyRun),
       run: (context, input) => changeSchedule(context.host(), context.identity, input, context.db()),
     }),

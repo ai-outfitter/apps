@@ -24,7 +24,7 @@ const semantic = (confidence: number) => ({
 type Call = (input: Record<string, unknown>) => unknown;
 function wikiAction(input: Record<string, unknown>, opened: { batchState: string; firstRunTaken: boolean }) {
   const batch = { id: "b0000000-0000-4000-8000-000000000001", state: opened.batchState, reviewBy: null as number | null };
-  if (input.action === "graph.read") return wikiGraphFixture("wiki", { types: types.map((t) => ({ ref: { installationId: "wiki", type: "graph-type", id: t.id }, attributes: t })) });
+  if (input.action === "graph.read") return wikiGraphFixture("personal-onto", { types: types.map((t) => ({ ref: { installationId: "personal-onto", type: "graph-type", id: t.id }, attributes: t })) });
   if (input.action === "batch.seal-due") return { sealed: 0, expired: 0 };
   const firstRun = (input.input as { policy?: { kind: string } }).policy?.kind === "first-run";
   if (input.action === "batch.open" && firstRun && opened.firstRunTaken)
@@ -46,7 +46,7 @@ function fakeHost(confidence: number, opened: { batchState: string; firstRunTake
     "workflow.collect": () => ({}),
     "session.append": () => ({}),
     "inference.generate": () => ({ output: semantic(confidence) }),
-    "entities.types": () => ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "wiki", writable: true })),
+    "entities.types": (input) => input.template === "wiki-map" ? [] : ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "personal-onto", writable: true })),
     "connector.execute": (input) => input.operation === "messages.list"
       ? { messages: [{ id: "m1" }] }
       : { id: "m1", subject: "Draft", snippet: "Bob: here is the draft.", from: "Bob <bob@example.test>", date: "2026-11-02" },
@@ -91,6 +91,7 @@ test("the scheduled run reads only its connection and leaves an unsure finding f
   ]);
   const staged = actions.find((a) => a.action === "graph.mutate" && (a.input as { operationName: string }).operationName === "StageChanges");
   assert.ok(staged);
+  assert.equal(staged.installationId,"personal-onto");
   const added = (staged.input as { variables: { input: { proposals: { confidence: number; evidence: { provider: string; recordId: string }[] }[] } } }).variables.input;
   assert.equal(added.proposals[0].confidence, 0.7);
   assert.equal(added.proposals[0].evidence[0].provider, "gmail");
@@ -145,7 +146,8 @@ function settingsHost(connections: Record<string, unknown>[], schedules: Record<
       if (name === "schedules") return schedules;
       if (name === "schedule.save") {
         saved.push(input);
-        schedules.splice(0, schedules.length, { workflowId: input.workflow, enabled: input.enabled, connectionId: input.connectionId ?? null, timezone: input.timezone, nextRunAt: 7, lastRunAt: null, lastOutcome: null });
+        const index = schedules.findIndex(row => row.workflowId === input.workflow && row.connectionId === input.connectionId);
+        schedules.splice(index < 0 ? schedules.length : index, index < 0 ? 0 : 1, { resource:input.resource, inputs:input.inputs, workflowId: input.workflow, enabled: input.enabled, connectionId: input.connectionId ?? null, timezone: input.timezone, nextRunAt: 7, lastRunAt: null, lastOutcome: null });
         return {};
       }
       throw new Error(name);
@@ -199,4 +201,15 @@ test("the default daily run is for personal editors only", async () => {
   const status = await defaultSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, { timezone: "UTC" });
   assert.equal(status.enabled, false);
   assert.deepEqual(saved, []);
+});
+
+test("each explicitly scheduled personal account can be paused without losing the others",async()=>{
+  const sources=[connection,calendar,{...connection,id:"mail-two",resource:"second@example.test"},{...calendar,id:"calendar-two",resource:"second@example.test"}];
+  const {host}=settingsHost(sources);
+  for(const source of sources) assert.equal((await changeSchedule(host,who,{enabled:true,source:"connection:"+source.id,timezone:"UTC"})).connectionId,source.id);
+  await changeSchedule(host,who,{enabled:false,source:"connection:"+calendar.id,timezone:"UTC"});
+  const rows=await host.call("schedules",{});
+  assert.deepEqual(rows.map(row=>row.enabled),[true,false,true,true]);
+  await changeSchedule(host,who,{enabled:false,timezone:"UTC"});
+  assert.ok((await host.call("schedules",{})).every(row=>!row.enabled));
 });
