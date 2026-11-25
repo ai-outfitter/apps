@@ -441,6 +441,7 @@ const coreOperations = {
     connectionId: id.optional(),
     resource: z.string().min(1).max(1024).optional(),
     enabled: z.boolean().default(true),
+    ifUnset: z.literal(true).optional(),
   }).refine((input) => !input.connectionId === !input.resource, "Name a connection with its resource"), installationSchedule),
   /** This installation's schedules. */
   schedules: operation(["operator", "interactive", "schedule"], z.strictObject({}), z.array(installationSchedule)),
@@ -669,6 +670,7 @@ export const eventResult = z.discriminatedUnion("outcome", [
  * run means `workflow.start` with exactly that id. */
 export const scheduleInput = z.object({
   runId,
+  trigger: z.enum(["clock", "manual"]).optional(),
   scheduledFor: z.number().int(),
   schedule: z.object({ id, workflowId: id, inputs: jsonObject, connectionId: id.nullable(), resource: z.string().nullable() }),
 });
@@ -677,6 +679,7 @@ export const scheduleInput = z.object({
 export const scheduleResult = z.discriminatedUnion("outcome", [
   z.object({ outcome: z.literal("started") }),
   z.object({ outcome: z.literal("resumed"), runId: id }),
+  z.object({ outcome: z.literal("deferred"), retryAt: z.number().int(), reason: z.string().min(1).max(512) }),
   z.object({ outcome: z.literal("declined"), reason: z.string().min(1).max(512) }),
 ]);
 /** `invocation` input: one occurrence of an installation's enabled invocation.

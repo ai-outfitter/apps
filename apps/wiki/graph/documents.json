@@ -697,5 +697,99 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WikiRevisionActivity",
+    "kind": "query",
+    "story": "As a member, I want to cite exact authored Wiki revisions from a reporting day, so that I can verify the original activity.",
+    "query": "query WikiRevisionActivity($start: String!, $end: String!, $first: Int = 50, $after: String) {\n  wikiRevisionActivity(start: $start, end: $end, first: $first, after: $after) {\n    nodes {\n      id\n      slug\n      revision\n      title\n      createdAt\n      store\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "8096bad5c0c746f656be054cf2319192697181fe46738a40c7d93194bd5e0ae4",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "end": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "first": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "mcp": {
+      "description": "Read authored Wiki revisions across authorized scopes for a local reporting day. Pass its start and end instants in UTC.",
+      "collection": true
+    },
+    "federation": {
+      "collection": "wikiRevisionActivity",
+      "cursorVariable": "after"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "wikiRevisionActivity": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "title": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "store": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 ]

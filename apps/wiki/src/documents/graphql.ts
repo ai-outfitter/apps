@@ -3,6 +3,7 @@ import type { storage } from "@ai-outfitter/app-sdk/storage";
 import {searchDocuments} from "./search";
 import { documentVersion } from "./document-version";
 import { dailyAppUpdates } from "./daily-updates";
+import { wikiRevisionActivity } from "./revision-activity";
 import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
@@ -30,7 +31,7 @@ const Page = new GraphQLObjectType<StoredPage,Context>({name:"WikiPage",fields:{
  document:{type:Document,args:{revision:{type:GraphQLInt}},resolve:async(page,args,ctx)=>{if(!page.documentId)return null;try{return await getDocument(ctx.database,page.documentId,args.revision);}catch(error){if(error instanceof Response && error.status===404)return null;throw error;}}},entityRef:{type:GraphQLString},parentId:{type:GraphQLID},revision:{type:GraphQLInt},autoPublish:{type:GraphQLBoolean,resolve:value=>!!value.autoPublish},policyRef:{type:GraphQLString}}});
 export const graphqlSchema = new GraphQLSchema({
  query:new GraphQLObjectType<unknown,Context & import("@ai-outfitter/app-sdk/graph-graphql").GraphContext>({name:"Query",fields:{
-  dailyAppUpdates, documentVersion, searchDocuments,
+  dailyAppUpdates, wikiRevisionActivity, documentVersion, searchDocuments,
   documents:{type:new GraphQLList(Document),args:{after:{type:GraphQLID},first:{type:GraphQLInt}},resolve:(_,args,ctx)=>listDocuments(ctx.database,args.after ?? "",args.first ?? 50)},
   document:{type:Document,args:{id:{type:new GraphQLNonNull(GraphQLID)},revision:{type:GraphQLInt}},resolve:(_,args,ctx)=>getDocument(ctx.database,args.id,args.revision)},
   documentRevisions:{type:new GraphQLList(Revision),args:{id:{type:new GraphQLNonNull(GraphQLID)},before:{type:GraphQLInt}},resolve:(_,args,ctx)=>revisions(ctx.database,args.id,args.before)},

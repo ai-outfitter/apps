@@ -6,9 +6,10 @@ import { z } from "zod";
 import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEvidence, modelData, renderBrief } from "./daily-brief-synthesis";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
-import { readAppUpdates } from "./app-updates";
+import { readAppUpdates, readWikiActivity } from "./app-updates";
+import { briefDependencies } from "./brief-dependencies";
 import { readPlanningWork } from "./planning-work";
-import { localDate, shiftDate } from "./review-period";
+import { localDate, reviewPeriod, shiftDate } from "./review-period";
 import { latestOpenSuggestions, roleSnapshot, saveRoleSnapshot } from "./suggestions";
 
 export const dailyBriefWorkflow = "forerunner-daily-brief";
@@ -41,7 +42,7 @@ export async function setDailyBriefSchedule(host: WorkflowHost<"interactive">, w
 export async function defaultDailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, zone: string) {
   if (!who.canEdit || who.owner.kind !== "user" || who.owner.id !== who.userId) return null;
   const existing = (await host.call("schedules", {})).find(row => row.workflowId === dailyBriefWorkflow);
-  return existing ?? host.call("schedule.save", briefSchedule(timezone.parse(zone), true));
+  return existing ?? host.call("schedule.save", { ...briefSchedule(timezone.parse(zone), true), ifUnset: true });
 }
 export async function dailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity) {
   personal(who);
@@ -67,7 +68,7 @@ const conflict = (error: unknown) => error instanceof Response && error.status =
  * - The write carries the revision read at the start. If another run saved
  *   first, that newer revision stands and is returned as `superseded`.
  */
-export async function captureDailyBrief(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, input: { date: string; timezone: string; runId: string }, now = Date.now()): Promise<BriefReceipt> {
+export async function captureDailyBrief(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, input: { date: string; timezone: string; runId: string; dependencyGaps?: string[] }, now = Date.now()): Promise<BriefReceipt> {
   personal(who);
   const zone = timezone.parse(input.timezone);
   z.iso.date().parse(input.date);
@@ -75,9 +76,9 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const slugFor = async (date: string) => `forerunner-brief-${date}-${await stableGraphId(who.owner, who.installationId, zone)}`;
   const read = (slug: string) => readWikiPage(host, slug);
   const slug = await slugFor(input.date), previousSlug = await slugFor(shiftDate(input.date, -1));
-  const [current, prior, review, items, role, discovery, work, appUpdates] = await Promise.all([
+  const [current, prior, review, items, role, discovery, work, appUpdates, wikiActivity] = await Promise.all([
     read(slug), read(previousSlug), readDayReview(db, who, host, { date: shiftDate(input.date, -1), timezone: zone }, now), listItems(db, who),
-    roleSnapshot(db, who), latestOpenSuggestions(db, who), readPlanningWork(host), readAppUpdates(host, shiftDate(input.date, -1)),
+    roleSnapshot(db, who), latestOpenSuggestions(db, who), readPlanningWork(host), readAppUpdates(host, shiftDate(input.date, -1)), readWikiActivity(host, reviewPeriod({ date: shiftDate(input.date, -1), timezone: zone }, now)),
   ]);
   if (current?.archived) throw new Response("This daily brief is archived", { status: 409 });
   // Missing provider adapters keep every receipt incomplete; unknown is not zero.
@@ -89,7 +90,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
     return saved(current, "unchanged");
   }
   const previous = prior && !prior.archived ? { slug: previousSlug, revision: prior.revision } : null;
-  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, role, discovery, previous, now };
+  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, wikiActivity, dependencyGaps: input.dependencyGaps, role, discovery, previous, now };
   const { evidence, gaps } = gatherEvidence(inputs);
   const digest = await evidenceDigest(inputs, evidence, gaps);
   if (current?.generatedBody.includes(digestMarker(digest))) return saved(current, "unchanged");
@@ -120,7 +121,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   }
 }
 /** One run: start it, write the brief, and settle its output either way so the run records what happened. */
-async function runBrief(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, input: { date: string; timezone: string; runId: string }, now: number) {
+async function runBrief(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, input: { date: string; timezone: string; runId: string; dependencyGaps?: string[] }, now: number) {
   await host.call("workflow.start", { workflow: dailyBriefWorkflow, id: input.runId, inputs: {} });
   const collect = (value: Record<string, unknown>) => host.call("workflow.collect", { runId: input.runId, slot: "collect.outputs.brief", value: JSON.parse(JSON.stringify(value)), complete: true });
   try {
@@ -139,10 +140,22 @@ export async function scheduledDailyBrief(db: Database, who: AppIdentity, raw: P
   personal(who);
   const occurrence = scheduleInput.parse(raw);
   if (occurrence.schedule.workflowId !== dailyBriefWorkflow) return { outcome: "declined", reason: "Not a daily brief schedule" };
-  const saved = (await host.call("schedules", {})).find(row => row.id === occurrence.schedule.id);
-  if (!saved) return { outcome: "declined", reason: "Daily brief schedule no longer exists" };
+  const schedules = await host.call("schedules", {});
+  const saved = schedules.find(row => row.id === occurrence.schedule.id);
+  if (!saved?.enabled) return { outcome: "declined", reason: "Daily brief schedule no longer exists" };
+  const date = localDate(occurrence.scheduledFor, saved.timezone);
+  const deadline = occurrence.scheduledFor + 3 * 3_600_000;
+  const dependencies = await briefDependencies(host, schedules, date, saved.timezone, now);
+  const yesterday = shiftDate(date, -1);
+  const updates = await readAppUpdates(host as unknown as WorkflowHost<"interactive">, yesterday);
+  const onto = updates.rows.filter(row => row.app === "Onto" && row.timezone === saved.timezone);
+  const ontoMissing = !onto.length;
+  if (occurrence.trigger !== "manual" && (dependencies.waiting || ontoMissing) && now < deadline) {
+    return { outcome: "deferred", retryAt: Math.min(deadline, now + 5 * 60_000), reason: "Waiting for this morning's discovery and the previous day's Onto activity." };
+  }
+  if (ontoMissing) dependencies.gaps.push("Onto: no saved activity report for the previous day in this reporting time zone. Coverage is unknown.");
   // The occurrence's own date, not the retry's. A failure is recorded on the run; the schedule itself started.
-  await runBrief(db, who, host as unknown as WorkflowHost<"interactive">, { date: localDate(occurrence.scheduledFor, saved.timezone), timezone: saved.timezone, runId: occurrence.runId }, now)
+  await runBrief(db, who, host as unknown as WorkflowHost<"interactive">, { date, timezone: saved.timezone, runId: occurrence.runId, dependencyGaps: dependencies.gaps }, now)
     .catch(error => { if (!(error instanceof Response)) throw error; });
   return { outcome: "started" };
 }

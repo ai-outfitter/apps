@@ -2,7 +2,7 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
 import type { DayReview, ReportSource } from "./day-review";
-import type { AppUpdates } from "./app-updates";
+import type { AppUpdates, WikiActivity } from "./app-updates";
 import type { PlanningWork } from "./planning-work";
 
 // The daily digest is written by one model answer over saved, authorized evidence.
@@ -24,12 +24,14 @@ export type BriefInputs = {
   /** Issues in progress in the member's organizations' Planning. Absent means it was not read. */
   work?: PlanningWork;
   appUpdates?: AppUpdates;
+  wikiActivity?: WikiActivity;
+  dependencyGaps?: string[];
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
 };
-type Kind = "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
+type Kind = "wiki-activity" | "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
 export type Evidence = {
   ref: string; kind: Kind;
   /** What the member reads in the source list. */
@@ -51,7 +53,7 @@ const usable = (source: ReportSource) => source.status === "complete" || source.
  * saved role and the last discovery run's saved suggestions.
  */
 export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps: string[] } {
-  const evidence: Evidence[] = [], gaps: string[] = [];
+  const evidence: Evidence[] = [], gaps: string[] = [...(input.dependencyGaps ?? [])];
   const add = (kind: Kind, prefix: string, item: Omit<Evidence, "ref" | "kind">) => evidence.push({ ref: `${prefix}${evidence.filter(row => row.kind === kind).length + 1}`, kind, ...item });
   const role = input.role.role?.title;
   if (input.role.status === "ready" && role) add("responsibility", "role", { label: `Your role: ${cut(role, 120)}`, text: cut(`${role}. ${input.role.role?.reasoning ?? ""}`, 400) });
@@ -74,6 +76,23 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
     }
     if (!input.appUpdates.complete) gaps.push("Some app updates could not be read.");
     else if (!input.appUpdates.rows.length) gaps.push("No app updates were saved for this reporting date.");
+  }
+  if (input.wikiActivity) {
+    for (const row of input.wikiActivity.rows) {
+      const owner = row.scope === "personal" ? "Personal" : row.scope;
+      const mount = row.scope === "personal" ? "/apps" : `/o/${encodeURIComponent(row.scope)}`;
+      const label = `${owner} · Wiki: ${cut(row.title, 120)}`;
+      add("wiki-activity", "wiki", { label, text: `${label}, ${row.store === "legacy" ? "legacy graph revision" : "document revision"} ${row.revision}, saved ${row.createdAt}`,
+        scope: row.scope, recordId: row.id, revision: row.revision,
+        href: row.slug ? `${mount}/wiki-map/p/${encodeURIComponent(row.slug)}?revision=${row.revision}` : null });
+    }
+    const count = input.wikiActivity.rows.length;
+    if (input.wikiActivity.complete) add("wiki-activity", "wiki", {
+      label: "Authorized Wiki revision activity",
+      text: `${count} authored Wiki revisions observed across all authorized scopes and both revision stores for ${input.review.period.date}.`,
+      status: "complete",
+    });
+    else gaps.push("Wiki: authored revision coverage is incomplete.");
   }
   const work = input.work;
   for (const issue of work?.issues.slice(0, 30) ?? []) add("work", "w", { label: `In progress in ${cut(issue.organization, 80)}: ${cut(issue.title, 160)}`, text: cut(`${issue.title} (${issue.organization}, ${issue.category}, in progress${issue.dueDate ? `, due ${issue.dueDate}` : ""})`, 300), scope: issue.scope, href: issue.href });
@@ -111,6 +130,8 @@ export const briefInstructions = [
   "Rules:",
   "- Every statement cites the refs it rests on. Cite only refs that appear in `evidence`.",
   "- `highlights` are what matters today in light of the person's role (kind `responsibility`) and goals (kind `goal`) when those are present. Mark each `fact` (directly stated by the cited evidence) or `inference` (your reading of it).",
+  "- Onto updates distinguish ledger commits from current pending and rejected proposal states; a batch update does not establish a commit.",
+  "- Kind `wiki-activity` reports authored Wiki revisions and checked coverage. Generated daily briefs and app updates are excluded.",
   "- Kind `priority` is the person's own board. Kind `work` is an issue in progress in one of their organizations; it is not necessarily assigned to them.",
   "- `attention` are at most five things worth their attention today, each with a reason. They are your suggestions, not facts. Set `goal` to the ref of the goal it serves, or null.",
   "- Never invent activity, numbers, people, dates or progress. If the evidence does not say it, do not say it. A missing source is unknown, not quiet.",
