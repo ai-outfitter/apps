@@ -1,0 +1,55 @@
+[
+  {
+    "key": "flake-defaults",
+    "title": "Expose service selections in the default Keystone flake",
+    "statement": "Expose service selections in the default Keystone flake",
+    "acceptanceCriteria": [
+      "Fresh and existing configurations evaluate and keep services disabled until selected."
+    ],
+    "dependsOn": [],
+    "target": {
+      "repository": "box/os"
+    }
+  },
+  {
+    "key": "service-charts",
+    "title": "Package Forgejo, Grafana and the standard dashboards",
+    "statement": "Package Forgejo, Grafana and the standard dashboards",
+    "acceptanceCriteria": [
+      "Pinned chart values render both services, storage and dashboards without embedded credentials."
+    ],
+    "dependsOn": [],
+    "target": {
+      "repository": "box/charts"
+    }
+  },
+  {
+    "key": "cluster-rollout",
+    "title": "Reconcile the selected services on the cluster",
+    "statement": "Reconcile the selected services on the cluster",
+    "acceptanceCriteria": [
+      "A disposable cluster reports both endpoints ready, retains data across a reconcile, and can roll back."
+    ],
+    "dependsOn": [
+      "flake-defaults",
+      "service-charts"
+    ],
+    "target": {
+      "repository": "box/ks-config"
+    }
+  },
+  {
+    "key": "native-install",
+    "title": "Deliver the install and status flow on iOS and macOS",
+    "statement": "Deliver the install and status flow on iOS and macOS",
+    "acceptanceCriteria": [
+      "Both clients submit the same selection, show cluster readiness, and retry without duplicating services."
+    ],
+    "dependsOn": [
+      "cluster-rollout"
+    ],
+    "target": {
+      "repository": "box/native-apple"
+    }
+  }
+]

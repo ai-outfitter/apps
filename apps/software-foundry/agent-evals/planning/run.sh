@@ -13,13 +13,15 @@ mkdir -- "$out"
 out=$(CDPATH= cd -- "$out" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
-mkdir "$tmp/package" "$tmp/native-apple" "$tmp/charts"
-cp "$planning_dir/fixtures/native-apple.md" "$tmp/native-apple/README.md"
-cp "$planning_dir/fixtures/charts.md" "$tmp/charts/README.md"
+mkdir "$tmp/package"
+for repository in native-apple charts os ks-config; do
+  mkdir "$tmp/$repository"
+  cp "$planning_dir/fixtures/$repository.md" "$tmp/$repository/README.md"
+done
 mkdir -p "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE"
 cp "$planning_dir/fixtures/feature-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/feature.md"
 cp "$planning_dir/fixtures/bug-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/bug.md"
-for repository in native-apple charts; do
+for repository in native-apple charts os ks-config; do
   git -C "$tmp/$repository" init -q -b main
   git -C "$tmp/$repository" add .
   GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
@@ -44,4 +46,5 @@ podman run --rm --pull=never --network none --add-host outfitter.localhost:127.0
   -v "$app_dir/../../box/supervisor.mjs:/app/.box/box/supervisor.mjs:ro" \
   -v "$planning_dir:/eval:ro" -v "$tmp/package:/package:ro" \
   -v "$tmp/native-apple:/in/repo:ro" -v "$tmp/charts:/in/charts:ro" \
+  -v "$tmp/os:/in/os:ro" -v "$tmp/ks-config:/in/ks-config:ro" \
   -v "$out:/out" "$image" node /eval/boot.mjs

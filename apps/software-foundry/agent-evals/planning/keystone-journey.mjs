@@ -43,18 +43,42 @@ export async function keystoneJourney({ box, mcp, db, feature, initialIssue, tit
     return result.value.data[field];
   }
   const planning = (name, input, field) => document("box", "planning", name, input, field, "graph_mutate");
-  const project = await planning("CreateProject", { name: "Keystone native service installation", goals: "Install services and standard dashboards from either Apple client." }, "createProject");
+  const requirements = JSON.parse(readFileSync(new URL("./fixtures/work-packages.json", import.meta.url)));
+  const artifact = JSON.parse(readFileSync(join(box.out, "feature-plan.json"), "utf8"));
+  for (const requirement of requirements) {
+    const repository = requirement.target.repository;
+    assert.ok(artifact.citations.some(c => c.repository === repository), repository);
+    assert.ok(artifact.plan.changes.includes(repository + ": " + requirement.statement), repository);
+    assert.ok(initialIssue.body.includes(repository), repository);
+  }
+  const project = await planning("CreateProject", { name: "Keystone service installation across Apple clients and cluster",
+    goals: "Ship one working installation path from flake defaults through charts, cluster reconciliation and both native clients.",
+    requirements }, "createProject");
+  const delivery = await document("box", "planning", "ProjectDelivery", { projectId: project.id }, "projectDelivery", "graph_query");
+  assert.equal(delivery.requirements.length, requirements.length);
+  for (const expected of requirements) {
+    const actual = delivery.requirements.find(row => row.key === expected.key);
+    assert.equal(actual?.target.repository, expected.target.repository);
+    assert.deepEqual(actual.dependsOn, expected.dependsOn);
+    assert.deepEqual(actual.acceptanceCriteria, expected.acceptanceCriteria);
+  }
   const intake = await planning("CreateIntake", { requestId: crypto.randomUUID(), projectId: project.id, kind: "user-story", title,
     description: initialIssue.body, sourceUrls: [initialIssue.html_url, feature.artifacts[0].url] }, "createIntake");
   assert.equal(intake.projectId, project.id);
   assert.equal(intake.routing?.state, "complete", intake.routingError);
   assert.deepEqual(intake.routes.map(route => route.kind), ["prioritization"]);
   assert.deepEqual(intake.sourceUrls, [initialIssue.html_url, feature.artifacts[0].url]);
-  const item = { projectId: project.id, title, category: "stone", description: initialIssue.html_url };
-  const board = await planning("CreateIssue", item, "createIssue");
-  // A second, unresolved request must never appear under yesterday's completions.
-  const pending = await planning("CreateIssue", { ...item, title: "Add another optional dashboard" }, "createIssue");
-  await planning("UpdateIssue", { ...item, id: board.id, revision: board.revision, status: "done" }, "updateIssue");
+  const items = [];
+  for (const requirement of requirements) {
+    const item = await planning("CreateIssue", { projectId: project.id, title: requirement.title, category: "stone",
+      description: requirement.target.repository + "\n" + initialIssue.html_url }, "createIssue");
+    items.push(item);
+  }
+  // One fixture completion is progress on the project. The dependent rollout
+  // and native client work remain open on the same board.
+  const [board, ...pending] = items;
+  await planning("UpdateIssue", { projectId: project.id, id: board.id, revision: board.revision,
+    title: board.title, description: board.description, category: "stone", status: "done" }, "updateIssue");
   const timezone = "America/Chicago";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(Date.now());
   const date = new Date(Date.parse(today + "T12:00:00Z") - 86400000).toISOString().slice(0, 10);
@@ -67,24 +91,24 @@ export async function keystoneJourney({ box, mcp, db, feature, initialIssue, tit
     const page = await home(["review"]);
     assert.equal(page.yesterday.period.date, date);
     source = page.yesterday.organizations.find(org => org.scope === "box");
-    if (source?.work.some(row => row.title === title)) break;
+    if (source?.work.some(row => row.title === board.title)) break;
     await sleep(500);
   }
   assert.ok(source?.href, JSON.stringify(source));
-  assert.deepEqual(source.work.filter(w => w.title === title), [{ title, kind: "Completed issue observation", url: "/o/box/planning/projects/" + project.id }]);
-  assert.ok(!source.work.some(w => w.title === pending.title));
+  assert.deepEqual(source.work.filter(w => w.title === board.title), [{ title: board.title, kind: "Completed issue observation", url: "/o/box/planning/projects/" + project.id }]);
+  assert.ok(!source.work.some(w => w.title === title || pending.some(item => item.title === w.title)));
   const brief = await document("personal", "forerunner", "GenerateDailyBrief", { timezone }, "generateDailyBrief", "graph_mutate");
   const reopened = await home(["digest"]);
   assert.equal(reopened.briefState, "saved", JSON.stringify(brief));
   assert.equal(reopened.brief.revision, brief.revision);
-  assert.ok(reopened.brief.markdown.includes(title), reopened.brief.markdown);
+  assert.ok(reopened.brief.markdown.includes(board.title), reopened.brief.markdown);
   assert.ok(reopened.brief.markdown.includes(source.href));
   const trace = readFileSync(join(box.out, "planning-host.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line));
   assert.ok(trace.some(row => row.operation === "workflow.start"), "Planning host recorder saw the workflow");
   const governance = installs.find(row => row.template === "governance");
   const directed = trace.filter(row => row.app === "governance" || row.installationId === governance.id);
   return { installed: installs.map(i => i.template).sort(), calls, projectId: project.id, intakeId: intake.id,
-    sourceIssue: initialIssue.html_url, route: intake.routes[0].kind, foundryRun: feature.run.id, boardId: board.id, pendingId: pending.id,
+    sourceIssue: initialIssue.html_url, route: intake.routes[0].kind, foundryRun: feature.run.id, completedItem: board.title, openItems: pending.map(item => item.title), requirements: delivery.requirements.map(({ key, target, dependsOn }) => ({ key, repository: target.repository, dependsOn })),
     date, timezone, observedAt, task, source, brief, markdown: reopened.brief.markdown,
     governanceObservation: { planningHostCalls: trace.length, directed, scope: "Direct calls from the installed org Planning worker; deterministic inference." } };
 }

@@ -2,11 +2,12 @@
   "feature": {
     "requestId": "d69d0966-d45c-4a75-846e-7eedf310c773",
     "title": "Install Forgejo and Grafana from Keystone on iOS and macOS",
-    "description": "An operator uses either Keystone app to select Forgejo and Grafana, review the install plan for the target cluster, and install both services with the standard Grafana dashboards.",
+    "description": "An operator uses either Keystone app to select Forgejo and Grafana, review the install plan for the target cluster, and install both services with the standard Grafana dashboards. Treat this as one delivery project across OS flake defaults, service charts, cluster reconciliation and both Apple clients.",
     "acceptanceCriteria": [
-      "Both clients preview the target, charts and standard dashboards before confirmation.",
-      "Confirm installs both services and provisions the standard dashboards once; cancel leaves the cluster unchanged.",
-      "Surface partial installation failures and allow a safe retry."
+      "Fresh and existing configurations evaluate and keep services disabled until selected.",
+      "Pinned chart values render both services, storage and dashboards without embedded credentials.",
+      "A disposable cluster reports both endpoints ready, retains data across a reconcile, and can roll back.",
+      "Both clients submit the same selection, show cluster readiness, and retry without duplicating services."
     ]
   },
   "bug": {

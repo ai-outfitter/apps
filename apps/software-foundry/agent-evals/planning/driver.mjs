@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { anchor, charts, repositories, admin, addChartsRepository, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
+import { anchor, charts, clientRepositories, repositories, admin, addProjectRepositories, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
 import { keystoneJourney, observePlanningHost } from "./keystone-journey.mjs";
 import { signIn, oauthToken, mcpClient, callTool } from "./mcp.mjs";
 
@@ -17,7 +17,7 @@ const workflow = "foundry-plan-work";
 const request = (id, extra = {}) => {
   const { requestId, title, description, acceptanceCriteria } = fixture[id];
   const body = [title, description, ...(acceptanceCriteria ?? [])].filter(Boolean).join("\n\n");
-  return { requestId, request: body, repositories, anchorRepository: anchor, ...extra };
+  return { requestId, request: body, repositories: id === "bug" ? clientRepositories : repositories, anchorRepository: anchor, ...extra };
 };
 
 const rows = (db) => db.prepare(
@@ -77,7 +77,8 @@ function boxArtifactUrl(link, box) {
 
 async function checkArtifact({ result, caseId, cookie, box, before, query }) {
   assert.equal(result.run.workflow, workflow);
-  assert.deepEqual(result.repositories, repositories);
+  const scoped = caseId === "bug" ? clientRepositories : repositories;
+  assert.deepEqual(result.repositories, scoped);
   assert.equal(result.artifacts.length, 1);
   const artifact = result.artifacts[0];
   assert.equal(artifact.kind, "plan");
@@ -96,9 +97,9 @@ async function checkArtifact({ result, caseId, cookie, box, before, query }) {
   assert.equal(inspected.run.id, result.run.id);
   assert.equal(plan.plan.title, fixture[caseId].title);
   assert.deepEqual(plan.sources.map(({ name, commitSha }) => [name, commitSha]),
-    repositories.map((repo) => [repo, before[repo].branches[0].sha]));
+    scoped.map((repo) => [repo, before[repo].branches[0].sha]));
   assert.deepEqual(plan.citations.map(({ repository, path }) => [repository, path]),
-    repositories.map((repo) => [repo, "README.md"]));
+    scoped.map((repo) => [repo, "README.md"]));
   for (const citation of plan.citations) {
     assert.match(citation.url, new RegExp(`/src/commit/${before[citation.repository].branches[0].sha}/`));
   }
@@ -122,7 +123,7 @@ export async function run(box) {
   let failure;
   try {
     observePlanningHost(box, db);
-    await addChartsRepository(box, db);
+    await addProjectRepositories(box, db);
     const before = Object.fromEntries(await Promise.all(repositories.map(async repo => [repo, await repoState(box, repo)])));
     for (const repo of repositories) {
       assert.deepEqual(before[repo].branches.map(({ name }) => name), ["main"]);
@@ -156,7 +157,7 @@ export async function run(box) {
     const pristine = snapshot();
     refused(await submit(request("denied", { anchorRepository: "box/outside-scope" })), /anchor/i);
     refused(await submit(request("denied", { anchorRepository: undefined })), /anchor/i);
-    setCoverage(db, [anchor]);
+    setCoverage(db, repositories.filter(repo => repo !== "box/ks-config"));
     try {
       refused(await submit(request("denied")), /repository|scope|denied|forbidden/i);
       assert.deepEqual(snapshot(), pristine);
@@ -194,7 +195,7 @@ export async function run(box) {
       assert.equal(bug.issue, null);
       assert.deepEqual(writes(), []);
       report.cases.bug = await checkArtifact({ ...opts, result: bug, caseId: "bug" });
-      const replayBug = accepted(await submit(request("bug", { repositories: [...repositories].reverse(),
+      const replayBug = accepted(await submit(request("bug", { repositories: [...clientRepositories].reverse(),
         anchorRepository: undefined, kind: "bug", createIssue: false })), "planWork");
       assert.equal(replayBug.run.id, bug.run.id);
       assert.deepEqual(replayBug.artifacts, bug.artifacts);
@@ -221,7 +222,7 @@ export async function run(box) {
     assert.deepEqual(snapshot(), unchanged);
     report.cases.feature.issue = feature.issue;
 
-    setCoverage(db, [anchor]);
+    setCoverage(db, repositories.filter(repo => repo !== "box/ks-config"));
     try {
       assert.ok((await query(fixture.feature.requestId)).refused, "revoked source coverage stops MCP artifact readback");
       const denied = await fetch(boxArtifactUrl(feature.artifacts[0].url, box), { headers: { cookie }, redirect: "manual" });
@@ -267,7 +268,7 @@ export async function run(box) {
       assert.deepEqual(after[repo].branches, before[repo].branches);
       assert.deepEqual(after[repo].pulls, []);
     }
-    assert.deepEqual(after[charts].issues, []);
+    for (const repo of repositories.filter(name => name !== anchor)) assert.deepEqual(after[repo].issues, []);
     assert.deepEqual(after[anchor].issues.map(({ number }) => number).sort(), [feature.issue.number, recovered.issue.number].sort());
     assert.deepEqual(writes().map(({ path, status, responseLost }) => [path, status, responseLost]), [
       [`/api/v1/repos/${anchor}/issues`, 201, false],

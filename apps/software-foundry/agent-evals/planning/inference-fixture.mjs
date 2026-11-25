@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const requests = JSON.parse(readFileSync(new URL("./fixtures/requests.json", import.meta.url)));
-const citations = ["box/charts:README.md", "box/native-apple:README.md"];
+const packages = JSON.parse(readFileSync(new URL("./fixtures/work-packages.json", import.meta.url)));
 
 function planFor(prompt) {
   const selected = ["ambiguous", "feature", "bug"].find((id) => prompt.includes(requests[id].title));
@@ -12,6 +12,11 @@ function planFor(prompt) {
   assert.match(prompt, /KEYSTONE_CHARTS_FIXTURE/);
   assert.match(prompt, /KEYSTONE_NATIVE_APPLE_FIXTURE/);
   const bug = selected === "bug";
+  const citations = (bug ? ["box/charts", "box/native-apple"] : packages.map(row => row.target.repository).sort()).map(repo => repo + ":README.md");
+  if (!bug) {
+    assert.match(prompt, /KEYSTONE_FLAKE_FIXTURE/);
+    assert.match(prompt, /KEYSTONE_CLUSTER_FIXTURE/);
+  }
   const issueTemplate = bug ? null : ".forgejo/ISSUE_TEMPLATE/feature.md";
   if (issueTemplate) assert.ok(prompt.includes(issueTemplate), "anchor's issue template reaches inference");
   const scenario = requests[selected];
@@ -22,7 +27,7 @@ function planFor(prompt) {
       requests.feature.description,
     changes: bug
       ? ["Carry the datasource placeholder through the shared Charts persistence model.", "Resolve the placeholder against the current installation on both app shells."]
-      : ["Resolve Forgejo and Grafana charts and standard dashboards for the selected cluster.", "Share preview, confirmation and retry behavior across the iOS and macOS clients."],
+      : packages.map(row => row.target.repository + ": " + row.statement),
     verification: scenario.acceptanceCriteria ?? [
       "Replay the planning request after Forgejo commits the issue and the response is lost.",
     ],
@@ -30,7 +35,7 @@ function planFor(prompt) {
     citations,
     issueTemplate,
     issueBody: issueTemplate
-      ? "## User-visible outcome\n\nInstall Forgejo and Grafana from Keystone on iOS and macOS.\n\n## Acceptance criteria\n\nConfirmation installs both services and provisions the standard Grafana dashboards once.\n\n## Verification\n\nExercise preview, cancel, confirm, and invalid input on iOS and macOS."
+      ? "## User-visible outcome\n\nInstall Forgejo and Grafana from Keystone on iOS and macOS.\n\n## Acceptance criteria\n\nConfirmation installs both services and provisions the standard Grafana dashboards once.\n\n## Verification\n\n" + packages.map(row => "- " + row.target.repository + ": " + row.acceptanceCriteria[0]).join("\n")
       : null,
   };
   return { selected, result };
@@ -48,10 +53,10 @@ function responseFor(input) {
     const match = text.match(/<<<DATA\n([\s\S]+)\nDATA>>>/);
     assert.ok(match, "brief receives saved evidence");
     const data = JSON.parse(match[1]);
-    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(requests.feature.title));
+    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(packages[0].title));
     assert.ok(source, "organization report must already contain the Keystone completion");
     return { selected: "personal-brief", result: {
-      opening: { text: "Planning recorded this completed issue yesterday: " + requests.feature.title + ".", evidence: [source.ref] },
+      opening: { text: "Planning recorded this completed issue yesterday: " + packages[0].title + ".", evidence: [source.ref] },
       highlights: [], attention: [], unsupported: ["Deployment and device verification were not observed."],
     } };
   }
@@ -67,7 +72,7 @@ export async function startInferenceFixture() {
       const input = JSON.parse(Buffer.concat(await Array.fromAsync(request)).toString("utf8"));
       assert.equal(input.text?.format?.type, "json_schema", "Foundry uses structured inference");
       const { selected, result } = responseFor(input);
-      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, ...(result.kind && { kind: result.kind, sources: citations }) }) + "\n");
+      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, ...(result.kind && { kind: result.kind, sources: result.citations }) }) + "\n");
       response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({
         id: `fixture-${selected}`, created_at: 1, model: input.model,
         output: [{ type: "message", id: `message-${selected}`, role: "assistant",
