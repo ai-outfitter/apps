@@ -1,8 +1,5 @@
 // A custom Agent Eval adapter for public, replayable tasks with in-memory tools.
-import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-
-export const digest = (value) => createHash('sha256').update(value).digest('hex');
 
 const finalInstruction = {
   role: 'user',

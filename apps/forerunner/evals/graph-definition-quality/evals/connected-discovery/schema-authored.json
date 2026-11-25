@@ -1,0 +1,103 @@
+{
+  "source": {
+    "baseline": {
+      "commit": "6aa42708d7f70feeec1541a35230a487d134f60c",
+      "files": [
+        "apps/onto/seeds/types-v1.json"
+      ]
+    },
+    "candidate": {
+      "commit": "1e73c4913a6b5a4dcbc3837dc5a94445c6328a92",
+      "files": [
+        "apps/onto/seeds/types-v1.json",
+        "apps/forerunner/seeds/discovery-graph-v1.json"
+      ],
+      "generated": "packages/app-sdk/graph/standard-types.json",
+      "generatedSha256": "5bde7cfce385630b05b997db9f70858a3b555000691b384c5c2d81ed55483543"
+    }
+  },
+  "types": [
+    {
+      "key": "person",
+      "baseline": "Person",
+      "candidate": "onto:Person",
+      "description": "An identifiable human.",
+      "stableId": "71000000-0000-4000-8000-000000000005"
+    },
+    {
+      "key": "organization",
+      "baseline": "Organization",
+      "candidate": "onto:Organization",
+      "description": "An identifiable organization. Compare stable evidence when names match or resemble each other.",
+      "stableId": "71000000-0000-4000-8000-000000000001"
+    },
+    {
+      "key": "product",
+      "baseline": "Product",
+      "candidate": "onto:Product",
+      "description": "A product such as a software application.",
+      "stableId": "71000000-0000-4000-8000-000000000015"
+    },
+    {
+      "key": "newsletter",
+      "baseline": "Newsletter",
+      "candidate": "forerunner:Newsletter",
+      "description": "A recurring publication delivered to recipients.",
+      "stableId": "71000000-0000-4000-8000-000000000125"
+    },
+    {
+      "key": "sign_in",
+      "baseline": "signed_in_to",
+      "candidate": "forerunner:signed_in_to",
+      "description": "Successful sign-in, distinct from product activity.",
+      "stableId": "71000000-0000-4000-8000-000000000131",
+      "from": "person",
+      "to": "product"
+    },
+    {
+      "key": "use",
+      "baseline": "user_of",
+      "candidate": "forerunner:user_of",
+      "description": "Actual product activity.",
+      "stableId": "71000000-0000-4000-8000-000000000123",
+      "from": "person",
+      "to": "product"
+    },
+    {
+      "key": "operator",
+      "baseline": "provided_by",
+      "candidate": "forerunner:provided_by",
+      "description": "Verified product operator.",
+      "stableId": "71000000-0000-4000-8000-000000000132",
+      "from": "product",
+      "to": "organization"
+    },
+    {
+      "key": "developer",
+      "baseline": "developed_by",
+      "candidate": "onto:developed_by",
+      "description": "Developer attribution requires an independent authoritative source.",
+      "stableId": "71000000-0000-4000-8000-000000000025",
+      "from": "product",
+      "to": "organization"
+    },
+    {
+      "key": "recipient",
+      "baseline": "recipient_of",
+      "candidate": "forerunner:recipient_of",
+      "description": "Documented receipt of the publication.",
+      "stableId": "71000000-0000-4000-8000-000000000129",
+      "from": "person",
+      "to": "newsletter"
+    },
+    {
+      "key": "publisher",
+      "baseline": "published_by",
+      "candidate": "forerunner:published_by",
+      "description": "The publication's named publisher.",
+      "stableId": "71000000-0000-4000-8000-000000000127",
+      "from": "newsletter",
+      "to": "organization"
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { digest } from '../../../../box/eval/read-only-agent.mjs';
+import { createHash } from 'node:crypto';
+
+const digest = (value) => createHash('sha256').update(value).digest('hex');
 
 const tools = [{
   type: 'function',
@@ -23,9 +25,9 @@ export function typeContext(schema, arm) {
   return { names, definitions: definitions.join('\n') };
 }
 
-export async function prepare(arm, path, prompt) {
+export async function prepare(arm, path, prompt, schemaPath = join(path, 'schema.json')) {
   const [corpus, schemaFile, rubric] = await Promise.all(
-    ['corpus.json', 'schema.json', 'EVAL.ts'].map((file) => readFile(join(path, file), 'utf8')),
+    [join(path, 'corpus.json'), schemaPath, join(path, 'EVAL.ts')].map((file) => readFile(file, 'utf8')),
   );
   const { records, evidence } = JSON.parse(corpus);
   const schema = JSON.parse(schemaFile);

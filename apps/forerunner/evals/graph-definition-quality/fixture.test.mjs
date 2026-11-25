@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { prepare, typeContext } from './fixture.mjs';
@@ -56,5 +57,18 @@ for (const arm of ['baseline', 'candidate']) {
     assert.equal(checks.directedRelationships.recipient, false);
     assert.equal(checks.decisionEvidence.developer, false);
     assert.equal(gradeProposal('unparseable', names).passed, false);
+  });
+}
+
+for (const [name, file] of [['instruction', 'schema.json'], ['authored', 'schema-authored.json']]) {
+  test(`the ${name} receipt matches the frozen inputs and replays both grades`, async () => {
+    const { runs } = JSON.parse(await readFile(new URL(`./receipts/spark-${name}-pair.json`, import.meta.url), 'utf8'));
+    for (const [arm, [receipt]] of Object.entries(runs)) {
+      const prepared = await prepare(arm, fixture, prompt, join(fixture, file));
+      assert.deepEqual(receipt.inputs, prepared.inputs);
+      assert.deepEqual(receipt.initialMessages, prepared.messages);
+      assert.deepEqual(receipt.tools, prepared.tools);
+      assert.deepEqual(receipt.grade, prepared.grade(receipt.output));
+    }
   });
 }
