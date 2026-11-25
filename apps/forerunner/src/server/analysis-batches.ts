@@ -1,7 +1,7 @@
 /** The host measures serialized JS string length. Leave room below its 64 KiB ceiling. */
 export const analysisDataBudget = 56 * 1024;
 export type AnalysisInput = {
-  evidence: { ref: string; title: string; excerpt: string }[];
+  evidence: { ref: string; title: string; excerpt: string; url?: string }[];
   existing: { id: string; name: string; type: string }[];
   limits: string;
 };
