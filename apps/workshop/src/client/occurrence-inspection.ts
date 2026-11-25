@@ -3,7 +3,7 @@ import type { Assembly, Item } from "../lib/assembly";
 import type { createAssemblyViewer } from "./assembly-viewer";
 
 type Viewer = ReturnType<typeof createAssemblyViewer>;
-export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: (item: Item, path: string) => void, clear: () => void) {
+export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: (item: Item, path: string) => void, clear: () => void, changed: (level: Occurrence) => void) {
   const get = <T extends HTMLElement>(id: string) => root.querySelector<T>("#" + id)!;
   const toggle = get<HTMLButtonElement>("explode-toggle");
   const range = get<HTMLInputElement>("explode-range");
@@ -44,14 +44,14 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     stack.push({level, amount, camera:viewer.cameraPose(), selected:child});
     level = child;
     clear();
-    render(); setAmount(0); viewer.reset(); heading.focus();
+    render(); changed(child); setAmount(0); viewer.reset(); heading.focus();
   }
   function leave(depth: number) {
     const saved = stack[depth];
     if (!saved) return;
     stack.splice(depth);
     level = saved.level;
-    clear(); render(); setAmount(saved.amount);
+    clear(); render(); changed(saved.level); setAmount(saved.amount);
     viewer.restoreCamera(saved.camera);
     select(saved.selected.item, saved.selected.path);
     list.closest("details")!.open = true;

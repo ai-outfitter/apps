@@ -29,3 +29,18 @@ test("tier 2 field instrument keeps repeated rotated cartridges separate, with o
   assert.equal(inspectionOffsets(b,0).get(board.path)!.length(),0);
   assert.equal(JSON.stringify(view),snapshot);
 });
+
+import {inspectionLink} from "../src/lib/inspection-links";
+test("old bookmarks recover the real variant while genuine configurations and unrelated parameters survive",()=>{
+  const base = randomUUID();
+  const project = AssemblySchema.parse({rootId:base,items:[{id:base,kind:"assembly",name:"Node",number:"Node",revision:"A"}],configurations:[{name:"alpha",rootId:base},{name:"Assembled",rootId:base}]});
+  const old = new URLSearchParams({configuration:"alpha-exploded",parameters:JSON.stringify({Explode:0.6,width:12})});
+  const resolved = inspectionLink(project,old)!;
+  assert.equal(resolved.get("configuration"),"alpha");
+  assert.equal(resolved.get("explode"),"60");
+  assert.deepEqual(JSON.parse(resolved.get("parameters")!),{width:12});
+  assert.equal(inspectionLink(project,new URLSearchParams("configuration=Exploded"))?.get("configuration"),"Assembled");
+  assert.equal(inspectionLink(project,new URLSearchParams("configuration=unrelated-exploded")),undefined);
+  project.configurations!.push({name:"Exploded",rootId:base});
+  assert.equal(inspectionLink(project,new URLSearchParams("configuration=Exploded")),undefined);
+});

@@ -190,7 +190,13 @@ if (overview) {
     const item = assembly?.items.find(candidate => candidate.id === id);
     if (item) select(item,path);
   }, () => $("show-all").click());
-  occurrenceUI = occurrenceInspection(root, viewer, select, () => $("show-all").click());
+  occurrenceUI = occurrenceInspection(root, viewer, select, () => $("show-all").click(), level => {
+    const scoped = modelView(assembly,level.item.id);
+    $("inspection-tree").replaceChildren(inspectionTree(scoped,resolved?.sources ?? [],sourceUrl,item => {
+      const child = level.children.filter(c => c.item.id === item.id);
+      select(item,child.length === 1 ? child[0].path : level.path);
+    }));
+  });
  } catch {
   if (signal.aborted) return;
   $("assembly-status").textContent = "3D preview unavailable in this browser.";
