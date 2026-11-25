@@ -1,5 +1,6 @@
+import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { requireAccess, requireOrganization, sha256Hex } from "@ai-outfitter/app-sdk/server";
-import type { OperationOutput } from "@ai-outfitter/app-sdk/workflow-host";
+import type { OperationInput, OperationOutput } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
@@ -204,11 +205,37 @@ function workflowInputs(row: PlanningRow, createIssue: boolean) {
   };
 }
 
-function matchesWorkflow(context: IntakeContext, row: PlanningRow, createIssue: boolean, run: NonNullable<OperationOutput<"workflow.read">>) {
-  return run.run.id === row.runId && run.run.workflowId === planningWorkflow
+type PlanningRun = NonNullable<OperationOutput<"workflow.read">>;
+type CollectionValue = OperationInput<"workflow.collect">["value"];
+
+function requireOriginalActor(context: IntakeContext, row: PlanningRow) {
+  if (row.actorDigest === null && ((context.actor.kind !== "member" && context.actor.kind !== "oauth-client")
+    || context.actor.kind !== context.originActor.kind || context.actor.id !== context.originActor.id))
+    throw new Response("The original member must recover this plan directly", { status: 403 });
+}
+
+async function readMatchingWorkflow(context: IntakeContext, host: ReturnType<IntakeContext["host"]>, row: PlanningRow, createIssue: boolean) {
+  const run = await host.call("workflow.read", { id: row.runId });
+  if (run?.run.id === row.runId && run.run.workflowId === planningWorkflow
     && run.run.createdBy === caller(context).userId && run.inference?.status !== "pending"
     && Object.entries(workflowInputs(row, createIssue))
-      .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value));
+      .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value))) return run;
+}
+
+function exactCompletedReceipt(run: PlanningRun, expected: CollectionValue) {
+  const slot = run.outputs[outputSlot];
+  return Object.keys(run.outputs).length === 1 && slot?.complete
+    && canonicalActionValue(slot.value) === canonicalActionValue(expected);
+}
+
+async function repairFailedCollection(host: ReturnType<IntakeContext["host"]>, run: PlanningRun, expected: CollectionValue) {
+  if (run.run.status !== "running") return false;
+  if (Object.keys(run.outputs).length && !exactCompletedReceipt(run, expected)) return false;
+  // A split write can leave the completed slot immutable while status is
+  // still running. Replay the stored value verbatim in that case.
+  const value = run.outputs[outputSlot]?.value ?? expected;
+  await collectWorkflowReceipt(host, run.run.id, value, true);
+  return true;
 }
 
 const failedReceipt = z.strictObject({
@@ -226,20 +253,16 @@ const failedReceipt = z.strictObject({
 async function priorFailure(context: IntakeContext, host: ReturnType<IntakeContext["host"]>, row: PlanningRow, createIssue: boolean) {
   if (row.artifact !== null || row.issue !== null || row.failureCode === "transport"
     || row.message !== (row.failureCode ? failureMessages[row.failureCode] : prepublicationFailure)) return;
-  if (row.actorDigest === null && ((context.actor.kind !== "member" && context.actor.kind !== "oauth-client")
-    || context.actor.kind !== context.originActor.kind || context.actor.id !== context.originActor.id))
-    throw new Response("The original member must recover this plan directly", { status: 403 });
+  requireOriginalActor(context, row);
+  let previous = await readMatchingWorkflow(context, host, row, createIssue);
+  if (!previous) return;
 
-  let previous = await host.call("workflow.read", { id: row.runId });
-  if (!previous || !matchesWorkflow(context, row, createIssue, previous)) return;
-
+  const expected = row.failureCode ? await workflowReceipt(context, row) : null;
   if (previous.run.status === "running") {
-    // A typed settled failure is written only after the host answered or our
-    // validation finished. A replay can repair interrupted collection.
-    if (!row.failureCode || Object.keys(previous.outputs).length !== 0) return;
-    await collectWorkflowReceipt(context, host, row);
-    previous = await host.call("workflow.read", { id: row.runId });
-    if (!previous || !matchesWorkflow(context, row, createIssue, previous) || previous.run.status === "running") return;
+    // Only a typed terminal failure can repair interrupted collection.
+    if (!expected || !(await repairFailedCollection(host, previous, expected))) return;
+    previous = await readMatchingWorkflow(context, host, row, createIssue);
+    if (previous?.run.status !== "complete") return;
   }
 
   // The generic legacy catch also covered transport loss. Require positive,
@@ -250,15 +273,15 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
   if (row.failureCode === null && (legacyInference?.status !== "settled" || !legacyInference.reasons.includes("no_response")
     || legacyInference.reasons.some(reason => reason !== "no_response" && reason !== "aborted" && reason !== "error"))) return;
 
-  const outputs = Object.entries(previous.outputs);
-  if (row.failureCode === null || outputs.length || previous.run.status === "complete") {
+  const outputCount = Object.keys(previous.outputs).length;
+  if (!expected) {
     const output = previous.outputs[outputSlot];
     const parsed = failedReceipt.safeParse(output?.value);
-    if (outputs.length !== 1 || !output?.complete || !parsed.success || parsed.data.run.id !== row.runId
+    if (outputCount !== 1 || !output?.complete || !parsed.success || parsed.data.run.id !== row.runId
       || parsed.data.message !== row.message || (parsed.data.failureCode ?? null) !== row.failureCode
       || parsed.data.anchorRepository !== row.anchorRepository
       || JSON.stringify(parsed.data.repositories) !== JSON.stringify(row.repositories)) return;
-  }
+  } else if ((outputCount || previous.run.status === "complete") && !exactCompletedReceipt(previous, expected)) return;
   return {
     runId: row.runId, message: row.message, failureCode: row.failureCode, failedAt: row.updatedAt,
     workflowStatus: previous.run.status,
@@ -387,12 +410,10 @@ function errorStatus(error: unknown) {
   return error instanceof Response ? error.status : 0;
 }
 
-async function collectWorkflowReceipt(context: IntakeContext, host: ReturnType<IntakeContext["host"]>, row: PlanningRow) {
-  const value = await workflowReceipt(context, row);
-  await host.call("workflow.collect", { runId: row.runId, slot: outputSlot, value,
-    complete: value.status !== "publication_uncertain" }).catch(error => {
-      if (errorStatus(error) !== 409) throw error;
-    });
+async function collectWorkflowReceipt(host: ReturnType<IntakeContext["host"]>, runId: string, value: CollectionValue, complete: boolean) {
+  await host.call("workflow.collect", { runId, slot: outputSlot, value, complete }).catch(error => {
+    if (errorStatus(error) !== 409) throw error;
+  });
 }
 
 async function classifyInferenceError(error: unknown): Promise<PlanFailureCode> {
@@ -450,18 +471,17 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     const result = await receipt(context, item);
     const latest = await host.call("workflow.read", { id: item.runId });
     if (latest?.run.status === "running" && result.status !== "in_progress")
-      await collectWorkflowReceipt(context, host, item);
+      await collectWorkflowReceipt(host, item.runId, await workflowReceipt(context, item), result.status !== "publication_uncertain");
     return result;
   };
 
   // A rejected draft is a terminal app result with an immutable artifact.
-  // Replay may only fill its missing collection, never enter recovery.
+  // Replay may repair collection only and returns before recovery.
   if (row.state === "failed" && row.message === rejectedIssueDraft && row.artifact !== null
     && row.issue === null && row.failureCode === null && input.createIssue) {
-    const run = await host.call("workflow.read", { id: row.runId });
-    if (run?.run.status === "running" && matchesWorkflow(context, row, input.createIssue, run)
-      && Object.keys(run.outputs).length === 0)
-      await collectWorkflowReceipt(context, host, row);
+    requireOriginalActor(context, row);
+    const run = await readMatchingWorkflow(context, host, row, input.createIssue);
+    if (run?.run.status === "running") await repairFailedCollection(host, run, await workflowReceipt(context, row));
     return receipt(context, row);
   }
 

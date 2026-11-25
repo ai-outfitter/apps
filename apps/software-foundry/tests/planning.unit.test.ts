@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { operations } from "@ai-outfitter/app-sdk/workflow-host";
 import type { z } from "zod";
@@ -37,7 +38,7 @@ type StoredRun = {
 function fixture(t: TestContext, options: {
   denyRead?: string; denyWrite?: boolean; uncertain?: boolean; noTemplate?: boolean; missingIssue?: boolean;
   legacy?: boolean; bigEvidence?: boolean; inferenceGate?: Promise<void>; kind?: "bug" | "feature" | "query";
-  publisher?: number; connectionId?: string; loseFirstStartReceipt?: boolean; loseCollect?: number[];
+  publisher?: number; connectionId?: string; loseFirstStartReceipt?: boolean; loseCollect?: number[]; splitCollect?: number[];
   extraRepositories?: boolean; inferenceErrors?: (Response | Error | null)[]; templateText?: string;
   extraTemplates?: { path: string; text: string }[]; issueTemplate?: string; issueBody?: string;
 } = {}) {
@@ -96,7 +97,14 @@ function fixture(t: TestContext, options: {
         collectCalls++;
         if (options.loseCollect?.includes(collectCalls)) throw new Response("Collection interrupted", { status: 503 });
         const run = runs.get(input.runId)!;
-        run.outputs[input.slot] = { value: input.value, complete: input.complete };
+        const existing = run.outputs[input.slot];
+        if (existing?.complete) {
+          if (!input.complete || canonicalActionValue(existing.value) !== canonicalActionValue(input.value))
+            throw new Response("Completed slot is immutable", { status: 409 });
+        } else {
+          run.outputs[input.slot] = { value: input.value, complete: input.complete };
+        }
+        if (options.splitCollect?.includes(collectCalls)) throw new Response("Collection interrupted after slot write", { status: 503 });
         if (input.complete) run.run.status = "complete";
         return {};
       }
@@ -648,3 +656,59 @@ test("a required template that cannot fit the evidence budget still blocks publi
   assert.ok(Buffer.byteLength(JSON.stringify(anchor)) <= 2500);
   assert.ok(calls.every(call => call.input.operation !== "issues.create"));
 });
+
+for (const draft of [false, true]) {
+  test(`a split collection reconciles only the exact immutable ${draft ? "rejected draft" : "typed failure"} receipt`, async t => {
+    const { context, input, calls, runs, sqlite } = fixture(t, {
+      splitCollect: [1],
+      ...(draft ? { issueBody: "## Goal\n\nMissing validation." } : { inferenceErrors: [inferenceTimeout()] }),
+    });
+    const replay = planWorkInput.parse({ ...input, createIssue: draft });
+    await assert.rejects(() => planWork(context, replay), (error: Response) => error.status === 503);
+    const failed = await findPlan(context, replay);
+    const run = runs.get(failed.run.id)!;
+    const saved = run.outputs[outputSlot];
+    const artifact = draft ? await readPlanArtifact(context, replay) : null;
+    assert.equal(run.run.status, "running");
+    assert.equal(saved.complete, true);
+
+    if (draft) {
+      // Rejected drafts from before actor digests can be repaired by the
+      // original member acting directly.
+      sqlite.prepare("UPDATE foundry_plans SET actorDigest = NULL WHERE runId = ?").run(failed.run.id);
+      await assert.rejects(() => planWork({ ...context, originActor: { ...context.originActor, id: "other" } }, replay),
+        (error: Response) => error.status === 403);
+    }
+
+    const divergent = { ...saved, value: { ...(saved.value as object), message: "Different receipt" } };
+    run.outputs[outputSlot] = divergent;
+    assert.equal((await planWork(context, replay)).run.id, failed.run.id);
+    assert.equal(run.run.status, "running");
+    assert.equal(run.outputs[outputSlot], divergent);
+    run.outputs[outputSlot] = { ...saved, complete: false };
+    assert.equal((await planWork(context, replay)).run.id, failed.run.id);
+    run.outputs[outputSlot] = saved;
+    run.outputs["other.outputs.result"] = saved;
+    assert.equal((await planWork(context, replay)).run.id, failed.run.id);
+    delete run.outputs["other.outputs.result"];
+    assert.equal(calls.filter(call => call.op === "workflow.collect").length, 1);
+    assert.equal(calls.filter(call => call.op === "inference.generate").length, 1);
+
+    // Preserve the immutable value even if a host JSON round trip changes key order.
+    const reordered = { ...saved, value: Object.fromEntries(Object.entries(saved.value as object).reverse()) };
+    run.outputs[outputSlot] = reordered;
+    const repaired = await planWork(context, replay);
+    assert.equal(run.run.status, "complete");
+    assert.equal(run.outputs[outputSlot], reordered);
+    const originalCollections = calls.filter(call => call.op === "workflow.collect" && call.input.runId === failed.run.id);
+    assert.equal(originalCollections.length, 2);
+    assert.deepEqual(Object.keys(originalCollections[1].input.value), Object.keys(reordered.value));
+    assert.equal(repaired.status, draft ? "failed" : "artifacts_only");
+    assert.equal(repaired.run.id === failed.run.id, draft);
+    assert.deepEqual(await planWork(context, replay), repaired);
+    assert.equal(calls.filter(call => call.op === "workflow.collect" && call.input.runId === failed.run.id).length, 2);
+    assert.equal(calls.filter(call => call.op === "inference.generate").length, draft ? 1 : 2);
+    assert.ok(calls.every(call => call.input.operation !== "issues.create"));
+    if (draft) assert.equal(await readPlanArtifact(context, replay), artifact);
+  });
+}
