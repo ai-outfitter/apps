@@ -27,3 +27,17 @@ these can start Foundry's issue-to-merge workflow. The Jobs page shows runs.
 An interrupted approval is retained for inspection rather than retried, because
 starting a job has no replay-safe request ID. Scheduling remains available through
 the Jobs page and the published `JobChanges` document.
+
+## Contributor template audit
+
+Run `community-template-audit` from Jobs, through the published `RunJob`
+document, or by posting to `/api/apps/software-foundry/jobs` with
+`{"action":"run","job":"community-template-audit","repository":"owner/name"}`.
+The repository must be approved on an active organization GitHub connection,
+and the acting editor must have GitHub read access. The run shows the checked
+default-branch commit, effective local and inherited templates, and the
+proposed file changes in `check.outputs.report`.
+
+To propose changes, refresh the plan in Governance and approve it there with
+GitHub write access. The approval opens a draft pull request tied to that
+revision and plan. See the [local verification harness](agent-evals/repository-governance/README.md).

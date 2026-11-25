@@ -1,0 +1,42 @@
+{
+  "scope": "provider-only synthetic prompt; no Governance route or repository or tools",
+  "startedAt": "2026-11-25T14:56:41.015Z",
+  "model": "GLM-5.3-Flash-EXL3",
+  "maxCompletionTokens": 2048,
+  "runner": "v24.22.2",
+  "requests": [
+    {
+      "endpoint": "models",
+      "httpStatus": 200,
+      "wallMs": 50
+    },
+    {
+      "endpoint": "chat/completions",
+      "httpStatus": 200,
+      "wallMs": 9412,
+      "case": "report-only",
+      "modelMatches": true,
+      "finishReason": "stop",
+      "promptTokens": 99,
+      "completionTokens": 312,
+      "totalTokens": 411,
+      "completionTokensPerWallSecond": 33.15,
+      "passed": true
+    },
+    {
+      "endpoint": "chat/completions",
+      "httpStatus": 200,
+      "wallMs": 46979,
+      "case": "partial-owner-override",
+      "modelMatches": true,
+      "finishReason": "stop",
+      "promptTokens": 109,
+      "completionTokens": 1335,
+      "totalTokens": 1444,
+      "completionTokensPerWallSecond": 28.42,
+      "passed": false
+    }
+  ],
+  "modelListed": true,
+  "passed": false
+}

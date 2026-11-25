@@ -1,0 +1,105 @@
+{
+  "repository": "team/repo",
+  "defaultBranch": "main",
+  "revision": "57b7eecd6ab39c498c0639066673b15f9f89baa1",
+  "checkedAt": "2026-11-25T15:02:38.197Z",
+  "communityTemplates": {
+    "checks": {
+      "pullRequest": {
+        "status": "covered",
+        "sources": [
+          {
+            "repository": "team/.github",
+            "branch": "main",
+            "revision": "4d26b9eb9850a1da2cb35787d19af23dbd348841",
+            "path": ".github/pull_request_template.md",
+            "origin": "inherited"
+          }
+        ],
+        "guidance": {
+          "status": "met",
+          "missingSections": []
+        },
+        "selectable": []
+      },
+      "bug": {
+        "status": "covered",
+        "sources": [
+          {
+            "repository": "team/repo",
+            "branch": "main",
+            "revision": "57b7eecd6ab39c498c0639066673b15f9f89baa1",
+            "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+            "origin": "local"
+          }
+        ],
+        "selectable": []
+      },
+      "feature": {
+        "status": "missing",
+        "sources": [],
+        "selectable": []
+      }
+    },
+    "ownerDefaults": {
+      "repository": "team/.github",
+      "branch": "main",
+      "revision": "4d26b9eb9850a1da2cb35787d19af23dbd348841"
+    },
+    "issueOverride": [
+      {
+        "repository": "team/repo",
+        "branch": "main",
+        "revision": "57b7eecd6ab39c498c0639066673b15f9f89baa1",
+        "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+        "origin": "local"
+      }
+    ],
+    "candidates": [
+      {
+        "repository": "team/repo",
+        "branch": "main",
+        "revision": "57b7eecd6ab39c498c0639066673b15f9f89baa1",
+        "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+        "origin": "local",
+        "status": "valid",
+        "kind": "bug"
+      },
+      {
+        "repository": "team/.github",
+        "branch": "main",
+        "revision": "4d26b9eb9850a1da2cb35787d19af23dbd348841",
+        "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+        "origin": "inherited",
+        "status": "valid",
+        "kind": "bug"
+      },
+      {
+        "repository": "team/.github",
+        "branch": "main",
+        "revision": "4d26b9eb9850a1da2cb35787d19af23dbd348841",
+        "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+        "origin": "inherited",
+        "status": "valid",
+        "kind": "feature"
+      },
+      {
+        "repository": "team/.github",
+        "branch": "main",
+        "revision": "4d26b9eb9850a1da2cb35787d19af23dbd348841",
+        "path": ".github/pull_request_template.md",
+        "origin": "inherited",
+        "status": "valid",
+        "kind": "pullRequest",
+        "missingSections": []
+      }
+    ],
+    "plan": {
+      "paths": [
+        ".github/ISSUE_TEMPLATE/feature_request.md"
+      ],
+      "id": "1e67b73d7978afb692928ae6f47ebcd228bb1ed022abd66349e7954b2f87890e",
+      "blocked": []
+    }
+  }
+}
