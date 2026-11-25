@@ -14,6 +14,8 @@ import {
 const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
 const commit = "b".repeat(40);
 const baseBlob = "c".repeat(40);
+const untouchedBlob = "1".repeat(40);
+const baseContent = "Original æ\n";
 const updatedBlob = "d".repeat(40);
 const baseTree = "e".repeat(40);
 const headTree = "f".repeat(40);
@@ -47,7 +49,7 @@ function fixture(t: TestContext) {
     extraPath: false, splitTree: false, providerContent: "Updated æ\n",
     loseStart: false, loseWrites: false, missingCommit: false, moveAfterPull: false,
     head: null as string | null, branch: "", message: "", runId: "", inputs: {} as Record<string, any>,
-    pull: null as Record<string, any> | null, reviews: [] as Record<string, any>[], reviewAttempt: "",
+    pull: null as Record<string, any> | null, reviews: [] as Record<string, any>[], reviewAttempt: "", reviewWrites: 0,
   };
   const bindings = new Map<string, string>([["implementer", "implementer"], ["reviewer", "reviewer"]]);
   let intercept: ((operation: string, input: Record<string, any>) => Promise<void> | void) | undefined;
@@ -97,6 +99,7 @@ function fixture(t: TestContext) {
         case "workspace.control":
           if (input.operation === "inspect-reviewer") return author();
           assert.equal(input.operation, "publish-review");
+          state.reviewWrites++;
           assert.equal(input.expectedReviewerId, 23);
           assert.equal(input.candidate.headSha, commit);
           state.reviews.push({ id: 60, html_url: `${draftUrl}#review-60`, user: author(), state: "APPROVED", commit_id: commit,
@@ -112,6 +115,7 @@ function fixture(t: TestContext) {
               state.head = pin.baseSha;
             } else if (path === "/contents") {
               assert.equal(input.body.branch, state.branch);
+              assert.equal(input.body.files.length, 1);
               assert.equal(input.body.files[0].operation, "update");
               assert.equal(input.body.files[0].sha, baseBlob);
               assert.equal(Buffer.from(input.body.files[0].content, "base64").toString("utf8"), "Updated æ\n");
@@ -149,12 +153,14 @@ function fixture(t: TestContext) {
           if (path.startsWith("/git/trees/")) {
             const isBase = path.includes(baseTree);
             const tree = [{ path: "example.md", type: "blob", mode: "100644", sha: isBase ? baseBlob : updatedBlob }];
-            if (state.splitTree) tree.push({ path: "untouched.md", type: "blob", mode: "100644", sha: "1".repeat(40) });
+            if (state.splitTree) tree.push({ path: "untouched.md", type: "blob", mode: "100644", sha: untouchedBlob });
             if (!isBase && state.extraPath) tree.push({ path: "unassigned.md", type: "blob", mode: "100644", sha: "2".repeat(40) });
             const page = Number(new URL(path, origin).searchParams.get("page"));
             return { sha: isBase ? baseTree : headTree, tree: state.splitTree ? tree.slice(page - 1, page) : tree,
               total_count: tree.length, truncated: state.splitTree };
           }
+          if (path === `/git/blobs/${baseBlob}` || path === `/git/blobs/${untouchedBlob}`)
+            return { sha: path.split("/").at(-1), encoding: "base64", content: Buffer.from(baseContent).toString("base64") + "\n" };
           if (path === `/git/blobs/${updatedBlob}`)
             return { sha: updatedBlob, encoding: "base64", content: Buffer.from(state.providerContent).toString("base64") };
           if (path.startsWith("/branches/")) {
@@ -162,6 +168,7 @@ function fixture(t: TestContext) {
             return { name: state.branch, commit: { id: state.head } };
           }
           if (path === `/contents/example.md?ref=${pin.baseSha}`) return { type: "file", sha: baseBlob };
+          if (path === `/contents/untouched.md?ref=${pin.baseSha}`) return { type: "file", sha: untouchedBlob };
           if (path.startsWith("/pulls?state=all")) return state.pull ? [state.pull] : [];
           if (path === "/pulls/8") return state.pull;
           if (path === "/pulls/8/reviews?limit=50") return state.reviews;
@@ -185,6 +192,7 @@ function fixture(t: TestContext) {
   return {
     state, calls, context, db, phase,
     intercept: (callback: typeof intercept) => { intercept = callback; },
+    claim: () => sqlite.prepare("SELECT branchClaim, commitClaim, commitProof FROM foundry_forgejo_issue_reviews WHERE runId=?").get(state.runId),
     selection: () => sqlite.prepare("SELECT implementer, reviewer FROM foundry_forgejo_issue_review_bindings WHERE key=?").get(key),
     prepare: (input: ReturnType<typeof phase>) => prepareIssueReview(host as unknown as WorkflowHost<"prepare">, db, input),
     finalize: (input: ReturnType<typeof phase>) => finalizeIssueReview(host as unknown as WorkflowHost<"finalize">, db, input),
@@ -525,4 +533,58 @@ test("a stale draft reconciliation cannot replace a blocked observation or accep
   assert.equal(receipt.draftObservation?.status, "blocked");
   assert.equal(receipt.draftObservation?.number, 8);
   assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`, `${repo.path}/pulls`]);
+});
+
+
+test("normalizes against pinned blob bytes before claiming the branch or freezing its proof", async t => {
+  const f = fixture(t);
+  await f.start();
+  f.state.splitTree = true;
+  const first = f.phase("implement");
+  const unchanged = { path: "untouched.md", content: baseContent };
+  first.outputs.result = { summary: "No byte changes", files: [unchanged] };
+  await assert.rejects(f.finalize(first), refused(422));
+  assert.deepEqual({ ...f.claim() }, { branchClaim: null, commitClaim: null, commitProof: null });
+  assert.deepEqual(f.writes(), []);
+
+  const next = f.phase("implement");
+  next.outputs.result = { summary: "One byte change", files: [unchanged, { path: "example.md", content: "Updated æ\n" }] };
+  await f.finalize(next);
+  assert.equal((await f.start()).candidate?.number, 8);
+  const proof = JSON.parse(String(f.claim()?.commitProof));
+  assert.deepEqual(proof.files.map((file: { path: string }) => file.path), ["example.md"]);
+});
+
+test("pinned review proposals reject provider automation paths regardless of case", async t => {
+  const f = fixture(t);
+  await f.start();
+  for (const path of [".FoRgEjO/Workflows/check.yml", ".GITEA/WORKFLOWS/check.yml", ".github/workflows/check.yml"]) {
+    const phase = f.phase("implement");
+    phase.outputs.result = { summary: "Provider automation", files: [{ path, content: "name: check" }] };
+    await assert.rejects(f.finalize(phase), refused(422));
+  }
+  assert.equal(f.claim()?.branchClaim, null);
+  assert.deepEqual(f.writes(), []);
+});
+
+test("another Forgejo author cannot publish or suppress the pinned reviewer's receipt", async t => {
+  const f = fixture(t);
+  await f.start();
+  await f.finalize(f.phase("implement"));
+  const review = f.phase("review");
+  f.state.loseWrites = true;
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && input.path.endsWith("/reviews?limit=50") && f.state.reviews.length === 1) {
+      f.state.reviews.unshift({ ...f.state.reviews[0], id: 61, user: { id: 99, login: "other" } });
+      f.state.reviews.pop();
+    }
+  });
+  await assert.rejects(f.finalize(review), refused(503));
+  assert.equal((await f.start()).review, null);
+
+  f.state.reviews.push({ ...f.state.reviews[0], id: 60, user: { id: 23, login: "independent" } });
+  f.intercept(undefined);
+  await f.finalize(f.phase("review", true));
+  assert.equal((await f.start()).review?.id, 60);
+  assert.equal(f.state.reviewWrites, 1);
 });

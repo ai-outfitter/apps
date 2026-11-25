@@ -25,6 +25,14 @@ export type CommitProof = {
 };
 type Read = (suffix: string) => Promise<unknown>;
 
+const gitBlob = z.object({ sha, content: z.string(), encoding: z.literal("base64") });
+
+export async function readBlobContent(read: Read, blobSha: string) {
+  const blob = gitBlob.parse(await read(`/git/blobs/${blobSha}`));
+  if (blob.sha !== blobSha) throw phaseMismatch("Forgejo returned a different Git blob");
+  return btoa(atob(blob.content));
+}
+
 async function readTree(read: Read, treeSha: string | undefined) {
   const entries = new Map<string, TreeEntry>();
   if (!treeSha) return entries;
@@ -72,9 +80,7 @@ export async function verifyCommitTree(read: Read, baseTree: string, headTree: s
         if (next?.type !== "blob" || (old && old.type !== "blob") ||
             !["100644", "100755"].includes(next.mode) || next.mode !== (old?.mode ?? "100644"))
           throw reject();
-        const blob = z.object({ sha, content: z.string(), encoding: z.literal("base64") }).parse(await read(`/git/blobs/${next.sha}`));
-        if (blob.sha !== next.sha || await sha256Hex(blob.content.replace(/\s/g, "")) !== expected.contentHash)
-          throw reject();
+        if (await sha256Hex(await readBlobContent(read, next.sha)) !== expected.contentHash) throw reject();
       }
       remaining.delete(path);
     }

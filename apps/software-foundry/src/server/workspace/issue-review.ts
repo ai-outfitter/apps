@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { IntakeContext } from "../intake";
 import { forgejoIssueReviewBindings, forgejoIssueReviews } from "../schema";
 import { hostAPI } from "./forge";
-import { PhaseMismatch, phaseMismatch, verifyCommitTree, type CommitProof } from "./issue-review-commit";
+import { PhaseMismatch, phaseMismatch, readBlobContent, verifyCommitTree, type CommitProof } from "./issue-review-commit";
 
 export const issueReviewWorkflow = "foundry-forgejo-issue-review";
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
@@ -234,7 +234,8 @@ const pull = z.object({
   head,
 });
 const sourcePath = z.string().max(500).regex(/^[A-Za-z0-9_.@+-]+(?:\/[A-Za-z0-9_.@+-]+)*$/)
-  .refine(path => !path.includes("..") && !path.split("/").some(part => part === "." || part.toLowerCase() === ".git"));
+  .refine(path => !path.includes("..") && !path.split("/").some(part => part === "." || part.toLowerCase() === ".git"))
+  .refine(path => !/^\.(?:forgejo|gitea|github)\/workflows(?:\/|$)/i.test(path));
 const changes = z.strictObject({
   summary: z.string().trim().min(1).max(16_000),
   files: z.array(z.strictObject({ path: sourcePath, content: z.string().max(100_000) })).min(1).max(20),
@@ -422,14 +423,14 @@ export async function prepareIssueReview(host: WorkflowHost<"prepare">, db: Inta
   };
 }
 
-async function fileOperation(api: ReviewRepository, pins: Target, file: Changes["files"][number]): Promise<ChangeFile> {
+async function fileOperation(api: ReviewRepository, pins: Target, file: Changes["files"][number]): Promise<ChangeFile | null> {
   const { path, content } = file;
   const previous = await optionalRead(api, `/contents/${path}?ref=${pins.baseSha}`);
   const existing = previous === null ? null : z.object({ type: z.literal("file"), sha }).parse(previous);
   const encoded = btoa(Array.from(new TextEncoder().encode(content), byte => String.fromCharCode(byte)).join(""));
-  return existing
-    ? { operation: "update", path, sha: existing.sha, content: encoded }
-    : { operation: "create", path, content: encoded };
+  if (!existing) return { operation: "create", path, content: encoded };
+  if (await readBlobContent(api.get, existing.sha) === encoded) return null;
+  return { operation: "update", path, sha: existing.sha, content: encoded };
 }
 
 async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaited<ReturnType<typeof phaseSource>>,
@@ -441,7 +442,11 @@ async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaite
   if (!proposed.success) throw phaseMismatch("Implementation must propose a bounded set of added or updated text files");
   const result = proposed.data;
   const files: ChangeFile[] = [];
-  for (const file of result.files) files.push(await fileOperation(api, pins, file));
+  for (const proposedFile of result.files) {
+    const file = await fileOperation(api, pins, proposedFile);
+    if (file) files.push(file);
+  }
+  if (!files.length) throw phaseMismatch("Implementation proposal leaves the pinned base unchanged");
   if (!row.branchClaim) {
     if (await reviewBranchTip(api, pins)) throw phaseMismatch("The assigned branch already exists");
     await verifySource(api, pins, pins.origin, phaseMismatch);
@@ -604,11 +609,11 @@ async function reconcileReview(api: ReviewRepository, candidate: Candidate, pins
     user: actor, dismissed: z.boolean().optional(), stale: z.boolean().optional(),
   })).parse(await api.get(`/pulls/${candidate.number}/reviews?limit=50`));
   if (items.length >= 50) throw phaseMismatch("Review history exceeds the reconciliation limit");
-  const owned = items.filter(item => item.body?.includes(reviewMarker(claim.attemptId)));
+  const owned = items.filter(item => item.user.id === pins.reviewerId && item.body?.includes(reviewMarker(claim.attemptId)));
   const current = owned[0];
   const expected = claim.verdict === "approved" ? "APPROVED" : "REQUEST_CHANGES";
   if (!current) throw unconfirmed("Formal review is unconfirmed at the pinned head");
-  if (owned.length !== 1 || current.user.id !== pins.reviewerId || current.commit_id !== candidate.headSha || current.state !== expected ||
+  if (owned.length !== 1 || current.commit_id !== candidate.headSha || current.state !== expected ||
       current.dismissed || current.stale || new URL(current.html_url).origin !== pins.origin)
     throw phaseMismatch("Formal review differs from its pinned identity or head");
   return reviewReceipt.parse({ id: current.id, url: current.html_url, headSha: current.commit_id,
