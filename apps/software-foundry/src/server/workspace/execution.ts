@@ -1,4 +1,4 @@
-import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import type { IntakeContext } from "../intake";
 import { isPlanningIssue } from "../planning-issues";
 // Software Foundry's role-based workspace node policy, run by the workflow host:
 // `prepare` chooses each node's workspace task, `finalize` verifies what the
@@ -27,7 +27,7 @@ type Prepare = WorkflowHost<"prepare">;
 type Finalize = WorkflowHost<"finalize">;
 type Json = Record<string, unknown>;
 /** This installation's storage and the origin its public file URLs use. */
-export type Storage = { locals: StorageLocals; origin: string };
+export type Storage = { locals: StorageLocals; origin: string; db?: IntakeContext["db"] };
 
 const id = z.string().min(1).max(128);
 /** The Foundry policy an approved binding carries in its target `settings`. */
@@ -170,7 +170,7 @@ export async function finalizeWorkspaceNode(
   { node, inputs, outputs, coordinator, session, settings }: z.infer<typeof finalizeInput>,
 ) {
   const target = workspaceTarget.parse(settings);
-  if (target.role === "file-issues") return { outputs: await finalizeAnalysis(host, inputs, outputs) };
+  if (target.role === "file-issues") return { outputs: await finalizeAnalysis(host, files.db, inputs, outputs) };
   if (coordinator)
     return { outputs: await finalizeWorkspaceOutputs(host, files, node, inputs, target, { result: {
       ready: true, summary: "Coordinated GitHub Actions workflow step",
@@ -188,7 +188,7 @@ const jobFix = z.object({ installation: z.string().min(1), resource: z.string().
 /** A repository job's issues, each re-read from the bound repository, so only
  * issues that exist there are reported, and each started on issue-to-merge.
  * The run then retries earlier fixes that failed (retryJobFixes). */
-async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Promise<Json> {
+async function finalizeAnalysis(host: Finalize, db: IntakeContext["db"] | undefined, inputs: Json, outputs: Json): Promise<Json> {
   const produced = z.object({
     issues: z.array(z.object({ number: z.number().int().positive() }).passthrough()).max(10),
     summary: z.string().max(32000).optional(),
@@ -197,8 +197,11 @@ async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Pr
   const repo = await host.call("repository.read", {});
   const forge = foundryForge(hostAPI((request) => host.call("repository.request", request)), repo);
   const repoIdentity = { id: repo.repositoryId, name: repo.name };
-  const plannedIssue = (issue: Awaited<ReturnType<typeof forge.issue>>) => repo.forge === "forgejo"
-    ? isPlanningIssue(installationDatabase, repoIdentity, issue) : Promise.resolve(false);
+  const plannedIssue = async (issue: Awaited<ReturnType<typeof forge.issue>>) => {
+    if (repo.forge !== "forgejo") return false;
+    if (!db) throw new Response("Planning provenance unavailable", { status: 503 });
+    return isPlanningIssue(db, repoIdentity, issue);
+  };
   const issues = [];
   for (const { number } of produced.issues) {
     const issue = await forge.issue(number);
