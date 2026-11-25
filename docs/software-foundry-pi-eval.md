@@ -13,6 +13,17 @@ The comparison uses the existing [`subtract-helper` fixture](../apps/software-fo
 
 The Spark model ID and weight snapshot came from the serving endpoint's model catalog. The box sends Pi's `workspace` provider calls through its local gateway, configured with Spark as the sole upstream.
 
+## Outcomes
+
+| Arm | Observed model | Foundry result | Grader | Wall time | Model calls | Input tokens | Output tokens |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| Spark | `GLM-5.3-Flash-EXL3` | Landed and released inside the box | 2/2 | 2,359.1 s | 61 | 606,809 | 42,647 |
+| Native `openai-codex` | — | Awaiting interactive personal consent | — | — | — | — | — |
+
+The Spark gateway recorded 61 HTTP 200 responses from `spark`. Foundry passed both validation steps, obtained final approval on `e98d5b469542fe9c160c4aba219fbd0a30753441`, landed `b87f0c890a494373e1a54a8f224267530b65a545` on the fixture's local default branch and created the box-local `v0.1.0` release. The grader passed both tests on the landed tree. Steps that called the model accounted for 2,296.0 s, or 18.6 output tokens per second. [Sanitized Spark receipt](software-foundry-pi-eval/spark-2026-11-25.json)
+
+The recorded image used a permission-only layer so the unprivileged box user could read the archived runtime sources. The run also made the temporary synthetic input bind mounts readable to the remapped user. Both fixes address startup failures that occurred before model calls. The pinned Pi, fixture and grader were used as-is.
+
 ## Reproduce the Spark run
 
 Use clean copies of the source revisions in the table and Node 24. Create and run the checkout with `umask 022` so the box’s runtime user can read the copied sources. Configure `.env.spark` from [the example](../apps/software-foundry/agent-evals/.env.example) for the local Spark endpoint, including `AI_MODEL=GLM-5.3-Flash-EXL3`. Run from the Apps root with free local ports and a container runtime that can reach Spark.
@@ -40,3 +51,5 @@ OpenAI's documented open-source subscription flow dynamically registers a worksp
 The gateway speaks Chat Completions. A separate trusted host process uses the pinned Pi transport for native inference. The box runs with networking disabled and reaches host inference over a dedicated Unix socket. The host relay attaches the short-lived broker authorization. Pi owns the personal OAuth grant, refresh and protected storage outside the workspace. The account holder completes interactive consent in a fresh private Pi directory. See the [native eval runner and consent steps](software-foundry-pi-eval/README.md). [OpenAI credential guidance](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions)
 
 Five synthetic tests passed. They exercised Pi's native refresh and SSE against fake responses, including a tool call, tool result and final usage. An additional probe sent the real Foundry workspace request through the network-disabled box, gateway, mounted socket and host broker with a synthetic provider. The broker accepted the unchanged Foundry prompt and its 18 tool declarations. That exercise validates the transport and custody boundary.
+
+The candidate for the live native arm is `gpt-6-luna` from the pinned Pi catalog. An authenticated completion will establish whether that personal account can use it. The live arm has no observed model, usage or grade yet.

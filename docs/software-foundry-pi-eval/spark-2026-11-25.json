@@ -1,0 +1,141 @@
+{
+  "fixture": "subtract-helper",
+  "fixtureTree": "b8f75c47855d0a3b7031babdaba7fe0bec72040d",
+  "fixtureBaseCommit": "4649d26b3d2d94bfdefc50ff0e513b187b85e970",
+  "graderSha256": "c9ae5bf8773bc346d37ccf22d04d4429717b90ffd9ef32012865c90e84617ab7",
+  "grade": {
+    "passed": 2,
+    "total": 2
+  },
+  "agentEvalDurationSeconds": 2382.45,
+  "appsRevision": "eef637da88a2f043b9a21bc70534f6d581d4356c",
+  "webappRevision": "41b8a63b3487b19faa5409003cccaebdd48ca9bd",
+  "boxImageId": "sha256:fbe0429936cc55edabe404fcd9d85227c007d3baaafe056c79af3af3f2270d2b",
+  "pi": {
+    "codingAgent": "1.0.4",
+    "ai": "1.0.4",
+    "sourceRevision": "7c10bd4337495ee613f2224843ecdf349b80d1df"
+  },
+  "modelWeights": {
+    "repository": "Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw",
+    "revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f"
+  },
+  "containerExit": 0,
+  "gatewayRequests": [
+    {
+      "provider": "spark",
+      "model": "GLM-5.3-Flash-EXL3",
+      "status": 200,
+      "count": 61
+    }
+  ],
+  "requestId": "3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e",
+  "model": {
+    "provider": "spark",
+    "id": "GLM-5.3-Flash-EXL3"
+  },
+  "status": "landed",
+  "metrics": {
+    "wallSeconds": 2359.1,
+    "modelSeconds": 2296,
+    "modelCalls": 61,
+    "inputTokens": 606809,
+    "outputTokens": 42647,
+    "outputTokensPerSecond": 18.6,
+    "steps": [
+      {
+        "name": "triage",
+        "status": "completed",
+        "seconds": 140.1,
+        "modelCalls": 7,
+        "inputTokens": 40785,
+        "outputTokens": 2539
+      },
+      {
+        "name": "implement",
+        "status": "completed",
+        "seconds": 184.7,
+        "modelCalls": 13,
+        "inputTokens": 95597,
+        "outputTokens": 3141
+      },
+      {
+        "name": "validate",
+        "status": "completed",
+        "seconds": 2.4,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review",
+        "status": "completed",
+        "seconds": 460.5,
+        "modelCalls": 14,
+        "inputTokens": 157599,
+        "outputTokens": 10179
+      },
+      {
+        "name": "repair",
+        "status": "completed",
+        "seconds": 290.9,
+        "modelCalls": 8,
+        "inputTokens": 81099,
+        "outputTokens": 6556
+      },
+      {
+        "name": "validate-final",
+        "status": "completed",
+        "seconds": 2.9,
+        "modelCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      {
+        "name": "review-final",
+        "status": "completed",
+        "seconds": 516.2,
+        "modelCalls": 11,
+        "inputTokens": 147589,
+        "outputTokens": 12316
+      },
+      {
+        "name": "land",
+        "status": "completed",
+        "seconds": 703.6,
+        "modelCalls": 8,
+        "inputTokens": 84140,
+        "outputTokens": 7916
+      }
+    ]
+  },
+  "startedAt": "2026-11-25T13:26:00.916Z",
+  "finishedAt": "2026-11-25T14:05:20.018Z",
+  "mergeCommit": "b87f0c890a494373e1a54a8f224267530b65a545",
+  "changeCommit": "e98d5b469542fe9c160c4aba219fbd0a30753441",
+  "checks": [
+    {
+      "name": "test",
+      "conclusion": "success",
+      "commitSha": "e98d5b469542fe9c160c4aba219fbd0a30753441"
+    }
+  ],
+  "reviewVerdict": "approved",
+  "release": {
+    "tag": "v0.1.0",
+    "artifacts": [
+      {
+        "name": "repo-0.1.0.tar.gz",
+        "sha256": "8170ae0a879d346168da7df3935038ccf7c3d9a86c2543ef1fbc4036266cc1bf",
+        "bytes": 634
+      },
+      {
+        "name": "repo-0.1.0.bundle",
+        "sha256": "100f222b893777ba893e251e537b77e0c6dce58e49cadd23750966e3c4d8320e",
+        "bytes": 3318
+      }
+    ],
+    "evidenceSha256": "ab781999686ceb390e5b2c061a6ff0cb8fe3fd33a402bdf0e62a72c7ac97e441"
+  },
+  "finalCommit": "b87f0c890a494373e1a54a8f224267530b65a545"
+}
