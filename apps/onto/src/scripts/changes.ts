@@ -157,6 +157,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
   const [graph, detail] = await Promise.all([loadGraph(), getBatch(batchId)]);
   let currentSignature = "";
   let activeView = "proposals";
+  let submitting = false;
   const address = recordAddress(graph);
   const draw = (current: BatchDetail) => {
     if (signal.aborted) return;
@@ -191,6 +192,26 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
       buttons.set(key, button); return button;
     }));
     choose(activeView);
+    let submitAction: HTMLElement | null = null;
+    if (current.canReview && batch.state === "open" && batch.policy.kind === "member") {
+      const button = el("button", { type: "button", class: "primary" }, "Submit for review");
+      const errorMessage = el("span", { role: "alert" });
+      button.onclick = async () => {
+        if (submitting) return;
+        submitting = true;
+        button.disabled = true;
+        errorMessage.textContent = "";
+        try {
+          draw(await call<BatchDetail>("batches/submit", { batchId }));
+        } catch (error) {
+          errorMessage.textContent = error instanceof Error ? error.message : String(error);
+          button.disabled = false;
+        } finally {
+          submitting = false;
+        }
+      };
+      submitAction = el("div", { class: "change-actions" }, button, errorMessage);
+    }
     fill(root,
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
       el("h2", {}, batch.title),
@@ -199,6 +220,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
         el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
         batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),
       deadlineText(batch) ? el("p", { class: "change-deadline", role: "status" }, deadlineText(batch)) : null,
+      submitAction,
       bulkActions(current, draw),
       questionSection(current, (op) => questionRef(items, view, batch.id, op), draw),
       current.validation ? el("p", { class: "change-validation", role: "status" }, current.validation.valid ? "Passing · Current proposals satisfy graph and anchor checks." : `Needs changes · ${current.validation.error}`) : null,
@@ -209,9 +231,10 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
   draw(detail);
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   livePoll(signal, async () => {
-    if (root.querySelector("form:focus-within")) return;
+    if (submitting || root.querySelector("form:focus-within")) return;
+    const before = currentSignature;
     const next = await getBatch(batchId);
-    if (JSON.stringify(next) !== currentSignature) draw(next);
+    if (!submitting && before === currentSignature && JSON.stringify(next) !== currentSignature) draw(next);
   }, { every: 5000 });
 }
 
