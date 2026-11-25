@@ -587,13 +587,12 @@ function checkObservedVersion(batch: BatchRow, expected: number | undefined, req
 }
 
 function changesRequested(row: OperationRow) {
-  return row.state === "awaiting_review" && row.decision !== null &&
-    JSON.parse(row.decision)?.verdict === "request_changes";
+  return row.decision !== null && JSON.parse(row.decision)?.verdict === "request_changes";
 }
 
 function writeProposals(batchId: string, written: OperationRow[], remove: string[]) {
   const statements: SQL[] = [];
-  if (remove.length) statements.push(sql`UPDATE graph_batch_operations SET state='removed',decision=NULL,decidedBy=NULL WHERE batchId=${batchId} AND ref IN (SELECT value FROM json_each(${JSON.stringify(remove)}))`);
+  if (remove.length) statements.push(sql`UPDATE graph_batch_operations SET state='removed' WHERE batchId=${batchId} AND ref IN (SELECT value FROM json_each(${JSON.stringify(remove)}))`);
   for (const row of written) statements.push(sql`INSERT INTO graph_batch_operations(batchId,ref,position,operation,evidence,confidence,reason,state)
     VALUES(${row.batchId},${row.ref},${row.position},${JSON.stringify(row.operation)},${JSON.stringify(row.evidence)},${row.confidence},${row.reason},${row.state})
     ON CONFLICT(batchId,ref) DO UPDATE SET position=excluded.position,operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state,decision=NULL,decidedBy=NULL`);
@@ -783,7 +782,8 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
   if (!chosen.size) fail("No waiting operations match", 409);
-  const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at: Date.now() });
+  const at = Date.now();
+  const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at });
   if (input.verdict === "request_changes") {
     if (!input.comment?.trim()) fail("Explain what the submitter should change");
     const refs = [...chosen];
@@ -795,6 +795,7 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
         WHERE batchId=${batch.id} AND ref IN (SELECT value FROM json_each(${JSON.stringify(refs)}))`,
       sql`INSERT INTO graph_batch_change_requests (id,batchId,refs,decision)
         VALUES(${guard},${batch.id},${JSON.stringify(refs)},${JSON.stringify(decision)})`,
+      sql`UPDATE graph_batches SET updatedAt=${at} WHERE id=${batch.id}`,
       sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
     ], "Batch changed; reload before requesting changes");
     return getBatch(db, who, { batchId: batch.id });

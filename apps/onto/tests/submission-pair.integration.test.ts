@@ -95,6 +95,9 @@ for (const mode of ["baseline", "candidate"]) {
       step = "receiptGuards";
       await assert.rejects(revise("correct", "Changed key input"), /requestKey/);
       await assert.rejects(call("MutateBatchSubmission", { input: { requestKey: "terminal-ref", batchId, expectedVersion: 2, remove: ["$kept"] } }), /already decided/);
+      await assert.rejects(call("MutateBatchSubmission", { input: {
+        requestKey: "readd-unchanged", batchId, expectedVersion: 2, proposals: [proposal("$drop", "Drop")],
+      } }), /update its proposal or withdraw it/);
     }
     step = "rereview";
     const review = { batchId, expectedVersion: 2, verdict: "approve", refs: ["$edit"] };
