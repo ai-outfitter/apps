@@ -3,13 +3,16 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
 import { planningIssueMarker } from "./planning-issues";
-import { forgejoRepositoryName } from "./projects";
 import { foundryPlans } from "./schema";
 import { submissionRepository } from "./workspace/workspaces";
 
 export const planningWorkflow = "foundry-plan-work";
 const outputSlot = "plan.outputs.result";
 const requestId = z.uuid();
+// Match Forgejo's interior owner separators and keep repository segments safe
+// for the host's covered API paths.
+const forgejoRepositoryName = z.string().max(140)
+  .regex(/^(?!.*\.\.)[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*\/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/);
 export const findPlanInput = z.strictObject({ requestId });
 export const planWorkInput = z.strictObject({
   requestId,
@@ -71,6 +74,7 @@ async function allowedRepositories(context: IntakeContext, names: string[]) {
     if (connections.filter(connection => connection.repositories.some(repository => repository.toLowerCase() === name)).length !== 1)
       throw new Response(`Repository read unavailable: ${name}`, { status: 403 });
     const repo = await submissionRepository(host, { ...snapshot, connections }, name);
+    if (repo.name.toLowerCase() !== name) throw new Response("Repository identity changed", { status: 409 });
     return [name, repo] as const;
   }));
   return { host, repositories: new Map(repositories) };

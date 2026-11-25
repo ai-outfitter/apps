@@ -30,11 +30,8 @@ const name = z
   .max(40)
   .regex(/^[A-Za-z0-9][A-Za-z0-9 _.-]*$/)
   .transform((value) => value.toUpperCase().replace(/\s+/g, " "));
-/** An `owner/name` repository used by the GitHub and workspace workflows. */
+/** An `owner/name` GitHub repository as typed; `repository` is its lower-case form, as connections store it. */
 export const repositoryName = z.string().max(140).regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/);
-/** Forgejo planning accepts owner dots between alphanumerics and safe repository path segments. */
-export const forgejoRepositoryName = z.string().max(140)
-  .regex(/^(?!.*\.\.)[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*\/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/);
 export const repository = repositoryName.transform((value) => value.toLowerCase());
 const repositories = z
   .array(repository)

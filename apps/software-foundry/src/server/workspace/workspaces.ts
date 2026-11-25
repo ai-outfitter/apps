@@ -1,4 +1,3 @@
-import { forgejoRepositoryName, repositoryName } from "../projects";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
@@ -138,15 +137,9 @@ async function approvedRepository(host: Editor, snapshot: Snapshot, repository: 
     connection.repositories.some((listed) => listed.toLowerCase() === name));
   if (matched.length !== 1)
     throw new Response("Repository unavailable through your GitHub account or this organization's GitHub App or Forgejo connection", { status: 409 });
-  const connection = matched[0];
-  const schema = connection.provider === "forgejo" ? forgejoRepositoryName : repositoryName;
-  if (!schema.safeParse(repository).success || [".", ".."].includes(name.split("/")[1]))
-    throw new Response("Invalid repository name", { status: 400 });
-  const result = z.object({ id: z.number().int().positive(), full_name: schema })
-    .safeParse(await host.call("repository.request", { connectionId: connection.id, path: `/repos/${name}` }));
-  if (!result.success || result.data.full_name.toLowerCase() !== name)
-    throw new Response("Repository identity changed", { status: 409 });
-  return { connection, metadata: result.data };
+  const metadata = z.object({ id: z.number().int().positive(), full_name: z.string() })
+    .parse(await host.call("repository.request", { connectionId: matched[0].id, path: `/repos/${name}` }));
+  return { connection: matched[0], metadata };
 }
 
 /** Forge admission does not depend on an execution binding or event subscription. */

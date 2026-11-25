@@ -7,10 +7,10 @@ import { generatedPlanningIssue } from "../src/server/planning-issues";
 import type { IntakeContext } from "../src/server/intake";
 import { findPlan, planWork, planWorkInput, readPlanArtifact } from "../src/server/planning";
 
-const home = "box/native-apple";
-const charts = "box/charts";
+const home = "ks.systems/native-apple";
+const charts = "ks.systems/charts";
 const ids = new Map([[home, 14], [charts, 23]]);
-const anchorLink = "https://forge.example/box/native-apple/issues/9";
+const anchorLink = `https://forge.example/${home}/issues/9`;
 const featureTemplate = ".forgejo/ISSUE_TEMPLATE/feature.md";
 
 function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boolean; uncertain?: boolean; noTemplate?: boolean } = {}) {
@@ -84,6 +84,16 @@ function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boole
   const input = { requestId: crypto.randomUUID(), request: "Plan a native iOS and macOS Grafana install", repositories: [charts, home], anchorRepository: home };
   return { context, input, calls, body: () => body };
 }
+
+test("PlanWork accepts interior owner dots and rejects path aliases in scope and anchor", () => {
+  const input = { requestId: crypto.randomUUID(), request: "Plan fixture", repositories: ["KS.Systems/OS"], anchorRepository: "KS.Systems/OS" };
+  assert.equal(planWorkInput.safeParse(input).success, true);
+  for (const name of [".ks.systems/os", "ks.systems./os", "ks..systems/os", "ks.systems/..",
+    "ks.systems/.os", "ks.systems/os.", "ks.systems/os%2Fcharts", "ks.systems/os/charts"]) {
+    assert.equal(planWorkInput.safeParse({ ...input, repositories: [name] }).success, false, name);
+    assert.equal(planWorkInput.safeParse({ ...input, anchorRepository: name }).success, false, name);
+  }
+});
 
 test("planning reads every explicit repo, writes only the anchor and reconciles an uncertain issue", async t => {
   const { context, input, calls, body } = fixture(t, { uncertain: true });

@@ -170,7 +170,7 @@ export async function run(box) {
       assert.deepEqual(snapshot(), pristine);
       report.cases.invalidNames = { names: malformed, checkedIn: ["repositories", "anchorRepository"], dispatched: 0 };
     }
-    refused(await submit(request("denied", { anchorRepository: "box/outside-scope" })), /anchor/i);
+    refused(await submit(request("denied", { anchorRepository: `${anchor.split("/")[0]}/outside-scope` })), /anchor/i);
     refused(await submit(request("denied", { anchorRepository: undefined })), /anchor/i);
     setCoverage(db, [anchor]);
     try {
