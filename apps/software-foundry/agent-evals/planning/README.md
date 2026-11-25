@@ -2,7 +2,7 @@
 
 The replay installs the current operational Foundry package in a disposable app box. It opens a normal OAuth session and calls `graph_documents`, `graph_mutate` and `graph_query` over the platform's public `/mcp`. It uses two synthetic Git repositories in Forgejo 11, `box/charts` and `box/native-apple`. The latter is the issue anchor.
 
-Run from the apps repository after installing the locked workspace dependencies. Supply a local Software Foundry box image with the matching webapp Forgejo evidence, issue-create preflight and marker reconciliation operations. Build that image using the repo's [app box instructions](../../../../box/README.md).
+Run from the apps repository after installing the locked workspace dependencies. Supply a local Software Foundry box image with the matching webapp Forgejo evidence, issue-create preflight and marker reconciliation operations. Build that image using the repo's [app box instructions](../../../../box/README.md). Point the webapp context at the companion host checkout containing `07f901cdd636f94ef5534445b1d6d9d7d6b88bf0` or its changes.
 
 ```sh
 apps/software-foundry/agent-evals/planning/run.sh \
@@ -19,6 +19,8 @@ The output directory contains `report.json`, retained plans, the inference and F
 
 ## Final replay
 
-The [final replay receipt](final-replay.json) is the raw report from the offline replay with the author-binding fix. The operational app was rebuilt from `024ebf7ceaf077a8bb386f95f84982bcc2ca4f26`. The Forgejo host overlay was refreshed through `07f901cdd636f94ef5534445b1d6d9d7d6b88bf0` and applied to local app box image `sha256:fbe0429936cc55edabe404fcd9d85227c007d3baaafe056c79af3af3f2270d2b`. The host patch SHA-256 was `d8a7dd84b52f6b2d8f9d95bd97da6af465eee76abef2465c0d2504605eb9a981`.
+The [final replay receipt](final-replay.json) is the raw report from the offline replay with the author-binding fix. The operational app was rebuilt from `61407ce7e5c9f5f2dcb4f11bfa7ed4075923da6b`, which includes the scheduled-job stop guard. The Forgejo host overlay was refreshed through `07f901cdd636f94ef5534445b1d6d9d7d6b88bf0` and applied to local app box image `sha256:fbe0429936cc55edabe404fcd9d85227c007d3baaafe056c79af3af3f2270d2b`. The host patch SHA-256 was `d8a7dd84b52f6b2d8f9d95bd97da6af465eee76abef2465c0d2504605eb9a981`.
 
 The refreshed host returned the verified bot ID in issue preflight. The app declined two properly signed events whose issue author was that bot. The focused planning unit suite also checked that copying the marker to an issue with a different author does not trigger suppression.
+
+The installed-worker regression in `tests/workspace-host.integration.test.ts` exercises the actual finalize route separately. Both the new-issue path and the repair sweep skip the protected planning issue. An unrelated issue still starts the existing implementation workflow.
