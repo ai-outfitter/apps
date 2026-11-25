@@ -2,6 +2,12 @@
 import AppLayout from "./WorkshopLayout.astro";
 import "../styles/workshop.css";
 import { appHref } from "../app-href";
+import { addressedLevel, levelPath, displayName } from "../lib/occurrence-address";
+import { assemblySelection } from "../lib/assembly-selection";
+import { inspectionLink } from "../lib/inspection-links";
+import { configuredAssembly, type ResolvedAssembly } from "../lib/assembly-resolution";
+import { resolvedProject } from "../server/assembly-references";
+import type { Project } from "../lib/project";
 import { SECTIONS, projectPath, slugId, type SectionId } from "../lib/sections";
 import Content from "./Workspace.astro";
 import PCBReview from "./PCBReview.astro";
@@ -10,24 +16,55 @@ import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database"
 import { projectBySlugId } from "../server/projects";
 import { hasPcbReview } from "../lib/pcb-review";
 
-interface Props { section?: SectionId; slug: string }
-const { slug } = Astro.props;
-let projectName: string | undefined;
-let hasPcb = false;
-let projectId:string|undefined, revision:number|undefined;
-if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
-  try {
-    const project = await projectBySlugId(installationDatabase(), slugId(slug)!);
-    projectName = project?.name;
-    projectId = project?.id;
-    revision = project?.revision;
-    hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
-  } catch { /* The workspace reports loading errors. */ }
+interface Props { section?: SectionId; slug: string; occurrence?: string }
+const { slug, occurrence } = Astro.props;
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+let project: Project | undefined;
+try {
+  project = demo
+    ? (await import("../client/fixtures")).fixtureProjects().find(item => item.id.endsWith(slugId(slug)!))
+    : await projectBySlugId(installationDatabase(), slugId(slug)!);
+} catch (error) {
+  if (occurrence) throw error;
 }
 const section = Astro.props.section ?? "overview";
 const path = (target: string) => appHref(Astro.url.pathname, target);
-const defaultView=section==="overview" && !["item","configuration","parameters","revision","build","view"].some(key=>Astro.url.searchParams.has(key));
-const preview=projectId && defaultView ? path(`/api/apps/workshop/projects/${projectId}/preview?revision=${revision}&thumbnail=1`) : undefined;
+const hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
+let resolved: ResolvedAssembly | undefined;
+let initial = occurrence ? undefined : project && { name: project.name, crumbs: [] as { name: string; href: string }[] };
+let levelError: string | undefined;
+if (occurrence) {
+  try {
+    if (!project) throw new Response("This product is unavailable.", { status: 404 });
+    const query = Astro.url.searchParams;
+    const build = project.workspace?.requests.find(run => run.id === query.get("build"));
+    const params = build || query.has("revision") ? query : inspectionLink(project.assembly, query) ?? query;
+    const selection = assemblySelection(project.id, params);
+    if (!build && !demo && (params.has("configuration") || params.has("parameters") || params.has("revision") || project.assembly.items.some(item => item.reference))) {
+      resolved = await resolvedProject(installationDatabase(), selection);
+    }
+    const assembly = build ? build.result?.manifest?.assembly : resolved?.assembly ??
+      (demo ? configuredAssembly(project.assembly, selection) : project.assembly);
+    const item = assembly?.items.find(item => item.id === params.get("item"));
+    const chain = assembly && addressedLevel(assembly, item?.id ?? assembly.rootId ?? "", occurrence);
+    if (!chain) throw new Response("This assembly level is unavailable in the selected product and configuration.", { status: 404 });
+    const links = new URLSearchParams(params);
+    for (const key of ["sel", "inspect"]) links.delete(key);
+    const search = links.size ? "?" + links : "";
+    initial = {
+      name: displayName(chain.at(-1)!.item).name,
+      crumbs: chain.slice(0, -1).map(entry => ({
+        name: displayName(entry.item).name + (entry.quantity > 1 ? " · copy " + (entry.copy + 1) : ""),
+        href: path(levelPath(slug, entry.path) + search),
+      })),
+    };
+  } catch (error) {
+    Astro.response.status = error instanceof Response ? error.status : 400;
+    levelError = error instanceof Response ? await error.text() : (error as Error).message;
+  }
+}
+const defaultView=section==="overview" && !occurrence && !["item","configuration","parameters","revision","build","view","inspect","sel","explode"].some(key=>Astro.url.searchParams.has(key));
+const preview=!demo && project && defaultView ? path(`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&thumbnail=1`) : undefined;
 const current = SECTIONS.find(page => page.id === section)!;
 const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || page.id === section).filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
   label: page.label,
@@ -37,6 +74,7 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
 ---
 <AppLayout
   hideReferences={section === "overview"}
+  navigation={section !== "overview"}
   persistKey={`workshop:${slug}:${section}:${Astro.url.search}`}
   name="Workshop"
   headerStyle="app"
@@ -47,8 +85,14 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
   active="home"
   sidebarSections={[
     { label: "Workspace", links: [{ label: "All projects", href: path("/"), active: false }, { label: "New model", href: path("/new"), active: false }] },
-    { label: projectName ?? "Project", links },
+    { label: project?.name ?? "Project", links },
   ]}
 >
-  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} projectId={projectId} preview={preview} />}
+  {levelError ? <section class="workspace">
+    <h1>Assembly level unavailable</h1><p>{levelError}</p>
+    <a href={path(projectPath(slug))}>Open product overview</a>
+  </section> : section === "pcb" ? <PCBReview slug={slug} /> : <Content
+    section={section} slug={slug} projectId={!demo ? project?.id : undefined} productName={project?.name}
+    preview={preview} occurrence={occurrence} initial={initial} resolved={resolved} hasPcb={hasPcb}
+  />}
 </AppLayout>

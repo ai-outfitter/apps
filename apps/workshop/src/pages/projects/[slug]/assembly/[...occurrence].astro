@@ -1,0 +1,8 @@
+---
+import WorkshopPage from "../../../../components/WorkshopPage.astro";
+import { slugId } from "../../../../lib/sections";
+const slug = Astro.params.slug ?? "";
+const occurrence = Astro.params.occurrence;
+if (!slugId(slug) || !occurrence) return new Response("Assembly level not found", { status: 404 });
+---
+<WorkshopPage slug={slug} occurrence={occurrence} />

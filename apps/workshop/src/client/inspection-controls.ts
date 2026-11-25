@@ -1,4 +1,4 @@
-import type { Assembly, Item } from "../lib/assembly";
+import type { Assembly } from "../lib/assembly";
 import { inspectionPlacements, type Hinge } from "../lib/inspection-placements";
 
 export function inspectionControls(
@@ -6,10 +6,9 @@ export function inspectionControls(
   host: HTMLElement,
   restore: HTMLButtonElement,
   render: (hidden: ReadonlySet<string>, open: Hinge[]) => void,
-  pick: (item: Item, path: string) => void,
   resetPose: () => void,
 ) {
-  const { instances, hinges, bounds } = inspectionPlacements(view);
+  const { hinges } = inspectionPlacements(view);
   const hidden = new Set<string>(),
     open = new Set<string>();
   const angles = new Map<string, number>(),
@@ -52,48 +51,29 @@ export function inspectionControls(
     draw();
     restore.hidden = !(hidden.size || open.size);
   }
-  let current: Item | undefined, currentPath: string | undefined;
-  function select(item: Item, selected?: string) {
-    current = item;
-    currentPath = selected;
+  let currentPath: string | undefined;
+  function select(path?: string) {
+    currentPath = path;
     host.replaceChildren();
-    const all = instances.get(item.id) ?? [];
-    const exact = all.find((i) => i.path === selected);
-    const installed = selected && !exact ? all.filter((i) => i.path.startsWith(selected + "/")) : all;
-    if (!installed.length || (installed.length === 1 && installed[0].path === view.rootId)) return;
-    const target = exact ?? (installed.length === 1 ? installed[0] : undefined);
-    if (installed.length > 1) {
-      const label = document.createElement("label");
-      label.textContent = "Installed instance";
-      const list = document.createElement("select");
-      list.add(new Option("Choose instance", ""));
-      installed.forEach((entry, i) => list.add(new Option(i + 1 + " · " + entry.label, entry.path)));
-      list.value = target?.path ?? "";
-      list.onchange = () => {
-        if (list.value) pick(item, list.value);
-      };
-      label.append(list);
-      host.append(label);
-    }
-    if (!target) return;
-    const { path } = target;
+    if (!path || path === view.rootId) return;
+    const occurrence = path;
     function toggle(state: Set<string>, activate: string, deactivate: string) {
       const button = document.createElement("button");
       const sync = () => {
-        button.textContent = state.has(path) ? deactivate : activate;
+        button.textContent = state.has(occurrence) ? deactivate : activate;
       };
       sync();
       button.onclick = () => {
-        if (state.has(path)) state.delete(path);
-        else state.add(path);
-        if (state === open) swing(path);
+        if (state.has(occurrence)) state.delete(occurrence);
+        else state.add(occurrence);
+        if (state === open) swing(occurrence);
         apply();
         sync();
       };
       host.append(button);
     }
     toggle(hidden, "Hide component", "Show component");
-    if (hinges.has(target.path)) toggle(open, "Open hinge", "Close hinge");
+    if (hinges.has(path)) toggle(open, "Open hinge", "Close hinge");
   }
   restore.onclick = () => {
     stop();
@@ -102,8 +82,8 @@ export function inspectionControls(
     angles.clear();
     resetPose();
     apply();
-    if (current) select(current, currentPath);
+    select(currentPath);
   };
   apply();
-  return { select, bounds, instances, stop };
+  return { select, stop };
 }

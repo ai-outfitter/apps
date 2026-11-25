@@ -10,7 +10,7 @@ export type AssemblySource = Pick<Project, "id"|"name"|"revision"|"assembly"|"wo
 export type MeshSource = { base: string; artifact: ArtifactRecord };
 export type ResolvedAssembly = {
   projectId: string; revision: number; assembly: Assembly; buildPrice: ReturnType<typeof buildPrice>;
-  sources: { itemId: string; projectId: string; name: string; revision: number; configuration?: string; parameters?: Record<string,number>; pinned: boolean }[];
+  sources: { itemId: string; projectId: string; name: string; revision: number; configuration?: string; parameters?: Record<string,number>; parameterDefinitions?: { name: string; defaultValue: number }[]; pinned: boolean }[];
   meshes: Record<string, MeshSource>;
   itemOrigins?: Record<string, {projectId: string; itemId: string; revision: number}>;
 };
@@ -98,7 +98,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         const key = JSON.stringify([target.id,ref.revision??"current",ref.configuration??"",
           defaults.map(p=>[p.name,ref.parameters?.[p.name]??p.defaultValue])]);
         await expand(target,configured,key,new Set([...ancestors,target.id]),viewId);
-        result.sources.push({itemId:viewId,projectId:target.id,name:target.name,revision:target.revision,...(ref.configuration && {configuration:ref.configuration}),...(ref.parameters && {parameters:ref.parameters}),pinned:ref.revision!==undefined});
+        result.sources.push({itemId:viewId,projectId:target.id,name:target.name,revision:target.revision,...(ref.configuration && {configuration:ref.configuration}),...(ref.parameters && {parameters:ref.parameters}),...(defaults.length && {parameterDefinitions:defaults.map(({name,defaultValue})=>({name,defaultValue}))}),pinned:ref.revision!==undefined});
       } else {
         const view = {...item,id:viewId,uses:item.uses.map(u=>({...u,id:usageIdFor(u.id),itemId:idFor(u.itemId)}))};
         if (scope && item.driveMotion) {

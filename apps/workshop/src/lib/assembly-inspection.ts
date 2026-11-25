@@ -1,4 +1,5 @@
 import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import { displayName, parentPath } from "./occurrence-address";
 import { placements, worldCorners, type Assembly, type Item, type Usage } from "./assembly";
 
 export type Occurrence = {
@@ -10,7 +11,9 @@ export function inspectionOccurrences(assembly: Assembly) {
   const solids = placements(assembly, { onVisit(item, path, matrix, usage) {
     const parent = occurrences.get(parentPath(path));
     const copy = Number(path.split("#").at(-1));
-    const label = [usage?.refdes, item.name, usage && usage.quantity > 1 ? String(copy + 1) : ""].filter(Boolean).join(" · ");
+    const { name } = displayName(item);
+    const reference = usage?.refdes === name ? "" : usage?.refdes;
+    const label = [name, reference, usage && usage.quantity > 1 ? "copy " + (copy + 1) : ""].filter(Boolean).join(" · ");
     const occurrence = { item, path, matrix, usage, children: [], bounds: new Box3(), label };
     occurrences.set(path, occurrence);
     parent?.children.push(occurrence);
@@ -33,7 +36,6 @@ export function inspectionOccurrences(assembly: Assembly) {
   }
   return occurrences;
 }
-function parentPath(path: string) { return path.slice(0, Math.max(0, path.lastIndexOf("/"))); }
 
 export function immediatePath(level: string, path: string) {
   if (!path.startsWith(level + "/")) return undefined;
@@ -43,26 +45,42 @@ export function immediatePath(level: string, path: string) {
 
 export function inspectionOffsets(level: Occurrence, amount: number) {
   const offsets = new Map<string, Vector3>();
-  const center = level.bounds.getCenter(new Vector3());
-  const distance = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.52);
   const rotation = new Quaternion().setFromRotationMatrix(level.matrix);
   const steps = Math.max(1, ...level.children.map(child => child.usage?.explode?.step ?? 1));
-  const directions: Vector3[] = [];
-  for (const [index, child] of level.children.entries()) {
-    const authored = child.usage?.explode;
-    const progress = Math.max(0, Math.min(1, amount / 100 * steps - ((authored?.step ?? 1) - 1)));
-    let delta: Vector3;
-    if (authored) delta = new Vector3(...authored.offset).applyQuaternion(rotation);
-    else {
-      delta = child.bounds.getCenter(new Vector3()).sub(center).normalize();
-      if (!delta.lengthSq() || directions.some(prior => prior.dot(delta) > 0.98)) {
-        const angle = index * Math.PI * (3 - Math.sqrt(5));
-        delta.set(Math.cos(angle), Math.sin(angle), index % 2 ? 0.5 : -0.5).normalize().applyQuaternion(rotation);
-      }
-      directions.push(delta.clone());
-      delta.multiplyScalar(distance);
+  const interval = (child: Occurrence) => {
+    const z = child.matrix.elements[14];
+    return child.bounds.isEmpty() ? { low: z, high: z } : { low: child.bounds.min.z, high: child.bounds.max.z };
+  };
+  // Keep authored vectors in the parent frame. Auto separation packs the
+  // immediate units by their assembled world height, using bounds of each
+  // entire subtree. Stable ties retain assembly order (including copy index).
+  const automatic = level.children.filter(child => !child.usage?.explode)
+    .map(child => ({ child, ...interval(child) }))
+    .sort((a, b) => (a.low + a.high) - (b.low + b.high));
+  const gap = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.08);
+  const anchor = Math.floor((automatic.length - 1) / 2);
+  if (automatic.length) {
+    const { child, low, high } = automatic[anchor];
+    offsets.set(child.path, new Vector3());
+    const progress = Math.max(0, Math.min(1, amount / 100 * steps));
+    for (let i = anchor + 1, edge = high; i < automatic.length; i++) {
+      const row = automatic[i];
+      const dz = Math.max(gap, edge + gap - row.low);
+      offsets.set(row.child.path, new Vector3(0, 0, dz * progress));
+      edge = row.high + dz;
     }
-    offsets.set(child.path, delta.multiplyScalar(progress));
+    for (let i = anchor - 1, edge = low; i >= 0; i--) {
+      const row = automatic[i];
+      const dz = Math.min(-gap, edge - gap - row.high);
+      offsets.set(row.child.path, new Vector3(0, 0, dz * progress));
+      edge = row.low + dz;
+    }
+  }
+  for (const child of level.children) {
+    const authored = child.usage?.explode;
+    if (!authored) continue;
+    const progress = Math.max(0, Math.min(1, amount / 100 * steps - ((authored.step ?? 1) - 1)));
+    offsets.set(child.path, new Vector3(...authored.offset).applyQuaternion(rotation).multiplyScalar(progress));
   }
   return offsets;
 }

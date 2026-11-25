@@ -4,102 +4,116 @@ import type { Unit } from "../server/units";
 
 const date = "2026-10-02T15:00:00.000Z";
 
-const sensor = makeProject("sensor");
-Object.assign(sensor, {
-  id: "00000000-0000-4000-8000-000000000101",
-  revision: 2,
-  createdAt: date,
-  updatedAt: date,
-  name: "Sensor mount study",
-  phase: "validation",
-  owner: "Mara Chen",
-  brief: "Hold a small sensor at 30° on a desk to compare readings without repositioning it.",
-  requirements: "Keep the angle repeatable, allow cable clearance, and verify fit against the actual sensor before release.",
-  measurementNotes: "Sensor envelope: 40 × 24 mm. Mounting-hole spacing needs a bench measurement.",
-  research: [{
-    id: "00000000-0000-4000-8000-000000000102",
-    name: "Adjustable camera mount",
-    kind: "COTS",
-    url: "",
-    notes: "Check whether the joint holds 30° under cable load.",
-    decision: "Investigate",
-  }],
-  parts: [{
-    id: "00000000-0000-4000-8000-000000000103",
-    name: "M3 mounting screws",
-    quantity: 4,
-    unitCost: 0.35,
-    source: "",
-    notes: "Confirm required length after measuring the bracket.",
-  }],
-  iterations: [{
-    id: "00000000-0000-4000-8000-000000000104",
-    prompt: "Create a sensor bracket with a 30° face.",
-    rationale: "The bracket envelope leaves room to assess mounting and cable clearance.",
-    dimensions: { width: 85, depth: 55, height: 30 },
-    at: date,
-    revision: 2,
-  }],
-});
+const nodeId = "00000000-0000-4000-8000-000000000106";
+let projects: Project[] | undefined;
 
-const cable = makeProject("holder");
-Object.assign(cable, {
-  id: "00000000-0000-4000-8000-000000000105",
-  revision: 1,
-  createdAt: "2026-09-29T10:00:00.000Z",
-  updatedAt: "2026-09-30T11:30:00.000Z",
-  phase: "manufacturing",
-  owner: "Design team",
-});
-
-const node = makeProject("node");
-// Keep model deep links valid when a visitor reloads the demo.
-const modelIds = new Map(node.assembly.items.map((item, index) =>
-  [item.id, `00000000-0000-4000-8000-${String(index + 1000).padStart(12, "0")}`] as const));
-node.assembly.rootId = modelIds.get(node.assembly.rootId!);
-for (const item of node.assembly.items) {
-  item.id = modelIds.get(item.id)!;
-  for (const use of item.uses) use.itemId = modelIds.get(use.itemId)!;
+export function fixtureProjects() {
+  // Workers cannot generate starter IDs at module initialization. The first
+  // browser or SSR read creates the fixtures and pins the published demo IDs.
+  return projects ??= makeFixtureProjects();
 }
-node.assembly.power = {
-  version: 1, notes: "Illustrative sensor budget", scenarios: [{id:"sampling",name:"Sampling",notes:"Illustrative development-board load."}],
-  rails: [{id:"usb",name:"USB input",kind:"dc",voltage:5,efficiency:1,notes:""}],
-};
-const board = node.assembly.items.find(item => item.number === "SNY-C001")!;
-board.power = {loads:[{id:"board",name:"Controller",rail:"usb",evidence:"assumed",source:"Demo assumption",notes:"",
-  scenarios:{sampling:{averageW:0.4,operatingW:0.5,peakW:1}}}]};
-Object.assign(node, {
-  id: "00000000-0000-4000-8000-000000000106",
-  revision: 3,
-  createdAt: "2026-11-01T09:00:00.000Z",
-  updatedAt: "2026-11-03T08:00:00.000Z",
-  phase: "prototyping",
-  owner: "Sunny",
-});
 
-// Tier 2: a sensor designer reuses this purchased board without manufacturing it.
-const libraryBoard = {...board!, power:undefined};
-const boardModel = ProjectSchema.parse({...makeProject("cube"),
-  id:"00000000-0000-4000-8000-000000000107", name:"ESP32 reference board", purpose:"component",
-  brief:"Purchased controller model reused by the soil sensor project.",
-  assembly:{rootId:"00000000-0000-4000-8000-000000000108",
-    items:[{id:"00000000-0000-4000-8000-000000000108",number:"ESP32-MODEL",revision:"A",name:"ESP32 model",kind:"assembly",uses:[{id:"00000000-0000-4000-8000-000000000109",itemId:libraryBoard.id,quantity:1}]},libraryBoard]}});
+function makeFixtureProjects(): Project[] {
+  const sensor = makeProject("sensor");
+  Object.assign(sensor, {
+    id: "00000000-0000-4000-8000-000000000101",
+    revision: 2,
+    createdAt: date,
+    updatedAt: date,
+    name: "Sensor mount study",
+    phase: "validation",
+    owner: "Mara Chen",
+    brief: "Hold a small sensor at 30° on a desk to compare readings without repositioning it.",
+    requirements: "Keep the angle repeatable, allow cable clearance, and verify fit against the actual sensor before release.",
+    measurementNotes: "Sensor envelope: 40 × 24 mm. Mounting-hole spacing needs a bench measurement.",
+    research: [{
+      id: "00000000-0000-4000-8000-000000000102",
+      name: "Adjustable camera mount",
+      kind: "COTS",
+      url: "",
+      notes: "Check whether the joint holds 30° under cable load.",
+      decision: "Investigate",
+    }],
+    parts: [{
+      id: "00000000-0000-4000-8000-000000000103",
+      name: "M3 mounting screws",
+      quantity: 4,
+      unitCost: 0.35,
+      source: "",
+      notes: "Confirm required length after measuring the bracket.",
+    }],
+    iterations: [{
+      id: "00000000-0000-4000-8000-000000000104",
+      prompt: "Create a sensor bracket with a 30° face.",
+      rationale: "The bracket envelope leaves room to assess mounting and cable clearance.",
+      dimensions: { width: 85, depth: 55, height: 30 },
+      at: date,
+      revision: 2,
+    }],
+  });
 
-export const fixtureProjects: Project[] = [
-  boardModel,
-  ProjectSchema.parse(node),
-  ProjectSchema.parse(cable),
-  ProjectSchema.parse(sensor),
-];
+  const cable = makeProject("holder");
+  Object.assign(cable, {
+    id: "00000000-0000-4000-8000-000000000105",
+    revision: 1,
+    createdAt: "2026-09-29T10:00:00.000Z",
+    updatedAt: "2026-09-30T11:30:00.000Z",
+    phase: "manufacturing",
+    owner: "Design team",
+  });
+
+  const node = makeProject("node");
+  // Keep model deep links valid when a visitor reloads the demo.
+  const modelIds = new Map(node.assembly.items.map((item, index) =>
+    [item.id, `00000000-0000-4000-8000-${String(index + 1000).padStart(12, "0")}`] as const));
+  node.assembly.rootId = modelIds.get(node.assembly.rootId!);
+  for (const [index, item] of node.assembly.items.entries()) {
+    item.id = modelIds.get(item.id)!;
+    for (const [order, use] of item.uses.entries()) {
+      use.itemId = modelIds.get(use.itemId)!;
+      use.id = `00000000-0000-4000-8000-${String(2000 + index * 50 + order).padStart(12, "0")}`;
+    }
+  }
+  node.assembly.power = {
+    version: 1, notes: "Illustrative sensor budget", scenarios: [{id:"sampling",name:"Sampling",notes:"Illustrative development-board load."}],
+    rails: [{id:"usb",name:"USB input",kind:"dc",voltage:5,efficiency:1,notes:""}],
+  };
+  const board = node.assembly.items.find(item => item.number === "SNY-C001")!;
+  board.power = {loads:[{id:"board",name:"Controller",rail:"usb",evidence:"assumed",source:"Demo assumption",notes:"",
+    scenarios:{sampling:{averageW:0.4,operatingW:0.5,peakW:1}}}]};
+  Object.assign(node, {
+    id: nodeId,
+    revision: 3,
+    createdAt: "2026-11-01T09:00:00.000Z",
+    updatedAt: "2026-11-03T08:00:00.000Z",
+    phase: "prototyping",
+    owner: "Sunny",
+  });
+
+  // Tier 2: a sensor designer reuses this purchased board without manufacturing it.
+  const libraryBoard = {...board!, power:undefined};
+  const boardModel = ProjectSchema.parse({...makeProject("cube"),
+    id:"00000000-0000-4000-8000-000000000107", name:"ESP32 reference board", purpose:"component",
+    brief:"Purchased controller model reused by the soil sensor project.",
+    assembly:{rootId:"00000000-0000-4000-8000-000000000108",
+      items:[{id:"00000000-0000-4000-8000-000000000108",number:"ESP32-MODEL",revision:"A",name:"ESP32 model",kind:"assembly",uses:[{id:"00000000-0000-4000-8000-000000000109",itemId:libraryBoard.id,quantity:1}]},libraryBoard]}});
+
+  return [
+    boardModel,
+    ProjectSchema.parse(node),
+    ProjectSchema.parse(cable),
+    ProjectSchema.parse(sensor),
+  ];
+}
 
 export function fixtureRequest<T>(path: string, method: string): T {
   if (method !== "GET") throw new Error("This installation is read-only.");
   if (!path)
-    return fixtureProjects.map(project => ({
+    return fixtureProjects().map(project => ({
       brief: project.brief, thumbnail: projectThumbnail(project),
       id: project.id, name: project.name, purpose: project.purpose, revision: project.revision, updatedAt: project.updatedAt, phase: project.phase,
     })) as T;
-  const found = fixtureProjects.find((item) => item.id === path.slice(1));
+  const found = fixtureProjects().find((item) => item.id === path.slice(1));
   if (!found) throw new Error("Project not found");
   return structuredClone(found) as T;
 }
@@ -115,7 +129,7 @@ export function fixtureUnits(): Unit[] {
     serial: null,
     status,
     location,
-    projectId: status === "in-stock" ? null : node.id,
+    projectId: status === "in-stock" ? null : nodeId,
     firmware,
     notes: "",
     revision: 1,

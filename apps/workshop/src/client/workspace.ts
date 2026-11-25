@@ -1,3 +1,5 @@
+import { displayName } from "../lib/occurrence-address";
+import type { Occurrence } from "../lib/assembly-inspection";
 import { assemblyPoster } from "./assembly-poster";
 import { inspectionLink, sizingConfigurations } from "../lib/inspection-links";
 import { occurrenceInspection } from "./occurrence-inspection";
@@ -17,20 +19,22 @@ import { arteraMotionPreview } from "../lib/artera-motion-preview";
 import type { Project } from "../lib/project";
 import { bomRows,bomTotals,buildPrice,AssemblySchema,BuildAssemblySchema,type Item,type Assembly } from "../lib/assembly";
 import type { BuildRequest } from "../lib/workspace";
-import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/model-catalog";
+import { modelCatalog, modelView } from "../lib/model-catalog";
 import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
-import { inspectionTree, projectInspection } from "./project-inspection";
+import { projectInspection } from "./project-inspection";
 import { printableParts, renderPrintAnalysis, type PrintAnalysis } from "./print-analysis";
 import { renderCotsEvidence } from "./cots-evidence";
 import type { CotsEvidenceResult } from "../server/cots-evidence";
 async function start(signal:AbortSignal){
-const root=document.querySelector<HTMLElement>(".workspace");
-if(!root)return;
+const workspace = document.querySelector<HTMLElement>(".workspace");
+if (!workspace) return;
+const root = workspace;
 const section=root.dataset.section;
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>root.querySelector<T>(`#${id}`)!;
 const element=(tag:string,text:string)=>{const node=document.createElement(tag);node.textContent=text;return node;};
 const notice=(s:string)=>$("workspace-notice").textContent=s;
+const appUrl = (path: string) => /^\/(api|files)\//.test(path) ? appBase(location.pathname) + path : path;
 let legacy=false, historical=false;
 let query = new URLSearchParams(location.search);
 const selection = new URLSearchParams();
@@ -64,10 +68,7 @@ let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
 const overview = section === "overview";
 let cotsGeneration = 0;
-function cotsRoot() {
- const item = assembly.items.find(candidate => candidate.id === (selected?.id ?? query.get("item")));
- return item?.id;
-}
+function cotsRoot() { return selected?.id ?? occurrenceUI?.level?.item.id ?? query.get("item") ?? undefined; }
 function hasCots(rootId?: string) {
  if (!rootId) return assembly.items.some(item => item.kind === "cots");
  const visited = new Set<string>();
@@ -109,7 +110,7 @@ async function renderCotsTab() {
 let renderedPowerFor: string | undefined;
 let printGeneration = 0;
 function renderPrintTab() {
- const view = modelView(assembly, selected?.id ?? query.get("item"));
+ const view = modelView(assembly, cotsRoot());
  const parts = printableParts(view);
  const host = $("print-analysis");
  const generation = ++printGeneration;
@@ -151,6 +152,7 @@ function describeInspection(tab: string) {
  }});
 }
 const inspection = overview ? projectInspection($("project-inspection"), tab => {
+ occurrenceUI?.setTab(tab);
  describeInspection(tab);
  if (tab === "bom") renderBom();
  if (tab === "cots") void renderCotsTab();
@@ -162,7 +164,7 @@ const inspection = overview ? projectInspection($("project-inspection"), tab => 
 }) : undefined;
 let inspectingParts=false;
 function inspectedAssembly() {
- const item = inspection && selected && !inspectingParts ? selected.id : query.get("item");
+ const item = inspection ? (inspectingParts ? occurrenceUI?.level?.item.id : cotsRoot()) : query.get("item");
  return modelView(assembly, item);
 }
 function availableBudgets(view: Assembly) {
@@ -178,7 +180,7 @@ function updateBudgetTabs(view: Assembly) {
  const purchased = hasCots(cotsRoot());
  $("tab-cots").hidden = !purchased;
  $("purchased-parts-shortcut").hidden = !purchased;
- $("tab-print").hidden = !printableParts(modelView(assembly, selected?.id ?? query.get("item"))).size;
+ $("tab-print").hidden = !printableParts(modelView(assembly, cotsRoot())).size;
 }
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
 let occurrenceUI: ReturnType<typeof occurrenceInspection> | undefined;
@@ -186,17 +188,9 @@ if (overview) {
  try {
   const { createAssemblyViewer } = await import("./assembly-viewer");
   if (signal.aborted) return;
-  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, (id,path) => {
-    const item = assembly?.items.find(candidate => candidate.id === id);
-    if (item) select(item,path);
-  }, showAll);
-  occurrenceUI = occurrenceInspection(root, viewer, select, showAll, level => {
-    const scoped = modelView(assembly,level.item.id);
-    $("inspection-tree").replaceChildren(inspectionTree(scoped,historical ? [] : resolved?.sources ?? [],sourceUrl,item => {
-      const child = level.children.filter(c => c.item.id === item.id);
-      select(item,child.length === 1 ? child[0].path : level.path);
-    }));
-  });
+  viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"),
+    message => $("assembly-status").textContent = message,
+    (_id, path, drill) => occurrenceUI?.pick(path, drill), showAll);
  } catch {
   if (signal.aborted) return;
   $("assembly-status").textContent = "3D preview unavailable in this browser.";
@@ -204,6 +198,11 @@ if (overview) {
   $("view-tools").hidden = true;
   $("isolate-item").hidden = true;
  }
+ occurrenceUI = occurrenceInspection(root, viewer, signal, renderLevelDetails, level => {
+  const { number } = displayName(level.item);
+  return [number, level.item.kind, "Rev " + level.item.revision, "Installed: " + (selection.get("configuration") ?? "Saved assembly"),
+    "Project save " + (resolved?.revision ?? project.revision)].filter(Boolean).join(" · ");
+ }, notice);
 }
 const poster=overview ? assemblyPoster($("assembly-poster")) : undefined;
 let motionFrame = 0, motionOffset = 0;
@@ -273,7 +272,7 @@ $("motion-play").onclick=()=>{
  };
  motionFrame=requestAnimationFrame(animate);
 };
-const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(path,{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
+const request=async(path:string,method="GET",body?:unknown)=>{const r=await fetch(appUrl(path),{signal,method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json();};
 function descendants(item: Item) {
   const byId = new Map(assembly.items.map(child => [child.id, child]));
   const result = new Set<string>();
@@ -290,76 +289,182 @@ function descendants(item: Item) {
 }
 let partInspection:ReturnType<typeof inspectionControls>|undefined;
 let selectionPath: string | undefined;
-function select(item:Item, path?:string){
- selectionPath=path;
- selected=item;
- partInspection?.select(item,path);
- viewer?.select(descendants(item),path);
- $("isolate-item").hidden=!viewer;
- $("selected-name").textContent=item.name;
- $("selected-meta").textContent=[item.kind === "cots" ? "Purchased part (COTS)" : item.kind, "Rev "+item.revision].join(" · ");
- const details=$("selected-body");
+function renderLevelDetails(pick: Occurrence | undefined, level: Occurrence | undefined, tab: string) {
+ if (!inspection) return;
+ const target = pick ?? level;
+ selected = pick?.item;
+ selectionPath = pick?.path;
+ viewer?.isolate();
+ viewer?.select(pick ? descendants(pick.item) : undefined, pick?.path);
+ $("isolate-item").hidden = !viewer || !pick;
+ $("show-all").hidden = !viewer || !pick;
+ const details = $("selected-body");
  details.replaceChildren();
- occurrenceUI?.selected(item,path,details);
- if(item.notes) details.append(element("p",item.notes));
- const facts=element("dl","");
- details.append(facts);
- function fact(label:string,value:HTMLElement|string){
-   const entry=element("dd","");
-   entry.append(value);
-   facts.append(element("dt",label),entry);
+ $("detail-scope").textContent = pick ? "Selected component" : "Open level";
+ $("selected-name").textContent = target?.label ?? project.name;
+ $("selected-meta").textContent = target
+   ? [displayName(target.item).number, target.item.kind === "cots" ? "Purchased part (COTS)" : target.item.kind, "Rev " + target.item.revision].filter(Boolean).join(" · ")
+   : "";
+ $("project-brief").hidden = !!pick || level?.path !== assembly.rootId || !project.brief;
+ $("purpose-field").hidden = Boolean(pick || level?.path !== assembly.rootId);
+ if (target) {
+  renderComponent(details, target.item, target.path === assembly.rootId);
+ } else {
+  details.append(element("p", "No saved assembly is available."));
  }
- const model=element("a",item.number) as HTMLAnchorElement;
- model.href=urlFor("overview",item.id);
- model.setAttribute("aria-label","Open model "+item.number);
- fact("Model",model);
- fact("Geometry",item.provenance);
- fact("Unit price",itemPrice(item));
- const supplier=element("span","");
- appendPartSource(supplier,item.source);
- if(supplier.childElementCount) fact("Supplier",supplier);
- const source = !historical && resolved?.sources.find(s=>s.itemId===item.id);
- if(source){
-   const link=element("a",source.name+" · Rev "+source.revision+(source.configuration ? " · "+source.configuration : "")) as HTMLAnchorElement;
-   link.href=sourceUrl(source);
-   fact("Source model",link);
- }
- const children=assemblyChildren(assembly,item.id);
- if(children.length){
-   const list=element("div","");
-   list.className="inspection-children";
-   details.append(element("h4","Components"),list);
-   for(const {item:child,quantity,labels} of children){
-     const button=element("button",child.name);
-     if(labels.length) button.title=labels.join(", ");
-     button.append(element("small","×"+quantity));
-     button.onclick=()=>select(child,path);
-     list.append(button);
-   }
- }
-if(item.files?.length) details.append(element("h4","Files"));
-for (const file of item.files ?? []) {
- const url=appBase(location.pathname)+fileBase(file)+filePath(file);
- const link=document.createElement("a");
- link.href=url; link.download=file.fileName; link.textContent="Download "+file.fileName;
- details.append(link);
- const type=fileType(file.fileName);
- if(type.startsWith("video/")){
-   const video=document.createElement("video");
-   video.controls=true; video.preload="none"; video.src=url; video.style.maxWidth="100%";
-   details.append(video);
- } else if(type.startsWith("image/")){
-   const image=document.createElement("img");
-   image.src=url; image.alt=file.fileName; image.style.maxWidth="100%"; details.append(image);
- }
-}
-if (inspection) {
+ partInspection?.select(pick?.path);
+ const bounds = target && !target.bounds.isEmpty() ? { min: target.bounds.min.toArray(), max: target.bounds.max.toArray() } : undefined;
+ $("tab-sizing").hidden = !modelSizing($("model-sizing"), {
+  bounds,
+  preset: legacy ? project.params : undefined,
+  configurations: !historical && (!resolved || project.revision === resolved.revision) ? sizingConfigurations(project.assembly) : undefined,
+  configurationUrl: new URL(urlFor("overview"), location.origin),
+  inputs: $("build-editor").hidden ? undefined : build?.result?.manifest?.parameters ?? build?.parameters,
+  requestBuild: $("build-editor").hidden ? undefined : values => {
+   $<HTMLTextAreaElement>("parameter-values").value = JSON.stringify(values, null, 2);
+   const instruction = $<HTMLInputElement>("instruction");
+   if (!instruction.value.trim()) instruction.value = "Rebuild with the selected model parameters.";
+   $<HTMLFormElement>("build-request").requestSubmit();
+  },
+ });
+ renderSource(target);
  updateBudgetTabs(inspectedAssembly());
- $("tab-selected").hidden = false;
- $("show-all").hidden = false;
- inspection.open("selected");
- if (root?.contains(document.activeElement) && document.activeElement?.closest("#project-inspection")) $("tab-selected").focus({preventScroll:true});
+ inspection.open(tab);
 }
+
+function renderComponent(details: HTMLElement, item: Item, isProduct: boolean) {
+ if (item.notes) details.append(element("p", item.notes));
+ const facts = element("dl", "");
+ function fact(label: string, value: HTMLElement | string) {
+  const entry = element("dd", "");
+  entry.append(value);
+  facts.append(element("dt", label), entry);
+ }
+ if (!isProduct) {
+  const model = element("a", "Open standalone model") as HTMLAnchorElement;
+  model.href = urlFor("overview", item.id);
+  fact("Model", model);
+ }
+ if (item.geometry || item.mesh) fact("Geometry", item.provenance);
+ if (item.kind !== "assembly") fact("Unit price", itemPrice(item));
+ if (item.manufacturer) fact("Manufacturer", item.manufacturer);
+ if (item.mpn) fact("Manufacturer part number", item.mpn);
+ const supplier = element("span", "");
+ appendPartSource(supplier, item.source);
+ if (supplier.childElementCount) fact("Supplier", supplier);
+ if (facts.childElementCount) details.append(facts);
+ if (item.files?.length) details.append(element("h4", "Files"));
+ for (const file of item.files ?? []) {
+  const href = appBase(location.pathname) + fileBase(file) + filePath(file);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = file.fileName;
+  link.textContent = "Download " + file.fileName;
+  details.append(link);
+  const type = fileType(file.fileName);
+  if (type.startsWith("video/")) {
+   const video = document.createElement("video");
+   video.controls = true; video.preload = "none"; video.src = href;
+   details.append(video);
+  } else if (type.startsWith("image/")) {
+   const image = document.createElement("img");
+   image.src = href; image.alt = file.fileName; image.loading = "lazy";
+   details.append(image);
+  }
+ }
+}
+
+function renderSource(target?: Occurrence) {
+ const host = $("source-record");
+ const files = $("source-files");
+ host.replaceChildren();
+ files.replaceChildren();
+ const run = build;
+ const manifest = run?.result?.manifest;
+ const source = !historical && target && occurrenceUI?.nearest(target.path,
+  item => Boolean(resolved?.sources.some(value => value.itemId === item.id)));
+ const record = source ? resolved?.sources.find(value => value.itemId === source.id) : undefined;
+ const revision = record?.revision ?? resolved?.revision ?? project.revision;
+ const configuration = record?.configuration ?? selection.get("configuration");
+ const title = element("h3", "Source record");
+ const facts = element("dl", "");
+ const fact = (label: string, value: string | HTMLElement) => {
+  const dd = element("dd", "");
+  dd.append(value);
+  facts.append(element("dt", label), dd);
+ };
+ if (record) {
+  const link = element("a", record.name) as HTMLAnchorElement;
+  link.href = sourceUrl(record);
+  fact("Source model", link);
+ }
+ fact("Revision", "Project save " + revision + (record?.pinned ? " (pinned)" : ""));
+ if (configuration) fact("Configuration", configuration);
+ if (!record && !historical && target && resolved?.sources.length) {
+  const scope = descendants(target.item);
+  for (const source of resolved.sources.filter(source => scope.has(source.itemId))) {
+   const label = source.name + " · " + (source.pinned ? "pinned" : "current") + " revision " + source.revision +
+     (source.configuration ? " · " + source.configuration : "");
+   const link = element("a", label) as HTMLAnchorElement;
+   link.href = sourceUrl(source);
+   fact("Installed source", link);
+  }
+ }
+ if (!record && run) {
+  fact("Build status", run.status);
+  fact("Source commit", manifest?.sourceCommit ?? run.sourceCommit);
+  if (run.sourceDir) fact("Source directory", run.sourceDir);
+ } else if (!record) {
+  fact("Build status", "No saved workspace build");
+ }
+ host.append(title, facts);
+
+ const format = (name: string) => {
+  const label = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+ };
+ const definitions = record?.parameterDefinitions ?? (!record && configuration
+   ? sizingConfigurations(project.assembly)?.find(config => config.name === configuration)?.parameters : undefined) ?? [];
+ const overrides: Record<string, number> = record?.parameters ?? (!record ? JSON.parse(selection.get("parameters") ?? "{}") : {});
+ const buildValues = !record && !configuration ? manifest?.parameters ?? run?.parameters : undefined;
+ const values = new Map<string, { value: unknown; baseline?: number; origin: string; overridden?: boolean; unit?: string }>();
+ for (const definition of definitions) {
+  const overridden = Object.hasOwn(overrides, definition.name) && overrides[definition.name] !== definition.defaultValue;
+  values.set(definition.name, {
+   value: overrides[definition.name] ?? definition.defaultValue, baseline: definition.defaultValue, overridden,
+   origin: configuration ?? "Assembly configuration",
+  });
+ }
+ for (const [name, value] of Object.entries(overrides))
+  if (!values.has(name)) values.set(name, { value, origin: "Installed configuration", overridden: true });
+ for (const [name, value] of Object.entries(buildValues ?? {})) values.set(name, { value, origin: "Workspace build" });
+ if (legacy && !values.size) {
+  const { width, depth, height, wall } = project.params;
+  for (const [name, value] of Object.entries({ width, depth, height })) values.set(name, { value, unit: "mm", origin: "Saved CAD preset" });
+  if (!["cube", "custom"].includes(project.params.design)) values.set("wall thickness", { value: wall, unit: "mm", origin: "Saved CAD preset" });
+ }
+ host.append(element("h3", "Parameters"));
+ if (!values.size) host.append(element("p", "No parameter values are recorded for this source."));
+ else {
+  const parameters = element("dl", "");
+  for (const [name, value] of values) {
+   const dd = element("dd", [String(value.value), value.unit].filter(Boolean).join(" "));
+   const metadata = [value.overridden ? "Overridden" : "", value.baseline !== undefined ? "Default " + value.baseline : "", value.origin].filter(Boolean);
+   dd.append(element("small", metadata.join(" · ")));
+   parameters.append(element("dt", format(name)), dd);
+  }
+  host.append(parameters);
+ }
+ if (!record && run && manifest) {
+  for (const artifact of manifest.artifacts.filter(entry => /(?:source\.tar|\.(?:scad|py|step|stp))$/i.test(entry.path))) {
+   const label = artifact.path.split("/").at(-1)!;
+   const link = element("a", label === "source.tar" ? "Download source archive" : label) as HTMLAnchorElement;
+   link.href = appUrl(run.result!.artifactBase + artifact.path);
+   link.download = label;
+   files.append(link);
+  }
+ }
+ if (!files.childElementCount && !record) files.append(element("small", "No source artifact is attached."));
 }
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 function itemPrice(item: Item) {
@@ -406,13 +511,18 @@ function renderBom(){
   row.className = "bom-row";
   const title = element("div", "");
   const link = document.createElement("a");
-  link.textContent = item.name;
+  link.textContent = displayName(item).name;
   link.href = urlFor("overview", item.id);
-  if (inspection) link.onclick = event => {
-   if (event.button || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-   event.preventDefault();
-   select(item);
-  };
+  const installed = occurrenceUI?.level?.children.filter(child => child.item.id === item.id) ?? [];
+  if (installed.length === 1) {
+   link.href = occurrenceUI?.href(installed[0].path) ?? link.href;
+   link.onclick = event => {
+    if (event.button || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    occurrenceUI?.pick(installed[0].path);
+    inspection?.open("description");
+   };
+  }
   title.append(link, element("small", `${"↳ ".repeat(Math.min(depth, 3))}${item.number} · ${item.revision}`));
   const info = element("div", item.kind);
   const price = element("span", " · " + itemPrice(item));
@@ -446,10 +556,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  selected = undefined;
  $("isolate-item").hidden=true;
  selectionPath = undefined;
- if (inspection) {
-  $("tab-selected").hidden = true;
-  $("show-all").hidden = true;
- }
+ if (inspection) $("show-all").hidden = true;
  renderedPowerFor = undefined;
  const motionVersion=++motionGeneration;savedRotations=[];savedAxes=undefined;
  pauseOperation();operations=[];$("operation-controls").hidden=true;
@@ -464,23 +571,10 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
  const focused = assembly.items.find(item => item.id === query.get("item"));
  const view = modelView(assembly, focused?.id);
- occurrenceUI?.load(view);
  const posterKey=JSON.stringify([project.id,project.revision,view.rootId,run?.id,location.search,resolved?.sources]);
- const captureUrl=!historical && !focused && !selection.size && !query.has("view") && import.meta.env.OUTFITTER_APP_MODE!=="demo"
+ const captureUrl=!historical && !focused && !selection.size && !root.dataset.level && !["view","inspect","sel","explode"].some(key => query.has(key)) && import.meta.env.OUTFITTER_APP_MODE!=="demo"
    ? appBase(location.pathname)+`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&thumbnail=1` : undefined;
- const finishPoster=poster?.show(project,view,posterKey,captureUrl);
- const references=$("assembly-references");
- references.hidden=historical || !resolved?.sources.length;
- if(overview && !references.hidden && resolved){
-  const links=resolved.sources.map(s=>{
-   const a=element("a",`${s.name} · ${s.pinned?"pinned":"current"} revision ${s.revision}${s.configuration ? " · "+s.configuration : ""}`) as HTMLAnchorElement;
-   a.href=sourceUrl(s);
-   return a;
-  });
-  references.replaceChildren(element("strong","Source assemblies: "),...links.flatMap((a,i)=>i?[document.createTextNode(" · "),a]:[a]));
- }
  $("bom-heading").textContent = focused && focused.id !== assembly.rootId ? `Bill of materials · ${focused.name}` : "Bill of materials";
- const children = assemblyChildren(view);
  if (inspection) {
   partInspection?.stop();
   partInspection=inspectionControls(view,$("part-inspection-actions"),$<HTMLButtonElement>("restore-inspection"),(hidden,hinges)=>{
@@ -491,27 +585,13 @@ function showBuild(run?:BuildRequest, snapshot=false){
     updateBudgetTabs(inspectedAssembly());
     if($("tab-bom").getAttribute("aria-selected")==="true") renderBom();
     if($("tab-power").getAttribute("aria-selected")==="true") renderPower();
-  },select,()=>{
+  },()=>{
     pauseOperation();stopMotion();
     if(operations[opSelect.selectedIndex])seek(0);
     else if(motion){applyMotion(0);$<HTMLSelectElement>("motion-level").value="";}
     viewer?.isolate();viewer?.inspectDrive([],false);$<HTMLInputElement>("inspect-drive").checked=false;
   });
   $("part-inspection-actions").hidden=!viewer;
-  const inputs=run?.result?.manifest?.parameters ?? run?.parameters;
-  $("tab-sizing").hidden=!modelSizing($("model-sizing"),{
-    bounds:partInspection.bounds,preset:legacy?project.params:undefined,inputs,
-    sources:historical ? undefined : resolved?.sources
-      .filter(source=>source.configuration && partInspection!.instances.has(source.itemId))
-      .map(source=>({label:source.name+" · "+source.configuration,href:sourceUrl(source),parameters:source.parameters})),
-    configurations:!historical && (!resolved || project.revision===resolved.revision) ? sizingConfigurations(project.assembly) : undefined,
-    requestBuild:project.workspace && !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? values=>{
-      $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(values,null,2);
-      const instruction=$<HTMLInputElement>("instruction");
-      if(!instruction.value.trim())instruction.value="Rebuild with the selected model parameters.";
-      $<HTMLFormElement>("build-request").requestSubmit();
-    }:undefined,
-  });
   $("project-inspection").inert = false;
   const references=$("reference-images");
   const photos=new Map<string,HTMLElement>();
@@ -529,17 +609,18 @@ function showBuild(run?:BuildRequest, snapshot=false){
   }
   references.querySelector("div")!.replaceChildren(...photos.values());
   references.hidden=!photos.size;
-  inspection.open("description");
   const shortcut = $("purchased-parts-shortcut");
   shortcut.querySelector("button")!.onclick = () => {
    inspection.open("cots");
    $("tab-cots").focus();
   };
-  if (focused && focused.id !== assembly.rootId) $("project-name").textContent = project.name + " / " + focused.name;
-  updateBudgetTabs(view);
-  $("inspection-tree").replaceChildren(children.length
-   ? inspectionTree(view, !historical && resolved ? resolved.sources : [], sourceUrl, select)
-   : "No child components");
+  const edit = Boolean(project.workspace && !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE !== "demo");
+  $("build-editor").hidden = !edit;
+  $<HTMLTextAreaElement>("parameter-values").value = JSON.stringify(run?.result?.manifest?.parameters ?? run?.parameters ?? {}, null, 2);
+  const runs = project.workspace?.requests ?? [];
+  $("runner-status").textContent = runs.length ? `${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}` : "";
+  occurrenceUI?.load(view);
+  if (!occurrenceUI?.level) renderLevelDetails(undefined, undefined, "description");
  } else {
   const {bom, power} = availableBudgets(view);
   for (const [id, target, visible] of [
@@ -559,15 +640,21 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(selection.size && !historical) $("revision-label").textContent=`Source revision ${resolved?.revision ?? project.revision}${selection.get("configuration") ? " · "+selection.get("configuration") : ""}`;
  else if(!historical)$("revision-label").textContent=`Project save ${project.revision}${run?` · geometry build ${run.id.slice(0,8)}`:""}`;
  $<HTMLAnchorElement>("open-assembly").href=urlFor("overview");
- $<HTMLAnchorElement>("full-assembly").href=urlFor("overview");
- $("full-assembly-link").hidden=!focused || focused.id===assembly.rootId;
- $<HTMLAnchorElement>("browse-models").href=urlFor("models");
+ if (overview) {
+  $<HTMLAnchorElement>("browse-models").href = urlFor("models");
+  const productHome = $<HTMLAnchorElement>("product-home");
+  productHome.href = urlFor("overview");
+  productHome.hidden = !focused || focused.id === assembly.rootId || Boolean(occurrenceUI?.active && root.dataset.level);
+  const pcb = $<HTMLAnchorElement>("product-pcb");
+  if (pcb) pcb.href = appBase(location.pathname) + projectPath(root.dataset.slug!, "pcb");
+ }
  if(query.has("item")&&!focused&&assembly.items.length)notice("That item is not in this revision. Showing the full assembly.");
+ const staticView = occurrenceUI?.level ? modelView(view, occurrenceUI.level.item.id) : view;
+ const finishPoster = poster?.show(project, staticView, posterKey, captureUrl);
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
  void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal,historical?{}:resolved?.meshes).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
   occurrenceUI?.ready();
-  if(query.get("view")==="top") viewer?.topView();
   finishPoster?.($("assembly-viewer").hasAttribute("data-empty") || selected || occurrenceUI?.active ? undefined : ()=>viewer!.snapshot());
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;showMotion(Boolean(motion));
@@ -615,25 +702,8 @@ function showBuild(run?:BuildRequest, snapshot=false){
    $("operation-controls").hidden=false;chooseOperation();
   }
  });
- if (inspection && focused) select(focused);
- if (inspection && query.get("inspection") === "cots" && !$("tab-cots").hidden) inspection.open("cots");
  renderCatalog();
- const path=assemblyPath(assembly,view.rootId);
- $("assembly-breadcrumbs").hidden=path.length<2;
- $("assembly-breadcrumbs").replaceChildren(...path.flatMap((item,index)=>{
-  const link=element("a",index===0 && item.id===assembly.rootId ? "Project overview" : item.name) as HTMLAnchorElement;
-  link.href=urlFor("overview",item.id===assembly.rootId?undefined:item.id);
-  if(index===path.length-1)link.setAttribute("aria-current","page");
-  return index ? [element("span"," / "),link] : [link];
- }));
- const parents=assembly.items.filter(item=>item.uses.some(use=>use.itemId===view.rootId));
- $("assembly-parents").replaceChildren(...parents.map(item=>{
-  const link=element("a",`Back to ${item.name}`) as HTMLAnchorElement;link.href=urlFor("overview",item.id===assembly.rootId?undefined:item.id);return link;
- }));
- const manifest=run?.result?.manifest;
- $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(manifest?.parameters??{},null,2);
- $("source-files").replaceChildren();$("source-preview").textContent="";
- for(const artifact of manifest?.artifacts??[]){const url=run!.result!.artifactBase+artifact.path;const a=element("a",artifact.path.split('/').at(-1)!) as HTMLAnchorElement;a.href=url;a.download=artifact.path.split('/').at(-1)!;$("source-files").append(a);if(/\.(scad|json|md|py)$/.test(artifact.path)){const b=element("button",`Read ${a.textContent}`);b.onclick=async()=>{try{const response=await fetch(url,{signal});if(!response.ok)throw Error("Cannot load source artifact");$("source-preview").textContent=await response.text();}catch(error){if(!signal.aborted)notice((error as Error).message);}};$("source-files").append(b);}}
+ const manifest = run?.result?.manifest;
  if (inspection) return;
  const evidence=$("revision-evidence");evidence.replaceChildren(element("h3",run?`Build ${run.id.slice(0,8)}`:"No workspace build yet"));
  if(import.meta.env.OUTFITTER_APP_MODE !== "demo" && (!run || run.id===project.workspace?.currentBuildId)) {
@@ -654,15 +724,15 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(section==="parts") renderBom();
 }
 function render(){
- if(import.meta.env.OUTFITTER_APP_MODE==="demo")for(const node of $("build-request").querySelectorAll<HTMLInputElement>("input,button"))node.disabled=true;
  $("project-name").textContent=project.name;
+ if(overview) $("product-identity").textContent=project.name;
  $<HTMLSelectElement>("project-purpose").value=project.purpose ?? "product";
  $<HTMLSelectElement>("project-purpose").disabled=import.meta.env.OUTFITTER_APP_MODE==="demo" || Boolean(query.get("revision") || query.get("build"));
  if (overview) {
   $("project-brief").textContent = project.brief;
   $("project-brief").hidden = !project.brief;
  }
- const runs=project.workspace?.requests??[];$("runner-status").textContent=runs.length?`${runs.at(-1)!.status} · runner ${runs.at(-1)!.runner}`:"No workspace connected. Existing CAD remains inspectable.";
+ const runs=project.workspace?.requests??[];
  $("revision-help").textContent="Build records preserve their inputs and evidence. Private downloads are retained for one year; source stays in the project repository. Geometry checks do not establish physical acceptance.";
  $("revision-list").replaceChildren(...[...runs].reverse().map(r=>{const row=element("article","");row.className="run-row";const b=element("button",`${r.id.slice(0,8)} · ${r.status}${r.result?.stale?" · newer work exists":""}`);b.onclick=()=>showBuild(r,true);row.append(b,element("p",r.instructions),element("small",`${r.createdAt} · ${r.sourceCommit}`));return row;}));
  const requested = query.get("build");
@@ -674,7 +744,7 @@ $("project-purpose").onchange=async()=>{
  const control=$<HTMLSelectElement>("project-purpose");
  control.disabled=true;
  try {
-  const response=await fetch(`/api/apps/workshop/projects/${project.id}/purpose`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({revision:project.revision,purpose:control.value}),signal});
+  const response=await fetch(appUrl(`/api/apps/workshop/projects/${project.id}/purpose`),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({revision:project.revision,purpose:control.value}),signal});
   if(!response.ok)throw Error(await response.text());
   project=await response.json();
   notice(project.purpose==="component"?"Saved in the component library. Existing assembly references are preserved.":"Saved as a product to manufacture.");
@@ -684,18 +754,8 @@ $("project-purpose").onchange=async()=>{
 $("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick = () => viewer?.reset();
 function showAll() {
- occurrenceUI?.clear();
  viewer?.isolate();
- viewer?.select();
- selected = undefined;
- $("isolate-item").hidden=true;
- selectionPath = undefined;
- if (inspection) {
-  $("show-all").hidden = true;
-  $("tab-selected").hidden = true;
-  updateBudgetTabs(inspectedAssembly());
-  inspection.open("components");
- }
+ occurrenceUI?.clear();
 }
 $("show-all").onclick = showAll;
 $("isolate-item").onclick = () => {
@@ -709,11 +769,11 @@ $("bom-mode").onchange=renderBom;
 $("model-search").oninput=renderCatalog;
 if(query.get("kind")==="assembly")$<HTMLSelectElement>("model-filter").value="assembly";
 $("model-filter").onchange=renderCatalog;
-$("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
+if (overview) $("build-request").onsubmit=async(e)=>{e.preventDefault();try{const w=project.workspace;const previous=build??w?.requests.at(-1);if(!w||!previous)throw Error("Connect a project workspace through RequestWorkshopBuild first.");const parameters=JSON.parse($<HTMLTextAreaElement>("parameter-values").value);project=await request(`/api/apps/workshop/projects/${project.id}/builds`,"POST",{id:project.id,revision:project.revision,repository:w.repository,sourceDir:w.sourceDir,sourceCommit:previous.result?.manifest?.sourceCommit??previous.sourceCommit,instructions:$<HTMLInputElement>("instruction").value,parameters,runner:previous.runner});render();notice("Build queued. The workspace runner must claim and execute it.");}catch(e){notice((e as Error).message);}};
 try{
  if(import.meta.env.OUTFITTER_APP_MODE==="demo"){
    const {fixtureProjects}=await import("./fixtures");
-   const found=fixtureProjects.find(p=>p.id.endsWith(root.dataset.slug!.split("-").at(-1)!));
+   const found=fixtureProjects().find(p=>p.id.endsWith(root.dataset.slug!.split("-").at(-1)!));
    if(!found)throw Error("Project not found");
    project=found;
  }else{
@@ -739,15 +799,20 @@ if (!selection.has("revision") && !savedBuild) {
    }
  }
 }
-if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
+const initial = root.querySelector<HTMLTemplateElement>("#resolved-assembly");
+if (initial?.content.textContent) resolved = JSON.parse(initial.content.textContent);
+if (import.meta.env.OUTFITTER_APP_MODE === "demo" && (selection.has("configuration") || selection.has("parameters"))) {
+ const { configuredAssembly } = await import("../lib/assembly-resolution");
+ const { assemblySelection } = await import("../lib/assembly-selection");
+ project = { ...project, assembly: configuredAssembly(project.assembly, assemblySelection(project.id, selection)) };
+} else if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
  const readView=():Promise<ResolvedAssembly>=>request(recordPath+"/assembly?"+selection);
- resolved=await readView();
+ resolved ??= await readView();
  if(!selection.has("revision") && resolved.revision!==project.revision) {
   project=await request(recordPath);resolved=await readView();
   if(resolved.revision!==project.revision)throw Error("Project changed while opening. Reload to read the current revision.");
  }
 }
-if(selection.size)$("build-request").hidden=true;
 render();}catch(e){if(!signal.aborted){$("project-name").textContent="Could not load project";notice((e as Error).message);}}
 
 }
