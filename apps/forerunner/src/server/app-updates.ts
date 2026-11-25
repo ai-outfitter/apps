@@ -37,7 +37,7 @@ export async function readAppUpdates(
       rows.push(...page.data.dailyAppUpdates);
       cursor = page.next;
       if (cursor) {
-        if (seen.has(cursor)) return { rows, complete: false };
+        if (seen.has(cursor) || seen.size >= 9) return { rows, complete: false };
         seen.add(cursor);
       }
     } while (cursor);
@@ -71,7 +71,7 @@ export async function readWikiActivity(host: WorkflowHost<"interactive">, period
       rows.push(...result.data.wikiRevisionActivity);
       cursor = result.next;
       if (cursor) {
-        if (cursors.has(cursor) || rows.length >= 40) return { rows: rows.slice(0, 40), complete: false };
+        if (cursors.has(cursor) || cursors.size >= 3 || rows.length >= 40) return { rows: rows.slice(0, 40), complete: false };
         cursors.add(cursor);
       }
     } while (cursor);
@@ -79,4 +79,10 @@ export async function readWikiActivity(host: WorkflowHost<"interactive">, period
   } catch {
     return { rows, complete: false };
   }
+}
+
+export function wikiRevisionHref(scope: string, slug: string | null | undefined, revision: number, source?: { store: "document" | "legacy"; id: string }) {
+  const mount = scope === "personal" ? "/apps" : `/o/${encodeURIComponent(scope)}`;
+  if (slug && source?.store !== "legacy") return `${mount}/wiki-map/p/${encodeURIComponent(slug)}?revision=${revision}`;
+  return source ? `${mount}/wiki-map/revision/${source.store}/${encodeURIComponent(source.id)}?revision=${revision}` : undefined;
 }

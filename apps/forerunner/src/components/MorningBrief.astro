@@ -1,7 +1,8 @@
 ---
 import { forerunnerContext } from "../server/context";
 import { readDailyHome } from "../server/daily-home";
-import { morningActivity, morningActivityFilters, wikiRevisionHref } from "../server/morning-activity";
+import { morningActivity, morningActivityFilters } from "../server/morning-activity";
+import { wikiRevisionHref } from "../server/app-updates";
 
 interface Props { root: string }
 const { root } = Astro.props;
@@ -70,7 +71,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
     <h3>Wiki activity</h3>
     {!activity.wiki.complete && <p>Some Wiki revisions could not be read.</p>}
     {activity.wiki.rows.length ? <ul>{activity.wiki.rows.map(row => <li>
-      {row.slug ? <a href={wikiRevisionHref(row.scope, row.slug, row.revision)}>{row.title}</a> : row.title}
+      <a href={wikiRevisionHref(row.scope, row.slug, row.revision, row)}>{row.title}</a>
       {" · "}{displayScope(row.scope)} · Revision {row.revision}
     </li>)}</ul> : <p>{activity.wiki.complete ? "No authored Wiki revisions for this selection." : "No authored Wiki revisions were available from the checked stores."}</p>}
   </section>}

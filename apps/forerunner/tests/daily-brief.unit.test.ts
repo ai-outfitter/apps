@@ -31,7 +31,7 @@ test("the default daily brief schedule is saved once and never overrides a saved
   // No schedule at all: one enabled 05:00 schedule in the device's time zone, with no connection.
   const fresh = hostWith([{ workflowId: "forerunner-discovery", cron: "0 6 * * *", timezone: "UTC", enabled: true }]);
   const first = await setDailyBriefSchedule(fresh.host, who, { enabled: true, timezone: "America/Chicago", ifUnset: true });
-  assert.deepEqual(fresh.saved, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: true, inputs: {} }]);
+  assert.deepEqual(fresh.saved, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: true, inputs: {}, ifUnset: true }]);
   assert.equal((first as { enabled: boolean }).enabled, true);
   // Repeating it, from another device in another zone, saves nothing more.
   await defaultDailyBriefSchedule(fresh.host, who, "Europe/London");
@@ -169,7 +169,7 @@ async function fixture(model: (data: ReturnType<typeof modelData>, instructions:
   const log = { writes: 0, inferences: [] as { data: ReturnType<typeof modelData>; instructions: string; runId: string }[], collected: [] as Record<string, unknown>[], started: [] as string[] };
   let beforeWrite = async () => {};
   const host = { call: async (op: string, args: any) => {
-    if (op === "schedules") return [{ id: "schedule", timezone: "America/Chicago" }];
+    if (op === "schedules") return [{ id: "schedule", timezone: "America/Chicago", enabled: true }];
     if (op === "workflow.start") { log.started.push(args.id); return {}; }
     if (op === "workflow.collect") { assert.equal(args.complete, true); log.collected.push(args.value); return {}; }
     if (op === "inference.generate") { log.inferences.push({ data: args.data, instructions: args.instructions, runId: args.runId }); return { output: await model(args.data, args.instructions) }; }
@@ -220,14 +220,17 @@ test("capture writes one owner-scoped Wiki document with provenance, reuses unch
     assert.equal(f.log.inferences.length, 1);
     // The scheduled path is the same generation: it starts a run and settles its output.
     const runId = crypto.randomUUID();
-    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
+    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, trigger: "manual", scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
     assert.deepEqual(f.log.started, [runId]);
+    assert.equal(f.log.collected.at(-1)?.outcome, "saved");
+    assert.equal(f.log.writes, 2);
+    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, trigger: "manual", scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
     assert.equal(f.log.collected.at(-1)?.outcome, "unchanged");
-    assert.equal(f.log.writes, 1);
+    assert.equal(f.log.writes, 2);
     const saved = f.stored.get(first.slug);
     if (saved) saved.archived = true;
     await assert.rejects(() => captureDailyBrief(f.db, who, f.host, { ...run, runId: "again" }, now), e => e instanceof Response && e.status === 409);
-    assert.equal(f.log.writes, 1);
+    assert.equal(f.log.writes, 2);
   } finally { f.close(); }
 });
 

@@ -19,7 +19,10 @@ const activity = `WITH activity AS (
     r.revision, r.title, r.createdAt, 'document' AS store
   FROM wiki_document_revisions r JOIN wiki_documents d ON d.id=r.documentId
   WHERE r.createdAt>=? AND r.createdAt<? AND d.archived=0
-    AND coalesce(json_extract(r.provenance,'$.kind'),'') NOT IN ('forerunner.daily-brief','app.daily-update')
+    AND coalesce(json_extract(r.provenance,'$.kind'),'') NOT IN ('forerunner.daily-brief','app.daily-update','planning.daily-report')
+    AND (r.generatedBody='' OR EXISTS (SELECT 1 FROM wiki_document_revisions prior
+      WHERE prior.documentId=r.documentId AND prior.revision=r.revision-1
+        AND (prior.title<>r.title OR prior.summary<>r.summary OR prior.body<>r.body)))
     AND NOT EXISTS (SELECT 1 FROM wiki_pages p WHERE p.documentId=r.documentId AND
       (p.slug GLOB 'forerunner-brief-*' OR p.slug GLOB 'app-daily-*'))
   UNION ALL
@@ -46,7 +49,7 @@ export const wikiRevisionActivity = {
       sql: `${activity} SELECT *, ${key} AS cursor FROM activity WHERE ${key}>? ORDER BY cursor LIMIT ?`,
       params: [...params, start ?? "", first + 1],
     });
-    const results = rows.map(row => ({ ...row, createdAt: new Date(Number(row.createdAt)).toISOString() }));
+    const results = rows.map(row => ({ ...row, cursor: String(row.cursor), createdAt: new Date(Number(row.createdAt)).toISOString() }));
     return page(ctx, info, results, row => String(row.cursor), first, start, async () =>
       Number((await ctx.database.query({ sql: `${activity} SELECT count(*) AS n FROM activity`, params }))[0].n));
   },

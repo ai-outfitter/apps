@@ -2,7 +2,8 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
 import type { DayReview, ReportSource } from "./day-review";
-import type { AppUpdates, WikiActivity } from "./app-updates";
+import { wikiRevisionHref, type AppUpdates, type WikiActivity } from "./app-updates";
+import type { DiscoveryReceipt } from "./brief-dependencies";
 import type { PlanningWork } from "./planning-work";
 
 // The daily digest is written by one model answer over saved, authorized evidence.
@@ -26,6 +27,7 @@ export type BriefInputs = {
   appUpdates?: AppUpdates;
   wikiActivity?: WikiActivity;
   dependencyGaps?: string[];
+  discoveryReceipts?: DiscoveryReceipt[];
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
@@ -68,10 +70,9 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
     for (const row of input.appUpdates.rows) {
       const owner = row.scope === "personal" ? "Personal" : row.scope;
       const label = `${owner} · ${row.app} (${input.review.period.date}, ${row.timezone})`;
-      const mount = row.scope === "personal" ? "/apps" : `/o/${encodeURIComponent(row.scope)}`;
       add("app-update", "app", { label, text: cut(`${label}: ${row.summary}`, 800), scope: row.scope,
         status: row.complete ? "complete" : "incomplete", recordId: row.id, revision: row.revision,
-        href: `${mount}/wiki-map/p/${encodeURIComponent(row.slug)}?revision=${row.revision}` });
+        href: wikiRevisionHref(row.scope, row.slug, row.revision) });
       if (!row.complete) gaps.push(`${label}: the app reported incomplete coverage.`);
     }
     if (!input.appUpdates.complete) gaps.push("Some app updates could not be read.");
@@ -80,11 +81,10 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (input.wikiActivity) {
     for (const row of input.wikiActivity.rows) {
       const owner = row.scope === "personal" ? "Personal" : row.scope;
-      const mount = row.scope === "personal" ? "/apps" : `/o/${encodeURIComponent(row.scope)}`;
       const label = `${owner} · Wiki: ${cut(row.title, 120)}`;
       add("wiki-activity", "wiki", { label, text: `${label}, ${row.store === "legacy" ? "legacy graph revision" : "document revision"} ${row.revision}, saved ${row.createdAt}`,
         scope: row.scope, recordId: row.id, revision: row.revision,
-        href: row.slug ? `${mount}/wiki-map/p/${encodeURIComponent(row.slug)}?revision=${row.revision}` : null });
+        href: wikiRevisionHref(row.scope, row.slug, row.revision, row) });
     }
     const count = input.wikiActivity.rows.length;
     if (input.wikiActivity.complete) add("wiki-activity", "wiki", {
@@ -108,6 +108,13 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (overview && usable(overview) && !input.review.organizations.includes(overview)) add("overview", "o", { label: `Personal planning overview for ${input.review.period.date}`, text: reportText(overview), scope: overview.scope, status: overview.status, href: overview.href });
   else if (overview && !usable(overview)) gaps.push(`Personal planning: ${overview.status === "missing" ? "no overview was saved" : "the saved overview could not be read"} for ${input.review.period.date}.`);
   for (const done of input.review.completions.slice(0, 30)) add("completion", "c", { label: `Completed: ${cut(done.title, 160)}`, text: cut(`${done.title} (${done.category})`, 240), recordId: done.itemId });
+  for (const receipt of input.discoveryReceipts ?? []) {
+    const label = `Discovery: ${receipt.label}`;
+    const results = [receipt.entries === undefined ? null : `${receipt.entries} analyzed entries`,
+      receipt.suggestions === undefined ? null : `${receipt.suggestions} saved suggestions`].filter(Boolean);
+    add("discovery", "d", { label, text: `${label} completed this morning${results.length ? `: ${results.join(", ")}` : ""}.`,
+      recordId: receipt.id, status: "complete", href: `/apps/forerunner/runs/${encodeURIComponent(receipt.id)}` });
+  }
   if (input.discovery) {
     const stale = input.now - Date.parse(input.discovery.savedAt) > discoveryFreshMs;
     if (stale) gaps.push(`Discovery: the last saved daily run is from ${input.discovery.savedAt.slice(0, 10)}; nothing newer was saved, so it is not included.`);
@@ -181,7 +188,7 @@ export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: stri
     const goal = item.goal ? byRef.get(item.goal) : null;
     return `- **${plain(item.text)}** ${plain(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
   }).join("\n"));
-  lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${gap}`).join("\n"));
+  lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${plain(gap)}`).join("\n"));
   lines.push("## Sources", evidence.map(row => {
     const href = localLink(row.href), revision = row.revision ? `, revision ${row.revision}` : "";
     return `- ${row.ref}: ${href ? `[${plain(row.label)}](${href})` : plain(row.label)}${revision}${row.status && row.status !== "complete" ? ` (${row.status})` : ""}`;

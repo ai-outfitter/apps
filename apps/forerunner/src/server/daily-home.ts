@@ -3,7 +3,7 @@ import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { dailyBriefSchedule, dailyBriefWorkflow } from "./daily-brief";
+import { briefSlotReceipt, dailyBriefSchedule, dailyBriefWorkflow } from "./daily-brief";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { localDate, shiftDate } from "./review-period";
@@ -81,18 +81,14 @@ export async function savedBrief(host: Host, owner: AppIdentity, date: string, z
   return (await savedBriefs(host, owner, date, zone)).current;
 }
 
-const slotReceipt = z.object({
-  date: z.iso.date(), status: z.enum(["complete", "incomplete", "failed"]), reason: z.string().max(300).optional(),
-  revision: z.number().int().positive().optional(), outcome: z.enum(["saved", "unchanged", "superseded"]).optional(),
-});
-
 async function latestBriefRun(host: Host, date: string, zone: string) {
   try {
     const { items } = await host.call("workflow.activity", { workflows: [dailyBriefWorkflow], limit: 8 });
     const latest = items.find(run => localDate(run.createdAt, zone) === date);
     if (!latest) return null;
     const detail = await host.call("workflow.read", { id: latest.id });
-    const receipt = slotReceipt.safeParse(detail?.outputs["collect.outputs.brief"]?.value).data;
+    const slot = detail?.outputs["collect.outputs.brief"];
+    const receipt = slot?.complete ? briefSlotReceipt.safeParse(slot.value).data : undefined;
     if (receipt?.date === date) return { ...receipt, runId: latest.id };
     if (latest.status === "running") return { date, status: "running" as const, runId: latest.id };
     return { date, status: "failed" as const, reason: "The run did not record a brief result.", runId: latest.id };

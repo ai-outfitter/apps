@@ -1,0 +1,38 @@
+---
+import { micromark } from "micromark";
+import { z } from "zod";
+import Layout from "../../../components/DocumentLayout.astro";
+import { context } from "../../../documents/context";
+import { getDocument } from "../../../documents/store";
+
+if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Revision not found", { status: 404 });
+const parsed = z.object({ id: z.string().min(1).max(200), store: z.enum(["document", "legacy"]),
+  revision: z.coerce.number().int().positive().max(2_147_483_647) }).safeParse({
+    ...Astro.params, revision: Astro.url.searchParams.get("revision"),
+  });
+if (!parsed.success) return new Response("Revision not found", { status: 404 });
+const { id, store, revision } = parsed.data;
+const { database } = context(Astro.request, Astro.locals);
+let snapshot: { title: string; body: string } | undefined;
+if (store === "document") {
+  try {
+    const doc = await getDocument(database, id, revision);
+    if (!doc.archived) snapshot = doc;
+  } catch (error) {
+    if (!(error instanceof Response) || error.status !== 404) throw error;
+  }
+} else {
+  const [row] = await database.query({ sql: `
+    SELECT json_extract(r.snapshot,'$.title') AS title, json_extract(r.snapshot,'$.body') AS body
+    FROM graph_revisions r JOIN graph_nodes n ON n.id=r.recordId
+      JOIN graph_types t ON t.id=n.typeId AND t.name='Document'
+    WHERE r.kind='graph-node' AND r.recordId=? AND r.revision=? AND n.archived=0
+  `, params: [id, revision] });
+  if (row) snapshot = { title: String(row.title ?? ""), body: String(row.body ?? "") };
+}
+if (!snapshot) return new Response("Revision not found", { status: 404 });
+---
+<Layout title={snapshot.title}>
+  <p class="wiki-meta">Revision {revision}</p>
+  <article class="wiki-doc" set:html={micromark(snapshot.body)} />
+</Layout>
