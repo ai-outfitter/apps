@@ -1,0 +1,103 @@
+---
+import { forerunnerContext } from "../server/context";
+import { readDailyHome } from "../server/daily-home";
+import { morningActivity, morningActivityFilters, wikiRevisionHref } from "../server/morning-activity";
+
+interface Props { root: string }
+const { root } = Astro.props;
+const operational = import.meta.env.OUTFITTER_APP_MODE !== "demo";
+let home: Awaited<ReturnType<typeof readDailyHome>> | null = null;
+let activity: Awaited<ReturnType<typeof morningActivity>> | null = null;
+let unavailable = false;
+let personal = false;
+const parsed = morningActivityFilters.safeParse({
+  date: Astro.url.searchParams.get("briefDate") ?? undefined,
+  scope: Astro.url.searchParams.get("briefScope") ?? undefined,
+  source: Astro.url.searchParams.get("briefSource") ?? undefined,
+});
+if (operational) {
+  try {
+    const context = forerunnerContext(Astro.request, Astro.locals);
+    personal = context.identity.canEdit && context.identity.owner.kind === "user" && context.identity.owner.id === context.identity.userId;
+    if (personal) {
+      const host = context.host();
+      home = await readDailyHome(context.db(), context.identity, host, { sections: ["digest"] });
+      const filters = parsed.success ? parsed.data : {};
+      activity = await morningActivity(host, { ...filters, timezone: home.timezone });
+    }
+  } catch { unavailable = true; }
+}
+const scope = activity?.filters.scope ?? "all";
+const scopes = activity?.scopes ?? ["personal"];
+const source = activity?.filters.source ?? "all";
+const displayScope = (value: string) => value === "personal" ? "Personal" : value;
+---
+{personal && <section id="morning-brief" class="paper morning-brief" aria-labelledby="morning-brief-title">
+  <h2 id="morning-brief-title">Morning brief</h2>
+  {home?.brief && <p><a href={home.brief.href}>Read the {home.brief.date} brief</a> · Revision {home.brief.revision} · {home.brief.status === "incomplete" ? "Partial coverage" : "Complete"}</p>}
+  {home?.briefRun?.status === "failed" ? <p role="status">The latest brief run failed. {"reason" in home.briefRun && home.briefRun.reason}</p>
+    : home?.briefRun?.status === "running" ? <p role="status">The morning brief is running.</p>
+    : home?.briefRun?.status === "unavailable" ? <p role="status">The latest run could not be checked.</p>
+    : !home?.brief && <p role="status">{home?.schedule?.enabled ? "No morning brief has been saved for today yet." : "No enabled morning brief schedule."}</p>}
+  {!home?.brief && home?.latestBrief && <p><a href={home.latestBrief.href}>Read the previous brief from {home.latestBrief.date}</a></p>}
+  {home && <button type="button" data-brief-recover data-endpoint={`${root}api/apps/forerunner/daily-brief`} data-zone={home.timezone}>
+    {home.briefRun?.status === "failed" ? "Retry brief" : home.brief ? "Refresh brief" : "Generate brief now"}
+  </button>}
+  <p data-brief-result role="status" hidden></p>
+  <form method="get" action={`${root}#morning-brief`} class="brief-filters">
+    <label>Date <input type="date" name="briefDate" value={activity?.date ?? (parsed.success ? parsed.data.date : undefined)} max={home?.date && new Date(Date.parse(home.date) - 86_400_000).toISOString().slice(0, 10)} /></label>
+    <label>Scope <select name="briefScope">
+      <option value="all" selected={scope === "all"}>All authorized scopes</option>
+      {[...new Set([...scopes, ...(scope === "all" ? [] : [scope])])].map(value => <option value={value} selected={scope === value}>{displayScope(value)}</option>)}
+    </select></label>
+    <label>Source <select name="briefSource">
+      <option value="all" selected={source === "all"}>All sources</option>
+      <option value="onto" selected={source === "onto"}>Onto</option>
+      <option value="wiki" selected={source === "wiki"}>Wiki</option>
+    </select></label>
+    <button type="submit">Apply filters</button>
+  </form>
+  {unavailable && <p role="status">Some morning brief details could not be loaded.</p>}
+  {activity?.onto && <section aria-label="Onto activity">
+    <h3>Onto activity</h3>
+    {!activity.onto.complete && <p>Some Onto reports could not be read.</p>}
+    {activity.onto.rows.length ? <ul>{activity.onto.rows.map(row => <li>
+      <a href={wikiRevisionHref(row.scope, row.slug, row.revision)}>{displayScope(row.scope)} report, revision {row.revision}</a>
+      <p>{row.summary}{!row.complete && " Coverage is incomplete."}</p>
+    </li>)}</ul> : <p>No saved Onto report for this selection.</p>}
+  </section>}
+  {activity?.wiki && <section aria-label="Wiki activity">
+    <h3>Wiki activity</h3>
+    {!activity.wiki.complete && <p>Some Wiki revisions could not be read.</p>}
+    {activity.wiki.rows.length ? <ul>{activity.wiki.rows.map(row => <li>
+      {row.slug ? <a href={wikiRevisionHref(row.scope, row.slug, row.revision)}>{row.title}</a> : row.title}
+      {" · "}{displayScope(row.scope)} · Revision {row.revision}
+    </li>)}</ul> : <p>{activity.wiki.complete ? "No authored Wiki revisions for this selection." : "No authored Wiki revisions were available from the checked stores."}</p>}
+  </section>}
+</section>}
+<script>
+  const recover = document.querySelector<HTMLButtonElement>("[data-brief-recover]");
+  const result = document.querySelector<HTMLParagraphElement>("[data-brief-result]");
+  recover?.addEventListener("click", async () => {
+    if (!result || !recover.dataset.endpoint) return;
+    recover.disabled = true;
+    result.hidden = false;
+    result.textContent = "Generating the brief…";
+    try {
+      const response = await fetch(recover.dataset.endpoint, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ timezone: recover.dataset.zone }),
+      });
+      if (!response.ok) throw new Error("Brief generation failed");
+      window.location.reload();
+    } catch {
+      result.textContent = "The brief could not be generated. Try again.";
+      recover.disabled = false;
+    }
+  });
+</script>
+<style>
+  .morning-brief { margin-block: 24px; scroll-margin-top: 24px; }
+  .brief-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin-block: 18px; }
+  .brief-filters label { display: grid; gap: 4px; }
+</style>

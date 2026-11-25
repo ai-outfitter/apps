@@ -3,7 +3,7 @@ import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { dailyBriefSchedule } from "./daily-brief";
+import { dailyBriefSchedule, dailyBriefWorkflow } from "./daily-brief";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { localDate, shiftDate } from "./review-period";
@@ -81,6 +81,26 @@ export async function savedBrief(host: Host, owner: AppIdentity, date: string, z
   return (await savedBriefs(host, owner, date, zone)).current;
 }
 
+const slotReceipt = z.object({
+  date: z.iso.date(), status: z.enum(["complete", "incomplete", "failed"]), reason: z.string().max(300).optional(),
+  revision: z.number().int().positive().optional(), outcome: z.enum(["saved", "unchanged", "superseded"]).optional(),
+});
+
+async function latestBriefRun(host: Host, date: string, zone: string) {
+  try {
+    const { items } = await host.call("workflow.activity", { workflows: [dailyBriefWorkflow], limit: 8 });
+    const latest = items.find(run => localDate(run.createdAt, zone) === date);
+    if (!latest) return null;
+    const detail = await host.call("workflow.read", { id: latest.id });
+    const receipt = slotReceipt.safeParse(detail?.outputs["collect.outputs.brief"]?.value).data;
+    if (receipt?.date === date) return { ...receipt, runId: latest.id };
+    if (latest.status === "running") return { date, status: "running" as const, runId: latest.id };
+    return { date, status: "failed" as const, reason: "The run did not record a brief result.", runId: latest.id };
+  } catch {
+    return { date, status: "unavailable" as const };
+  }
+}
+
 /**
  * A homepage snapshot from saved, authorized records. It never starts
  * generation, a workflow, a connector read or a schedule write. With
@@ -110,11 +130,12 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
       return { current: null, previous: null, latest: null, briefState: "unavailable" as const };
     }
   };
-  const [briefs, priorities, priorDay, weekDays] = await Promise.all([
+  const [briefs, priorities, priorDay, weekDays, briefRun] = await Promise.all([
     sections.has("digest") ? digest() : null,
     board,
     sections.has("review") ? timed(timings, "review", () => readDayReview(db, identity, host, { date: yesterday, timezone: zone }, now)) : null,
     sections.has("history") ? timed(timings, "history", () => Promise.all(weekDates.map(day => readDayReview(db, identity, host, { date: day, timezone: zone }, now)))) : null,
+    sections.has("digest") ? timed(timings, "briefRun", () => latestBriefRun(host, date, zone)) : null,
   ]);
   if (briefs) {
     if (!schedule) warnings.push("The personal daily brief schedule has not been set up.");
@@ -126,7 +147,7 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
       scheduleSetupRequired: !schedule, schedule: schedule ?? null, brief: briefs.current, previousBrief: briefs.previous,
       // Today's brief is saved, missing, or could not be read. A missing one may still show the last dated snapshot.
       briefState: briefs.briefState === "unavailable" ? "unavailable" as const : briefs.current ? "saved" as const : "missing" as const,
-      latestBrief: briefs.latest,
+      latestBrief: briefs.latest, briefRun,
     } : {}),
     ...(priorities ? { priorities: priorities.filter(item => item.status !== "done").slice(0, 30).map(item => ({ id: item.id, title: item.title, category: item.category, status: item.status, dueDate: item.dueDate })) } : {}),
     ...(priorDay ? { yesterday: priorDay } : {}),
