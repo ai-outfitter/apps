@@ -4,8 +4,10 @@ import { listenBridge } from "./chat-bridge.mjs";
 
 const secret = "b".repeat(64);
 const model = "gpt-5.4";
-const marker = "Workflow 3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e, node implement";
-const tools = [{ type: "function", function: { name: "read", parameters: { type: "object" } } }];
+const marker = "Execute only the implement node for box/repo.\n\nAssigned runId: 3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e\n\nAssigned inputs: fixture";
+const tools = ["read", "mcp__chrome__take_snapshot"].map(name => ({
+  type: "function", function: { name, parameters: { type: "object" } },
+}));
 const messages = [{ role: "system", content: "Implement the requested change." }, { role: "user", content: marker }];
 const nativeUsage = { input: 25, output: 9, cacheRead: 10, cacheWrite: 0, totalTokens: 44 };
 const nativeCall = { type: "toolCall", id: "call_17|fc_17", name: "read", arguments: { path: "index.mjs" } };

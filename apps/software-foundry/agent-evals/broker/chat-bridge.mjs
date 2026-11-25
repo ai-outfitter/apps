@@ -2,10 +2,19 @@ import { createServer } from "node:http";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
 
-const codingTools = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
+const browserTools = [
+  "click", "close_page", "emulate", "fill", "fill_form", "list_pages",
+  "navigate_page", "new_page", "press_key", "resize_page", "select_page",
+  "take_screenshot", "take_snapshot", "wait_for",
+];
+const codingTools = new Set([
+  "read", "bash", "edit", "write", "grep", "find", "ls",
+  ...browserTools.map(name => `mcp__chrome__${name}`),
+]);
 const bodyLimit = 512 * 1024;
 const responseLimit = 128 * 1024;
 const workflowMarker = /^Workflow ([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}), node [a-z0-9-]+$/;
+const workspaceNodeMarker = /^Execute only the [a-z0-9-]+ node for box\/repo\.\n\nAssigned runId: ([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})(?:\n|$)/;
 const statusError = (status) => Object.assign(Error("Invalid fixture request"), { status });
 const record = value => value && typeof value === "object" && !Array.isArray(value);
 const textContent = text => ({ type: "text", text });
@@ -44,7 +53,7 @@ function context(input, model) {
     } else if (role === "user") {
       if (pending.size) throw statusError(400);
       const value = text(content);
-      const run = workflowMarker.exec(value.trim())?.[1];
+      const run = (workspaceNodeMarker.exec(value) ?? workflowMarker.exec(value.trim()))?.[1];
       if (run && workflowRun && run !== workflowRun) throw statusError(400);
       workflowRun ??= run;
       messages.push({ role, content: value, timestamp });
@@ -102,9 +111,9 @@ async function requestJSON(req) {
 
 /** One serialized, expiring fixture grant. The provider is the only component
  * that handles personal auth. This HTTP server never receives those credentials. */
-export async function listenBridge({ model, secret, provider, port = 0, lifetimeMs = 10 * 60_000, requests = 20 }) {
+export async function listenBridge({ model, secret, provider, port = 0, lifetimeMs = 15 * 60_000, requests = 80 }) {
   if (typeof secret !== "string" || !/^[a-f0-9]{64}$/.test(secret) || !Number.isInteger(lifetimeMs) ||
-    lifetimeMs < 1 || lifetimeMs > 10 * 60_000 || !Number.isInteger(requests) || requests < 1 || requests > 20)
+    lifetimeMs < 1 || lifetimeMs > 15 * 60_000 || !Number.isInteger(requests) || requests < 1 || requests > 80)
     throw Error("Invalid fixture grant");
   const deadline = Date.now() + lifetimeMs;
   const bearer = Buffer.from(`Bearer ${secret}`);
