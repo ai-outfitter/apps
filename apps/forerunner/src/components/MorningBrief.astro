@@ -42,7 +42,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
     : home?.schedule?.pendingFor !== undefined ? <p role="status">The scheduled brief is waiting for its sources.</p>
     : !home?.brief && <p role="status">{home?.schedule?.enabled ? "No morning brief has been saved for today yet." : "No enabled morning brief schedule."}</p>}
   {!home?.brief && home?.latestBrief && <p><a href={home.latestBrief.href}>Read the previous brief from {home.latestBrief.date}</a></p>}
-  {home && <button type="button" data-brief-recover data-endpoint={`${root}api/apps/forerunner/daily-brief`} data-zone={home.timezone}>
+  {home && <button type="button" data-brief-recover data-endpoint={`${root}api/apps/forerunner/daily-brief`} data-zone={home.schedule?.timezone} data-needs-schedule={home.scheduleSetupRequired ? "true" : undefined}>
     {home.briefRun?.status === "failed" ? "Retry brief" : home.brief ? "Refresh brief" : "Generate brief now"}
   </button>}
   <p data-brief-result role="status" hidden></p>
@@ -65,7 +65,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
     {!activity.onto.complete && <p>Some Onto reports could not be read.</p>}
     {activity.onto.rows.length ? <ul>{activity.onto.rows.map(row => <li>
       <a href={wikiRevisionHref(row.scope, row.slug, row.revision)}>{displayScope(row.scope)} report, revision {row.revision}</a>
-      <p>{row.summary}{!row.complete && " Coverage is incomplete."}</p>
+      <p>{row.summary}{!row.complete && " Coverage is incomplete."}{row.timezone !== home?.timezone && ` This report uses ${row.timezone} day boundaries.`}</p>
     </li>)}</ul> : <p>No saved Onto report for this selection.</p>}
   </section>}
   {activity?.wiki && <section aria-label="Wiki activity">
@@ -80,6 +80,19 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
 <script>
   const recover = document.querySelector<HTMLButtonElement>("[data-brief-recover]");
   const result = document.querySelector<HTMLParagraphElement>("[data-brief-result]");
+  const zone = recover?.dataset.zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const endpoint = recover?.dataset.endpoint;
+  const setupKey = endpoint ? `forerunner-brief-setup:${new URL(endpoint, location.href).pathname}` : null;
+  if (recover?.dataset.needsSchedule && endpoint && setupKey && !sessionStorage.getItem(setupKey) && zone) {
+    fetch(endpoint, {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: true, ifUnset: true, timezone: zone }),
+    }).then(response => {
+      if (!response.ok) return;
+      sessionStorage.setItem(setupKey, "done");
+      window.location.reload();
+    }).catch(() => undefined);
+  }
   recover?.addEventListener("click", async () => {
     if (!result || !recover.dataset.endpoint) return;
     recover.disabled = true;
@@ -88,9 +101,9 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
     try {
       const response = await fetch(recover.dataset.endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ timezone: recover.dataset.zone }),
+        body: JSON.stringify({ timezone: zone }),
       });
-      if (!response.ok && response.status < 500) throw new Error("Brief generation failed");
+      if (!response.ok && response.status !== 409 && response.status < 500) throw new Error("Brief generation failed");
       window.location.reload();
     } catch {
       result.textContent = "The brief could not be generated. Try again.";

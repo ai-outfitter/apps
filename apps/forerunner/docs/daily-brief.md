@@ -41,7 +41,7 @@ Forerunner Today shows the saved revision, the latest run result and a refresh o
 
 ## Default schedules
 
-Trusted initialization of an installation uses the platform's insert-only schedule operation. Forerunner's personal default is 05:00, using an enabled discovery schedule's timezone when available and the app reporting default (America/Chicago) otherwise. Onto uses its 02:00 reporting default for personal installs and organization installs initialized by an authorized member editor. Service-driven organization setup without an authorized member leaves the producer schedule unset. Members can set an explicit schedule in Automations. Existing schedules keep their enabled state, cadence and timezone. The saved brief timezone defines yesterday, including 23- and 25-hour DST days.
+Trusted initialization of an installation uses the platform's insert-only schedule operation. Forerunner's personal default is 05:00, using an enabled discovery schedule's timezone when available. With no saved zone, Today, Settings or Sources creates it on the member's first visit with their device zone. Onto uses its 02:00 reporting default for personal installs and organization installs initialized by an authorized member editor. Service-driven organization setup without an authorized member leaves the producer schedule unset. Members can set an explicit schedule in Automations. Existing schedules keep their enabled state, cadence and timezone. The saved brief timezone defines yesterday, including 23- and 25-hour DST days. Onto reports with a different producer timezone carry their own boundaries and are marked as partial coverage for the brief’s zone.
 
 ## Reading the saved brief (snapshot first)
 

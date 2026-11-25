@@ -21,6 +21,8 @@ test("installed Today keeps date, scope and source filters on an empty timeline 
   const allowedScopes = new Set(["personal", "fixture-team"]);
   let denyTeam = false;
   let wikiUnavailable = false;
+  let noSavedBrief = false;
+  const attempts = new Map<string, { date: string; status: string; reason: string }>();
   const app = await appWorker("forerunner", appArtifact(new URL("..", import.meta.url), "operational"), scope.installationId, {
     workflowHost: grant => ({ async call(operation, input) {
       // The dispatch carries member read authority. Filtering by URL cannot add a scope.
@@ -35,13 +37,29 @@ test("installed Today keeps date, scope and source filters on an empty timeline 
         inputs: {}, connectionId: null, resource: null, createdBy: viewer.userId,
         nextRunAt: Date.now(), lastRunAt: null, lastRunId: null, lastOutcome: null,
       }]);
-      if (operation === "workflow.activity") return ok({ total: 0, items: [] });
+      if (operation === "workflow.activity") return ok({ total: attempts.size, items: [...attempts.keys()].reverse().map(id => ({
+        id, workflowId: "forerunner-daily-brief", status: "complete", createdBy: viewer.userId,
+        createdAt: Date.now(), updatedAt: Date.now(), inputs: {},
+      })) });
+      if (operation === "workflow.read") {
+        const id = String(request.id);
+        const receipt = attempts.get(id);
+        return ok(receipt ? { run: { id, workflowId: "forerunner-daily-brief", status: "complete", createdBy: viewer.userId,
+          createdAt: Date.now(), updatedAt: Date.now() }, inputs: {}, readiness: { run: "complete", steps: {} },
+          outputs: { "collect.outputs.brief": { complete: true, value: receipt } }, attempts: [] } : null);
+      }
+      if (operation === "workflow.start") return ok({ id: request.id, workflow: request.workflow, created: true });
+      if (operation === "workflow.collect") {
+        attempts.set(String(request.runId), request.value as { date: string; status: string; reason: string });
+        return ok({ run: "complete", steps: { collect: "complete" } });
+      }
+      if (operation === "profile.read") return { ok: false, status: 503, message: "No profile evidence" };
       if (operation === "entities.types") return ok([]);
       if (operation === "actions.call" && request.template === "wiki-map" && request.action === "graph.graphql" && request.readOnly === true) {
         const { query, variables } = request.input as { query: string; variables: Record<string, string> };
         if (query.includes("SavedPages")) return ok({ data: { p0: null } });
         if (query.includes("DailyHomeBriefs")) return ok({ data: Object.fromEntries(Object.entries(variables).map(([key, slug]) =>
-          ["d" + key.slice(1), slug.startsWith(`forerunner-brief-${date}-`) ? { document: brief } : null])) });
+          ["d" + key.slice(1), !noSavedBrief && slug.startsWith(`forerunner-brief-${date}-`) ? { document: brief } : null])) });
       }
       if (operation === "platform.document" && request.document === "Viewer" && !request.app) {
         return ok({ viewer: { orgs: denyTeam ? [] : [{ slug: "fixture-team", name: "Fixture team", appSlugs: ["wiki-map"] }] } });
@@ -53,7 +71,7 @@ test("installed Today keeps date, scope and source filters on an empty timeline 
         const variables = request.variables as Record<string, string>;
         if (request.app === "wiki-map" && !request.scopes && request.document === "DailyAppUpdates") {
           ontoReads.push(variables.date);
-          return ok({ data: { dailyAppUpdates: variables.date === oceanMorning.yesterday ? [{
+          return ok({ data: { dailyAppUpdates: !noSavedBrief && variables.date === oceanMorning.yesterday ? [{
             id: "onto-report", revision: 4, slug: "onto-yesterday", scope: "personal", app: "Onto", summary: "Two committed record revisions.", timezone, complete: true,
           }] : [] } });
         }
@@ -78,8 +96,9 @@ test("installed Today keeps date, scope and source filters on an empty timeline 
       const inner = url.pathname.startsWith(mount) ? "/" + url.pathname.slice(mount.length) :
         url.pathname.startsWith("/_astro/") ? url.pathname : null;
       if (inner === null) return route.fulfill({ status: 404 });
-      expect(request.method()).toBe("GET");
+      expect(request.method()).toBe(inner === "/api/apps/forerunner/daily-brief" ? "POST" : "GET");
       await fulfillFrom(route, await app.call(inner + url.search, viewer, {
+        method: request.method(), ...(request.method() === "POST" ? { body: request.postDataJSON() } : {}),
         headers: { [pageURLHeader]: url.href }, workflowHost: scope,
       }));
     });
@@ -142,6 +161,19 @@ test("installed Today keeps date, scope and source filters on an empty timeline 
     await expect(filters.apply).toBeVisible();
     await expect(saved).toHaveAttribute("href", /\?revision=3$/);
     expect(unexpected).toEqual([]);
+
+    noSavedBrief = true;
+    await page.reload();
+    await expect(saved).toHaveCount(0);
+    await morning.getByRole("button", { name: "Generate brief now" }).click();
+    const reason = "No saved evidence was available to write a brief from. Nothing was saved.";
+    await expect(morning.getByText(`The latest brief run failed. ${reason}`)).toBeVisible();
+    await expect(morning.getByRole("button", { name: "Retry brief" })).toBeVisible();
+    await expect(filters.scope).toHaveValue("all");
+    await expect(filters.date).toHaveValue("2026-11-23");
+    await expect(filters.source).toHaveValue("wiki");
+    await expect(saved).toHaveCount(0);
+    expect([...attempts.values()]).toEqual([{ date, status: "failed", reason }]);
   } finally {
     try { await page.unrouteAll({ behavior: "wait" }); }
     finally { await app.dispose(); }

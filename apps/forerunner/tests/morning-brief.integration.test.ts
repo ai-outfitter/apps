@@ -33,7 +33,7 @@ type Write = {
 };
 type Trace = { operation: string; input: Record<string, unknown> };
 
-async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvidence?: boolean; onto?: boolean | "empty"; wiki?: "authored" | "empty" | "unavailable"; dates?: Pick<typeof oceanMorning, "yesterday"> | Pick<typeof chicagoFallback, "yesterday"> } = {}) {
+async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvidence?: boolean; onto?: boolean | "empty"; ontoTimezone?: string; pendingFor?: number; wiki?: "authored" | "empty" | "unavailable"; dates?: Pick<typeof oceanMorning, "yesterday"> | Pick<typeof chicagoFallback, "yesterday"> } = {}) {
   const client = createClient({ url: ":memory:" });
   t.after(() => client.close());
   const db = drizzle(client);
@@ -71,7 +71,7 @@ async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvi
             lastRunId: state === "waiting" || state === "disabled" ? null : "discovery-run-" + i,
             lastOutcome: state === "waiting" || state === "disabled" ? null : "started",
           }));
-          return [{ ...briefSchedule, enabled: true, timezone }, ...schedules];
+          return [{ ...briefSchedule, enabled: true, timezone, pendingFor: fixture.pendingFor }, ...schedules];
         }
         case "workflow.read": {
           if (!String(input.id).startsWith("discovery-run-")) {
@@ -90,7 +90,7 @@ async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvi
           const variables = input.variables as Record<string, string>;
           if (input.document === "Viewer") return { viewer: { orgs: [] } };
           if (input.document === "DailyAppUpdates") {
-            const update = fixture.onto === "empty" ? { ...onto, summary: "Zero committed record revisions, pending updates or rejected updates." } : onto;
+            const update = { ...onto, timezone: fixture.ontoTimezone ?? timezone, ...(fixture.onto === "empty" ? { summary: "Zero committed record revisions, pending updates or rejected updates." } : {}) };
             return { data: { dailyAppUpdates: fixture.onto && variables.date === (fixture.dates ?? oceanMorning).yesterday ? [update] : [] } };
           }
           if (input.document === "WikiRevisionActivity") {
@@ -296,4 +296,51 @@ test("the installed schedule route requires a trusted dispatch and returns the a
   assert.equal(result.outcome, "deferred");
   assert.ok(result.retryAt > scheduledFor);
   assert.deepEqual(calls, ["schedules", "DailyAppUpdates", "Viewer"]);
+});
+
+
+test("an Onto report in another zone is cited with its own period and does not delay an otherwise ready brief", async t => {
+  const app = await replay(t, { onto: true, ontoTimezone: "America/Los_Angeles", wiki: "empty" });
+  assert.equal((await app.fire(morning)).outcome, "started");
+  assert.ok(app.prompts[0].evidence.some(row => row.kind === "app-update" && row.text.includes("America/Los_Angeles")));
+  assert.ok(app.prompts[0].notKnown.some(gap => gap.includes("exact America/Chicago coverage is unknown")));
+});
+
+test("a clock retry still uses the stored deadline if its dispatch reports a later time", async t => {
+  const app = await replay(t, { ownEvidence: true, pendingFor: morning, wiki: "unavailable" });
+  const cutoff = morning + 3 * hour;
+  assert.equal((await app.fire(cutoff, { ...occurrence, scheduledFor: cutoff })).outcome, "started");
+  assert.equal(app.prompts[0].coversCompletedDay, oceanMorning.yesterday);
+  assert.equal(app.writes[0].provenance.date, oceanMorning.date);
+});
+
+test("installed setup uses a known member timezone and leaves an unknown zone to the first member visit", async t => {
+  const dispatchScope = { installationId: owner.installationId, organizationId: null, userId: owner.userId,
+    packageHash: "test-package", phase: "interactive" as const, setup: true, expiresAt: Date.now() + 60_000 };
+  const writes: unknown[] = [];
+  let discoveryZone: string | undefined;
+  const app = await appWorker("forerunner", appArtifact(new URL("..", import.meta.url), "operational"), owner.installationId, {
+    workflowHost: () => ({ async call(operation, input) {
+      const schedule = { ...briefSchedule, enabled: true, timezone: "Asia/Tokyo", createdBy: owner.userId,
+        cron: "0 5 * * *", nextRunAt: morning, lastRunAt: null, lastRunId: null, lastOutcome: null };
+      if (operation === "schedules") return { ok: true, value: discoveryZone ? [
+        { ...schedule, id: "discovery", workflowId: "forerunner-discovery", timezone: discoveryZone },
+      ] : [] };
+      assert.equal(operation, "schedule.save");
+      writes.push(input);
+      return { ok: true, value: schedule };
+    } }),
+  });
+  t.after(() => app.dispose());
+  const member = { userId: owner.userId, role: owner.role, organizationId: "", owner: owner.owner };
+  const run = () => app.call("/api/internal/app-initialize", member, { method: "POST", body: {}, workflowHost: dispatchScope });
+  const before = await run();
+  assert.equal(before.status, 200);
+  assert.deepEqual(await before.json(), { dailyBrief: "needs-timezone" });
+  assert.deepEqual(writes, []);
+  discoveryZone = "Asia/Tokyo";
+  const after = await run();
+  assert.equal(after.status, 200);
+  assert.deepEqual(await after.json(), { dailyBrief: "ready" });
+  assert.deepEqual(writes, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "Asia/Tokyo", enabled: true, inputs: {}, ifUnset: true }]);
 });

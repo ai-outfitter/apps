@@ -74,6 +74,7 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
         status: row.complete ? "complete" : "incomplete", recordId: row.id, revision: row.revision,
         href: wikiRevisionHref(row.scope, row.slug, row.revision) });
       if (!row.complete) gaps.push(`${label}: the app reported incomplete coverage.`);
+      if (row.app === "Onto" && row.timezone !== input.timezone) gaps.push(`${label}: the producer used a different local-day boundary; exact ${input.timezone} coverage is unknown.`);
     }
     if (!input.appUpdates.complete) gaps.push("Some app updates could not be read.");
     else if (!input.appUpdates.rows.length) gaps.push("No app updates were saved for this reporting date.");

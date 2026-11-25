@@ -1,14 +1,14 @@
 import { wikiDocuments, wikiPackage } from "@ai-outfitter/app-sdk/wiki-documents";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
+import { briefSlug, briefTimezone as timezone } from "./brief-config";
+export { briefSlug } from "./brief-config";
 import { briefSlotReceipt, dailyBriefSchedule, dailyBriefWorkflow } from "./daily-brief";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { localDate, shiftDate } from "./review-period";
 
-const timezone = z.string().min(1).max(64).refine(value => { try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; } });
 /** What a homepage can read on its own: the saved digest, board priorities, yesterday's reports, last week's. */
 export const dailyHomeSections = ["digest", "priorities", "review", "history"] as const;
 export type DailyHomeSection = (typeof dailyHomeSections)[number];
@@ -32,9 +32,6 @@ export function dailyHomeDates(now: number, zone: string) {
   const weekEnd = shiftDate(date, -(weekday || 7)), weekStart = shiftDate(weekEnd, -6);
   return { date, yesterday, weekStart, weekEnd, weekDates: Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index)) };
 }
-
-export const briefSlug = async (owner: AppIdentity, date: string, zone: string) =>
-  `forerunner-brief-${date}-${await stableGraphId(owner.owner, owner.installationId, zone)}`;
 
 type Timings = Record<string, number>;
 const timed = async <T>(timings: Timings, name: string, work: () => Promise<T>) => {

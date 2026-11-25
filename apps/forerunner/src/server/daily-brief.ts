@@ -1,19 +1,18 @@
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
 import { scheduleInput, type InstallationSchedule, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
 import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEvidence, modelData, renderBrief } from "./daily-brief-synthesis";
 import { currentMemberships, readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { readAppUpdates, readWikiActivity, type AppUpdates } from "./app-updates";
+import { briefSlug, briefTimezone as timezone } from "./brief-config";
 import { briefDependencies, type DiscoveryReceipt } from "./brief-dependencies";
 import { readPlanningWork } from "./planning-work";
 import { localDate, reviewPeriod, shiftDate } from "./review-period";
 import { latestOpenSuggestions, roleSnapshot, saveRoleSnapshot } from "./suggestions";
 
 export const dailyBriefWorkflow = "forerunner-daily-brief";
-const timezone = z.string().min(1).max(64).refine(value => { try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; } }, "Choose a valid time zone");
 export const dailyBriefScheduleInput = z.strictObject({
   enabled: z.boolean(), timezone: timezone,
   /** Save only when no daily brief schedule exists at all. A saved one, enabled, disabled or customized, is returned untouched. */
@@ -28,7 +27,9 @@ export async function setDailyBriefSchedule(host: WorkflowHost<"interactive">, w
   personal(who);
   const input = dailyBriefScheduleInput.parse(raw);
   if (input.ifUnset) return defaultDailyBriefSchedule(host, who, input.timezone);
-  return host.call("schedule.save", briefSchedule(input.timezone, input.enabled));
+  const existing = await dailyBriefSchedule(host, who);
+  const next = briefSchedule(input.timezone, input.enabled);
+  return host.call("schedule.save", existing ? { ...next, cron: existing.cron, inputs: existing.inputs } : next);
 }
 /**
  * The daily brief is on by default for a personal installation. With no saved
@@ -42,7 +43,10 @@ export async function setDailyBriefSchedule(host: WorkflowHost<"interactive">, w
 export async function defaultDailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity, zone: string) {
   if (!who.canEdit || who.owner.kind !== "user" || who.owner.id !== who.userId) return null;
   const existing = (await host.call("schedules", {})).find(row => row.workflowId === dailyBriefWorkflow);
-  return existing ?? host.call("schedule.save", { ...briefSchedule(timezone.parse(zone), true), ifUnset: true });
+  return existing ?? saveDefaultBriefSchedule(host, zone);
+}
+export function saveDefaultBriefSchedule(host: WorkflowHost<"interactive">, zone: string) {
+  return host.call("schedule.save", { ...briefSchedule(timezone.parse(zone), true), ifUnset: true });
 }
 export async function dailyBriefSchedule(host: WorkflowHost<"interactive">, who: AppIdentity) {
   personal(who);
@@ -83,7 +87,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const zone = timezone.parse(input.timezone);
   z.iso.date().parse(input.date);
   if (input.date > localDate(now, zone)) throw new Response("Cannot capture a future brief", { status: 400 });
-  const slugFor = async (date: string) => `forerunner-brief-${date}-${await stableGraphId(who.owner, who.installationId, zone)}`;
+  const slugFor = (date: string) => briefSlug(who, date, zone);
   const read = (slug: string) => readWikiPage(host, slug);
   const slug = await slugFor(input.date), previousSlug = await slugFor(shiftDate(input.date, -1));
   const [current, prior, review, items, role, discovery, work, appUpdates, wikiActivity] = await Promise.all([
@@ -100,7 +104,7 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
     return saved(current, "unchanged");
   }
   const previous = prior && !prior.archived ? { slug: previousSlug, revision: prior.revision } : null;
-  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates: { ...appUpdates, rows: appUpdates.rows.filter(row => row.app !== "Onto" || row.timezone === zone) }, wikiActivity,
+  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, wikiActivity,
     dependencyGaps: input.dependencies?.gaps, discoveryReceipts: input.dependencies?.receipts, role, discovery, previous, now };
   const { evidence, gaps } = gatherEvidence(inputs);
   const digest = await evidenceDigest(inputs, evidence, gaps);
@@ -163,8 +167,9 @@ export async function scheduledDailyBrief(db: Database, who: AppIdentity, raw: P
   const schedules = await host.call("schedules", {});
   const saved = schedules.find(row => row.id === occurrence.schedule.id);
   if (!saved?.enabled) return { outcome: "declined", reason: "Daily brief schedule no longer exists" };
-  const date = localDate(occurrence.scheduledFor, saved.timezone);
-  const deadline = occurrence.scheduledFor + 3 * 3_600_000;
+  const slot = occurrence.trigger === "manual" ? occurrence.scheduledFor : saved.pendingFor ?? occurrence.scheduledFor;
+  const date = localDate(slot, saved.timezone);
+  const deadline = slot + 3 * 3_600_000;
   const interactive = host as unknown as WorkflowHost<"interactive">;
   const dependencies = await readBriefDependencies(interactive, schedules, date, saved.timezone, now);
   if (occurrence.trigger !== "manual" && dependencies.waiting && now < deadline) {
@@ -181,12 +186,12 @@ async function readBriefDependencies(host: WorkflowHost<"interactive">, schedule
     readAppUpdates(host, shiftDate(date, -1)),
     currentMemberships(host).catch(() => null),
   ]);
-  const ontoScopes = new Set(updates.rows.filter(row => row.app === "Onto" && row.timezone === timezone).map(row => row.scope));
+  const ontoScopes = new Set(updates.rows.filter(row => row.app === "Onto").map(row => row.scope));
   const expected = ["personal", ...(memberships ?? []).filter(org => org.appSlugs.includes("onto")).map(org => org.slug)];
   const missing = expected.filter(scope => !ontoScopes.has(scope));
   const gaps = [...discovery.gaps, ...missing.map(scope => `Onto (${scope}): no saved activity report for the previous day in this reporting time zone. Coverage is unknown.`)];
   if (!memberships) gaps.push("Onto: organization access could not be checked.");
-  return { ...discovery, updates, gaps, waiting: discovery.waiting || missing.length > 0 || !updates.complete };
+  return { ...discovery, updates, gaps, waiting: discovery.waiting || !ontoScopes.has("personal") || !updates.complete };
 }
 
 export const generateDailyBriefInput = z.strictObject({ timezone: timezone });

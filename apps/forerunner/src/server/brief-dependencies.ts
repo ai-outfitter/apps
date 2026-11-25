@@ -19,8 +19,14 @@ export async function briefDependencies(
   const results = await Promise.all(discovery.map(async row => {
     const source = cut(String(row.inputs["analyze.inputs.label"] || row.inputs["analyze.inputs.provider"] || "Connected account"), 100);
     if (!row.enabled) return { gap: `Discovery (${source}): the schedule is disabled.` };
-    if ((row.lastRunAt === null || !current(row.lastRunAt)) && !current(row.nextRunAt))
-      return { gap: `Discovery (${source}): no occurrence was scheduled for this reporting day.` };
+    const failure = /^(failed|skipped|declined)(:|$)/.test(row.lastOutcome ?? "");
+    if ((row.lastRunAt === null || !current(row.lastRunAt)) && !current(row.nextRunAt)) {
+      return { gap: failure
+        ? `Discovery (${source}): the latest scheduler result was a failure or decline, and no result was recorded for this reporting day.`
+        : `Discovery (${source}): no occurrence was scheduled for this reporting day.` };
+    }
+    if (row.lastRunAt !== null && current(row.lastRunAt) && failure)
+      return { gap: `Discovery (${source}): this morning's occurrence failed or was declined.` };
     if (!row.lastRunId || row.lastRunAt === null || !current(row.lastRunAt))
       return { waiting: true, gap: `Discovery (${source}): this morning's occurrence has no result yet.` };
     const run = await host.call("workflow.read", { id: row.lastRunId }).catch(() => null);

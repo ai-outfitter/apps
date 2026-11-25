@@ -10,7 +10,7 @@ test("schedule reads never enable it; explicit saves preserve enabled=false and 
   const host = { call: async (op: string, input: unknown) => { calls.push([op, input]); return op === "schedules" ? [] : input; } } as never;
   assert.equal(await dailyBriefSchedule(host, who), null);
   await setDailyBriefSchedule(host, who, { enabled: false, timezone: "America/Chicago" });
-  assert.deepEqual(calls, [["schedules", {}], ["schedule.save", { workflow: "forerunner-daily-brief", cron: "0 5 * * *", enabled: false, timezone: "America/Chicago", inputs: {} }]]);
+  assert.deepEqual(calls, [["schedules", {}], ["schedules", {}], ["schedule.save", { workflow: "forerunner-daily-brief", cron: "0 5 * * *", enabled: false, timezone: "America/Chicago", inputs: {} }]]);
   await assert.rejects(() => setDailyBriefSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, { enabled: true, timezone: "America/Chicago" }), /./);
   await assert.rejects(() => setDailyBriefSchedule(host, who, { enabled: true, timezone: "invalid/zone" }));
 });
@@ -342,4 +342,28 @@ test("the brief reads personal and organization app updates over all Wiki result
     "/apps/wiki-map/p/app-daily-abc?revision=3","/o/team-a/wiki-map/p/app-daily-abc?revision=3","/o/team-b/wiki-map/p/app-daily-abc?revision=3",
   ]);
   assert.ok(gaps.some(gap=>gap.includes("team-b")&&gap.includes("incomplete")));
+});
+
+
+test("the brief cites an Onto report from another reporting timezone without claiming exact local-day coverage", () => {
+  const { evidence, gaps } = gatherEvidence(inputs({ appUpdates: { complete: true, rows: [{
+    id: "onto-report", slug: "ledger", revision: 2, scope: "personal", app: "Onto", timezone: "America/Los_Angeles",
+    summary: "Two committed revisions.", complete: true,
+  }] } }));
+  assert.ok(evidence.some(row => row.href?.endsWith("/ledger?revision=2") && row.text.includes("America/Los_Angeles")));
+  assert.ok(gaps.some(gap => gap.includes("different local-day boundary")));
+});
+
+test("a declined discovery occurrence is a known gap and does not hold the brief", async () => {
+  const { briefDependencies } = await import("../src/server/brief-dependencies");
+  const at = Date.parse("2026-11-25T13:00:00.000Z");
+  const host = { call: async () => { throw new Error("A declined occurrence has no run"); } } as never;
+  const result = await briefDependencies(host, [{
+    id: "discovery", workflowId: "forerunner-discovery", cron: "0 7 * * *", timezone: "America/Chicago",
+    inputs: { "analyze.inputs.label": "Fixtures" }, connectionId: "connection", resource: "account",
+    createdBy: "alice", enabled: true, lastRunAt: at, lastRunId: null, lastOutcome: "skipped: declined by app",
+    nextRunAt: at + 24 * 3_600_000,
+  }], "2026-11-25", "America/Chicago", at);
+  assert.equal(result.waiting, false);
+  assert.deepEqual(result.gaps, ["Discovery (Fixtures): this morning's occurrence failed or was declined."]);
 });

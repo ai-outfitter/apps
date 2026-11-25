@@ -1,9 +1,8 @@
 import type { APIRoute } from "astro";
-import { reportTimezone } from "@ai-outfitter/app-sdk/daily-period";
 import { requestIdentity, respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { discoveryWorkflow } from "../../../server/schedule";
-import { dailyBriefWorkflow } from "../../../server/daily-brief";
+import { saveDefaultBriefSchedule } from "../../../server/daily-brief";
 
 export const POST: APIRoute = ({ request, locals }) => respond(async () => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational")
@@ -13,10 +12,9 @@ export const POST: APIRoute = ({ request, locals }) => respond(async () => {
   try {
     const host = workflowHost<"interactive">(locals);
     const schedules = await host.call("schedules", {});
-    const timezone = schedules.find(row => row.workflowId === discoveryWorkflow && row.enabled)?.timezone ?? reportTimezone;
-    await host.call("schedule.save", {
-      workflow: dailyBriefWorkflow, timezone, ifUnset: true,
-    });
+    const timezone = schedules.find(row => row.workflowId === discoveryWorkflow && row.enabled)?.timezone;
+    if (!timezone) return { dailyBrief: "needs-timezone" };
+    await saveDefaultBriefSchedule(host, timezone);
     return { dailyBrief: "ready" };
   } catch (error) {
     if (!(error instanceof Response)) throw error;
