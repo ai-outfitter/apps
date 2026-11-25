@@ -2106,7 +2106,7 @@
       ]
     },
     "mcp": {
-      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
+      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. Workshop verifies the embedded 3MF instances against the stored STL geometry. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
     },
     "outputSchema": {
       "type": "object",
@@ -2702,7 +2702,7 @@
       ]
     },
     "mcp": {
-      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and printFindings with the checked item, digest, profile, state and warning location for STL."
+      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. Use retryPrintCheck:true to request a retry of a failed STL check. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and printFindings with the checked item, digest, profile, state and warning location for STL."
     },
     "outputSchema": {
       "type": "object",
@@ -2832,7 +2832,7 @@
       ]
     },
     "mcp": {
-      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration."
+      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration. Pass itemId to inspect only that part or subassembly."
     },
     "outputSchema": {
       "type": "object",

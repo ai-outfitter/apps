@@ -112,7 +112,7 @@ function partSummary(part: Part | undefined, name: string, quantity: number, loc
     }
   } else {
     const messages = { pending: "Printability check pending", stale: "Printability check stale", error: "Printability check unavailable", completed: "Printability check pending" };
-    section.append(text("p", messages[part?.state ?? "pending"]));
+    section.append(text("p", part?.needsEditor ? "An editor can start this printability check." : messages[part?.state ?? "pending"]));
     if (part?.result?.message) section.append(text("p", part.result.message));
   }
   if (part?.estimate && part.estimate.profileSha256 === part.profileSha256) {
@@ -129,7 +129,6 @@ export function renderPrintAnalysis(host: HTMLElement, view: Assembly, data?: Pr
   const partRecords = new Map(data?.parts.map(part => [part.itemId, part]));
   const assemblies = view.items.find(item => item.id === view.rootId)?.kind === "assembly";
   const plates = data?.plates.filter(plate => plate.members.some(member => parts.has(member.itemId))) ?? [];
-  const completed = plates.filter(plate => plate.state === "completed");
   const coversView = (candidate: Plate[]) => {
     const quantities = new Map<string, number>();
     for (const plate of candidate) {
@@ -142,15 +141,16 @@ export function renderPrintAnalysis(host: HTMLElement, view: Assembly, data?: Pr
     return Array.from(parts).every(([id, part]) => quantities.get(id) === part.quantity);
   };
   const byArtifact = new Map<string, Plate[]>();
-  for (const plate of completed) {
+  for (const plate of data?.plates ?? []) {
     if (!plate.artifact) continue;
     const key = plate.artifact.sha256 + ":" + plate.profileSha256;
     const entries = byArtifact.get(key) ?? [];
     entries.push(plate);
     byArtifact.set(key, entries);
   }
-  const jobs = [...byArtifact.values()].filter(group => group.length > 1 && coversView(group));
-  const grouped = completed.filter(plate => coversView([plate]));
+  const matchingPackages = [...byArtifact.values()].filter(group=>group.every(plate=>plate.state==="completed") && coversView(group));
+  const jobs = matchingPackages.filter(group=>group.length>1);
+  const grouped = matchingPackages.filter(group=>group.length===1).flat();
   for (const plates of jobs) {
     const total = totalEstimate(plates[0], plates.map(plate => ({ estimate: plate, quantity: 1 })));
     host.append(text("h3", "Grouped plate estimate"), text("p", `${plates.length} plates · ${formatEstimate(total)}`), profile(total));
@@ -171,7 +171,7 @@ export function renderPrintAnalysis(host: HTMLElement, view: Assembly, data?: Pr
       return { estimate: estimate?.profileSha256 === part?.profileSha256 ? estimate : undefined, quantity };
     });
     const first = estimates[0]?.estimate;
-    if (first && estimates.every(({ estimate }) => estimate?.profileSha256 === first.profileSha256)) {
+    if (first && estimates.every(({ estimate }) => estimate?.profileSha256 === first.profileSha256 && estimate.analyzerDigest === first.analyzerDigest)) {
       const total = totalEstimate(first, estimates);
       host.append(text("h3", "Independent part estimate roll-up"), text("p", formatEstimate(total)), profile(total));
     } else {

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { APIRoute } from "astro";
 import { readJSON, respond } from "@ai-outfitter/app-sdk/server";
 import { AssemblyReferenceSchema } from "../../../../../../lib/assembly";
@@ -25,7 +26,9 @@ export const GET: APIRoute = ({params, request, locals}) => respond(async () => 
   const context = workshopContext(request, locals);
   const resolved = await resolvedProject(context.db(), ref.data);
   if (query.get("view") === "print") {
-    return { revision: resolved.revision, ...await readWorkshopPrint(context, resolved.projectId, resolved) };
+    const selected = z.uuid().optional().safeParse(query.get("itemId")??undefined);
+    if (!selected.success) throw new Response("Invalid print selection",{status:400});
+    return {revision:resolved.revision,...await readWorkshopPrint(context,resolved.projectId,resolved,selected.data)};
   }
   return resolved;
 });
