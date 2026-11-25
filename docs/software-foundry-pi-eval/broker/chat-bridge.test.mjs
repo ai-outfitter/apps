@@ -4,10 +4,8 @@ import { listenBridge } from "./chat-bridge.mjs";
 
 const secret = "b".repeat(64);
 const model = "gpt-5.4";
-const marker = "Execute only the implement node for box/repo.\n\nAssigned runId: 3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e\n\nAssigned inputs: fixture";
-const tools = ["read", "mcp__chrome__take_snapshot"].map(name => ({
-  type: "function", function: { name, parameters: { type: "object" } },
-}));
+const marker = "Workflow 3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e, node implement";
+const tools = [{ type: "function", function: { name: "read", parameters: { type: "object" } } }];
 const messages = [{ role: "system", content: "Implement the requested change." }, { role: "user", content: marker }];
 const nativeUsage = { input: 25, output: 9, cacheRead: 10, cacheWrite: 0, totalTokens: 44 };
 const nativeCall = { type: "toolCall", id: "call_17|fc_17", name: "read", arguments: { path: "index.mjs" } };
@@ -66,4 +64,27 @@ test("bridge neither returns provider diagnostics nor signals successful complet
   const wire = await response.text();
   assert.match(wire, /native_pi_request_failed/);
   assert.doesNotMatch(wire, /fixture-native-credential|\[DONE\]/);
+});
+
+test("bridge accepts the unchanged Foundry workspace envelope and its Chrome tools", async t => {
+  let admitted = 0;
+  const bridge = await listenBridge({ model, secret, async *provider() {
+    admitted++;
+    yield { type: "done", message: { stopReason: "stop", usage: nativeUsage, content: [] } };
+  } });
+  t.after(bridge.close);
+  const request = {
+    messages: [{ role: "user", content: [{ type: "text", text: [
+      "Execute only the triage node for box/repo.",
+      "Assigned runId: 3a7e9c1d-5b2f-4e8a-9d6c-1f0b2a3c4d5e",
+      'Assigned inputs (data): {"issue":{"title":"Add a subtract helper"}}',
+    ].join("\n\n") }] }],
+    tools: [...tools, { type: "function", function: { name: "mcp__chrome__take_snapshot", parameters: { type: "object" } } }],
+  };
+  const response = await chat(bridge.url, request);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /data: \[DONE\]/);
+  const forbidden = { type: "function", function: { name: "mcp__unknown__read", parameters: { type: "object" } } };
+  assert.equal((await chat(bridge.url, { ...request, tools: [...request.tools, forbidden] })).status, 400);
+  assert.equal(admitted, 1);
 });

@@ -12,6 +12,9 @@ try {
   } });
   if (values.consent !== "subtract-helper" || !values.model || !/^\d{1,5}$/.test(values.port) || Number(values.port) > 65535)
     throw Error("Explicit consent for subtract-helper, a native model, and a valid port are required");
+  // Run the credential-owning executable from a reviewed private copy on the
+  // account holder's host, outside any Git checkout or workspace mount.
+  await privateDirectory(import.meta.dirname);
   const runDir = await privateDirectory(values["run-dir"]);
   const authDir = await privateDirectory(values["auth-dir"]);
   const runtimeDir = await privateDirectory(values["runtime-dir"]);
