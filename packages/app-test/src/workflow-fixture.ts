@@ -229,6 +229,7 @@ const phases = workflowPhaseHandler({
       linkedIdentity: await outcome(() => host.call("identity.link", { installationId: "provider", holderId: "holder", principalId: "fixture-principal", kind: "agent" })),
       unlinkedIdentity: await outcome(() => host.call("identity.unlink", { installationId: "provider", holderId: "holder" })),
       actions: await outcome(() => host.call("actions.list", {})),
+      printPreflight: await outcome(() => host.call("fabrication.preflight", {id:"a".repeat(64)})),
       actionResult: await outcome(() => host.call("actions.call", { installationId: "provider", action: "record.touch", input: {} })),
       documents: await outcome(() => host.call("graph.documents", {})),
       graphResult: await outcome(() => host.call("graph.graphql", { document: "Records" })),
