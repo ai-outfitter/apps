@@ -1,11 +1,19 @@
 import type { Assembly } from "./assembly";
 
 /** Read older inspection presets without changing saved geometry or historic revisions. */
+function historicalName(name: string) {
+  return name.endsWith("-exploded") ? name.slice(0,-9) : name === "Exploded" ? "Assembled" : name;
+}
+export function realConfiguration(assembly: Assembly, name: string) {
+  const configs = assembly.configurations ?? [];
+  const physical = historicalName(name);
+  return physical !== name && !configs.some(c => c.name === name) && configs.some(c => c.name === physical) ? physical : name;
+}
 export function inspectionLink(assembly: Assembly, query: URLSearchParams) {
   const configs = assembly.configurations ?? [];
   const name = query.get("configuration") ?? "";
   const preset = configs.find(c => c.name === name);
-  const baseName = name.endsWith("-exploded") ? name.slice(0,-9) : name === "Exploded" ? "Assembled" : name;
+  const baseName = historicalName(name);
   const base = configs.find(c => c.name === baseName);
   if (!base) return undefined;
   const legacyParameter = preset?.parameters?.find(p => p.name === "Explode" && p.min === 0 && p.max === 1);

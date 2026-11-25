@@ -18,7 +18,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
   let level: Occurrence | undefined;
   let amount = 0;
   let selectedPath: string | undefined;
-  const stack: {level: Occurrence; amount: number; camera: ReturnType<Viewer["cameraPose"]>; selected: Occurrence}[] = [];
+  const stack: {level: Occurrence; amount: number; camera?: ReturnType<Viewer["cameraPose"]>; selected: Occurrence}[] = [];
 
   function button(label: string, action: () => void) {
     const control = document.createElement("button");
@@ -52,7 +52,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     stack.splice(depth);
     level = saved.level;
     clear(); render(); changed(saved.level); setAmount(saved.amount);
-    viewer.restoreCamera(saved.camera);
+    if (saved.camera) viewer.restoreCamera(saved.camera); else viewer.reset();
     select(saved.selected.item, saved.selected.path);
     list.closest("details")!.open = true;
     list.querySelector<HTMLButtonElement>(`[data-occurrence="${CSS.escape(saved.selected.path)}"]`)?.focus();
@@ -103,7 +103,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
       while (level && path && level.path !== path) {
         const next: Occurrence | undefined = level.children.find(child => path === child.path || path.startsWith(child.path + "/"));
         if (!next?.children.length) break;
-        stack.push({level, amount:0, camera:viewer.cameraPose(), selected:next});
+        stack.push({level, amount:0, selected:next});
         level = next;
       }
       render(); setAmount(Number(query.get("explode")), false);
@@ -114,7 +114,6 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
       get("occurrence-status").textContent = level ? "Inspecting " + level.item.name : "";
       for (const row of list.querySelectorAll("[data-occurrence]")) row.setAttribute("aria-pressed","false");
     },
-    get current() { return level; },
     get active() { return amount !== 0 || stack.length > 0; },
     selected(item: Item, path: string | undefined, host: HTMLElement) {
       const child = path ? occurrences.get(path) : undefined;

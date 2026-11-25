@@ -189,8 +189,8 @@ if (overview) {
   viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, (id,path) => {
     const item = assembly?.items.find(candidate => candidate.id === id);
     if (item) select(item,path);
-  }, () => $("show-all").click());
-  occurrenceUI = occurrenceInspection(root, viewer, select, () => $("show-all").click(), level => {
+  }, showAll);
+  occurrenceUI = occurrenceInspection(root, viewer, select, showAll, level => {
     const scoped = modelView(assembly,level.item.id);
     $("inspection-tree").replaceChildren(inspectionTree(scoped,resolved?.sources ?? [],sourceUrl,item => {
       const child = level.children.filter(c => c.item.id === item.id);
@@ -683,7 +683,7 @@ $("project-purpose").onchange=async()=>{
 };
 $("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick = () => viewer?.reset();
-$("show-all").onclick = () => {
+function showAll() {
  occurrenceUI?.clear();
  viewer?.isolate();
  viewer?.select();
@@ -696,7 +696,8 @@ $("show-all").onclick = () => {
   updateBudgetTabs(inspectedAssembly());
   inspection.open("components");
  }
-};
+}
+$("show-all").onclick = showAll;
 $("isolate-item").onclick = () => {
  if (selected) {
   viewer?.isolate(descendants(selected), selectionPath);
@@ -736,7 +737,6 @@ if (!selection.has("revision") && !savedBuild) {
      if (normalized.has(key)) selection.set(key,normalized.get(key)!); else selection.delete(key);
    }
  }
-
 }
 if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
  const readView=():Promise<ResolvedAssembly>=>request(recordPath+"/assembly?"+selection);

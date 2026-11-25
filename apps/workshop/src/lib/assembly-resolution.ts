@@ -1,3 +1,4 @@
+import { realConfiguration } from "./inspection-links";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { buildPrice, type Assembly, type AssemblyReference, type Item } from "./assembly";
@@ -81,9 +82,16 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
       if (items.has(viewId)) return viewId;
       const item = ids.get(id)!;
       if (item.reference) {
-        const ref = item.reference;
+        let ref = item.reference;
         if (ancestors.has(ref.projectId)) throw Error("Cross-project assembly cycle");
         const target = await load(ref);
+        if (ref.configuration && ref.revision === undefined) {
+          const name = realConfiguration(target.assembly,ref.configuration);
+          if (name !== ref.configuration) {
+            const {Explode: _legacy, ...parameters} = ref.parameters ?? {};
+            ref = {...ref,configuration:name,parameters};
+          }
+        }
         const configured = configuredAssembly(target.assembly,ref);
         if (!configured.rootId) throw Error(`Referenced project ${target.name} has no assembly root`);
         const defaults=target.assembly.configurations?.find(c=>c.name===ref.configuration)?.parameters ?? [];

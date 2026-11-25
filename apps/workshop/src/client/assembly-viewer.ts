@@ -13,7 +13,7 @@ import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { syncFaces, syncLines } from "replicad-threejs-helper";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { type Assembly, assemblyBounds, type Placement, placements } from "../lib/assembly";
+import { type Assembly, type Placement, placements } from "../lib/assembly";
 
 export type MeshReply = {
   faces: Parameters<typeof syncFaces>[1];
@@ -107,7 +107,6 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   let dirty=true;
   const invalidate=()=>{dirty=true;};
   controls.addEventListener("change",invalidate);
-  let frame: { min: number[]; max: number[] } | undefined;
   let selected: Set<string> | undefined;
   let selectedPath: string | undefined;
   let level: Occurrence | undefined;
@@ -125,7 +124,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       for(const hinge of transforms) if(path===hinge.path || path.startsWith(hinge.path+"/")) node.matrix.premultiply(hinge.delta);
       const child = level && immediatePath(level.path, path);
       const delta = child && offsets.get(child);
-      if (delta) node.matrix.premultiply(new THREE.Matrix4().makeTranslation(delta.x,delta.y,delta.z));
+      if (delta) {
+        node.matrix.elements[12] += delta.x;
+        node.matrix.elements[13] += delta.y;
+        node.matrix.elements[14] += delta.z;
+      }
       node.matrixAutoUpdate=false;
       node.matrixWorldNeedsUpdate=true;
     }
@@ -181,7 +184,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
         node = node.parent;
       }
     }
-    clearSelection?.();
+    if (selected || isolated) clearSelection?.();
   };
   const keyboardView = (event: KeyboardEvent) => {
     const offset = camera.position.clone().sub(controls.target);
@@ -213,7 +216,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     return bounds;
   }
   function topView() {
-    if (!frame) return;
+    if (!group.children.length) return;
     const visible = visibleBounds();
     if (visible.isEmpty()) return;
     const center = visible.getCenter(new THREE.Vector3());
@@ -224,7 +227,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     controls.update();
   }
   function reset() {
-    if (!frame) return;
+    if (!group.children.length) return;
     const bounds = visibleBounds();
     if (bounds.isEmpty()) return;
     const sphere = bounds.getBoundingSphere(new THREE.Sphere());
@@ -319,7 +322,6 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     canvas.toggleAttribute("data-empty", !list.length);
     if (!list.length) {
       clear();
-      frame = undefined;
       canvas.dataset.ready = "true";
       report("No geometry is available for this selection yet.");
       return;
@@ -364,7 +366,6 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       for (const node of group.children) { if (node.matrixAutoUpdate) node.updateMatrix(); node.userData.restMatrix = node.matrix.clone(); }
       highlight();
       applyHinges();
-      frame = assemblyBounds(list);
       reset();
       report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
       canvas.dataset.ready = "true";
@@ -380,10 +381,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   return {
     render,
     inspectLevel(next: Occurrence | undefined, amount: number) {
+      const levelChanged = level !== next;
       level = next;
       offsets = next ? inspectionOffsets(next, amount) : new Map();
       applyHinges();
-      highlight();
+      if (levelChanged) highlight();
     },
     cameraPose() { return {position:camera.position.clone(), target:controls.target.clone()}; },
     restoreCamera(pose:{position:THREE.Vector3;target:THREE.Vector3}) {
