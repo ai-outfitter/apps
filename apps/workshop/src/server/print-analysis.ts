@@ -109,7 +109,9 @@ export async function readWorkshopPrint(context: WorkshopContext, projectId: str
       }
     }
     const estimate = analysis.result?.estimate;
-    parts.push({...part,...analysis,...(estimate && {estimate:{...estimate,profileSha256:analysis.profileSha256}})});
+    const {fileName,sha256,...identity} = part;
+    parts.push({...identity,...(fileName && {fileName}),...(sha256 && {sha256}),...analysis,
+      ...(estimate && {estimate:{...estimate,profileSha256:analysis.profileSha256}})});
   }
   return {parts,plates:await listPrintPlates(context,projectId,parts)};
 }

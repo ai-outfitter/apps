@@ -142,7 +142,7 @@ export async function listPrintPlates(context:WorkshopContext, projectId:string,
     for (const plate of plates) {
       const members = plate.members.map(member=>{
         const current = parts.find(part=>part.itemId===member.itemId && part.sha256===member.sha256);
-        return {...member,fileName:current?.fileName};
+        return {...member,...(current?.fileName && {fileName:current.fileName})};
       });
       const matches = plate.members.every(member=>parts.some(part=>part.itemId===member.itemId &&
         part.sha256===member.sha256 && part.quantity >= quantities.get(member.itemId)!));
