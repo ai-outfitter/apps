@@ -45,10 +45,9 @@ export async function installFoundryJob({ load, db, job }) {
   return target;
 }
 
-export async function runFoundryAudit({ load, db, target, request, job, repository, slot }) {
+export async function submitFoundryAudit({ load, target, request, job, repository }) {
   const { authenticated } = await load("src/lib/auth.ts");
   const { appRequest } = await load("src/lib/app-requests.ts");
-  const { loadRun } = await load("src/lib/workflow-runs.ts");
   const service = await authenticated(request);
   assert.equal(service.tenant.kind, "organization");
   assert.equal(service.tenant.organization.id, orgId);
@@ -58,6 +57,12 @@ export async function runFoundryAudit({ load, db, target, request, job, reposito
     route,
     { method: "POST", contentType: "application/json", body: JSON.stringify({ action: "run", job, repository }) },
   );
+  return { response, userId: service.user.id };
+}
+
+export async function runFoundryAudit({ load, db, target, request, job, repository, slot }) {
+  const { response, userId } = await submitFoundryAudit({ load, target, request, job, repository });
+  const { loadRun } = await load("src/lib/workflow-runs.ts");
   assert.equal(response.status, 202, await response.clone().text());
   const receipt = await response.json();
   assert.equal(receipt.job, job);
@@ -66,7 +71,7 @@ export async function runFoundryAudit({ load, db, target, request, job, reposito
   assert.equal(run.workflowId, job);
   assert.equal(run.installationId, target.id);
   assert.equal(run.organizationId, orgId);
-  assert.equal(run.createdBy, service.user.id);
+  assert.equal(run.createdBy, userId);
   assert.equal(run.status, "complete");
   assert.equal(state.inputs["check.inputs.repository"], repository);
   assert.equal(state.rows[slot]?.complete, true);

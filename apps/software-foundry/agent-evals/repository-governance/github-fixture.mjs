@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { verify } from "node:crypto";
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,6 +36,10 @@ export const paths = {
   feature: ".github/ISSUE_TEMPLATE/feature_request.md",
 };
 export const blankRepository = "blank/repo";
+const selectedRepositories = new Set(["missing/repo", "custom/repo", "team/inherited", "team/repo", "limited/repo", blankRepository]);
+export const unselectedRepository = "team/unselected";
+export const wrongIdRepository = "team/wrong-id";
+export const templateBranch = "outfitter/community-templates";
 export const blankTemplates = { [paths.pr]: " \t\n", [paths.bug]: "" };
 export const wrongBugPath = ".github/ISSUE_TEMPLATE/local_bug.yml";
 export const blankYamlPath = ".github/ISSUE_TEMPLATE/bug_alternative.yml";
@@ -103,10 +108,11 @@ function repository(directory, name, files) {
   return { git, existing, commit, entries, file, blob, pulls: [] };
 }
 
-export function githubFixture(token) {
+export function githubFixture(token, { appId, publicKey }) {
   const directory = mkdtempSync(join(tmpdir(), "governance-git-"));
   const fixtures = new Map();
   const requests = [];
+  const installationTokens = new Map();
   const forgejoReceipts = [];
   const repo = (name) => {
     const result = fixtures.get(name);
@@ -120,6 +126,8 @@ export function githubFixture(token) {
   addRepo("custom/repo", { ...testWorkflow, [paths.bug]: partialBug, [paths.feature]: partialFeature });
   addRepo("team/repo", { ...testWorkflow, [paths.bug]: partialBug });
   addRepo("team/inherited", testWorkflow);
+  addRepo(unselectedRepository, testWorkflow);
+  addRepo(wrongIdRepository, testWorkflow);
   addRepo("team/.github", allTemplates);
   addRepo("limited/repo", testWorkflow);
   addRepo("limited/.github", { [paths.pr]: allTemplates[paths.pr], [paths.bug]: partialBug });
@@ -138,7 +146,35 @@ export function githubFixture(token) {
   };
   const refId = (name, ref) => `fixture-ref:${name}:${ref}`;
   const githubUrl = (name, suffix) => `https://github.com/${name}/${suffix}`;
-  const rest = async (method, path, body, authorized) => {
+  const repositoryId = (name) => [...fixtures.keys()].indexOf(name) + 1;
+  const installationId = (name) => 1000 + repositoryId(name);
+  const installed = (name) => selectedRepositories.has(name) || name === wrongIdRepository;
+  const mintPath = (name) => `/app/installations/${installationId(name)}/access_tokens`;
+  const appRequest = (method, path, body, jwt) => {
+    const [header, payload, signature] = jwt.split(".");
+    assert.ok(signature && verify("sha256", Buffer.from(`${header}.${payload}`), publicKey, Buffer.from(signature, "base64url")));
+    assert.equal(JSON.parse(Buffer.from(header, "base64url")).alg, "RS256");
+    assert.equal(JSON.parse(Buffer.from(payload, "base64url")).iss, appId);
+    const name = /^\/repos\/([^/]+\/[^/]+)\/installation$/.exec(path)?.[1];
+    if (method === "GET" && name) {
+      repo(name);
+      return installed(name)
+        ? Response.json({ id: installationId(name), app_id: Number(appId), suspended_at: null })
+        : Response.json({ message: "Not Found" }, { status: 404 });
+    }
+    const target = [...fixtures.keys()].find((repository) => mintPath(repository) === path);
+    assert.ok(method === "POST" && target && installed(target), `Unexpected GitHub App request ${method} ${path}`);
+    assert.deepEqual(body, { repositories: [target.split("/")[1]], permissions: { contents: "read" } });
+    const scopedToken = `ghs_fixture-${repositoryId(target)}`;
+    installationTokens.set(scopedToken, target);
+    return Response.json({
+      token: scopedToken,
+      expires_at: "2099-01-01T00:00:00Z",
+      permissions: { contents: "read", metadata: "read" },
+      repositories: [{ id: target === wrongIdRepository ? repositoryId("team/repo") : repositoryId(target), full_name: target }],
+    }, { status: 201 });
+  };
+  const rest = async (method, path, search, body, authorized) => {
     const [, name, suffix] = /^\/repos\/([^/]+\/[^/]+)(.*)$/.exec(path) ?? [];
     if (path === "/user" && method === "GET") return Response.json({ login: "fixture" });
     if (method === "GET" && name?.endsWith("/.github") && !fixtures.has(name))
@@ -150,7 +186,7 @@ export function githubFixture(token) {
       assert.equal(authorized, false, "Public owner defaults must not receive the actor's credential");
     }
     if (method === "GET" && !suffix) return Response.json({
-      id: [...fixtures.keys()].indexOf(name) + 1,
+      id: repositoryId(name),
       node_id: name,
       name: name.split("/")[1],
       full_name: name,
@@ -185,8 +221,15 @@ export function githubFixture(token) {
       });
     if (method === "GET" && type === "blobs")
       return Response.json({ encoding: "base64", content: Buffer.from(git.blob(oid).text).toString("base64") });
-    if (method === "GET" && suffix === "/pulls")
-      return Response.json(git.pulls);
+    if (method === "GET" && suffix === "/pulls") {
+      const state = search.get("state") ?? "open";
+      const head = search.get("head");
+      const owner = name.split("/")[0];
+      assert.ok(["open", "closed", "all"].includes(state), `Unexpected PR state filter ${state}`);
+      const matching = git.pulls.filter((pr) =>
+        (state === "all" || pr.state === state) && (!head || head === `${owner}:${pr.head.ref}`));
+      return Response.json(matching.slice(0, Number(search.get("per_page") ?? 30)));
+    }
     const [, base, head] = /^\/compare\/([a-f0-9]{40})\.\.\.([a-f0-9]{40})$/.exec(suffix) ?? [];
     if (method === "GET" && base) {
       const [behind_by, ahead_by] = git.git(["rev-list", "--left-right", "--count", `${base}...${head}`]).trim().split(/\s+/).map(Number);
@@ -200,7 +243,8 @@ export function githubFixture(token) {
     if (method === "POST" && suffix === "/pulls") {
       assert.equal(body.base, "main");
       assert.equal(body.draft, true);
-      assert.ok(!git.pulls.some(({ head }) => head.ref === body.head), "Duplicate fixture PR");
+      assert.ok(!git.pulls.some((pr) =>
+        pr.state === "open" && pr.head.ref === body.head && pr.base.ref === body.base), "Duplicate open fixture PR");
       const sha = git.existing(`refs/heads/${body.head}`);
       assert.ok(sha);
       const number = git.pulls.length + 1;
@@ -298,28 +342,41 @@ export function githubFixture(token) {
     const url = new URL(request.url);
     assert.equal(url.origin, origin, "The fixture rejects all network destinations");
     const { method } = request;
-    const auth = request.headers.get("Authorization");
-    const authorized = auth === `Bearer ${token}`;
-    assert.ok(!auth || authorized, "Unexpected credential");
+    const auth = request.headers.get("Authorization")?.replace(/^Bearer /, "");
+    const scopedRepository = installationTokens.get(auth);
+    const credential = !auth ? "public" : auth === token ? "actor" : scopedRepository ? "installation" : "app";
     const body = request.body ? await request.json() : undefined;
     const path = decodeURIComponent(url.pathname);
     if (path === "/graphql") {
-      assert.ok(authorized, "GitHub GraphQL requires the local fixture credential");
       const operation = body.query.trim().split(/[({\s]/)[0];
       assert.ok(operation === "mutation" || operation === "query");
-      requests.push({ operation, path, name: body.query.match(/\b(\w+)\(input:\s*\$input\)/)?.[1] });
+      requests.push({ operation, path, credential, name: body.query.match(/\b(\w+)\(input:\s*\$input\)/)?.[1] });
+      if (credential === "installation") {
+        assert.equal(operation, "query", "Installation credential cannot mutate");
+        assert.equal(`${body.variables?.owner}/${body.variables?.name}`, scopedRepository);
+      } else {
+        assert.equal(credential, "actor", "GitHub GraphQL requires a repository credential");
+      }
       const result = graphql(body.query, body.variables ?? {});
       return Response.json(result.errors ? result : { data: result });
     }
-    requests.push({ operation: method, path });
-    return rest(method, path, body, authorized);
+    requests.push({ operation: method, path, search: url.search, credential });
+    if (credential === "app") return appRequest(method, path, body, auth);
+    if (credential === "installation") {
+      assert.equal(method, "GET", "Installation credential cannot mutate");
+      assert.ok(path === `/repos/${scopedRepository}` || path.startsWith(`/repos/${scopedRepository}/`));
+    }
+    return rest(method, path, url.searchParams, body, credential !== "public");
   };
   return {
     fetch,
     requests,
     repo,
+    mintPath,
     verifyForgejoDrafts: async () => forgejoBridge ? Promise.all(forgejoReceipts.map(forgejoBridge.verifyDraft)) : null,
-    mutations: () => requests.filter(({ operation }) => operation !== "GET" && operation !== "query"),
+    mutations: () => requests.filter(({ operation, path, credential }) =>
+      operation !== "GET" && operation !== "query" &&
+      !(credential === "app" && operation === "POST" && path.endsWith("/access_tokens"))),
     close: () => rmSync(directory, { recursive: true, force: true }),
   };
 }

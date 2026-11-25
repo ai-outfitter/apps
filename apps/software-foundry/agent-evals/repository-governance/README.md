@@ -25,7 +25,19 @@ For each checkout under `/tmp`, add a read-only bind for that checkout after `--
 
 Each `POST /api/apps/software-foundry/jobs` runs `community-template-audit` and persists `check.outputs.report`. The fixture compares the report from the normal workflow run GET with the stored slot and the interactive Governance report. It uses the persisted plan for the separate approved proposal. Assertions check the repository revision, provider writes, workflow records, and the pull request's exact base, head and changed paths, including whether each path was added or modified. The cases cover missing templates, maintained custom issue templates, effective inherited coverage, the local issue chooser override, preservation of a partially populated inherited chooser, and replacement of blank canonical templates. Approval without a session, plan, or matching plan ID produces zero provider mutations. Repeating a successful approval returns the same draft with zero additional writes.
 
+The fixture resolves GitHub App admission for each job. An acting user's OAuth credential reads the target repository. A signed App JWT looks up its installation and requests `{ repositories: [repoSlug], permissions: { contents: "read" } }`. Only the scoped installation credential reads target audit evidence. Public owner defaults use anonymous reads.
+
+The same owner can audit `team/unselected` through interactive Governance. The Foundry job returns 403 after the OAuth repository lookup and the App installation lookup, with zero token mints, audit reads, repository writes, or workflow records for that job. The `team/wrong-id` job receives a scoped token response with the correct name and a different immutable repository ID. It returns 403 after the mint, with zero audit reads, repository writes, or workflow records. The fixture rejects any REST or GraphQL write carrying a scoped installation credential.
+
+The missing-templates case starts the approved proposal with a closed synthetic PR and a deleted proposal branch. The fixture honors GitHub's pull-list state and head filters. Approval creates a fresh draft on that branch. Replay then rejects two simulated edits of the open draft with 409 and zero provider mutations. One edit changes bytes in a planned file and the other adds an unapproved path. Both commits retain the approved base and one-commit ancestry.
+
+The historical PR is fixture-only. The run expects six completed jobs, seven token mints, 12 approved repository mutations, and four open drafts. The seven mints include the wrong-ID response. A Forgejo run should mirror four newly created drafts. The restarted draft uses synthetic PR number 2, and Forgejo assigns its own PR number.
+
+The GitHub App admission fixture passed with network disabled on clean apps `0c34db3d6527266e2e10e9f66ba22f4b35233f14` and webapp `8da3e64542f7975a88f4f913294f9dfc9738e84b`. It issued 407 fixture requests and completed in 6.380 seconds. [GitHub App admission fixture receipt](result.fixture-app-admission.json)
+
 An authorized workstation can additionally set `FOUNDRY_GOVERNANCE_FORGEJO_BRIDGE` to an operator-provisioned local adapter exposing `mirrorDraft({ repository, git, body })` and `verifyDraft(receipt)`. The bridge runs at the fixture's actual PR creation call. It mirrors the exact checked Git refs into a disposable Forgejo repository and reads back the native draft and its diff. GitHub audit reads, inheritance, approvals and replays use the GitHub fixture even when this bridge is enabled.
+
+The final loopback run passed on the same clean apps and webapp SHAs. It took 15.904 s and recorded six persisted reports, 407 fixture requests, seven fixture token mints, and 12 approved fixture mutations. Live Forgejo independently returned four open drafts with matching base and head refs and SHAs, five additions, and two Markdown modifications. GitHub App admission, token minting, audit reads, approval, and replay ran against the synthetic GitHub fixture. [Final Forgejo receipt](result.forgejo-app-admission.json)
 
 ## Run the Spark probe
 
@@ -66,7 +78,7 @@ The expanded fixture also advances the disposable default branch between audit a
 
 ## Expanded fixture run
 
-The current runner targets apps `fd16729d84660f17a8a70e50e4465e02e3d9a301` and webapp `cb08841a2bdf4d7993a295b7cb24d2e0bb0583cf` in clean checkouts. Its Bubblewrap run completed six persisted audits in 6.217 s with 329 fixture requests and 12 approved provider mutations. The sixth case approved filling two blank Markdown templates. Git showed only those two modifications. The maintained feature template, malformed YAML, blank YAML, and unrelated file retained their original blob identities. [Expanded fixture receipt](result.fixture-expanded.json)
+The expanded receipt records apps `fd16729d84660f17a8a70e50e4465e02e3d9a301` and webapp `cb08841a2bdf4d7993a295b7cb24d2e0bb0583cf` in clean checkouts. Its Bubblewrap run completed six persisted audits in 6.217 s with 329 fixture requests and 12 approved provider mutations. The sixth case approved filling two blank Markdown templates. Git showed only those two modifications. The maintained feature template, malformed YAML, blank YAML, and unrelated file retained their original blob identities. [Expanded fixture receipt](result.fixture-expanded.json)
 
 The first expanded live runner exited at final verification because the Forgejo file API called the two modifications `changed` while the bridge expected `modified`. Independent Forgejo API reads confirmed all four open drafts and their refs and diffs. The same readback independently verified the two blank Markdown repairs and all four preserved blobs. [Expanded Forgejo readback](result.forgejo-expanded-readback.json)
 

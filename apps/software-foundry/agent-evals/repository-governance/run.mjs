@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, generateKeyPairSync, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { blankRepository, blankTemplates, blankYamlPath, gitCommand, githubFixture, paths, unrelatedPath, wrongBugPath } from "./github-fixture.mjs";
-import { configureFoundryDispatch, installFoundryJob, runFoundryAudit } from "./foundry-job.mjs";
+import {
+  blankRepository, blankTemplates, blankYamlPath, gitCommand, githubFixture, paths,
+  templateBranch, unrelatedPath, unselectedRepository, wrongBugPath, wrongIdRepository,
+} from "./github-fixture.mjs";
+import { configureFoundryDispatch, installFoundryJob, runFoundryAudit, submitFoundryAudit } from "./foundry-job.mjs";
 
 // Run from the webapp checkout so tsx and the existing route/DB fixtures resolve
 // there.
@@ -64,7 +67,11 @@ report.fixtureSha256 = hashes(fileURLToPath(new URL(".", import.meta.url)), [
   "run.mjs", "github-fixture.mjs", "foundry-job.mjs", "foundry-dispatch.mjs",
 ]);
 const token = `ghu_${randomUUID()}`;
-const fixture = githubFixture(token);
+const appId = "4242";
+const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+process.env.GITHUB_APP_ID = appId;
+process.env.GITHUB_APP_PRIVATE_KEY = privateKey.export({ type: "pkcs8", format: "pem" });
+const fixture = githubFixture(token, { appId, publicKey });
 const { routeEnvironment, routeServices, signUp, call } = await load("tests/helpers/routes.ts");
 const cleanup = routeEnvironment("governance-eval");
 const originalFetch = globalThis.fetch;
@@ -104,6 +111,35 @@ try {
   assert.equal(anonymous.status, 401);
   assert.equal(fixture.requests.length, 0);
   const target = appsCheckout && await installFoundryJob({ load, db, job });
+  const requestTrace = (requests) => requests.map(({ credential, operation, path }) => `${credential} ${operation} ${path}`);
+  const admission = (repository) => [
+    `actor GET /repos/${repository}`, `app GET /repos/${repository}/installation`,
+  ];
+  const mint = (repository) => `app POST ${fixture.mintPath(repository)}`;
+  async function rejectAudit(repository, expectedRequests) {
+    const requests = fixture.requests.length;
+    const writes = fixture.mutations().length;
+    const runs = await db.select({ id: workflowRuns.id }).from(workflowRuns);
+    const { response } = await submitFoundryAudit({
+      load, target, job, repository, request: requestFor("GET", repository),
+    });
+    assert.equal(response.status, 403, await response.clone().text());
+    const providerTrace = requestTrace(fixture.requests.slice(requests));
+    assert.deepEqual(providerTrace, expectedRequests);
+    assert.equal(fixture.mutations().length, writes);
+    assert.deepEqual(await db.select({ id: workflowRuns.id }).from(workflowRuns), runs);
+    // The same actor can still view this same-owner repository via interactive Governance.
+    const authorized = await audit(repository);
+    assert.equal(fixture.mutations().length, writes);
+    assert.deepEqual(await db.select({ id: workflowRuns.id }).from(workflowRuns), runs);
+    return { repository, jobStatus: response.status, providerTrace, writeCount: 0, workflowRunsCreated: 0, interactiveRevision: authorized.revision };
+  }
+  if (target) {
+    report.cases.unselectedRepository = await rejectAudit(unselectedRepository, admission(unselectedRepository));
+    report.cases.wrongRepositoryId = await rejectAudit(wrongIdRepository, [
+      ...admission(wrongIdRepository), mint(wrongIdRepository),
+    ]);
+  }
   {
     const coverage = ({ communityTemplates }) => Object.fromEntries(
       Object.entries(communityTemplates.checks).map(([key, { status }]) => [key, status]),
@@ -135,9 +171,20 @@ try {
         blocked: plan.blocked, issueOverride, writeCount: 0,
       };
       if (target) {
+        const beforeJob = fixture.requests.length;
         const { result, receipt, route } = await runFoundryAudit({
           load, db, target, job, repository, slot: reportSlot, request: requestFor("GET", repository),
         });
+        const jobRequests = fixture.requests.slice(beforeJob);
+        assert.deepEqual(requestTrace(jobRequests.slice(0, 3)), [...admission(repository), mint(repository)]);
+        const auditRequests = jobRequests.slice(3);
+        assert.ok(auditRequests.some(({ credential, path }) =>
+          credential === "installation" && path.startsWith(`/repos/${repository}/git/blobs/`)) ||
+          auditRequests.some(({ credential, path }) =>
+            credential === "installation" && path.startsWith(`/repos/${repository}/git/trees/`)));
+        assert.ok(auditRequests.every(({ credential, operation, path }) =>
+          (credential === "installation" && (operation === "GET" || operation === "query")) ||
+          (credential === "public" && operation === "GET" && /^\/repos\/[^/]+\/\.github(?:\/|$)/.test(path))));
         const { canPropose, ...checkedTemplates } = audited.communityTemplates;
         assert.deepEqual(result.communityTemplates, checkedTemplates);
         assert.equal(result.repository, repository);
@@ -151,6 +198,7 @@ try {
         report.job.completedRuns++;
         report.audits[repository].workflowRun = receipt.run;
         report.audits[repository].checkedAt = result.checkedAt;
+        report.audits[repository].installationReads = auditRequests.filter(({ credential }) => credential === "installation").length;
         if (repository === "team/repo") report.persistedAuditExample = result;
         return result;
       }
@@ -158,11 +206,14 @@ try {
     }
     async function propose(repository, audited, expectedPaths, expectedReplacements = []) {
       const gitRepo = fixture.repo(repository);
+      const priorPullCount = gitRepo.pulls.length;
       const first = await approve(repository, audited);
       assert.ok(first.ok, await first.clone().text());
       const firstReport = await first.json();
-      assert.equal(gitRepo.pulls.length, 1);
-      const [pr] = gitRepo.pulls;
+      assert.equal(gitRepo.pulls.length, priorPullCount + 1);
+      const openPulls = gitRepo.pulls.filter(({ state }) => state === "open");
+      assert.equal(openPulls.length, 1);
+      const [pr] = openPulls;
       assert.equal(firstReport.status, "opened");
       assert.deepEqual(firstReport.pullRequest, { number: pr.number, url: pr.html_url, headSha: pr.head.sha });
       assert.equal(pr.state, "open");
@@ -188,10 +239,49 @@ try {
       assert.equal(replayReport.status, "existing");
       assert.deepEqual(replayReport.pullRequest, firstReport.pullRequest);
       assert.equal(fixture.mutations().length, writes);
-      assert.equal(gitRepo.pulls.length, 1);
+      assert.equal(gitRepo.pulls.length, priorPullCount + 1);
       assert.equal(gitRepo.existing(`refs/heads/${pr.head.ref}`), pr.head.sha);
       assert.equal(gitRepo.existing(mainRef), audited.revision);
       return { base: pr.base.sha, head: pr.head.sha, files, pullRequest: pr.number, replay: "same PR; zero writes" };
+    }
+    async function rejectEditedDraft(repository, audited) {
+      const gitRepo = fixture.repo(repository);
+      const pr = gitRepo.pulls.find(({ state }) => state === "open");
+      assert.ok(pr);
+      const originalHead = pr.head.sha;
+      const ref = `refs/heads/${pr.head.ref}`;
+      const approvedFiles = Object.fromEntries(audited.communityTemplates.plan.paths.map((path) => [
+        path, gitRepo.file(originalHead, path),
+      ]));
+      const cases = {
+        changedTemplateBytes: { ...approvedFiles, [paths.pr]: "Contributor template edited after approval.\n" },
+        changedFileList: { ...approvedFiles, [unrelatedPath]: "Unapproved file in the draft.\n" },
+      };
+      const result = {};
+      const pullCount = gitRepo.pulls.length;
+      for (const [scenario, files] of Object.entries(cases)) {
+        // A replacement commit over the same base keeps the one-commit ancestry check passing.
+        gitRepo.git(["update-ref", ref, audited.revision, originalHead]);
+        const editedHead = gitRepo.commit(ref, audited.revision, files, "Edit open fixture draft");
+        pr.head.sha = editedHead;
+        try {
+          const before = fixture.requests.length;
+          const writes = fixture.mutations().length;
+          const refused = await approve(repository, audited);
+          assert.equal(refused.status, 409, await refused.clone().text());
+          assert.ok(fixture.requests.slice(before).some(({ operation, path }) =>
+            operation === "GET" && path === `/repos/${repository}/compare/${audited.revision}...${editedHead}`));
+          assert.equal(fixture.mutations().length, writes);
+          assert.equal(gitRepo.pulls.length, pullCount);
+          assert.equal(gitRepo.existing(ref), editedHead);
+          assert.equal(gitRepo.existing(mainRef), audited.revision);
+          result[scenario] = { status: refused.status, head: editedHead, writeCount: 0 };
+        } finally {
+          gitRepo.git(["update-ref", ref, originalHead, editedHead]);
+          pr.head.sha = originalHead;
+        }
+      }
+      return result;
     }
     const missing = "missing/repo";
     const missingReport = await auditOnly(missing, { pullRequest: "missing", bug: "missing", feature: "missing" }, Object.values(paths));
@@ -217,7 +307,38 @@ try {
     report.cases.explicitApproval = {
       unauthenticated: 401, absent: 400, wrongPlan: 409, staleRevision: 409, writeCount: 0,
     };
+    const proposalRef = `refs/heads/${templateBranch}`;
+    movingRepo.git(["update-ref", proposalRef, missingReport.revision, "0".repeat(40)]);
+    const historicalHead = movingRepo.commit(proposalRef, missingReport.revision, {
+      [paths.pr]: "Historical synthetic contributor template.\n",
+    }, "Seed closed historical proposal");
+    const closedPull = {
+      number: 1,
+      node_id: `fixture-pr:${missing}:1`,
+      html_url: `https://github.com/${missing}/pull/1`,
+      state: "closed",
+      draft: true,
+      head: { ref: templateBranch, sha: historicalHead },
+      base: { ref: "main", sha: missingReport.revision },
+    };
+    movingRepo.pulls.push(closedPull);
+    movingRepo.git(["update-ref", "-d", proposalRef, historicalHead]);
+    assert.equal(movingRepo.existing(proposalRef), null);
+    const beforeRestart = fixture.requests.length;
     report.cases.missing = await propose(missing, missingReport, Object.values(paths));
+    assert.equal(report.cases.missing.pullRequest, 2);
+    assert.equal(movingRepo.pulls[0], closedPull);
+    assert.equal(closedPull.state, "closed");
+    assert.ok(fixture.requests.slice(beforeRestart).some(({ operation, path, search }) => {
+      const query = new URLSearchParams(search);
+      return operation === "GET" && path === `/repos/${missing}/pulls` &&
+        query.get("state") === "open" && query.get("head") === `missing:${templateBranch}`;
+    }), "Expected an open-only lookup of the approved proposal branch");
+    report.cases.closedProposalRestart = {
+      closedPullRequest: closedPull.number, deletedBranch: templateBranch,
+      freshPullRequest: report.cases.missing.pullRequest,
+    };
+    report.cases.editedOpenDraft = await rejectEditedDraft(missing, missingReport);
 
     const custom = "custom/repo";
     const customReport = await auditOnly(custom, { pullRequest: "missing", bug: "covered", feature: "covered" }, [paths.pr]);
@@ -298,7 +419,7 @@ try {
     if (mirroredDrafts) {
       assert.deepEqual(mirroredDrafts.map(({ fixtureRepository }) => fixtureRepository), proposedRepositories);
       report.forgejoDrafts = mirroredDrafts.map(({ fixtureRepository, head, base, files, draft, state, number }) => {
-        const original = fixture.repo(fixtureRepository).pulls[0];
+        const original = fixture.repo(fixtureRepository).pulls.find(({ state }) => state === "open");
         assert.deepEqual({ head, base, draft, state }, {
           head: original.head, base: original.base, draft: true, state: "open",
         });
@@ -310,6 +431,9 @@ try {
     }
   }
   report.providerRequests = fixture.requests.length;
+  report.installationTokenMints = fixture.requests.filter(({ credential, operation }) =>
+    credential === "app" && operation === "POST").length;
+  assert.equal(report.installationTokenMints, target ? report.job.completedRuns + 1 : 0);
   report.providerMutations = fixture.mutations().length;
   report.wallMs = Math.round(performance.now() - started);
   console.log(JSON.stringify(report, null, 2));
