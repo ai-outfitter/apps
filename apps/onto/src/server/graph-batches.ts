@@ -680,6 +680,7 @@ export async function mutateBatchSubmission(db: Database, who: AppIdentity, acto
   try {
     if (input.deleteBatch) return await discardOpenBatch(db, who, actor, origin, input, requestKey, hash);
     const [batch] = input.batchId ? await db.select().from(graphBatches).where(eq(graphBatches.id, input.batchId)) : [];
+    if (batch) await requirePassageBatchAccess(db, batch);
     return await writeBatchSubmission(db, who, actor, origin, input, batch, { requestKey, hash });
   } catch (error) {
     const completed = await replay();
@@ -743,6 +744,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   }
 
   const batchId = batch?.id ?? input.batchId ?? crypto.randomUUID();
+  if (!batch && isPassageBatch({ id: batchId, source: input.source ?? null })) fail("The Wiki passage source is reserved", 403);
   const graph = await readGraph(db, who);
   const root = !batch && input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = batch ? batch.anchors : root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;

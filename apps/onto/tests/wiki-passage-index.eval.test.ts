@@ -469,6 +469,21 @@ test("issue #268 synthetic source indexing and member review through installed w
       assert.equal(state.pendingSuggestions, 0);
       assert.ok(!JSON.stringify(records).includes("obsidian-sextant"));
       await denied(await other.action("batch.get", { batchId: single.batch.id }));
+      const submission = publishedPassageDocument("MutateBatchSubmission", "mutation");
+      const submit = (input: object, who = alpha) => onto.action("graph.mutate", {
+        query: submission.query, operationName: submission.name, variables: { input },
+      }, who);
+      await refusedDocument(await submit({
+        requestKey: "spoof-passage-source", title: "Forged passage",
+        source: { kind: "agent-task", ref: "wiki-passage-index:forged" },
+        proposals: [{ operation: node(10, "forged-passage", "Forged passage") }],
+      }), 403);
+      const blockedWriter = { ...alpha, userId: "eval-writer-without-wiki" };
+      onto.denyWikiAccess(blockedWriter);
+      await refusedDocument(await submit({
+        requestKey: "spoof-passage-update", batchId: single.batch.id, expectedVersion: 999,
+        proposals: [{ operation: node(11, "forged-passage-update", "Forged passage update") }],
+      }, blockedWriter), 403);
       return { outcomes, records, single, multiple, unresolved, progress: state };
     });
 
