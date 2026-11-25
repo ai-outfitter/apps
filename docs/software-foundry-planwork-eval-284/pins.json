@@ -1,0 +1,14 @@
+{
+  "appsCommit": "22fd6178b9dfefdfc801c3798e702b6f2bab3b7c",
+  "appsTree": "b5d1061c9a4a2d86df69a35c23bc88371b85ba68",
+  "platformCommit": "905508330e2aeab9bf5e34b2b816e07dce708134",
+  "platformTree": "a586c6e6a40e412b49153467342a0a0212ad296b",
+  "maxOutputTokens": 1800,
+  "imageId": "343ae82a1b9e36da8c298fe0e5ebd9468cf11f4baba885886fd4e7b8f143f4a4",
+  "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7",
+  "packageSha256": {
+    "software-foundry.operational.json": "63355ec21dc1ba2f2b39ae7c9d5677ce5f576962524e80ad799455460106777a",
+    "schema.graphql": "b6c9e89f0253afff95ffe268e07310585cb23af51499d3f37e0a2f27e6be2725",
+    "documents.json": "aed24878e5196946d56496be0bf46ebe381ddcc7fa79b8ff7212f88e8ffccb0f"
+  }
+}

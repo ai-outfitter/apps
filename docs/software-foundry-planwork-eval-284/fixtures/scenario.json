@@ -1,0 +1,6 @@
+{
+  "requestId": "1e8735c1-149f-4295-99dc-6ae25aa25b97",
+  "kind": "feature",
+  "repositories": ["box/charts", "box/native-apple"],
+  "request": "SYNTHETIC PLANWORK RECOVERY FIXTURE. Plan a compare-and-swap dashboard import for the fictional Aster Charts application across both supplied repositories. Produce a detailed, source-grounded handoff. Cover identity normalization, preview, validation, transaction ordering, optimistic concurrency, idempotent retry, stale previews, cancellation, rollback, platform UI, observability and staged rollout. Use up to 12 distinct and substantial changes and up to 10 concrete verification cases. For each case specify setup, action, observable result and invariant. Explain the main tradeoffs and identify gaps in the fixture evidence. Cite both pinned READMEs and cite no unobserved source path. Use a thorough answer within the supplied schema limits."
+}
