@@ -19,7 +19,7 @@ export type Review = {
   decision?: { approved: number; held: { ref: string; reason: string }[]; at: number };
 };
 export type Batch = {
-  id: string; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
+  id: string; submittedVersion?: number; title: string; purpose: string; state: string; reviewBy: number | null; createdAt: number; updatedAt: number;
   policy: { kind: string; threshold?: number }; source: { kind: string; ref: string; label?: string } | null;
   summary: { counts: Record<string, number>; evidence: number; operations: number; text: string | null } | null;
   counts?: Record<string, number>;
@@ -35,8 +35,8 @@ export type BatchItem = { kind: "type" | "node"; id: string; title: string; op: 
 
 export const batchUrl = (id: string) => appUrl(`changes/${encodeURIComponent(id)}`);
 export const getBatch = (id: string) => call<BatchDetail>(`batches/get?id=${encodeURIComponent(id)}`);
-export const review = (batchId: string, verdict: "approve" | "reject", refs?: string[]) =>
-  call<BatchDetail>("batches/review", { batchId, verdict, ...(refs ? { refs } : {}) });
+export const review = (batchId: string, verdict: "approve" | "reject", refs?: string[], expectedVersion?: number) =>
+  call<BatchDetail>("batches/review", { batchId, verdict, expectedVersion, ...(refs ? { refs } : {}) });
 
 export const waiting = (op: BatchOperation) => op.state === "pending" || op.state === "awaiting_review";
 export const label = (op: BatchOperation) => String(op.operation.attributes.title ?? op.operation.attributes.name ?? op.ref);
@@ -148,8 +148,17 @@ export function approvalLabel(decision: { kind?: unknown; reason?: unknown } | n
   if (decision?.kind === "policy") return policyReasons[String(decision.reason ?? "")] ?? policyReasons.confidence;
   return otherwise;
 }
+export const hasRequestedChanges = (op: BatchOperation) =>
+  op.state === "awaiting_review" && op.decision?.verdict === "request_changes";
+
+function requestedChangesComment(op: BatchOperation) {
+  return hasRequestedChanges(op) && typeof op.decision?.comment === "string"
+    ? el("p", {}, op.decision.comment) : null;
+}
+
 /** How a committed operation was approved, or its state. */
 export function approvalText(op: BatchOperation) {
+  if (hasRequestedChanges(op)) return "Changes requested";
   if (op.state !== "committed") return opLabels[op.state] ?? op.state;
   return approvalLabel(op.decision as { kind?: string; reason?: string } | null);
 }
@@ -180,7 +189,7 @@ export function verdictLinks(detail: BatchDetail, refs: string[], done: (next: B
     const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? "Approve" : "Reject");
     button.onclick = async () => {
       button.disabled = true;
-      try { done(await review(detail.batch.id, verdict, refs)); }
+      try { done(await review(detail.batch.id, verdict, refs, detail.batch.submittedVersion)); }
       catch (error) { button.disabled = false; button.parentElement?.appendChild(el("p", { role: "alert" }, String(error))); }
     };
     return button;
@@ -281,6 +290,7 @@ export function batchItemPanel(detail: BatchDetail, view: Graph, items: BatchIte
       el("span", { class: "change-state" }, approvalText(op)),
       op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
       canDecide(op) ? verdictLinks(detail, [op.ref], done) : null) : null,
+    op ? requestedChangesComment(op) : null,
     op?.reason ? el("p", {}, op.reason) : null,
     proposalQuestions(detail, [...(op ? [op.ref] : []), ...item.edges.map((edge) => edge.ref)], done),
     op ? findingList(findingsFor(detail, op.ref)) : null,
@@ -291,7 +301,7 @@ export function batchItemPanel(detail: BatchDetail, view: Graph, items: BatchIte
         el("span", {}, edgeTitle(edge, names, types)),
         el("span", { class: "change-state" }, approvalText(edge)),
         canDecide(edge) ? verdictLinks(detail, [edge.ref], done) : null,
-        findingList(findingsFor(detail, edge.ref)))))) : null,
+        requestedChangesComment(edge), findingList(findingsFor(detail, edge.ref)))))) : null,
     el("nav", { class: "batch-item-nav", "aria-label": "Batch" },
       previous ? el("a", { href: itemUrl(detail.batch.id, view, previous), rel: "prev" }, `← Previous: ${previous.title}`) : el("span", {}),
       el("a", { href: batchUrl(detail.batch.id) }, "All proposals"),

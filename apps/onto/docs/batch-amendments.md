@@ -1,17 +1,17 @@
-# Amend a batch without approving it
+# Submitting and editing proposal batches through MCP
 
-Use the published `ReviseBatch` document, or `ChangeBatchChanges` with action
-`amend` and a stable item key. Pass `batchId`, `proposals` and/or `remove` refs.
-A proposal with an existing ref replaces that undecided proposal; a new ref adds
-one. Record addresses and staged refs use the same format as `stage`.
+Use `MutateBatchSubmission` with a stable `requestKey`, a title and the proposed changes. You can pass a caller-generated UUID as `batchId` or use the ID Onto returns. Onto validates the proposals and their anchors together, saves version 1 and queues the steward review in one transaction. An invalid submission saves no batch, proposals or review job. To iterate in an open draft, use `ChangeBatchChanges` with `stage`.
 
-Only an editor using their own member session or OAuth connection may amend a
-member-review batch. Apps, delegated writers and resident principals cannot.
-Decided proposals cannot be replaced or withdrawn. Policy batches cannot be
-amended through this operation.
+To edit, read the batch with `ChangeBatches(details:true)`. Send the batch ID and the current `submittedVersion` as `expectedVersion` with a fresh `requestKey`. In `proposals`, an existing ref replaces an undecided proposal and a new ref adds one. List refs to withdraw in `remove`. Include the evidence, confidence and reason you intend to retain in each replacement. Use version zero to submit an open draft or amend a legacy submission that predates version tracking.
 
-An open batch remains open. A submitted batch remains `awaiting_review`, keeps
-its policy and deadline, validates the complete proposed graph and anchors, and
-queues a fresh steward review. Amendment never approves or commits records.
-Concurrent graph changes or decisions cause a conflict; reload before retrying.
-Stable `ChangeBatchChanges` keys reconcile lost responses without repeating writes.
+To reuse a saved Person, replace the pending relationships with copies whose relevant endpoints name the canonical Person address. Withdraw the redundant Person create in the same edit. Previously decided proposals keep their decisions.
+
+An accepted edit saves the next version and queues the remaining undecided refs for review under the existing policy. `reviewRefs` identifies those proposals, and `reviewRun` identifies the reserved workflow run when there is pending work. A replay preserves the accepted version and run reservation. Follow the returned instructions for the current review run and read the batch for current decisions. Use `BatchSubmission(id, version)` to read the immutable submitted proposals. For a legacy or portable batch without local submission history, Onto saves the observed baseline at version zero with unknown authorship.
+
+Editors and delegated entity writers can submit or edit member-policy proposals. Graph type changes require an editor. On submitted batches with automatic policies, the originating app or a member reviewer can edit. When approving or rejecting, pass the observed `submittedVersion` as `expectedVersion` to reject a stale decision. Existing callers can omit it when approving or rejecting to decide the current submission. Both forms return a conflict if the reviewed snapshot changes before the decision is written.
+
+Retry a lost response with identical inputs and the original `requestKey` to recover its receipt. A version conflict means another submission changed the batch. Reread it before retrying the edit with a new key. The existing `ChangeBatchChanges` and `ReviseBatch` documents remain available.
+
+To request changes, a member reviewer uses the `ChangeBatchChanges` document with the `review` action with `verdict: "request_changes"`, the observed version, a comment and optional refs. The named proposals remain pending. The steward and automatic policies leave them for a reviewer until replaced or withdrawn. Bulk approval also skips held proposals and their dependents. An authorized member can approve a held proposal by naming its ref explicitly. Resolve a hold by changing the operation or evidence, or by withdrawing the proposal. A corrected proposal restarts the review window if the existing policy defines one. The detailed batch read retains the reviewer label, reason, version and refs in `changeRequests` after later decisions. A portable copy retains the hold and any comment as context. The source review history and reviewer authority stay with the original installation.
+
+To delete an open draft, call `MutateBatchSubmission` with `{ requestKey, batchId, expectedVersion: 0, deleteBatch: true }` and no edits. A member-policy draft can be discarded by its original caller or an authenticated member reviewer. Only the opening app can discard a policy draft. The batch changes to `discarded` and stays readable with its prior proposals. Its review is no longer active, its ID cannot be reused, and submitted batches cannot be deleted.

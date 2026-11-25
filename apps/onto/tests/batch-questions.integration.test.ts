@@ -107,7 +107,7 @@ test("an agent asks on its batch, a reviewer answers, and the agent revises citi
   assert.match(JSON.stringify(counted), /Waiting for your approval · 1 question"/);
 
   // An unanswered question never blocks approval, and questions close with the batch.
-  const approved = await json(await f.app.call("/api/apps/onto/batches/review", owner, { method: "POST", body: { batchId, verdict: "approve" } }));
+  const approved = await json(await f.app.call("/api/apps/onto/batches/review", owner, { method: "POST", body: { batchId, expectedVersion: 2, verdict: "approve" } }));
   assert.equal(approved.batch.state, "committed");
   assert.equal((await f.answer({ batchId, key: "lu-title", text: "Treasurer" })).status, 409);
   assert.equal((await f.changes("ask", { batchId, questions: [board] })).status, "uncertain");

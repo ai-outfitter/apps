@@ -73,6 +73,7 @@ test("read a proposed document from Changes before approving its saved entity", 
       await expect(page.getByRole("button", { name: "Ask Onto", exact: true })).toBeEnabled();
       await page.getByRole("link", { name: "Hardware milestone research", exact: true }).click();
       await expect(page).toHaveURL(batchUrl);
+      await expect(page.getByText(/Submitted v1/)).toBeVisible();
       await page.setViewportSize({ width: 1920, height: 1000 });
       const widths = await page.locator("#changes").evaluate(element => {
         const content = element.closest(".ui-content")!;
@@ -217,10 +218,15 @@ test("walk a batch page by page: open a proposed node, approve it there, go to t
       { operation: update("$plan", "graph-node", plan, 1, { summary: "Four videos." }) },
     ] });
     await action("batch.submit", { batchId: batch.id });
+    const feedback = await app.call("/api/apps/onto/batches/review", owner, { method: "POST", body: {
+      batchId: batch.id, expectedVersion: 1, verdict: "request_changes", refs: ["$shot"], comment: "Confirm the shot duration.",
+    } });
+    expect(feedback.status, await feedback.clone().text()).toBe(200);
     await proxyTo(page, app);
     await page.goto(`${origin}/changes/${batch.id}`);
     const lines = page.locator(".change-line");
     await expect(lines).toHaveCount(7);
+    await expect(page.getByRole("button", { name: "Approve eligible proposals", exact: true })).toBeVisible();
     await expect(lines.nth(0)).toContainText("Storyboards");
     await expect(lines.filter({ hasText: "Choose a place" })).toContainText("Choose a place → shot of → Find your spot");
     await lines.getByRole("link", { name: "Storyboards", exact: true }).click();
@@ -236,6 +242,8 @@ test("walk a batch page by page: open a proposed node, approve it there, go to t
     await expect(page.locator(".node-facts")).toContainText("4");
     await expect(page.locator(".batch-item")).toContainText("The launch plan opens on this shot.");
     await expect(page.locator(".batch-item")).toContainText("80% confident");
+    await expect(page.locator(".batch-item")).toContainText("Changes requested");
+    await expect(page.locator(".batch-item")).toContainText("Confirm the shot duration.");
     await expect(page.locator(".batch-item-edges")).toContainText("Choose a place → shot of → Find your spot");
     const related = page.locator(".node-relationships");
     await expect(related.locator("dt")).toContainText("proposed");
