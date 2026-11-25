@@ -43,7 +43,7 @@ function answer(operation, input) {
   if (operation !== "repository.request") return undefined;
   if (input.path === "/repos/acme/app/issues/3") return issue;
   if (${forgejo} && input.path === "/repos/acme/app/issues?state=open&type=issues&limit=50")
-    return [issue, { ...issue, number: 4, html_url: "https://forge.example/acme/app/issues/4" }];
+    return [issue, ...[4, 5].map(number => ({ ...issue, number, html_url: "https://forge.example/acme/app/issues/" + number }))];
   if (input.path === "/repos/acme/app/issues/3/comments?per_page=100") return [];
   if (input.path === "/repos/acme/app/issues/3/comments" && input.method === "POST") return { id: 9, html_url: "https://github.com/acme/app/issues/3#issuecomment-9" };
   if (input.path === "/repos/acme/app/pulls/7") return pull;
@@ -227,10 +227,13 @@ test("a scheduled repository result and repair sweep skip durable planning issue
   const { worker, phase, calls, database } = await installed("ui-review", true);
   try {
     const grants = JSON.stringify([{ name: "acme/app", repositoryId: 1, connectionId: "forgejo" }]);
-    const issue = JSON.stringify({ number: 3, url: "https://forge.example/acme/app/issues/3", created: true });
-    await database.prepare(
+    const insert = database.prepare(
       "INSERT INTO foundry_plans (key,requestId,runId,digest,repositoryGrants,repositories,anchorRepository,issuePublisherId,state,updatedAt,issue) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-    ).bind("same-key", attemptId, runId, head, grants, '["acme/app"]', "acme/app", 42, "published", 1, issue).run();
+    );
+    for (const number of [3, 5]) {
+      const issue = JSON.stringify({ number, url: `https://forge.example/acme/app/issues/${number}`, created: true });
+      await insert.bind(`plan-${number}`, crypto.randomUUID(), crypto.randomUUID(), head, grants, '["acme/app"]', "acme/app", 42, "published", 1, issue).run();
+    }
     const result = await phase("finalize", {
       node, coordinator: false, session: {}, settings: settings("file-issues"),
       inputs: { fix: { installation: "foundry", resource: "1", inputs: {} } },
@@ -241,7 +244,10 @@ test("a scheduled repository result and repair sweep skip durable planning issue
     assert.deepEqual(data.outputs.issues.issues.map(item => [item.number, item.fixRun]), [[3, undefined]]);
     assert.deepEqual(data.outputs.issues.retried.map(item => item.number), [4]);
     assert.deepEqual(data.outputs.issues.closed, []);
-    const starts = (await calls()).filter(call => call.operation === "workflow.start");
+    const operations = await calls();
+    const lookups = operations.filter(call => call.operation === "workflow.references");
+    assert.ok(lookups.every(call => !(call.input.subjects as number[]).includes(5)), "the sweep filtered the separate protected issue before run lookup");
+    const starts = operations.filter(call => call.operation === "workflow.start");
     assert.equal(starts.length, 1);
     assert.equal((starts[0].input.inputs as Record<string, { issue: { number: number } }>)["triage.inputs.event"].issue.number, 4);
   } finally {
