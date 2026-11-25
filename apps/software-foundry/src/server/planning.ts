@@ -92,13 +92,15 @@ function forgeInput(repo: ResolvedRepo) {
 
 async function preflight(context: IntakeContext, scope: string[], anchor: string | null, createIssue: boolean, collect: boolean) {
   const { host, repositories } = await allowedRepositories(context, scope);
+  let issuePublisherId: number | null = null;
   if (createIssue) {
     const repo = repositories.get(anchor!)!;
     if (!repo.connection.operations.includes("issues.create"))
       throw new Response("Issue creation is unavailable for the anchor repository", { status: 403 });
-    z.strictObject({ allowed: z.literal(true) }).parse(await host.call("connector.execute", {
+    const permission = z.object({ allowed: z.literal(true), botUserId: z.number().int().positive() }).parse(await host.call("connector.execute", {
       ...forgeInput(repo), operation: "issues.preflight-create", input: {},
     }));
+    issuePublisherId = permission.botUserId;
   }
   const evidence = collect ? await Promise.all(scope.map(async name => {
     const repo = repositories.get(name)!;
@@ -109,7 +111,7 @@ async function preflight(context: IntakeContext, scope: string[], anchor: string
       throw new Response("Repository evidence identity changed", { status: 409 });
     return result;
   })) : [];
-  return { host, repositories, evidence };
+  return { host, repositories, evidence, issuePublisherId };
 }
 
 function targets(context: IntakeContext, row: PlanningRow) {
@@ -164,7 +166,7 @@ const fallbackBody = (plan: z.output<typeof planOutput>) => plan.kind === "bug"
   : `## Goal\n\n${plan.goal}\n\n## Proposed behavior\n\n${plan.changes.map(step => `- ${step}`).join("\n")}\n\n## How to verify\n\n${plan.verification.map(step => `- ${step}`).join("\n")}`;
 
 function sanitizedBody(body: string) {
-  return body.replace(/<!--[^]*?-->/g, "").trim();
+  return body.replace(/<!--/g, "&lt;!--").trim();
 }
 
 function citedSources(plan: z.output<typeof planOutput>, evidence: Evidence[]) {
@@ -192,17 +194,20 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
   let row = await readRow(context, key);
   if (row && row.digest !== digest) throw new Response("Planning request ID is already bound to different inputs", { status: 409 });
   const access = await preflight(context, names, anchor, input.createIssue, !row?.artifact && row?.state !== "failed");
-  const { host, repositories, evidence } = access;
+  const { host, repositories, evidence, issuePublisherId } = access;
   if (row) verifyGrants(row, repositories);
   if (!row) {
     const [inserted] = await context.db().insert(foundryPlans).values({
       key, requestId: input.requestId.toLowerCase(), runId: crypto.randomUUID(), digest, repositories: names,
-      anchorRepository: anchor, repositoryGrants: currentGrants(repositories), state: "claiming", updatedAt: Date.now(),
+      anchorRepository: anchor, issuePublisherId, repositoryGrants: currentGrants(repositories), state: "claiming", updatedAt: Date.now(),
     }).onConflictDoNothing().returning();
     row = inserted ?? await readRow(context, key);
     if (!row || row.digest !== digest) throw new Response("Planning request ID is already bound to different inputs", { status: 409 });
     verifyGrants(row, repositories);
   }
+
+  if (row.issuePublisherId !== issuePublisherId)
+    throw new Response("The anchor's issue publisher changed", { status: 403 });
 
   const active = async () => await readRow(context, key) ?? row!;
   const finish = async (item: PlanningRow) => {
@@ -314,13 +319,14 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
 export async function generatedPlanningIssue(context: Pick<IntakeContext, "db">, resource: string, event: unknown) {
   const payload = z.object({
     repository: z.object({ id: z.number().int(), full_name: z.string() }),
-    issue: z.object({ number: z.number().int(), body: z.string().nullable().optional() }),
+    issue: z.object({ number: z.number().int(), user: z.object({ id: z.number().int() }), body: z.string().nullable().optional() }),
   }).safeParse(event);
   if (!payload.success || String(payload.data.repository.id) !== resource) return false;
   const tag = payload.data.issue.body?.match(/<!-- outfitter:foundry-plan:([a-f0-9-]+) -->/);
   if (!tag || !requestId.safeParse(tag[1]).success) return false;
   const [row] = await context.db().select().from(foundryPlans).where(eq(foundryPlans.runId, tag[1]));
   return Boolean(row?.anchorRepository === payload.data.repository.full_name.toLowerCase()
+    && row.issuePublisherId === payload.data.issue.user.id
     && row.repositoryGrants.some(grant => grant.name === row.anchorRepository && String(grant.repositoryId) === resource)
     && ["sending", "publication_uncertain", "published"].includes(row.state)
     && (!row.issue || row.issue.number === payload.data.issue.number));

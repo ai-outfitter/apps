@@ -84,6 +84,7 @@ export const foundryPlans = sqliteTable("foundry_plans", {
   repositoryGrants: text({ mode: "json" }).$type<{name:string;connectionId:string;repositoryId:number}[]>().notNull(),
   repositories: text({ mode: "json" }).$type<string[]>().notNull(),
   anchorRepository: text(),
+  issuePublisherId: integer(),
   state: text().notNull(),
   updatedAt: integer().notNull(),
   artifact: text(),

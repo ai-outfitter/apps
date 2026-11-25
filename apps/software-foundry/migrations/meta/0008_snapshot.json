@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "db916ac1-8292-4d62-8ab9-7e7be5a8ec0b",
+  "id": "2fef48dc-2c76-4329-996e-b704be2b603e",
   "prevId": "380ab32c-e4fa-4bda-ab87-c5ef705b9187",
   "tables": {
     "software_foundry_agent_guard": {
@@ -231,6 +231,13 @@
         "anchorRepository": {
           "name": "anchorRepository",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "issuePublisherId": {
+          "name": "issuePublisherId",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

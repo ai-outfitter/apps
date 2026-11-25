@@ -6,6 +6,7 @@ CREATE TABLE `foundry_plans` (
 	`repositoryGrants` text NOT NULL,
 	`repositories` text NOT NULL,
 	`anchorRepository` text,
+	`issuePublisherId` integer,
 	`state` text NOT NULL,
 	`updatedAt` integer NOT NULL,
 	`artifact` text,

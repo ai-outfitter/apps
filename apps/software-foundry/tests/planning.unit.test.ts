@@ -64,7 +64,7 @@ function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boole
       assert.equal(name, home);
       if (input.operation === "issues.preflight-create") {
         if (options.denyWrite) throw new Response("Anchor issue capabilities denied", { status: 403 });
-        return { allowed: true };
+        return { allowed: true, botUserId: 42 };
       }
       if (input.operation === "issues.create") {
         body = input.input.body;
@@ -91,8 +91,9 @@ test("planning reads every explicit repo, writes only the anchor and reconciles 
   assert.equal(first.anchorRepository, home);
   assert.match(body(), /## Validation/);
   assert.match(body(), new RegExp(`<!-- outfitter:foundry-plan:${first.run.id} -->`));
-  assert.equal(await generatedPlanningIssue(context, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, body: body() } }), true);
-  assert.equal(await generatedPlanningIssue(context, "23", { repository: { id: 23, full_name: charts }, issue: { number: 9, body: body() } }), false);
+  assert.equal(await generatedPlanningIssue(context, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 42 }, body: body() } }), true);
+  assert.equal(await generatedPlanningIssue(context, "23", { repository: { id: 23, full_name: charts }, issue: { number: 9, user: { id: 42 }, body: body() } }), false);
+  assert.equal(await generatedPlanningIssue(context, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 13 }, body: body() } }), false);
   const second = await planWork(context, planWorkInput.parse({ ...input, repositories: [...input.repositories].reverse() }));
   assert.equal(second.run.id, first.run.id);
   assert.equal(second.status, "published");
