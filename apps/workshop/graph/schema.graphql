@@ -20,6 +20,11 @@ type Query {
     search: String
   ): WorkshopUnitConnection!
 
+  """
+  Read physical trials, photo receipts and fit advisories for a project or tested revision.
+  """
+  workshopFitTrials(input: WorkshopFitTrialsInput!): JSON
+
   """Read a file at a ref from a connected Forgejo repository."""
   workshopSourceFile(input: WorkshopSourceFileInput!): JSON
 
@@ -186,6 +191,11 @@ input WorkshopUnitFilter {
 """Any JSON value."""
 scalar JSON
 
+input WorkshopFitTrialsInput {
+  projectId: ID!
+  testedRevision: Float
+}
+
 input WorkshopSourceFileInput {
   repository: String!
   path: String!
@@ -237,6 +247,89 @@ input WorkshopProjectHandoffInput {
 
 input WorkshopDesignRunInput {
   id: ID!
+}
+
+input RecordWorkshopFitTrialInput {
+  projectId: ID!
+  trialId: ID!
+  testedRevision: Float!
+  title: String!
+  source: RecordWorkshopFitTrialInputSource
+  pcbSnapshotId: ID
+  printedFileSha256: String
+  printSetup: RecordWorkshopFitTrialInputPrintSetup
+  photos: [RecordWorkshopFitTrialInputPhotosItem!]!
+  interfaces: [RecordWorkshopFitTrialInputInterfacesItem!]!
+}
+
+input RecordWorkshopFitTrialInputSource {
+  repository: String!
+  commit: String!
+  path: String!
+}
+
+input RecordWorkshopFitTrialInputPrintSetup {
+  printer: String
+  nozzle: String
+  plate: String
+  filament: String
+  layerHeight: String
+  extrusionWidth: String
+  flow: String
+  supports: String
+  interfaceGap: String
+  orientation: String
+  slicer: String
+}
+
+input RecordWorkshopFitTrialInputPhotosItem {
+  fileName: String!
+  sha256: String!
+  bytes: Int!
+  itemId: ID!
+  attachmentRevision: Float!
+  observation: String!
+}
+
+input RecordWorkshopFitTrialInputInterfacesItem {
+  name: String!
+  observation: String!
+  dimensionBasis: String
+  missingMeasurements: [String!]
+  component: RecordWorkshopFitTrialInputInterfacesItemComponent
+  engagement: RecordWorkshopFitTrialInputInterfacesItemEngagement
+  wireExit: RecordWorkshopFitTrialInputInterfacesItemWireExit
+  overhang: RecordWorkshopFitTrialInputInterfacesItemOverhang
+  finish: RecordWorkshopFitTrialInputInterfacesItemFinish
+}
+
+enum RecordWorkshopFitTrialInputInterfacesItemComponent {
+  present
+  omitted
+}
+
+enum RecordWorkshopFitTrialInputInterfacesItemEngagement {
+  untested
+  fits
+  interferes
+}
+
+enum RecordWorkshopFitTrialInputInterfacesItemWireExit {
+  unchecked
+  obstructed
+  verified
+}
+
+enum RecordWorkshopFitTrialInputInterfacesItemOverhang {
+  unchecked
+  observed
+  inspected
+}
+
+enum RecordWorkshopFitTrialInputInterfacesItemFinish {
+  unchecked
+  rough
+  acceptable
 }
 
 input UploadWorkshopAssemblyFileInput {
@@ -1218,6 +1311,11 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """
+  Record a physical trial against its tested project revision and verify the original photo receipts.
+  """
+  recordWorkshopFitTrial(input: RecordWorkshopFitTrialInput!): JSON
+
   """Reserve or attach a verified CAD or animation file on one saved item."""
   uploadWorkshopAssemblyFile(input: UploadWorkshopAssemblyFileInput!): JSON
 

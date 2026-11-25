@@ -1,3 +1,5 @@
+import {fitTrialInput,fitTrialScope} from "../lib/fit-trial";
+import {recordFitTrial,listFitTrials} from "./fit-trials";
 import {sourceFileInput,readSourceFile} from "./source-file";
 import { pageCursor, resolvedPage } from "../lib/resolved-page";
 import {uploadInput, verifyInput, uploadAssemblyFile, verifyAssemblyFile} from "./assembly-files";
@@ -108,6 +110,10 @@ const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopCon
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    recordWorkshopFitTrial: mutationField<typeof fitTrialInput,WorkshopContext>({
+      name:"RecordWorkshopFitTrial", description:"Record a physical trial against its tested project revision and verify the original photo receipts.",
+      input:fitTrialInput, run:recordFitTrial,
+    }),
     uploadWorkshopAssemblyFile: mutationField<typeof uploadInput,WorkshopContext>({name:"UploadWorkshopAssemblyFile",description:"Reserve or attach a verified CAD or animation file on one saved item.",input:uploadInput,run:uploadAssemblyFile}),
     submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
       name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
@@ -222,7 +228,11 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units,
+    workshopFitTrials:mutationField<typeof fitTrialScope,WorkshopContext>({
+      name:"WorkshopFitTrials", description:"Read physical trials, photo receipts and fit advisories for a project or tested revision.",
+      input:fitTrialScope,run:(context,input)=>listFitTrials(context.db(),input),
+    }), workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 
