@@ -1,0 +1,31 @@
+{
+  "scope": "Spark summary of a persisted synthetic Foundry audit",
+  "model": "GLM-5.3-Flash-EXL3",
+  "maxTokens": 2048,
+  "startedAt": "2026-11-25T15:03:09.300Z",
+  "runtime": "v24.22.2",
+  "passed": true,
+  "noThinking": true,
+  "reportSha256": "17318279a1151bbcd26b8f633f6aa6cd9499e717fb885d66ebc5623ce37ffdaa",
+  "httpStatus": 200,
+  "wallMs": 2561,
+  "modelMatches": true,
+  "finishReason": "stop",
+  "usage": {
+    "prompt_tokens": 235,
+    "completion_tokens": 96,
+    "total_tokens": 331
+  },
+  "assertions": {
+    "shape": true,
+    "repository": true,
+    "revision": true,
+    "checks": {
+      "pullRequest": true,
+      "bug": true,
+      "feature": true
+    },
+    "recordedPlanPaths": true,
+    "authorizedPaths": true
+  }
+}

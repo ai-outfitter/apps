@@ -92,7 +92,7 @@
       ]
     },
     "mcp": {
-      "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Owners and admins only; use a new item key each time."
+      "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Run community-template-audit to save a read-only contributor template report in its workflow run. Owners and admins only; use a new item key each time."
     },
     "inputSchema": {
       "type": "object",
@@ -127,9 +127,10 @@
                             "enum": [
                               "dependency-review",
                               "architecture-reanalysis",
-                              "ui-review"
+                              "ui-review",
+                              "community-template-audit"
                             ],
-                            "description": "dependency-review, architecture-reanalysis or ui-review."
+                            "description": "dependency-review, architecture-reanalysis, ui-review or community-template-audit."
                           },
                           "repository": {
                             "type": "string",

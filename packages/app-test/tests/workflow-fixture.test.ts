@@ -51,6 +51,10 @@ const answers: Record<string, unknown> = {
   "connector.execute": { ok: true },
   "connector.receipts": [],
   "repository.read": { name: "acme/widgets", path: "/repos/acme/widgets", repositoryId: 1, installationId: 101, appId: 42 },
+  "repository.community-templates": {
+    repository: "acme/widgets", defaultBranch: "main", revision: "b".repeat(40), checkedAt: "2026-01-01T00:00:00.000Z",
+    communityTemplates: { checks: { pullRequest: { status: "missing", sources: [] } } },
+  },
   "repository.request": { ok: true },
   "workspace.control": { ok: true },
   "binding.approve": { id: "binding", revision: "one", reused: false },
@@ -153,8 +157,9 @@ test("the fixture implements every phase and calls every exported operation", as
     const response = await phase(name, input, context);
     assert.equal(response.status, 200, name);
     if (name === "interactive") {
-      const result = await response.json() as { agentWorkContext: unknown };
+      const result = await response.json() as { agentWorkContext: unknown; communityTemplates: unknown };
       assert.deepEqual(result.agentWorkContext, { ok: true, value: answers["agent-work.context"] });
+      assert.deepEqual(result.communityTemplates, { ok: true, value: answers["repository.community-templates"] });
     }
   }
   assert.deepEqual([...new Set(calls.map((call) => call.operation))].sort(), Object.keys(operations).sort());

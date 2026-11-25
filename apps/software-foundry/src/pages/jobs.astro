@@ -8,6 +8,12 @@ import Table from "@ai-outfitter/ui/astro/Table.astro";
 // issue to merge, which opens the pull request.
 const jobs = [
   {
+    id: "community-template-audit",
+    title: "Contributor template audit",
+    summary: "Check GitHub’s pull request, bug report and feature request templates on the default branch and save the coverage report.",
+    cadence: null,
+  },
+  {
     id: "dependency-review",
     title: "Dependency review",
     summary:
@@ -30,7 +36,7 @@ const jobs = [
   },
 ];
 ---
-<AppLayout title="Jobs" description="Run repository jobs that file issues for the work worth doing." active="home">
+<AppLayout title="Jobs" description="Run repository audits and find improvements." active="home">
   <div class="feed-toolbar">
     <label for="job-repository">Repository <select id="job-repository" disabled><option>Loading repositories…</option></select></label>
   </div>
@@ -38,11 +44,13 @@ const jobs = [
   {jobs.map((job) => (
     <Section id={`job-${job.id}`} title={job.title}>
       <button slot="actions" class="secondary" data-job={job.id} disabled>Run now</button>
-      <button slot="actions" class="secondary" data-schedule={job.id} disabled>Schedule</button>
+      {job.cadence && <button slot="actions" class="secondary" data-schedule={job.id} disabled>Schedule</button>}
       <p>{job.summary}</p>
-      <p>Scheduled runs start {job.cadence} as the person who saved the schedule. If they can no longer run it, it pauses with the reason until an admin saves it again.</p>
-      <ul id={`job-schedules-${job.id}`} class="job-schedules"></ul>
-      <Table id={`job-runs-${job.id}`} label={`${job.title} runs`} columns={["Started", "Repository", "Status", "Issues filed"]} />
+      {job.cadence && <>
+        <p>Scheduled runs start {job.cadence} as the person who saved the schedule. If they can no longer run it, it pauses with the reason until an admin saves it again.</p>
+        <ul id={`job-schedules-${job.id}`} class="job-schedules"></ul>
+      </>}
+      <Table id={`job-runs-${job.id}`} label={`${job.title} runs`} columns={["Started", "Repository", "Status", job.cadence ? "Issues filed" : "Coverage"]} />
       <p id={`job-empty-${job.id}`} role="status">No runs yet.</p>
     </Section>
   ))}

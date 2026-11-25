@@ -527,6 +527,16 @@ const coreOperations = {
     /** The forge hosting the repository; absent means GitHub. */
     forge: z.enum(["github", "forgejo"]).optional(),
   })),
+  /** Audit one GitHub repository's contributor templates as the acting member. */
+  "repository.community-templates": operation(["interactive", "operator"], z.strictObject({
+    repository: z.string().max(140).regex(/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9_.-]{1,100}$/),
+  }), z.object({
+    repository: z.string(),
+    defaultBranch: z.string(),
+    revision: z.string().regex(/^[a-f0-9]{40}$/),
+    checkedAt: z.string(),
+    communityTemplates: jsonObject,
+  })),
   /** A provider API request confined to the bound repository. Writes only in `finalize`.
    * GraphQL only where the binding grants it for the current phase: read-only,
    * except that a `finalize` grant also admits mutations with the binding's token.

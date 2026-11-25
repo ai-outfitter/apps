@@ -708,6 +708,7 @@ test("Governance scopes checks to an approved repository and clears stale result
   let empty = false;
   let setupStarted = false;
   const completed: unknown[] = [];
+  const templateApprovals: unknown[] = [];
   const checks: URL[] = [];
   const bootstraps: URL[] = [];
   const errors: string[] = [];
@@ -724,7 +725,14 @@ test("Governance scopes checks to an approved repository and clears stale result
     if (unavailable)
       return route.fulfill({ status: 503, body: "GitHub unavailable" });
     if (route.request().method() === "POST") {
-      completed.push(route.request().postDataJSON());
+      const input = route.request().postDataJSON();
+      if (input.action === "propose-community-templates") {
+        templateApprovals.push(input);
+        return route.fulfill({ json: {
+          status: "opened", pullRequest: { number: 18, url: "https://github.com/team/one/pull/18" },
+        } });
+      }
+      completed.push(input);
       setupStarted = true;
       return route.fulfill({ json: setupReport });
     }
@@ -793,6 +801,19 @@ test("Governance scopes checks to an approved repository and clears stale result
         status: repository === "team/one" ? "present" : "missing",
         path: name,
       })),
+      communityTemplates: {
+        checks: {
+          pullRequest: { status: "covered", sources: [{
+            repository: "team/.github", path: ".github/pull_request_template.md",
+            revision: "b".repeat(40), origin: "inherited",
+          }] },
+          bug: { status: "covered", sources: [] },
+          feature: { status: "missing", sources: [] },
+        },
+        issueOverride: [],
+        plan: { id: "c".repeat(64), paths: [".github/ISSUE_TEMPLATE/feature_request.md"], blocked: [] },
+        canPropose: repository === "team/one",
+      },
       mergeQueue:
         repository === "team/one"
           ? { status: "merge-group-missing", workflows: ["ci.yml"] }
@@ -861,6 +882,22 @@ test("Governance scopes checks to an approved repository and clears stale result
     await expect(
       setup.getByRole("button", { name: "Complete all", exact: true }),
     ).toHaveCount(0);
+  });
+  await test.step("template audit displays provenance and sends only the explicitly approved plan", async () => {
+    const templates = page.locator("#governance-templates");
+    await expect(templates).toContainText("Feature request · Missing");
+    await expect(templates.getByRole("link", { name: /inherited from team/ })).toHaveAttribute(
+      "href", `https://github.com/team/.github/blob/${"b".repeat(40)}/.github/pull_request_template.md`,
+    );
+    expect(templateApprovals).toHaveLength(0);
+    await templates.getByRole("button", { name: "Propose template pull request" }).click();
+    await expect(page.getByRole("link", { name: "Review template pull request #18" })).toHaveAttribute(
+      "href", "https://github.com/team/one/pull/18",
+    );
+    expect(templateApprovals).toEqual([{
+      repository: "team/one", action: "propose-community-templates",
+      revision: "a".repeat(40), planId: "c".repeat(64),
+    }]);
   });
   await page.locator("#governance-repository").selectOption("team/two");
   await expect(autoMerge.locator("input")).not.toBeChecked();

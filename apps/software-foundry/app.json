@@ -36,6 +36,7 @@
         "workflow.dependency-review.start",
         "workflow.architecture-reanalysis.start",
         "workflow.ui-review.start",
+        "workflow.community-template-audit.start",
         "features.read",
         "graph.serve",
         "workflow.issue-to-triage-resident.start",
