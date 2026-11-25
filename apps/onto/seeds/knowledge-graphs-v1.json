@@ -34,7 +34,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000066"
+            "onto:KnowledgeGraph"
           ],
           "to": "any"
         }
@@ -77,9 +77,9 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000015",
-            "71000000-0000-4000-8000-000000000007",
-            "71000000-0000-4000-8000-000000000056"
+            "onto:Product",
+            "onto:Technology",
+            "onto:Offering"
           ],
           "to": "any"
         }
@@ -89,7 +89,7 @@
   "nodes": [
     {
       "id": "74000000-0000-4000-8000-000000000001",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "offering-dependencies-knowledge-graph",
       "title": "Offering dependencies and customer problems",
       "summary": "Understand what an offering packages, what those products depend on, who provides the technology, and whose problems it addresses.",
@@ -102,7 +102,7 @@
     },
     {
       "id": "1dca230a-a081-5e4a-9860-bc715bca0370",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "role-context",
       "title": "Role operating context",
       "summary": "Orient an authorized person or agent in a scoped role: responsibilities, applicable governance controls, goals, measurement definitions and recorded evidence. Consumers supply the role assignment and scope; this selection grants no authority.",
@@ -115,7 +115,7 @@
     },
     {
       "id": "0601dd79-7419-5a5f-a0b6-10330b3bbcf6",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "decision-context",
       "title": "Decision context",
       "summary": "Support Recommend, Agree, Input and Decide contributions and release assessment using the current decision/control, alternatives, evidence, constraints and responsibility assignments. RAPID responsibility and output format belong to the consuming task; missing approval or measure",
@@ -128,7 +128,7 @@
     },
     {
       "id": "44428d73-83fc-5d2d-b96d-8420c30199bf",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "delivery-context",
       "title": "Delivery context",
       "summary": "Support specifications, implementation issue drafts, customer briefs and delivery review with relevant goals, stories, requirements, acceptance criteria, dependencies and evidence. Consumers choose the task, role, trigger and output recipe; this graph neither publishes issues nor",
@@ -141,7 +141,7 @@
     },
     {
       "id": "004ef4f0-236f-47ba-830f-82b5780941de",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "organization-overview",
       "title": "Organization overview",
       "summary": "Explore an organization’s projects and outcomes, products and offerings, customer problems, segments and recorded measurement context.",
@@ -153,7 +153,7 @@
     },
     {
       "id": "fe6b93a0-67c5-5287-b254-a43c25a231e8",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "competitive-landscape",
       "title": "Competitive landscape",
       "summary": "Who else serves this organization's use cases, stories and offerings, how they serve them, how this organization differs, and which companies make or sell them.",

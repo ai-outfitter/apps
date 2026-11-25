@@ -15,9 +15,9 @@
         "slots": [
           {
             "name": "friend",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000011",
+            "edgeTypeId": "forerunner:friend",
             "participantTypes": [
-              "71000000-0000-4000-8000-000000000005"
+              "onto:Person"
             ],
             "min": 2,
             "max": 2
@@ -854,30 +854,30 @@
         "slots": [
           {
             "name": "owner",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000013",
+            "edgeTypeId": "forerunner:commitment_owner",
             "participantTypes": [
-              "71000000-0000-4000-8000-000000000005",
-              "71000000-0000-4000-8000-000000000018"
+              "onto:Person",
+              "onto:Role"
             ],
             "min": 1,
             "max": 1
           },
           {
             "name": "control",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000014",
+            "edgeTypeId": "forerunner:implements_control",
             "participantTypes": [
-              "86cd3b21-71e2-5dfa-9bd0-000000000002"
+              "forerunner:ControlDefinition"
             ],
             "min": 1,
             "max": 1
           },
           {
             "name": "subject",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000015",
+            "edgeTypeId": "forerunner:commitment_subject",
             "participantTypes": [
-              "86cd3b21-71e2-5dfa-9bd0-000000000001",
-              "71000000-0000-4000-8000-000000000001",
-              "71000000-0000-4000-8000-000000000015"
+              "forerunner:Friendship",
+              "onto:Organization",
+              "onto:Product"
             ],
             "min": 1,
             "max": 1
@@ -964,18 +964,18 @@
         "slots": [
           {
             "name": "commitment",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000016",
+            "edgeTypeId": "forerunner:obligation_commitment",
             "participantTypes": [
-              "86cd3b21-71e2-5dfa-9bd0-000000000003"
+              "forerunner:ControlCommitment"
             ],
             "min": 1,
             "max": 1
           },
           {
             "name": "issue",
-            "edgeTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000017",
+            "edgeTypeId": "forerunner:obligation_subject",
             "participantTypes": [
-              "86cd3b21-71e2-5dfa-9bd0-000000000005"
+              "forerunner:SourceIssueEpisode"
             ],
             "min": 1,
             "max": 1
@@ -1032,10 +1032,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000001"
+          "forerunner:Friendship"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005"
+          "onto:Person"
         ]
       }
     }
@@ -1051,7 +1051,7 @@
     "ontology": {
       "version": 2,
       "projection": {
-        "relatorTypeId": "86cd3b21-71e2-5dfa-9bd0-000000000001",
+        "relatorTypeId": "forerunner:Friendship",
         "fromSlot": "friend",
         "toSlot": "friend",
         "symmetric": true
@@ -1070,11 +1070,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+          "forerunner:ControlCommitment"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000018"
+          "onto:Person",
+          "onto:Role"
         ]
       }
     }
@@ -1091,10 +1091,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+          "forerunner:ControlCommitment"
         ],
         "to": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+          "forerunner:ControlDefinition"
         ]
       }
     }
@@ -1111,13 +1111,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+          "forerunner:ControlCommitment"
         ],
         "to": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000001",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000005"
+          "forerunner:Friendship",
+          "onto:Organization",
+          "onto:Product",
+          "onto:Person"
         ]
       }
     }
@@ -1134,10 +1134,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000004"
+          "forerunner:ResponseObligation"
         ],
         "to": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000003"
+          "forerunner:ControlCommitment"
         ]
       }
     }
@@ -1154,10 +1154,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000004"
+          "forerunner:ResponseObligation"
         ],
         "to": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000005"
+          "forerunner:SourceIssueEpisode"
         ]
       }
     }
@@ -1174,10 +1174,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+          "forerunner:ControlDefinition"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000010"
+          "planning:Goal"
         ]
       }
     }
@@ -1194,10 +1194,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000005"
+          "forerunner:SourceIssueEpisode"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Product"
         ]
       }
     }
@@ -1214,10 +1214,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "86cd3b21-71e2-5dfa-9bd0-000000000002"
+          "forerunner:ControlDefinition"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Product"
         ]
       }
     }

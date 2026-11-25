@@ -1,0 +1,199 @@
+[
+  {
+    "id": "71000000-0000-4000-8000-000000000003",
+    "category": "node",
+    "name": "Project",
+    "title": "Projects",
+    "body": "## What a project is\n\nA project is a bounded effort toward an outcome. Use its page to explain the problem, desired result, scope, decisions and current evidence.\n\n## What belongs on the page\n\nRecord readable Markdown documentation and connect the project to its business unit, human or agent participants, technology dependencies and goals. Distinguish proposed dependencies from operational integrations.\n\nExternal projects can live directly in this Wiki without a Planning record. Connect them to their organization with `part_of` and document their goals, problems and dependencies through ordinary graph relationships. **Create/link project** offers **Document an external project** for this purpose. For work managed in Planning, create or select its canonical record and keep its verified `{installationId, type, id}` reference on the context page.\n\n## Example\n\nA health-data research project may have a proposed `uses` connection to a health platform. That connection documents intent; it does not prove a working connector.\n\n## For agents\n\nRead this context page and, when present, its linked Planning record before work. Standalone Project nodes can be created through the Wiki entity API or `graph.apply` without an app reference. Update the appropriate record through its app's entity operations, preserve any existing canonical reference and use the latest revision. Add decisions, evidence and progress to the documentation rather than claiming unsupported completion.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000010",
+    "category": "node",
+    "name": "Goal",
+    "title": "Goal",
+    "body": "## Goals\n\nA goal describes a desired outcome. Document the result, accountable owner, target, time period and evidence that will determine progress.\n\nConnect projects or participants using `pursues`. Connect a measurement definition using `measured_by` when the evaluation method is known.\n\n## For agents\n\nUse goals to choose useful work and report evidence. A goal page alone does not schedule a workflow or establish that the result has been achieved.",
+    "properties": [],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind",
+      "measures": [
+        {
+          "name": "metrics",
+          "title": "Metric definitions",
+          "expression": {
+            "op": "count",
+            "of": "measured_by",
+            "direction": "outgoing"
+          }
+        },
+        {
+          "name": "pursuers",
+          "title": "Pursuers",
+          "expression": {
+            "op": "count",
+            "of": "pursues",
+            "direction": "incoming"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000011",
+    "category": "node",
+    "name": "MetricDefinition",
+    "title": "Metric Definition",
+    "body": "## Metric definitions\n\nA metric definition explains how progress is measured: meaning, calculation, units, source, reporting interval and limitations.\n\nIt describes a measurement method. Actual observations and computed analytics are separate work; the existence of this page is not a measured result.\n\n## For agents\n\nRead the definition before interpreting a KPI. Report the period, source and evidence with any value. Future SemLang/Malloy integration may turn suitable definitions and observations into analytical queries.",
+    "properties": [
+      {
+        "name": "calculation",
+        "type": "string",
+        "description": "How the value is calculated, including filters and exclusions.",
+        "required": false
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "description": "Unit of the measured value, for example percent, count or hours.",
+        "required": false
+      },
+      {
+        "name": "source",
+        "type": "string",
+        "description": "System or record set the observations come from.",
+        "required": false
+      },
+      {
+        "name": "interval",
+        "type": "string",
+        "description": "Reporting interval, for example weekly or calendar quarter.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "stereotype": "kind",
+      "measures": [
+        {
+          "name": "measurement",
+          "title": "Measurement",
+          "expression": {
+            "op": "formula",
+            "language": "metric-v1",
+            "fields": {
+              "calculation": "calculation",
+              "unit": "unit",
+              "source": "source",
+              "interval": "interval"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000021",
+    "category": "edge",
+    "name": "belongs_to_unit",
+    "title": "belongs to unit",
+    "body": "Source project or unit belongs to the target business unit. No access grant is implied.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "planning:Project",
+          "onto:BusinessUnit"
+        ],
+        "to": [
+          "onto:BusinessUnit"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000029",
+    "category": "edge",
+    "name": "pursues",
+    "title": "pursues",
+    "body": "The source project, organization, person or agent pursues the target goal.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": "any",
+        "to": [
+          "planning:Goal"
+        ]
+      }
+    }
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000030",
+    "category": "edge",
+    "name": "measured_by",
+    "title": "measured by",
+    "body": "## Measurement relationships\n\nA goal, customer problem, project or organization is evaluated with a metric definition. A metric definition can in turn link to its measurement instrument or data source, such as a sensor platform.\n\n## For agents\n\nRead the metric definition for units, scope, targets and reporting periods. A target is not an observed value. A link to an instrument does not prove a working integration; distinguish intended sources from verified observations.",
+    "properties": [
+      {
+        "name": "status",
+        "type": "string",
+        "description": "Evidence status, for example proposed, documented, observed or retired.",
+        "required": false
+      },
+      {
+        "name": "evidence",
+        "type": "string",
+        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
+        "required": false
+      }
+    ],
+    "archived": false,
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "planning:Goal",
+          "onto:Problem",
+          "planning:Project",
+          "onto:Organization",
+          "planning:MetricDefinition",
+          "onto:Product"
+        ],
+        "to": "any"
+      }
+    }
+  }
+]
