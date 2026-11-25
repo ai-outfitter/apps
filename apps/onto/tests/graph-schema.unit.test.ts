@@ -4,7 +4,7 @@ import type { TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
 import { standardGraphTypes, wikiGraphSchema } from "../scripts/graph-schema";
 
 const run = "run node --import tsx apps/onto/scripts/graph-schema.ts";
-test("the SDK's committed standard GraphQL schema and types match the seed types", async () => {
+test("the SDK's generated standard GraphQL schema and types match all app contributions", async () => {
   assert.deepEqual(await standardGraphTypes({ check: true }), [], "run npm run graph:compose");
 });
 

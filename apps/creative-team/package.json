@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "npm --prefix ../.. run graph:compose",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
@@ -18,6 +19,7 @@
     "test:e2e": "playwright test --config playwright.config.ts",
     "build:demo": "outfitter-app-build --mode demo",
     "build:operational": "outfitter-app-build --mode operational",
+    "prepreview:build": "npm --prefix ../.. run graph:compose",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
   },
   "dependencies": {

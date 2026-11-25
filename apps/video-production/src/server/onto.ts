@@ -1,4 +1,4 @@
-import compiledGraph from "../../graph/.compiled/video-production.json";
+import compiledGraph from "../../graph/.compiled/video-production.json" with { type: "json" };
 import { videoTypeIds, standardTypeIds } from "../../graph/video-production";
 // The video production ontology in the organization's Onto: creative briefs, storyboards,
 // shots and the visual references shots must match. The types have fixed IDs, the same in

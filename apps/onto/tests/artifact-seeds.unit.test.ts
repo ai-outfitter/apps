@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { z } from "zod";
 import type { AgentDatabase } from "@ai-outfitter/app-sdk/agent-store";
-import definitions from "../graph/.compiled/artifacts-v1.json";
-import example from "../graph/.compiled/release-example-v1.json";
+import definitions from "../graph/.compiled/artifacts-v1.json" with { type: "json" };
+import example from "../graph/.compiled/release-example-v1.json" with { type: "json" };
 import { readType, storeType } from "../src/lib/type-metadata";
 import { definitions as ontologyDefinitions, people, marriage } from "./fixtures/relators";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
@@ -455,5 +455,33 @@ test("setup defers incompatible standard nodes without changing authored contrac
     await setupStandardData(adapter(db), owner);
     assert.ok(db.prepare("SELECT id FROM graph_nodes WHERE id=?").get(node));
     assert.ok(db.prepare("SELECT id FROM graph_edges WHERE id=?").get(edge));
+  } finally { db.close(); }
+});
+
+test("composition fills missing contributions while keeping installed authorship across repeated initialization", async () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    install(db);
+    // These are existing public identities, originally authored inside Onto.
+    const project = "71000000-0000-4000-8000-000000000003";
+    const newsletter = "71000000-0000-4000-8000-000000000125";
+    const registeredFor = "71000000-0000-4000-8000-000000000130";
+    await setupStandardData(adapter(db), owner);
+    const authored = db.prepare("UPDATE graph_types SET body=?, updatedBy='owner', revision=3 WHERE id=?");
+    authored.run("An installation's Planning documentation.", project);
+    authored.run("An installation's discovery documentation.", newsletter);
+    db.prepare("DELETE FROM graph_types WHERE id=?").run(registeredFor);
+    await setupStandardData(adapter(db), owner);
+    const read = db.prepare("SELECT id,name,body,revision,updatedBy FROM graph_types WHERE id=?");
+    assert.deepEqual({ ...read.get(project) }, {
+      id: project, name: "Project", body: "An installation's Planning documentation.", revision: 3, updatedBy: "owner",
+    });
+    assert.deepEqual({ ...read.get(newsletter) }, {
+      id: newsletter, name: "Newsletter", body: "An installation's discovery documentation.", revision: 3, updatedBy: "owner",
+    });
+    assert.equal(read.get(registeredFor)?.name, "registered_for");
+    const after = snapshot(db);
+    await setupStandardData(adapter(db), owner);
+    assert.deepEqual(snapshot(db), after);
   } finally { db.close(); }
 });

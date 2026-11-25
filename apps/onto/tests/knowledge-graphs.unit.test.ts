@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import artifacts from "../graph/.compiled/artifacts-v1.json";
-import definitions from "../graph/.compiled/knowledge-graphs-v1.json";
+import definitions from "../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
 import { defaultTypes as types } from "../src/lib/default-types";
 import { core, type Graph, type GraphNode } from "../src/lib/graph";
 import {
@@ -586,7 +585,7 @@ test("the standard competitive landscape shows who serves an organization's use 
   const lens = { ...node(definition.id, core.knowledgeGraph), ...definition };
   // UseCase is Planning's type; every other type ships in the Wiki seeds.
   const useCase = { ...stamp, id: "use-case-type", category: "node", name: "UseCase", title: "Use case", body: "", properties: [] };
-  const allTypes = [...types, ...artifacts.types, ...definitions.types, useCase] as Graph["types"];
+  const allTypes = [...types, useCase] as Graph["types"];
   const type = (name: string) => {
     const found = allTypes.find((t) => t.name === name);
     assert.ok(found);
@@ -668,7 +667,7 @@ test("the competitive landscape still opens in a Wiki without Planning's use cas
   const lens = { ...node(definition.id, core.knowledgeGraph), ...definition };
   const graph: Graph = {
     canEdit: false,
-    types: [...types, ...artifacts.types, ...definitions.types] as Graph["types"],
+    types: types as Graph["types"],
     nodes: [lens],
     edges: [],
   };

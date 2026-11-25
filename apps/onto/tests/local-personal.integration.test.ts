@@ -1,4 +1,4 @@
-import releaseExample from "../graph/.compiled/release-example-v1.json";
+import releaseExample from "../graph/.compiled/release-example-v1.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";

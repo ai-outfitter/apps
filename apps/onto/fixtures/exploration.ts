@@ -1,4 +1,4 @@
-import compiled from "../graph/.compiled/exploration-fixture.json";
+import compiled from "../graph/.compiled/exploration-fixture.json" with { type: "json" };
 // The read-only demo's exploration: a fictional company, its offerings, projects,
 // a repository with open pull requests, a competitor and one staged proposal.
 // The page resolves it in the browser with the same code the server runs

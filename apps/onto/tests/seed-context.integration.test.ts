@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker } from "@ai-outfitter/app-test/worker";
-import baseSeed from "../graph/.compiled/entities-v1.json";
-import graphSeed from "../graph/.compiled/knowledge-graphs-v1.json";
-import artifacts from "../graph/.compiled/artifacts-v1.json";
-import releases from "../graph/.compiled/releases-v1.json";
+import baseSeed from "../graph/.compiled/entities-v1.json" with { type: "json" };
+import graphSeed from "../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
+import artifacts from "../graph/.compiled/artifacts-v1.json" with { type: "json" };
+import releases from "../graph/.compiled/releases-v1.json" with { type: "json" };
 const seed = {
   ...baseSeed,
   nodes: [

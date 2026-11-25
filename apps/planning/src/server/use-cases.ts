@@ -1,4 +1,4 @@
-import compiledGraph from "../../graph/.compiled/use-cases.json";
+import compiledGraph from "../../graph/.compiled/use-cases.json" with { type: "json" };
 import { useCaseTypeId, useCaseBody } from "../../graph/use-cases";
 import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";

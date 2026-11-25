@@ -3,6 +3,11 @@
     "apps/*"
   ],
   "validation": "scripts",
+  "sharedInputs": [
+    "apps/*/graph/*.ts",
+    "apps/*/seeds/*.json",
+    "apps/onto/fixtures/competitors.json"
+  ],
   "commands": [
     "check",
     "test",

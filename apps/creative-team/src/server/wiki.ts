@@ -1,5 +1,5 @@
-import compiledGraph from "../../graph/.compiled/brand-interview.json";
-import { wikiTypeIds } from "../../graph/brand-interview";
+import compiledGraph from "../../graph/.compiled/brand-interview.json" with { type: "json" };
+import { interviewDocument, type InterviewDocument, wikiTypeIds } from "../../graph/brand-interview";
 // The brand interview in the member's Wiki (knowledge graph). The interview is saved as one
 // BrandInterview document whose body follows a JSON Schema the Wiki validates, and the people,
 // audience, problems, offerings and goals the answers name become Wiki records linked to it.

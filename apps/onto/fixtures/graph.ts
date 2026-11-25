@@ -1,9 +1,9 @@
-import compiled from "../graph/.compiled/demo-fixture.json";
+import compiled from "../graph/.compiled/demo-fixture.json" with { type: "json" };
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { readerFixture } from "./node-reader";
 import { defaultEntities, defaultEdges } from "../src/lib/default-entities";
 import { seedDocument } from "../src/lib/entity-import";
-import competitiveExample from "../graph/.compiled/competitors.json";
+import competitiveExample from "../graph/.compiled/competitors.json" with { type: "json" };
 import { defaultTypes } from "../src/lib/default-types";
 import type { Graph } from "../src/lib/graph";
 

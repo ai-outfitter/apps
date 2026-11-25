@@ -1,4 +1,4 @@
-import compiledGraph from "../../graph/.compiled/intake.json";
+import compiledGraph from "../../graph/.compiled/intake.json" with { type: "json" };
 import { wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
 import { wikiGraph, assertionBody } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";

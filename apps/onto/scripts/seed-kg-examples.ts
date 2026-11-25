@@ -9,7 +9,7 @@ import {setupStandardData} from "../src/server/standard-data";
 import {refreshKnowledgeGraphQueries} from "../src/server/knowledge-graph-refresh";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import {defaultTypes} from "../src/lib/default-types";
-import releaseExample from "../graph/.compiled/release-example-v1.json";
+import releaseExample from "../graph/.compiled/release-example-v1.json" with { type: "json" };
 
 const summary="Synthetic KG example. No real delivery, approval or authority is asserted.";
 const id=(n:number)=>`78000000-0000-4000-8000-${String(n).padStart(12,"0")}`;

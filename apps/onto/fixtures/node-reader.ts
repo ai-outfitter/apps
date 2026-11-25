@@ -1,5 +1,5 @@
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
-import compiled from "../graph/.compiled/reader-fixture.json";
+import compiled from "../graph/.compiled/reader-fixture.json" with { type: "json" };
 import type { Graph } from "../src/lib/graph";
 export { controlPresentation, readerBody, readerId } from "../graph/reader-fixture";
 

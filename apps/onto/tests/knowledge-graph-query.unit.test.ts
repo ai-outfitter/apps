@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import standard from "../graph/.compiled/knowledge-graphs-v1.json";
+import standard from "../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
 import { definitionQuery, graphQueryParams, parseGraphQuery, queryDefinition, type SelectionDefinition } from "../src/lib/knowledge-graph-query";
 import { knowledgeGraphDefinitionSchema } from "../src/lib/knowledge-graphs";
 

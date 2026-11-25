@@ -1,4 +1,4 @@
-import compiledGraph from "../../graph/.compiled/code-changes.json";
+import compiledGraph from "../../graph/.compiled/code-changes.json" with { type: "json" };
 import { codeChangeType, deliversType, mergedIntoType } from "../../graph/code-changes";
 // Link what merged into a project's repositories to the project in the Wiki.
 //

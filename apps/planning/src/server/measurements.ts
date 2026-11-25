@@ -1,4 +1,4 @@
-import compiledGraph from "../../graph/.compiled/measurements.json";
+import compiledGraph from "../../graph/.compiled/measurements.json" with { type: "json" };
 import { measurementType, measurementOfType, capturedWithType } from "../../graph/measurements";
 // Measurements: KPIs recorded from connectors (docs/measurements.md).
 //

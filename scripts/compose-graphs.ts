@@ -41,26 +41,26 @@ export async function composeGraphs({ check = false } = {}) {
   for (const graph of combined.filter(graph => graph.scope === "addon"))
     await compileAuthoredGraphs([...standard, graph].map(input));
   const results = await compileAuthoredGraphs(combined.map(input));
-  const stale: string[] = [];
-  const write = async (path: string, data: unknown) => {
-    if (!check) await mkdir(dirname(path), { recursive: true });
-    if (await syncFile(path, `${JSON.stringify(data, null, 2)}\n`, check)) stale.push(path);
-  };
-  for (const [index, graph] of combined.entries()) {
-    const { types, nodes, edges } = results[index];
-    const split = graph.nodes?.length ?? 0;
-    const data = graph.format
-      ? { format: graph.format, nodes: nodes.slice(0, split), edges, ...(graph.projects && { projects: nodes.slice(split) }) }
-      : { types, nodes, edges };
-    await write(join(apps, graph.namespace, "graph/.compiled", `${graph.name}.json`), data);
-  }
+  const compiled = combined.map((graph, index) => ({ graph, result: results[index] }));
   for (const graph of variants) {
     const alternatives = new Set(graph.legacyAlternatives);
     const dependencies = standard.filter(source => !alternatives.delete(`${source.namespace}/${source.name}`))
       .map(source => ({ ...source, nodes: [], edges: [], projects: [] }));
     if (alternatives.size) throw Error(`Unknown alternate graph contributions for ${graph.namespace}/${graph.name}: ${[...alternatives].join(", ")}`);
     const result = await compileAuthoredGraphs([...dependencies, graph].map(input));
-    await write(join(apps, graph.namespace, "graph/.compiled", `${graph.name}.json`), result.at(-1));
+    compiled.push({ graph, result: result.at(-1)! });
+  }
+  const stale: string[] = [];
+  const write = async (path: string, data: unknown) => {
+    if (!check) await mkdir(dirname(path), { recursive: true });
+    if (await syncFile(path, `${JSON.stringify(data, null, 2)}\n`, check)) stale.push(path);
+  };
+  for (const { graph, result: { types, nodes, edges } } of compiled) {
+    const split = graph.nodes?.length ?? 0;
+    const data = graph.format
+      ? { format: graph.format, nodes: nodes.slice(0, split), edges, ...(graph.projects && { projects: nodes.slice(split) }) }
+      : { types, nodes, edges };
+    await write(join(apps, graph.namespace, "graph/.compiled", `${graph.name}.json`), data);
   }
   await write(join(apps, "onto/graph/.compiled/standard-types.json"), standardTypes);
   await write(join(sdk, "graph/standard-types.json"), graphTypeRows(standardTypes));

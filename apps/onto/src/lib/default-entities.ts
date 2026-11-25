@@ -1,8 +1,8 @@
-import entities from "../../graph/.compiled/entities-v1.json";
-import knowledgeGraphs from "../../graph/.compiled/knowledge-graphs-v1.json";
-import artifacts from "../../graph/.compiled/artifacts-v1.json";
-import releases from "../../graph/.compiled/releases-v1.json";
-import releaseExample from "../../graph/.compiled/release-example-v1.json";
+import entities from "../../graph/.compiled/entities-v1.json" with { type: "json" };
+import knowledgeGraphs from "../../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
+import artifacts from "../../graph/.compiled/artifacts-v1.json" with { type: "json" };
+import releases from "../../graph/.compiled/releases-v1.json" with { type: "json" };
+import releaseExample from "../../graph/.compiled/release-example-v1.json" with { type: "json" };
 import { entityImportEdge, seedDocument } from "./entity-import";
 
 const seed = seedDocument.parse(entities);

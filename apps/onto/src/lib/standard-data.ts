@@ -1,10 +1,10 @@
 import { requireOntologyValid } from "./ontology-validation";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
 import { documentSchema } from "@ai-outfitter/app-sdk/agent-schema";
-import entities from "../../graph/.compiled/entities-v1.json";
-import knowledgeGraphs from "../../graph/.compiled/knowledge-graphs-v1.json";
-import artifacts from "../../graph/.compiled/artifacts-v1.json";
-import releases from "../../graph/.compiled/releases-v1.json";
+import entities from "../../graph/.compiled/entities-v1.json" with { type: "json" };
+import knowledgeGraphs from "../../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
+import artifacts from "../../graph/.compiled/artifacts-v1.json" with { type: "json" };
+import releases from "../../graph/.compiled/releases-v1.json" with { type: "json" };
 import { defaultTypes } from "./default-types";
 import { seedDocument } from "./entity-import";
 import { validateProperties } from "./graph";
