@@ -3,7 +3,7 @@
 .workspace[data-section="overview"] {
  --panel-height: max(420px, calc(100svh - 200px));
 }
-.workspace[data-section="overview"] .viewer-frame:has(#assembly-viewer[data-ready="true"]:not([data-empty])) + #assembly-status { display:none }
+.workspace[data-section="overview"] .viewer-frame:has(#assembly-viewer[data-ready="true"]:not([data-empty])) ~ #assembly-status { display:none }
 .workspace[data-section="overview"] .model-layout {
  display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
 }
@@ -98,3 +98,18 @@
 .workspace .cots-interface dl {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:0 0 8px}
 .workspace .cots-interface dt {color:var(--muted)}
 .workspace .cots-interface dd {margin:0}
+.workspace[data-section="overview"] .model-stage:has(#occurrence-inspection:not([hidden])) {overflow:visible;height:auto;}
+.workspace[data-section="overview"] .model-stage:has(#occurrence-inspection:not([hidden])) .stage-bar {position:static;order:0;flex-wrap:wrap;padding:6px;}
+.workspace[data-section="overview"] .stage-bar :is(button,summary) {min-height:44px;}
+.workspace #explode-range-panel,.workspace #occurrence-inspection {padding:8px 12px;}
+.workspace #explode-range-panel>div {display:flex;align-items:center;gap:8px;}
+.workspace #explode-range {min-width:40px;min-height:44px;flex:1;accent-color:var(--text);}
+.workspace #occurrence-inspection h3 {font-size:1rem;margin:4px 0;}
+.workspace #occurrence-inspection details {margin:4px 0;padding:0 8px;}
+.workspace #occurrence-list>div,.workspace #occurrence-crumbs {display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.workspace #occurrence-list button,.workspace #occurrence-inspection summary {min-height:44px;}
+.workspace #occurrence-inspection summary {align-content:center;}
+.workspace .stage-bar #motion-menu {position:relative;}
+.workspace .stage-bar #motion-popover {top:100%;bottom:auto;z-index:4;}
+.workspace #explode-range {padding:0;}
+.workspace #explode-range::-webkit-slider-thumb {height:24px;width:24px;}

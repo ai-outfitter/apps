@@ -1,3 +1,4 @@
+import { immediatePath, inspectionOffsets, type Occurrence } from "../lib/assembly-inspection";
 import { openMeshCache, readMeshes, storeMeshes } from "./cad-mesh-cache";
 import { hingeTransforms, type Hinge } from "../lib/inspection-placements";
 import type { MeshSource } from "../lib/assembly-resolution";
@@ -61,7 +62,7 @@ function placedNode(placement: Placement, geometry:ReturnType<typeof solidGeomet
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void, clearSelection?: () => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const engine = import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url).href;
   const scope = appBase(location.pathname);
@@ -109,7 +110,8 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   let frame: { min: number[]; max: number[] } | undefined;
   let selected: Set<string> | undefined;
   let selectedPath: string | undefined;
-  let selectedItem: string | undefined;
+  let level: Occurrence | undefined;
+  let offsets = new Map<string, THREE.Vector3>();
   let isolated: Set<string> | undefined;
   let isolatedPath: string | undefined;
   let hidden:ReadonlySet<string>=new Set(), openHinges:Hinge[]=[];
@@ -121,6 +123,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       const path:string=node.userData.path;
       node.matrix.copy(node.userData.motionMatrix ?? node.userData.restMatrix);
       for(const hinge of transforms) if(path===hinge.path || path.startsWith(hinge.path+"/")) node.matrix.premultiply(hinge.delta);
+      const child = level && immediatePath(level.path, path);
+      const delta = child && offsets.get(child);
+      if (delta) node.matrix.premultiply(new THREE.Matrix4().makeTranslation(delta.x,delta.y,delta.z));
       node.matrixAutoUpdate=false;
       node.matrixWorldNeedsUpdate=true;
     }
@@ -168,22 +173,29 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       let node: THREE.Object3D | null = object;
       while (node && node.visible && node !== group) {
         if (node.parent === group && node.userData.itemId) {
-          const groupHit = node.userData.pickGroup;
-          const drill = groupHit && selectedItem === groupHit.id && selectedPath === groupHit.path;
-          const owner = drill ? undefined : groupHit;
-          inspect(owner?.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
+          const child = level && immediatePath(level.path, node.userData.path);
+          const owner = level?.children.find(entry => entry.path === child);
+          inspect(owner?.item.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
           return;
         }
         node = node.parent;
       }
     }
+    clearSelection?.();
   };
   canvas.addEventListener("pointerdown", pointerDown);
   canvas.addEventListener("pointerup", pointerUp);
 
+  function visibleBounds() {
+    group.updateMatrixWorld(true);
+    const bounds = new THREE.Box3();
+    for (const node of group.children) if (node.visible) bounds.expandByObject(node);
+    return bounds;
+  }
   function topView() {
     if (!frame) return;
-    const visible = new THREE.Box3().setFromObject(group);
+    const visible = visibleBounds();
+    if (visible.isEmpty()) return;
     const center = visible.getCenter(new THREE.Vector3());
     const size = visible.getSize(new THREE.Vector3());
     const distance = 0.55 * Math.max(size.y, size.x / camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
@@ -193,7 +205,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   }
   function reset() {
     if (!frame) return;
-    const { min, max } = frame;
+    const bounds = visibleBounds();
+    if (bounds.isEmpty()) return;
+    const min = bounds.min.toArray(), max = bounds.max.toArray();
     const center = min.map((v, i) => (v + max[i]) / 2);
     const n = Math.max(...max.map((v, i) => v - min[i])) * 1.25;
     camera.near = Math.max(0.01, n / 10000);
@@ -225,7 +239,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       const id = node.userData.itemId as string;
       const path = node.userData.path as string;
       const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
-      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !hiddenPaths.some(inside) && !(inspectionVisible && inspectionPaths.has(path));
+      node.visible = inside(level?.path) && (!isolated || isolated.has(id)) && inside(isolatedPath) && !hiddenPaths.some(inside) && !(inspectionVisible && inspectionPaths.has(path));
       const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
       const picked = selected !== undefined && !dim;
       node.traverse((child) => {
@@ -328,7 +342,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       }
       for (const node of group.children) { if (node.matrixAutoUpdate) node.updateMatrix(); node.userData.restMatrix = node.matrix.clone(); }
       highlight();
-      if(openHinges.length) applyHinges();
+      applyHinges();
       frame = assemblyBounds(list);
       reset();
       report(`${list.length} solids from ${replies.size + external.size} items · drag to rotate, scroll to zoom`);
@@ -344,6 +358,16 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   return {
     render,
+    inspectLevel(next: Occurrence | undefined, amount: number) {
+      level = next;
+      offsets = next ? inspectionOffsets(next, amount) : new Map();
+      applyHinges();
+      highlight();
+    },
+    cameraPose() { return {position:camera.position.clone(), target:controls.target.clone()}; },
+    restoreCamera(pose:{position:THREE.Vector3;target:THREE.Vector3}) {
+      camera.position.copy(pose.position); controls.target.copy(pose.target); controls.update();
+    },
     reset,
     topView,
     snapshot() {
@@ -400,8 +424,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     },
     /** Show one item at full strength and fade the rest; undefined shows all. */
     isolate(items?: Set<string>, path?: string) {isolated=items;isolatedPath=path;highlight();},
-    select(items?: Set<string>, path?: string, itemId?: string) {
-      selectedItem = itemId;
+    select(items?: Set<string>, path?: string) {
       selected = items;
       selectedPath = path;
       highlight();

@@ -27,6 +27,8 @@ export const UsageSchema = z
     id: z.uuid(),
     itemId: z.uuid(),
     joint: JointSchema.optional(),
+    /** Inspection-only translation in parent coordinates, in mm. */
+    explode: z.object({ offset: z.tuple([coordinate, coordinate, coordinate]), step: z.number().int().min(1).max(100).optional() }).optional(),
     quantity: z.number().int().min(1).max(1000),
     /** Reference designators or a find number, such as "U1" or "Find 3". */
     refdes: z.string().trim().max(60).default(""),

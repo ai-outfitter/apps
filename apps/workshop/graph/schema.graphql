@@ -698,6 +698,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
   joint: FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJoint
+  explode: FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemExplode
   quantity: Int!
   refdes: String
   position: [JSON!]
@@ -715,6 +716,11 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJoint {
 enum FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind {
   prismatic
   revolute
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemExplode {
+  offset: [JSON!]!
+  step: Int
 }
 
 input FinishWorkshopBuildInputManifestAssemblyConfigurationsItem {
@@ -1106,6 +1112,7 @@ input WorkshopAssemblyInputItemsItemUsesItem {
   id: ID!
   itemId: ID!
   joint: WorkshopAssemblyInputItemsItemUsesItemJoint
+  explode: WorkshopAssemblyInputItemsItemUsesItemExplode
   quantity: Int!
   refdes: String
   position: [JSON!]
@@ -1123,6 +1130,11 @@ input WorkshopAssemblyInputItemsItemUsesItemJoint {
 enum WorkshopAssemblyInputItemsItemUsesItemJointKind {
   prismatic
   revolute
+}
+
+input WorkshopAssemblyInputItemsItemUsesItemExplode {
+  offset: [JSON!]!
+  step: Int
 }
 
 input WorkshopAssemblyInputConfigurationsItem {
@@ -1416,6 +1428,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItem {
   id: ID!
   itemId: ID!
   joint: SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJoint
+  explode: SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemExplode
   quantity: Int!
   refdes: String
   position: [JSON!]
@@ -1433,6 +1446,11 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJoint {
 enum SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind {
   prismatic
   revolute
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemExplode {
+  offset: [JSON!]!
+  step: Int
 }
 
 input SaveWorkshopAssemblyInputAssemblyConfigurationsItem {

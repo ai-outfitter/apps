@@ -26,7 +26,7 @@ const overview = section === "overview";
     <div class="model-layout">
       <div class="model-stage workspace-card">
         <div class="stage-bar">
-          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden>Show all</button><button id="restore-inspection" hidden>Restore assembly</button></div>
+          <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="explode-toggle" aria-expanded="false" aria-controls="explode-range-panel" hidden>Explode <span id="explode-value">0%</span></button><button id="explode-reset" hidden>Set to assembled</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden>Show all</button><button id="restore-inspection" hidden>Restore assembly</button></div>
           <details id="motion-menu" hidden>
             <summary>Motion</summary>
             <div id="motion-popover">
@@ -49,10 +49,21 @@ const overview = section === "overview";
             </div>
           </details>
         </div>
+        <div id="explode-range-panel" hidden>
+          <label for="explode-range">Explode amount</label>
+          <div><span>0 · Assembled</span><input id="explode-range" type="range" min="0" max="100" value="0" step="1" /><span>100 · Exploded</span></div>
+        </div>
         <div class="viewer-frame">
           <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
           <div id="assembly-poster" hidden={!preview}>{preview && <img src={preview} alt="Static assembly preview" />}</div>
         </div>
+        <section id="occurrence-inspection" hidden>
+          <nav aria-label="Inspection level" id="occurrence-crumbs"></nav>
+          <h3 tabindex="-1" id="occurrence-heading"></h3>
+          <p id="occurrence-status" role="status" class="visually-hidden"></p>
+          <button id="occurrence-back" hidden>Back</button>
+          <details><summary>Components in this level</summary><div id="occurrence-list"></div></details>
+        </section>
         <p id="assembly-status" role="status">Loading geometry…</p>
       </div>
       {overview && <ProjectInspection />}
