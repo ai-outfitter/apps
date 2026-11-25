@@ -58,3 +58,20 @@ test("only an explicit attachment retry requeues a terminal job", async () => {
     name:source.name,sha256,base64:Buffer.from(bytes).toString("base64"),
   }]},retry:true});
 });
+
+test("a refused lookup is unavailable, while a refused submission can wait for an editor", async () => {
+  const { createHash } = await import("node:crypto");
+  const { analyzePrint } = await import("../src/server/print-analysis");
+  const bytes=new TextEncoder().encode("attachment");
+  const source={name:"bracket.stl",sha256:createHash("sha256").update(bytes).digest("hex"),bytes};
+  let refuseLookup=true;
+  const context={host:()=>({call:async (_operation:string,input:Record<string,unknown>)=>{
+    if (input.lookup && !refuseLookup) return null;
+    throw new Response("Forbidden",{status:403});
+  }})} as Parameters<typeof analyzePrint>[0];
+  assert.equal((await analyzePrint(context,source)).state,"error");
+  refuseLookup=false;
+  const waiting=await analyzePrint(context,source);
+  assert.equal(waiting.state,"pending");
+  assert.equal(waiting.needsEditor,true);
+});

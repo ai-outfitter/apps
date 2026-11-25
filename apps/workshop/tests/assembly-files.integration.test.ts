@@ -41,6 +41,7 @@ test("an attachment preserves the saved assembly, checks the file and requires t
   const verify={projectId:project.id,itemId,fileName:"fixture.step"};
   const input={...verify,expectedRevision:revision,bytes:bytes.length,sha256:createHash("sha256").update(bytes).digest("hex")};
   const upload=()=>graph("UploadWorkshopAssemblyFile",{input});
+  await assert.rejects(graph("UploadWorkshopAssemblyFile",{input:{...input,retryPrintCheck:true}}),/STL only/i);
   const ticket=parseDirectUpload((await upload()).upload.url);
   assert.ok(ticket);
   const bucket=await app.bucket("main");

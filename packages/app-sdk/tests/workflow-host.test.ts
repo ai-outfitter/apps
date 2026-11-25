@@ -21,3 +21,16 @@ test("platform document inputs preserve bounded Viewer queries and explicit app 
     assert.equal(operations["platform.document"].input.safeParse(invalid).success,false);
   assert.deepEqual(operations["platform.document"].input.parse({document:"Viewer"}),{document:"Viewer",kind:"query",variables:{}});
 });
+
+test("fabrication allows retries only with a submission and identifies analyzers by digest", () => {
+  const {input,output}=operations["fabrication.preflight"];
+  const selector={kind:"stl",files:[{name:"fixture.stl",sha256:"a".repeat(64)}]};
+  const request={...selector,files:[{...selector.files[0],base64:"YQ=="}]};
+  assert.deepEqual(input.parse({request,retry:true}),{request,retry:true});
+  assert.equal(input.safeParse({lookup:selector,retry:true}).success,false);
+  assert.equal(input.safeParse({id:"b".repeat(64),retry:true}).success,false);
+  const receipt={id:"b".repeat(64),profile:"sha256:"+"c".repeat(64),state:"completed"};
+  assert.deepEqual(output.parse(receipt),receipt);
+  for (const profile of ["c".repeat(64), "outfitter-local/workshop-preflight@"+receipt.profile, "sha256:short"])
+    assert.equal(output.safeParse({...receipt,profile}).success,false);
+});

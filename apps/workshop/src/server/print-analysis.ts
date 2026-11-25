@@ -43,7 +43,6 @@ export async function analyzePrint(context: WorkshopContext, input: Input, polic
       });
     }
     if (!job) return {state:"pending",profileSha256:slicerProfileSha256};
-    if (!/^sha256:[a-f0-9]{64}$/.test(job.profile)) return {state:"stale",profileSha256:slicerProfileSha256};
     const analyzerDigest = job.profile;
     const output = job.result as (NonNullable<Preflight["result"]> & {sha256?:string;profile_sha256?:string}) | undefined;
     if (job.state === "completed") {

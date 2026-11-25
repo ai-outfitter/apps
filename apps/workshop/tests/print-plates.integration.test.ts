@@ -48,6 +48,10 @@ test("recording verifies actual stored geometry, keeps failed imports staged, an
       return graph("UploadWorkshopAssemblyFile",{input});
     }
     const replacement=await attach(stl(1.1),initial.revision);
+    await assert.rejects(graph("UploadWorkshopAssemblyFile",{input:{projectId:project.id,itemId,
+      expectedRevision:replacement.revision,fileName:"bracket.stl",sha256:replacement.file.sha256,bytes:replacement.file.bytes,
+      meshBounds:{min:[0,0,0],max:[2,3,1]},retryPrintCheck:true,
+    }}),/editor/i);
     const artifactBytes=archive();
     const artifact={fileName:"plate.3mf",sha256:hash(artifactBytes),bytes:artifactBytes.length};
     const evidence={fileName:"result.json",sha256:hash(report),bytes:report.length};

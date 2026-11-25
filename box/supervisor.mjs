@@ -351,7 +351,7 @@ async function main() {
       identity.update(path).update(readFileSync(join("/opt/workshop",path)));
     }
     const lock = "/opt/workshop/runtime.lock";
-    identity.update(existsSync(lock) ? readFileSync(lock) : run("dpkg-query",["-W"])+run("/opt/cad/bin/pip",["freeze"]));
+    identity.update(existsSync(lock) ? readFileSync(lock) : `${run("dpkg-query",["-W"])}\n${run("/opt/cad/bin/pip",["freeze"])}\n`);
     localPreflightImage = `outfitter-local/workshop-preflight@sha256:${identity.digest("hex")}`;
     start("fabrication-preflight", "/opt/cad/bin/python", ["/opt/workshop/preflight_http.py"], {
       HOME:"/tmp", PATH:"/opt/cad/bin:/usr/bin:/bin", QT_QPA_PLATFORM:"offscreen",

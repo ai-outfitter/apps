@@ -17,6 +17,7 @@ const receipt = (file:AssemblyFile) => ({...file,contentType:fileType(file.fileN
 
 export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof uploadInput>) {
   const {itemId,expectedRevision,meshBounds:bounds,retryPrintCheck,...file}=input;
+  if (retryPrintCheck && !c.identity.canEdit) throw new Response("An editor must retry the print check",{status:403});
   const project=await getWorkshopProject(c.db(),file.projectId);
   const item=project.assembly.items.find(i=>i.id===itemId);
   if (!item || item.reference) throw new Response("Select a saved item in its owning project",{status:400});
