@@ -1024,6 +1024,150 @@ type AccountOf implements Edge {
   validUntil: DateTime
 }
 
+"""user of"""
+type UserOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""payable to"""
+type PayableTo implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""published by"""
+type PublishedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""organized by"""
+type OrganizedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""recipient of"""
+type RecipientOf implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""registered for"""
+type RegisteredFor implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""signed in to"""
+type SignedInTo implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
+"""provided by"""
+type ProvidedBy implements Edge {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  fromId: ID!
+  toId: ID!
+  from: Node
+  to: Node
+  validFrom: DateTime
+  validUntil: DateTime
+}
+
 """revision of"""
 type RevisionOf implements Edge {
   id: ID!
@@ -2030,6 +2174,14 @@ type Organization implements Node {
   hasObligationEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): HasObligationConnection!
   accountOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, filter: NodeFilter, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
   accountOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
+  payableToIncoming(first: Int = 100, after: String, orderBy: FinancialObligationOrder = ID_ASC, filter: FinancialObligationFilter, at: DateTime, archived: Archived = EXCLUDE): FinancialObligationConnection!
+  payableToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): PayableToConnection!
+  publishedByIncoming(first: Int = 100, after: String, orderBy: NewsletterOrder = ID_ASC, filter: NewsletterFilter, at: DateTime, archived: Archived = EXCLUDE): NewsletterConnection!
+  publishedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): PublishedByConnection!
+  organizedByIncoming(first: Int = 100, after: String, orderBy: HostedEventOrder = ID_ASC, filter: HostedEventFilter, at: DateTime, archived: Archived = EXCLUDE): HostedEventConnection!
+  organizedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizedByConnection!
+  providedByIncoming(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, filter: ProductFilter, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  providedByIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): ProvidedByConnection!
   commitmentSubjectIncoming(first: Int = 100, after: String, orderBy: ControlCommitmentOrder = ID_ASC, filter: ControlCommitmentFilter, at: DateTime, archived: Archived = EXCLUDE): ControlCommitmentConnection!
   commitmentSubjectIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): CommitmentSubjectConnection!
 
@@ -2227,6 +2379,54 @@ type AccountOfConnection {
 type AccountOfConnectionEdge {
   cursor: String!
   node: AccountOf!
+}
+
+type PayableToConnection {
+  edges: [PayableToConnectionEdge!]!
+  nodes: [PayableTo!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PayableToConnectionEdge {
+  cursor: String!
+  node: PayableTo!
+}
+
+type PublishedByConnection {
+  edges: [PublishedByConnectionEdge!]!
+  nodes: [PublishedBy!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PublishedByConnectionEdge {
+  cursor: String!
+  node: PublishedBy!
+}
+
+type OrganizedByConnection {
+  edges: [OrganizedByConnectionEdge!]!
+  nodes: [OrganizedBy!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type OrganizedByConnectionEdge {
+  cursor: String!
+  node: OrganizedBy!
+}
+
+type ProvidedByConnection {
+  edges: [ProvidedByConnectionEdge!]!
+  nodes: [ProvidedBy!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ProvidedByConnectionEdge {
+  cursor: String!
+  node: ProvidedBy!
 }
 
 type CommitmentSubjectConnection {
@@ -2448,6 +2648,14 @@ type Person implements Node {
   interactsWithIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): InteractsWithConnection!
   accountOfIncoming(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, filter: NodeFilter, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
   accountOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
+  userOf(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, filter: ProductFilter, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  userOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): UserOfConnection!
+  recipientOf(first: Int = 100, after: String, orderBy: NewsletterOrder = ID_ASC, filter: NewsletterFilter, at: DateTime, archived: Archived = EXCLUDE): NewsletterConnection!
+  recipientOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): RecipientOfConnection!
+  registeredFor(first: Int = 100, after: String, orderBy: HostedEventOrder = ID_ASC, filter: HostedEventFilter, at: DateTime, archived: Archived = EXCLUDE): HostedEventConnection!
+  registeredForEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): RegisteredForConnection!
+  signedInTo(first: Int = 100, after: String, orderBy: ProductOrder = ID_ASC, filter: ProductFilter, at: DateTime, archived: Archived = EXCLUDE): ProductConnection!
+  signedInToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): SignedInToConnection!
   friendIncoming(first: Int = 100, after: String, orderBy: FriendshipOrder = ID_ASC, filter: FriendshipFilter, at: DateTime, archived: Archived = EXCLUDE): FriendshipConnection!
   friendIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): FriendConnection!
   friendsWith(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, filter: PersonFilter, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
@@ -2512,6 +2720,54 @@ type InteractsWithConnection {
 type InteractsWithConnectionEdge {
   cursor: String!
   node: InteractsWith!
+}
+
+type UserOfConnection {
+  edges: [UserOfConnectionEdge!]!
+  nodes: [UserOf!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type UserOfConnectionEdge {
+  cursor: String!
+  node: UserOf!
+}
+
+type RecipientOfConnection {
+  edges: [RecipientOfConnectionEdge!]!
+  nodes: [RecipientOf!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type RecipientOfConnectionEdge {
+  cursor: String!
+  node: RecipientOf!
+}
+
+type RegisteredForConnection {
+  edges: [RegisteredForConnectionEdge!]!
+  nodes: [RegisteredFor!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type RegisteredForConnectionEdge {
+  cursor: String!
+  node: RegisteredFor!
+}
+
+type SignedInToConnection {
+  edges: [SignedInToConnectionEdge!]!
+  nodes: [SignedInTo!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SignedInToConnectionEdge {
+  cursor: String!
+  node: SignedInTo!
 }
 
 type FriendConnection {
@@ -2939,6 +3195,12 @@ type Product implements Node {
   scopedToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): ScopedToConnection!
   packagesProductIncoming(first: Int = 100, after: String, orderBy: OfferingOrder = ID_ASC, filter: OfferingFilter, at: DateTime, archived: Archived = EXCLUDE): OfferingConnection!
   packagesProductIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): PackagesProductConnection!
+  userOfIncoming(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, filter: PersonFilter, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  userOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): UserOfConnection!
+  signedInToIncoming(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, filter: PersonFilter, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  signedInToIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): SignedInToConnection!
+  providedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, filter: OrganizationFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  providedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): ProvidedByConnection!
   revisionOfIncoming(first: Int = 100, after: String, orderBy: ProductRevisionOrder = ID_ASC, filter: ProductRevisionFilter, at: DateTime, archived: Archived = EXCLUDE): ProductRevisionConnection!
   revisionOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): RevisionOfConnection!
   specifiesIncoming(first: Int = 100, after: String, orderBy: ProductSpecificationOrder = ID_ASC, filter: ProductSpecificationFilter, at: DateTime, archived: Archived = EXCLUDE): ProductSpecificationConnection!
@@ -3626,6 +3888,8 @@ type FinancialObligation implements Node {
   hasObligationIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): HasObligationConnection!
   securedBy(first: Int = 100, after: String, orderBy: AssetOrder = ID_ASC, filter: AssetFilter, at: DateTime, archived: Archived = EXCLUDE): AssetConnection!
   securedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): SecuredByConnection!
+  payableTo(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, filter: OrganizationFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  payableToEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): PayableToConnection!
 }
 
 """Outfitter users"""
@@ -3692,6 +3956,76 @@ type OutfitterOrganization implements Node {
   validUntil: DateTime
   accountOf(first: Int = 100, after: String, orderBy: NodeOrder = ID_ASC, filter: NodeFilter, at: DateTime, archived: Archived = EXCLUDE): NodeConnection!
   accountOfEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): AccountOfConnection!
+}
+
+"""Newsletters"""
+type Newsletter implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """
+  Edges of any type touching this node, each with from and to: one bounded, ordered page, read for every node of a level at once.
+  """
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    first: Int = 100
+    after: String
+    orderBy: EdgeOrder = ID_ASC
+    filter: EdgeFilter
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): EdgeConnection!
+  validFrom: DateTime
+  validUntil: DateTime
+  publishedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, filter: OrganizationFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  publishedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): PublishedByConnection!
+  recipientOfIncoming(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, filter: PersonFilter, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  recipientOfIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): RecipientOfConnection!
+}
+
+"""Hosted events"""
+type HostedEvent implements Node {
+  id: ID!
+  typeId: ID!
+  revision: Int!
+  title: String!
+  body: String
+  archived: Boolean!
+  updatedAt: DateTime
+  properties: JSON
+  summary: String
+  slug: String
+
+  """
+  Edges of any type touching this node, each with from and to: one bounded, ordered page, read for every node of a level at once.
+  """
+  edges(
+    """Edge type names or IDs."""
+    types: [String!]
+    direction: Direction = BOTH
+    first: Int = 100
+    after: String
+    orderBy: EdgeOrder = ID_ASC
+    filter: EdgeFilter
+    at: DateTime
+    archived: Archived = EXCLUDE
+  ): EdgeConnection!
+  validFrom: DateTime
+  validUntil: DateTime
+  organizedBy(first: Int = 100, after: String, orderBy: OrganizationOrder = ID_ASC, filter: OrganizationFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizationConnection!
+  organizedByEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): OrganizedByConnection!
+  registeredForIncoming(first: Int = 100, after: String, orderBy: PersonOrder = ID_ASC, filter: PersonFilter, at: DateTime, archived: Archived = EXCLUDE): PersonConnection!
+  registeredForIncomingEdges(first: Int = 100, after: String, orderBy: EdgeOrder = ID_ASC, filter: EdgeFilter, at: DateTime, archived: Archived = EXCLUDE): RegisteredForConnection!
 }
 
 """Product specifications"""
@@ -4964,6 +5298,30 @@ type OutfitterOrganizationConnectionEdge {
   node: OutfitterOrganization!
 }
 
+type NewsletterConnection {
+  edges: [NewsletterConnectionEdge!]!
+  nodes: [Newsletter!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type NewsletterConnectionEdge {
+  cursor: String!
+  node: Newsletter!
+}
+
+type HostedEventConnection {
+  edges: [HostedEventConnectionEdge!]!
+  nodes: [HostedEvent!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type HostedEventConnectionEdge {
+  cursor: String!
+  node: HostedEvent!
+}
+
 type ProductSpecificationConnection {
   edges: [ProductSpecificationConnectionEdge!]!
   nodes: [ProductSpecification!]!
@@ -5665,6 +6023,34 @@ enum OutfitterOrganizationOrder {
 }
 
 """
+How Newsletter records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum NewsletterOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
+How HostedEvent records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
+"""
+enum HostedEventOrder {
+  ID_ASC
+  ID_DESC
+  CREATED_AT_ASC
+  CREATED_AT_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+  TITLE_ASC
+  TITLE_DESC
+}
+
+"""
 How ProductSpecification records are ordered: by a column (createdAt and updatedAt are when the record was written), ties by ID.
 """
 enum ProductSpecificationOrder {
@@ -6308,6 +6694,28 @@ input OutfitterOrganizationFilter {
   and: [OutfitterOrganizationFilter!]
   or: [OutfitterOrganizationFilter!]
   not: OutfitterOrganizationFilter
+}
+
+input NewsletterFilter {
+  id: IDFilter
+  slug: StringFilter
+  title: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  and: [NewsletterFilter!]
+  or: [NewsletterFilter!]
+  not: NewsletterFilter
+}
+
+input HostedEventFilter {
+  id: IDFilter
+  slug: StringFilter
+  title: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  and: [HostedEventFilter!]
+  or: [HostedEventFilter!]
+  not: HostedEventFilter
 }
 
 input ProductSpecificationFilter {
@@ -7204,6 +7612,46 @@ type Query {
     text: String
     at: DateTime
   ): OutfitterOrganizationConnection!
+  newsletter(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): Newsletter
+  newsletters(
+    first: Int = 100
+    after: String
+    orderBy: NewsletterOrder = ID_ASC
+    filter: NewsletterFilter
+    archived: Archived = EXCLUDE
+
+    """Known record IDs, read in one batch."""
+    ids: [ID!]
+    text: String
+    at: DateTime
+  ): NewsletterConnection!
+  hostedEvent(
+    """The node's address, such as Organization:sunny."""
+    id: ID
+
+    """The node's slug, unique within its type; pass id or slug."""
+    slug: String
+    archived: Archived = EXCLUDE
+  ): HostedEvent
+  hostedEvents(
+    first: Int = 100
+    after: String
+    orderBy: HostedEventOrder = ID_ASC
+    filter: HostedEventFilter
+    archived: Archived = EXCLUDE
+
+    """Known record IDs, read in one batch."""
+    ids: [ID!]
+    text: String
+    at: DateTime
+  ): HostedEventConnection!
   productSpecification(
     """The node's address, such as Organization:sunny."""
     id: ID

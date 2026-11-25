@@ -1,0 +1,5 @@
+import {registerWorkflowReplay,workflowTranscriptReporter} from '../agent.mjs';
+const judge={agent:'codex',model:process.env.WORKFLOW_EVAL_JUDGE_MODEL};
+if(!judge.model)throw new Error('Set WORKFLOW_EVAL_JUDGE_MODEL to pin the judge');
+registerWorkflowReplay(judge);
+export default {agent:'workflow-replay',sandbox:'docker',runs:1,earlyExit:false,copyFiles:'all',judge,reporters:[workflowTranscriptReporter],agentEnv:Object.fromEntries(['WORKFLOW_EVAL_API_KEY'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]))};

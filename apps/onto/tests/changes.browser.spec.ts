@@ -172,7 +172,7 @@ test("records of a type proposed in the same batch show that type in the batch g
   try {
     const { batch } = await action("batch.open", { title: "Storyboard types", source: { kind: "agent-task", ref: "changes-browser-types" } });
     await action("batch.add", { batchId: batch.id, proposals: [
-      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "Storyboard", title: "Storyboards", body: "A type.", properties: [] }),
+      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "FixtureStoryboard", title: "Storyboards", body: "A type.", properties: [] }),
       proposal("$t-shot", "graph-type", { id: shotType, category: "node", name: "Shot", title: "Shots", body: "A type.", properties: [] }),
       proposal("$t-shot-of", "graph-type", { id: shotOf, category: "edge", name: "shot_of", title: "shot of", body: "A type.", properties: [], ontology: { version: 2, endpoints: { from: [shotType], to: [storyboardType] } } }),
       proposal("$board", "graph-node", { typeId: "$t-storyboard", title: "Find your spot" }),
@@ -206,7 +206,7 @@ test("walk a batch page by page: open a proposed node, approve it there, go to t
     await action("graph.apply", { requestKey: "plan", operations: [create("$plan", "graph-node", { id: plan, typeId: core.document, title: "Launch plan", summary: "Three videos." })] });
     const { batch } = await action("batch.open", { title: "Launch videos", source: { kind: "agent-task", ref: "changes-browser-walk" } });
     await action("batch.add", { batchId: batch.id, proposals: [
-      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "Storyboard", title: "Storyboards", body: "The plan for one video.", properties: [] }),
+      proposal("$t-storyboard", "graph-type", { id: storyboardType, category: "node", name: "FixtureStoryboard", title: "Storyboards", body: "The plan for one video.", properties: [] }),
       proposal("$t-shot", "graph-type", { id: shotType, category: "node", name: "Shot", title: "Shots", body: "One beat of a storyboard.", properties: [property("duration_seconds")] }),
       proposal("$t-shot-of", "graph-type", { id: shotOf, category: "edge", name: "shot_of", title: "shot of", body: "A type.", properties: [], ontology: { version: 2, endpoints: { from: [shotType], to: [storyboardType] } } }),
       proposal("$board", "graph-node", { typeId: "$t-storyboard", title: "Find your spot" }),
@@ -239,7 +239,7 @@ test("walk a batch page by page: open a proposed node, approve it there, go to t
     await expect(page.locator(".batch-item-edges")).toContainText("Choose a place → shot of → Find your spot");
     const related = page.locator(".node-relationships");
     await expect(related.locator("dt")).toContainText("proposed");
-    await expect(related.getByRole("link", { name: "Find your spot", exact: true })).toHaveAttribute("href", `/storyboards/%24board?batch=${batch.id}`);
+    await expect(related.getByRole("link", { name: "Find your spot", exact: true })).toHaveAttribute("href", `/fixture-storyboards/%24board?batch=${batch.id}`);
     await page.locator(".batch-item-decision").getByRole("button", { name: "Approve", exact: true }).click();
     await expect(page.locator(".batch-proposed-line")).toHaveText("Saved from Launch videos");
     await expect(page.locator(".batch-item-decision")).toContainText("Approved by a member");
@@ -259,6 +259,39 @@ test("walk a batch page by page: open a proposed node, approve it there, go to t
     await expect(lines.filter({ hasText: "Read the light" }).locator("> .change-state")).toHaveText("Approved by a member");
   } finally {
     await page.unrouteAll({ behavior: "wait" });
+    await app.dispose();
+  }
+});
+
+test("submit a member draft from Changes and correct a validation failure", async ({ page }) => {
+  const { app, action } = await openApp();
+  try {
+    const anchor = "7b0e0000-0000-4000-8000-000000000123";
+    await action("graph.apply", {requestKey:"anchor", operations:[create("$anchor", "graph-node", {
+      id:anchor, typeId:core.person, title:"Reviewer", slug:"reviewer",
+    })]});
+    const { batch } = await action("batch.open", { title: "Draft field notes", anchors:["Person:reviewer"] });
+    await action("batch.add", {batchId:batch.id, proposals:[{operation:create("$field", "graph-node", {
+      id:documentId, typeId:core.document, title:"Field note",
+    })}]});
+    await proxyTo(page, app);
+    await page.goto(`${origin}/changes/${batch.id}`);
+    const submit = page.getByRole("button", {name:"Submit for review"});
+    await submit.click();
+    await expect(page.getByRole("alert")).toContainText(/anchor.*Field note/i);
+    await expect(submit).toBeEnabled();
+    await expect(page.locator("#changes")).toContainText("Collecting");
+    await action("batch.add", { batchId:batch.id, replace:true, proposals:[{operation:update("$field", "graph-node", anchor, 1, {summary:"Reviewed field note."})}] });
+    let requests = 0;
+    page.on("request", request => { if (request.url().endsWith("/batches/submit")) requests++; });
+    await submit.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+    await expect(page.locator("#changes")).toContainText("Waiting for review");
+    expect(requests).toBe(1);
+    await expect(submit).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator("#changes")).toContainText("Waiting for review");
+  } finally {
+    await page.unrouteAll({behavior:"wait"});
     await app.dispose();
   }
 });

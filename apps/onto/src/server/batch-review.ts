@@ -6,7 +6,7 @@
 // is a new run. Once a submitted batch's review finishes, the steward approves what it
 // found clean and leaves the rest for a member (stewardApprove, docs/batch-review.md).
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
-import { type WorkflowHost, workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
@@ -15,20 +15,24 @@ import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
 import { readGraph } from "./graph";
 import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
+import { reviewGraphContext } from "./review-graph-context";
+import { rootNode } from "./graph-batches";
+import { organizationDuplicates } from "./organization-duplicates";
 import { wikiHome } from "./wiki-home";
 
 export const reviewWorkflow = "batch-review";
 export const reviewStep = "review";
 export const promptPath = "apps/onto/agent/ontology-steward.md";
 /** An abandoned final lease is terminal and must not remain running forever. */
-export async function failExpiredReviewJobs(db: Database, now = Date.now()) {
+async function failExpiredReviewJobs(db: Database, now = Date.now()) {
   return db.update(ontoReviewJobs).set({state:"failed",leaseId:null,leaseUntil:null,error:"Review lease expired after maximum attempts"})
-    .where(and(eq(ontoReviewJobs.state,"running"),lte(ontoReviewJobs.leaseUntil,now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
+    .where(and(eq(ontoReviewJobs.state, "running"),lte(ontoReviewJobs.leaseUntil, now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
 }
 /** Each model call's data stays well under the platform's 64 KB step cap. */
-export const partBudget = 48 * 1024;
+export const partBudget = 18 * 1024;
 /** Model calls for one review; a batch past this many parts is reviewed in part. */
-const partLimit = 12;
+const partLimit = 64;
+const operationsPerPart = 12;
 const partConcurrency = 3;
 /** Existing records shown per part, and relationships shown per record. */
 const neighborLimit = 60;
@@ -160,16 +164,30 @@ function readingOrder(rows: Row[]) {
   ];
 }
 
+/** A replacement must accept every directed endpoint allowed by the proposed type. */
+function compatibleEdgeTypes(graph: Graph, row: Row) {
+  if (row.operation.attributes.category !== "edge") return [];
+  const proposed = (row.operation.attributes.ontology as { endpoints?: { from?: unknown; to?: unknown } } | undefined)?.endpoints;
+  if (!proposed) return [];
+  const covers = (available: unknown, wanted: unknown) =>
+    (wanted === "any" || (Array.isArray(wanted) && wanted.length > 0)) &&
+    (available === "any" || (Array.isArray(available) && Array.isArray(wanted) && wanted.every(id => available.includes(id))));
+  return graph.types.filter(type => !type.archived && type.category === "edge" && type.id !== row.operation.id &&
+    covers(type.ontology?.endpoints?.from, proposed.from) && covers(type.ontology?.endpoints?.to, proposed.to));
+}
+
 /** The batch read in parts that each fit `budget`: every part carries the batch, its owner, its
  * new types and the checks about its operations, then as many operations and neighbors as fit. */
-export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget) {
-  const typeNames = new Map(graph.types.map((type) => [type.id, type.name]));
+export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget, rootId?: string | null) {
+  const typeNames = new Map(graph.types.filter(type => !type.archived).map((type) => [type.id, type.name]));
   const nodes = new Map(graph.nodes.filter((node) => !node.archived).map((node) => [node.id, node]));
-  const owner = ownerOf(graph, who);
+  const owner = rootId === undefined ? ownerOf(graph, who) : nodes.get(rootId ?? "");
+  const graphFacts = reviewGraphContext(graph, rows, owner?.id ?? null);
   const newTypes = rows.filter((row) => row.operation.type === "graph-type").map((row) => ({
     ref: row.ref, operation: row.operation.operation, name: row.operation.attributes.name ?? row.operation.id, category: row.operation.attributes.category,
     properties: Array.isArray(row.operation.attributes.properties) ? row.operation.attributes.properties.map((property: { name?: unknown; type?: unknown }) => `${property?.name}:${property?.type}`) : undefined,
     endpoints: (row.operation.attributes.ontology as { endpoints?: unknown } | undefined)?.endpoints,
+    compatibleExistingEdges: compatibleEdgeTypes(graph, row).slice(0, 5).map(t => ({ id: t.id, name: t.name, meaning: cut(t.body, 180), endpoints: t.ontology?.endpoints })),
   }));
   const neighbor = (id: string) => {
     const node = nodes.get(id)!;
@@ -186,6 +204,7 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
   const touches = (row: Row) => [row.operation.id, row.operation.attributes.id, row.operation.attributes.fromId, row.operation.attributes.toId]
     .filter((value): value is string => typeof value === "string" && nodes.has(value));
   const shortCheck = (item: Finding) => ({ ref: item.ref, ...(item.refs ? { refs: item.refs.slice(0, 20), moreRefs: Math.max(0, item.refs.length - 20) } : {}),
+    ...(item.organizationCandidates ? { organizationCandidates: item.organizationCandidates } : {}),
     rule: item.rule, severity: item.severity, message: cut(item.message, 300), fix: cut(item.fix, 300), staged: item.stage ? item.stage.proposals.length : undefined });
   // Every type by ID, unless that alone would crowd out the operations: then the ones the batch names.
   const named = new Set(rows.flatMap((row) => [row.operation.attributes.typeId, row.operation.id].map(String)));
@@ -199,13 +218,13 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
     batch: { id: batch.id, title: batch.title, purpose: cut(batch.purpose, 1000), source: batch.source, policy: batch.policy, state: batch.state, operations: rows.length },
     part: { index: index + 1, of: 0, operations: 0 },
     types,
-    newTypes,
+    newTypes: [] as typeof newTypes,
     complete: false,
   });
   let next = 0;
   while (next < ordered.length && parts.length < partLimit) {
     const data = base(parts.length);
-    const operations: ReturnType<typeof compactOperation>[] = [];
+    const operations = [] as (ReturnType<typeof compactOperation> & { graphFacts: ReturnType<typeof graphFacts> })[];
     const refs: string[] = [];
     const seen = new Set<string>();
     const neighbors: ReturnType<typeof neighbor>[] = [];
@@ -213,14 +232,15 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
     const partChecks = checks.filter((item) => item.ref === null && !item.refs).map(shortCheck);
     let used = size({ ...data, operations, neighbors, checks: partChecks }) + 64;
     let neighborsComplete = true;
-    while (next < ordered.length) {
+    while (next < ordered.length && operations.length < operationsPerPart) {
       const row = ordered[next];
-      const op = compactOperation(row, typeNames.get(String(row.operation.attributes.typeId)) ?? null);
+      const op = { ...compactOperation(row, typeNames.get(String(row.operation.attributes.typeId)) ?? null), graphFacts: graphFacts(row) };
       const mine = checks.filter((item) => !given.has(item) && (item.ref === row.ref || item.refs?.includes(row.ref)));
       for (const item of mine) given.add(item);
-      const cost = size(op) + size(mine.map(shortCheck)) + 2;
+      const staged = newTypes.filter(type => type.ref === row.ref || type.ref === row.operation.attributes.typeId).filter(type => !data.newTypes.includes(type));
+      const cost = size(op) + size(mine.map(shortCheck)) + size(staged) + 4;
       if (operations.length && used + cost > budget) { for (const item of mine) given.delete(item); break; }
-      operations.push(op); refs.push(row.ref); partChecks.push(...mine.map(shortCheck)); used += cost; next++;
+      data.newTypes.push(...staged); operations.push(op); refs.push(row.ref); partChecks.push(...mine.map(shortCheck)); used += cost; next++;
       for (const id of touches(row)) {
         if (seen.has(id)) continue;
         seen.add(id);
@@ -229,7 +249,17 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
         neighbors.push(item); used += more;
       }
     }
-    parts.push({ data: { ...data, operations, neighbors, checks: partChecks }, refs, neighborsComplete });
+    const payload = { ...data, operations, neighbors, checks: partChecks };
+    if (size(payload) + 256 > budget) {
+      // Rare large data contracts stay in deterministic checks. The receipt discloses partial coverage.
+      payload.neighbors = [];
+      payload.newTypes = [];
+      payload.checks = [];
+      payload.types = {};
+      neighborsComplete = false;
+    }
+    if (size(payload) + 256 > budget) break;
+    parts.push({ data: payload, refs, neighborsComplete });
   }
   const read = parts.reduce((total, part) => total + part.refs.length, 0);
   const complete = read === rows.length && parts.every((part) => part.neighborsComplete);
@@ -254,7 +284,7 @@ export function batchChecks(graph: Graph, who: AppIdentity, rows: Row[], batchId
   const partOf = (id: string) => edges.filter((edge) => edge.type === "part_of" && edge.fromId === id).map((edge) => edge.toId);
   // The owner and its business units: what a Project may be part_of.
   const ownerScope = new Set(owner ? [owner.id, ...edges.filter((edge) => edge.type === "part_of" && edge.toId === owner.id).map((edge) => edge.fromId)] : []);
-  const findings: Finding[] = [];
+  const findings: Finding[] = organizationDuplicates(graph, live);
   for (const row of live.filter((item) => item.operation.type === "graph-node" && item.operation.operation === "create")) {
     const id = idOf(row), typeName = typeNames.get(String(row.operation.attributes.typeId));
     const title = String(row.operation.attributes.title ?? row.ref);
@@ -305,25 +335,35 @@ function savedFinding(graph: Graph, batchId: string, refs: Set<string>, item: z.
 }
 
 /** Run `work` over `items`, at most `limit` at a time, in order. */
-async function pooled<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>) {
-  const results: R[] = new Array(items.length);
+async function pooled<T, R>(items: T[], limit: number, latestStart: number, work: (item: T) => Promise<R>) {
+  const results: R[] = [];
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) { const index = next++; results[index] = await work(items[index]); }
-  }));
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length && Date.now() < latestStart) {
+      const index = next++;
+      try {
+        results[index] = await work(items[index]);
+      } catch (error) {
+        next = items.length;
+        throw error;
+      }
+    }
+  });
+  for (const result of await Promise.allSettled(workers)) {
+    if (result.status === "rejected") throw result.reason;
+  }
   return results;
 }
 
 const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
   live(await loadOperations(db, batchId))
-    .map((row) => ({ ref: row.ref, operation: row.operation as unknown as Op, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: row.state }));
+    .map((row) => ({ ref: row.ref, recordId: row.recordId, operation: row.operation as unknown as Op, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: row.state }));
 
 /** Review a batch, open or submitted, and save the findings on it. Never throws: a review
  * that cannot run is recorded as failed, and the batch is unaffected either way.
  * The steward reads it in parts that each fit the platform's step cap, one model
  * call per part; the built-in checks cover the whole batch. */
-async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string): Promise<BatchReview> {
-  const startedAt = Date.now();
+async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string, startedAt: number): Promise<BatchReview> {
   const prompt = { path: promptPath, digest: await sha256Hex(stewardPrompt) };
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
   if (!batch) throw new Response("Batch not found", { status: 404 });
@@ -332,26 +372,74 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   const rows = await loadRows(db, batch.id);
   const graph = await readGraph(db, who);
   const checks = batchChecks(graph, who, rows, batch.id);
-  const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks);
+  const root = await rootNode(db, who);
+  const graphFacts = reviewGraphContext(graph, rows, root);
+  const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks, partBudget, root);
   const refs = new Set(rows.map((row) => row.ref));
   let runId: string | null = null;
   let review: BatchReview;
   try {
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
-    const answers = await pooled(parts, partConcurrency, async (part) => {
-      const { output } = await host.call("inference.generate", {
-        runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
-        // Plain JSON: this part's records, the checks about them and the prompt digest.
-        data: JSON.parse(JSON.stringify({ ...part.data, prompt })),
-      });
-      return stewardAnswer.parse(output);
-    });
-    const findings = merge(checks, answers.flatMap((answer) => answer.findings.map((item) => savedFinding(graph, batch.id, refs, item))));
+    // Allow five minutes for the last inference and at least one minute for settlement.
+    type Part = typeof parts[number];
+    const deadline = startedAt + 8 * 60_000;
+    const readPart = async (part: Part, retry = false): Promise<{ answer: z.infer<typeof stewardAnswer>; refs: string[] }[]> => {
+      try {
+        const { output } = await host.call("inference.generate", {
+          runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
+          data: JSON.parse(JSON.stringify({ ...part.data, prompt })),
+        });
+        return [{ answer: stewardAnswer.parse(output), refs: part.refs }];
+      } catch (error) {
+        const reason = error instanceof Response ? await error.clone().text() : String(error);
+        const timeout = error instanceof Response && [408, 504].includes(error.status) || /timed? ?out|deadline|timeout/i.test(reason);
+        if (!timeout) throw error;
+        if (retry || part.refs.length < 2 || Date.now() >= deadline) return [];
+        const halves = [part.refs.slice(0, Math.ceil(part.refs.length / 2)), part.refs.slice(Math.ceil(part.refs.length / 2))];
+        const recovered = [];
+        for (const refs of halves) {
+          if (Date.now() >= deadline) break;
+          const original = part.data.operations as { ref: string }[];
+          const checks = part.data.checks as { ref?: string; refs?: string[] }[];
+          const data = { ...part.data, operations: original.filter(op => refs.includes(op.ref)),
+            checks: checks.filter(check => !check.ref || refs.includes(check.ref) || check.refs?.some(ref => refs.includes(ref))),
+            part: { ...(part.data.part as object), operations: refs.length, retry: true } };
+          recovered.push(...await readPart({ ...part, refs, data }, true));
+        }
+        return recovered;
+      }
+    };
+    const readParts = (await pooled(parts, partConcurrency, deadline, part => readPart(part))).flat();
+    const answers = readParts.map(result => result.answer);
+    if (!answers.length && parts.length) throw new Error("No steward inference completed within the review budget");
+    for (const answer of answers) {
+      for (const item of answer.findings.filter(item => item.rule === "type.duplicate")) {
+        const row = rows.find(row => row.ref === item.ref);
+        if (!row || !compatibleEdgeTypes(graph, row).some(type => item.fix?.includes(type.id)))
+          throw new Error("The steward did not cite a compatible active relationship type. Re-review this batch.");
+      }
+    }
+    const findings = merge(checks, answers.flatMap(answer => answer.findings.flatMap(item => {
+      const affected = [...new Set([item.ref, ...item.refs].filter((r): r is string => !!r))];
+      const proven = affected.map(ref => rows.find(row => row.ref === ref)).map(row => row && graphFacts(row));
+      if (proven.length && item.rule === "owner.unreachable" && proven.every(f => f?.reachableFromOwner === true)) return [];
+      if (proven.length && ["edge.direction", "edge.endpoints"].includes(item.rule) && proven.every(f => f?.endpointsAllowed === true)) return [];
+      if (item.rule === "type.duplicate") {
+        const staged = rows.find(row => row.ref === item.ref)!;
+        const existing = compatibleEdgeTypes(graph, staged).find(type => item.fix?.includes(type.id))!;
+        if (staged.operation.attributes.name !== existing.name && staged.operation.attributes.body !== existing.body) {
+          return [savedFinding(graph, batch.id, refs, { ...item, severity: "note", message: `Compare the meanings of ${staged.operation.attributes.name} and ${existing.name} (${existing.id}). Their endpoint contracts overlap.`, fix: null })];
+        }
+      }
+      return [savedFinding(graph, batch.id, refs, item)];
+    })));
+    coverage.read = readParts.reduce((sum, part) => sum + part.refs.length, 0);
+    coverage.parts = answers.length;
     const read = coverage.read === coverage.operations ? "" : ` Read ${coverage.read} of ${coverage.operations} operations.`;
     const summary = answers.length === 1 ? `${answers[0].summary}${read}`
       : `Read in ${coverage.parts} parts.${read} ${answers.map((answer) => answer.summary).filter(Boolean).join(" ")}`;
-    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
+    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete: complete && coverage.read === rows.length, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
   } catch (error) {
     const message = error instanceof Response ? `${error.status} ${await error.text().catch(() => "")}`.trim() : String(error);
     review = { state: "failed", runId, prompt, startedAt, finishedAt: Date.now(), complete: false, coverage: { ...coverage, read: 0 }, stage, summary: "", findings: checks, error: message.slice(0, 500) };
@@ -368,11 +456,11 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
 }
 
 const maxAttempts = 4;
-/** Long enough for every part's model call. */
-const leaseMs = 600_000;
+// The host allows 14 minutes for a schedule. Fence abandoned work beyond that deadline.
+const leaseMs = 15 * 60_000;
 
 /** Claim and execute one durable job. A lease token fences late completions. */
-export async function processReviewJob(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, jobId: string, reservedRunId?: string): Promise<BatchReview | null> {
+export async function processReviewJob(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, jobId: string, reservedRunId?: string, dispatchStartedAt = Date.now()): Promise<BatchReview | null> {
   const now = Date.now(), leaseId = crypto.randomUUID();
   const [job] = await db.update(ontoReviewJobs).set({ state: "running", leaseId, leaseUntil: now + leaseMs, attempts: sql`${ontoReviewJobs.attempts} + 1` })
     .where(and(eq(ontoReviewJobs.id, jobId), sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
@@ -388,17 +476,16 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
         .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
       return null;
     }
-    // Each attempt starts the run the job names, so a receipt can name it; a scheduled pickup
-    // brings its own run and records it.
-    const runId = reservedRunId ?? job.runId ?? crypto.randomUUID();
+    // Honor the run ID already returned to an agent waiting for this review.
+    const runId = job.runId ?? reservedRunId ?? crypto.randomUUID();
     if (runId !== job.runId) await db.update(ontoReviewJobs).set({ runId }).where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId)));
-    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId);
+    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId, dispatchStartedAt);
     const failed = review.state === "failed";
     // A retry gets a new run to name; the failed one stays in the run log.
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
       ...(failed ? { runId: crypto.randomUUID() } : {}), nextAttemptAt: Date.now() + 60_000 * 2 ** (job.attempts - 1), error: review.error })
       .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`)).returning();
-    if (!settled.length) return null;
+    if (!settled.length) throw new Response("Review lease expired before settlement", { status: 409 });
     // A finished review of a batch that is (by now) submitted approves what it found clean.
     if (review.state !== "complete") return review;
     const decision = await approveAfterReview(db, who, job.batchId, job.id, review);
@@ -427,16 +514,24 @@ export async function reviewBatchOntology(db: Database, who: AppIdentity, host: 
   return review;
 }
 
-/** Process a bounded number of due jobs using a member-authorized interactive host. */
-export async function processDueReviewJobs(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, limit = 10) {
+/** A stale job must not use an occurrence reserved for a live batch. */
+export async function processScheduledReview(db: Database, who: AppIdentity, host: WorkflowHost<"schedule">, runId: string) {
   const now = Date.now();
-  // A worker may die during its final lease; make that terminal on recovery.
   await failExpiredReviewJobs(db, now);
-  const jobs = await db.select().from(ontoReviewJobs).where(and(sql`${ontoReviewJobs.attempts} < ${maxAttempts}`,
-    or(and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
-      and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now))))).limit(Math.min(limit, 10));
-  for (const job of jobs) await processReviewJob(db, who, host, job.id).catch(() => null);
-  return jobs.length;
+  // Joining the batch pointer excludes every detached job, regardless of queue depth.
+  // If a candidate is superseded or claimed concurrently, select the next current one.
+  while (Date.now() - now < 5000) {
+    const [job] = await db.select({ id: ontoReviewJobs.id }).from(ontoReviewJobs)
+      .innerJoin(graphBatches, eq(graphBatches.reviewJobId, ontoReviewJobs.id))
+      .where(and(sql`${ontoReviewJobs.attempts} < ${maxAttempts}`, or(
+        and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)),
+        and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now)))))
+      .orderBy(ontoReviewJobs.nextAttemptAt, ontoReviewJobs.createdAt, ontoReviewJobs.id).limit(1);
+    if (!job) return null;
+    const review = await processReviewJob(db, who, host, job.id, runId, now);
+    if (review) return review;
+  }
+  return null;
 }
 
 /** Queue a review of an open member batch's current draft. Each distinct draft is reviewed
@@ -457,20 +552,4 @@ export async function queueDraftReview(db: Database, batchId: string) {
     db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
   ]);
   return id;
-}
-
-type RequestLocals = { cfContext?: { waitUntil?: (work: Promise<unknown>) => void } };
-/** After staging: review the draft while the agent can still change it. Best effort, like submit's. */
-export function reviewDraftInBackground(locals: unknown, db: Database, who: AppIdentity, batchId: string) {
-  const work = queueDraftReview(db, batchId).then((jobId) => jobId ? processReviewJob(db, who, workflowHost<"interactive">(locals as never), jobId) : null).catch(() => null);
-  (locals as RequestLocals).cfContext?.waitUntil?.(work);
-}
-
-/** Best effort immediate wake-up; the job itself is already durable. */
-export function reviewInBackground(locals: unknown, db: Database, who: AppIdentity, batchId: string) {
-  const work = (async () => {
-    const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
-    if (batch?.reviewJobId) await processReviewJob(db, who, workflowHost<"interactive">(locals as never), batch.reviewJobId);
-  })().catch(() => null);
-  (locals as RequestLocals).cfContext?.waitUntil?.(work);
 }

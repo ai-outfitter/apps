@@ -22,7 +22,7 @@ const database = (context: Context) => context.db() as WorkshopDatabase;
 export type ProjectSource = {
   id: string; name: string; purpose: string; revision: number; wikiInstallationId: string | null; productRevisionId: string | null; productRevisionTitle: string | null;
   createdBy: string; updatedBy: string; createdAt: string; updatedAt: string;
-  data?: string;
+  data?: string; printFindings?: unknown;
 };
 
 const nn = <T extends GraphQLOutputType>(type: T) => new GraphQLNonNull(type);
@@ -133,6 +133,7 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
     evidence: fromProject(list(EvidenceType), (p) => p.evidence, "Bench observations, oldest first."),
     research: fromProject(list(ResearchType), (p) => p.research),
     concepts: fromProject(list(ConceptType), (p) => p.concepts),
+    printFindings: { type: JSONScalar, description: "Current machine-readable print findings with checked part, digest, profile, state and layer location; a save answers them." },
   },
 });
 

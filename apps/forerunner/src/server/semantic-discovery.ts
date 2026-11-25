@@ -8,20 +8,40 @@ import { type AnalysisInput, analysisBatches } from "./analysis-batches";
 import type { Operation, Proposal } from "./discovery";
 import { type DiscoveryOntology, discoveryPrompt } from "./discovery-ontology";
 
+// Keep invoice facts separate from narrative so a matched payment cannot imply recurrence or a balance.
+const monetaryAmount = z.string().regex(/^\d{1,16}(?:\.\d{1,8})?$/);
+const matchedInvoice = z.strictObject({
+  number: z.string().min(1).max(100),
+  matchReference: z.string().min(1).max(160).nullable().describe("Shared payment or transaction reference when the payment cites that instead of the invoice number."),
+  amount: monetaryAmount, paidAmount: monetaryAmount,
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  invoiceDate: z.iso.date().nullable(), dueDate: z.iso.date().nullable(), paymentDate: z.iso.date().nullable(),
+  invoiceRef: z.string().min(1).max(30), paymentRef: z.string().min(1).max(30),
+}).describe("Only for a FinancialObligation with a matching receipt. Use distinct supplied source records. Copy the invoice and payment amounts and currency. Use null for dates not evidenced.");
+
+const personalEvidence = z.enum(["delivery", "registration", "customer", "sign_in", "product_activity", "other"])
+  .describe("Classify the source observation itself. A promotion delivered to a mailbox is delivery; a login challenge is other. A receipt for registration establishes registration, not attendance.");
+const personalClaims: Record<string, z.infer<typeof personalEvidence>> = {
+  recipient_of: "delivery", registered_for: "registration", customer_of: "customer",
+  signed_in_to: "sign_in", user_of: "product_activity",
+};
+
 export function analysisSchema(ontology: DiscoveryOntology) {
   const evidence = z.array(z.string().min(1).max(30)).min(1).max(5).describe("References to supplied source evidence, not invented citations");
   return z.strictObject({
     entities: z.array(z.strictObject({
+      matchedInvoice: matchedInvoice.nullable().optional(),
       key: z.string().regex(/^[a-zA-Z0-9_-]{1,40}$/).describe("Unique reference used verbatim in relationship from/to"),
       name: z.string().min(1).max(160).describe("Canonical name of the real-world subject. Reuse a supplied existing identity when supported."),
       type: z.enum(ontology.entities.map(t => t.name) as [string,...string[]]),
       summary: z.string().min(1).max(280).describe("Specific supported context; distinguish scheduled, inferred and observed."),
       existingId: z.uuid().nullable().describe("Supplied existing identity of this same type, otherwise null; matches are proposals for review"),
       certainty: z.enum(["mentioned", "inferred"]), confidence: z.number().min(0).max(1).optional().describe("Your own confidence, from 0 to 1, as the proposal rules define it."), evidence,
-    })).max(16).describe("Prioritize direct personal contacts named in calendar invitations or correspondence, then concrete assets and obligations. A one-off meeting can identify a Person without becoming an entity itself. Do not reclassify events, meetings, activities or recurring series under other types. Include the operating user as an entity when a relationship refers to them. Source account identity cannot replace the trusted operating user identity."),
+    })).max(16).describe("Prioritize direct personal contacts named in calendar invitations or correspondence, then concrete assets and obligations. A one-off meeting can identify a Person without becoming an entity itself. An explicit event registration or independently documented organizer can support a HostedEvent; leave ordinary meetings and invitations as evidence. Include the operating user as an entity when a relationship refers to them. Source account identity cannot replace the trusted operating user identity."),
     relationships: z.array(z.strictObject({
       from: z.string().max(40).describe("Exact entities.key in this response, not a name, type or Wiki ID"), to: z.string().max(40).describe("Exact entities.key in this response, not a name, type or Wiki ID"),
       type: ontology.relationships.length ? z.enum(ontology.relationships.map(t => t.name) as [string,...string[]]) : z.never(),
+      observation: personalEvidence.optional(),
       reason: z.string().min(1).max(240), confidence: z.number().min(0).max(1).optional().describe("Your own confidence, from 0 to 1, as the proposal rules define it."), evidence,
     })).max(18).describe("All endpoints, including the operating user and existing nodes, must appear in entities. Relationships must follow ontology source and target types. Unspecified endpoint types have no supported pairing. Omit uncertain ownership when the source account cannot be matched to a named person; never substitute the operating user for the source account owner."),
   });
@@ -63,18 +83,21 @@ function appendAnalysis(target: Analysis, answer: Analysis, prefix: string) {
   target.relationships.push(...answer.relationships.map(relation => ({ ...relation, from: prefix + relation.from, to: prefix + relation.to })));
 }
 
-export async function semanticProposal(host: WorkflowHost<"interactive">, graph: Graph, samples: Sample[], ontology: DiscoveryOntology, user: { id: string; name: string; email: string }, diagnostic: (event: Record<string, unknown>) => Promise<void> = async () => {}, options: { runId?: string; taskId?: string; selection?: unknown; instructions?: string; batchBudget?: number; onlyBatch?: number; batches?: AnalysisInput[] } = {}) {
-  const types = new Map(graph.types.map(t => [String(t.attributes.name), t]));
+export async function semanticProposal(host: WorkflowHost<"interactive">, graph: Graph, samples: Sample[], ontology: DiscoveryOntology, user: { id: string; name: string; email: string }, diagnostic: (event: Record<string, unknown>) => Promise<void> = async () => {}, options: { personId?: string; runId?: string; taskId?: string; selection?: unknown; instructions?: string; batchBudget?: number; onlyBatch?: number; batches?: AnalysisInput[] } = {}) {
+  const types = new Map(graph.types.filter(t => !t.attributes.archived).map(t => [String(t.attributes.name), t]));
   const analysis = analysisSchema(ontology);
   const instructions = options.instructions ?? discoveryPrompt(user, ontology);
   const refs = prepareEvidence(samples, user);
   const sourceText = [...refs.values()].map(e => `${e.title} ${e.excerpt}`).join(" ").toLowerCase();
-  const candidates = graph.nodes.filter(n =>
+  const person = graph.nodes.find(n => n.ref.id === options.personId && !n.attributes.archived && n.attributes.typeId === types.get("Person")?.ref.id);
+  if (person) need(refs, "operating-user").excerpt += `\nVerified Person: ${person.attributes.title} (${person.ref.id})`;
+  const matches = graph.nodes.filter(n => n.ref.id !== person?.ref.id &&
     !n.attributes.archived && ontology.entities.some(t => t.id === n.attributes.typeId) &&
     sourceText.includes(String(n.attributes.title).toLowerCase())
-  ).slice(0,80);
+  );
+  const candidates = (person ? [person, ...matches] : matches).slice(0,80);
   const input = {
-    evidence: [...refs].map(([ref, value]) => ({ ref, title: value.title, excerpt: value.excerpt })),
+    evidence: [...refs].map(([ref, value]) => ({ ref, title: value.title, excerpt: value.excerpt, ...(value.url ? { url: value.url } : {}) })),
     existing: candidates.map(n => ({ id: n.ref.id, name: String(n.attributes.title).slice(0,160), type: [...types].find(([,t]) => t.ref.id === n.attributes.typeId)?.[0] ?? "" })),
     limits: `A batch from the first 40 records, excerpts at most ${excerptLimit} characters, first 80 relevant existing nodes. Do not infer from omitted content.`,
   };
@@ -86,7 +109,7 @@ export async function semanticProposal(host: WorkflowHost<"interactive">, graph:
   try {
     const checkpoint = async (id: string, parentId: string | null, data: unknown) => host.call("session.append", {runId:run.id,entry:{id,parentId,kind:"checkpoint",step:"analyze",at:new Date().toISOString(),data:JSON.parse(JSON.stringify(data))}});
     await diagnostic({status:"analyzing",workflowRunId:run.id});
-    await checkpoint("analysis",null,{adapter:"forerunner-analysis-v1",graph,samples,ontology,user,selection:options.selection ?? null,limits:{records:40,excerpt:excerptLimit},instructions});
+    await checkpoint("analysis",null,{adapter:"forerunner-analysis-v1",graph,samples,ontology,user,personId:person?.ref.id,selection:options.selection ?? null,limits:{records:40,excerpt:excerptLimit},instructions});
     const batches = options.batches ?? analysisBatches(input,options.batchBudget);
     await diagnostic({ status: "analyzing", workflowRunId: run.id, systemPrompt: instructions, input, analysisBatchCount: batches.length, analysisBatchesCompleted: 0 });
     // Sequential calls bound provider pressure and keep diagnostics ordered. Nothing is saved until all succeed.
@@ -94,19 +117,30 @@ export async function semanticProposal(host: WorkflowHost<"interactive">, graph:
       const batchRefs = new Map(data.evidence.map(e => [e.ref, need(refs, e.ref)]));
       const cited = z.array(z.enum([...batchRefs.keys()] as [string, ...string[]])).min(1).max(5);
       const resultSchema = analysis.extend({
-        entities: z.array(analysis.shape.entities.element.required({ confidence: true }).extend({ evidence: cited, existingId: existingIds })).max(16),
-        relationships: z.array(analysis.shape.relationships.element.required({ confidence: true }).extend({ evidence: cited })).max(18),
+        entities: z.array(analysis.shape.entities.element.required({ confidence: true }).extend({ evidence: cited, existingId: existingIds, matchedInvoice: matchedInvoice.nullable() })).max(16),
+        relationships: z.array(analysis.shape.relationships.element.required({ confidence: true, observation: true }).extend({ evidence: cited })).max(18),
       });
       const schema = z.record(z.string(), z.json()).parse(z.toJSONSchema(resultSchema));
       await diagnostic({ status: "analyzing", schema, analysisBatch: index + 1 });
       await checkpoint(`analysis.batch.${index}`,"analysis",{batch:index,data,schema});
       const response = await host.call("inference.generate", { runId: run.id, step: "analyze", checkpointId:`analysis.batch.${index}`, instructions, data, schema });
       const answer = analysis.parse(response.output);
-      // Validate before filters can hide duplicate keys or unsupported citations.
-      validateAnalysis({ ...answer, relationships: [] }, batchRefs, candidates, ontology);
+
       const prefix = batches.length === 1 ? "" : `b${index}_`;
       appendAnalysis(rawOutput, answer, prefix);
+      validateEntities(answer.entities, batchRefs, candidates);
+      warnings.push(...resolveRepeatedKeys(answer));
       warnings.push(...retainNamedEntities(answer, batchRefs), ...retainValidRelationships(answer, batchRefs, candidates, ontology));
+      if (person) {
+        for (const entity of answer.entities) {
+          if (entity.type !== "Person" || !entity.evidence.includes("operating-user")) continue;
+          if (entity.name === user.name || entity.name === person.attributes.title || entity.existingId === person.ref.id) {
+            entity.existingId = person.ref.id;
+            entity.name = String(person.attributes.title);
+          }
+        }
+      }
+      describeMatchedInvoices(answer, batchRefs);
       validateIdentityTypes(answer,candidates,types);
       // Model-local keys may repeat. Keep separate anchors separate; only explicit Wiki IDs resolve together.
       appendAnalysis(output, answer, prefix);
@@ -118,10 +152,80 @@ export async function semanticProposal(host: WorkflowHost<"interactive">, graph:
     if (error instanceof Response) throw error;
     throw new Response(analysisFailure(error), { status: 422 });
   }
+  separateDeveloperEvidence(output, refs, warnings);
   const proposal = await proposalChanges(graph, types, refs, output);
+  warnings.push(...organizationCoverage(graph, proposal));
   await host.call("session.append",{runId:run.id,entry:{id:"analysis.result",parentId:"analysis",kind:"result",step:"analyze",at:new Date().toISOString(),data:JSON.parse(JSON.stringify({...proposal,output:rawOutput,warnings}))}});
   await run.collect({ status: "ready", entries: proposal.entries.length });
   return { ...proposal, inputs: runInputs(refs), systemPrompt: instructions, warnings };
+}
+
+function describeMatchedInvoices(answer: Analysis, batchRefs: Map<string, Evidence>) {
+  for (const entity of answer.entities) {
+    const invoice = entity.matchedInvoice;
+    if (!invoice) continue;
+    const invoiceSource = batchRefs.get(invoice.invoiceRef), paymentSource = batchRefs.get(invoice.paymentRef);
+    if (entity.type !== "FinancialObligation" || !invoiceSource?.provider || !paymentSource?.provider ||
+        invoiceSource.identity === paymentSource.identity || ![invoice.invoiceRef, invoice.paymentRef].every(ref => entity.evidence.includes(ref)))
+      throw new Error("Model returned an invoice without distinct cited invoice and payment records; retry preview.");
+    const reference = (invoice.matchReference ?? invoice.number).toLowerCase();
+    if (![invoiceSource, paymentSource].every(source => `${source.subject} ${source.excerpt}`.toLowerCase().includes(reference)))
+      throw new Error("Model returned invoice and payment evidence without a common invoice or payment reference; retry preview.");
+    entity.summary = [
+      `Invoice ${invoice.number}: ${invoice.currency} ${invoice.amount}.`,
+      `Payment received: ${invoice.currency} ${invoice.paidAmount}.`,
+      invoice.invoiceDate && `Issued: ${invoice.invoiceDate}.`,
+      invoice.dueDate && `Due: ${invoice.dueDate}.`,
+      invoice.paymentDate && `Payment date: ${invoice.paymentDate}.`,
+    ].filter(Boolean).join(" ");
+  }
+}
+
+const providerRelations: Record<string, string[]> = {
+  Product: ["developed_by", "provided_by"], Offering: ["offered_by"], Newsletter: ["published_by"],
+  HostedEvent: ["organized_by"], FinancialObligation: ["payable_to"],
+};
+
+/** Account for the whole proposal, including links already present in Onto. Missing attribution is visible. */
+function organizationCoverage(graph: Graph, proposal: Awaited<ReturnType<typeof proposalChanges>>): string[] {
+  const typeIds = new Map(graph.types.filter(type => !type.attributes.archived).map(type => [String(type.attributes.name), type.ref.id]));
+  const organizations = new Set([
+    ...graph.nodes.filter(node => !node.attributes.archived && node.attributes.typeId === typeIds.get("Organization")).map(node => node.ref.id),
+    ...proposal.entries.filter(entry => entry.kind === "Organization").map(entry => entry.id),
+  ]);
+  const edges = [
+    ...graph.edges.filter(edge => !edge.attributes.archived).map(edge => edge.attributes),
+    ...proposal.operations.filter(op => op.type === "graph-edge").map(op => op.attributes),
+  ];
+  return proposal.entries.flatMap(entry => {
+    const relations = providerRelations[entry.kind];
+    if (!relations) return [];
+    const linked = edges.some(edge => edge.fromId === entry.id && organizations.has(String(edge.toId)) &&
+      relations.some(name => typeIds.get(name) === edge.typeId));
+    return linked ? [] : [`Unresolved organization for ${entry.kind} “${entry.title}”. Check primary evidence for ${relations.join(" or ")}.`];
+  });
+}
+
+function separateDeveloperEvidence(output: Analysis, refs: Map<string, Evidence>, warnings: string[]) {
+  const productKey = (key: string) => output.entities.find(entity => entity.key === key)?.existingId ?? key;
+  const signIns = new Map<string, Set<string>>();
+  for (const edge of output.relationships.filter(edge => ["signed_in_to", "user_of"].includes(edge.type))) {
+    const product = productKey(edge.to);
+    const citations = signIns.get(product) ?? new Set<string>();
+    for (const ref of edge.evidence) citations.add(need(refs, ref).identity);
+    signIns.set(product, citations);
+  }
+  output.relationships = output.relationships.filter(edge => {
+    const signIn = edge.type === "developed_by" && signIns.get(productKey(edge.from));
+    if (!signIn) return true;
+    edge.evidence = edge.evidence.filter(ref => {
+      const item = need(refs, ref);
+      return item.provider && !signIn.has(item.identity);
+    });
+    if (edge.evidence.length) return true;
+    warnings.push("Omitted developer attribution without a separate provider source.");
+    return false;
+  });
 }
 
 /** Tasks own their claim and completion; ordinary previews retain analysis-only runs. */
@@ -187,7 +291,9 @@ async function proposalChanges(graph: Graph, types: Map<string, Graph["types"][n
     known.add(id);
   };
   for (const entity of output.entities) {
-    const anchors = entity.evidence.map(e => need(refs, e).identity).sort();
+    const evidence = entity.evidence.map(ref => need(refs, ref));
+    const primary = entity.type === "Organization" && evidence.find(item => item.provider === "web" && item.url);
+    const anchors = primary ? [primary.url] : evidence.map(item => item.identity).sort();
     const id = entity.existingId ?? await stableId(JSON.stringify([graph.wiki.installationId, entity.type, entity.name.toLowerCase(), anchors]));
     ids.set(entity.key, id);
     // The preview shows the evidence; the Wiki record keeps the summary, and the batch keeps the citations.
@@ -233,13 +339,33 @@ function observedAt(date: string | undefined): { observedAt?: string } {
   return Number.isFinite(time) ? { observedAt: new Date(time).toISOString() } : {};
 }
 
+// Keys are local to a single model answer. Never guess which entity an ambiguous edge names.
+function resolveRepeatedKeys(answer: Analysis): string[] {
+  const unique = new Map<string, Analysis["entities"][number]>();
+  const ambiguous = new Set<string>();
+  for (const entity of answer.entities) {
+    const previous = unique.get(entity.key);
+    if (!previous) unique.set(entity.key, entity);
+    else if (JSON.stringify(previous) !== JSON.stringify(entity)) ambiguous.add(entity.key);
+  }
+  answer.entities = [...unique.values()].filter(entity => !ambiguous.has(entity.key));
+  answer.relationships = answer.relationships.filter(edge => !ambiguous.has(edge.from) && !ambiguous.has(edge.to));
+  return ambiguous.size ? ["Omitted entities with conflicting model keys and their relationships."] : [];
+}
+
+function validateEntities(entities: Analysis["entities"], refs: Map<string, unknown>, candidates: Graph["nodes"]) {
+  for (const entity of entities) {
+    if (entity.evidence.some(ref => !refs.has(ref))) throw new Error("Model returned unsupported evidence; retry preview.");
+    if (entity.existingId && !candidates.some(n => n.ref.id === entity.existingId)) throw new Error("Model returned an unknown identity match; retry preview.");
+  }
+}
+
 export function validateAnalysis(output: Analysis, refs: Map<string, unknown>, candidates: Graph["nodes"], ontology: DiscoveryOntology) {
   const keys = new Set(output.entities.map(e => e.key));
   if (keys.size !== output.entities.length) throw new Error("Model returned duplicate entity keys; retry preview.");
-  for (const row of [...output.entities, ...output.relationships])
+  validateEntities(output.entities, refs, candidates);
+  for (const row of output.relationships)
     if (row.evidence.some(ref => !refs.has(ref))) throw new Error("Model returned unsupported evidence; retry preview.");
-  for (const entity of output.entities)
-    if (entity.existingId && !candidates.some(n => n.ref.id === entity.existingId)) throw new Error("Model returned an unknown identity match; retry preview.");
   for (const relation of output.relationships) {
     if (!keys.has(relation.from) || !keys.has(relation.to) || relation.from === relation.to) throw new Error("Model returned invalid relationship endpoints; retry preview.");
     const definition = ontology.relationships.find(t => t.name === relation.type);
@@ -274,6 +400,11 @@ function retainValidRelationships(output: Analysis, refs: Map<string, unknown>, 
   validateAnalysis({ ...output, relationships: [] }, refs, candidates, ontology);
   const warnings: string[] = [];
   output.relationships = output.relationships.filter(relation => {
+    const required = personalClaims[relation.type];
+    if (required && relation.observation && required !== relation.observation) {
+      warnings.push(`Omitted ${relation.type}: the source documents ${relation.observation}.`);
+      return false;
+    }
     try {
       validateAnalysis({ ...output, relationships: [relation] }, refs, candidates, ontology);
       return true;

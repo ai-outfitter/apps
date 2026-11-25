@@ -18,15 +18,7 @@ const changeDocuments = defineDocuments({
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
     document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
   },
-  // Onto's receipt adds its advice on the draft and the instructions that go with it.
-  StageChanges: {...wikiChangeDocuments.StageChanges, document: `mutation StageChanges($input: StageChangesInput!) {
-      stageChanges(input: $input) { id title state counts anchors validation advice instructions { code itemKey actor required message } }
-    }`},
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions review reviewRun instructions { code itemKey actor required message taskId url }\n")},
-  // Onto's receipt names the steward's review run to wait on.
-  SubmitBatch: {...wikiChangeDocuments.SubmitBatch, document: `mutation SubmitBatch($input: SubmitBatchInput!) {
-      submitBatch(input: $input) { id state reviewBy counts reviewRun instructions { code itemKey actor required message taskId url } operations { ref state } }
-    }`},
   Ontology: {
     story: "As an agent, I want every type name, which types each relationship connects and how to stage a change in one read, so that I can write to this graph without searching for its types.",
     document: `query Ontology { ontology { root nodeTypes { name description } relationshipTypes { name description from to } staging } }`,

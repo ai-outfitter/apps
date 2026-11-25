@@ -492,6 +492,13 @@
                                       "items": {
                                         "type": "object",
                                         "properties": {
+                                          "supportPolicy": {
+                                            "type": "string",
+                                            "enum": [
+                                              "support-free",
+                                              "supports-required"
+                                            ]
+                                          },
                                           "projectId": {
                                             "type": "string",
                                             "format": "uuid",
@@ -2082,6 +2089,36 @@
     "hidden": true
   },
   {
+    "name": "RecordWorkshopPrintPlate",
+    "kind": "mutation",
+    "story": "As a hardware builder, I want to record time and material from the actual grouped print plates, so that I can prepare the correct amount of filament.",
+    "query": "mutation RecordWorkshopPrintPlate($input: RecordWorkshopPrintPlateInput!) {\n  recordWorkshopPrintPlate(input: $input)\n}",
+    "hash": "85bcb191e9ca0e9a49d0a82b365b7fb76a4585869242927ef6f7aea44ff2c57c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordWorkshopPrintPlateInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "recordWorkshopPrintPlate": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "RecordWorkshopUnit",
     "kind": "mutation",
     "story": "As a member, I want to record each board or part I have in hand by its MAC address or serial, so that the assembly shows what is in stock and no unit is entered twice.",
@@ -2224,8 +2261,8 @@
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
-    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n  }\n}",
-    "hash": "8446bb2cff33cb76794a0d14b3a61fcd06f429b38cdec3d34b7f1a7a9fceef59",
+    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n    printFindings\n  }\n}",
+    "hash": "791ac26aff42feb66003dd456528975c23c2061e6d9edf59c9ba71953976a1b8",
     "variables": {
       "type": "object",
       "properties": {
@@ -2581,8 +2618,8 @@
     "name": "UpdateWorkshopAssembly",
     "kind": "mutation",
     "story": "As a prototype builder, I want my agent to save my assembly edit at the observed revision, so that concurrent project changes are preserved.",
-    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n  }\n}",
-    "hash": "e3908874fd8e9be02b64a82cfa4b0d2750ae5356d917abddd561b9f491956ceb",
+    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n    printFindings\n  }\n}",
+    "hash": "8c1a137cff4ea7ad27c5562bf9681b1e600957338e01a5adef3e1f9be4267f40",
     "variables": {
       "type": "object",
       "properties": {
@@ -2605,7 +2642,7 @@
       ]
     },
     "mcp": {
-      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit."
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit. The mutation receipt includes structured printFindings with the current checked item, digest, profile, state and location."
     },
     "outputSchema": {
       "type": "object",
@@ -2618,6 +2655,10 @@
             },
             "revision": {
               "type": "integer"
+            },
+            "printFindings": {
+              "description": "JSON",
+              "nullable": true
             }
           }
         }
@@ -2661,7 +2702,7 @@
       ]
     },
     "mcp": {
-      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."
+      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and printFindings with the checked item, digest, profile, state and warning location for STL."
     },
     "outputSchema": {
       "type": "object",
@@ -2769,6 +2810,36 @@
       "properties": {
         "workshopDesignRun": {
           "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "WorkshopPrint",
+    "kind": "query",
+    "story": "As a hardware builder, I want to review print preflight and sliced plate estimates for my assembly, so that I can plan the fabrication run.",
+    "query": "query WorkshopPrint($input: WorkshopPrintInput!) {\n  workshopPrint(input: $input)\n}",
+    "hash": "491341966864eeabbf1b87f5e3272322b93ad101812855fa97148b988c84d3a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopPrintInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopPrint": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }

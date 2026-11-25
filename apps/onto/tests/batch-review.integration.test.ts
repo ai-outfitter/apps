@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { drizzle } from "drizzle-orm/d1";
+import { sealDueBatches } from "../src/server/graph-batches";
 import { appWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { core } from "../src/lib/graph";
@@ -66,11 +68,16 @@ async function fixture(answer: (input: Json) => unknown = () => ({ summary: "No 
     app.call(`/api/apps/onto/batches/${path}`, owner as typeof owner, { ...init, workflowHost: scope });
   /** The batch once its background review has been saved. */
   const waitFor = async (batchId: string, done: (read: Json) => boolean, failure: string) => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const read = await json(await action("batch.get", { batchId }));
-      if (done(read)) return read;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    const current = await json(await action("batch.get", { batchId }));
+    if (done(current)) return current;
+    await json(await app.call("/api/internal/workflow-host/v1", owner, {
+      method: "POST",
+      body: { phase: "schedule", input: { runId: crypto.randomUUID(), scheduledFor: Date.now(),
+        schedule: { id: "queue", workflowId: "batch-review", inputs: {}, connectionId: null, resource: null } } },
+      workflowHost: { ...scope, phase: "schedule", scheduleId: "queue" },
+    }));
+    const reviewed = await json(await action("batch.get", { batchId }));
+    if (done(reviewed)) return reviewed;
     throw new Error(failure);
   };
   const reviewed = (batchId: string) => waitFor(batchId, (read) => !!read.batch.review, "The review was not saved");
@@ -104,6 +111,7 @@ test("a batch adding an external Project gets an error finding, and nothing that
   assert.equal(submitted.batch.state, "awaiting_review");
   // Submitting does not wait for the review; it is saved in the background.
   assert.equal(submitted.batch.review, null);
+  assert.equal(f.calls.length, 0);
 
   const { review } = (await f.reviewed(batchId)).batch;
   assert.equal(review.state, "complete", review.error ?? undefined);
@@ -448,4 +456,115 @@ test("an admin can keep every decision with members: the steward then only revie
   assert.equal(read.counts.awaiting_review, 2);
   const page = await json(await f.app.call("/api/apps/onto/settings", owner, {}));
   assert.equal(page.stewardApproval, "review");
+});
+
+test("scoped Calendar evidence holds the duplicate and its dependent even before the model reviews it", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  await json(await f.action("graph.apply", { requestKey: "organization-profile", operations: [
+    { operation: "update", ref: "$profile", type: "graph-node", id: uuid(1), revision: 1,
+      attributes: { website: "https://outfitter.ncrmro.com/o/artera" } },
+  ] }));
+  const { batch } = await json(await f.action("batch.open", { title: "Calendar discovery", policy: {kind:"confidence", threshold:0.95, version:"test", reviewWindow:{hours:1}}, anchors:[] }, forerunner));
+  const evidence = [{provider:"google-calendar",recordId:"fixture@artera.space/event-id"}];
+  await json(await f.action("batch.add", {batchId:batch.id, proposals:[
+    {operation:node("$candidate",84,core.organization,"Artera Space"),evidence,confidence:0.99},
+    {operation:edge("$relationship",85,partOf,"$candidate",uuid(1)),evidence,confidence:0.99},
+    {operation:node("$unrelated",86,core.document,"Independent note"),evidence,confidence:0.99},
+  ]},forerunner));
+  const submitted = await json(await f.action("batch.submit", {batchId:batch.id},forerunner));
+  assert.deepEqual(submitted.operations.map((op:Json)=>op.state),["awaiting_review","awaiting_review","committed"]);
+  await f.reviewed(batch.id);
+  const {batch:saved} = await json(await f.action("batch.get",{batchId:batch.id}));
+  const duplicate = saved.review.findings.find((i:Json)=>i.rule==="node.duplicate");
+  assert.equal(duplicate.ref,"$candidate");
+  assert.deepEqual(duplicate.organizationCandidates,[{id:uuid(1),title:"Artera",slug:"artera",match:"organization name corroborated by scoped account domain artera.space"}]);
+  assert.ok(duplicate.fix.includes(uuid(1)));
+  const input=f.calls.find(c=>c.operation==="inference.generate")!.input;
+  assert.deepEqual(input.data.checks.find((c:Json)=>c.rule==="node.duplicate").organizationCandidates,duplicate.organizationCandidates);
+  assert.equal(saved.review.decision.approved,0);
+  const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
+  assert.equal((await sealDueBatches(drizzle(f.app.database), who, Date.now() + 2 * 3600_000)).sealed, 0);
+  const graph=await json(await f.action("graph.read",{}));
+  assert.equal(graph.nodes.some((n:Json)=>n.id===uuid(84)),false);
+  assert.equal(graph.edges.some((e:Json)=>e.id===uuid(85)),false);
+});
+
+test("the steward must ground a duplicate relationship in a compatible live type ID", async (t) => {
+  const f = await fixture(input => {
+    const proposed = input.data.newTypes.find((type: Json) => type.ref === "$use");
+    assert.ok(proposed);
+    assert.ok(proposed.compatibleExistingEdges.every((type: Json) => !["user_of", "uses"].includes(type.name)));
+    return { summary: "Use the existing relationship.", findings: [{
+      ref: "$use", rule: "type.duplicate", severity: "warning", message: "This repeats user_of.",
+      fix: "Reuse 71000000-0000-4000-8000-000000000123.", refs: [], types: [],
+    }] };
+  });
+  t.after(() => f.app.dispose());
+  const { types } = await json(await f.action("graph.read", {}));
+  const saved = types.find((type: Json) => type.name === "user_of");
+  await json(await f.action("graph.apply", { requestKey: "old-installation", operations: [{
+    operation: "update", type: "graph-type", ref: "$archive", id: saved.id, revision: saved.revision, attributes: { archived: true },
+  }] }));
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
+    title: "Record verified product users", proposals: [{ operation: create("$use", "graph-type", {
+      id: uuid(810), category: "edge", name: "signed_in_to", title: "Signed in to", body: "A person signed in to this product.",
+      ontology: saved.ontology,
+    }), evidence: cite("login") }],
+  } }));
+  const batchId = staged.data.stageChanges.id;
+  await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
+  const { review } = (await f.reviewed(batchId)).batch;
+  assert.equal(review.state, "failed");
+  assert.match(review.error, /compatible active relationship type/);
+});
+
+test("an organization-rich 91-operation review retries a timed-out part in smaller pieces", async t => {
+  let failed: string[] = [];
+  const covered = new Set<string>();
+  const f = await fixture(input => {
+    const ops = input.data.operations as Json[];
+    assert.ok(ops.length <= 12);
+    assert.ok(Buffer.byteLength(JSON.stringify(input.data)) <= 18 * 1024);
+    if (!failed.length) { failed = ops.map(op => op.ref); throw new Error("Inference deadline exceeded"); }
+    if (ops.some(op => failed.includes(op.ref))) assert.ok(ops.length < failed.length);
+    for (const op of ops) { assert.ok(!covered.has(op.ref)); covered.add(op.ref); }
+    return { summary: "Checked.", findings: [] };
+  });
+  t.after(() => f.app.dispose());
+  const { batch } = await json(await f.action("batch.open", { title: "Synthetic supplier directory" }));
+  const proposals = Array.from({ length: 45 }, (_, i) => [
+    { operation: node(`$org-${i}`, 900 + i, core.organization, `Fixture Supplier ${i}`), evidence: cite(`supplier-${i}`) },
+    { operation: edge(`$org-link-${i}`, 1000 + i, partOf, `$org-${i}`, uuid(1)), evidence: cite(`catalog-${i}`) },
+  ]).flat();
+  proposals.push({ operation: edge("$extra", 1100, partOf, "$org-0", "$org-1"), evidence: cite("catalog") });
+  await json(await f.action("batch.add", { batchId: batch.id, proposals }));
+  await json(await f.action("batch.submit", { batchId: batch.id }));
+  const { review } = (await f.reviewed(batch.id)).batch;
+  assert.equal(review.coverage.read, 91, review.error ?? undefined);
+  assert.equal(covered.size, 91);
+});
+
+test("a shared Person to Organization endpoint does not make notice delivery a duplicate of management", async t => {
+  const manages = uuid(1200);
+  const f = await fixture(() => ({ summary: "Compared relationship definitions.", findings: [{
+    ref: "$notice", refs: [], types: [], rule: "type.duplicate", severity: "warning",
+    message: "These types repeat the same endpoints.", fix: "Use " + manages,
+  }] }));
+  t.after(() => f.app.dispose());
+  const ontology = { version: 2, endpoints: { from: [core.person], to: [core.organization] } };
+  const attrs = { category: "edge", ontology, properties: [] };
+  await json(await f.action("graph.apply", { requestKey: "manager-seed", operations: [
+    create("$manager", "graph-type", { ...attrs, id: manages, name: "manages", title: "Manages", body: "A person directs an organization." }),
+  ] }));
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
+    title: "Record notice delivery", proposals: [{ operation: create("$notice", "graph-type", { ...attrs, id: uuid(1201), name: "receives_notice_from", title: "Receives notice from", body: "A person received a notice from an organization." }), evidence: cite("receipt") }],
+  } }));
+  const batchId = staged.data.stageChanges.id;
+  await json(await f.action("batch.submit", { batchId }));
+  const { review } = (await f.reviewed(batchId)).batch;
+  const item = review.findings.find((f: Json) => f.rule === "type.duplicate");
+  assert.equal(item.severity, "note");
+  assert.equal(item.fix, null);
+  assert.match(item.message, /Compare the meanings/);
 });

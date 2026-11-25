@@ -17,7 +17,8 @@ await mkdir(dirname(out),{recursive:true});
 await mkdir(out,{mode:0o700});await chmod(out,0o700);
 const fixture=resolve(out,'evals/captured-run');await mkdir(fixture,{recursive:true,mode:0o700});
 await mkdir(resolve(out,'experiments'),{recursive:true});
-const pkg=JSON.parse(await readFile(resolve(root,'package.json'),'utf8'));
+const pkg=JSON.parse(await readFile(resolve(here,'../../package.json'),'utf8'));
+const dependencies={...pkg.devDependencies,...pkg.dependencies};
 const implementation=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 await build({entryPoints:[resolve(here,'runner.ts')],outfile:resolve(fixture,'replay.mjs'),bundle:true,platform:'node',format:'esm',packages:'external',
   plugins:[{name:'bundle-workspace-sdk',setup(b){b.onResolve({filter:/^@ai-outfitter\//},async args=>({path:fileURLToPath(import.meta.resolve(args.path))}));}}]});
@@ -28,7 +29,7 @@ await writeFile(resolve(fixture,'PROMPT.md'),'Review the fixed workflow candidat
 await copyFile(resolve(here,'EVAL.ts'),resolve(fixture,'EVAL.ts'));
 await copyFile(resolve(here,'agent.mjs'),resolve(out,'agent.mjs'));
 await copyFile(resolve(here,'view.mjs.template'),resolve(out,'view.mjs'));
-await writeFile(resolve(fixture,'package.json'),JSON.stringify({name:'workflow-replay-case',private:true,type:'module',dependencies:{ai:pkg.dependencies.ai,'@ai-sdk/openai':pkg.dependencies['@ai-sdk/openai'],zod:pkg.dependencies.zod,'@vercel/agent-eval':'2.6.0',vitest:'^3.2.0'}},null,2));
+await writeFile(resolve(fixture,'package.json'),JSON.stringify({name:'workflow-replay-case',private:true,type:'module',dependencies:{ai:dependencies.ai,'@ai-sdk/openai':dependencies['@ai-sdk/openai'],zod:dependencies.zod,'@vercel/agent-eval':'2.6.0',vitest:'^3.2.0'}},null,2));
 await writeFile(resolve(out,'package.json'),JSON.stringify({name:'workflow-replay-evals',private:true,type:'module',workspaces:['evals/*'],scripts:{eval:'agent-eval',view:'node view.mjs'},dependencies:{'@vercel/agent-eval':'2.6.0','@vercel/agent-eval-playground':'0.1.4','@tailwindcss/postcss':'^4.0.0',tailwindcss:'^4.0.0',postcss:'^8.4.49',next:'^16.0.0'}},null,2));
-await writeFile(resolve(out,'experiments/baseline.ts'),`import {registerWorkflowReplay,workflowTranscriptReporter} from '../agent.mjs';\nconst judge={agent:'codex',model:process.env.WORKFLOW_EVAL_JUDGE_MODEL};\nif(!judge.model)throw new Error('Set WORKFLOW_EVAL_JUDGE_MODEL to pin the judge');\nregisterWorkflowReplay(judge);\nexport default {agent:'workflow-replay',sandbox:'docker',runs:1,earlyExit:false,copyFiles:'all',judge,reporters:[workflowTranscriptReporter],agentEnv:Object.fromEntries(['WORKFLOW_EVAL_API_KEY'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]))};\n`);
+await copyFile(resolve(here,'baseline.ts.template'),resolve(out,'experiments/baseline.ts'));
 console.log(`Created private eval project: ${out}\nInstall dependencies, pin the judge model, then run npm run eval -- baseline. Edit evals/captured-run/replay-config.json for checkpoint and overrides. Original implementation: ${implementation}`);

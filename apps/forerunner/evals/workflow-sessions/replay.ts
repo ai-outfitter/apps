@@ -11,7 +11,7 @@ import {type Graph,type Sample, semanticProposal} from "../../src/server/semanti
 
 type Inference = (request:ReturnType<typeof inferenceRequest>,model:string) => Promise<{output:unknown;text?:string;finishReason?:string;usage?:unknown}>;
 type Settings=Parameters<typeof inferenceRequest>[3];
-type Context={adapter:string;graph:Graph;samples:Sample[];ontology:DiscoveryOntology;user:{id:string;name:string;email:string};instructions:string;selection?:unknown};
+type Context={adapter:string;graph:Graph;samples:Sample[];ontology:DiscoveryOntology;user:{id:string;name:string;email:string};instructions:string;personId?:string;selection?:unknown};
 const json=(value:unknown)=>z.json().parse(JSON.parse(JSON.stringify(value)));
 
 function replayContext(original:WorkflowSession,checkpointId:string,overrides:ReplayOverrides){
@@ -71,7 +71,7 @@ async function runReplay(original:WorkflowSession,checkpointId:string,overrides:
     branch:{sessionId:original.run.id,checkpointId,implementation:'local checkout',overrides:json(overrides)}};
   try{
     const output=await semanticProposal(localHost(session.entries,settings,model,infer),context.graph,context.samples,context.ontology,context.user,async()=>{},{
-      taskId:session.run.id,selection:context.selection,instructions:overrides.instructions??context.instructions,batchBudget:overrides.batchBudget,onlyBatch,
+      taskId:session.run.id,personId:context.personId,selection:context.selection,instructions:overrides.instructions??context.instructions,batchBudget:overrides.batchBudget,onlyBatch,
       ...(onlyBatch!==undefined?{batches:recordedBatches(original)}:{}),
     });
     session.outputs=json(output);session.run.status='complete';return {session,output};

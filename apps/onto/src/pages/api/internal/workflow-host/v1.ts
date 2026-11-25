@@ -1,7 +1,5 @@
 import {dailyUpdate,dailyWorkflow} from "../../../../server/daily-update";
-import { failExpiredReviewJobs, processReviewJob, reviewWorkflow } from "../../../../server/batch-review";
-import { ontoReviewJobs } from "../../../../server/schema";
-import { and, or, eq, lte, sql } from "drizzle-orm";
+import { processScheduledReview, reviewWorkflow } from "../../../../server/batch-review";
 import { auditOnSchedule, auditWorkflow } from "../../../../server/ontology-audit";
 import { scheduleInput } from "@ai-outfitter/app-sdk/workflow-host";
 import type { APIRoute } from "astro";
@@ -15,18 +13,15 @@ import { sealOnSchedule } from "../../../../server/seal-timer";
 export const POST: APIRoute = ({ request, locals }) =>
   workflowPhaseHandler({
     schedule: async (input) => {
-      const { schedule } = scheduleInput.parse(input);
+      const { schedule, runId } = scheduleInput.parse(input);
       const identity = requestIdentity(request);
       const host = workflowHost<"schedule">(locals);
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
       if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);
       if (schedule.workflowId === reviewWorkflow) {
-        const now = Date.now();
-        await failExpiredReviewJobs(installationDatabase(), now);
-        const [job] = await installationDatabase().select().from(ontoReviewJobs).where(and(sql`${ontoReviewJobs.attempts} < 4`, or(and(eq(ontoReviewJobs.state, "pending"), lte(ontoReviewJobs.nextAttemptAt, now)), and(eq(ontoReviewJobs.state, "running"), lte(ontoReviewJobs.leaseUntil, now))))).limit(1);
-        if (!job) return { outcome: "declined", reason: "No pending Onto reviews" };
-        const reviewed = await processReviewJob(installationDatabase(), identity, host, job.id, scheduleInput.parse(input).runId);
-        return reviewed?.runId ? { outcome: "started" } : { outcome: "declined", reason: "Review work was already claimed or superseded" };
+        const reviewed = await processScheduledReview(installationDatabase(), identity, host, runId);
+        if (!reviewed?.runId) return { outcome: "declined", reason: reviewed?.error ?? "No current Onto review was available" };
+        return reviewed.runId === runId ? { outcome: "started" } : { outcome: "resumed", runId: reviewed.runId };
       }
       if (schedule.workflowId === auditWorkflow) {
         return auditOnSchedule(installationDatabase(), identity, host, input);

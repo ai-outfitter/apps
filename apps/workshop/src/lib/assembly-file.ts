@@ -3,6 +3,7 @@ import { z } from "zod";
 const types = {stl:"model/stl", step:"model/step", stp:"model/step", mp4:"video/mp4", webm:"video/webm", gif:"image/gif", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png"} as const;
 export const fileName = z.string().max(160).regex(/^[a-z0-9_][a-z0-9_.-]*\.(stl|step|stp|mp4|webm|gif|jpg|jpeg|png)$/i);
 export const assemblyFile = z.object({
+  supportPolicy: z.enum(["support-free", "supports-required"]).optional(),
   projectId:z.uuid(), fileName, sha256:z.string().regex(/^[a-f0-9]{64}$/), bytes:z.number().int().min(1).max(25*1024*1024),
 }).strict();
 export type AssemblyFile = z.infer<typeof assemblyFile>;

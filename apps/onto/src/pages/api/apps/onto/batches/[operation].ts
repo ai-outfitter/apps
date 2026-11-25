@@ -6,7 +6,7 @@ import { reviewBatchOntology } from "../../../../../server/batch-review";
 import { answerBatch, batchAnswerInput } from "../../../../../server/batch-questions";
 import {
   batchIdInput, batchListInput, batchReviewInput, getBatch, listBatches, recordHistory, recordHistoryInput,
-  reviewBatch, sealDueBatches, validateBatch,
+  loadBatch, requireMemberReview, reviewBatch, sealDueBatches, submitBatch, validateBatch,
 } from "../../../../../server/graph-batches";
 
 // The Changes pages: list and read batches, member review, answers to an agent's questions, a fresh steward
@@ -35,6 +35,15 @@ export const POST: APIRoute = ({ request, params, locals }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Read-only demo", { status: 403 });
   return respond(async () => {
     const who = requestIdentity(request), db = installationDatabase();
+    if (params.operation === "submit") {
+      const actor = requestActor(request, who);
+      requireMemberReview(who, actor, requestOriginActor(request, who));
+      const input = await readJSON(request, batchIdInput, 4000);
+      const batch = await loadBatch(db, input.batchId);
+      if (batch.policy.kind !== "member") throw new Response("Only member-review drafts can be submitted here", { status: 403 });
+      const detail = await submitBatch(db, who, actor, input);
+      return { ...detail, validation: await validateBatch(db, who, input) };
+    }
     if (params.operation === "review")
       return reviewBatch(db, who, requestActor(request, who), requestOriginActor(request, who), await readJSON(request, batchReviewInput, 64000));
     if (params.operation === "answer") {

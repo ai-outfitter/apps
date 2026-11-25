@@ -32,5 +32,5 @@ test("selected input evidence is conserved",()=>{
   expect(refs(calls.flatMap((e:any)=>e.data.data.evidence))).toEqual(refs(expected));
 });
 test("proposals are grounded and useful",async()=>{
-  await expect(environment).toSatisfyCriterion("Read session.json and candidate.json. Candidate entities and relationships must be supported by the captured messages and ontology, distinguish inference from facts, and have defensible confidence scores. Do not penalize wording changes or assume the baseline is correct. Assess useful findings rather than just schema validity.");
+  await expect(environment).toSatisfyCriterion("Read session.json and candidate.json. Candidate entities and relationships must be supported by the captured messages and ontology, distinguish inference from facts, and have defensible confidence scores. Do not penalize wording changes or assume the baseline is correct. For each product, service, event or invoice with a named provider in the evidence, check that the candidate links the correct organization and reuses an existing match from the supplied graph. Flag missing supported links, duplicate organizations, and attribution inferred solely from a sender domain or promotional message. Credit leaving the provider unresolved when the evidence is ambiguous.");
 },180000);

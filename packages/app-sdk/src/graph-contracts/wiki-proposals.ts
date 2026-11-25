@@ -33,7 +33,7 @@ export const wikiChangeDocuments = {
   StageChanges: {
     story: "As an agent, I want to stage proposed Wiki records with their evidence in a batch, so that a member reviews them before anything is committed.",
     document: `mutation StageChanges($input: StageChangesInput!) {
-      stageChanges(input: $input) { id title state counts anchors validation }
+      stageChanges(input: $input) { id title state counts anchors validation advice instructions { code itemKey actor required message } }
     }`,
   },
   RemoveStagedChanges: {
@@ -45,7 +45,7 @@ export const wikiChangeDocuments = {
   SubmitBatch: {
     story: "As an agent, I want to submit my staged batch for review, so that it appears on the Wiki's Changes page for a member to commit or reject.",
     document: `mutation SubmitBatch($input: SubmitBatchInput!) {
-      submitBatch(input: $input) { id state reviewBy counts operations { ref state } }
+      submitBatch(input: $input) { id state reviewBy counts reviewRun instructions { code itemKey actor required message taskId url } operations { ref state } }
     }`,
   },
   ChangeBatch: {

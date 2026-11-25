@@ -375,7 +375,7 @@ type Mutation {
   generateResearchReports(input: JSON!): JSON
 
   """
-  Turn the daily discovery run on, reading one connected Gmail or Calendar account (source `connection:<id>`, as the sources page lists them) in the given time zone, or off. Editors only.
+  Schedule daily discovery for one authorized source (connection:<id>) in its timezone. Personal installations retain each account independently. Disable a named source to pause it, or omit source when disabling to pause all discovery. Editors only.
   """
   setDailyRun(input: SetDailyRunInput!): DailyRun!
 

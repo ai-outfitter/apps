@@ -254,7 +254,7 @@ test("40 long Gmail messages fit inference calls without losing evidence or conf
     assert.ok(data.evidence.some(e => e.ref === "operating-user"));
     const schema = input.schema as { properties: { entities: { items: { properties: { evidence: { items: { enum: string[] } } } } } } };
     assert.deepEqual(schema.properties.entities.items.properties.evidence.items.enum, data.evidence.map(e => e.ref));
-    return { output: { entities: [{ ...entity, evidence: [ref] }, { ...asset, evidence: [ref] }], relationships: [{ from: "sam", to: "practice", type: "owns", reason: "Explicit ownership", evidence: [ref] }] } };
+    return { output: { entities: [{ ...entity, evidence: [ref] }, { ...entity, evidence: [ref] }, { ...asset, evidence: [ref] }, { ...entity, key:"ambiguous", evidence:[ref] }, { ...asset, key:"ambiguous", evidence:[ref] }], relationships: [{ from: "sam", to: "practice", type: "owns", reason: "Explicit ownership", evidence: [ref] }] } };
   } } as unknown as Parameters<typeof semanticProposal>[0];
   const result = await semanticProposal(host, graph, longSamples(), discoveryOntology(graph), { id: "sam", name: "Sam", email: "sam@example.test" }, async event => { recorded = { ...recorded, ...event }; });
   assert.ok(inputs.length > 1, "The old single request exceeded the host limit");
@@ -264,7 +264,8 @@ test("40 long Gmail messages fit inference calls without losing evidence or conf
   assert.equal(result.operations.filter(o => o.type === "graph-edge").length, inputs.length, "Repeated local keys resolve within their own batch");
   assert.equal(result.operations.filter(o => o.type === "graph-node").length, inputs.length * 2, "Same names with different anchors must not be conflated");
   assert.equal((recorded.input as typeof inputs[number]).evidence.length, 41, "History retains every input");
-  assert.equal((recorded.output as { entities: unknown[] }).entities.length, inputs.length * 2);
+  assert.equal((recorded.output as { entities: unknown[] }).entities.length, inputs.length * 5);
+  assert.ok(result.warnings.some(warning=>warning.includes("conflicting model keys")));
   assert.deepEqual(completed, [{ status: "ready", entries: inputs.length * 3 }]);
 });
 
