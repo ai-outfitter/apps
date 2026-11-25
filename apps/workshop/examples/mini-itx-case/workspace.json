@@ -1,0 +1,268 @@
+{
+  "notes": "Keystone Mini-ITX case. The printed parts and the purchased envelopes are placed as assembled; Workshop checks every pair for overlap. Material values are datasheet figures for printed PETG.",
+  "printer": {
+    "name": "220 mm bed (Ender-3 class)",
+    "bed": [
+      220,
+      220,
+      250
+    ]
+  },
+  "targets": [
+    {
+      "id": "cfcff6d0-5050-5b1b-bd0c-82c2b8abc89f",
+      "name": "base",
+      "source": "case.scad",
+      "defines": {
+        "part": "base"
+      },
+      "print": {
+        "material": "PETG",
+        "materialProperties": {
+          "density": 1.27
+        },
+        "infill": 15,
+        "walls": 3
+      }
+    },
+    {
+      "id": "d3708d4d-cc47-5a85-b612-003041fbc1be",
+      "name": "shell",
+      "source": "case.scad",
+      "defines": {
+        "part": "shell"
+      },
+      "print": {
+        "material": "PETG",
+        "materialProperties": {
+          "density": 1.27
+        },
+        "infill": 15,
+        "walls": 3
+      }
+    },
+    {
+      "id": "04969f08-84be-5469-838e-ddd5ab3ed978",
+      "name": "top",
+      "source": "case.scad",
+      "defines": {
+        "part": "top-design"
+      },
+      "print": {
+        "material": "PETG",
+        "materialProperties": {
+          "density": 1.27
+        },
+        "infill": 15,
+        "walls": 3,
+        "orientation": [
+          180,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "8b49e5a0-d36d-53b3-a97c-60b9c190dd0d",
+      "name": "board",
+      "source": "case.scad",
+      "defines": {
+        "part": "board"
+      }
+    },
+    {
+      "id": "d30a5677-dc5e-560b-8a6a-8e8acfd42273",
+      "name": "cooler",
+      "source": "case.scad",
+      "defines": {
+        "part": "cooler"
+      }
+    },
+    {
+      "id": "f44cef23-ee65-5c65-b445-94235d797ce8",
+      "name": "psu",
+      "source": "case.scad",
+      "defines": {
+        "part": "psu"
+      }
+    }
+  ],
+  "assembly": {
+    "rootId": "907b186c-0393-5395-9ab0-8ff35b45b39f",
+    "items": [
+      {
+        "id": "907b186c-0393-5395-9ab0-8ff35b45b39f",
+        "number": "CASE-A001",
+        "revision": "A",
+        "name": "Mini-ITX case",
+        "kind": "assembly",
+        "uses": [
+          {
+            "id": "646b1898-cf12-561f-ac2b-f9aa7a0e1e7f",
+            "itemId": "cfcff6d0-5050-5b1b-bd0c-82c2b8abc89f",
+            "quantity": 1
+          },
+          {
+            "id": "47b66025-956f-5ef6-832a-60573b5d7c3d",
+            "itemId": "d3708d4d-cc47-5a85-b612-003041fbc1be",
+            "quantity": 1
+          },
+          {
+            "id": "b3cdb066-ae8f-5c94-bb17-67251b40db8a",
+            "itemId": "04969f08-84be-5469-838e-ddd5ab3ed978",
+            "quantity": 1
+          },
+          {
+            "id": "ff54670f-5b8d-56f4-a2ae-1191dfe07376",
+            "itemId": "8b49e5a0-d36d-53b3-a97c-60b9c190dd0d",
+            "quantity": 1
+          },
+          {
+            "id": "97c035a9-31f1-5dd1-a1b8-9ff36fb37149",
+            "itemId": "d30a5677-dc5e-560b-8a6a-8e8acfd42273",
+            "quantity": 1
+          },
+          {
+            "id": "029d0a14-62b0-5641-b201-d9eaab65df0c",
+            "itemId": "f44cef23-ee65-5c65-b445-94235d797ce8",
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "id": "cfcff6d0-5050-5b1b-bd0c-82c2b8abc89f",
+        "number": "CASE-P001",
+        "revision": "A",
+        "name": "Base with standoff bosses",
+        "kind": "printed"
+      },
+      {
+        "id": "d3708d4d-cc47-5a85-b612-003041fbc1be",
+        "number": "CASE-P002",
+        "revision": "A",
+        "name": "Shell of four walls",
+        "kind": "printed"
+      },
+      {
+        "id": "04969f08-84be-5469-838e-ddd5ab3ed978",
+        "number": "CASE-P003",
+        "revision": "A",
+        "name": "Top with lip",
+        "kind": "printed"
+      },
+      {
+        "id": "8b49e5a0-d36d-53b3-a97c-60b9c190dd0d",
+        "number": "CASE-C001",
+        "revision": "A",
+        "name": "Mini-ITX motherboard envelope with rear I/O keep-out",
+        "kind": "cots"
+      },
+      {
+        "id": "d30a5677-dc5e-560b-8a6a-8e8acfd42273",
+        "number": "CASE-C002",
+        "revision": "A",
+        "name": "Low-profile CPU cooler envelope",
+        "kind": "cots"
+      },
+      {
+        "id": "f44cef23-ee65-5c65-b445-94235d797ce8",
+        "number": "CASE-C003",
+        "revision": "A",
+        "name": "Flex ATX power supply envelope",
+        "kind": "cots"
+      }
+    ]
+  },
+  "interference": true,
+  "simulations": [
+    {
+      "name": "boss",
+      "title": "Front-left standoff boss under screw clamp",
+      "kind": "static",
+      "targets": [
+        "cfcff6d0-5050-5b1b-bd0c-82c2b8abc89f"
+      ],
+      "clip": {
+        "min": [
+          25.020000000000003,
+          0,
+          -1
+        ],
+        "max": [
+          49.02,
+          20.9,
+          7
+        ]
+      },
+      "meshSize": 0.8,
+      "material": {
+        "name": "PETG",
+        "youngsModulus": 1500,
+        "poissonsRatio": 0.38,
+        "source": "Prusament PETG datasheet: tensile modulus 1.5 GPa, yield 47 MPa"
+      },
+      "fixed": {
+        "note": "standoff seat on top of the boss",
+        "min": [
+          33.42,
+          5.300000000000001,
+          5.4
+        ],
+        "max": [
+          40.620000000000005,
+          12.5,
+          5.6
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "loads": [
+        {
+          "note": "M3 x 8 socket head (5.5 mm) pulled up by 500 N of clamp, about 0.3 N m",
+          "min": [
+            34.220000000000006,
+            6.1000000000000005,
+            -0.1
+          ],
+          "max": [
+            39.82,
+            11.7,
+            0.1
+          ],
+          "normal": [
+            0,
+            0,
+            -1
+          ],
+          "force": [
+            0,
+            0,
+            500
+          ]
+        }
+      ],
+      "limits": [
+        {
+          "name": "PETG yield 47 MPa halved for printed layers",
+          "max": 23.5
+        }
+      ],
+      "probe": {
+        "note": "in the first millimetre under the screw head",
+        "min": [
+          34.220000000000006,
+          6.1000000000000005,
+          0
+        ],
+        "max": [
+          39.82,
+          11.7,
+          1
+        ]
+      }
+    }
+  ]
+}

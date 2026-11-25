@@ -5,6 +5,7 @@ assembly, parameters, and geometric checks. No design-specific code lives here.
 """
 import argparse, datetime, hashlib, json, os, pathlib, subprocess, socket, shutil
 import trimesh
+import quality
 
 def digest(data): return hashlib.sha256(data).hexdigest()
 def now(): return datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
@@ -33,7 +34,8 @@ def build(root, output, overrides):
  for target in config['targets']:
   source=(generated/target['source']) if (generated/target['source']).exists() else root/target['source']
   stl=output/(target['id']+'.stl')
-  p=run(['openscad','-o',str(stl),str(source)],root);logs.append({'target':target['id'],'exitCode':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
+  defines=[a for k,v in target.get('defines',{}).items() for a in ('-D',f'{k}={json.dumps(v)}')]
+  p=run(['openscad',*defines,'-o',str(stl),str(source)],root);logs.append({'target':target['id'],'exitCode':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
   if p.returncode: raise ValueError(f"{target['id']}: {p.stderr}")
   mesh=trimesh.load_mesh(stl)
   valid=bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume>0)
@@ -50,6 +52,18 @@ def build(root, output, overrides):
   passed=(empty or p.returncode==0) and volume<=check.get('maxVolume',0.1)
   tests.append(dict(name=check['name'],status='pass' if passed else 'fail',detail=f'OpenSCAD Boolean intersection {volume:.6f} mm3; empty={empty}; exit={p.returncode}'))
   logs.append({'check':check['name'],'stderr':p.stderr,'exitCode':p.returncode})
+ # Quality checks and studies (quality.py): each adds test rows; the numbers go in quality.json.
+ report={}; work=output/'quality';work.mkdir(exist_ok=True)
+ stl_of={t['id']:output/(t['id']+'.stl') for t in config['targets']}
+ for target in config['targets']:
+  if target.get('print') and config.get('printer'):
+   rows,data=quality.printability(target.get('name',target['id']),stl_of[target['id']],config['printer'],target['print'],work);tests+=rows;report.setdefault('printability',[]).append(data)
+ if config.get('interference'):
+  opts=config['interference'] if isinstance(config['interference'],dict) else {}
+  rows,data=quality.interference(config['assembly'],lambda item:output/item['mesh']['path'],opts.get('allow',[]),opts.get('maxVolume',quality.MIN_FIT));tests+=rows;report['interference']=data
+ for study in config.get('simulations',[]):
+  rows,data=quality.simulate(study,[stl_of[t] for t in study['targets']],work);tests+=rows;report.setdefault('simulations',[]).append(data)
+ if report: artifact('quality.json',json.dumps(report,indent=2).encode(),'application/json')
  compiler=run(['openscad','--version'],root); compiler=(compiler.stdout+compiler.stderr).strip()
  artifact('build-log.json',json.dumps(logs,indent=2).encode(),'application/json')
  # A portable source archive is tied to the exact commit, not an uncommitted filesystem copy.
