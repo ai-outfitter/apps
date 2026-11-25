@@ -73,3 +73,20 @@ export const releaseEvidenceUploads = sqliteTable("foundry_release_evidence_uplo
   actor:text().notNull(),originActor:text().notNull(),bundle:text().notNull(),path:text().notNull(),
   metadata:text().notNull(),fingerprint:text().notNull(),expiresAt:integer().notNull(),createdAt:integer().notNull(),
 },row=>[uniqueIndex("foundry_evidence_upload_token").on(row.token),uniqueIndex("foundry_evidence_upload_target").on(row.bundle,row.path)]);
+
+// A planning request owns one run, one immutable artifact and at most one
+// Forgejo create attempt. Scope and publication intent are part of its identity.
+export const foundryPlans = sqliteTable("foundry_plans", {
+  key: text().primaryKey(),
+  requestId: text().notNull(),
+  runId: text().notNull(),
+  digest: text().notNull(),
+  repositoryGrants: text({ mode: "json" }).$type<{name:string;connectionId:string;repositoryId:number}[]>().notNull(),
+  repositories: text({ mode: "json" }).$type<string[]>().notNull(),
+  anchorRepository: text(),
+  state: text().notNull(),
+  updatedAt: integer().notNull(),
+  artifact: text(),
+  issue: text({ mode: "json" }).$type<{number:number;url:string;created:boolean}>(),
+  message: text(),
+}, (t) => [uniqueIndex("foundry_plans_run_idx").on(t.runId)]);

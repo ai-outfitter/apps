@@ -10,6 +10,14 @@ import { graphqlSchema } from "./graphql";
 import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
+  PlanWork: {
+    story: "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
+    document: `mutation PlanWork($input:PlanWorkInput!){planWork(input:$input)}`,
+  },
+  FoundryPlan: {
+    story: "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
+    document: `query FoundryPlan($input:FindFoundryPlanInput!){foundryPlan(input:$input)}`,
+  },
   SubmitReleaseEvidence:{
     story:"As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
@@ -38,6 +46,8 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
+  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."},
+  FoundryPlan:{description:"Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."},
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."

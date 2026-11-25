@@ -1,0 +1,27 @@
+version: beta
+id: foundry-plan-work
+summary: Read explicitly authorized repositories, save a plan, and optionally publish one issue at the selected anchor.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  - id: plan
+    inference: {maxOutputTokens: 3600}
+    inputs:
+      requestId:
+        schema: {type: string, format: uuid}
+      repositories:
+        schema: {type: array, minItems: 1, items: {type: string}}
+      anchorRepository:
+        schema: {type: [string, "null"]}
+      createIssue:
+        schema: {type: boolean}
+    outputs:
+      result:
+        connector: database
+        record: foundry-plan.saved
+        schema:
+          type: object
+          required: [status, repositories, anchorRepository, artifacts]
+outputs:
+  result: plan.outputs.result
