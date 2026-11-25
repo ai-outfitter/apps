@@ -3,7 +3,6 @@
 import { resolve } from "node:path";
 import { exitIfStale, syncFile, writeAppDocuments } from "@ai-outfitter/app-sdk/graph-graphql-typegen";
 import { printSchema } from "graphql";
-export { composeGraphs as standardGraphTypes } from "../../../scripts/compose-graphs";
 import { documents } from "../src/server/documents";
 import { graphqlSchema } from "../src/server/graphql";
 

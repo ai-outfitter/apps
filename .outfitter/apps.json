@@ -4,7 +4,7 @@
   ],
   "validation": "scripts",
   "sharedInputs": [
-    "apps/*/graph/*.ts",
+    "apps/*/graph/**/*.ts",
     "apps/*/seeds/*.json",
     "apps/onto/fixtures/competitors.json",
     "scripts/compose-graphs.ts",
@@ -14,7 +14,12 @@
     "packages/app-sdk/graph/standard-*"
   ],
   "sharedInputApps": [
-    "apps/onto"
+    "apps/creative-team",
+    "apps/forerunner",
+    "apps/onto",
+    "apps/planning",
+    "apps/video-production",
+    "apps/workshop"
   ],
   "commands": [
     "check",

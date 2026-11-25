@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "prebuild": "npm --prefix ../.. run graph:compose",
+    "prebuild": "npm --prefix ../.. run graph:compose -- --apps-only",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration",
@@ -19,7 +19,7 @@
     "test:e2e": "playwright test --config playwright.config.ts",
     "seeds:check": "node --import tsx scripts/check-seeds.ts",
     "transfer": "node --import tsx scripts/wiki-transfer.ts",
-    "prepreview:build": "npm --prefix ../.. run graph:compose",
+    "prepreview:build": "npm --prefix ../.. run graph:compose -- --apps-only",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
   },
   "dependencies": {

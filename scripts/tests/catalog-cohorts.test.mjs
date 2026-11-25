@@ -127,24 +127,26 @@ test('validation and previews include direct changes and their configured shared
  const root=await mkdtemp(join(tmpdir(),'catalog-direct-'));t.after(()=>rm(root,{recursive:true,force:true}));
  const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
  git('init','-q');git('config','user.email','ci@example.com');git('config','user.name','ci');
- for(const dir of ['.outfitter','apps/onto','apps/planning/seeds','apps/forerunner/seeds','apps/creative-team/seeds','packages/app-sdk/src','scripts']) await mkdir(join(root,dir),{recursive:true});
+ for(const dir of ['.outfitter','apps/onto','apps/planning/seeds','apps/forerunner/seeds','apps/creative-team/seeds','apps/workshop/graph/nested','packages/app-sdk/src','scripts']) await mkdir(join(root,dir),{recursive:true});
  await writeFile(join(root,configPath),config);
  git('add','.');git('commit','-qm','base');
+ const graphApps=['apps/creative-team','apps/forerunner','apps/onto','apps/planning','apps/video-production','apps/workshop'];
+ const apps=JSON.stringify([...graphApps,'apps/wiki']);
  const cases=[
+  ['apps/workshop/graph/nested/part.ts',graphApps],
   ['apps/planning/a.ts',['apps/planning']],
   ['packages/app-sdk/src/unrelated.ts',[]],
-  ['apps/planning/seeds/work-graph-v1.json',['apps/onto','apps/planning']],
-  ['apps/forerunner/seeds/discovery-graph-v1.json',['apps/forerunner','apps/onto']],
-  ['apps/creative-team/seeds/creative-v1.json',['apps/creative-team','apps/onto']],
-  ['scripts/compose-graphs.ts',['apps/onto']],
-  ['packages/app-sdk/src/graph-authoring.ts',['apps/onto']],
+  ['apps/planning/seeds/work-graph-v1.json',graphApps],
+  ['apps/forerunner/seeds/discovery-graph-v1.json',graphApps],
+  ['apps/creative-team/seeds/creative-v1.json',graphApps],
+  ['scripts/compose-graphs.ts',graphApps],
+  ['packages/app-sdk/src/graph-authoring.ts',graphApps],
  ];
  for(const [changed,expected] of cases){
   const base=git('rev-parse','HEAD');
   await writeFile(join(root,changed),'example');
   git('add',changed);git('commit','-qm',changed);
   const head=git('rev-parse','HEAD');
-  const apps='["apps/creative-team","apps/forerunner","apps/onto","apps/planning"]';
   for(const [index,script] of scripts.entries()){
    const output=join(root,`${head}-${index}`);
    execFileSync(process.execPath,['--input-type=module','-e',script],{cwd:root,env:{...process.env,CONFIG_PATH:configPath,SELECTED_APPS:apps,CATALOG_APPS:apps,APP_SET:'catalog',BASE_SHA:base,HEAD_SHA:head,GITHUB_OUTPUT:output}});
