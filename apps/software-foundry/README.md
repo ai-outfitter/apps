@@ -33,8 +33,9 @@ the Jobs page and the published `JobChanges` document.
 Run `community-template-audit` from Jobs, through the published `RunJob`
 document, or by posting to `/api/apps/software-foundry/jobs` with
 `{"action":"run","job":"community-template-audit","repository":"owner/name"}`.
-The repository must be approved on an active organization GitHub connection,
-and the acting editor must have GitHub read access. The run shows the checked
+The acting editor must have GitHub read access, and the Outfitter GitHub App
+must be installed for the repository. The job resolves that installation and
+reads through a repository-scoped token. The run shows the checked
 default-branch commit, effective local and inherited templates, and the
 proposed file changes in `check.outputs.report`.
 
