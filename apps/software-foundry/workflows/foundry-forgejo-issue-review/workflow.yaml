@@ -1,0 +1,95 @@
+version: beta
+id: foundry-forgejo-issue-review
+summary: Implement an existing Forgejo issue at an approved base and obtain an independent formal review of the draft pull request.
+actors:
+  implementer:
+    kind: external
+    binding: implement.inputs.implementerBinding
+  reviewer:
+    kind: external
+    binding: implement.inputs.reviewerBinding
+triggers:
+  - on: manual
+$defs:
+  sha: {type: string, pattern: "^[a-f0-9]{40}$"}
+  target:
+    type: object
+    required: [repository, repositoryId, issueNumber, origin, baseRef, baseSha, branch, workerId, reviewer, reviewerId]
+    properties:
+      repository: {type: string}
+      repositoryId: {type: integer}
+      issueNumber: {type: integer}
+      origin: {type: string, format: uri}
+      baseRef: {type: string}
+      baseSha: {$ref: "#/$defs/sha"}
+      branch: {type: string}
+      workerId: {type: integer}
+      reviewer: {type: string}
+      reviewerId: {type: integer}
+steps:
+  - id: implement
+    actor: implementer
+    inputs:
+      target:
+        schema: {$ref: "#/$defs/target"}
+      issue:
+        schema:
+          type: object
+          required: [number, title, url]
+          properties:
+            number: {type: integer}
+            title: {type: string}
+            url: {type: string, format: uri}
+            body: {type: string}
+      connectionId:
+        schema: {type: string, minLength: 1}
+      implementerBinding:
+        schema: {type: string, minLength: 1}
+      reviewerBinding:
+        schema: {type: string, minLength: 1}
+    instructions: >-
+      Read the assigned issue and inspect the pinned Forgejo base before editing.
+      Implement the issue in the assigned worktree and run targeted checks.
+      Return the complete contents of each changed text file or null for a deletion,
+      and a summary of the checks actually run. Foundry publishes the branch and draft.
+    outputs:
+      result:
+        schema:
+          type: object
+          properties:
+            headSha: {$ref: "#/$defs/sha"}
+            summary: {type: string}
+            candidate: {type: object}
+            files:
+              type: array
+              items:
+                type: object
+                required: [path, content]
+                properties:
+                  path: {type: string}
+                  content: {type: [string, "null"]}
+          required: [summary]
+  - id: review
+    actor: reviewer
+    inputs:
+      target: implement.inputs.target
+      issue: implement.inputs.issue
+      previous: implement.outputs.result
+    instructions: >-
+      Independently review the assigned commit against the pinned base and issue.
+      Inspect the actual diff, reproduce relevant checks, and report actionable
+      findings. Return the reviewed SHA, verdict and concise evidence. Foundry
+      coordinates publication of the formal review under the approved reviewer.
+    outputs:
+      result:
+        schema:
+          type: object
+          properties:
+            headSha: {$ref: "#/$defs/sha"}
+            verdict: {enum: [approved, changes-requested]}
+            summary: {type: string}
+            review: {type: object}
+          required: [headSha, verdict, summary]
+outputs:
+  candidate: implement.outputs.result
+  review: review.outputs.result

@@ -99,3 +99,21 @@ export const foundryPlans = sqliteTable("foundry_plans", {
   issue: text({ mode: "json" }).$type<{number:number;url:string;created:boolean}>(),
   message: text(),
 }, (t) => [uniqueIndex("foundry_plans_run_idx").on(t.runId)]);
+
+/** One review run and one publication claim for each installation's Forgejo issue. */
+export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", {
+  runId: text().primaryKey(),
+  repositoryId: integer().notNull(),
+  forgeOrigin: text().notNull(),
+  issueNumber: integer().notNull(),
+  installationId: text().notNull(),
+  createdBy: text().notNull(),
+  inputs: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  branchClaim: text(),
+  commitClaim: text(),
+  publication: text({ mode: "json" }).$type<{ headSha: string; attemptId: string }>(),
+  candidate: text({ mode: "json" }).$type<Record<string, unknown>>(),
+  reviewPublication: text({ mode: "json" }).$type<{ attemptId: string; verdict: string }>(),
+  review: text({ mode: "json" }).$type<Record<string, unknown>>(),
+}, (row) => [uniqueIndex("foundry_forgejo_issue_review_target")
+  .on(row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber)]);

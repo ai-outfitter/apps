@@ -62,6 +62,7 @@
         "connector.forgejo.issues.find-by-marker",
         "connector.forgejo.repositories.evidence.read",
         "workflow.foundry-plan-work.start",
+        "workflow.foundry-forgejo-issue-review.start",
         "workflow.issue-to-merge-workspace.start",
         "storage.artifacts.read",
         "storage.artifacts.write",

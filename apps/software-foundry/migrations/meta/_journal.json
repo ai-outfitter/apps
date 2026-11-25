@@ -71,6 +71,13 @@
       "when": 1795632260823,
       "tag": "0009_foundry_plan_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795648059282,
+      "tag": "0010_foundry_forgejo_issue_reviews",
+      "breakpoints": true
     }
   ]
 }

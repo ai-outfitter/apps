@@ -1,3 +1,4 @@
+import { reviewForgejoIssue, reviewForgejoIssueInput } from "./workspace/issue-review";
 import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
@@ -148,6 +149,10 @@ const jobResult = new GraphQLObjectType({ name: "FoundryJobResult", description:
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
+    reviewForgejoIssue: mutationField<typeof reviewForgejoIssueInput, FoundryContext>({
+      name: "ReviewForgejoIssue", input: reviewForgejoIssueInput, run: reviewForgejoIssue,
+      description: "Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.",
+    }),
     planWork: mutationField<typeof planWorkInput, FoundryContext>({
       name: "PlanWork", input: planWorkInput, run: planWork,
       description: "Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.",

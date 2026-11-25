@@ -16,6 +16,7 @@ import {
 import type { StorageLocals } from "@ai-outfitter/app-sdk/storage";
 import { z } from "zod";
 import { finalizeWorkspaceNode, prepareWorkspaceNode } from "./workspace/execution";
+import { configureIssueReview, configureIssueReviewInput, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview } from "./workspace/issue-review";
 import { inspectFoundryWorkspace } from "./workspace/inspection";
 import { publishFoundryEvidence } from "./workspace/publication";
 import {
@@ -32,6 +33,7 @@ import { repositoryName } from "./projects";
 
 /** Gateway operator requests: inspect, configure or start a repository's Foundry workflow. */
 const operatorInput = z.discriminatedUnion("operation", [
+  configureIssueReviewInput,
   z.object({ operation: z.literal("inspect"), repository: repositoryName, reviewer: z.string().min(1).max(128).default("vega"), number: z.number().int().positive().optional() }),
   z.object({ operation: z.literal("configure"), repository: repositoryName, reviewer: z.string().min(1).max(128).default("vega"), model: z.string().max(128).optional(),
     ci: z.enum(["actions", "workspace"]).optional() }),
@@ -77,6 +79,7 @@ async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z
 
 async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<PhaseInput> {
   const input = operatorInput.parse(raw);
+  if (input.operation === "configure-issue-review") return configureIssueReview(host, input);
   const result = input.operation === "inspect"
     ? await inspectFoundryWorkspace(host, input.repository, input.reviewer, input.number)
     : input.operation === "configure"
@@ -93,8 +96,18 @@ export function foundryPhases(locals: StorageLocals, origin: string,request:Requ
     event: (input, host) => event(host, input),
     operator: (input, host) => operator(host, input),
     schedule: (input, host) => scheduleInput.parse(input).schedule.workflowId===dailyWorkflow ? dailyUpdate(host,requestIdentity(request),input) : schedule(host, input),
-    prepare: async (input, host) => prepareWorkspaceNode(host, prepareInput.parse(input)),
+    prepare: async (input, host) => {
+      const phase = prepareInput.parse(input);
+      return ("target" in phase.inputs || phase.settings.policy === issueReviewWorkflow)
+        ? prepareIssueReview(host, files.db, phase)
+        : prepareWorkspaceNode(host, phase);
+    },
     publish: async (input, host) => publishFoundryEvidence(host, locals, origin, input),
-    finalize: async (input, host) => finalizeWorkspaceNode(host, files, finalizeInput.parse(input)) as Promise<PhaseInput>,
+    finalize: async (input, host) => {
+      const phase = finalizeInput.parse(input);
+      return ("target" in phase.inputs || phase.settings.policy === issueReviewWorkflow)
+        ? finalizeIssueReview(host, files.db, phase)
+        : finalizeWorkspaceNode(host, files, phase) as Promise<PhaseInput>;
+    },
   });
 }
