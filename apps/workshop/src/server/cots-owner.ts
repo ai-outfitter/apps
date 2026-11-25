@@ -17,9 +17,10 @@ export async function cotsPart(load: CotsSourceLoader, ref: CotsEvidenceRef) {
 
 export function sameCotsPart(left: Item, right: Item) {
   const normalize = (value: string) => value.trim().toLowerCase();
-  if (left.revision !== right.revision || normalize(left.manufacturer) !== normalize(right.manufacturer)) return false;
-  if (left.mpn || right.mpn) return Boolean(left.manufacturer) && normalize(left.mpn) === normalize(right.mpn);
-  return left.number === right.number;
+  const manufacturer = normalize(left.manufacturer);
+  const mpn = normalize(left.mpn);
+  if (left.revision !== right.revision || manufacturer !== normalize(right.manufacturer) || mpn !== normalize(right.mpn)) return false;
+  return Boolean(manufacturer && mpn) || left.number === right.number;
 }
 
 export async function canonicalCotsPart(load: CotsSourceLoader, ref: CotsEvidenceRef) {

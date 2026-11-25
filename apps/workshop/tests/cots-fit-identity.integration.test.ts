@@ -71,3 +71,31 @@ test("an item without a manufacturer part number cannot carry evidence to a diff
   assert.equal(response.result.errors?.[0]?.extensions?.status, 400, JSON.stringify(response.result));
   assert.match(response.result.errors?.[0]?.message ?? "", /purchased-part evidence/i);
 });
+
+test("an ordinary assembly edit preserves recorded evidence for a part with no manufacturer", { timeout: 30_000 }, async t => {
+  const fixture = await sharedCotsWorker();
+  t.after(() => fixture.app.dispose());
+  const library = await fixture.createProject("Purchased component library", "component");
+  const part = { ...purchasedPart(), manufacturer: "" };
+  const root = assemblyItem("Reference fixture", "LIBRARY", [{ itemId: part.id, refdes: "J1" }]);
+  const saved = await fixture.saveAssembly(library.id, library.revision, { rootId: root.id, items: [root, part] });
+  const recorded = await fixture.graph<{ revision: number }>("RecordWorkshopCotsEvidence", {
+    input: {
+      projectId: library.id, itemId: part.id, expectedRevision: saved.revision,
+      evidence: {
+        photos: [],
+        interfaces: [{
+          id: randomUUID(), feature: "Latch depth", datum: "Mating face", axis: "X", unit: "mm",
+          tolerance: { kind: "unknown" }, photoSha256s: [], verification: { status: "untested" },
+        }],
+      },
+    },
+  });
+  const { assembly } = await fixture.graph<{ assembly: Assembly }>("WorkshopAssembly", { projectId: library.id });
+  const edited = await fixture.saveAssembly(library.id, recorded.revision, {
+    ...assembly, items: assembly.items.map(item => item.id === root.id ? { ...item, name: "New fixture label" } : item),
+  });
+  assert.equal(edited.revision, recorded.revision + 1);
+  const after = await fixture.graph<{ assembly: Assembly }>("WorkshopAssembly", { projectId: library.id });
+  assert.deepEqual(after.assembly.items.find(item => item.id === part.id), assembly.items.find(item => item.id === part.id));
+});
