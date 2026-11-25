@@ -12,6 +12,7 @@ jobs:
     outputs:
       sdk: ${{ steps.paths.outputs.sdk }}
       push-baseline: ${{ steps.baseline.outputs.sha }}
+      box: ${{ steps.paths.outputs.box }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,8 +39,14 @@ jobs:
         run: |
           if [[ -z "$BASE" ]] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo sdk=true >> "$GITHUB_OUTPUT"
+            echo box=true >> "$GITHUB_OUTPUT"
           else
             git diff --no-renames --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
+            if grep -Eq '^(box/|package(-lock)?\.json$|\.github/workflows/ci\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
+              echo box=true >> "$GITHUB_OUTPUT"
+            else
+              echo box=false >> "$GITHUB_OUTPUT"
+            fi
             if grep -Eq '^(packages/|apps/[^/]+/(graph/|seeds/|fixtures/)|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|scripts/(compose-graphs\.ts|lib/sdk-archives\.mjs)$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
               echo sdk=true >> "$GITHUB_OUTPUT"
             else
@@ -65,6 +72,20 @@ jobs:
       - run: npm run test:sdk
       - run: npm run build:sdk
       - run: node scripts/check-sdk-packages.mjs
+  box:
+    needs: changes
+    if: needs.changes.outputs.box == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test --workspace @ai-outfitter/box
   test:
     runs-on: ubuntu-latest
     steps:

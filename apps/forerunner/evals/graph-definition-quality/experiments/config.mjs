@@ -8,6 +8,9 @@ export const limits = {
   timeoutSeconds: 120,
 };
 
+export const requestOptions = { chat_template_kwargs: { enable_thinking: false } };
+export const modelRevisionOf = ({ root }) => root?.match(/\/snapshots\/([a-f0-9]{40})(?:\/|$)/)?.[1];
+
 export function experiment(arm) {
   return { agent: `read-only-${arm}`, model, timeout: limits.timeoutSeconds, runs: 1, earlyExit: false };
 }

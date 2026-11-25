@@ -12,7 +12,7 @@ export function assertCompatiblePair(configs, agents, model, limits) {
 }
 
 /** Keep the runner and limits identical, changing only the fixture's prepared context. */
-export async function runPair({ project, resultsDir, model, limits, prepare }) {
+export async function runPair({ project, resultsDir, model, limits, prepare, requestOptions, modelRevisionOf }) {
   const base = process.env.EVAL_BASE_URL;
   if (!base) throw new Error('Set EVAL_BASE_URL to a trusted OpenAI-compatible /v1 endpoint');
   const apiKey = process.env.EVAL_API_KEY ?? '';
@@ -24,8 +24,7 @@ export async function runPair({ project, resultsDir, model, limits, prepare }) {
   if (!response.ok) throw new Error(`Model discovery HTTP ${response.status}`);
   const advertised = (await response.json()).data.find(({ id }) => id === model);
   if (!advertised) throw new Error(`Endpoint does not advertise ${model}`);
-  // The Spark reports a local model-cache path. Keep only the snapshot revision.
-  const modelRevision = advertised.root?.match(/\/snapshots\/([a-f0-9]{40})(?:\/|$)/)?.[1] ?? null;
+  const modelRevision = modelRevisionOf?.(advertised) ?? null;
   const { fixtures, errors } = loadAllFixtures(join(project, 'evals'));
   if (errors.length) throw new AggregateError(errors, 'Invalid evaluation fixtures');
   if (!fixtures.length) throw new Error('No evaluation fixtures found');
@@ -44,7 +43,7 @@ export async function runPair({ project, resultsDir, model, limits, prepare }) {
     const receipts = [];
     pair.runs[arm] = receipts;
     const agent = readOnlyAgent({
-      name: `read-only-${arm}`, model, limits, modelRevision, receipts,
+      name: `read-only-${arm}`, model, limits, modelRevision, receipts, requestOptions,
       endpoint: `${base.replace(/\/$/, '')}/chat/completions`,
       prepare: (fixture, prompt) => prepare(arm, fixture, prompt),
     });

@@ -24,6 +24,7 @@ test('records usage for tool and final turns and enforces the tool budget', asyn
     const agent = readOnlyAgent({
       name: 'test', model: 'test-model', modelRevision: null, receipts,
       endpoint: `http://127.0.0.1:${address.port}`,
+      requestOptions: { provider_option: true, max_tokens: 999 },
       limits: { modelCalls: 2, toolCalls: 1, tokensPerCall: 30, temperature: 0, seed: 7 },
       prepare: () => ({ inputs: {}, messages: [], tools: [{ type: 'function' }],
         execute: () => ({ ok: true }), grade: () => ({ passed: true }) }),
@@ -32,6 +33,8 @@ test('records usage for tool and final turns and enforces the tool budget', asyn
     assert.equal(result.success, true);
     assert.deepEqual(result.usage, { inputTokens: 22, outputTokens: 4, totalTokens: 26 });
     assert.equal(receipts[0].toolCalls, 1);
+    assert.ok(requests.every(body => body.provider_option === true && body.max_tokens === 30));
+    assert.ok(requests.every(body => !('chat_template_kwargs' in body)));
     assert.equal(requests[1].tools, undefined);
     assert.deepEqual(requests[1].response_format, { type: 'json_object' });
     assert.equal((requests[1].messages as { role: string }[]).at(-1)?.role, 'user');

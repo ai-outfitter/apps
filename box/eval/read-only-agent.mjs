@@ -6,7 +6,7 @@ const finalInstruction = {
   content: 'Tool lookup is complete. Submit the requested final JSON object using the evidence and lookup results.',
 };
 
-export function readOnlyAgent({ name, model, endpoint, prepare, limits, modelRevision, receipts }) {
+export function readOnlyAgent({ name, model, endpoint, prepare, limits, modelRevision, receipts, requestOptions }) {
   return {
     name,
     displayName: name,
@@ -40,10 +40,10 @@ export function readOnlyAgent({ name, model, endpoint, prepare, limits, modelRev
               ...(options.apiKey ? { authorization: `Bearer ${options.apiKey}` } : {}),
             },
             body: JSON.stringify({
+              ...requestOptions,
               model, messages: canCall ? messages : [...messages, finalInstruction],
               temperature: limits.temperature, seed: limits.seed,
               max_tokens: limits.tokensPerCall,
-              chat_template_kwargs: { enable_thinking: false },
               ...(canCall
                 ? { tools, parallel_tool_calls: false }
                 : { response_format: { type: 'json_object' } }),

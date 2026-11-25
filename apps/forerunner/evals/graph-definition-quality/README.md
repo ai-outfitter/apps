@@ -13,11 +13,14 @@ Use Node 24 and install the repository’s locked dependencies. Set `EVAL_BASE_U
 ```sh
 EVAL_BASE_URL=http://your-spark:8888/v1 node apps/forerunner/evals/graph-definition-quality/run.mjs
 npm -w apps/forerunner run test:unit
+npm -w @ai-outfitter/box test
 npm test
 actionlint
 ```
 
 The shared adapter registers two read-only agents with Agent Eval, runs one case at a time, and alternates which arm goes first. To reuse it, supply a project with `experiments/baseline.ts`, `experiments/candidate.ts`, fixtures under `evals/`, and a `prepare(arm, fixture, prompt)` function like [fixture.mjs](fixture.mjs).
+
+The read-only adapter grades the captured JSON and tool receipts before returning the test result to Agent Eval. Run this project through the command above so the paired fixture grader and shared input are available. The projector reads per-owner sources at the pinned Git revisions to compare historical compiled definitions with the corresponding authored declarations.
 
 Each invocation writes native Agent Eval results and `pair.json` under a new directory in `results/`. Override the parent with `EVAL_RESULTS_DIR`. The pair receipt records prompt, schema, evidence, lookup, rubric and expected-answer hashes. It also captures messages, tool calls and results, model responses and usage, wall time, and grader output. The Forerunner unit command replays the retained prompts, tool results and grades.
 
