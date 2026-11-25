@@ -135,6 +135,7 @@ export async function createWorkshopProject(
 ) {
   if (input.workspace) throw new Response("Import model source, not workspace execution records", {status:400});
   if (input.pcbSnapshots?.length) throw new Response("Import PCB evidence through the snapshot API", {status:400});
+  if (input.printPackages?.length) throw new Response("Import sliced evidence through the print plate operation", {status:400});
   checkSavedFiles(input.assembly);
   const project: Project = { ...input, revision: 1 };
   const exists = async () =>
@@ -173,6 +174,7 @@ export async function updateWorkshopProject(
     const stored = ProjectSchema.parse(JSON.parse(previous.data));
     if(stored.revision !== input.revision) throw new Response("Project changed in another session. Reload before saving.",{status:409});
     if (JSON.stringify(stored.pcbSnapshots ?? []) !== JSON.stringify(input.pcbSnapshots ?? [])) throw new Response("Use the PCB snapshot import operation to change imported evidence", {status:400});
+    if (JSON.stringify(stored.printPackages ?? []) !== JSON.stringify(input.printPackages ?? [])) throw new Response("Use the print plate operation to record sliced evidence", {status:400});
     if (JSON.stringify(stored.workspace) !== JSON.stringify(input.workspace)) throw new Response("Use workspace build operations to change revision records", {status:400});
   }
   const parsed = ProjectSchema.safeParse({

@@ -1,3 +1,4 @@
+import { analyzePrint, printWarnings } from "./print-analysis";
 import { z } from "zod";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -25,6 +26,7 @@ export const artifactKey=(project:string,build:string,path:string)=>`${project}/
 export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuildInput>){
  const p=await getWorkshopProject(c.db(),i.id);if(p.revision!==i.revision)throw stale();
  const w=p.workspace,r=w?.requests.find(r=>r.id===i.buildId);if(!w||!r||r.status!=="running"||r.result)throw new Response("Unknown or completed build",{status:409});
+ const printWarningsByArtifact: Record<string,string[]> = {};
  if(i.manifest){
   if(!r.workflowRunId)throw new Response("A validated workflow is required",{status:409});
   const workflow=await c.host().call("workflow.read",{id:r.workflowRunId});
@@ -42,6 +44,11 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
    if(!f)throw new Response(`Missing artifact ${a.path}`,{status:400});
    const bytes=new Uint8Array(await new Response(f.body).arrayBuffer());
    if(bytes.length!==a.bytes||bytesToHex(sha256(bytes))!==a.sha256)throw new Response(`Artifact mismatch ${a.path}`,{status:400});
+   if (a.path.toLowerCase().endsWith(".stl")) {
+     const preflight = await analyzePrint(c,{name:a.path.split("/").at(-1)!,sha256:a.sha256,bytes});
+     const warnings = printWarnings(preflight);
+     if (warnings.length) printWarningsByArtifact[a.path] = warnings;
+   }
   }
  }
  // A result may be attached to its original request, but a newer request/edit prevents promotion.
@@ -49,5 +56,6 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
  const success=Boolean(i.manifest)&&!i.manifest!.tests.some(t=>t.status==="fail");
  const result={...(i.manifest?{manifest:i.manifest}:{}),...(i.error?{error:i.error}:{}),artifactBase:`/files/main/builds/${p.id}/${r.id}/`,stale:isStale};
  const authored = p.assembly.items.some(item=>item.reference || item.operations?.length || item.uses.some(use=>use.joint) || item.driveMotion || item.files?.length) || Boolean(p.assembly.configurations?.length);
- return updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale&&!authored?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
+ const saved = await updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale&&!authored?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
+ return {...saved,printWarnings:printWarningsByArtifact};
 }

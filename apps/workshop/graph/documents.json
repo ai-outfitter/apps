@@ -492,6 +492,13 @@
                                       "items": {
                                         "type": "object",
                                         "properties": {
+                                          "supportPolicy": {
+                                            "type": "string",
+                                            "enum": [
+                                              "support-free",
+                                              "supports-required"
+                                            ]
+                                          },
                                           "projectId": {
                                             "type": "string",
                                             "format": "uuid",
@@ -2082,6 +2089,36 @@
     "hidden": true
   },
   {
+    "name": "RecordWorkshopPrintPlate",
+    "kind": "mutation",
+    "story": "As a hardware builder, I want to record time and material from the actual grouped print plates, so that I can prepare the correct amount of filament.",
+    "query": "mutation RecordWorkshopPrintPlate($input: RecordWorkshopPrintPlateInput!) {\n  recordWorkshopPrintPlate(input: $input)\n}",
+    "hash": "85bcb191e9ca0e9a49d0a82b365b7fb76a4585869242927ef6f7aea44ff2c57c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordWorkshopPrintPlateInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "recordWorkshopPrintPlate": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "RecordWorkshopUnit",
     "kind": "mutation",
     "story": "As a member, I want to record each board or part I have in hand by its MAC address or serial, so that the assembly shows what is in stock and no unit is entered twice.",
@@ -2661,7 +2698,7 @@
       ]
     },
     "mcp": {
-      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision and file receipt."
+      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and print preflight warnings for STL."
     },
     "outputSchema": {
       "type": "object",
@@ -2769,6 +2806,36 @@
       "properties": {
         "workshopDesignRun": {
           "description": "JSON"
+        }
+      }
+    }
+  },
+  {
+    "name": "WorkshopPrint",
+    "kind": "query",
+    "story": "As a hardware builder, I want to review print preflight and sliced plate estimates for my assembly, so that I can plan the fabrication run.",
+    "query": "query WorkshopPrint($input: WorkshopPrintInput!) {\n  workshopPrint(input: $input)\n}",
+    "hash": "491341966864eeabbf1b87f5e3272322b93ad101812855fa97148b988c84d3a2",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopPrintInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopPrint": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }

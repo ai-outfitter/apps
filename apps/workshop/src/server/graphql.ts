@@ -1,3 +1,6 @@
+import { PrintPlateInput } from "../lib/print-plates";
+import { recordWorkshopPrintPlate } from "./print-plates";
+import { readWorkshopPrint } from "./print-analysis";
 import {sourceFileInput,readSourceFile} from "./source-file";
 import { pageCursor, resolvedPage } from "../lib/resolved-page";
 import {uploadInput, verifyInput, uploadAssemblyFile, verifyAssemblyFile} from "./assembly-files";
@@ -87,6 +90,11 @@ const resolvedAssembly = mutationField<typeof AssemblyReferenceSchema, WorkshopC
 });
 resolvedAssembly.extensions = { completeResult: true };
 
+const workshopPrint = mutationField<typeof AssemblyReferenceSchema, WorkshopContext>({
+  name:"WorkshopPrint",description:"Read print preflight and grouped slice evidence for the selected assembly.",
+  input:AssemblyReferenceSchema,
+  run:async(context,input)=>readWorkshopPrint(context,input.projectId,await resolvedProject(context.db(),input)),
+});
 const resolvedPageInput = AssemblyReferenceSchema.extend({cursor:z.string().regex(pageCursor).optional()});
 const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopContext>({
   name:"ResolvedWorkshopAssemblyPage",
@@ -108,6 +116,7 @@ const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopCon
 const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
+    recordWorkshopPrintPlate:mutationField<typeof PrintPlateInput,WorkshopContext>({name:"RecordWorkshopPrintPlate",description:"Preserve a native Bambu Studio sliced package and its physical plates for the current print inputs.",input:PrintPlateInput,run:recordWorkshopPrintPlate}),
     uploadWorkshopAssemblyFile: mutationField<typeof uploadInput,WorkshopContext>({name:"UploadWorkshopAssemblyFile",description:"Reserve or attach a verified CAD or animation file on one saved item.",input:uploadInput,run:uploadAssemblyFile}),
     submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
       name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
@@ -222,7 +231,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopPrint, workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

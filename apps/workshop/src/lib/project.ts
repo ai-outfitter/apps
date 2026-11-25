@@ -1,3 +1,4 @@
+import { PrintPackageSchema } from "./print-plates";
 import {handoff,pinned} from '@ai-outfitter/creative-workflow';
 import {artifactRef} from '@ai-outfitter/app-sdk/evidence';
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -99,6 +100,7 @@ export const ProjectSchema = z
       .optional(),
     cadPlan: CadPlanSchema.optional(),
     workspace: WorkspaceSchema.optional(),
+    printPackages: z.array(PrintPackageSchema).max(20).optional(),
     pcbSnapshots: z.array(PcbSnapshotSchema).max(30).optional(),
     measurementNotes: text,
     circuitNotes: text,
