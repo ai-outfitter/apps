@@ -4,6 +4,7 @@ import { scheduleInput, type PhaseInput, type WorkflowHost } from "@ai-outfitter
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
 import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEvidence, modelData, renderBrief } from "./daily-brief-synthesis";
+import { contentStillAuthorized, discoverPersonalContent } from "./content-discovery";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { readAppUpdates } from "./app-updates";
@@ -89,7 +90,8 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
     return saved(current, "unchanged");
   }
   const previous = prior && !prior.archived ? { slug: previousSlug, revision: prior.revision } : null;
-  const inputs = { date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, role, discovery, previous, now };
+  const content = await discoverPersonalContent(db, who, host, { now, date: input.date, timezone: zone });
+  const inputs = { content, date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, role, discovery, previous, now };
   const { evidence, gaps } = gatherEvidence(inputs);
   const digest = await evidenceDigest(inputs, evidence, gaps);
   if (current?.generatedBody.includes(digestMarker(digest))) return saved(current, "unchanged");
@@ -97,15 +99,18 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const schema = answerSchema(evidence);
   let generatedBody: string;
   try {
-    const response = await host.call("inference.generate", { runId: input.runId, step: "collect", checkpointId: `brief.${digest}`, instructions: briefInstructions, data: modelData(inputs, evidence, gaps), schema: z.record(z.string(), z.json()).parse(z.toJSONSchema(schema)) });
+    // Private excerpts bypass retained inference checkpoints. The saved digest still deduplicates a completed brief.
+    const response = await host.call("inference.generate", { runId: input.runId, step: "collect", ...(content.items.length ? {} : { checkpointId: `brief.${digest}` }), instructions: briefInstructions, data: modelData(inputs, evidence, gaps), schema: z.record(z.string(), z.json()).parse(z.toJSONSchema(schema)) });
     generatedBody = renderBrief(inputs, evidence, gaps, schema.parse(response.output), digest);
   } catch (error) {
     if (error instanceof z.ZodError) throw new BriefGenerationFailed("The model's answer cited sources outside the saved evidence or did not match the brief format. Nothing was saved.", 422);
     throw new BriefGenerationFailed("The brief could not be written by the model. Nothing was saved; any earlier brief is unchanged.");
   }
+  if (!(await contentStillAuthorized(host, content)))
+    throw new BriefGenerationFailed("A content source lost authorization while the brief was being written. Nothing was saved.", 409);
   const write = { ...(current ? { id: current.id, revision: current.revision } : { slug, title: `Daily brief — ${input.date}` }), generatedBody,
     provenance: { kind: "forerunner.daily-brief", generation: "model-synthesis", owner: who.owner, installationId: who.installationId, date: input.date, timezone: zone, runId: input.runId, capturedAt: now, status, evidenceDigest: digest,
-      sources: evidence.map(row => ({ ref: row.ref, kind: row.kind, ...(row.scope ? { scope: row.scope } : {}), ...(row.recordId ? { recordId: row.recordId } : {}), ...(row.revision ? { revision: row.revision } : {}), ...(row.href ? { href: row.href } : {}) })),
+      sources: evidence.map(row => ({ ref: row.ref, kind: row.kind, ...(row.scope ? { scope: row.scope } : {}), ...(row.recordId ? { recordId: row.recordId } : {}), ...(row.revision ? { revision: row.revision } : {}), ...(row.href ? { href: row.href } : {}), ...(row.sourceRevision ? { sourceRevision: row.sourceRevision, sourcePath: row.sourcePath } : {}) })),
       gaps: gaps.length, previous: prior && !prior.archived ? { documentId: prior.id, revision: prior.revision } : null } };
   if (new TextEncoder().encode(JSON.stringify(write)).byteLength > 32768) throw new BriefGenerationFailed("The brief exceeds the Wiki write limit. Nothing was saved.", 413);
   try {

@@ -30,6 +30,7 @@
         "storage.artifacts.write",
         "routines.manage",
         "platform.documents",
+        "platform.discovery",
         "platform.records",
         "workflow.forerunner-daily-brief.start",
         "workflow.forerunner-research-report.start",
