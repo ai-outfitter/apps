@@ -334,6 +334,59 @@ type OntoSettings {
   updatedBy: String
 }
 
+"""
+The accepted submission and its reserved steward review run at the time of submission.
+"""
+type BatchSubmissionResult {
+  id: ID!
+  title: String!
+  submittedVersion: Int!
+  state: String!
+  counts: JSON!
+
+  """Undecided proposal refs queued for review in this version."""
+  reviewRefs: [String!]!
+  reviewUrl: String!
+  reviewRun: JSON
+  instructions: [ChangeInstruction!]!
+}
+
+input MutateBatchSubmissionInput {
+  requestKey: String!
+  batchId: ID
+  expectedVersion: Float
+  title: String
+  purpose: String
+  source: MutateBatchSubmissionInputSource
+  anchors: [String!]
+  summary: String
+  proposals: [MutateBatchSubmissionInputProposalsItem!]
+  remove: [String!]
+}
+
+input MutateBatchSubmissionInputSource {
+  kind: String!
+  ref: String!
+  label: String
+}
+
+input MutateBatchSubmissionInputProposalsItem {
+  operation: JSON!
+  evidence: [MutateBatchSubmissionInputProposalsItemEvidenceItem!]
+  confidence: Float
+  reason: String
+}
+
+input MutateBatchSubmissionInputProposalsItemEvidenceItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+  quote: String
+  observedAt: String
+}
+
 input ReviseBatchInput {
   batchId: ID!
   expectedVersion: Float
@@ -534,6 +587,11 @@ input SubmitBatchInput {
 }
 
 type Mutation {
+  """
+  Atomically create and submit a member batch, submit a draft, or edit pending proposals in an existing submitted batch. The saved version queues undecided proposals for steward review under the existing policy. Pass expectedVersion when editing. Retry an identical input with the same requestKey.
+  """
+  mutateBatchSubmission(input: MutateBatchSubmissionInput!): BatchSubmissionResult!
+
   """
   Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.
   """

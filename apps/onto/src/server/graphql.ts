@@ -30,7 +30,7 @@ import { recordAddress } from "../lib/addresses";
 import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
 import { readSettings, saveSettings, settingsInput, type StewardApproval } from "./settings";
-import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview } from "./graph-batches";
+import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, type BatchSubmissionReceipt } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -98,6 +98,28 @@ const OntoSettings = new GraphQLObjectType({
   fields: {
     stewardApproval: { ...text, description: "approve: after its review of a submitted batch the ontology steward approves every proposal it found clean; the rest waits for a member. review: the steward only reviews and members decide everything." },
     updatedAt: { type: DateTimeScalar }, updatedBy: { type: GraphQLString },
+  },
+});
+
+const BatchSubmissionResult = new GraphQLObjectType<BatchSubmissionReceipt, ChangeContext>({
+  name: "BatchSubmissionResult", description: "The accepted submission and its reserved steward review run at the time of submission.",
+  fields: {
+    id: { type: nonNull(GraphQLID) },
+    title: text,
+    submittedVersion: { type: nonNull(GraphQLInt) },
+    state: text,
+    counts: json,
+    reviewRefs: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Undecided proposal refs queued for review in this version." },
+    reviewUrl: { type: nonNull(GraphQLString), resolve: result => batchReviewUrl(result.id) },
+    reviewRun: { type: JSONScalar },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: result => {
+      const run = result.reviewRun && {
+        id: result.reviewRun.runId,
+        status: result.reviewRun.state,
+        message: "Wait for the steward's workflow run, then read the batch with ChangeBatches to see its review and decisions.",
+      };
+      return resultInstructions(result.id, { ...result, ...(run && { run }) }, batchReviewUrl(result.id));
+    } },
   },
 });
 
@@ -276,6 +298,11 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
+    mutateBatchSubmission: mutationField({
+      name: "MutateBatchSubmission", output: nonNull(BatchSubmissionResult), input: mutateBatchSubmissionInput,
+      description: "Atomically create and submit a member batch, submit a draft, or edit pending proposals in an existing submitted batch. The saved version queues undecided proposals for steward review under the existing policy. Pass expectedVersion when editing. Retry an identical input with the same requestKey.",
+      run: (context: MutationContext, input) => mutateBatchSubmission(context.db(), context.identity, context.actor, context.originActor, input),
+    }),
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
       description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.",

@@ -14,6 +14,12 @@ const changeDocuments = defineDocuments({
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
+  MutateBatchSubmission: {
+    story: "As an agent or member, I want to submit new proposals or amend pending ones in one mutation, so that the proposal version and review are recorded together.",
+    document: `mutation MutateBatchSubmission($input: MutateBatchSubmissionInput!) {
+      mutateBatchSubmission(input:$input) { id title submittedVersion state counts reviewRefs reviewUrl reviewRun instructions { code itemKey actor required message taskId url } }
+    }`,
+  },
   ReviseBatch: {
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
     document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id submittedVersion title state counts reviewBy reviewUrl } }`,
@@ -89,6 +95,7 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
   BatchSubmission: { description: "Read the original proposals, author and time of one submitted batch version." },
+  MutateBatchSubmission: { description: 'Submit new or revised proposals for review. Create with a title and proposals, plus an optional stable batch ID. Edit with batchId, expectedVersion, proposals keyed by ref, and refs to withdraw in remove. Retry with the same requestKey and inputs. Minimal proposal `{operation:{operation:"create",type:"graph-node",ref:"$person",attributes:{typeId:"Person",title:"Ada"}}}`.' },
   ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Entity writers may edit member batches and submit a new version for review." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
@@ -116,6 +123,6 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
     "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
   },
   "ChangeBatchChanges": {
-    "description": "Stage and submit proposals. To edit a submitted batch, amend with expectedVersion, replacement proposals and removed refs. This submits the next version for fresh review. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
+    "description": "Use MutateBatchSubmission to submit proposals or amend an existing submission in one call. Use this operation to stage drafts, configure draft anchors, ask questions or review on a member’s authority. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
   }
 });

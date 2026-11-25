@@ -651,3 +651,47 @@ test("MCP resubmits edits that reuse a saved person across four independent batc
   }
   assert.deepEqual([duplicates, relationships], [6, 11]);
 });
+
+test("unified submissions atomically retain one version, review job and receipt", async t => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const id = uuid(977);
+  const submit = async (input: object) => run(f, "MutateBatchSubmission", { input });
+  const count = async (table: "graph_batches" | "graph_batch_operations" | "graph_batch_submissions" | "onto_review_jobs", key: "id" | "batchId") =>
+    (await f.app.database.prepare(`SELECT count(*) AS n FROM ${table} WHERE ${key}=?`).bind(id).first())?.n;
+  const base = { requestKey: "stable-create", batchId: id, title: "Sensor sourcing" };
+  const invalid = await submit({ ...base, proposals: [{ operation: create("$bad", "graph-node", { typeId: "MissingType", title: "Invalid" }) }] });
+  assert.equal(invalid.errors[0].extensions.status, 409);
+  assert.equal(await count("graph_batches", "id"), 0);
+  assert.equal(await count("graph_batch_operations", "batchId"), 0);
+  assert.equal(await count("graph_batch_submissions", "batchId"), 0);
+  assert.equal(await count("onto_review_jobs", "batchId"), 0);
+
+  const input = { ...base, proposals: [{ operation: person("$sensor", 978, "Sensor") }] };
+  const concurrent = await Promise.all([submit(input), submit(input)]);
+  assert.equal(concurrent[0].errors, undefined);
+  assert.deepEqual(concurrent[0], concurrent[1]);
+  const first = concurrent[0].data.mutateBatchSubmission;
+  assert.equal(first.id, id);
+  assert.equal(first.submittedVersion, 1);
+  assert.deepEqual(first.reviewRefs, ["$sensor"]);
+  assert.ok(first.instructions.some((instruction: { code: string; taskId?: string }) =>
+    instruction.code === "WAIT_FOR_RUN" && instruction.taskId === first.reviewRun.runId));
+  assert.equal(await count("onto_review_jobs", "batchId"), 1);
+  assert.equal(await f.exists(uuid(978)), false);
+  const reused = await submit({ ...input, title: "Different payload" });
+  assert.equal(reused.errors[0].extensions.status, 409);
+
+  const amend = { requestKey: "stable-edit", batchId: id, expectedVersion: 1,
+    proposals: [{ operation: person("$sensor", 978, "Verified sensor") }] };
+  const rejected = await submit({ ...amend, remove: ["$sensor"] });
+  assert.equal(rejected.errors[0].extensions.status, 409);
+  assert.equal(await count("graph_batch_submissions", "batchId"), 1);
+  assert.equal(await count("onto_review_jobs", "batchId"), 1);
+  const edited = await submit(amend);
+  assert.equal(edited.errors, undefined);
+  assert.equal(edited.data.mutateBatchSubmission.submittedVersion, 2);
+  assert.equal(await count("graph_batch_submissions", "batchId"), 2);
+  assert.equal(await count("onto_review_jobs", "batchId"), 2);
+  assert.deepEqual(await submit(input), concurrent[0]);
+});
