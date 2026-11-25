@@ -112,7 +112,7 @@ const legacyDocuments = defineDocuments({
     document: graphql(`query Intakes($first: Int = 20, $after: String) {
       intakeOptions
       intakes(first: $first, after: $after) { nodes {
-        id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+        id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
         routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
       } pageInfo { endCursor hasNextPage } }
     }`),
@@ -185,7 +185,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to capture a customer or competitive intake from the intake page or an agent and have it routed, so that the right discovery and delivery work starts under Governance.",
     document: graphql(`mutation CreateIntake($input: CreateIntakeInput!) {
       createIntake(input: $input) {
-      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+      id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -194,7 +194,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to route an intake again, set its routes and decision controls myself, or assign its canonical Planning project, so that unstarted work follows the plan I chose and is delivered against the right project.",
     document: graphql(`mutation RouteIntake($input: RouteIntakeInput!) {
       routeIntake(input: $input) {
-      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+      id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -203,7 +203,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to approve a changed scope for an intake, so that new routes replace the old ones while previous results stay in history and old decisions cannot authorize the change.",
     document: graphql(`mutation ReviseIntakeScope($input: ReviseIntakeScopeInput!) {
       reviseIntakeScope(input: $input) {
-      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+      id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -220,7 +220,7 @@ const legacyDocuments = defineDocuments({
     story: "As an assigned agent or Recommend holder, I want to submit findings or my saved draft under my claim and have Governance asked to review them, or ask again when that request failed or a perform-only worker recorded them, so that dependent work can proceed once they are approved.",
     document: graphql(`mutation RecordResult($input: RecordResultInput!) {
       recordResult(input: $input) {
-      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+      id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
@@ -241,7 +241,7 @@ const legacyDocuments = defineDocuments({
     story: "As an editor, I want to reset a submission Foundry rejected before any delivery was created, so that I can correct the package and submit again.",
     document: graphql(`mutation ResetIntakeSubmission($input: ResetIntakeSubmissionInput!) {
       resetIntakeSubmission(input: $input) {
-      id revision projectId kind title description sourceUrls sources originatingMessage releaseFit releaseFitHistory routing routingError
+      id revision projectId kind title description sourceUrls sources research originatingMessage releaseFit releaseFitHistory routing routingError
       routes { id revision kind dependsOn rationale gate { installationId controlId } blocker claim { principal until } draft result observedAt gateReceipt gateError receipt submissionIntent subject }
     }
     }`),
