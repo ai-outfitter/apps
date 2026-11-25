@@ -316,7 +316,7 @@ test("a clock retry still uses the stored deadline if its dispatch reports a lat
 
 test("installed setup uses a known member timezone and leaves an unknown zone to the first member visit", async t => {
   const dispatchScope = { installationId: owner.installationId, organizationId: null, userId: owner.userId,
-    packageHash: "test-package", phase: "interactive" as const, setup: true, expiresAt: Date.now() + 60_000 };
+    packageHash: "test-package", phase: "interactive" as const, setup: true as const, expiresAt: Date.now() + 60_000 };
   const writes: unknown[] = [];
   let discoveryZone: string | undefined;
   const app = await appWorker("forerunner", appArtifact(new URL("..", import.meta.url), "operational"), owner.installationId, {
