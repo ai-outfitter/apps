@@ -49,7 +49,7 @@ const projects = tableType(workshopProjects, {
   dates: ["createdAt", "updatedAt"],
   ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
   filters: ["createdBy", "productRevisionId", "purpose"],
-  extraFields:{printFindings,cotsWarnings},
+  extraFields:{printFindings},
   // workshop_projects_updated_idx.
   orders: ["updatedAt"],
 });
@@ -178,7 +178,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       input: assemblyInput, output: row,
       run: async (context, input) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, input);
-        return {...await workshopProjectRow(context.db(),saved.id),printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved)};
+        return {...await workshopProjectRow(context.db(),saved.id),printFindings:await assemblyPrintFindings(context,saved)};
       },
     }),
     deleteWorkshopProject: mutationField<typeof deleteInput, WorkshopContext>({

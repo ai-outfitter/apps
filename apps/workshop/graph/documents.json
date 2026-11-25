@@ -2657,8 +2657,8 @@
     "name": "SaveWorkshopAssembly",
     "kind": "mutation",
     "story": "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
-    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n    printFindings\n    cotsWarnings\n  }\n}",
-    "hash": "39dbc696d6ffc0b25b60cee924c15f0995be73d1e92ad94f6da3fee7312ea635",
+    "query": "mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {\n  saveWorkshopAssembly(input: $input) {\n    id\n    name\n    purpose\n    revision\n    createdBy\n    updatedBy\n    createdAt\n    updatedAt\n    printFindings\n  }\n}",
+    "hash": "791ac26aff42feb66003dd456528975c23c2061e6d9edf59c9ba71953976a1b8",
     "variables": {
       "type": "object",
       "properties": {

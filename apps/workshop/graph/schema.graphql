@@ -77,11 +77,6 @@ type WorkshopProject {
   Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
-
-  """
-  Nonblocking purchased-part warnings with the visible item and canonical interface provenance.
-  """
-  cotsWarnings: JSON
   id: ID!
   name: String!
   purpose: String!

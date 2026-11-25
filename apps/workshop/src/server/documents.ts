@@ -81,10 +81,11 @@ const legacyDocuments = defineDocuments({
       updateWorkshopAssembly(projectId: $projectId, expectedRevision: $expectedRevision, assembly: $assembly) { projectId revision printFindings cotsWarnings }
     }`),
   },
+  // Planning calls this exact document. New receipt fields belong on UpdateWorkshopAssembly.
   SaveWorkshopAssembly: {
     story: "As a member, I want an agent to lay out a device's product structure, its assemblies, parts, boards and firmware with the quantities and placements between them, so that the BOM, cost and 3D view show the design before anyone orders a part.",
     document: graphql(`mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {
-      saveWorkshopAssembly(input: $input) { id name purpose revision createdBy updatedBy createdAt updatedAt printFindings cotsWarnings }
+      saveWorkshopAssembly(input: $input) { id name purpose revision createdBy updatedBy createdAt updatedAt printFindings }
     }`),
   },
   DeleteWorkshopProject: {
