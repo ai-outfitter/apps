@@ -46,7 +46,7 @@ const server = createServer(async (req, res) => {
   }
   const doc = docs.find(doc => doc.name === name);
   if (!doc) { res.statusCode = 404; return void send("Unknown public document"); }
-  if (req.method === "GET") { discoveries++; return void send(doc.inputSchema); }
+  if (req.method === "GET") { discoveries++; return void send(doc.inputSchema ?? doc.variables); }
   if (req.method !== "POST" || calls.length >= 10) { res.statusCode = 429; return void send("Call limit reached"); }
   const at = calls.push(doc.name);
   try {

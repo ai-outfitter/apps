@@ -92,8 +92,9 @@ function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
   if (!detail.canReview || !waiting.length) return null;
   const held = waiting.some(hasRequestedChanges);
   const approveLabel = held ? "Approve eligible proposals" : `Approve all ${waiting.length}`;
+  const verdicts = waiting.every(hasRequestedChanges) ? ["reject"] as const : ["approve", "reject"] as const;
   return el("div", { class: "change-actions" },
-    ...(["approve", "reject"] as const).map((verdict) => {
+    ...verdicts.map((verdict) => {
       const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? approveLabel : "Reject all");
       button.onclick = async () => {
         button.disabled = true;

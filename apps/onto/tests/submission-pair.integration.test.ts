@@ -83,8 +83,11 @@ for (const mode of ["baseline", "candidate"]) {
     const [feedbackReceipt] = nodes[0].changeRequests;
     assert.deepEqual(feedbackReceipt.refs, feedback.refs);
     const { decision } = feedbackReceipt;
-    assert.deepEqual([decision.by, decision.submittedVersion, decision.verdict, decision.comment],
-      [member.userId, 1, "request_changes", feedback.comment]);
+    assert.deepEqual([decision.reviewer, decision.submittedVersion, decision.verdict, decision.comment],
+      ["Member", 1, "request_changes", feedback.comment]);
+    assert.ok(!("by" in decision));
+    const logged = await app.database.prepare("SELECT json_extract(decision, '$.by') AS reviewer FROM graph_batch_change_requests WHERE batchId=?").bind(batchId).first();
+    assert.equal(logged?.reviewer, member.userId);
     assert.equal(edited.operation.attributes.title, "Corrected");
     for (const [version, title] of [[1, "Draft"], [2, "Corrected"]] as const) {
       const { submission } = await call("BatchSubmission", { id: batchId, version });

@@ -548,8 +548,7 @@ async function proposedRows(db: Database, who: AppIdentity, batchId: string, bat
   for (const row of written) {
     const prior = byRef.get(row.ref);
     if (prior && changesRequested(prior) &&
-        canonicalActionValue([row.operation, row.evidence, row.confidence, row.reason]) ===
-        canonicalActionValue([prior.operation, prior.evidence, prior.confidence, prior.reason]))
+        canonicalActionValue([row.operation, row.evidence]) === canonicalActionValue([prior.operation, prior.evidence]))
       fail(`${row.ref} has requested changes; update its proposal or withdraw it`, 409);
   }
   const next = new Map(byRef);
@@ -740,7 +739,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
     text: input.summary ?? (batch?.summary ? JSON.parse(batch.summary).text : null) };
   const unchanged = batch ? batchRowsUnchanged(batch, existing)
     : sql`not exists (select 1 from graph_batches where id=${batchId})`;
-  const editedRefs = new Set([...written.map(row => row.ref), ...input.remove]);
+  const editedRefs = new Set(written.map(row => row.ref));
   const corrected = existing.some(row => editedRefs.has(row.ref) && changesRequested(row));
   const reviewBy = jobId ? corrected ? reviewDeadline(batchPolicy.parse(policy), now) : batch?.reviewBy ?? null : null;
   const key = replay?.requestKey ?? `amend:${crypto.randomUUID()}`;
@@ -981,9 +980,19 @@ export async function getBatch(db: Database, who: AppIdentity, input: z.infer<ty
 }
 
 export async function changeRequests(db: Database, batchId: string) {
-  return db.select({ refs: batchChangeRequests.refs, decision: batchChangeRequests.decision })
+  const history = await db.select({ refs: batchChangeRequests.refs, decision: batchChangeRequests.decision })
     .from(batchChangeRequests).where(eq(batchChangeRequests.batchId, batchId))
     .orderBy(sql`json_extract(${batchChangeRequests.decision}, '$.at')`, asc(batchChangeRequests.id));
+  return history.map(({ refs, decision }) => ({
+    refs,
+    decision: {
+      reviewer: typeof decision.viaLabel === "string" ? decision.viaLabel : "Member",
+      submittedVersion: decision.submittedVersion,
+      verdict: decision.verdict,
+      comment: decision.comment,
+      at: decision.at,
+    },
+  }));
 }
 
 export async function listBatches(db: Database, _who: AppIdentity, input: z.infer<typeof batchListInput>) {

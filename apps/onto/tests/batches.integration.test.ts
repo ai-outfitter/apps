@@ -198,7 +198,7 @@ test("requested changes hold a proposal out of both steward approval and the pol
   const indirect = await f.review({ batchId, verdict: "approve", refs: ["$linked"], expectedVersion: 1 });
   assert.equal(indirect.status, 409);
   assert.match(await indirect.text(), /Approve \$held explicitly/);
-  const repeated = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "unchanged", proposals: [held] } });
+  const repeated = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "unchanged", proposals: [{ ...held, reason: "Only the reason changed", confidence: 0.7 }] } });
   assert.match(repeated.errors?.[0]?.message, /update its proposal or withdraw it/);
   const db = drizzle(f.app.database);
   const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };

@@ -8,13 +8,19 @@ import { batchGroups } from "./batch-groups";
 // delegated writers cannot. scripts/graph-schema.ts writes
 // them to graph/documents.json.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
-import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
+import { z } from "zod";
+import { mutateBatchSubmissionInput, wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
   MutateBatchSubmission: {
+    inputSchema: {
+      type: "object",
+      properties: { input: z.toJSONSchema(mutateBatchSubmissionInput, { io: "input", unrepresentable: "any" }) },
+      required: ["input"],
+    },
     story: "As an agent or member, I want to submit new proposals or amend pending ones in one mutation, so that the proposal version and review are recorded together.",
     document: `mutation MutateBatchSubmission($input: MutateBatchSubmissionInput!) {
       mutateBatchSubmission(input:$input) { id title submittedVersion state counts reviewRefs reviewUrl reviewRun instructions { code itemKey actor required message taskId url } }
