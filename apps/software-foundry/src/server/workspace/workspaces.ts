@@ -1,3 +1,4 @@
+import { forgejoRepositoryName, repositoryName } from "../projects";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
@@ -132,14 +133,18 @@ const forges = new Set(["github", "forgejo"]);
 /** The repository's one connection (the acting user's GitHub, the
  * organization's GitHub App or its Forgejo) and its immutable ID. */
 async function approvedRepository(host: Editor, snapshot: Snapshot, repository: string) {
-  const name = repository.toLowerCase();
+  const name = repositoryName.parse(repository).toLowerCase();
   const matched = snapshot.connections.filter((connection) => forges.has(connection.provider) &&
     connection.repositories.some((listed) => listed.toLowerCase() === name));
   if (matched.length !== 1)
     throw new Response("Repository unavailable through your GitHub account or this organization's GitHub App or Forgejo connection", { status: 409 });
-  const metadata = z.object({ id: z.number().int().positive(), full_name: z.string() })
-    .parse(await host.call("repository.request", { connectionId: matched[0].id, path: `/repos/${name}` }));
-  return { connection: matched[0], metadata };
+  const connection = matched[0];
+  const schema = connection.provider === "forgejo" ? forgejoRepositoryName : repositoryName;
+  if (connection.provider === "forgejo") forgejoRepositoryName.parse(repository);
+  const metadata = z.object({ id: z.number().int().positive(), full_name: schema })
+    .parse(await host.call("repository.request", { connectionId: connection.id, path: `/repos/${name}` }));
+  if (metadata.full_name.toLowerCase() !== name) throw new Response("Repository identity changed", { status: 409 });
+  return { connection, metadata };
 }
 
 /** Forge admission does not depend on an execution binding or event subscription. */

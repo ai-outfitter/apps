@@ -30,8 +30,13 @@ const name = z
   .max(40)
   .regex(/^[A-Za-z0-9][A-Za-z0-9 _.-]*$/)
   .transform((value) => value.toUpperCase().replace(/\s+/g, " "));
-/** An `owner/name` GitHub repository as typed; `repository` is its lower-case form, as connections store it. */
-export const repositoryName = z.string().max(140).regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/);
+// Owners start and end with an alphanumeric and permit single interior separators.
+const ownerSegment = "[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*";
+/** The provider-independent form preserves repository names such as GitHub's .github. */
+export const repositoryName = z.string().max(140)
+  .regex(new RegExp(`^(?!.*\\.\\.)${ownerSegment}/(?=[A-Za-z0-9._-]*[A-Za-z0-9])[A-Za-z0-9._-]+$`));
+/** Forgejo connections require a leading alphanumeric in the repository segment. */
+export const forgejoRepositoryName = repositoryName.regex(/\/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/);
 export const repository = repositoryName.transform((value) => value.toLowerCase());
 const repositories = z
   .array(repository)

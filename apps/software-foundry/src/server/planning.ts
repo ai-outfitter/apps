@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
 import { planningIssueMarker } from "./planning-issues";
-import { repositoryName } from "./projects";
+import { forgejoRepositoryName } from "./projects";
 import { foundryPlans } from "./schema";
 import { submissionRepository } from "./workspace/workspaces";
 
@@ -14,8 +14,8 @@ export const findPlanInput = z.strictObject({ requestId });
 export const planWorkInput = z.strictObject({
   requestId,
   request: z.string().trim().min(1).max(8000),
-  repositories: z.array(repositoryName).min(1).max(8),
-  anchorRepository: repositoryName.optional(),
+  repositories: z.array(forgejoRepositoryName).min(1).max(8),
+  anchorRepository: forgejoRepositoryName.optional(),
   kind: z.enum(["feature", "bug", "query"]).optional(),
   createIssue: z.boolean().default(true),
 });
@@ -71,7 +71,6 @@ async function allowedRepositories(context: IntakeContext, names: string[]) {
     if (connections.filter(connection => connection.repositories.some(repository => repository.toLowerCase() === name)).length !== 1)
       throw new Response(`Repository read unavailable: ${name}`, { status: 403 });
     const repo = await submissionRepository(host, { ...snapshot, connections }, name);
-    if (repo.name.toLowerCase() !== name) throw new Response("Repository identity changed", { status: 409 });
     return [name, repo] as const;
   }));
   return { host, repositories: new Map(repositories) };

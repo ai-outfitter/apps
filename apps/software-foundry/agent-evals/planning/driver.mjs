@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { anchor, charts, repositories, admin, addChartsRepository, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
+import { anchor, charts, repositories, dotted, admin, seedRepositories, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
 import { signIn, oauthToken, mcpClient, callTool } from "./mcp.mjs";
 
 export const app = "software-foundry";
@@ -119,7 +119,9 @@ export async function run(box) {
   const snapshot = () => ({ runs: rows(db), writes: writes(), inference: inference() });
   let failure;
   try {
-    await addChartsRepository(box, db);
+    await seedRepositories(box, db);
+    const { version } = await admin(box, "GET", "/version");
+    report.forgejoVersion = version;
     const before = Object.fromEntries(await Promise.all(repositories.map(async repo => [repo, await repoState(box, repo)])));
     for (const repo of repositories) {
       assert.deepEqual(before[repo].branches.map(({ name }) => name), ["main"]);
@@ -141,16 +143,33 @@ export async function run(box) {
     const query = (requestId) => graph(mcp, "graph_query", "FoundryPlan", { requestId });
     const opts = { cookie, box, before, query };
 
-    // Configure normal issue-trigger coverage before opening any planning issue.
-    const subscribed = await box.operator({ operation: "configure", repository: anchor, reviewer: "reviewer", ci: "workspace" });
-    assert.equal(subscribed.workflow, "issue-to-merge-actions-ci");
-    await registerForgejoHook(box);
-    const invalidHook = await fetch(`${root}/api/webhooks/foundry-planning-eval`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-    assert.equal(invalidHook.status, 401);
-    await invalidHook.body?.cancel();
-    assert.deepEqual(webhooks(), []);
+    if (!dotted) {
+      // The plain-owner replay also checks the issue-to-merge webhook guard.
+      const subscribed = await box.operator({ operation: "configure", repository: anchor, reviewer: "reviewer", ci: "workspace" });
+      assert.equal(subscribed.workflow, "issue-to-merge-actions-ci");
+      await registerForgejoHook(box);
+      const invalidHook = await fetch(`${root}/api/webhooks/foundry-planning-eval`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      assert.equal(invalidHook.status, 401);
+      await invalidHook.body?.cancel();
+      assert.deepEqual(webhooks(), []);
+    }
 
     const pristine = snapshot();
+    if (dotted) {
+      const malformed = [
+        "../os", "ks.systems/..", "ks.systems/.", "ks.systems/...", "ks.systems/../os",
+        "ks.systems/os%2Fcharts", "ks.systems%2fother/os", "ks.systems/os%5Ccharts", "ks.systems/%2e%2e",
+        ".ks.systems/os", "ks.systems./os", "ks..systems/os", "ks.-systems/os",
+        "-ks.systems/os", "ks.systems-/os", "ks.systems/.os", "ks.systems/os.",
+        "ks.systems//os", "ks.systems/os\\charts", "ks.systems/os?extra", "ks.systems/os#extra", "ks.systems/os ",
+      ];
+      for (const name of malformed) {
+        refused(await submit(request("denied", { repositories: [...repositories, name] })), /BAD_USER_INPUT/);
+        refused(await submit(request("denied", { anchorRepository: name })), /BAD_USER_INPUT/);
+      }
+      assert.deepEqual(snapshot(), pristine);
+      report.cases.invalidNames = { names: malformed, checkedIn: ["repositories", "anchorRepository"], dispatched: 0 };
+    }
     refused(await submit(request("denied", { anchorRepository: "box/outside-scope" })), /anchor/i);
     refused(await submit(request("denied", { anchorRepository: undefined })), /anchor/i);
     setCoverage(db, [anchor]);
@@ -248,23 +267,26 @@ export async function run(box) {
     report.cases.ambiguous = await checkArtifact({ ...opts, result: recovered, caseId: "ambiguous" });
     report.cases.ambiguous.issue = recovered.issue;
 
-    const deliveries = await eventually(() => webhooks().length === 2 && webhooks(), "Forgejo did not deliver both signed issue events");
-    const bot = await box.forgejo("GET", "/user");
-    for (const delivery of deliveries) {
-      assert.equal(delivery.signatureVerified, true);
-      assert.equal(delivery.authorId, bot.id);
-      assert.equal(delivery.result.outcome, "declined", JSON.stringify(delivery));
-      assert.match(delivery.result.reason, /plan/i);
+    if (!dotted) {
+      const deliveries = await eventually(() => webhooks().length === 2 && webhooks(), "Forgejo did not deliver both signed issue events");
+      const bot = await box.forgejo("GET", "/user");
+      for (const delivery of deliveries) {
+        assert.equal(delivery.signatureVerified, true);
+        assert.equal(delivery.authorId, bot.id);
+        assert.equal(delivery.result.outcome, "declined", JSON.stringify(delivery));
+        assert.match(delivery.result.reason, /plan/i);
+      }
+      assert.deepEqual(deliveries.map(({ issue }) => issue).sort(), [feature.issue.number, recovered.issue.number].sort());
+      assert.equal(new Set(deliveries.map(({ deliveryId }) => deliveryId)).size, 2);
+      report.webhooks = deliveries;
     }
-    assert.deepEqual(deliveries.map(({ issue }) => issue).sort(), [feature.issue.number, recovered.issue.number].sort());
-    assert.equal(new Set(deliveries.map(({ deliveryId }) => deliveryId)).size, 2);
 
     const after = Object.fromEntries(await Promise.all(repositories.map(async repo => [repo, await repoState(box, repo)])));
     for (const repo of repositories) {
       assert.deepEqual(after[repo].branches, before[repo].branches);
       assert.deepEqual(after[repo].pulls, []);
     }
-    assert.deepEqual(after[charts].issues, []);
+    for (const repo of repositories.filter(repo => repo !== anchor)) assert.deepEqual(after[repo].issues, []);
     assert.deepEqual(after[anchor].issues.map(({ number }) => number).sort(), [feature.issue.number, recovered.issue.number].sort());
     assert.deepEqual(writes().map(({ path, status, responseLost }) => [path, status, responseLost]), [
       [`/api/v1/repos/${anchor}/issues`, 201, false],
@@ -281,7 +303,6 @@ export async function run(box) {
       assert.equal(JSON.parse(slot.value).run.id, id);
     }
     report.runs = finalRuns;
-    report.webhooks = deliveries;
     report.writes = writes();
     report.inference = inference();
     report.repositoriesAfter = Object.fromEntries(repositories.map(repo => [repo, {

@@ -13,17 +13,19 @@ mkdir -- "$out"
 out=$(CDPATH= cd -- "$out" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
-mkdir "$tmp/package" "$tmp/native-apple" "$tmp/charts"
-cp "$planning_dir/fixtures/native-apple.md" "$tmp/native-apple/README.md"
-cp "$planning_dir/fixtures/charts.md" "$tmp/charts/README.md"
-mkdir -p "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE"
-cp "$planning_dir/fixtures/feature-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/feature.md"
-cp "$planning_dir/fixtures/bug-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/bug.md"
-for repository in native-apple charts; do
-  git -C "$tmp/$repository" init -q -b main
-  git -C "$tmp/$repository" add .
+mkdir -p "$tmp/package" "$tmp/repos/native-apple" "$tmp/repos/charts" "$tmp/repos/os" "$tmp/repos/services"
+cp "$planning_dir/fixtures/native-apple.md" "$tmp/repos/native-apple/README.md"
+cp "$planning_dir/fixtures/charts.md" "$tmp/repos/charts/README.md"
+mkdir -p "$tmp/repos/native-apple/.forgejo/ISSUE_TEMPLATE"
+cp "$planning_dir/fixtures/feature-template.md" "$tmp/repos/native-apple/.forgejo/ISSUE_TEMPLATE/feature.md"
+cp "$planning_dir/fixtures/bug-template.md" "$tmp/repos/native-apple/.forgejo/ISSUE_TEMPLATE/bug.md"
+printf '%s\n' '# KEYSTONE_OS_FIXTURE' 'Synthetic operating-system configuration notes.' > "$tmp/repos/os/README.md"
+printf '%s\n' '# KEYSTONE_SERVICES_FIXTURE' 'Synthetic service configuration notes.' > "$tmp/repos/services/README.md"
+for repository in native-apple charts os services; do
+  git -C "$tmp/repos/$repository" init -q -b main
+  git -C "$tmp/repos/$repository" add .
   GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
-    git -C "$tmp/$repository" -c user.name='Synthetic fixture' -c user.email='fixture@example.test' \
+    git -C "$tmp/repos/$repository" -c user.name='Synthetic fixture' -c user.email='fixture@example.test' \
     commit -qm "Seed synthetic Keystone $repository"
 done
 (
@@ -36,5 +38,6 @@ podman run --rm --pull=never --network none --add-host outfitter.localhost:127.0
   --add-host software-foundry.box.outfitter.localhost:127.0.0.1 \
   --userns=keep-id:uid=1000,gid=1000 \
   -v "$planning_dir:/eval:ro" -v "$tmp/package:/package:ro" \
-  -v "$tmp/native-apple:/in/repo:ro" -v "$tmp/charts:/in/charts:ro" \
+  -e FOUNDRY_DOTTED_REPOSITORIES="${FOUNDRY_DOTTED_REPOSITORIES:-0}" \
+  -v "$tmp/repos/native-apple:/in/repo:ro" -v "$tmp/repos:/in/planning:ro" \
   -v "$out:/out" "$image" node /eval/boot.mjs

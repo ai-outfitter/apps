@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { anchor } from "./box-fixture.mjs";
 import { startInferenceFixture } from "./inference-fixture.mjs";
 import { startForgejoRelay } from "./forgejo-relay.mjs";
 
@@ -24,7 +25,7 @@ for (const [file, source, parse] of [
 copyFileSync("/eval/fixtures/webhook-route.ts.fixture", "/app/src/pages/api/webhooks/foundry-planning-eval.ts");
 
 const relay = await startForgejoRelay({
-  repository: "box/native-apple",
+  repository: anchor,
   armPath: "/out/drop-next-issue",
   lookupFailurePath: "/out/fail-next-lookup",
   receiptPath: "/out/forgejo-writes.json",
