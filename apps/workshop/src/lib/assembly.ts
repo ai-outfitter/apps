@@ -1,6 +1,7 @@
 import { JointSchema, OperationSchema } from "./operation-schema";
 import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
+import { cotsEvidence, cotsEvidenceRef } from "./cots-evidence";
 import { assemblyFile } from "./assembly-file";
 import { ArtifactPathSchema } from "./artifact";
 import { ItemPowerSchema, PowerSystemSchema, validateAssemblyPower } from "./power";
@@ -91,6 +92,8 @@ export const ItemSchema = z
     geometry: AssemblyCadPlanSchema.optional(),
     mesh: z.object({path:ArtifactPathSchema, bounds:meshBounds}).optional(),
     files: z.array(assemblyFile).optional(),
+    cotsEvidence: cotsEvidence.optional(),
+    cotsEvidenceRef: cotsEvidenceRef.optional(),
     priceKnown: z.boolean().default(false),
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
@@ -105,6 +108,7 @@ export const ItemSchema = z
   })
   .strict()
   .refine(item => !item.reference || (item.kind === "assembly" && !item.files?.length && !item.geometry && !item.mesh && !item.uses.length && !item.power && !item.unitCost && item.estimatedUnitCost === undefined), "Referenced assembly geometry, loads, cost and children belong to its source")
+  .refine(item => !(item.cotsEvidence || item.cotsEvidenceRef) || (item.kind === "cots" && !(item.cotsEvidence && item.cotsEvidenceRef)), "COTS items own evidence or reference its owner")
   .refine((item) => item.kind === "assembly" || !item.uses.length, "Only an assembly contains other items")
   .refine((item) => (item.kind === "firmware") === Boolean(item.firmware), "Firmware items, and only they, name a repository and ref")
   .refine((item) => item.kind !== "firmware" || !item.geometry, "Firmware has no geometry");

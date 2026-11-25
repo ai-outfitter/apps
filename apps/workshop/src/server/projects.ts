@@ -118,6 +118,9 @@ function checkSavedFiles(next: Assembly, previous?: Assembly) {
   const byId = new Map(previous?.items.map(item => [item.id, item]));
   for (const item of next.items) {
     const old = byId.get(item.id);
+    if (item.cotsEvidence && (item.revision !== old?.revision || item.mpn !== old.mpn || item.manufacturer !== old.manufacturer ||
+        JSON.stringify(item.cotsEvidence) !== JSON.stringify(old.cotsEvidence)))
+      throw new Response("Record purchased-part evidence with RecordWorkshopCotsEvidence", {status:400});
     for (const file of item.files ?? []) {
       if (!old?.files?.some(saved => saved.projectId === file.projectId && saved.bytes === file.bytes && filePath(saved) === filePath(file)))
         throw new Response("Attach new files with UploadWorkshopAssemblyFile", {status:400});

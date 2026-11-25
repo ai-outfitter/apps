@@ -25,6 +25,11 @@ type Query {
   """
   workshopPrint(input: WorkshopPrintInput!): JSON
 
+  """
+  Read canonical purchased-part reference photos, dimensions and fit observations for the selected assembly.
+  """
+  workshopCotsEvidence(input: WorkshopCotsEvidenceInput!): JSON
+
   """Read a file at a ref from a connected Forgejo repository."""
   workshopSourceFile(input: WorkshopSourceFileInput!): JSON
 
@@ -72,6 +77,11 @@ type WorkshopProject {
   Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
+
+  """
+  Nonblocking purchased-part warnings with the visible item and canonical interface provenance.
+  """
+  cotsWarnings: JSON
   id: ID!
   name: String!
   purpose: String!
@@ -203,6 +213,14 @@ input WorkshopPrintInput {
   itemId: ID
 }
 
+input WorkshopCotsEvidenceInput {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+  itemId: ID
+}
+
 input WorkshopSourceFileInput {
   repository: String!
   path: String!
@@ -213,6 +231,7 @@ input VerifyWorkshopAssemblyFileInput {
   projectId: ID!
   itemId: ID!
   fileName: String!
+  revision: Float
   byteOffset: Float
   expectedSha256: String
 }
@@ -287,6 +306,61 @@ input RecordWorkshopPrintPlateInputPlatesItemMembersItem {
   itemId: ID!
   sha256: String!
   quantity: Int!
+}
+
+input RecordWorkshopCotsEvidenceInput {
+  projectId: ID!
+  itemId: ID!
+  expectedRevision: Float!
+  evidence: RecordWorkshopCotsEvidenceInputEvidence!
+}
+
+input RecordWorkshopCotsEvidenceInputEvidence {
+  photos: [RecordWorkshopCotsEvidenceInputEvidencePhotosItem!]!
+  interfaces: [RecordWorkshopCotsEvidenceInputEvidenceInterfacesItem!]!
+}
+
+input RecordWorkshopCotsEvidenceInputEvidencePhotosItem {
+  fileName: String!
+  sha256: String!
+  attachmentRevision: Float!
+  observation: String!
+}
+
+input RecordWorkshopCotsEvidenceInputEvidenceInterfacesItem {
+  id: ID!
+  feature: String!
+  datum: String!
+  axis: String!
+  unit: RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemUnit!
+  nominal: RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemNominal
+  measured: RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemMeasured
+  tolerance: JSON!
+  photoSha256s: [String!]!
+  verification: JSON!
+}
+
+enum RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemUnit {
+  mm
+  in
+  deg
+}
+
+input RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemNominal {
+  value: Float!
+  basis: RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemNominalBasis!
+  source: String!
+}
+
+enum RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemNominalBasis {
+  supplier
+  design
+}
+
+input RecordWorkshopCotsEvidenceInputEvidenceInterfacesItemMeasured {
+  value: Float!
+  basis: String!
+  source: String!
 }
 
 input UploadWorkshopAssemblyFileInput {
@@ -418,6 +492,8 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   geometry: FinishWorkshopBuildInputManifestAssemblyItemsItemGeometry
   mesh: FinishWorkshopBuildInputManifestAssemblyItemsItemMesh
   files: [FinishWorkshopBuildInputManifestAssemblyItemsItemFilesItem!]
+  cotsEvidence: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidence
+  cotsEvidenceRef: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceRef
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
@@ -467,6 +543,60 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemFilesItem {
   fileName: String!
   sha256: String!
   bytes: Int!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidence {
+  photos: [FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidencePhotosItem!]!
+  interfaces: [FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItem!]!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidencePhotosItem {
+  fileName: String!
+  sha256: String!
+  attachmentRevision: Float!
+  observation: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItem {
+  id: ID!
+  feature: String!
+  datum: String!
+  axis: String!
+  unit: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemUnit!
+  nominal: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemNominal
+  measured: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemMeasured
+  tolerance: JSON!
+  photoSha256s: [String!]!
+  verification: JSON!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemUnit {
+  mm
+  in
+  deg
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemNominal {
+  value: Float!
+  basis: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemNominalBasis!
+  source: String!
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemNominalBasis {
+  supplier
+  design
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItemMeasured {
+  value: Float!
+  basis: String!
+  source: String!
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceRef {
+  projectId: ID!
+  itemId: ID!
+  revision: Float
 }
 
 enum FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance {
@@ -733,6 +863,11 @@ type WorkshopAssemblyReceipt {
   Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
+
+  """
+  Nonblocking purchased-part warnings with the visible item and canonical interface provenance.
+  """
+  cotsWarnings: JSON
 }
 
 input WorkshopAssemblyInput {
@@ -759,6 +894,8 @@ input WorkshopAssemblyInputItemsItem {
   geometry: WorkshopAssemblyInputItemsItemGeometry
   mesh: WorkshopAssemblyInputItemsItemMesh
   files: [WorkshopAssemblyInputItemsItemFilesItem!]
+  cotsEvidence: WorkshopAssemblyInputItemsItemCotsEvidence
+  cotsEvidenceRef: WorkshopAssemblyInputItemsItemCotsEvidenceRef
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
@@ -808,6 +945,60 @@ input WorkshopAssemblyInputItemsItemFilesItem {
   fileName: String!
   sha256: String!
   bytes: Int!
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidence {
+  photos: [WorkshopAssemblyInputItemsItemCotsEvidencePhotosItem!]!
+  interfaces: [WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItem!]!
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidencePhotosItem {
+  fileName: String!
+  sha256: String!
+  attachmentRevision: Float!
+  observation: String!
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItem {
+  id: ID!
+  feature: String!
+  datum: String!
+  axis: String!
+  unit: WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemUnit!
+  nominal: WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemNominal
+  measured: WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemMeasured
+  tolerance: JSON!
+  photoSha256s: [String!]!
+  verification: JSON!
+}
+
+enum WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemUnit {
+  mm
+  in
+  deg
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemNominal {
+  value: Float!
+  basis: WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemNominalBasis!
+  source: String!
+}
+
+enum WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemNominalBasis {
+  supplier
+  design
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItemMeasured {
+  value: Float!
+  basis: String!
+  source: String!
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidenceRef {
+  projectId: ID!
+  itemId: ID!
+  revision: Float
 }
 
 enum WorkshopAssemblyInputItemsItemProvenance {
@@ -1007,6 +1198,8 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   geometry: SaveWorkshopAssemblyInputAssemblyItemsItemGeometry
   mesh: SaveWorkshopAssemblyInputAssemblyItemsItemMesh
   files: [SaveWorkshopAssemblyInputAssemblyItemsItemFilesItem!]
+  cotsEvidence: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidence
+  cotsEvidenceRef: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceRef
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
@@ -1056,6 +1249,60 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemFilesItem {
   fileName: String!
   sha256: String!
   bytes: Int!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidence {
+  photos: [SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidencePhotosItem!]!
+  interfaces: [SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItem!]!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidencePhotosItem {
+  fileName: String!
+  sha256: String!
+  attachmentRevision: Float!
+  observation: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItem {
+  id: ID!
+  feature: String!
+  datum: String!
+  axis: String!
+  unit: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemUnit!
+  nominal: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemNominal
+  measured: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemMeasured
+  tolerance: JSON!
+  photoSha256s: [String!]!
+  verification: JSON!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemUnit {
+  mm
+  in
+  deg
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemNominal {
+  value: Float!
+  basis: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemNominalBasis!
+  source: String!
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemNominalBasis {
+  supplier
+  design
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItemMeasured {
+  value: Float!
+  basis: String!
+  source: String!
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceRef {
+  projectId: ID!
+  itemId: ID!
+  revision: Float
 }
 
 enum SaveWorkshopAssemblyInputAssemblyItemsItemProvenance {
@@ -1282,6 +1529,11 @@ type Mutation {
   Preserve a native Bambu Studio sliced package and its physical plates for the current print inputs.
   """
   recordWorkshopPrintPlate(input: RecordWorkshopPrintPlateInput!): JSON
+
+  """
+  Record owned purchased-part evidence at the owner revision, using verified original photo receipts.
+  """
+  recordWorkshopCotsEvidence(input: RecordWorkshopCotsEvidenceInput!): JSON
 
   """Reserve or attach a verified CAD or animation file on one saved item."""
   uploadWorkshopAssemblyFile(input: UploadWorkshopAssemblyFileInput!): JSON
