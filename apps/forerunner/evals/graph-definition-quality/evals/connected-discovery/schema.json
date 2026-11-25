@@ -1,0 +1,15 @@
+{
+  "source": "ai-outfitter/apps@6aa42708d7f70feeec1541a35230a487d134f60c:apps/forerunner/src/server/discovery-ontology.ts and apps/onto/seeds/types-v1.json; scoped instruction projection",
+  "types": [
+    { "key": "person", "baseline": "Person", "candidate": "onto:Person", "description": "An identifiable human." },
+    { "key": "organization", "baseline": "Organization", "candidate": "onto:Organization", "description": "An identifiable organization. Compare stable evidence when names match or resemble each other." },
+    { "key": "product", "baseline": "Product", "candidate": "onto:Product", "description": "A product such as a software application." },
+    { "key": "newsletter", "baseline": "Newsletter", "candidate": "onto:Newsletter", "description": "A recurring publication delivered to recipients." },
+    { "key": "sign_in", "baseline": "signed_in_to", "candidate": "onto:signed_in_to", "from": "person", "to": "product", "description": "Successful sign-in, distinct from product activity." },
+    { "key": "use", "baseline": "user_of", "candidate": "onto:user_of", "from": "person", "to": "product", "description": "Actual product activity." },
+    { "key": "operator", "baseline": "provided_by", "candidate": "onto:provided_by", "from": "product", "to": "organization", "description": "Verified product operator." },
+    { "key": "developer", "baseline": "developed_by", "candidate": "onto:developed_by", "from": "product", "to": "organization", "description": "Developer attribution requires an independent authoritative source." },
+    { "key": "recipient", "baseline": "recipient_of", "candidate": "onto:recipient_of", "from": "person", "to": "newsletter", "description": "Documented receipt of the publication." },
+    { "key": "publisher", "baseline": "published_by", "candidate": "onto:published_by", "from": "newsletter", "to": "organization", "description": "The publication's named publisher." }
+  ]
+}
