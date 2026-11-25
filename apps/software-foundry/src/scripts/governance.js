@@ -24,6 +24,8 @@ function reset(text) {
   for (const row of document.querySelectorAll("[data-rule], [data-policy]")) indicator(row, "unknown", "Not checked yet");
   for (const box of document.querySelectorAll("[data-remediation]")) box.replaceChildren();
   el("governance-setup").replaceChildren();
+  el("governance-templates").replaceChildren(paragraph(text));
+  el("governance-template-notice").textContent = "";
 }
 // The Agent workflows row of a repository that has not opted into agents.
 const AGENTS_NOT_INSTALLED = "Not installed — Complete all with agents";
@@ -238,6 +240,113 @@ function renderDraftPolicy(result) {
   indicator(row, result.draftPullRequests ? "present" : "info", note);
   row.querySelector("[data-check-note]").textContent = ` ${note}`;
 }
+const templateNames = {
+  pullRequest: "Pull request",
+  bug: "Bug report",
+  feature: "Feature request",
+};
+const templateStatuses = {
+  covered: "Covered",
+  missing: "Missing",
+  incorrect: "Needs correction",
+  unknown: "Unable to verify",
+  disabled: "Issues disabled",
+};
+
+function templateSource(source) {
+  const repository = source.repository.split("/").map(encodeURIComponent).join("/");
+  const path = source.path.split("/").map(encodeURIComponent).join("/");
+  return externalLink(
+    `${source.path} (${source.origin === "inherited" ? `inherited from ${source.repository}` : "repository"})`,
+    `https://github.com/${repository}/blob/${encodeURIComponent(source.revision)}/${path}`,
+  );
+}
+
+async function proposeTemplates(button, result) {
+  const current = generation;
+  const status = el("governance-template-notice");
+  button.disabled = true;
+  status.textContent = "Opening the template pull request…";
+  try {
+    const proposal = await api("/api/plugins/github/governance", {
+      method: "POST",
+      body: JSON.stringify({
+        repository: result.repository,
+        action: "propose-community-templates",
+        revision: result.revision,
+        planId: result.communityTemplates.plan.id,
+      }),
+    });
+    if (current !== generation) return;
+    const pull = proposal.pullRequest;
+    if (pull?.url?.toLowerCase() === `https://github.com/${result.repository.toLowerCase()}/pull/${pull?.number}`) {
+      status.replaceChildren(externalLink(`Review template pull request #${pull.number}`, pull.url));
+    } else {
+      status.textContent = "There are no template additions to propose. Refresh for the latest check.";
+    }
+  } catch (error) {
+    if (current !== generation) return;
+    button.disabled = demoMode;
+    status.textContent = error.message;
+  }
+}
+
+function renderTemplates(result) {
+  const box = el("governance-templates");
+  const templates = result.communityTemplates;
+  if (!templates) {
+    box.replaceChildren(paragraph("Template coverage is unavailable."));
+    return;
+  }
+  const list = document.createElement("ul");
+  for (const [kind, label] of Object.entries(templateNames)) {
+    const check = templates.checks[kind];
+    const item = document.createElement("li");
+    item.append(`${label} · ${templateStatuses[check.status]}`);
+    for (const source of check.sources) item.append(" · ", templateSource(source));
+    for (const source of check.selectable || [])
+      item.append(" · Selectable by link ", templateSource(source));
+    if (check.guidance?.status === "incomplete")
+      item.append(` · Guidance is missing ${check.guidance.missingSections.join(", ")}.`);
+    if (check.detail) item.append(` · ${check.detail}`);
+    list.append(item);
+  }
+  const nodes = [list];
+  if (templates.issueOverride.length)
+    nodes.push(paragraph("The repository’s issue chooser takes precedence over the owner’s defaults."));
+  if (templates.ownerDefaults === "unknown")
+    nodes.push(paragraph("The owner’s public defaults could not be checked."));
+  const candidates = templates.candidates?.filter((candidate) => candidate.status !== "valid") || [];
+  if (candidates.length) {
+    const details = document.createElement("details");
+    const heading = document.createElement("summary");
+    heading.textContent = "Template files that need review";
+    const files = document.createElement("ul");
+    for (const candidate of candidates) {
+      const item = document.createElement("li");
+      item.append(templateSource(candidate), ` · ${templateStatuses[candidate.status]}`);
+      files.append(item);
+    }
+    details.append(heading, files);
+    nodes.push(details);
+  }
+  for (const note of templates.plan.blocked) nodes.push(paragraph(note));
+  if (templates.plan.paths.length) {
+    nodes.push(paragraph("Draft changes add ", templates.plan.paths.join(", "), "."));
+    if (templates.canPropose) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Propose template pull request";
+      button.disabled = demoMode;
+      button.onclick = () => void proposeTemplates(button, result);
+      nodes.push(button);
+    } else if (!demoMode) {
+      nodes.push(paragraph("GitHub write access is required to propose these changes."));
+    }
+  }
+  box.replaceChildren(...nodes);
+}
+
 function render(result, latest) {
   el("governance-snapshot").textContent =
     `Default branch: ${result.defaultBranch} · Revision: ${result.revision.slice(0, 7)} · Checked: ${new Date(result.checkedAt).toLocaleString()}`;
@@ -254,6 +363,7 @@ function render(result, latest) {
       row.querySelector("[data-file]").replaceChildren(link);
     }
   }
+  renderTemplates(result);
   renderRules(result.rules);
   renderAgentWorkflows(result);
   renderMergeQueue(result);
