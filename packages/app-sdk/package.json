@@ -43,6 +43,7 @@
     "./app-graphql": "./src/app-graphql.ts",
     "./app-documents": "./src/app-documents.ts",
     "./graph/standard-types.json": "./graph/standard-types.json",
+    "./graph/standard-schema.graphql": "./graph/standard-schema.graphql",
     "./threads": "./src/threads.ts",
     "./platform-records": "./src/platform-records.ts",
     "./host-operation": "./src/host-operation.ts",
@@ -86,7 +87,6 @@
     "astro": "^7.3.5"
   },
   "scripts": {
-    "build": "node --import tsx ../../scripts/compose-graphs.ts",
     "check": "tsc --noEmit",
     "test:integration": "node --import tsx --test tests/*.test.ts",
     "test": "npm run test:integration"

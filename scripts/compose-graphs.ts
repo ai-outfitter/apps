@@ -29,7 +29,7 @@ async function loadContributions() {
   return contributions;
 }
 
-export async function composeGraphs({ check = false } = {}) {
+export async function composeGraphs({ check = false, appsOnly = false } = {}) {
   const contributions = await loadContributions();
   const combined = contributions.filter(graph => !graph.isolated && !graph.legacyAlternatives);
   const standard = contributions.filter(graph => graph.scope === "standard");
@@ -63,9 +63,16 @@ export async function composeGraphs({ check = false } = {}) {
     await write(join(apps, graph.namespace, "graph/.compiled", `${graph.name}.json`), data);
   }
   await write(join(apps, "onto/graph/.compiled/standard-types.json"), standardTypes);
-  await write(join(sdk, "graph/standard-types.json"), graphTypeRows(standardTypes));
-  stale.push(...await writeGraphTypes(standardTypes, join(sdk, "tsconfig.json"), { check }));
+  if (!appsOnly) {
+    await write(join(sdk, "graph/standard-types.json"), graphTypeRows(standardTypes));
+    stale.push(...await writeGraphTypes(standardTypes, join(sdk, "tsconfig.json"), { check }));
+  }
   return stale;
 }
 
-if (import.meta.main) exitIfStale(await composeGraphs({ check: process.argv.includes("--check") }), "scripts/compose-graphs.ts");
+if (import.meta.main) {
+  exitIfStale(await composeGraphs({
+    check: process.argv.includes("--check"),
+    appsOnly: process.argv.includes("--apps-only"),
+  }), "scripts/compose-graphs.ts");
+}

@@ -1,6 +1,6 @@
 // Typed GraphQL documents for graph.graphql. `graphql` is gql.tada's tagged
-// function over the standard schema (the Wiki's seed types, committed under
-// ../graph by catalog/apps/wiki-map/scripts/graph-schema.ts): a document's result
+// function over the standard schema (app-owned standard types, composed by
+// scripts/compose-graphs.ts and committed under ../graph): a document's result
 // and variable types are inferred from its text, with no generated code per
 // query. An app whose Wiki also has its own seed types builds its own `graphql`
 // with initGraphQLTada over an introspection written by writeGraphTypes.

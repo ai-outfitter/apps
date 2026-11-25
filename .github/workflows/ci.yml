@@ -23,8 +23,8 @@ jobs:
           if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo sdk=true >> "$GITHUB_OUTPUT"
           else
-            git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
-            if grep -Eq '^(packages/|apps/[^/]+/(graph/|seeds/|fixtures/)|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|scripts/compose-graphs\.ts$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
+            git diff --no-renames --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
+            if grep -Eq '^(packages/|apps/[^/]+/(graph/|seeds/|fixtures/)|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|scripts/(compose-graphs\.ts|lib/sdk-archives\.mjs)$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
               echo sdk=true >> "$GITHUB_OUTPUT"
             fi
           fi
@@ -41,6 +41,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Verify committed SDK graph snapshots
+        run: npm run graph:compose -- --check
       - run: npm run check:sdk
       - run: npm run test:sdk
       - run: npm run build:sdk
@@ -74,8 +76,11 @@ jobs:
   # Publish the exact checked bytes once; the platform registry reconciles
   # catalog/demo targets and eligible installations without a webapp release.
   deploy:
-    needs: apps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.catalog_apps != '[]'
+    needs: [changes, sdk, apps]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && needs.apps.result == 'success' &&
+      (needs.sdk.result == 'success' || needs.changes.outputs.sdk != 'true') &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.catalog_apps != '[]'
     permissions:
       contents: read
       actions: read
@@ -84,8 +89,11 @@ jobs:
     with:
       apps: ${{ needs.apps.outputs.catalog_apps }}
   deploy-source-apps:
-    needs: source-apps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.source-apps.outputs.non_catalog_apps != '[]'
+    needs: [changes, sdk, source-apps]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && needs.source-apps.result == 'success' &&
+      (needs.sdk.result == 'success' || needs.changes.outputs.sdk != 'true') &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.source-apps.outputs.non_catalog_apps != '[]'
     permissions:
       contents: read
       id-token: write

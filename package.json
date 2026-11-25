@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "postinstall": "npm run graph:compose",
+    "postinstall": "npm run graph:compose -- --apps-only",
     "graph:compose": "node --import tsx scripts/compose-graphs.ts",
     "test": "node --test scripts/tests/*.test.mjs",
     "test:tooling": "node --test scripts/tests/*.test.mjs",

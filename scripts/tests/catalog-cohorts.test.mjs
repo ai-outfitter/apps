@@ -17,8 +17,8 @@ test('actual reusable workflow selection isolates catalog publication from unrel
   assert.deepEqual(JSON.parse(output.apps),selected.filter(path=>path==='apps/onto'));
  }
  const ci=await readFile(new URL('../../.github/workflows/ci.yml',import.meta.url),'utf8');
- assert.match(ci,/deploy:\n    needs: apps/);
- assert.match(ci,/deploy-source-apps:\n    needs: source-apps/);
+ assert.match(ci,/deploy:\n    needs: \[changes, sdk, apps\]/);
+ assert.match(ci,/deploy-source-apps:\n    needs: \[changes, sdk, source-apps\]/);
 });
 
 test('both cohorts retain validation evidence under distinct names in the same run',async()=>{
@@ -32,20 +32,40 @@ test('both cohorts retain validation evidence under distinct names in the same r
  assert.equal(name('catalog'),'app-validation-catalog-0-123-1');
 });
 
-test('validation covers only apps with files changed in their own directory',async t=>{
- const source=await readFile(new URL('../../.github/workflows/check.yml',import.meta.url),'utf8');
- const script=source.match(/- id: catalog[\s\S]+?<<'NODE'\n([\s\S]+?)          NODE/)[1].replace(/^          /gm,'');
+test('validation and previews include direct changes and their configured shared consumers',async t=>{
+ const scripts=await Promise.all(['check','preview'].map(async workflow=>{
+  const source=await readFile(new URL(`../../.github/workflows/${workflow}.yml`,import.meta.url),'utf8');
+  return source.match(/- id: (?:catalog|direct)[\s\S]+?<<'NODE'\n([\s\S]+?)          NODE/)[1].replace(/^          /gm,'');
+ }));
+ const configPath='.outfitter/apps.json';
+ const config=await readFile(new URL(`../../${configPath}`,import.meta.url),'utf8');
  const root=await mkdtemp(join(tmpdir(),'catalog-direct-'));t.after(()=>rm(root,{recursive:true,force:true}));
  const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
  const {mkdir,writeFile}=await import('node:fs/promises');
  git('init','-q');git('config','user.email','ci@example.com');git('config','user.name','ci');
- for(const dir of ['apps/onto','apps/planning','packages/app-sdk']) await mkdir(join(root,dir),{recursive:true});
- await writeFile(join(root,'package-lock.json'),'{}');await writeFile(join(root,'apps/onto/a.ts'),'');await writeFile(join(root,'apps/planning/a.ts'),'');
- git('add','.');git('commit','-qm','base');const base=git('rev-parse','HEAD');
- await writeFile(join(root,'package-lock.json'),'{"x":1}');await writeFile(join(root,'packages/app-sdk/a.ts'),'');await writeFile(join(root,'apps/planning/a.ts'),'x');
- git('add','.');git('commit','-qm','head');const head=git('rev-parse','HEAD');
- const output=join(root,'out');
- execFileSync(process.execPath,['--input-type=module','-e',script],{cwd:root,env:{...process.env,SELECTED_APPS:'["apps/onto","apps/planning"]',CATALOG_APPS:'["apps/onto","apps/planning"]',APP_SET:'catalog',BASE_SHA:base,HEAD_SHA:head,GITHUB_OUTPUT:output}});
- const lines=(await readFile(output,'utf8')).trim().split('\n');
- assert.ok(lines.includes('selected=["apps/planning"]'));assert.ok(lines.includes('apps=["apps/planning"]'));
+ for(const dir of ['.outfitter','apps/onto','apps/planning/seeds','apps/forerunner/seeds','apps/creative-team/seeds','packages/app-sdk/src','scripts']) await mkdir(join(root,dir),{recursive:true});
+ await writeFile(join(root,configPath),config);
+ git('add','.');git('commit','-qm','base');
+ const cases=[
+  ['apps/planning/a.ts',['apps/planning']],
+  ['packages/app-sdk/src/unrelated.ts',[]],
+  ['apps/planning/seeds/work-graph-v1.json',['apps/onto','apps/planning']],
+  ['apps/forerunner/seeds/discovery-graph-v1.json',['apps/forerunner','apps/onto']],
+  ['apps/creative-team/seeds/creative-v1.json',['apps/creative-team','apps/onto']],
+  ['scripts/compose-graphs.ts',['apps/onto']],
+  ['packages/app-sdk/src/graph-authoring.ts',['apps/onto']],
+ ];
+ for(const [changed,expected] of cases){
+  const base=git('rev-parse','HEAD');
+  await writeFile(join(root,changed),'example');
+  git('add',changed);git('commit','-qm',changed);
+  const head=git('rev-parse','HEAD');
+  const apps='["apps/creative-team","apps/forerunner","apps/onto","apps/planning"]';
+  for(const [index,script] of scripts.entries()){
+   const output=join(root,`${head}-${index}`);
+   execFileSync(process.execPath,['--input-type=module','-e',script],{cwd:root,env:{...process.env,CONFIG_PATH:configPath,SELECTED_APPS:apps,CATALOG_APPS:apps,APP_SET:'catalog',BASE_SHA:base,HEAD_SHA:head,GITHUB_OUTPUT:output}});
+   const lines=(await readFile(output,'utf8')).trim().split('\n');
+   assert.ok(lines.includes(`apps=${JSON.stringify(expected)}`),`${changed}: ${lines.join(' ')}`);
+  }
+ }
 });

@@ -6,7 +6,15 @@
   "sharedInputs": [
     "apps/*/graph/*.ts",
     "apps/*/seeds/*.json",
-    "apps/onto/fixtures/competitors.json"
+    "apps/onto/fixtures/competitors.json",
+    "scripts/compose-graphs.ts",
+    "packages/app-sdk/src/graph-authoring.ts",
+    "packages/app-sdk/src/graph-contracts/*.ts",
+    "packages/app-sdk/src/graph-graphql*.ts",
+    "packages/app-sdk/graph/standard-*"
+  ],
+  "sharedInputApps": [
+    "apps/onto"
   ],
   "commands": [
     "check",

@@ -14,6 +14,3 @@ apps/wiki/seeds/*.local.json
 
 # Composed by npm run graph:compose from app-owned definitions.
 apps/*/graph/.compiled/
-packages/app-sdk/graph/standard-types.json
-packages/app-sdk/graph/standard-env.d.ts
-packages/app-sdk/graph/standard-schema.graphql
