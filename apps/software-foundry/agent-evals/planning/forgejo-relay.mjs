@@ -6,7 +6,7 @@ export async function startForgejoRelay({ repository, armPath, lookupFailurePath
   const writes = [];
   const server = createServer((incoming, outgoing) => {
     const url = new URL(incoming.url, "http://forgejo.localhost");
-    const issueWrite = incoming.method === "POST" && /^\/api\/v1\/repos\/box\/[^/]+\/issues$/.test(url.pathname);
+    const issueWrite = incoming.method === "POST" && /^\/api\/v1\/repos\/[^/]+\/[^/]+\/issues$/.test(url.pathname);
     const isAnchor = url.pathname === `/api/v1/repos/${repository}/issues`;
     if (incoming.method === "GET" && isAnchor && url.searchParams.has("created_by") && existsSync(lookupFailurePath)) {
       unlinkSync(lookupFailurePath);
