@@ -30,7 +30,7 @@ import { recordAddress } from "../lib/addresses";
 import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
 import { readSettings, saveSettings, settingsInput, type StewardApproval } from "./settings";
-import { addToBatch, batchAddInput, live, loadBatch, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, changeRequests, type BatchSubmissionReceipt } from "./graph-batches";
+import { addToBatch, batchAddInput, live, loadBatch, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, changeRequests, publicChangeRequest, type BatchSubmissionReceipt } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -53,7 +53,8 @@ const StagedChange = new GraphQLObjectType({
     state: { ...text, description: "pending, awaiting_review, committed or rejected." },
     operation: json, evidence: json,
     confidence: { type: GraphQLFloat }, reason: { type: GraphQLString },
-    decision: { type: JSONScalar, description: "Who or which policy decided it, and when." },
+    decision: { type: JSONScalar, description: "Who or which policy decided it, and when.", resolve: ({ decision }) =>
+      decision?.verdict === "request_changes" ? publicChangeRequest(decision) : decision },
     record: { type: GraphQLString, description: "The committed record's address: Person, Organization:sunny or works_on(Person:ada → Project:sunny)." },
     recordRevision: { type: GraphQLInt },
   },

@@ -979,20 +979,22 @@ export async function getBatch(db: Database, who: AppIdentity, input: z.infer<ty
   };
 }
 
+export function publicChangeRequest(decision: Record<string, unknown>) {
+  return {
+    reviewer: decision.kind === "imported" ? "Imported feedback"
+      : typeof decision.viaLabel === "string" ? decision.viaLabel : "Member",
+    submittedVersion: decision.submittedVersion,
+    verdict: decision.verdict,
+    comment: decision.comment,
+    at: decision.at,
+  };
+}
+
 export async function changeRequests(db: Database, batchId: string) {
   const history = await db.select({ refs: batchChangeRequests.refs, decision: batchChangeRequests.decision })
     .from(batchChangeRequests).where(eq(batchChangeRequests.batchId, batchId))
     .orderBy(sql`json_extract(${batchChangeRequests.decision}, '$.at')`, asc(batchChangeRequests.id));
-  return history.map(({ refs, decision }) => ({
-    refs,
-    decision: {
-      reviewer: typeof decision.viaLabel === "string" ? decision.viaLabel : "Member",
-      submittedVersion: decision.submittedVersion,
-      verdict: decision.verdict,
-      comment: decision.comment,
-      at: decision.at,
-    },
-  }));
+  return history.map(({ refs, decision }) => ({ refs, decision: publicChangeRequest(decision) }));
 }
 
 export async function listBatches(db: Database, _who: AppIdentity, input: z.infer<typeof batchListInput>) {

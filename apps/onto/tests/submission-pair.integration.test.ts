@@ -54,6 +54,9 @@ for (const mode of ["baseline", "candidate"]) {
     await assert.rejects(grouped("app-feedback", "review", feedback), /member/i);
     const requested = await grouped("request", "review", feedback, true);
     assert.deepEqual([requested.id, requested.submittedVersion, requested.state], [batchId, 1, "awaiting_review"]);
+    const { nodes: [pending] } = await call("ChangeBatches", { ids: [batchId], details: true, refs: ["$edit"] });
+    assert.equal(pending.operations[0].decision.comment, feedback.comment);
+    assert.ok(!("by" in pending.operations[0].decision));
     await assert.rejects(grouped("stale-feedback", "review", { ...feedback, expectedVersion: 0 }, true), /version changed/);
     step = "memberReview";
     await grouped("approve", "review", { batchId, expectedVersion: 1, verdict: "approve", refs: ["$kept"] }, true);
