@@ -20,6 +20,8 @@ import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-
 import { appBase, projectPath } from "../lib/sections";
 import { inspectionTree, projectInspection } from "./project-inspection";
 import { printableParts, renderPrintAnalysis, type PrintAnalysis } from "./print-analysis";
+import { renderCotsEvidence } from "./cots-evidence";
+import type { CotsEvidenceResult } from "../server/cots-evidence";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
 if(!root)return;
@@ -59,6 +61,49 @@ function renderCatalog() {
 let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
 const overview = section === "overview";
+let cotsGeneration = 0;
+function cotsRoot() {
+ const item = assembly.items.find(candidate => candidate.id === (selected?.id ?? query.get("item")));
+ return item?.id;
+}
+function hasCots(rootId?: string) {
+ if (!rootId) return assembly.items.some(item => item.kind === "cots");
+ const visited = new Set<string>();
+ const items = new Map(assembly.items.map(item => [item.id, item]));
+ const queue = [rootId];
+ for (const id of queue) {
+  if (visited.has(id)) continue;
+  visited.add(id);
+  const item = items.get(id);
+  if (item?.kind === "cots") return true;
+  if (item) queue.push(...item.uses.map(use => use.itemId));
+ }
+ return false;
+}
+async function renderCotsTab() {
+ const generation = ++cotsGeneration;
+ const host = $("cots-evidence");
+ host.textContent = "Loading purchased part evidence…";
+ if (historical || import.meta.env.OUTFITTER_APP_MODE === "demo") {
+  host.textContent = "Purchased part evidence is unavailable for this view.";
+  return;
+ }
+ const parameters = new URLSearchParams(selection);
+ const itemId = cotsRoot();
+ if (itemId) parameters.set("itemId", itemId);
+ const path = appBase(location.pathname) + `/api/apps/workshop/projects/${project.id}/cots-evidence?${parameters}`;
+ try {
+  const result: CotsEvidenceResult = await request(path);
+  if (signal.aborted || generation !== cotsGeneration) return;
+  if (result.revision !== (resolved?.revision ?? project.revision)) {
+   host.textContent = "The assembly save changed. Reload to inspect its purchased parts.";
+   return;
+  }
+  renderCotsEvidence(host, result, item => urlFor("overview", item), selection.has("configuration") || selection.has("parameters"));
+ } catch {
+  if (!signal.aborted && generation === cotsGeneration) host.textContent = "Could not load purchased part evidence. Reopen this tab to retry.";
+ }
+}
 let renderedPowerFor: string | undefined;
 let printGeneration = 0;
 function renderPrintTab() {
@@ -106,6 +151,7 @@ function describeInspection(tab: string) {
 const inspection = overview ? projectInspection($("project-inspection"), tab => {
  describeInspection(tab);
  if (tab === "bom") renderBom();
+ if (tab === "cots") void renderCotsTab();
  if (tab === "print") renderPrintTab();
  if (tab === "power" && renderedPowerFor !== inspectedAssembly().rootId) {
   renderPower();
@@ -127,6 +173,9 @@ function updateBudgetTabs(view: Assembly) {
  const {bom, power} = availableBudgets(view);
  $("tab-bom").hidden = !bom;
  $("tab-power").hidden = !power;
+ const purchased = hasCots(cotsRoot());
+ $("tab-cots").hidden = !purchased;
+ $("purchased-parts-shortcut").hidden = !purchased;
  $("tab-print").hidden = !printableParts(modelView(assembly, selected?.id ?? query.get("item"))).size;
 }
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
@@ -382,6 +431,7 @@ function renderPower() {
   }:undefined, resolved && !historical ? new Set(project.assembly.items.filter(i=>!i.reference).map(i=>i.id)) : undefined);
 }
 function showBuild(run?:BuildRequest, snapshot=false){
+ ++cotsGeneration;
  selected = undefined;
  $("isolate-item").hidden=true;
  selectionPath = undefined;
@@ -468,6 +518,11 @@ function showBuild(run?:BuildRequest, snapshot=false){
   references.querySelector("div")!.replaceChildren(...photos.values());
   references.hidden=!photos.size;
   inspection.open("description");
+  const shortcut = $("purchased-parts-shortcut");
+  shortcut.querySelector("button")!.onclick = () => {
+   inspection.open("cots");
+   $("tab-cots").focus();
+  };
   if (focused && focused.id !== assembly.rootId) $("project-name").textContent = project.name + " / " + focused.name;
   updateBudgetTabs(view);
   $("inspection-tree").replaceChildren(children.length
@@ -548,6 +603,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
   }
  });
  if (inspection && focused) select(focused);
+ if (inspection && query.get("inspection") === "cots" && !$("tab-cots").hidden) inspection.open("cots");
  renderCatalog();
  const path=assemblyPath(assembly,view.rootId);
  $("assembly-breadcrumbs").hidden=path.length<2;
