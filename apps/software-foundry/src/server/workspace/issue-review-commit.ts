@@ -1,7 +1,13 @@
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { z } from "zod";
 
-export const phaseMismatch = (reason: string) => new Response(reason, { status: 422 });
+export class PhaseMismatch extends Response {
+  constructor(reason: string) {
+    super(reason, { status: 422 });
+  }
+}
+
+export const phaseMismatch = (reason: string) => new PhaseMismatch(reason);
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
 const treeEntry = z.object({
   path: z.string().min(1).refine(path => !path.includes("/")),

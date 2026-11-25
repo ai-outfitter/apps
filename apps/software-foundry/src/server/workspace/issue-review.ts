@@ -1,12 +1,12 @@
 import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { requireAccess, requireOrganization, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { forgejoWorkspaceBranch, type finalizeInput, type OperationOutput, type PhaseInput, type prepareInput, type prepareResult, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "../intake";
 import { forgejoIssueReviewBindings, forgejoIssueReviews } from "../schema";
 import { hostAPI } from "./forge";
-import { phaseMismatch, verifyCommitTree, type CommitProof } from "./issue-review-commit";
+import { PhaseMismatch, phaseMismatch, verifyCommitTree, type CommitProof } from "./issue-review-commit";
 
 export const issueReviewWorkflow = "foundry-forgejo-issue-review";
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
@@ -276,7 +276,7 @@ async function findPull(api: ReviewRepository, pins: Target) {
     }
     if (items.length < 50) return found;
   }
-  throw phaseMismatch("Pull request history exceeds the reconciliation limit");
+  throw unconfirmed("Pull request history exceeds the reconciliation limit");
 }
 
 async function optionalRead(api: ReviewRepository, suffix: string) {
@@ -298,9 +298,10 @@ const gitCommit = z.object({
 });
 const commitPath = (revision: string) => `/git/commits/${revision}?stat=false&files=false`;
 
-async function reviewBranchTip(api: ReviewRepository, pins: Target) {
-  const tip = await optionalRead(api, `/branches/${pins.branch}`);
-  if (!tip) return null;
+async function reviewBranchTip(api: ReviewRepository, pins: Target, required = false) {
+  const path = `/branches/${pins.branch}`;
+  const tip = required ? await api.get(path) : await optionalRead(api, path);
+  if (tip === null && !required) return null;
   const current = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(tip);
   if (current.name !== pins.branch) throw phaseMismatch("The assigned branch identity changed");
   return current.commit.id;
@@ -325,7 +326,7 @@ async function stagedCommit(api: ReviewRepository, pins: Target, row: Row) {
 }
 
 async function verifyCommit(api: ReviewRepository, pins: Target, headSha: string, runId: string, proof: CommitProof) {
-  const [tip, commit] = await Promise.all([reviewBranchTip(api, pins), api.get(commitPath(headSha))]);
+  const [tip, commit] = await Promise.all([reviewBranchTip(api, pins, true), api.get(commitPath(headSha))]);
   const object = gitCommit.parse(commit);
   if (tip !== headSha || object.sha !== headSha ||
       object.commit.message.trim() !== commitMessage(runId, proof) || object.parents.length !== 1 ||
@@ -336,6 +337,14 @@ async function verifyCommit(api: ReviewRepository, pins: Target, headSha: string
   return object.commit.tree.sha;
 }
 
+function retryUnknownDraftRead(error: unknown): never {
+  // The platform settles these statuses. Broker refusals do not establish
+  // a mismatch, even when they use the same status as a typed comparison.
+  if (error instanceof Response && !(error instanceof PhaseMismatch) && [400, 403, 404, 409, 422].includes(error.status))
+    throw unconfirmed("Forgejo draft reconciliation read is unavailable");
+  throw error;
+}
+
 type Node = z.infer<typeof prepareInput> | z.infer<typeof finalizeInput>;
 async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: IntakeContext["db"], phase: Node) {
   const { node, inputs } = phase;
@@ -343,7 +352,11 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
     throw denied("An admitted review run is required");
   const row = await savedReview(db, node.runId);
   if (!row) throw denied("An admitted review run is required");
-  const run = await host.call("workflow.read", { id: node.runId });
+  const reconcilingDraft = node.nodeId === "implement" && row.publication && !row.candidate;
+  const run = await host.call("workflow.read", { id: node.runId }).catch(error => {
+    if (reconcilingDraft) retryUnknownDraftRead(error);
+    throw error;
+  });
   if (run?.run.workflowId !== issueReviewWorkflow || canonicalActionValue(run.inputs) !== canonicalActionValue(row.inputs))
     throw phaseMismatch("The admitted Forgejo run identity changed");
   const pins = target.parse(row.inputs["implement.inputs.target"]);
@@ -353,13 +366,16 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
   if (phase.settings.role !== role || (role === "reviewer" && phase.settings.reviewer !== pins.reviewer))
     throw phaseMismatch("The approved Forgejo execution role changed");
   const bindingId = z.string().min(1).parse(row.inputs[`implement.inputs.${role}Binding`]);
-  const repo = await host.call("repository.read", { bindingId });
+  const repo = await host.call("repository.read", { bindingId }).catch(error => {
+    if (reconcilingDraft) retryUnknownDraftRead(error);
+    throw error;
+  });
   const connectionId = z.string().min(1).parse(row.inputs["implement.inputs.connectionId"]);
   if (!sameRepository(repo, pins, connectionId) || repo.appId !== pins.workerId)
     throw phaseMismatch("The pinned Forgejo execution authority changed");
   const api = reviewRepository(host, repo);
   // A claimed draft must reconcile before a ref-drift refusal can terminate it.
-  if (node.nodeId !== "implement" || !row.publication || row.candidate)
+  if (!reconcilingDraft)
     await verifySource(api, pins, pins.origin, phaseMismatch);
   return { row, pins, api };
 }
@@ -547,8 +563,10 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
       } : {}),
     ...(reason ? { reason } : {}),
   });
+  const draftPending = and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.candidate),
+    sql`coalesce(json_extract(${forgejoIssueReviews.draftObservation}, '$.status'), '') <> 'blocked'`);
   const saveObservation = (value: ReturnType<typeof observation>) => db().update(forgejoIssueReviews)
-    .set({ draftObservation: value }).where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.candidate)));
+    .set({ draftObservation: value }).where(draftPending);
 
   try {
     if (observed) {
@@ -566,13 +584,17 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
     await verifyCommit(api, pins, claim.headSha, runId, proof);
     if (!existing) throw unconfirmed("Draft publication is unconfirmed; reconciling the run branch");
     const candidate = verifyPull(existing, pins, claim.headSha, runId);
-    await db().update(forgejoIssueReviews).set({ candidate, draftObservation: null })
-      .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.candidate)));
-    return { candidate, summary: proof.summary };
+    const [accepted] = await db().update(forgejoIssueReviews).set({ candidate, draftObservation: null })
+      .where(draftPending).returning({ runId: forgejoIssueReviews.runId });
+    if (accepted) return { candidate, summary: proof.summary };
+    const latest = await savedReview(db, runId);
+    if (latest?.candidate) return { candidate: await currentCandidate(api, latest, pins), summary: proof.summary };
+    if (latest?.draftObservation?.status === "blocked") throw phaseMismatch(String(latest.draftObservation.reason));
+    throw unconfirmed("The Forgejo draft observation changed during reconciliation");
   } catch (error) {
-    if (error instanceof Response && [403, 404, 422].includes(error.status))
+    if (error instanceof PhaseMismatch)
       await saveObservation(observation("blocked", (await error.clone().text()).slice(0, 512)));
-    throw error;
+    retryUnknownDraftRead(error);
   }
 }
 

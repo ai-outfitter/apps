@@ -455,3 +455,74 @@ test("deletions receive a terminal refusal before a branch or commit is written"
   await assert.rejects(f.finalize(phase), refused(422));
   assert.deepEqual(f.writes(), []);
 });
+
+test("a sanitized Forgejo outage leaves the draft claim available for read-only reconciliation", async t => {
+  const f = fixture(t);
+  await f.start();
+  f.state.loseWrites = true;
+  const implement = f.phase("implement");
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && f.state.pull && input.path.includes("/pulls?")) {
+      const provider = new Response("Forgejo temporarily unavailable", { status: 502 });
+      // The broker masks provider failures behind its generic authority response.
+      throw new Response("Workspace repository unavailable", { status: provider.ok ? 200 : 403 });
+    }
+  });
+  await assert.rejects(f.finalize(implement), refused(503));
+  assert.equal((await f.start()).draftObservation?.status, "ambiguous");
+  const writes = f.writes();
+  assert.deepEqual(writes, [`${repo.path}/branches`, `${repo.path}/contents`, `${repo.path}/pulls`]);
+
+  for (const status of [404, 422]) {
+    f.intercept((operation, input) => {
+      if (operation === "repository.request" && input.path === `${repo.path}/branches/${f.state.branch}`)
+        throw new Response("Workspace repository unavailable", { status });
+    });
+    await assert.rejects(f.finalize(f.phase("implement", true)), refused(503));
+    assert.equal((await f.start()).draftObservation?.status, "ambiguous");
+  }
+  f.intercept(undefined);
+  await f.finalize(f.phase("implement", true));
+  assert.equal((await f.start()).candidate?.number, 8);
+  assert.deepEqual(f.writes(), writes);
+});
+
+test("a stale draft reconciliation cannot replace a blocked observation or accept a candidate", async t => {
+  const f = fixture(t);
+  await f.start();
+  f.state.loseWrites = true;
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && f.state.pull && input.path.includes("/pulls?"))
+      throw new Response("Lookup unavailable", { status: 503 });
+  });
+  await assert.rejects(f.finalize(f.phase("implement")), refused(503));
+
+  let entered!: () => void;
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { entered = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  f.intercept(async (operation, input) => {
+    if (operation === "repository.request" && input.path.includes("/pulls?")) {
+      entered();
+      await held;
+    }
+  });
+  const stale = f.finalize(f.phase("implement", true));
+  const staleRefusal = assert.rejects(stale, refused(422));
+  await waiting;
+  try {
+    f.intercept(undefined);
+    f.state.baseSha = commit;
+    await assert.rejects(f.finalize(f.phase("implement", true)), refused(422));
+    assert.equal((await f.start()).draftObservation?.status, "blocked");
+    f.state.baseSha = pin.baseSha;
+  } finally {
+    release();
+  }
+  await staleRefusal;
+  const receipt = await f.start();
+  assert.equal(receipt.candidate, null);
+  assert.equal(receipt.draftObservation?.status, "blocked");
+  assert.equal(receipt.draftObservation?.number, 8);
+  assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`, `${repo.path}/pulls`]);
+});
