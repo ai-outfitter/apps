@@ -124,21 +124,28 @@ export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof
         indexed.set(sourceKey, indexPhotos(source.assembly.items, item => ({ projectId: source.id, revision: source.revision, itemId: item.id })));
       const sourcePhotos = indexed.get(sourceKey)!;
       const photos = new Map<string, Photo>();
-      const seen = new Set<string>();
-      for (const record of evidence.photos) {
-        for (const photo of [record, ...(sourcePhotos.get(record.sha256) ?? []), ...(discovered?.get(record.sha256) ?? [])]) {
-          const origin = photo.attachmentOwner ?? owner;
-          const key = JSON.stringify([origin.projectId, origin.itemId, photo.attachmentRevision, photo.fileName, photo.sha256]);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          try {
-            const verified = await referencePhoto(c, load, owner, photo);
-            const existing = photos.get(photo.sha256);
-            if (existing) existing.attachments.push(...verified.attachments);
-            else photos.set(photo.sha256, { ...verified, basis: item.cotsEvidence ? "recorded" : "legacy-attachment" });
-          } catch {
-            warnings.push(warning("photo_unavailable", "Reference photo unavailable: " + photo.fileName));
-          }
+      const identity = (photo: CotsEvidence["photos"][number]) => {
+        const origin = photo.attachmentOwner ?? owner;
+        return JSON.stringify([origin.projectId, origin.itemId, photo.fileName, photo.sha256]);
+      };
+      const known = new Set(evidence.photos.map(identity));
+      const candidates = [...evidence.photos];
+      for (const { sha256 } of evidence.photos) {
+        for (const linked of [...(sourcePhotos.get(sha256) ?? []), ...(discovered?.get(sha256) ?? [])]) {
+          const key = identity(linked);
+          if (known.has(key)) continue;
+          known.add(key);
+          candidates.push(linked);
+        }
+      }
+      for (const photo of candidates) {
+        try {
+          const verified = await referencePhoto(c, load, owner, photo);
+          const existing = photos.get(photo.sha256);
+          if (existing) existing.attachments.push(...verified.attachments);
+          else photos.set(photo.sha256, { ...verified, basis: item.cotsEvidence ? "recorded" : "legacy-attachment" });
+        } catch {
+          warnings.push(warning("photo_unavailable", "Reference photo unavailable: " + photo.fileName));
         }
       }
       return { photos: [...photos.values()], interfaces: evidence.interfaces, warnings };
