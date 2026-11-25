@@ -1,11 +1,11 @@
 export const model = 'GLM-5.3-Flash-EXL3';
 export const limits = {
-  modelCalls: 5,
-  toolCalls: 4,
+  modelCalls: 6,
+  toolCalls: 5,
   tokensPerCall: 1000,
   temperature: 0,
   seed: 266,
-  timeoutSeconds: 75,
+  timeoutSeconds: 120,
 };
 
 export function experiment(arm) {

@@ -41,3 +41,55 @@ test('records usage for tool and final turns and enforces the tool budget', asyn
     server.close();
   }
 });
+
+test('refuses to score after a stale model, excessive calls, or a deadline', async () => {
+  const toolCall = { id: 'a', function: { name: 'lookup', arguments: '{}' } };
+  const scenarios = [
+    { fault: /different model/, model: 'other-model', message: { content: '{}' } },
+    { fault: /one-tool-per-turn/, model: 'test-model', message: { tool_calls: [toolCall, { ...toolCall, id: 'b' }] } },
+    { fault: /deadline/, model: 'test-model', message: {}, delay: 150 },
+  ];
+  for (const { fault, model, message, delay } of scenarios) {
+    const server = createServer(async (_request, response) => {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+      response.end(JSON.stringify({ model, choices: [{ message, finish_reason: 'stop' }] }));
+    }).listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+      const address = server.address();
+      assert(address && typeof address === 'object');
+      const receipts = [];
+      const agent = readOnlyAgent({
+        name: 'test', model: 'test-model', modelRevision: null, receipts,
+        endpoint: `http://127.0.0.1:${address.port}`,
+        limits: { modelCalls: 2, toolCalls: 1, tokensPerCall: 30, temperature: 0, seed: 7 },
+        prepare: () => ({
+          inputs: {}, messages: [], tools: [{ type: 'function' }],
+          execute: () => assert.fail('invalid provider response must not execute tools'),
+          grade: () => assert.fail('invalid provider response must not be graded'),
+        }),
+      });
+      const options = { prompt: '', model: 'test-model', timeout: delay ? 300 : 5000, apiKey: '' };
+      await assert.rejects(agent.run('.', { ...options, model: 'unpinned' }), /must pin/);
+      const result = await agent.run('.', options);
+      assert.equal(result.success, false);
+      assert.ok(result.error);
+      assert.match(result.error, fault);
+      assert.equal(receipts.length, 1);
+      assert.equal(receipts[0].grade, undefined);
+    } finally {
+      server.close();
+    }
+  }
+});
+
+test('pair rejects mismatched experiment settings before running either arm', async () => {
+  const { assertCompatiblePair } = await import('../eval/paired.mjs');
+  const names = ['baseline', 'candidate'];
+  const configs = names.map(agent => ({ agent, model: 'test-model', timeout: 75, runs: 1, earlyExit: false }));
+  assert.doesNotThrow(() => assertCompatiblePair(configs, names, 'test-model', { timeoutSeconds: 75 }));
+  for (const mismatch of [{ model: 'other' }, { timeout: 30 }, { runs: 2 }, { earlyExit: true }]) {
+    assert.throws(() => assertCompatiblePair([configs[0], { ...configs[1], ...mismatch }], names, 'test-model',
+      { timeoutSeconds: 75 }), /same pinned limits/);
+  }
+});

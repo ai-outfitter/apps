@@ -1,15 +1,25 @@
 type Entry = Record<string, unknown>;
 type Names = Record<string, string>;
-const isObject = (value: unknown): value is Entry => value !== null && typeof value === 'object' && !Array.isArray(value);
-const citesOnly = (record: Entry | undefined, ...ids: string[]) =>
-  Array.isArray(record?.evidence) && ids.length === record.evidence.length && ids.every((id) => (record.evidence as string[]).includes(id));
+type Evidence = { evidence: string[]; required?: string[] };
+type Expected = {
+  nodes: ({ key: string; name: string } & Evidence)[];
+  edges: ({ key: string; from: string; to: string } & Evidence)[];
+  decisions: Record<string, { action: string } & Evidence>;
+};
 
-/** Grade independently of the inference context. The scorer never enters a model message. */
-export function gradeProposal(output: string, names: Names) {
+const isObject = (value: unknown): value is Entry => value !== null && typeof value === 'object' && !Array.isArray(value);
+const grounded = (row: Entry | undefined, { evidence, required = [] }: Evidence) => {
+  if (!Array.isArray(row?.evidence) || !row.evidence.length) return false;
+  const ids = row.evidence as string[];
+  return new Set(ids).size === ids.length && ids.every(id => evidence.includes(id)) && required.every(id => ids.includes(id));
+};
+
+/** The independent rubric is read by the scorer, never included in inference. */
+export function gradeProposal(output: string, names: Names, expected: Expected, existing: string[]) {
   let proposal: unknown;
   try { proposal = JSON.parse(output); } catch { /* Invalid JSON is a failed submission. */ }
   const shape = isObject(proposal) && ['nodes', 'edges', 'decisions'].every(
-    (key) => Array.isArray(proposal[key]) && (proposal[key] as unknown[]).every(isObject),
+    key => Array.isArray(proposal[key]) && (proposal[key] as unknown[]).every(isObject),
   );
   const { nodes, edges, decisions } = shape
     ? proposal as { nodes: Entry[]; edges: Entry[]; decisions: Entry[] }
@@ -18,56 +28,43 @@ export function gradeProposal(output: string, names: Names) {
     const matches = rows.filter(predicate);
     return matches.length === 1 ? matches[0] : undefined;
   };
-  const product = unique(nodes, ({ name, type }) => name === 'Tideglass Desk' && type === names.product);
-  const publication = unique(nodes, ({ name, type }) => name === 'Tideglass Dispatch' && type === names.newsletter);
-  const relationship = (type: string) => unique(edges, (row) => row.type === type);
-  const signIn = relationship(names.sign_in);
-  const operator = relationship(names.operator);
-  const recipient = relationship(names.recipient);
-  const publisher = relationship(names.publisher);
-  const use = unique(decisions, ({ question }) => question === 'product_use');
-  const developer = unique(decisions, ({ question }) => question === 'product_developer');
-  const hasReason = (decision: Entry | undefined) => typeof decision?.reason === 'string' && decision.reason.trim().length > 0;
-  const newHandle = (node: Entry | undefined) =>
-    typeof node?.id === 'string' && node.id.trim().length > 0 && !['g-101', 'g-227', 'g-537', 'g-280'].includes(node.id);
-  const exactConnection = (edge: Entry | undefined, from: unknown, to: unknown) =>
-    typeof from === 'string' && typeof to === 'string' && edge?.from === from && edge.to === to;
+  const matched = Object.fromEntries(expected.nodes.map(({key, name}) =>
+    [key, unique(nodes, node => node.name === name && node.type === names[key])]));
+  const resolve = (end: string) => end.startsWith('$') ? matched[end.slice(1)]?.id : end;
+  const links = expected.edges.map((spec) => {
+    const from = resolve(spec.from);
+    const to = resolve(spec.to);
+    const row = unique(edges, edge => edge.type === names[spec.key]);
+    return { ...spec, row, directed: typeof from === 'string' && typeof to === 'string' && row?.from === from && row.to === to };
+  });
+  const decisionRows = Object.entries(expected.decisions).map(([key, spec]) =>
+    ({ key, spec, row: unique(decisions, decision => decision.question === key) }));
+  const ids = Object.values(matched).map(node => node?.id);
+  const validHandles = ids.every(id => typeof id === 'string' && id.trim().length > 0 && !existing.includes(id));
   const checks = {
     grounding: {
-      product: citesOnly(product, 'E1') || citesOnly(product, 'E2') || citesOnly(product, 'E1', 'E2'),
-      publication: citesOnly(publication, 'E3'),
-      signIn: citesOnly(signIn, 'E1'),
-      operator: citesOnly(operator, 'E2'),
-      recipient: citesOnly(recipient, 'E3'),
-      publisher: citesOnly(publisher, 'E3'),
+      ...Object.fromEntries(expected.nodes.map(spec => [spec.key, grounded(matched[spec.key], spec)])),
+      ...Object.fromEntries(links.map(link => [link.key, grounded(link.row, link)])),
     },
     canonicalReuse: {
-      onlyNewRecords: nodes.length === 2 && newHandle(product) && newHandle(publication) && product?.id !== publication?.id,
-      verifiedPerson: signIn?.from === 'g-101' && recipient?.from === 'g-101',
-      sameRegisteredOrganization: operator?.to === 'g-227' && publisher?.to === 'g-227',
+      onlyNewRecords: nodes.length === ids.length && validHandles && new Set(ids).size === ids.length,
+      verifiedPerson: links.filter(link => link.from === 'g-101').every(link => link.row?.from === 'g-101'),
+      sharedOperatorPublisher: links.filter(link => link.to === 'g-227').every(link => link.row?.to === 'g-227'),
+      ...Object.fromEntries(links.filter(link => link.to === 'g-380').map(link => [link.key, link.row?.to === link.to])),
     },
     directedRelationships: {
-      signIn: exactConnection(signIn, 'g-101', product?.id),
-      operator: exactConnection(operator, product?.id, 'g-227'),
-      recipient: exactConnection(recipient, 'g-101', publication?.id),
-      publisher: exactConnection(publisher, publication?.id, 'g-227'),
-      onlySupportedEdges: edges.length === 4 && !!(signIn && operator && recipient && publisher),
+      ...Object.fromEntries(links.map(link => [link.key, link.directed])),
+      onlySupportedEdges: edges.length === links.length && links.every(link => !!link.row),
     },
     decisionEvidence: {
-      use: use?.action === 'defer' && citesOnly(use, 'E1', 'E4') && hasReason(use),
-      developer: developer?.action === 'defer' &&
-        (citesOnly(developer, 'E2') || citesOnly(developer, 'E2', 'E4')) && hasReason(developer),
-      onlyRequestedDecisions: decisions.length === 2 && !!(use && developer),
+      ...Object.fromEntries(decisionRows.map(({ key, spec, row }) =>
+        [key, row?.action === spec.action && grounded(row, spec) && typeof row.reason === 'string' && row.reason.trim().length > 0])),
+      onlyRequestedDecisions: decisions.length === decisionRows.length && decisionRows.every(({row}) => !!row),
     },
   };
   const scores = Object.fromEntries(Object.entries(checks).map(([name, group]) => {
     const values = Object.values(group);
     return [name, { passed: values.filter(Boolean).length, total: values.length }];
   }));
-  return {
-    passed: shape && Object.values(scores).every(({ passed, total }) => passed === total),
-    validShape: shape,
-    checks,
-    scores,
-  };
+  return { passed: shape && Object.values(scores).every(({passed, total}) => passed === total), validShape: shape, checks, scores };
 }

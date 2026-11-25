@@ -12,7 +12,7 @@ if (!checkout || !/^[a-f0-9]{40}$/.test(candidate ?? '')) {
 
 const baseline = '6aa42708d7f70feeec1541a35230a487d134f60c';
 const ontoPath = 'apps/onto/seeds/types-v1.json';
-const forerunnerPath = 'apps/forerunner/seeds/discovery-graph-v1.json';
+const ownerFiles = { onto: [ontoPath, 'apps/onto/seeds/artifacts-v1.json'], forerunner: ['apps/forerunner/seeds/discovery-graph-v1.json'], planning: ['apps/planning/seeds/work-graph-v1.json'] };
 const compiledPath = 'packages/app-sdk/graph/standard-types.json';
 const git = (...args) => execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8' });
 if (git('rev-parse', 'HEAD').trim() !== candidate || git('status', '--porcelain').trim()) {
@@ -23,54 +23,50 @@ const read = (commit, path) => JSON.parse(git('show', `${commit}:${path}`));
 const installed = read(baseline, ontoPath);
 const generated = readFileSync(join(checkout, compiledPath));
 const compiled = JSON.parse(generated);
-const authored = [
-  ...read(candidate, ontoPath).map((type) => ({ ...type, address: `onto:${type.name}` })),
-  ...read(candidate, forerunnerPath).map((type) => ({ ...type, address: `forerunner:${type.name}` })),
-];
+const authored = Object.entries(ownerFiles).flatMap(([owner, paths]) => paths.flatMap((path) => {
+  const source = read(candidate, path);
+  return (Array.isArray(source) ? source : source.types).map((type) => ({ ...type, address: `${owner}:${type.name}` }));
+}));
 const unique = (rows, predicate, label) => {
   const matches = rows.filter(predicate);
   if (matches.length !== 1) throw new Error(`Expected one graph type for ${label}`);
   return matches[0];
 };
 const spec = JSON.parse(readFileSync(new URL('./evals/connected-discovery/schema.json', import.meta.url)));
-const scope = spec.types.map(({ key, baseline: name, description, from, to }) => {
-  const before = unique(installed, (type) => type.name === name, name);
-  const after = unique(authored, (type) => type.id === before.id, before.id);
-  const built = unique(compiled, (type) => type.id === before.id, before.id);
-  if ([after, built].some((type) => type.name !== before.name || type.category !== before.category)) {
-    throw new Error(`Type changed identity: ${name}`);
-  }
-  return { key, description, before, after, built, endpoints: { from, to } };
-});
-const idsByKey = new Map(scope.map(({ key, before }) => [key, before.id]));
-
 function endpoints(type, side, resolve) {
   const directed = type.ontology?.endpoints?.[side];
+  if (directed === 'any') return 'any';
   if (!Array.isArray(directed)) throw new Error(`Expected an explicit ${side} for ${type.name}`);
-  return directed.map(resolve).sort();
+  return directed.map(resolve);
 }
 
-const types = scope.map(({ key, description, before, after, built, endpoints: caseEndpoints }) => {
-  const type = { key, baseline: before.name, candidate: after.address, description, stableId: before.id };
-  if (before.category === 'node') return type;
-  for (const side of ['from', 'to']) {
-    const baselineIds = endpoints(before, side, (id) => unique(installed, (row) => row.id === id, id).id);
-    const candidateIds = endpoints(after, side, (address) => unique(authored, (row) => row.address === address, address).id);
-    const compiledIds = endpoints(built, side, (id) => unique(compiled, (row) => row.id === id, id).id);
-    if ([candidateIds, compiledIds].some((ids) => JSON.stringify(baselineIds) !== JSON.stringify(ids))) {
-      throw new Error(`Directed endpoint contract changed: ${after.address} ${side}`);
-    }
-    type[side] = caseEndpoints[side];
-    if (!baselineIds.includes(idsByKey.get(type[side]))) {
-      throw new Error(`Unsupported fixture ${side} endpoint: ${after.address} ${type[side]}`);
+const types = spec.types.map(({ key, name }) => {
+  const previous = unique(installed, (type) => type.name === name, name);
+  const current = unique(authored, (type) => type.id === previous.id, previous.id);
+  const generated = unique(compiled, (type) => type.id === previous.id, previous.id);
+  if ([current, generated].some((type) => type.name !== previous.name || type.category !== previous.category)) {
+    throw new Error(`Type changed identity: ${name}`);
+  }
+  const baseline = { name: previous.name, description: previous.body };
+  const candidate = { name: current.address, description: current.body };
+  if (previous.category === 'edge') {
+    for (const side of ['from', 'to']) {
+      const authoredIds = endpoints(current, side, (address) => unique(authored, (row) => row.address === address, address).id);
+      const canonicalIds = endpoints(generated, side, (id) => id);
+      const beforeIds = endpoints(previous, side, (id) => id);
+      const sorted = (ids) => JSON.stringify(ids === 'any' ? ids : ids.slice().sort());
+      if (sorted(authoredIds) !== sorted(canonicalIds) || sorted(beforeIds) !== sorted(canonicalIds))
+        throw new Error(`Authored, compiled and baseline directions differ: ${current.address} ${side}`);
+      baseline[side] = endpoints(previous, side, (id) => unique(installed, (row) => row.id === id, id).name);
+      candidate[side] = current.ontology.endpoints[side];
     }
   }
-  return type;
+  return { key, stableId: previous.id, baseline, candidate };
 });
 const source = {
   baseline: { commit: baseline, files: [ontoPath] },
   candidate: {
-    commit: candidate, files: [ontoPath, forerunnerPath], generated: compiledPath,
+    commit: candidate, files: Object.values(ownerFiles).flat(), generated: compiledPath,
     generatedSha256: createHash('sha256').update(generated).digest('hex'),
   },
 };

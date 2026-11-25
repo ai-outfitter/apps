@@ -1,7 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import packageInfo from '@vercel/agent-eval/package.json' with { type: 'json' };
 import { formatResultsTable, loadAllFixtures, loadConfig, registerAgent, runExperiment } from '@vercel/agent-eval';
 import { readOnlyAgent } from './read-only-agent.mjs';
+
+export function assertCompatiblePair(configs, agents, model, limits) {
+  if (configs.some((config, index) => config.agent !== agents[index] || config.model !== model
+      || config.runs !== 1 || config.earlyExit || config.timeout !== limits.timeoutSeconds)) {
+    throw new Error('Pair configurations must use the registered adapters and the same pinned limits');
+  }
+}
 
 /** Keep the runner and limits identical, changing only the fixture's prepared context. */
 export async function runPair({ project, resultsDir, model, limits, prepare }) {
@@ -23,7 +31,11 @@ export async function runPair({ project, resultsDir, model, limits, prepare }) {
   if (!fixtures.length) throw new Error('No evaluation fixtures found');
 
   const arms = ['baseline', 'candidate'];
-  const pair = { version: 1, runner: 'Vercel Agent Eval 2.6.0', runtime: process.version, order: arms, runs: {} };
+  const schedule = fixtures.map((fixture, index) => ({
+    fixture, arms: index % 2 === 0 ? arms : [...arms].reverse(),
+  }));
+  const pair = { version: 2, runner: `Vercel Agent Eval ${packageInfo.version}`, runtime: process.version,
+    order: schedule.map(({ fixture, arms }) => ({ fixture: fixture.name, arms })), runs: {} };
   // A unique results directory prevents concurrent or interrupted reruns from overwriting receipts.
   await mkdir(resultsDir, { recursive: true });
   const pairDir = join(resultsDir, new Date().toISOString().replaceAll(':', '-'));
@@ -40,14 +52,14 @@ export async function runPair({ project, resultsDir, model, limits, prepare }) {
     return agent.name;
   });
   const configs = await Promise.all(arms.map((arm) => loadConfig(join(project, 'experiments', `${arm}.ts`))));
-  if (configs.some((config, index) => config.agent !== agents[index] || config.model !== model
-      || config.runs !== 1 || config.earlyExit || config.timeout !== limits.timeoutSeconds)) {
-    throw new Error('Pair configurations must use the registered adapters and the same pinned limits');
-  }
+  assertCompatiblePair(configs, agents, model, limits);
   try {
-    for (const [index, arm] of arms.entries()) {
-      const results = await runExperiment({ config: configs[index], fixtures, apiKey, resultsDir: pairDir, experimentName: arm });
-      console.log(formatResultsTable(results));
+    for (const { fixture, arms: order } of schedule) {
+      for (const arm of order) {
+        const results = await runExperiment({ config: configs[arms.indexOf(arm)], fixtures: [fixture], apiKey,
+          resultsDir: pairDir, experimentName: `${arm}/${fixture.name}` });
+        console.log(formatResultsTable(results));
+      }
     }
   } finally {
     await writeFile(join(pairDir, 'pair.json'), `${JSON.stringify(pair, null, 2)}\n`);

@@ -1,50 +1,51 @@
-# Forerunner graph definition quality
+# Forerunner authored graph context eval
 
-Run a paired [Vercel Agent Eval](https://github.com/vercel-labs/agent-eval) experiment for [#266](https://github.com/ai-outfitter/apps/issues/266). The public fixture represents a synthetic discovery batch. The model receives the same task, evidence, graph lookup and limits in both arms. Only the graph type context changes. The baseline uses published type names. The candidate uses the Onto and Forerunner owner namespaces from the graph refactor in [#267](https://github.com/ai-outfitter/apps/pull/267). Both use the same scoped descriptions and directed endpoints, with synthetic IDs for installed records.
+This paired [Vercel Agent Eval](https://github.com/vercel-labs/agent-eval) experiment tests whether the namespace presentation from [#267](https://github.com/ai-outfitter/apps/pull/267) changes the quality or cost of discovery proposals for [#266](https://github.com/ai-outfitter/apps/issues/266). The baseline renders installed type names and reads the definition text from the pinned baseline seed. The candidate renders authored Onto and Forerunner names and reads the definition text from the pinned app sources. The projector checks the full directed endpoint sets against the compiled registry and baseline. At these revisions the prose and endpoint sets are equivalent. The treatment changes how the identifiers are rendered.
+
+The fixture has three cases with the same holder, product, publisher, lookup records and base excerpts. The first case covers authentication without an activity record and operator terms without a developer record. The second adds an activity export. The third adds an independently published developer record. The public input contains source excerpts. The expected records, relationships, decisions, and acceptable citation sets live in separate scorer files. Both the holder and operator legal-name queries return a decoy before the verified match. The model must reconcile the account email and legal registration.
+
+The rubric measures supporting citations, canonical identity reuse, exact directed connections, and the record or defer decision. Some checks require direct evidence and accept supplementary citations from a relevance set. The grader checks whether a decision includes a reason. The reasons are available in the receipt for qualitative inspection.
 
 ## Run the pair
 
-With Node 24 and the repository's locked dependencies installed, point the runner at your trusted OpenAI-compatible Spark endpoint. It needs `/models`, `/chat/completions`, function calls, and JSON object mode. Set `EVAL_API_KEY` if your endpoint requires authentication.
+Use Node 24 and install the repository’s locked dependencies. Set `EVAL_BASE_URL` to a trusted OpenAI-compatible Spark endpoint with model discovery, function calls, and JSON object mode. Set `EVAL_API_KEY` if your endpoint requires authentication.
 
 ```sh
 EVAL_BASE_URL=http://your-spark:8888/v1 node apps/forerunner/evals/graph-definition-quality/run.mjs
-node --test apps/forerunner/evals/graph-definition-quality/fixture.test.mjs box/tests/read-only-eval.test.ts
+npm -w apps/forerunner run test:unit
 npm test
 actionlint
 ```
 
-The shared adapter in `box/eval` registers the two custom agents with Agent Eval and runs both experiments sequentially. For each fixture, the adapter reads public inputs, offers only an in-memory lookup, and passes the final proposal to a separate scorer. To reuse it, supply a project with `experiments/baseline.ts` and `experiments/candidate.ts`, fixtures under `evals/`, and a `prepare(arm, fixture, prompt)` function like [fixture.mjs](fixture.mjs). Keep task evidence, model, tools, and limits fixed when comparing a change.
+The shared adapter registers two read-only agents with Agent Eval, runs one case at a time, and alternates which arm goes first. To reuse it, supply a project with `experiments/baseline.ts`, `experiments/candidate.ts`, fixtures under `evals/`, and a `prepare(arm, fixture, prompt)` function like [fixture.mjs](fixture.mjs).
 
-Each invocation writes native Agent Eval results and a `pair.json` under a new directory in `results/`. You can change the parent directory with `EVAL_RESULTS_DIR`. The pair receipt records exact initial messages, input and rubric hashes, tool queries and results, model response IDs and server fingerprint, token usage, latency, final proposals, and grader output. Wall time covers the model/tool loop and local scoring. Output tokens sum provider-reported completion tokens across all turns, including tool arguments. Tool calls count requests emitted by the model.
+Each invocation writes native Agent Eval results and `pair.json` under a new directory in `results/`. Override the parent with `EVAL_RESULTS_DIR`. The pair receipt records prompt, schema, evidence, lookup, rubric and expected-answer hashes. It also captures messages, tool calls and results, model responses and usage, wall time, and grader output. The Forerunner unit command replays the retained prompts, tool results and grades.
 
 ## Refresh the authored schema context
 
-The default run uses the checked-in `schema-authored.json`. To regenerate it from a clean checkout of the candidate revision, install its locked dependencies and run its graph composer. Then run the projector from this eval checkout.
+The default run uses [schema-authored.json](evals/connected-discovery/schema-authored.json), projected from #267 at `fcb4eb865bf64cdaa17159930d7ba88f0e4531a2`. Use a clean checkout of the pinned candidate that contains both Git revisions.
 
 ```sh
-npm --prefix /path/to/candidate run graph:compose
+npm --prefix /path/to/candidate ci
 node apps/forerunner/evals/graph-definition-quality/project-schema.mjs /path/to/candidate <candidate-sha> > /tmp/schema-authored.json
+EVAL_SCHEMA=/tmp/schema-authored.json EVAL_BASE_URL=http://your-spark:8888/v1 node apps/forerunner/evals/graph-definition-quality/run.mjs
 ```
 
-The projector checks the generated graph for staleness and matches scoped types by stable ID. It verifies the full directed endpoint sets against the baseline before projecting the directions relevant to this case. It records both source commits and the generated standard-types SHA-256. Use `EVAL_SCHEMA=/tmp/schema-authored.json` to run with a regenerated projection, or point `EVAL_SCHEMA` to the original `evals/connected-discovery/schema.json` to replay the first instruction setup.
+The projector refuses stale generated files and records the commits, app source paths, and generated artifact SHA-256. The model receives the authored text in full with the complete endpoint constraints. A case supplies the subset of the vocabulary it uses.
 
-## Spark measurements
+## Spark results
 
-The authored pair uses #267's committed app contributions at `c6f740d71743536b28d76911996ec63e5012e227`. Its [schema projection](evals/connected-discovery/schema-authored.json) records the generated type artifact hash. Both the projection and generated type artifact match the earlier [local snapshot run](https://github.com/ai-outfitter/apps/blob/b6990890c2a28eb4c30ca42538ff50497128e268/apps/forerunner/evals/graph-definition-quality/receipts/spark-authored-pair.json). The model saw `forerunner:` for the discovery-owned types and `onto:` for the foundation types. The baseline messages match the earlier instruction pair byte for byte.
+The [scored pair](receipts/spark-authored-cases.json) ran on 2026-11-25 using GLM-5.3-Flash-EXL3, model snapshot `25a44fdbf16862a46b7cc9921142c6c81350af2f`, and fingerprint `vllm-0.1.dev20051+g487ecf187-tp2-06793def`. Both arms used Vercel Agent Eval 2.6.0, temperature 0, seed 266, a 120-second deadline per case, up to six model calls, five lookups, and 1,000 completion tokens per call. All six scored runs completed.
 
-Both pairs ran on 2026-11-25 with GLM-5.3-Flash-EXL3, snapshot `25a44fdbf16862a46b7cc9921142c6c81350af2f`, vLLM fingerprint `vllm-0.1.dev20051+g487ecf187-tp2-06793def`, and Agent Eval 2.6.0. Each arm had 75 seconds, up to five model calls, four lookup calls, and 1,000 completion tokens per model call. Temperature was 0 and the requested seed was 266. The service handled both runs on the same advertised model and reported the same fingerprint.
+| Case | Arm | Grounding | Canonical reuse | Directed relationships | Decisions | Lookups / model calls | Wall time | Input tokens | Output tokens |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Authentication only | Baseline | 6/6 | 3/3 | 5/5 | 3/3 | 5 / 6 | 24.06 s | 9,471 | 437 |
+| Authentication only | Candidate | 6/6 | 3/3 | 5/5 | 3/3 | 5 / 6 | 26.85 s | 9,862 | 472 |
+| Developer record | Baseline | 7/7 | 4/4 | 6/6 | 3/3 | 5 / 6 | 25.76 s | 9,794 | 502 |
+| Developer record | Candidate | 7/7 | 2/4 | 4/6 | 3/3 | 5 / 6 | 28.35 s | 10,190 | 581 |
+| Workspace activity | Baseline | 7/7 | 3/3 | 6/6 | 3/3 | 5 / 6 | 26.20 s | 9,754 | 490 |
+| Workspace activity | Candidate | 7/7 | 3/3 | 6/6 | 3/3 | 5 / 6 | 28.35 s | 10,150 | 570 |
 
-| Arm | Grounding | Canonical reuse | Directed relationships | Decision evidence | Lookup calls | Model calls | Wall time | Input tokens | Output tokens |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Published names, authored pair | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 17.888 s | 4,048 | 589 |
-| Authored Onto and Forerunner namespaces | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.361 s | 4,348 | 588 |
-| Published names, initial pair | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 16.950 s | 4,048 | 455 |
-| Initial `onto:` instruction projection | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.013 s | 4,268 | 583 |
+The baseline passed 3/3 cases and the candidate passed 2/3. The candidate recognized the separately registered developer and cited the independent registry, but proposed a duplicate Person in that case even though its lookup returned the correct existing holder and the decoy. The duplicate caused two relationship endpoint misses. Both arms encountered both decoys in every case and selected the correct record-or-defer action each time. The candidate used 1,183 more input tokens and 194 more output tokens across the three cases, with identical lookup and model call counts.
 
-Both reused the verified account holder and the registered organization, including reuse across operator and publisher roles. Both submitted all four supported directed relationships. The frozen rubric requires primary citations for the product node and marks both arms down for also citing the marketing email. The email mentions the product, so that miss measures strict citation selection. Neither arm used marketing to justify a use or developer edge.
-
-A manual review against the synthetic evidence checked both free-text reasons in each arm, separately from the deterministic scorer. Both proposals explained that a successful sign-in and an invitation establish no actual activity. Both identified the operator terms as evidence for operation and identified the missing independent developer attribution. The automated decision score checks the chosen action and cited evidence IDs, plus the presence of a reason. The reviewer could see the arm labels.
-
-The [authored pair receipt](receipts/spark-authored-pair.json) and [initial instruction receipt](receipts/spark-instruction-pair.json) contain the exact prompts, responses and scores. The earlier [runner bring-up receipt](receipts/spark-runner-bringup.json) shows the same model and budget with two empty responses at the last turn. The harness then added a shared final-turn instruction and JSON object mode when tools were exhausted. The task, type context, evidence, and rubric hashes match the initial scored pair.
-
-One case per treatment and the baseline's own token and timing variation limit the conclusion. Latency includes local serving conditions and the fixed baseline-first order. The experiment covers proposal quality under the projected graph context. Production prompt wiring, installation persistence, publication and end-to-end graph writes require separate evidence.
+The [earlier 75-second attempt](receipts/spark-deadline-attempt.json) had three inference deadlines. The completed comparison reran all cases in both arms at the same longer deadline. The candidate passed developer attribution in the partial earlier attempt, so a single completed pair per case supplies no estimate of run-to-run stability. Local serving conditions also affect wall time. This result measures proposals under the two rendered contexts. Installation behavior and actual graph writes are outside the experiment.

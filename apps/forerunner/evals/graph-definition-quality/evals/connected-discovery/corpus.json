@@ -1,14 +1,8 @@
 {
   "evidence": {
-    "E1": "A Tideglass Desk security notification confirms a successful sign-in for mika@vale.example. It contains no subsequent activity.",
-    "E2": "The Tideglass Desk terms at desk.tideglass.example identify the operator as Tideglass Collective LLC, legal registration TC-801. The terms do not identify a developer.",
-    "E3": "An issue of Tideglass Dispatch addressed to Mika includes this masthead: Published by Tideglass Collective LLC (TC-801), https://tideglass.example. The message arrived at mika@vale.example.",
-    "E4": "The vault sends a marketing email to Mika: Try your first Tideglass Desk session today! Footer: Distributed through Cirrus Mail. Tideglass Collective LLC copyright."
-  },
-  "records": [
-    { "id": "g-101", "kind": "person", "name": "Mika L. Vale", "aliases": ["Mika Vale"], "email": "mika@vale.example" },
-    { "id": "g-227", "kind": "organization", "name": "Tideglass Collective", "aliases": ["Tideglass Collective LLC"], "registration": "TC-801", "domain": "tideglass.example" },
-    { "id": "g-537", "kind": "organization", "name": "Tideglass Collective Research", "aliases": [], "registration": "TC-891", "domain": "research.tideglass-labs.example" },
-    { "id": "g-280", "kind": "person", "name": "Mika D. Vale", "aliases": ["Mika Vale"], "email": "mika@vale-lab.example" }
-  ]
+    "E1": "Tideglass Desk account notification at 09:14, addressed to Mika Vale <mika@vale.example>. Event type: SESSION_AUTHENTICATED. Device: macOS Safari. Status: successful.",
+    "E2": "Tideglass Desk service terms, desk.tideglass.example/terms, section 1. This service is operated by Tideglass Collective LLC, registration TC-801.",
+    "E3": "Tideglass Dispatch issue 37. To Mika Vale <mika@vale.example>. Masthead: Published by Tideglass Collective LLC (TC-801), https://tideglass.example.",
+    "E4": "From Updates <mail@tideglass.example>. To Mika Vale <mika@vale.example>. Subject: Your Tideglass Desk workspace is ready. Body: Start organizing this week's tasks in Desk. Footer: Distributed through Cirrus Mail. © Tideglass Collective LLC."
+  }
 }
