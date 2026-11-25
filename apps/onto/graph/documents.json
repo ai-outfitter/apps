@@ -797,7 +797,7 @@
                         "type": "object",
                         "properties": {
                           "expectedVersion": {
-                            "description": "Pass the observed submittedVersion to check it before deciding. Required for amended submissions; may be omitted on version zero or one.",
+                            "description": "Pass the observed submittedVersion to check it before deciding. Required when requesting changes; may be omitted for approval or rejection to review the current submission.",
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991

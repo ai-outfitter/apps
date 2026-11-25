@@ -518,17 +518,21 @@ test("legacy GraphQL and REST reviews can decide the current version", async (t)
   const batchId = staged.data.stageChanges.id;
   const submitted = await json(await f.action("batch.submit", { batchId }, agent));
   assert.equal(submitted.batch.submittedVersion, 1);
+  const amended = await run(f, "ReviseBatch", { input: {
+    batchId, proposals: [{ operation: person("$bea", 219, "Bea amended") }],
+  } }, agent);
+  assert.equal(amended.data.reviseBatch.submittedVersion, 2);
 
   const review = async (input: object) => json(await f.action("graph.mutate", {
     query: "mutation ($input: ReviewBatchInput!) { reviewBatch(input: $input) { state submittedVersion } }",
     variables: { input: { batchId, verdict: "approve", refs: ["$ada"], ...input } },
   }));
-  const stale = await review({ expectedVersion: 0 });
+  const stale = await review({ expectedVersion: 1 });
   assert.equal(stale.errors?.[0]?.extensions?.status, 409);
   assert.equal(await f.exists(uuid(218)), false);
   const approved = await review({});
   assert.equal(approved.errors, undefined);
-  assert.deepEqual(approved.data.reviewBatch, { state: "awaiting_review", submittedVersion: 1 });
+  assert.deepEqual(approved.data.reviewBatch, { state: "awaiting_review", submittedVersion: 2 });
   assert.equal(await f.exists(uuid(218)), true);
 
   const rejected = await json(await f.review({ batchId, verdict: "reject" }));

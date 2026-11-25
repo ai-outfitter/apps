@@ -69,7 +69,7 @@ export const batchSubmitInput = z.strictObject({
   summary: z.string().max(2000).optional(),
 });
 export const batchReviewInput = z.strictObject({
-  expectedVersion: z.number().int().nonnegative().optional().describe("Pass the observed submittedVersion to check it before deciding. Required for amended submissions; may be omitted on version zero or one."),
+  expectedVersion: z.number().int().nonnegative().optional().describe("Pass the observed submittedVersion to check it before deciding. Required when requesting changes; may be omitted for approval or rejection to review the current submission."),
   batchId: z.uuid(),
   /** Omit refs to decide every operation still waiting. */
   refs: z.array(ref).min(1).max(batchOperationCap).optional(),

@@ -99,7 +99,7 @@ for (const mode of ["baseline", "candidate"]) {
     step = "rereview";
     const review = { batchId, expectedVersion: 2, verdict: "approve", refs: ["$edit"] };
     await assert.rejects(grouped("stale-review", "review", { ...review, expectedVersion: 1 }, true), /version changed/);
-    await assert.rejects(grouped("unversioned-review", "review", { ...review, expectedVersion: undefined }, true), /expectedVersion/);
+    await assert.rejects(grouped("unversioned-feedback", "review", { ...feedback, expectedVersion: undefined }, true), /expectedVersion/);
     const reviewed = await grouped("rereview", "review", review, true);
     assert.deepEqual([reviewed.id, reviewed.submittedVersion, reviewed.state], [batchId, 2, "committed"]);
     const { nodes: [final] } = await call("ChangeBatches", { ids: [batchId], details: true });

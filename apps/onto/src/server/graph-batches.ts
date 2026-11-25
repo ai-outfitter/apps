@@ -579,7 +579,7 @@ export function batchRowsUnchanged(batch: BatchRow, existing: OperationRow[]) {
 }
 
 function checkObservedVersion(batch: BatchRow, expected: number | undefined, required = false) {
-  if (expected === undefined && (required || batch.submittedVersion > 1))
+  if (expected === undefined && required)
     fail("Pass expectedVersion from the current batch", 409);
   if (expected !== undefined && expected !== batch.submittedVersion)
     fail("Proposal version changed; reload the batch", 409);
@@ -587,7 +587,7 @@ function checkObservedVersion(batch: BatchRow, expected: number | undefined, req
 
 function changesRequested(row: OperationRow) {
   return row.state === "awaiting_review" && row.decision !== null &&
-    JSON.parse(row.decision).verdict === "request_changes";
+    JSON.parse(row.decision)?.verdict === "request_changes";
 }
 
 function writeProposals(batchId: string, written: OperationRow[], remove: string[]) {
