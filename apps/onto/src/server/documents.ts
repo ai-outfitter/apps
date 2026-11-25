@@ -16,11 +16,7 @@ const changeDocuments = defineDocuments({
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
   MutateBatchSubmission: {
-    inputSchema: {
-      type: "object",
-      properties: { input: z.toJSONSchema(mutateBatchSubmissionInput, { io: "input", unrepresentable: "any" }) },
-      required: ["input"],
-    },
+    inputSchema: z.toJSONSchema(z.strictObject({ input: mutateBatchSubmissionInput }), { io: "input", unrepresentable: "any" }),
     story: "As an agent or member, I want to submit new proposals or amend pending ones in one mutation, so that the proposal version and review are recorded together.",
     document: `mutation MutateBatchSubmission($input: MutateBatchSubmissionInput!) {
       mutateBatchSubmission(input:$input) { id title submittedVersion state counts reviewRefs reviewUrl reviewRun instructions { code itemKey actor required message taskId url } }
