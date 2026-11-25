@@ -757,6 +757,25 @@
                                                         "exclusiveMinimum": 0,
                                                         "maximum": 9007199254740991
                                                       },
+                                                      "testedConfiguration": {
+                                                        "type": "string",
+                                                        "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                      },
+                                                      "testedParameters": {
+                                                        "type": "object",
+                                                        "propertyNames": {
+                                                          "type": "string",
+                                                          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                        },
+                                                        "additionalProperties": {
+                                                          "type": "number"
+                                                        }
+                                                      },
+                                                      "testedOwnerRevision": {
+                                                        "type": "integer",
+                                                        "exclusiveMinimum": 0,
+                                                        "maximum": 9007199254740991
+                                                      },
                                                       "observation": {
                                                         "type": "string",
                                                         "minLength": 1,
@@ -2408,7 +2427,7 @@
       ]
     },
     "mcp": {
-      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the exact tested project revision. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
+      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the tested project revision and configuration. Workshop records which matching owner revision was resolved when the observation was entered. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
     },
     "outputSchema": {
       "type": "object",
@@ -3139,7 +3158,7 @@
       ]
     },
     "mcp": {
-      "description": "Read resolved evidence for the selected assembly or COTS item. Returns the canonical owner, verified original photo locations, nominal and measured dimensions, tolerance and fit observations. Use includeIdentifiers:true; pass itemId for a focused read."
+      "description": "Read resolved evidence for the selected assembly or COTS item. Returns the canonical owner, verified original photo locations, nominal and measured dimensions, tolerance and fit observations. Use includeIdentifiers:true; pass itemId for a focused read. An unpinned evidence reference follows the owner's current revision even when reading a historical consumer."
     },
     "outputSchema": {
       "type": "object",

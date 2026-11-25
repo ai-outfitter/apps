@@ -4,6 +4,7 @@ import { assemblyFile } from "./assembly-file";
 const text = z.string().trim().min(1).max(500);
 const revision = z.int().positive();
 const digest = assemblyFile.shape.sha256;
+const configurationName = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/);
 const photoDigests = z.array(digest).max(12);
 export const cotsEvidenceRef = z.strictObject({
   projectId: z.uuid(), itemId: z.uuid(), revision: revision.optional(),
@@ -16,7 +17,10 @@ const verification = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("untested") }),
   z.strictObject({
     status: z.enum(["fits", "interferes"]), trialId: z.uuid(), testedProjectId: z.uuid(),
-    testedRevision: revision, observation: text, photoSha256s: photoDigests.min(1),
+    testedRevision: revision, testedConfiguration: configurationName.optional(),
+    testedParameters: z.record(configurationName, z.number()).optional(),
+    testedOwnerRevision: revision.optional(),
+    observation: text, photoSha256s: photoDigests.min(1),
   }),
 ]);
 const dimension = z.strictObject({

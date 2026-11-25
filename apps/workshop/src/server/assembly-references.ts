@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { resolveAssembly, type AssemblySource } from "../lib/assembly-resolution";
 import { AssemblySchema, type AssemblyReference } from "../lib/assembly";
 import type { WorkshopDatabase } from "./projects";
+import { canonicalCotsPart } from "./cots-owner";
 import { workshopAssemblyRevisions, workshopProjects } from "./schema";
 
 const refuse = (message: string) => new Response(message,{status:400});
@@ -49,14 +50,18 @@ export async function resolvedProject(db: WorkshopDatabase, ref: AssemblyReferen
  * part of the same INSERT or UPDATE that persists the new assembly. */
 export async function assemblyGuard(db: WorkshopDatabase, next: AssemblySource, deleting=false) {
   const {load,versions,cache}=await assemblySnapshot(db,next,deleting ? next.id : undefined);
-  const edges=await db.all<{consumer:string;source:string;pinned:number|null}>(sql`
-    SELECT DISTINCT p.id AS consumer, json_extract(i.value,'$.reference.projectId') AS source, json_extract(i.value,'$.reference.revision') AS pinned
+  const edges=await db.all<{consumer:string;source:string;pinned:number|null;kind:"assembly"|"evidence"}>(sql`
+    SELECT DISTINCT p.id AS consumer, json_extract(i.value,'$.reference.projectId') AS source, json_extract(i.value,'$.reference.revision') AS pinned, 'assembly' as kind
     FROM workshop_projects p, json_each(p.data,'$.assembly.items') i
-    WHERE json_extract(i.value,'$.reference.projectId') IS NOT NULL`);
+    WHERE json_extract(i.value,'$.reference.projectId') IS NOT NULL
+    UNION SELECT p.id, json_extract(i.value,'$.cotsEvidenceRef.projectId'), json_extract(i.value,'$.cotsEvidenceRef.revision'), 'evidence'
+    FROM workshop_projects p, json_each(p.data,'$.assembly.items') i
+    WHERE json_extract(i.value,'$.cotsEvidenceRef.projectId') IS NOT NULL`);
   // A project cannot depend on itself through an alternate configuration or
   // an unplaced catalog entry, even when that branch isn't selected today.
   const dependencies = new Map<string,Set<string>>();
   for (const e of edges) {
+    if (e.kind !== "assembly") continue;
     if (!dependencies.has(e.consumer)) dependencies.set(e.consumer,new Set());
     dependencies.get(e.consumer)!.add(e.source);
   }
@@ -80,6 +85,9 @@ export async function assemblyGuard(db: WorkshopDatabase, next: AssemblySource, 
       if (deleting && id===next.id) continue;
       const source = await load({projectId:id});
       if(source.assembly.items.some(i=>i.reference || i.operations?.length)) await resolveAssembly(source,load);
+      for (const item of source.assembly.items) if (item.cotsEvidenceRef) {
+        await canonicalCotsPart(load, { projectId: source.id, itemId: item.id, revision: source.revision });
+      }
     }
   } catch(error) { if(error instanceof Error) throw refuse(error.message); throw error; }
   const observed: Record<string,number> = {};
@@ -92,7 +100,9 @@ export async function assemblyGuard(db: WorkshopDatabase, next: AssemblySource, 
     WHERE NOT EXISTS (SELECT 1 FROM workshop_projects p WHERE p.id=v.key AND p.revision=v.value))
     AND NOT EXISTS (SELECT 1 FROM workshop_projects p, json_each(p.data,'$.assembly.items') i
     WHERE (json_extract(i.value,'$.reference.projectId') IN (SELECT value FROM json_each(${JSON.stringify([...affected])}))
-      OR json_extract(i.value,'$.reference.revision') IS NOT NULL)
+      OR json_extract(i.value,'$.reference.revision') IS NOT NULL
+      OR json_extract(i.value,'$.cotsEvidenceRef.projectId') IN (SELECT value FROM json_each(${JSON.stringify([...affected])}))
+      OR json_extract(i.value,'$.cotsEvidenceRef.revision') IS NOT NULL)
     AND p.id NOT IN (SELECT value FROM json_each(${JSON.stringify([...affected])})))`;
 
 }
