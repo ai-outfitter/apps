@@ -195,6 +195,11 @@ test("requested changes hold a proposal out of both steward approval and the pol
   await json(await f.action("batch.submit", { batchId }, agent));
   const feedback = { batchId, verdict: "request_changes", refs: ["$held", "$manual"], expectedVersion: 1, comment: "Correct the name." };
   await json(await f.review(feedback));
+  const { operations } = await json(await f.action("batch.get", { batchId }, agent));
+  assert.equal(operations[0].decision.reviewer, "Member");
+  assert.equal(operations[0].decision.comment, feedback.comment);
+  assert.ok(!("by" in operations[0].decision));
+  assert.ok(!("via" in operations[0].decision));
   const indirect = await f.review({ batchId, verdict: "approve", refs: ["$linked"], expectedVersion: 1 });
   assert.equal(indirect.status, 409);
   assert.match(await indirect.text(), /Approve \$held explicitly/);

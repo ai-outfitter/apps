@@ -970,16 +970,20 @@ export async function getBatch(db: Database, who: AppIdentity, input: z.infer<ty
   return {
     batch: batchView(batch),
     counts,
-    operations: rows.map((row) => ({
-      ref: row.ref, position: row.position, operation: row.operation, evidence: row.evidence,
-      confidence: row.confidence, reason: row.reason, state: row.state,
-      decision: row.decision ? JSON.parse(row.decision) : null, recordId: row.recordId, recordRevision: row.recordRevision,
-    })),
+    operations: rows.map(row => {
+      const decision = row.decision ? JSON.parse(row.decision) : null;
+      return {
+        ref: row.ref, position: row.position, operation: row.operation, evidence: row.evidence,
+        confidence: row.confidence, reason: row.reason, state: row.state,
+        decision: decision?.verdict === "request_changes" ? publicChangeRequest(decision) : decision,
+        recordId: row.recordId, recordRevision: row.recordRevision,
+      };
+    }),
     canReview: who.canEdit && !who.entityWriter && !isResidentPrincipal(who.userId),
   };
 }
 
-export function publicChangeRequest(decision: Record<string, unknown>) {
+function publicChangeRequest(decision: Record<string, unknown>) {
   return {
     reviewer: decision.kind === "imported" ? "Imported feedback"
       : typeof decision.viaLabel === "string" ? decision.viaLabel : "Member",
