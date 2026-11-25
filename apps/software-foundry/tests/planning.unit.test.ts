@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
+import { operations } from "@ai-outfitter/app-sdk/workflow-host";
+import type { z } from "zod";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { readWorkflowPackage } from "@ai-outfitter/workflow-core/source";
@@ -19,8 +21,8 @@ const ids = new Map([[home, 14], [charts, 23]]);
 const anchorLink = `https://forge.example/${home}/issues/9`;
 const featureTemplate = ".forgejo/ISSUE_TEMPLATE/feature.md";
 
-const legacyRequestId = "45049828-436e-48ef-94cb-c33457ba50d8";
-const legacyRunId = "2af998b6-2ceb-46d1-b703-9cc01f5437b8";
+const legacyRequestId = "abbd77d6-418d-431d-8e25-66257dcea552";
+const legacyRunId = "9272b0eb-2fe2-43b9-a341-c77a622476da";
 const legacyFailure = "Foundry could not produce a verified plan from the selected evidence.";
 const outputSlot = "plan.outputs.result";
 
@@ -29,12 +31,13 @@ type StoredRun = {
   inputs: Record<string, unknown>;
   outputs: Record<string, { value: unknown; complete: boolean }>;
   attempts: { failure: string }[];
+  inference?: NonNullable<z.output<typeof operations["workflow.read"]["output"]>>["inference"];
 };
 
 function fixture(t: TestContext, options: {
   denyRead?: string; denyWrite?: boolean; uncertain?: boolean; noTemplate?: boolean; missingIssue?: boolean;
   legacy?: boolean; bigEvidence?: boolean; inferenceGate?: Promise<void>; kind?: "bug" | "feature" | "query";
-  publisher?: number; connectionId?: string; loseFirstStartReceipt?: boolean; loseFirstCollect?: boolean;
+  publisher?: number; connectionId?: string; loseFirstStartReceipt?: boolean; loseCollect?: number[];
   extraRepositories?: boolean; inferenceErrors?: (Response | Error | null)[]; templateText?: string;
 } = {}) {
   const repositoryIds = new Map(ids);
@@ -77,10 +80,20 @@ function fixture(t: TestContext, options: {
         }
         return { created: true };
       }
-      if (op === "workflow.read") return runs.get(input.id) ?? null;
+      if (op === "workflow.read") {
+        const stored = runs.get(input.id);
+        return operations["workflow.read"].output.parse(stored ? {
+          ...stored,
+          run: { ...stored.run, createdAt: 1, updatedAt: 2 },
+          readiness: { run: stored.run.status, steps: {} },
+          attempts: stored.attempts.map((attempt, index) => ({
+            ...attempt, id: String(index), nodeId: "plan", state: "failed", createdAt: 1, updatedAt: 2,
+          })),
+        } : null);
+      }
       if (op === "workflow.collect") {
         collectCalls++;
-        if (options.loseFirstCollect && collectCalls === 1) throw new Response("Collection interrupted", { status: 503 });
+        if (options.loseCollect?.includes(collectCalls)) throw new Response("Collection interrupted", { status: 503 });
         const run = runs.get(input.runId)!;
         run.outputs[input.slot] = { value: input.value, complete: input.complete };
         if (input.complete) run.run.status = "complete";
@@ -134,7 +147,7 @@ function fixture(t: TestContext, options: {
   const actor = { kind: "oauth-client", id: "mcp" } as const;
   const context = { host: () => host, db: () => database, origin: "https://foundry.example", identity, actor, originActor: actor } as unknown as IntakeContext;
   const input = { requestId: crypto.randomUUID(), request: "Plan a native iOS and macOS Grafana install", repositories: [...repositoryIds.keys()], anchorRepository: home };
-  async function seedLegacy({ createIssue = false, workflowStatus = "failed", appMessage = legacyFailure,
+  async function seedLegacy({ createIssue = false, workflowStatus = "complete", appMessage = legacyFailure,
     artifact = null, issue = null }: { createIssue?: boolean; workflowStatus?: StoredRun["run"]["status"];
       appMessage?: string; artifact?: string | null; issue?: string | null } = {}) {
     assert.ok(options.legacy);
@@ -155,7 +168,8 @@ function fixture(t: TestContext, options: {
       inputs: { "plan.inputs.requestId": legacyRequestId, "plan.inputs.repositories": repositories,
         "plan.inputs.anchorRepository": anchor, "plan.inputs.createIssue": createIssue },
       outputs: {},
-      attempts: [{ failure: "no_response" }],
+      attempts: [],
+      inference: { status: "settled", reasons: ["aborted", "no_response"] },
     };
     if (workflowStatus === "complete") workflow.outputs[outputSlot] = { complete: true, value: {
       status: "failed", repositories, anchorRepository: anchor, run: { id: legacyRunId, workflow: "foundry-plan-work",
@@ -243,36 +257,35 @@ test("fallback plans escape model markers before adding the durable issue marker
   }), true);
 });
 
-for (const workflowStatus of ["failed", "complete"] as const) {
-  test(`same request replays a legacy prepublication failure with workflow status ${workflowStatus}`, async t => {
-    const { context, calls, sqlite, runs, seedLegacy } = fixture(t, { legacy: true });
-    const { replay, workflow } = await seedLegacy({ workflowStatus });
-    workflow.attempts.push({ failure: "Untrusted provider detail" });
-    const original = structuredClone(workflow);
-    const recovered = await planWork(context, replay);
-    assert.equal(recovered.status, "artifacts_only");
-    assert.notEqual(recovered.run.id, legacyRunId);
-    const readback = await findPlan(context, { requestId: legacyRequestId });
-    assert.equal(readback.run.id, recovered.run.id);
-    assert.deepEqual(readback.failedAttempts, recovered.failedAttempts);
-    assert.deepEqual(readback.failedAttempts[0].reasons, ["no_response"]);
-    assert.equal(readback.failedAttempts[0].actorAttribution, "member_only");
-    const row = sqlite.prepare("SELECT requestId, runId, failedAttempts FROM foundry_plans").get()!;
-    assert.equal(row.requestId, legacyRequestId);
-    assert.equal(row.runId, recovered.run.id);
-    const history = JSON.parse(String(row.failedAttempts));
-    assert.deepEqual(history, [{ runId: legacyRunId, message: legacyFailure, failureCode: null, failedAt: history[0].failedAt,
-      workflowStatus, reasons: ["no_response", "Untrusted provider detail"] }]);
-    assert.deepEqual(runs.get(legacyRunId), original);
-    assert.equal(calls.filter(call => call.op === "workflow.start").length, 1);
-    assert.equal(calls.filter(call => call.input.operation === "repositories.evidence.read").length, 2);
-    assert.equal(calls.filter(call => call.input.operation === "issues.create").length, 0);
-    assert.equal((await planWork(context, replay)).run.id, recovered.run.id);
-    assert.equal(calls.filter(call => call.op === "inference.generate").length, 1);
-    const differentActor = { ...context, actor: { ...context.actor, id: "other-client" } };
-    await assert.rejects(() => planWork(differentActor, replay), (error: Response) => error.status === 403);
-  });
-}
+test("same request replays a legacy prepublication failure with a settled no-response host ledger", async t => {
+  const workflowStatus = "complete";
+  const { context, calls, sqlite, runs, seedLegacy } = fixture(t, { legacy: true });
+  const { replay, workflow } = await seedLegacy({ workflowStatus });
+  const original = structuredClone(workflow);
+  const recovered = await planWork(context, replay);
+  assert.equal(recovered.status, "artifacts_only");
+  assert.notEqual(recovered.run.id, legacyRunId);
+  const readback = await findPlan(context, { requestId: legacyRequestId });
+  assert.equal(readback.run.id, recovered.run.id);
+  assert.deepEqual(readback.failedAttempts, recovered.failedAttempts);
+  assert.deepEqual(readback.failedAttempts[0].reasons, ["aborted", "no_response"]);
+  assert.equal(readback.failedAttempts[0].remoteCompute, "unknown");
+  assert.equal(readback.failedAttempts[0].actorAttribution, "member_only");
+  const row = sqlite.prepare("SELECT requestId, runId, failedAttempts FROM foundry_plans").get()!;
+  assert.equal(row.requestId, legacyRequestId);
+  assert.equal(row.runId, recovered.run.id);
+  const history = JSON.parse(String(row.failedAttempts));
+  assert.deepEqual(history, [{ runId: legacyRunId, message: legacyFailure, failureCode: null, failedAt: history[0].failedAt,
+    workflowStatus, reasons: ["aborted", "no_response"] }]);
+  assert.deepEqual(runs.get(legacyRunId), original);
+  assert.equal(calls.filter(call => call.op === "workflow.start").length, 1);
+  assert.equal(calls.filter(call => call.input.operation === "repositories.evidence.read").length, 2);
+  assert.equal(calls.filter(call => call.input.operation === "issues.create").length, 0);
+  assert.equal((await planWork(context, replay)).run.id, recovered.run.id);
+  assert.equal(calls.filter(call => call.op === "inference.generate").length, 1);
+  const differentActor = { ...context, actor: { ...context.actor, id: "other-client" } };
+  await assert.rejects(() => planWork(differentActor, replay), (error: Response) => error.status === 403);
+});
 
 test("concurrent same-ID retries launch one new inference and archive the old run once", async t => {
   const { promise, resolve } = Promise.withResolvers<void>();
@@ -322,6 +335,13 @@ test("legacy recovery fails closed on uncertain, mismatched or completed publica
     "different actor": workflow => { workflow.run.createdBy = "another-user"; },
     "different inputs": workflow => { workflow.inputs["plan.inputs.createIssue"] = true; },
     "completed without a receipt": workflow => { workflow.outputs = {}; },
+    "failed without a receipt": workflow => { workflow.run.status = "failed"; workflow.outputs = {}; },
+    "older host with no inference proof": workflow => { delete workflow.inference; },
+    "no recorded inference": workflow => { workflow.inference = { status: "none", reasons: [] }; },
+    "still-active inference": workflow => { workflow.inference = { status: "pending", reasons: ["no_response"] }; },
+    "settled with no affirmative no-response evidence": workflow => { workflow.inference = { status: "settled", reasons: ["aborted"] }; },
+    "contradictory HTTP outcome": workflow => { workflow.inference = { status: "settled", reasons: ["no_response", "http_error"] }; },
+    "interrupted attempt without a terminal outcome": workflow => { workflow.inference = { status: "settled", reasons: ["no_response", "interrupted"] }; },
   };
   for (const [label, mutate] of Object.entries(mutations)) {
     await t.test(label, async sub => {
@@ -431,7 +451,7 @@ const inferenceTimeout = () => new Response(
 );
 
 test("typed inference failure is visible, a lost collection is repaired, and the replacement limit holds", async t => {
-  const { context, calls, input, runs } = fixture(t, { loseFirstCollect: true, inferenceErrors: [inferenceTimeout(), inferenceTimeout()] });
+  const { context, calls, input, runs } = fixture(t, { loseCollect: [1, 3], inferenceErrors: [inferenceTimeout(), inferenceTimeout()] });
   const replay = planWorkInput.parse({ ...input, createIssue: false });
   await assert.rejects(() => planWork(context, replay), (error: Response) => error.status === 503);
   const failed = await findPlan(context, replay);
@@ -440,16 +460,32 @@ test("typed inference failure is visible, a lost collection is repaired, and the
   assert.deepEqual(failed.failedAttempts, []);
   assert.equal(runs.get(failed.run.id)?.run.status, "running");
 
-  const second = await planWork(context, replay);
+  // Replay repairs the first loss and starts the replacement, whose own
+  // collection fails independently.
+  await assert.rejects(() => planWork(context, replay), (error: Response) => error.status === 503);
+  const second = await findPlan(context, replay);
   assert.notEqual(second.run.id, failed.run.id);
   assert.equal(second.failureCode, "timeout");
+  assert.equal(runs.get(second.run.id)?.run.status, "running");
   assert.equal(runs.get(failed.run.id)?.run.status, "complete");
   assert.equal(second.failedAttempts[0].runId, failed.run.id);
   assert.equal(second.failedAttempts[0].failureCode, "timeout");
   assert.equal(second.failedAttempts[0].actorAttribution, "actor_bound");
   assert.deepEqual(second.failedAttempts[0].reasons, []);
+  const secondRun = runs.get(second.run.id)!;
+  secondRun.inference = { status: "pending", reasons: [] };
+  assert.equal((await planWork(context, replay)).run.id, second.run.id);
+  assert.equal(secondRun.run.status, "running");
+  secondRun.inference = { status: "settled", reasons: ["no_response", "aborted"] };
+  assert.equal((await planWork(context, replay)).run.id, second.run.id);
+  assert.equal(secondRun.run.status, "complete");
+  assert.equal(runs.get(second.run.id)?.outputs[outputSlot].complete, true);
+  assert.equal((runs.get(second.run.id)?.outputs[outputSlot].value as { failureCode: string }).failureCode, "timeout");
   assert.equal((await planWork(context, replay)).run.id, second.run.id);
   assert.deepEqual((await findPlan(context, replay)).failedAttempts, second.failedAttempts);
+  assert.deepEqual(calls.filter(call => call.op === "workflow.collect").map(call => call.input.runId), [
+    failed.run.id, failed.run.id, second.run.id, second.run.id,
+  ]);
   assert.equal(calls.filter(call => call.op === "inference.generate").length, 2);
   assert.equal(calls.filter(call => call.op === "workflow.start").length, 2);
 });

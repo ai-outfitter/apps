@@ -157,9 +157,10 @@ async function receipt(context: IntakeContext, row: PlanningRow) {
   const failedAttempts = row.failedAttempts.map(({ reasons, ...attempt }) => ({
     ...attempt,
     actorAttribution: attempt.failureCode === null ? "member_only" : "actor_bound",
+    ...(attempt.failureCode === null ? { remoteCompute: "unknown" } : {}),
     // A workflow attempt's message may contain arbitrary text. The original
     // reason is retained privately; only known codes cross the app receipt.
-    reasons: [...new Set(reasons.filter(reason => reason === "no_response" || reason === "timeout" || reason === "cancelled"))],
+    reasons: [...new Set(reasons.filter(reason => reason === "no_response" || reason === "aborted" || reason === "timeout" || reason === "cancelled"))],
   }));
   return { ...await workflowReceipt(context, row), failureCode: row.failureCode, failedAttempts };
 }
@@ -220,7 +221,8 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
 
   let previous = await host.call("workflow.read", { id: row.runId });
   const matches = (run: NonNullable<typeof previous>) => run.run.id === row.runId && run.run.workflowId === planningWorkflow
-    && run.run.createdBy === caller(context).userId && Object.entries(workflowInputs(row, createIssue))
+    && run.run.createdBy === caller(context).userId && run.inference?.status !== "pending"
+    && Object.entries(workflowInputs(row, createIssue))
       .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value));
   if (!previous || !matches(previous)) return;
 
@@ -233,8 +235,15 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
     if (!previous || !matches(previous) || previous.run.status === "running") return;
   }
 
+  // The generic legacy catch also covered transport loss. Require positive,
+  // settled host evidence for every recorded attempt as well as the exact app
+  // receipt. The host cannot verify that remote computation stopped.
+  const legacyInference = row.failureCode === null ? previous.inference : undefined;
+  if (row.failureCode === null && (legacyInference?.status !== "settled" || !legacyInference.reasons.includes("no_response")
+    || legacyInference.reasons.some(reason => reason !== "no_response" && reason !== "aborted" && reason !== "error"))) return;
+
   const outputs = Object.entries(previous.outputs);
-  if (outputs.length || previous.run.status === "complete") {
+  if (row.failureCode === null || outputs.length || previous.run.status === "complete") {
     const output = previous.outputs[outputSlot];
     const parsed = failedReceipt.safeParse(output?.value);
     if (outputs.length !== 1 || !output?.complete || !parsed.success || parsed.data.run.id !== row.runId
@@ -245,7 +254,8 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
   return {
     runId: row.runId, message: row.message, failureCode: row.failureCode, failedAt: row.updatedAt,
     workflowStatus: previous.run.status,
-    reasons: [...new Set(previous.attempts.flatMap(attempt => attempt.failure ? [attempt.failure] : []))].slice(0, 8),
+    reasons: [...new Set([...(legacyInference?.reasons ?? []),
+      ...previous.attempts.flatMap(attempt => attempt.failure ? [attempt.failure] : [])])].slice(0, 8),
   };
 }
 
@@ -399,8 +409,9 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     return result;
   };
 
-  const failure = row.state === "failed" && row.failedAttempts.length === 0
-    ? await priorFailure(context, host, row, input.createIssue) : undefined;
+  // Collection repair must still run after the one replacement was used.
+  const previous = row.state === "failed" ? await priorFailure(context, host, row, input.createIssue) : undefined;
+  const failure = row.failedAttempts.length === 0 ? previous : undefined;
   if (row.state === "failed" && !failure) return receipt(context, row);
 
   // The planning claim is one-shot. A worker can disappear during inference;
