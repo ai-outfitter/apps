@@ -8,7 +8,7 @@ const outcome = z.object({ status: z.string(), entries: z.number().int().nonnega
 export type DiscoveryReceipt = { id: string; label: string; entries?: number; suggestions?: number };
 
 export async function briefDependencies(
-  host: WorkflowHost<"schedule">, schedules: InstallationSchedule[], date: string, timezone: string, now: number,
+  host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number,
 ) {
   const discovery = schedules.filter(row => row.workflowId === discoveryWorkflow);
   const current = (at: number) => localDate(at, timezone) === date;

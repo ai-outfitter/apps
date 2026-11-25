@@ -198,6 +198,8 @@ const installationSchedule = z.object({
   createdBy: id,
   enabled: z.boolean(),
   nextRunAt: z.number(),
+  /** Original clock occurrence while it is durably deferred, when known. */
+  pendingFor: z.number().optional(),
   lastRunAt: z.number().nullable(),
   lastRunId: id.nullable(),
   lastOutcome: z.string().nullable(),

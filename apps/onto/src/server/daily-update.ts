@@ -39,7 +39,7 @@ export async function dailyOntoActivity(db: ReturnType<typeof installationDataba
   return {
     rows,
     complete: rows.length <= 30,
-    summary: `${number(commits.length)} committed record revisions by commit time.${titles.length ? ` Batches include ${titles.join("; ")}.` : ""} ${proposalCounts} Proposal counts use current states, separate from committed revisions.`,
+    summary: `${number(commits.length)} committed record revisions by commit time.${titles.length ? ` Batches with commits include ${titles.join("; ")}.` : ""} ${proposalCounts} Proposal counts use current states, separate from committed revisions.`,
   };
 }
 

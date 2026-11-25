@@ -1,6 +1,6 @@
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
-import { scheduleInput, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
+import { scheduleInput, type InstallationSchedule, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import { z } from "zod";
 import { answerSchema, briefInstructions, digestMarker, evidenceDigest, gatherEvidence, modelData, renderBrief } from "./daily-brief-synthesis";
@@ -166,31 +166,40 @@ export async function scheduledDailyBrief(db: Database, who: AppIdentity, raw: P
   const date = localDate(occurrence.scheduledFor, saved.timezone);
   const deadline = occurrence.scheduledFor + 3 * 3_600_000;
   const interactive = host as unknown as WorkflowHost<"interactive">;
-  const [dependencies, updates, memberships] = await Promise.all([
-    briefDependencies(host, schedules, date, saved.timezone, now),
-    readAppUpdates(interactive, shiftDate(date, -1)),
-    currentMemberships(interactive).catch(() => null),
-  ]);
-  const ontoScopes = new Set(updates.rows.filter(row => row.app === "Onto" && row.timezone === saved.timezone).map(row => row.scope));
-  const expected = ["personal", ...(memberships ?? []).filter(org => org.appSlugs.includes("onto")).map(org => org.slug)];
-  const missing = expected.filter(scope => !ontoScopes.has(scope));
-  const ontoMissing = missing.length > 0 || !updates.complete;
-  if (occurrence.trigger !== "manual" && (dependencies.waiting || ontoMissing) && now < deadline) {
+  const dependencies = await readBriefDependencies(interactive, schedules, date, saved.timezone, now);
+  if (occurrence.trigger !== "manual" && dependencies.waiting && now < deadline) {
     return { outcome: "deferred", retryAt: Math.min(deadline, now + 5 * 60_000), reason: "Waiting for this morning's discovery and the previous day's Onto activity." };
   }
-  for (const scope of missing) dependencies.gaps.push(`Onto (${scope}): no saved activity report for the previous day in this reporting time zone. Coverage is unknown.`);
-  if (!memberships) dependencies.gaps.push("Onto: organization access could not be checked.");
   // The occurrence's own date, not the retry's. A failure is recorded on the run; the schedule itself started.
-  await runBrief(db, who, host as unknown as WorkflowHost<"interactive">, { date, timezone: saved.timezone, runId: occurrence.runId, dependencies: { ...dependencies, updates } }, now)
+  await runBrief(db, who, host as unknown as WorkflowHost<"interactive">, { date, timezone: saved.timezone, runId: occurrence.runId, dependencies }, now)
     .catch(error => { if (!(error instanceof Response)) throw error; });
   return { outcome: "started" };
 }
+async function readBriefDependencies(host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number) {
+  const [discovery, updates, memberships] = await Promise.all([
+    briefDependencies(host, schedules, date, timezone, now),
+    readAppUpdates(host, shiftDate(date, -1)),
+    currentMemberships(host).catch(() => null),
+  ]);
+  const ontoScopes = new Set(updates.rows.filter(row => row.app === "Onto" && row.timezone === timezone).map(row => row.scope));
+  const expected = ["personal", ...(memberships ?? []).filter(org => org.appSlugs.includes("onto")).map(org => org.slug)];
+  const missing = expected.filter(scope => !ontoScopes.has(scope));
+  const gaps = [...discovery.gaps, ...missing.map(scope => `Onto (${scope}): no saved activity report for the previous day in this reporting time zone. Coverage is unknown.`)];
+  if (!memberships) gaps.push("Onto: organization access could not be checked.");
+  return { ...discovery, updates, gaps, waiting: discovery.waiting || missing.length > 0 || !updates.complete };
+}
+
 export const generateDailyBriefInput = z.strictObject({ timezone: timezone });
 export async function generateDailyBrief(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, raw: z.input<typeof generateDailyBriefInput>, now = Date.now()) {
   personal(who);
   const input = generateDailyBriefInput.parse(raw), runId = crypto.randomUUID();
   // The member asked for this run, so their current role can be saved for it and for later unattended runs.
-  await saveRoleSnapshot(db, who, host).catch(() => undefined);
-  const receipt = await runBrief(db, who, host, { date: localDate(now, input.timezone), timezone: input.timezone, runId }, now);
+  const date = localDate(now, input.timezone);
+  const schedules = await host.call("schedules", {}).catch(() => null);
+  const [dependencies] = await Promise.all([
+    schedules ? readBriefDependencies(host, schedules, date, input.timezone, now) : undefined,
+    saveRoleSnapshot(db, who, host).catch(() => undefined),
+  ]);
+  const receipt = await runBrief(db, who, host, { date, timezone: input.timezone, runId, dependencies }, now);
   return { ...receipt, runId };
 }

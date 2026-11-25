@@ -39,6 +39,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
   {home?.briefRun?.status === "failed" ? <p role="status">The latest brief run failed. {"reason" in home.briefRun && home.briefRun.reason}</p>
     : home?.briefRun?.status === "running" ? <p role="status">The morning brief is running.</p>
     : home?.briefRun?.status === "unavailable" ? <p role="status">The latest run could not be checked.</p>
+    : home?.schedule?.pendingFor !== undefined ? <p role="status">The scheduled brief is waiting for its sources.</p>
     : !home?.brief && <p role="status">{home?.schedule?.enabled ? "No morning brief has been saved for today yet." : "No enabled morning brief schedule."}</p>}
   {!home?.brief && home?.latestBrief && <p><a href={home.latestBrief.href}>Read the previous brief from {home.latestBrief.date}</a></p>}
   {home && <button type="button" data-brief-recover data-endpoint={`${root}api/apps/forerunner/daily-brief`} data-zone={home.timezone}>
@@ -89,7 +90,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ timezone: recover.dataset.zone }),
       });
-      if (!response.ok) throw new Error("Brief generation failed");
+      if (!response.ok && response.status < 500) throw new Error("Brief generation failed");
       window.location.reload();
     } catch {
       result.textContent = "The brief could not be generated. Try again.";

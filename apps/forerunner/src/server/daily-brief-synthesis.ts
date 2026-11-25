@@ -137,7 +137,9 @@ export const briefInstructions = [
   "Rules:",
   "- Every statement cites the refs it rests on. Cite only refs that appear in `evidence`.",
   "- `highlights` are what matters today in light of the person's role (kind `responsibility`) and goals (kind `goal`) when those are present. Mark each `fact` (directly stated by the cited evidence) or `inference` (your reading of it).",
-  "- Onto updates distinguish ledger commits from current pending and rejected proposal states; a batch update does not establish a commit.",
+  "- The response is for the exact date and timezone in the input. Prefer ‘today’ and ‘yesterday’ over spelling out a calendar date.",
+  "- Onto updates distinguish ledger commits from current pending and rejected proposal states. A batch named in the commit list is not evidence it is pending. Do not assign a state to a named batch without direct evidence of that state.",
+  "- Wiki revisions describe what was visible in an authorized scope. Access to a revision never identifies the brief recipient as its author or editor.",
   "- Kind `wiki-activity` reports authored Wiki revisions and checked coverage. Generated daily briefs and app updates are excluded.",
   "- Kind `priority` is the person's own board. Kind `work` is an issue in progress in one of their organizations; it is not necessarily assigned to them.",
   "- `attention` are at most five things worth their attention today, each with a reason. They are your suggestions, not facts. Set `goal` to the ref of the goal it serves, or null.",
@@ -188,6 +190,8 @@ export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: stri
     const goal = item.goal ? byRef.get(item.goal) : null;
     return `- **${plain(item.text)}** ${plain(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
   }).join("\n"));
+  const activity = evidence.filter(row => row.kind === "wiki-activity" || (row.kind === "app-update" && input.appUpdates?.rows.some(update => update.id === row.recordId && update.app === "Onto")));
+  if (activity.length) lines.push("## Previous day’s activity", activity.map(row => `- ${plain(row.text)} ${cited([row.ref])}`).join("\n"));
   lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${plain(gap)}`).join("\n"));
   lines.push("## Sources", evidence.map(row => {
     const href = localLink(row.href), revision = row.revision ? `, revision ${row.revision}` : "";
