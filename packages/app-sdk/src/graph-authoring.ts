@@ -146,3 +146,19 @@ export async function compileAuthoredGraphs(inputs: readonly AuthoredGraph[]) {
   }
   return graphs;
 }
+
+/** One app-authored contribution. Standard rows are installed by Onto; add-ons
+ * retain their owning app's setup lifecycle. Fixture records ship separately. */
+export type GraphContribution = {
+  name: string;
+  scope: "standard" | "addon" | "fixture";
+  types?: AuthoredGraph["types"];
+  nodes?: AuthoredGraph["nodes"];
+  edges?: AuthoredGraph["edges"];
+  projects?: AuthoredGraph["nodes"];
+  format?: string;
+  /** Fixtures with an independent record store share only the standard types. */
+  isolated?: boolean;
+  /** A historic add-on registry can replace only the specific contributions it shipped before. */
+  legacyAlternatives?: string[];
+};

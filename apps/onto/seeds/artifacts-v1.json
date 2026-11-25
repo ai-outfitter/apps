@@ -12,7 +12,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000003"
+            "planning:Project"
           ],
           "to": "any"
         }
@@ -30,12 +30,12 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000003",
-            "76000000-0000-4000-8000-000000000001",
-            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+            "planning:Project",
+            "onto:ProductSpecification",
+            "onto:UserStory"
           ],
           "to": [
-            "7fe211b7-0176-4cac-9799-886a3ee7936f"
+            "onto:Requirement"
           ]
         }
       }
@@ -52,10 +52,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+            "onto:ArtifactDefinition"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000066"
+            "onto:KnowledgeGraph"
           ]
         }
       }
@@ -299,7 +299,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+            "onto:ArtifactDefinition"
           ],
           "to": "any"
         }
@@ -359,7 +359,7 @@
         "endpoints": {
           "from": "any",
           "to": [
-            "4a56e759-9bde-4f0a-857d-82526463b092"
+            "onto:AcceptanceCriterion"
           ]
         }
       }
@@ -376,10 +376,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000003"
+            "planning:Project"
           ],
           "to": [
-            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+            "onto:Issue"
           ]
         }
       }
@@ -396,10 +396,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+            "onto:Issue"
           ],
           "to": [
-            "7fe211b7-0176-4cac-9799-886a3ee7936f"
+            "onto:Requirement"
           ]
         }
       }
@@ -417,7 +417,7 @@
         "endpoints": {
           "from": "any",
           "to": [
-            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+            "onto:UserStory"
           ]
         }
       }
@@ -434,10 +434,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000003"
+            "planning:Project"
           ],
           "to": [
-            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+            "onto:ArtifactDefinition"
           ]
         }
       }
@@ -1116,10 +1116,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000015"
+            "onto:Product"
           ]
         }
       }
@@ -1136,10 +1136,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000001"
+            "onto:ProductSpecification"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000015"
+            "onto:Product"
           ]
         }
       }
@@ -1156,10 +1156,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ],
           "to": [
-            "2f93a811-9c0a-4848-8193-0ba55e6b1fb5"
+            "onto:Issue"
           ]
         }
       }
@@ -1176,10 +1176,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000001"
+            "onto:ProductSpecification"
           ]
         }
       }
@@ -1196,10 +1196,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000003"
+            "onto:Demonstration"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ]
         }
       }
@@ -1216,10 +1216,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000004"
+            "onto:EvaluationRecord"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ]
         }
       }
@@ -1236,11 +1236,11 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000004",
-            "76000000-0000-4000-8000-000000000007"
+            "onto:EvaluationRecord",
+            "onto:PostReleaseVerification"
           ],
           "to": [
-            "4a56e759-9bde-4f0a-857d-82526463b092"
+            "onto:AcceptanceCriterion"
           ]
         }
       }
@@ -1257,12 +1257,12 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000005",
-            "76000000-0000-4000-8000-000000000004",
-            "71000000-0000-4000-8000-000000000061",
-            "7a000000-0000-4000-8000-000000000001",
-            "76000000-0000-4000-8000-000000000006",
-            "76000000-0000-4000-8000-000000000007"
+            "onto:ReadinessAssessment",
+            "onto:EvaluationRecord",
+            "onto:DecisionRecord",
+            "onto:Release",
+            "onto:ReleaseRecord",
+            "onto:PostReleaseVerification"
           ],
           "to": "any"
         }
@@ -1280,10 +1280,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000005"
+            "onto:ReadinessAssessment"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ]
         }
       }
@@ -1301,7 +1301,7 @@
         "endpoints": {
           "from": "any",
           "to": [
-            "16ae7b75-1acb-4db9-9872-860ef61045c9"
+            "onto:ArtifactDefinition"
           ]
         }
       }
@@ -1318,10 +1318,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000006"
+            "onto:ReleaseRecord"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ]
         }
       }
@@ -1338,10 +1338,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000007"
+            "onto:PostReleaseVerification"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000006"
+            "onto:ReleaseRecord"
           ]
         }
       }
@@ -1387,7 +1387,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000012"
+            "onto:Document"
           ],
           "to": "any"
         }
@@ -1404,10 +1404,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000003"
+            "planning:Project"
           ],
           "to": [
-            "199e5077-b65f-4c56-a672-06dd6ebe999d"
+            "onto:UserStory"
           ]
         }
       },
@@ -1417,7 +1417,7 @@
   "nodes": [
     {
       "id": "77000000-0000-4000-8000-000000000023",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "synthetic-release-graph",
       "title": "Release candidate evidence",
       "summary": "Explore one candidate’s checks, readiness, approval, deployment and deployed verification. Missing relationships remain gaps.",

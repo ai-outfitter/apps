@@ -1,3 +1,5 @@
+import compiledGraph from "../../graph/.compiled/code-changes.json";
+import { codeChangeType, deliversType, mergedIntoType } from "../../graph/code-changes";
 // Link what merged into a project's repositories to the project in the Wiki.
 //
 // For each Planning project whose Wiki node has code in GitHub repositories
@@ -27,39 +29,12 @@ import { projects } from "./schema";
 
 export const changesWorkflow = "project-changes";
 export const changesStep = "link";
-export const codeChangeType = "e9500000-0000-4000-8000-000000000020";
-export const deliversType = "e9500000-0000-4000-8000-000000000021";
-export const mergedIntoType = "e9500000-0000-4000-8000-000000000022";
-/** The Wiki's standard Project and Repository types. */
-const wikiProjectType = "71000000-0000-4000-8000-000000000003";
-const wikiRepositoryType = "71000000-0000-4000-8000-000000000014";
+export { codeChangeType, deliversType, mergedIntoType } from "../../graph/code-changes";
 /** The lowest confidence the Wiki lets a policy commit without a member. */
 const THRESHOLD = 0.9;
 const POLICY_VERSION = "planning-code-changes-1";
 const DAY = 24 * 60 * 60 * 1000;
-
-/** Planning's code-change definitions; setup is add-only (src/server/wiki-context.ts). */
-export const codeChangeGraph = wikiGraph.parse({
-  types: [
-    { id: codeChangeType, category: "node", name: "CodeChange", title: "Code changes",
-      body: "A pull request merged into a repository, recorded so the work it delivered can be traced to projects. Website is the pull request. It records what merged, not whether the outcome was accepted or deployed.",
-      properties: [
-        { name: "repository", type: "string", description: "owner/name of the repository it merged into.", required: false },
-        { name: "number", type: "number", description: "The pull request number.", required: false },
-        { name: "merged_at", type: "string", description: "When it merged (ISO 8601).", required: false },
-        { name: "author", type: "string", description: "The GitHub login that opened it.", required: false },
-      ] },
-    { id: deliversType, category: "edge", name: "delivers", title: "delivers",
-      body: "The source CodeChange delivered work for the target Project. The batch that proposed it keeps the evidence and the reason.", properties: [],
-      ontology: { version: 2, endpoints: { from: [codeChangeType], to: [wikiProjectType] } } },
-    { id: mergedIntoType, category: "edge", name: "merged_into", title: "merged into",
-      body: "The source CodeChange merged into the target Repository.",
-      properties: [{ name: "ref", type: "string", description: "The branch it merged into.", required: false }],
-      ontology: { version: 2, endpoints: { from: [codeChangeType], to: [wikiRepositoryType] } } },
-  ],
-  nodes: [],
-  edges: [],
-});
+export const codeChangeGraph = wikiGraph.parse(compiledGraph);
 export const setupCodeChanges = (host: WorkflowHost<"interactive">, installationId: string) =>
   wikiAdapter(host, installationId).setup(codeChangeGraph);
 

@@ -86,6 +86,7 @@
     "astro": "^7.3.5"
   },
   "scripts": {
+    "build": "node --import tsx ../../scripts/compose-graphs.ts",
     "check": "tsc --noEmit",
     "test:integration": "node --import tsx --test tests/*.test.ts",
     "test": "npm run test:integration"

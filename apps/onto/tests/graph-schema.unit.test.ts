@@ -5,7 +5,7 @@ import { standardGraphTypes, wikiGraphSchema } from "../scripts/graph-schema";
 
 const run = "run node --import tsx apps/onto/scripts/graph-schema.ts";
 test("the SDK's committed standard GraphQL schema and types match the seed types", async () => {
-  assert.deepEqual(await standardGraphTypes({ check: true }), [], run);
+  assert.deepEqual(await standardGraphTypes({ check: true }), [], "run npm run graph:compose");
 });
 
 test("the Wiki's committed change-batch schema and documents are current", async () => {

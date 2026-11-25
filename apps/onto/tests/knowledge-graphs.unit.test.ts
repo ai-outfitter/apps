@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import artifacts from "../seeds/artifacts-v1.json";
-import definitions from "../seeds/knowledge-graphs-v1.json";
-import types from "../seeds/types-v1.json";
+import artifacts from "../graph/.compiled/artifacts-v1.json";
+import definitions from "../graph/.compiled/knowledge-graphs-v1.json";
+import { defaultTypes as types } from "../src/lib/default-types";
 import { core, type Graph, type GraphNode } from "../src/lib/graph";
 import {
   type GraphPattern,

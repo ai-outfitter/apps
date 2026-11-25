@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appWorker } from "./fixtures/initialized-worker";
 import { core } from "../src/lib/graph";
-import seed from "../seeds/knowledge-graphs-v1.json";
+import seed from "../graph/.compiled/knowledge-graphs-v1.json";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 test("knowledge graph definitions are ordinary editable Wiki nodes with validated traversal", async () => {
   const app = await appWorker(

@@ -1,3 +1,5 @@
+import compiledGraph from "../../graph/.compiled/use-cases.json";
+import { useCaseTypeId, useCaseBody } from "../../graph/use-cases";
 import { listEntities } from "@ai-outfitter/app-sdk/database";
 import { z } from "zod";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
@@ -5,49 +7,11 @@ import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import { defaultWiki, wikiAdapter } from "@ai-outfitter/app-sdk/graph-client";
 import { wikiGraph } from "@ai-outfitter/app-sdk/graph-contracts";
-import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
 import { planningEntity } from "./entities";
 import type { PlanningDatabase } from "./planning";
 
-export const useCaseTypeId = "ec742645-38b4-4b1e-a25a-77e3757b9f05";
-const prose = (description: string) =>
-  z.string().max(2500).describe(description);
-export const useCaseBody = z.strictObject({
-  actor: prose("Who is trying to accomplish the goal?"),
-  goal: prose("The outcome the actor needs."),
-  trigger: prose("What starts the use case, including any preconditions."),
-  steps: prose("The normal sequence of actions."),
-  alternatives: prose("Other paths, failures and recovery."),
-  successCriteria: prose("Observable evidence that the goal was achieved."),
-});
-export const useCaseGraph = wikiGraph.parse({
-  types: [
-    {
-      id: useCaseTypeId,
-      category: "node",
-      name: "UseCase",
-      title: "Use case",
-      body: "An actor's goal and the scenario that achieves it. Authored in Planning and stored in Wiki. Project association is a reference by installation and project ID, not a copy of the project.",
-      jsonSchema: schemaJSON(useCaseBody),
-      properties: [
-        {
-          name: "planning_installation_id",
-          type: "string",
-          required: true,
-          description: "Installation owning the associated Planning project.",
-        },
-        {
-          name: "project_id",
-          type: "string",
-          required: true,
-          description: "Associated canonical Planning project ID.",
-        },
-      ],
-    },
-  ],
-  nodes: [],
-  edges: [],
-});
+export { useCaseTypeId, useCaseBody } from "../../graph/use-cases";
+export const useCaseGraph = wikiGraph.parse(compiledGraph);
 type Host = WorkflowHost<"interactive">;
 export async function setupUseCases(
   who: AppIdentity,

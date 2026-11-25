@@ -1,3 +1,4 @@
+import compiled from "../graph/.compiled/exploration-fixture.json";
 // The read-only demo's exploration: a fictional company, its offerings, projects,
 // a repository with open pull requests, a competitor and one staged proposal.
 // The page resolves it in the browser with the same code the server runs
@@ -8,41 +9,8 @@ import { defaultTypes } from "../src/lib/default-types";
 import { changeExploration, type ExplorationState, explorationState, mutateExplorationInput, type PictureProviders, resolvePicture } from "../src/lib/exploration-picture";
 
 const stamp = { revision: 1, createdBy: "demo", updatedBy: "demo", createdAt: 1792886400000, updatedAt: 1792886400000 };
-const type = (name: string) => {
-  const found = defaultTypes.find((row) => row.name === name);
-  if (!found) throw new Error(`Demo exploration needs the ${name} type`);
-  return found.id;
-};
-const id = (i: number) => `74000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
-const node = (i: number, typeName: string, title: string, slug: string, website: string | null = null) => ({
-  id: id(i), typeId: type(typeName), slug, title, summary: null, body: "", website, source: null, properties: {}, archived: false, ...stamp,
-});
-const edge = (i: number, typeName: string, from: number, to: number) => ({
-  id: id(100 + i), typeId: type(typeName), fromId: id(from), toId: id(to), title: null, body: "", properties: {}, archived: false, validity: null, ...stamp,
-});
-
-const nodes = [
-  node(1, "Organization", "Fernway", "fernway"),
-  node(2, "Offering", "Fernway home kit", "fernway-home-kit"),
-  node(3, "Offering", "Fernway for growers", "fernway-for-growers"),
-  node(4, "Product", "FW-1 soil sensor", "fw-1"),
-  node(5, "Project", "FW-1 firmware", "fw-1-firmware"),
-  node(6, "Project", "FW-1 enclosure", "fw-1-enclosure"),
-  node(7, "Repository", "fernway/fw1-firmware", "fw1-firmware", "https://github.com/fernway/fw1-firmware"),
-  node(8, "Organization", "Loam Labs", "loam-labs"),
-  node(9, "Product", "Loam soil probe", "loam-soil-probe"),
-];
-const edges = [
-  edge(1, "offered_by", 2, 1),
-  edge(2, "offered_by", 3, 1),
-  edge(3, "packages_product", 2, 4),
-  edge(4, "packages_product", 3, 4),
-  edge(5, "produces", 5, 4),
-  edge(6, "produces", 6, 4),
-  edge(7, "source_in", 5, 7),
-  edge(8, "alternative_for", 9, 2),
-  edge(9, "developed_by", 9, 8),
-];
+const nodes = compiled.nodes.map(node => ({ ...node, source: null, ...stamp }));
+const edges = compiled.edges.map(edge => ({ ...edge, ...stamp }));
 const source = memorySource({ installationId: "demo", types: defaultTypes.map((row) => ({ ...row, ...stamp, seedVersion: 1 })), nodes, edges } as never);
 
 const pulls = [

@@ -21,7 +21,10 @@ for(const path of paths) {
     continue;
   }
   // Recovery must publish the released package source, never newer package edits.
-  execFileSync('git',['diff','--exit-code',tag,'--',path],{stdio:'inherit'});
+  const inputs=path==='packages/app-sdk'
+    ? [path,'scripts/compose-graphs.ts',':(glob)apps/*/graph/**',':(glob)apps/*/seeds/**',':(glob)apps/*/fixtures/competitors.json']
+    : [path];
+  execFileSync('git',['diff','--exit-code',tag,'--',...inputs],{stdio:'inherit'});
   const packed=packArchive(path,destination);
   execFileSync('gh',['release','upload',tag,join(destination,packed.filename),'--repo',repository],{stdio:'inherit'});
  } finally {rmSync(destination,{recursive:true,force:true});}

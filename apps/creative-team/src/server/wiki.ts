@@ -1,10 +1,11 @@
+import compiledGraph from "../../graph/.compiled/brand-interview.json";
+import { wikiTypeIds } from "../../graph/brand-interview";
 // The brand interview in the member's Wiki (knowledge graph). The interview is saved as one
 // BrandInterview document whose body follows a JSON Schema the Wiki validates, and the people,
 // audience, problems, offerings and goals the answers name become Wiki records linked to it.
 // Nothing is written directly: everything is staged as one Wiki change batch and submitted, so
 // the member (and the Wiki's ontology steward) review it on the Wiki's Changes page.
 import { z } from "zod";
-import { schemaJSON } from "@ai-outfitter/app-sdk/agent-schema";
 import { graphGraphqlResult, graphMutateAction } from "@ai-outfitter/app-sdk/app-graphql";
 import type { EntityRecord } from "@ai-outfitter/app-sdk/entities";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
@@ -19,47 +20,8 @@ import { type Database, readState, requireWriter } from "./store";
 type Host = WorkflowHost<"interactive">;
 const conflict = (message: string) => new Response(message, { status: 409 });
 
-/** A Wiki record the interview names: an existing one (existingId) or one this batch creates. */
-const nodeRef = (title: string) => z.uuid().meta({ "x-wiki-reference": "node", title });
-
-/** The BrandInterview body. Answers stay in the member's words; mentions point at Wiki records. */
-export const interviewDocument = z.strictObject({
-  schemaVersion: z.literal(1),
-  subject: nodeRef("Whose brand").describe("The Person whose brand this is: the member."),
-  sections: z.array(z.strictObject({
-    id: z.string().max(64),
-    title: z.string().max(200),
-    answers: z.array(z.strictObject({
-      questionId: z.string().max(64),
-      question: z.string().max(500),
-      answer: z.string().max(8000).describe("The member's answer, in their own words."),
-      mentions: z.array(nodeRef("Mentioned record")).max(20).describe("Wiki records this answer names: people, audiences, problems, offerings, goals."),
-    })).max(40),
-  })).max(20),
-});
-export type InterviewDocument = z.infer<typeof interviewDocument>;
-
-/** Stable IDs: the same in every Wiki, so setup is add-only and repeatable. */
-export const wikiTypeIds = {
-  interview: "c7ea0000-0000-4000-8000-000000000101",
-  interviewOf: "c7ea0000-0000-4000-8000-000000000102",
-  mentions: "c7ea0000-0000-4000-8000-000000000103",
-  influencedBy: "c7ea0000-0000-4000-8000-000000000104",
-  servesAudience: "c7ea0000-0000-4000-8000-000000000105",
-} as const;
-const edgeType = (id: string, name: string, title: string, body: string, from: string[], to: string[] | "any") =>
-  ({ id, category: "edge" as const, name, title, body, properties: [], ontology: { version: 2 as const, endpoints: { from, to } } });
-export const brandWikiTypes = wikiGraph.parse({
-  types: [
-    { id: wikiTypeIds.interview, category: "node", name: "BrandInterview", title: "Brand interview", properties: [], jsonSchema: schemaJSON(interviewDocument),
-      body: "A member's personal brand interview from the Creative team app: their answers to the intellectual-signature questions, in their own words, with the people, audiences, problems, offerings and goals each answer names." },
-    edgeType(wikiTypeIds.interviewOf, "brand_interview_of", "Brand interview of", "The Person whose brand the interview describes.", [wikiTypeIds.interview], ["71000000-0000-4000-8000-000000000005"]),
-    edgeType(wikiTypeIds.mentions, "brand_interview_mentions", "Mentioned in brand interview", "A record the member named in a brand interview answer. Says the member mentioned it, nothing more.", [wikiTypeIds.interview], ["71000000-0000-4000-8000-000000000005", "71000000-0000-4000-8000-000000000016", "71000000-0000-4000-8000-000000000017", "71000000-0000-4000-8000-000000000056", "71000000-0000-4000-8000-000000000010"]),
-    edgeType(wikiTypeIds.influencedBy, "influenced_by", "Influenced by", "A person whose work shaped this person's thinking, as they said themselves.", ["71000000-0000-4000-8000-000000000005"], ["71000000-0000-4000-8000-000000000005"]),
-    edgeType(wikiTypeIds.servesAudience, "serves_audience", "Serves audience", "An audience this person makes content and offers for, as they described it.", ["71000000-0000-4000-8000-000000000005"], ["71000000-0000-4000-8000-000000000016"]),
-  ],
-  nodes: [], edges: [],
-});
+export { interviewDocument, type InterviewDocument, wikiTypeIds } from "../../graph/brand-interview";
+export const brandWikiTypes = wikiGraph.parse(compiledGraph);
 
 /** The Wiki types an interview may name, by their names in the default ontology. */
 export const entityKinds = ["Person", "CustomerSegment", "Problem", "Offering", "Goal"] as const;
