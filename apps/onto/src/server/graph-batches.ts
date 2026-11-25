@@ -668,7 +668,8 @@ async function discardOpenBatch(db: Database, who: AppIdentity, actor: AppActor,
       summary !== undefined || proposals.length || remove.length) fail("Deleting a draft takes only batchId, expectedVersion and requestKey");
   const batch = await loadBatch(db, batchId);
   if (batch.state !== "open" || batch.commits || batch.submittedVersion) fail("Only an open, never-submitted draft can be deleted", 409);
-  const opener = batch.openedBy === who.userId && batch.openedVia === actorRef(actor) && actorRef(actor) === actorRef(origin);
+  const sameActor = batch.openedVia === actorRef(actor) && actorRef(actor) === actorRef(origin);
+  const opener = sameActor && (batch.policy.kind === "member" ? batch.openedBy === who.userId : actor.kind === "app");
   if (!opener) {
     if (batch.policy.kind !== "member") fail("Only the opening app can delete a policy draft", 403);
     requireMemberReview(who, actor, origin);
@@ -682,6 +683,8 @@ async function discardOpenBatch(db: Database, who: AppIdentity, actor: AppActor,
   const now = Date.now();
   await guardedBatch(db, [
     submissionGuard(who, requestKey, hash, batchRowsUnchanged(batch, rows), receipt),
+    sql`UPDATE onto_review_jobs SET state='superseded',leaseId=NULL,leaseUntil=NULL
+      WHERE id=${batch.reviewJobId} AND batchId=${batchId} AND state IN ('pending','running')`,
     sql`UPDATE graph_batches SET state='discarded',closedAt=${now},updatedAt=${now},reviewBy=NULL,reviewJobId=NULL WHERE id=${batchId}`,
   ], "Batch changed; reload before deleting");
   return receipt;
@@ -699,7 +702,6 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   if (batch) {
     checkObservedVersion(batch, input.expectedVersion, true);
     if (batch.state !== "open" && batch.state !== "awaiting_review") fail("Only an open or submitted batch can be edited", 409);
-    if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
     if (batch.policy.kind !== "member") {
       if (batch.state === "open") fail("Submit open policy batches with SubmitBatch", 409);
       if (!(actor.kind === "app" && batch.openedVia === actorRef(actor))) requireMemberReview(who, actor, origin);
@@ -715,13 +717,14 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
 
   const batchId = batch?.id ?? input.batchId ?? crypto.randomUUID();
   const graph = await readGraph(db, who);
-  const now = Date.now();
   const root = !batch && input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = batch ? batch.anchors : root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const { existing, written, rows } = await proposedRows(db, who, batchId, batch, input, "awaiting_review");
   const policy = batch?.policy ?? { kind: "member" };
   const validation = await validateRows(db, who, { id: batchId, policy, anchors }, rows);
   if (!validation.valid) fail(`Fix the batch before submitting it: ${validation.error}`, 409);
+  const now = Date.now();
+  if (batch?.state === "open" && batch.expiresAt <= now) fail("The batch has expired", 409);
   const version = (batch?.submittedVersion ?? 0) + 1;
   const nextRows = rows.map(row => row.state === "pending" ? { ...row, state: "awaiting_review" } : row);
   const counts: Record<string, number> = {};
@@ -738,8 +741,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   const receipt = { id: batchId, title, submittedVersion: version, state, counts, reviewRefs, reviewRun };
   const summary = { ...summarize(nextRows, new Map(graph.types.map(type => [type.id, type.name]))),
     text: input.summary ?? (batch?.summary ? JSON.parse(batch.summary).text : null) };
-  const unchanged = batch
-    ? sql`${batchRowsUnchanged(batch, existing)} AND (${batch.state} != 'open' OR ${batch.expiresAt} > ${now})`
+  const unchanged = batch ? batchRowsUnchanged(batch, existing)
     : sql`not exists (select 1 from graph_batches where id=${batchId})`;
   const key = replay?.requestKey ?? `amend:${crypto.randomUUID()}`;
   const statements = [submissionGuard(who, key, replay?.hash ?? "amend", unchanged, receipt)];
@@ -836,7 +838,7 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   const reasons = new Map<string, string>();
   const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
   const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
-  for (const row of waiting.filter(changesRequested)) hold(row.ref, "a member requested changes");
+  for (const row of waiting.filter(changesRequested)) hold(row.ref, "changes were requested");
   if (!review.complete) holdAll("the review read only part of the batch");
   for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
     const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];

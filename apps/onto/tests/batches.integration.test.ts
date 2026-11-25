@@ -5,7 +5,7 @@ import { appWorker } from "./fixtures/initialized-worker";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { drizzle } from "drizzle-orm/d1";
 import { documents } from "../src/server/documents";
-import { sealDueBatches } from "../src/server/graph-batches";
+import { sealDueBatches, stewardApprove } from "../src/server/graph-batches";
 import { batchReviewUrl } from "../src/server/graphql";
 import { core } from "../src/lib/graph";
 import { create, definitions, ids } from "./fixtures/relators";
@@ -181,6 +181,32 @@ test("direct graph.apply writes record history without a batch", async (t) => {
 // The documents agents run: graph_mutate sends them to graph.mutate, graph_query to graph.graphql.
 const run = (f: Awaited<ReturnType<typeof fixture>>, name: keyof typeof documents, variables: object, identity: object = agent) =>
   f.action(["ChangeBatch","BatchSubmission"].includes(name) ? "graph.graphql" : "graph.mutate", { query: typeof documents[name].document === "string" ? documents[name].document : print(documents[name].document), operationName: name, variables }, identity).then(json);
+
+test("requested changes hold a proposal out of both steward approval and the policy seal", async t => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const policy = { kind: "confidence", threshold: 0.95, version: "test-1", reviewWindow: { hours: 1 } };
+  const { batch: { id: batchId } } = await json(await f.action("batch.open", { title: "Held proposals", policy }, agent));
+  const held = { operation: person("$held", 71, "Held"), confidence: 0.6 };
+  const clear = { operation: person("$clear", 72, "Clear"), confidence: 0.6 };
+  await json(await f.action("batch.add", { batchId, proposals: [held, clear] }, agent));
+  await json(await f.action("batch.submit", { batchId }, agent));
+  const feedback = { batchId, verdict: "request_changes", refs: ["$held"], expectedVersion: 1, comment: "Correct the name." };
+  await json(await f.review(feedback));
+  const repeated = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "unchanged", proposals: [held] } });
+  assert.match(repeated.errors?.[0]?.message, /update its proposal or withdraw it/);
+  const db = drizzle(f.app.database);
+  const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
+  const job = await f.app.database.prepare("SELECT reviewJobId FROM graph_batches WHERE id=?").bind(batchId).first<{reviewJobId: string}>();
+  assert.ok(job);
+  const steward = await stewardApprove(db, who, batchId, job.reviewJobId, { complete: true, runId: null, prompt: { digest: "review" }, findings: [] });
+  assert.ok(steward);
+  assert.deepEqual(steward.held, [{ ref: "$held", reason: "changes were requested" }]);
+  assert.equal(steward.approved, 1);
+  assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 0);
+  assert.equal(await f.exists(uuid(71)), false);
+  assert.equal(await f.exists(uuid(72)), true);
+});
 
 test("an agent stages, takes back and submits changes with documents; a member commits them", async (t) => {
   const f = await fixture();
@@ -855,6 +881,22 @@ test("unified submissions enforce policy-batch and graph-type authority", async 
   const type = await run(f, "MutateBatchSubmission", { input: { title: "Type proposal", requestKey: "type",
     proposals: [{ operation: definitions().find(op => op.type === "graph-type") }] } }, writer);
   assert.equal(type.errors[0].extensions.status, 403);
+});
+
+test("draft deletion distinguishes member review authority from policy opener authority", async t => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const memberDraft = await json(await f.action("batch.open", { title: "Member draft" }, agent));
+  const policyDraft = await json(await f.action("batch.open", {
+    title: "Policy draft", policy: { kind: "confidence", threshold: 0.95, version: "test" },
+  }, agent));
+  const remove = (batchId: string, identity: object) => run(f, "MutateBatchSubmission", { input: {
+    batchId, requestKey: batchId, expectedVersion: 0, deleteBatch: true,
+  } }, identity);
+  const otherReviewer = { ...owner, userId: "other-reviewer" };
+  assert.equal((await remove(memberDraft.batch.id, otherReviewer)).data.mutateBatchSubmission.state, "discarded");
+  assert.equal((await remove(policyDraft.batch.id, otherReviewer)).errors[0].extensions.status, 403);
+  assert.equal((await remove(policyDraft.batch.id, { ...agent, userId: "different-principal" })).data.mutateBatchSubmission.state, "discarded");
 });
 
 test("submission receipts are scoped to both actor and origin", async t => {

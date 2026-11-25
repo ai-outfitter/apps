@@ -9,8 +9,8 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
     const found = plan.tables.find((t) => t.table === table);
     return found ? found.writes.map((row) => Object.fromEntries(found.columns.map((c, i) => [c, row[i]]))) : [];
   };
-  // A portable copy may carry pending drafts and proposals. Request-change holds
-  // are backed by local review history and cannot be established by an archive.
+  // Keep a portable hold so a blocked proposal remains blocked after transfer.
+  // Only the authorized local API can establish reviewer identity and history.
   const proposals = plan.tables.find(table => table.table === "graph_batch_operations");
   const decision = proposals?.columns.indexOf("decision") ?? -1;
   const decidedBy = proposals?.columns.indexOf("decidedBy") ?? -1;
@@ -21,7 +21,7 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
     try { parsed = JSON.parse(value); }
     catch { throw new Response("Invalid proposal decision in archive", { status: 400 }); }
     if (parsed?.verdict === "request_changes") {
-      row[decision] = null;
+      row[decision] = JSON.stringify({ kind: "imported", verdict: "request_changes" });
       if (decidedBy >= 0) row[decidedBy] = null;
     }
   }

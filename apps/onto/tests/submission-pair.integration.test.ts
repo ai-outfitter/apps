@@ -112,6 +112,8 @@ for (const mode of ["baseline", "candidate"]) {
     if (mode === "candidate") {
       step = "deletion";
       const draft = await grouped("draft", "stage", { title: "Draft for deletion", proposals: [proposal("$draft", "Uncommitted")] });
+      const job = await app.database.prepare("SELECT reviewJobId FROM graph_batches WHERE id=?").bind(draft.id).first<{reviewJobId: string}>();
+      assert.ok(job?.reviewJobId);
       const input = { requestKey: "delete", batchId: draft.id, expectedVersion: 0, deleteBatch: true };
       const deleting = (fields: object = input) => call("MutateBatchSubmission", { input: fields });
       await assert.rejects(deleting({ ...input, expectedVersion: 1 }), /version changed/);
@@ -122,6 +124,8 @@ for (const mode of ["baseline", "candidate"]) {
       assert.deepEqual([deletedDraft.id, deletedDraft.submittedVersion, deletedDraft.state, deletedDraft.reviewRun],
         [draft.id, 0, "discarded", null]);
       assert.deepEqual(await deleting(), deletedDraft);
+      const superseded = await app.database.prepare("SELECT state FROM onto_review_jobs WHERE id=?").bind(job.reviewJobId).first();
+      assert.equal(superseded?.state, "superseded");
       await assert.rejects(deleting({ ...input, requestKey: "again" }), /open, never-submitted/);
       await assert.rejects(grouped("resubmit-deleted", "submit", { batchId: draft.id }), /no longer open/);
       const { nodes: [discarded] } = await call("ChangeBatches", { ids: [draft.id], details: true });
