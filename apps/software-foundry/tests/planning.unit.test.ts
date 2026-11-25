@@ -39,6 +39,7 @@ function fixture(t: TestContext, options: {
   legacy?: boolean; bigEvidence?: boolean; inferenceGate?: Promise<void>; kind?: "bug" | "feature" | "query";
   publisher?: number; connectionId?: string; loseFirstStartReceipt?: boolean; loseCollect?: number[];
   extraRepositories?: boolean; inferenceErrors?: (Response | Error | null)[]; templateText?: string;
+  extraTemplates?: { path: string; text: string }[]; issueTemplate?: string; issueBody?: string;
 } = {}) {
   const repositoryIds = new Map(ids);
   if (options.extraRepositories) {
@@ -108,7 +109,8 @@ function fixture(t: TestContext, options: {
           ? "Reduce manual installation. <!-- outfitter:foundry-plan:00000000-0000-4000-8000-000000000000 -->" : "Reduce manual installation",
         changes: ["Wire up charts"], verification: ["Confirm Grafana shows the dashboards"], gaps: [],
         citations: [`${home}:README.md`, `${charts}:README.md`, "unknown/repo:README.md"],
-        issueTemplate: featureTemplate, issueBody: "## Goal\n\nInstall the chart.\n\n## Validation\n\nShow standard dashboards.",
+        issueTemplate: options.issueTemplate ?? featureTemplate,
+        issueBody: options.issueBody ?? "## Goal\n\nInstall the chart.\n\n## Validation\n\nShow standard dashboards.",
         } };
       }
       assert.equal(op, "connector.execute");
@@ -124,7 +126,9 @@ function fixture(t: TestContext, options: {
             path: `lib/${index}-${"x".repeat(90)}.ts`, kind: "file", url: `${url}/tree/${index}`,
           })) : [], truncated: false, files: [
             { path: "README.md", kind: "readme", url: `${url}/src/commit/${commitSha}/README.md`, text: options.bigEvidence ? "🧪\t\n".repeat(5000) : name },
-            ...(name === home && !options.noTemplate ? [{ path: featureTemplate, kind: "issue-template", url: `${url}/src/commit/${commitSha}/${featureTemplate}`, text: options.templateText ?? "## Goal\n\n## Validation" }] : []),
+            ...(name === home && !options.noTemplate ? [
+              ...(options.extraTemplates ?? []), { path: featureTemplate, text: options.templateText ?? "## Goal\n\n## Validation" },
+            ].map(file => ({ ...file, kind: "issue-template", url: `${url}/src/commit/${commitSha}/${file.path}` })) : []),
           ],
         };
       }
@@ -332,6 +336,7 @@ test("legacy recovery fails closed on uncertain, mismatched or completed publica
     "pending receipt": workflow => { workflow.outputs[outputSlot].complete = false; },
     "published receipt": workflow => { workflow.outputs[outputSlot].value = { status: "published", issue: { number: 9 } }; },
     "running run": workflow => { workflow.run.status = "running"; },
+    "running legacy failure without a receipt": workflow => { workflow.run.status = "running"; workflow.outputs = {}; },
     "different actor": workflow => { workflow.run.createdBy = "another-user"; },
     "different inputs": workflow => { workflow.inputs["plan.inputs.createIssue"] = true; },
     "completed without a receipt": workflow => { workflow.outputs = {}; },
@@ -530,4 +535,116 @@ test("projected anchor templates carry all the headings publication validates", 
   const template = inference?.input.data.evidence.find((repo: { repository: string }) => repo.repository === home)
     .files.find((file: { path: string }) => file.path === featureTemplate);
   assert.deepEqual(template.requiredHeadings, ["Goal", "Validation"]);
+});
+
+test("a rejected draft repairs only collection on same-ID replay", async t => {
+  const settings = { issueBody: "## Goal\n\nMissing validation.", loseCollect: [1], publisher: 42 };
+  const { context, input, calls, runs } = fixture(t, settings);
+  const replay = planWorkInput.parse(input);
+  await assert.rejects(() => planWork(context, replay), (error: Response) => error.status === 503);
+  const failed = await findPlan(context, replay);
+  const originalArtifact = await readPlanArtifact(context, replay);
+  const workflow = runs.get(failed.run.id)!;
+  const denied = (error: Response) => error.status === 403;
+
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.artifacts.length, 1);
+  assert.equal(failed.plan.issue, null);
+  assert.equal(workflow.run.status, "running");
+  await assert.rejects(() => planWork({ ...context, actor: { ...context.actor, id: "other-oauth" } }, replay), denied);
+  await assert.rejects(() => planWork(context, { ...replay, request: "Different scope" }), (error: Response) => error.status === 409);
+  settings.publisher = 43;
+  await assert.rejects(() => planWork(context, replay), denied);
+  settings.publisher = 42;
+  assert.equal(calls.filter(call => call.op === "workflow.collect").length, 1);
+
+  workflow.run.createdBy = "other-member";
+  assert.equal((await planWork(context, replay)).run.id, failed.run.id);
+  assert.equal(workflow.run.status, "running");
+  workflow.run.createdBy = "member";
+
+  const repaired = await planWork(context, replay);
+  assert.equal(repaired.run.id, failed.run.id);
+  assert.equal(workflow.run.status, "complete");
+  assert.deepEqual(workflow.outputs[outputSlot].value, calls.find(call => call.op === "workflow.collect")!.input.value);
+  assert.equal(await readPlanArtifact(context, replay), originalArtifact);
+  assert.deepEqual(await planWork(context, replay), repaired);
+  assert.equal(calls.filter(call => call.op === "workflow.collect").length, 2);
+  assert.equal(calls.filter(call => call.op === "workflow.start").length, 1);
+  assert.equal(calls.filter(call => call.op === "inference.generate").length, 1);
+  assert.equal(calls.filter(call => call.input.operation === "issues.create").length, 0);
+});
+
+test("known kind reserves an accepted template past unrelated file and byte limits", async t => {
+  const extraTemplates = Array.from({ length: 6 }, (_, index) => ({
+    path: `.forgejo/ISSUE_TEMPLATE/defect-${index}.md`, text: `## ${"long".repeat(250)}`,
+  }));
+  const { context, input, calls } = fixture(t, { extraTemplates });
+  assert.equal((await planWork(context, planWorkInput.parse({ ...input, kind: "feature" }))).status, "published");
+  const anchor = calls.find(call => call.op === "inference.generate")!.input.data.evidence.find((item: { repository: string }) => item.repository === home);
+  assert.ok(anchor.files.some((file: { path: string }) => file.path === featureTemplate));
+  assert.ok(anchor.files.length <= 5);
+  assert.ok(Buffer.byteLength(JSON.stringify(anchor)) <= 2500);
+});
+
+test("inferred kind reserves both accepted templates before filling bytes", async t => {
+  const bug = ".github/ISSUE_TEMPLATE/report.md";
+  const { context, input, calls } = fixture(t, {
+    kind: "bug", issueTemplate: bug,
+    extraTemplates: [
+      ...Array.from({ length: 4 }, (_, index) => ({
+        path: `.forgejo/ISSUE_TEMPLATE/enhancement-${index}.md`, text: `## ${"escaped\\".repeat(300)}`,
+      })),
+      { path: bug, text: "name: Defect report\n## Goal\n## Validation" },
+    ],
+  });
+  assert.equal((await planWork(context, planWorkInput.parse(input))).status, "published");
+  const anchor = calls.find(call => call.op === "inference.generate")!.input.data.evidence.find((item: { repository: string }) => item.repository === home);
+  assert.ok(anchor.files.some((file: { path: string }) => file.path === featureTemplate));
+  assert.ok(anchor.files.some((file: { path: string }) => file.path === bug));
+  assert.ok(anchor.files.length <= 5);
+  assert.ok(Buffer.byteLength(JSON.stringify(anchor)) <= 2500);
+});
+
+test("the legacy SQL claim blocks a stale draft or send while the replacement runs", async t => {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  const { context, sqlite, calls, seedLegacy } = fixture(t, { legacy: true, inferenceGate: promise, kind: "query" });
+  const { replay } = await seedLegacy({ createIssue: true });
+  const stale = sqlite.prepare("SELECT key, updatedAt FROM foundry_plans WHERE runId = ?").get(legacyRunId)!;
+  const processing = planWork(context, replay);
+  try {
+    while (!calls.some(call => call.op === "inference.generate")) {
+      const early = await Promise.race([processing, new Promise<void>(done => setImmediate(done))]);
+      if (early) assert.fail("Replacement returned before inference");
+    }
+    const active = sqlite.prepare("SELECT runId, state, updatedAt, artifact FROM foundry_plans").get()!;
+    assert.notEqual(active.runId, legacyRunId);
+    assert.equal(active.state, "planning");
+    assert.ok(Number(active.updatedAt) > Number(stale.updatedAt));
+    // The pre-update worker only compared key, state and updatedAt. Both
+    // successful CAS results were mandatory before it could send an issue.
+    const legacyUpdate = sqlite.prepare("UPDATE foundry_plans SET state = ?, artifact = ?, updatedAt = ? WHERE key = ? AND state = ? AND updatedAt = ? RETURNING runId");
+    const staleDraft = legacyUpdate.get("ready", "stale draft", Date.now(), stale.key, "planning", stale.updatedAt);
+    const staleSend = legacyUpdate.get("sending", "stale draft", Date.now(), stale.key, "ready", stale.updatedAt);
+    assert.equal(staleDraft, undefined);
+    assert.equal(staleSend, undefined);
+    assert.deepEqual(sqlite.prepare("SELECT runId, state, updatedAt, artifact FROM foundry_plans").get(), active);
+  } finally {
+    resolve();
+  }
+  const recovered = await processing;
+  assert.equal(recovered.status, "artifacts_only");
+  assert.equal(recovered.failedAttempts[0].remoteCompute, "unknown");
+  assert.ok(calls.every(call => call.input.operation !== "issues.create"));
+});
+
+test("a required template that cannot fit the evidence budget still blocks publication", async t => {
+  const { context, input, calls } = fixture(t, { templateText: `## ${"heading".repeat(400)}` });
+  const result = await planWork(context, planWorkInput.parse({ ...input, kind: "feature" }));
+  assert.equal(result.status, "failed");
+  assert.equal(result.artifacts.length, 1);
+  const anchor = calls.find(call => call.op === "inference.generate")!.input.data.evidence.find((item: { repository: string }) => item.repository === home);
+  assert.equal(anchor.truncated, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(anchor)) <= 2500);
+  assert.ok(calls.every(call => call.input.operation !== "issues.create"));
 });

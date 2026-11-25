@@ -1,4 +1,5 @@
 import { requireAccess, requireOrganization, sha256Hex } from "@ai-outfitter/app-sdk/server";
+import type { OperationOutput } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
@@ -11,6 +12,7 @@ const outputSlot = "plan.outputs.result";
 // The original app used this exact message only in the planning catch, before
 // the artifact and publication claim. Keep it as evidence for pre-migration rows.
 const prepublicationFailure = "Foundry could not produce a verified plan from the selected evidence.";
+const rejectedIssueDraft = "The plan was saved, but its issue draft did not follow the anchor repository's issue template.";
 const requestId = z.uuid();
 // Match Forgejo's interior owner separators and keep repository segments safe
 // for the host's covered API paths.
@@ -185,6 +187,8 @@ export async function findPlan(context: IntakeContext, input: z.output<typeof fi
 }
 
 async function update(context: IntakeContext, row: PlanningRow, change: Partial<PlanningRow>) {
+  // Legacy workers fence draft saves and send claims by state and updatedAt.
+  // Advance the revision even within one millisecond when replacing a run.
   const [changed] = await context.db().update(foundryPlans).set({ ...change, updatedAt: Math.max(Date.now(), row.updatedAt + 1) })
     .where(and(eq(foundryPlans.key, row.key), eq(foundryPlans.runId, row.runId),
       eq(foundryPlans.state, row.state), eq(foundryPlans.updatedAt, row.updatedAt))).returning();
@@ -198,6 +202,13 @@ function workflowInputs(row: PlanningRow, createIssue: boolean) {
     "plan.inputs.anchorRepository": row.anchorRepository,
     "plan.inputs.createIssue": createIssue,
   };
+}
+
+function matchesWorkflow(context: IntakeContext, row: PlanningRow, createIssue: boolean, run: NonNullable<OperationOutput<"workflow.read">>) {
+  return run.run.id === row.runId && run.run.workflowId === planningWorkflow
+    && run.run.createdBy === caller(context).userId && run.inference?.status !== "pending"
+    && Object.entries(workflowInputs(row, createIssue))
+      .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value));
 }
 
 const failedReceipt = z.strictObject({
@@ -220,11 +231,7 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
     throw new Response("The original member must recover this plan directly", { status: 403 });
 
   let previous = await host.call("workflow.read", { id: row.runId });
-  const matches = (run: NonNullable<typeof previous>) => run.run.id === row.runId && run.run.workflowId === planningWorkflow
-    && run.run.createdBy === caller(context).userId && run.inference?.status !== "pending"
-    && Object.entries(workflowInputs(row, createIssue))
-      .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value));
-  if (!previous || !matches(previous)) return;
+  if (!previous || !matchesWorkflow(context, row, createIssue, previous)) return;
 
   if (previous.run.status === "running") {
     // A typed settled failure is written only after the host answered or our
@@ -232,12 +239,13 @@ async function priorFailure(context: IntakeContext, host: ReturnType<IntakeConte
     if (!row.failureCode || Object.keys(previous.outputs).length !== 0) return;
     await collectWorkflowReceipt(context, host, row);
     previous = await host.call("workflow.read", { id: row.runId });
-    if (!previous || !matches(previous) || previous.run.status === "running") return;
+    if (!previous || !matchesWorkflow(context, row, createIssue, previous) || previous.run.status === "running") return;
   }
 
   // The generic legacy catch also covered transport loss. Require positive,
   // settled host evidence for every recorded attempt as well as the exact app
-  // receipt. The host cannot verify that remote computation stopped.
+  // receipt. Unrecorded remote computation remains unknown. The failed row
+  // and the legacy state/revision CAS fence any stale draft save or send claim.
   const legacyInference = row.failureCode === null ? previous.inference : undefined;
   if (row.failureCode === null && (legacyInference?.status !== "settled" || !legacyInference.reasons.includes("no_response")
     || legacyInference.reasons.some(reason => reason !== "no_response" && reason !== "aborted" && reason !== "error"))) return;
@@ -285,6 +293,15 @@ function templateHeadings(text: string) {
   return [...text.matchAll(/^## +(.+)$/gm)].map(match => match[1].trim());
 }
 
+type IssueTemplate = Evidence["files"][number];
+
+function preferredIssueTemplates(templates: IssueTemplate[], kind: "feature" | "bug" | "query") {
+  const pattern = kind === "bug" ? /bug|defect/ : /feature|enhancement/;
+  const matching = templates.filter(file => pattern.test(file.path.toLowerCase())
+    || pattern.test(file.text.match(/^name:\s*(.+)$/mi)?.[1].toLowerCase() ?? ""));
+  return matching.length ? matching : templates.filter(file => /\/issue\.md$/i.test(file.path));
+}
+
 type PlanningPrompt = Pick<z.output<typeof planWorkInput>, "request" | "createIssue"> & {
   kind: "feature" | "bug" | "query" | null;
   anchorRepository: string | null;
@@ -309,21 +326,49 @@ function inferenceEvidence(evidence: Evidence[], prompt: PlanningPrompt) {
       tree: [] as string[],
       truncated: false,
     };
-    const isAnchor = createIssue && item.repository.name.toLowerCase() === anchor;
-    const fileScore = (file: Evidence["files"][number]) => (isAnchor && file.kind === "issue-template" ? 100 : 0)
-      + (file.kind === "readme" ? 30 : 0) + pathScore(file.path);
     const fits = () => jsonBytes(projected) <= perRepository;
-    const files = item.files.filter(file => file.kind === "readme" || isAnchor);
-    for (const file of files.sort((a, b) => fileScore(b) - fileScore(a)).slice(0, 5)) {
-      const template = file.kind === "issue-template";
+    const templates = createIssue && prompt.kind !== "query" && item.repository.name.toLowerCase() === anchor
+      ? item.files.filter(file => file.kind === "issue-template") : [];
+    const kinds = prompt.kind ? [prompt.kind] : ["feature", "bug"] as const;
+    const compact = new Map(templates.map(file => {
+      const entry = { path: file.path, kind: file.kind, text: "", requiredHeadings: templateHeadings(file.text) };
+      return [file, { entry, bytes: jsonBytes(entry) }] as const;
+    }));
+    const [first = [], second = []] = kinds.map(kind => {
+      const preferred = preferredIssueTemplates(templates, kind);
+      return (preferred.length ? preferred : templates).map(file => compact.get(file)!)
+        .sort((a, b) => a.bytes - b.bytes || pathScore(b.entry.path) - pathScore(a.entry.path));
+    });
+
+    // Reserve exact paths and headings before optional excerpts. For inferred
+    // kinds, prefer a fitting pair or a single template accepted for both.
+    const available = perRepository - jsonBytes(projected);
+    const firstFit = first.find(candidate => candidate.bytes <= available);
+    const secondFit = second.find(candidate => candidate.bytes <= available);
+    const shared = first.find(candidate => candidate.bytes <= available && second.includes(candidate));
+    if (firstFit && secondFit && firstFit.bytes + secondFit.bytes + 1 <= available) {
+      projected.files.push(firstFit.entry);
+      if (firstFit !== secondFit) projected.files.push(secondFit.entry);
+    } else {
+      const candidate = shared ?? firstFit ?? secondFit;
+      if (candidate) projected.files.push(candidate.entry);
+    }
+
+    const applicable = new Set([...first, ...second].map(candidate => candidate.entry.path));
+    const files = item.files.filter(file => file.kind === "readme" || applicable.has(file.path))
+      .sort((a, b) => pathScore(b.path) - pathScore(a.path));
+    for (const file of files) {
+      const reserved = projected.files.find(entry => entry.path === file.path);
+      if (!reserved && projected.files.length === 5) continue;
+      const template = compact.get(file)?.entry;
       const excerpt = template
         ? (file.text.match(/^(?:name:.*|\s+(?:label|description):.*)$/gm) ?? []).join("\n") || file.text
         : file.text;
-      const visible = { path: file.path, kind: file.kind, text: excerpt.slice(0, 400),
-        ...(template ? { requiredHeadings: templateHeadings(file.text) } : {}) };
-      projected.files.push(visible);
-      if (template && !fits()) visible.text = "";
-      if (!fits()) projected.files.pop();
+      const entry = reserved ?? { path: file.path, kind: file.kind, text: "", ...(template ? { requiredHeadings: template.requiredHeadings } : {}) };
+      if (!reserved) projected.files.push(entry);
+      entry.text = excerpt.slice(0, 400);
+      if (template && !fits()) entry.text = "";
+      if (!reserved && !fits()) projected.files.pop();
     }
     const visibleFiles = new Set(projected.files.map(file => file.path));
     const paths = item.tree.map(entry => entry.path).filter(path => !visibleFiles.has(path));
@@ -409,6 +454,17 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     return result;
   };
 
+  // A rejected draft is a terminal app result with an immutable artifact.
+  // Replay may only fill its missing collection, never enter recovery.
+  if (row.state === "failed" && row.message === rejectedIssueDraft && row.artifact !== null
+    && row.issue === null && row.failureCode === null && input.createIssue) {
+    const run = await host.call("workflow.read", { id: row.runId });
+    if (run?.run.status === "running" && matchesWorkflow(context, row, input.createIssue, run)
+      && Object.keys(run.outputs).length === 0)
+      await collectWorkflowReceipt(context, host, row);
+    return receipt(context, row);
+  }
+
   // Collection repair must still run after the one replacement was used.
   const previous = row.state === "failed" ? await priorFailure(context, host, row, input.createIssue) : undefined;
   const failure = row.failedAttempts.length === 0 ? previous : undefined;
@@ -463,10 +519,7 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     const plan = parsed.data;
     const templates = evidence.find(item => item.repository.name.toLowerCase() === anchor)
       ?.files.filter(file => file.kind === "issue-template") ?? [];
-    const kindPattern = plan.kind === "bug" ? /bug|defect/ : /feature|enhancement/;
-    const availableTemplates = templates.filter(file => kindPattern.test(file.path.toLowerCase())
-      || kindPattern.test(file.text.match(/^name:\s*(.+)$/mi)?.[1].toLowerCase() ?? ""));
-    const preferred = availableTemplates.length ? availableTemplates : templates.filter(file => /\/issue\.md$/i.test(file.path));
+    const preferred = preferredIssueTemplates(templates, plan.kind);
     const visibleTemplates = projected.find(item => item.repository.toLowerCase() === anchor)?.files
       .filter(file => file.kind === "issue-template") ?? [];
     const matchTemplate = (preferred.length ? preferred : templates).find(file => file.path === plan.issueTemplate
@@ -491,7 +544,7 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     const saved = await update(context, row, {
       artifact,
       state: templateFailed ? "failed" : !input.createIssue || !issue ? "artifacts_only" : "ready",
-      message: templateFailed ? "The plan was saved, but its issue draft did not follow the anchor repository's issue template." : null,
+      message: templateFailed ? rejectedIssueDraft : null,
     });
     if (!saved) return receipt(context, await active());
     row = saved;
