@@ -35,3 +35,22 @@ The [final replay receipt](final-replay.json) is the raw report from the offline
 The refreshed host returned the verified bot ID in issue preflight. The app declined two properly signed events whose issue author was that bot. The focused planning unit suite also checked that copying the marker to an issue with a different author does not trigger suppression.
 
 The installed-worker regression in `tests/workspace-host.integration.test.ts` exercises the actual finalize route separately. Both the new-issue path and the repair sweep skip the protected planning issue. An unrelated issue still starts the existing implementation workflow.
+
+### Recorded DGX Spark planning run
+
+The [raw answer](spark-keystone/completion.txt) and [tool trace](spark-keystone/trace.json) capture one real GLM-5.3-Flash-EXL3 run. The workstation offered read-only file tools over the same four synthetic repository trees used by the box. Only the model ran on the Spark. Its prompt, tool arguments, file contents, timings and token usage are in the trace. The agent saw the operator request and output schema. The expected work packages and acceptance assertions were outside its read scope. The fixture READMEs do describe responsibilities and some acceptance considerations. This measures planning from those descriptions, not discovery in Keystone's production source code.
+
+To repeat the inference, set SPARK_BASE_URL to the local Spark v1 endpoint and run from this directory with a new output path.
+
+```sh
+node spark-agent.mjs /tmp/keystone-agent
+python3 normalize-plan.py /tmp/keystone-agent
+node check-spark-plan.mjs /tmp/keystone-agent
+KEYSTONE_AGENT_PLAN=/tmp/keystone-agent/plan.json ./run.sh localhost/outfitter/keystone-journey:validated /tmp/keystone-product-replay
+```
+
+For the exact recorded run, use `spark-keystone/plan.json` as KEYSTONE_AGENT_PLAN. Product replay uses the recorded proposal for the Foundry feature issue and Planning requirements. The issue carries milestone groupings. The Planning route and Home digest use the existing deterministic inference fixture. Planning accepts lowercase requirement keys, so the replay lowercases IDs and references together.
+
+The agent listed four repositories, read six files and generated four requirements and three milestones. The structural checks cover citation provenance, dependency references and cycles, in-scope targets, acceptance criteria and milestone coverage. Its answer used XML despite the JSON instruction. The decoder preserves its content; the raw completion is the review artifact.
+
+The proposal identifies the missing native-to-cluster API in its gaps but assigns no work to deliver it. Its native acceptance test stops at the local catalog. The cluster task pins the flake without declaring the flake task as a dependency. The result is useful for discussing ownership and sequencing, but its acceptance criteria could pass while tapping Install still fails to provision either service.

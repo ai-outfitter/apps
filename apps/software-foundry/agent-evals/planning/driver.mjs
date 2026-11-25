@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { anchor, charts, clientRepositories, repositories, admin, addProjectRepositories, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
+import { agentPlan } from "./inference-fixture.mjs";
 import { keystoneJourney, observePlanningHost } from "./keystone-journey.mjs";
 import { signIn, oauthToken, mcpClient, callTool } from "./mcp.mjs";
 
@@ -17,7 +18,7 @@ const workflow = "foundry-plan-work";
 const request = (id, extra = {}) => {
   const { requestId, title, description, acceptanceCriteria } = fixture[id];
   const body = [title, description, ...(acceptanceCriteria ?? [])].filter(Boolean).join("\n\n");
-  return { requestId, request: body, repositories: id === "bug" ? clientRepositories : repositories, anchorRepository: anchor, ...extra };
+  return { requestId, request: id === "feature" && agentPlan ? title + " with the standard Grafana dashboards." : body, repositories: id === "bug" ? clientRepositories : repositories, anchorRepository: anchor, ...extra };
 };
 
 const rows = (db) => db.prepare(
@@ -99,7 +100,7 @@ async function checkArtifact({ result, caseId, cookie, box, before, query }) {
   assert.deepEqual(plan.sources.map(({ name, commitSha }) => [name, commitSha]),
     scoped.map((repo) => [repo, before[repo].branches[0].sha]));
   assert.deepEqual(plan.citations.map(({ repository, path }) => [repository, path]),
-    scoped.map((repo) => [repo, "README.md"]));
+    caseId === "feature" && agentPlan ? agentPlan.citations.map(key => key.split(":")) : scoped.map((repo) => [repo, "README.md"]));
   for (const citation of plan.citations) {
     assert.match(citation.url, new RegExp(`/src/commit/${before[citation.repository].branches[0].sha}/`));
   }

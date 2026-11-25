@@ -3,6 +3,7 @@ import { copyFileSync, globSync, readFileSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as sleep } from "node:timers/promises";
+import { projectRequirements, agentPlan } from "./inference-fixture.mjs";
 import { callTool } from "./mcp.mjs";
 
 export function observePlanningHost(box, db) {
@@ -43,7 +44,11 @@ export async function keystoneJourney({ box, mcp, db, feature, initialIssue, tit
     return result.value.data[field];
   }
   const planning = (name, input, field) => document("box", "planning", name, input, field, "graph_mutate");
-  const requirements = JSON.parse(readFileSync(new URL("./fixtures/work-packages.json", import.meta.url)));
+  // The Planning document accepts lowercase slugs. Preserve the model's original
+  // identifiers in the recorded completion and use the same mapping on each edge.
+  const requirements = projectRequirements.map(row => ({
+    ...row, key: row.key.toLowerCase(), dependsOn: row.dependsOn.map(key => key.toLowerCase()),
+  }));
   const artifact = JSON.parse(readFileSync(join(box.out, "feature-plan.json"), "utf8"));
   for (const requirement of requirements) {
     const repository = requirement.target.repository;
@@ -52,7 +57,7 @@ export async function keystoneJourney({ box, mcp, db, feature, initialIssue, tit
     assert.ok(initialIssue.body.includes(repository), repository);
   }
   const project = await planning("CreateProject", { name: "Keystone service installation across Apple clients and cluster",
-    goals: "Ship one working installation path from flake defaults through charts, cluster reconciliation and both native clients.",
+    goals: agentPlan?.goal ?? "Ship one working installation path from flake defaults through charts, cluster reconciliation and both native clients.",
     requirements }, "createProject");
   const delivery = await document("box", "planning", "ProjectDelivery", { projectId: project.id }, "projectDelivery", "graph_query");
   assert.equal(delivery.requirements.length, requirements.length);

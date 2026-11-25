@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const requests = JSON.parse(readFileSync(new URL("./fixtures/requests.json", import.meta.url)));
 const packages = JSON.parse(readFileSync(new URL("./fixtures/work-packages.json", import.meta.url)));
+
+// A recorded Spark plan can be replayed through the same isolated product surfaces.
+export const agentPlan = existsSync("/out/agent-plan.json") ? JSON.parse(readFileSync("/out/agent-plan.json")) : null;
+export const projectRequirements = agentPlan?.requirements ?? packages;
 
 function planFor(prompt) {
   const selected = ["ambiguous", "feature", "bug"].find((id) => prompt.includes(requests[id].title));
@@ -38,6 +42,16 @@ function planFor(prompt) {
       ? "## User-visible outcome\n\nInstall Forgejo and Grafana from Keystone on iOS and macOS.\n\n## Acceptance criteria\n\nConfirmation installs both services and provisions the standard Grafana dashboards once.\n\n## Verification\n\n" + packages.map(row => "- " + row.target.repository + ": " + row.acceptanceCriteria[0]).join("\n")
       : null,
   };
+  if (agentPlan && selected === "feature") {
+    result.goal = agentPlan.goal;
+    result.changes = projectRequirements.map(row => row.target.repository + ": " + row.statement);
+    result.verification = projectRequirements.map(row => row.acceptanceCriteria.join(" "));
+    result.gaps = agentPlan.gaps;
+    result.citations = agentPlan.citations;
+    result.issueBody = ["## User-visible outcome", result.goal, "## Changes", ...result.changes,
+      "## Acceptance criteria", ...result.verification, "## Milestones",
+      ...agentPlan.milestones.map(m => m.title + ": " + m.keys.join(", ")), "## Gaps", ...result.gaps].join("\n\n");
+  }
   return { selected, result };
 }
 
@@ -53,10 +67,10 @@ function responseFor(input) {
     const match = text.match(/<<<DATA\n([\s\S]+)\nDATA>>>/);
     assert.ok(match, "brief receives saved evidence");
     const data = JSON.parse(match[1]);
-    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(packages[0].title));
+    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(projectRequirements[0].title));
     assert.ok(source, "organization report must already contain the Keystone completion");
     return { selected: "personal-brief", result: {
-      opening: { text: "Planning recorded this completed issue yesterday: " + packages[0].title + ".", evidence: [source.ref] },
+      opening: { text: "Planning recorded this completed issue yesterday: " + projectRequirements[0].title + ".", evidence: [source.ref] },
       highlights: [], attention: [], unsupported: ["Deployment and device verification were not observed."],
     } };
   }

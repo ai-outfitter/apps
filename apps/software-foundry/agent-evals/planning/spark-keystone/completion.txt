@@ -1,0 +1,95 @@
+<goal>Enable installing Forgejo and Grafana from the Keystone iOS and macOS apps, with standard Grafana dashboards provisioned, by extending the shared Charts service catalog, the native install flow, the cluster configuration, and the OS flake service selections.</goal>
+
+<requirements>
+  <requirement>
+    <key>REQ-1</key>
+    <title>Service catalog defines Forgejo and Grafana charts</title>
+    <statement>The shared Charts module's service catalog must describe Forgejo and Grafana charts, including the metadata needed by the native apps to render an install preview and perform an install action.</statement>
+    <acceptanceCriteria>
+      <c>Service catalog entries exist for Forgejo and Grafana with chart name, version and install parameters.</c>
+      <c>Each entry carries the fields the dashboard manifests need (UID, title, panel list, datasource placeholders) so previews render without real credentials.</c>
+      <c>Preview of a Forgejo or Grafana install never mutates saved state; install persists only a valid manifest and returns a local error on invalid input or storage failure.</c>
+      <c>Unit tests cover preview immutability, valid install persistence and invalid-manifest error paths for both services.</c>
+    </acceptanceCriteria>
+    <dependsOn></dependsOn>
+    <target repository="box/charts" />
+  </requirement>
+  <requirement>
+    <key>REQ-2</key>
+    <title>Native install flow for Forgejo and Grafana on iOS and macOS</title>
+    <statement>The iOS and macOS shells must expose the same install flow for Forgejo and Grafana: browse the catalog, preview, confirm, and install, persisting results to the local catalog keyed by UID.</statement>
+    <acceptanceCriteria>
+      <c>Both iOS and macOS present a confirmation screen after dashboard preview for Forgejo and Grafana installs.</c>
+      <c>Installed Forgejo and Grafana dashboards persist to the local catalog keyed by UID and are retrievable after relaunch.</c>
+      <c>Install failures surface a local, user-visible error on both platforms without crashing.</c>
+      <c>UI tests on both platforms verify the preview → confirm → install path for each service.</c>
+    </acceptanceCriteria>
+    <dependsOn>REQ-1</dependsOn>
+    <target repository="box/native-apple" />
+  </requirement>
+  <requirement>
+    <key>REQ-3</key>
+    <title>Cluster configuration reconciles healthy Forgejo and Grafana workloads</title>
+    <statement>The cluster configuration must pin chart versions and reconcile desired state so that Forgejo and Grafana run healthily with durable volumes, routing and provisioned standard dashboards.</statement>
+    <acceptanceCriteria>
+      <c>ks-config pins explicit versions for the Forgejo and Grafana charts and the OS flake.</c>
+      <c>Reconciliation yields healthy Forgejo and Grafana workloads with durable volumes and working routing.</c>
+      <c>Standard Grafana dashboards are provisioned and visible in the deployed Grafana instance.</c>
+      <c>A reversible upgrade is demonstrated on a disposable cluster.</c>
+    </acceptanceCriteria>
+    <dependsOn>REQ-1</dependsOn>
+    <target repository="box/ks-config" />
+  </requirement>
+  <requirement>
+    <key>REQ-4</key>
+    <title>OS flake exposes versioned Forgejo and Grafana service selections</title>
+    <statement>The default OS flake template must expose versioned service selections for Forgejo and Grafana while keeping existing hosts unchanged until explicitly enabled.</statement>
+    <acceptanceCriteria>
+      <c>Flake exposes versioned Forgejo and Grafana service options.</c>
+      <c>Existing hosts evaluate unchanged when the new services are not enabled.</c>
+      <c>Flake evaluates cleanly for both a fresh target and an upgrade path with the services enabled.</c>
+    </acceptanceCriteria>
+    <dependsOn></dependsOn>
+    <target repository="box/os" />
+  </requirement>
+</requirements>
+
+<milestones>
+  <milestone>
+    <title>Foundations: catalog and flake service selections</title>
+    <keys>
+      <key>REQ-1</key>
+      <key>REQ-4</key>
+    </keys>
+  </milestone>
+  <milestone>
+    <title>Native install flow on iOS and macOS</title>
+    <keys>
+      <key>REQ-2</key>
+    </keys>
+  </milestone>
+  <milestone>
+    <title>Cluster rollout and dashboard provisioning</title>
+    <keys>
+      <key>REQ-3</key>
+    </keys>
+  </milestone>
+</milestones>
+
+<citations>
+  <citation>box/charts:README.md</citation>
+  <citation>box/native-apple:README.md</citation>
+  <citation>box/ks-config:README.md</citation>
+  <citation>box/os:README.md</citation>
+  <citation>box/native-apple:.forgejo/ISSUE_TEMPLATE/feature.md</citation>
+</citations>
+
+<gaps>
+  <gap>No concrete chart definitions, versions or manifests exist in box/charts — only a README describing the fixture; actual Forgejo/Grafana chart metadata must be authored.</gap>
+  <gap>No Grafana dashboard definitions or provisioning manifests are present anywhere; "standard Grafana dashboards" is undefined and needs an explicit list/source.</gap>
+  <gap>box/ks-config contains no pinned versions or reconciliation manifests; the current pinned chart and flake versions are unknown.</gap>
+  <gap>box/os contains no flake template; the existing service-selection interface and host list are unknown, so backward-compatibility criteria cannot be verified against real code.</gap>
+  <gap>No API or contract is defined between the native apps and the cluster for triggering installs (the fixture states the apps have no connection to real Grafana servers), so the end-to-end install path from device to cluster is unspecified.</gap>
+  <gap>No credentials, secrets management or routing/ingress configuration exists in any repository; how the apps authenticate to Forgejo/Grafana after install is undefined.</gap>
+  <gap>Issue templates exist only in box/native-apple; the other repositories lack contribution/verification templates for tracking this feature.</gap>
+</gaps>

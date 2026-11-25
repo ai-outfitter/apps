@@ -10,6 +10,9 @@ app_dir=$(CDPATH= cd -- "$planning_dir/../.." && pwd)
 image=$1
 out=$2
 mkdir -- "$out"
+if [ -n "${KEYSTONE_AGENT_PLAN:-}" ]; then
+  cp "$KEYSTONE_AGENT_PLAN" "$out/agent-plan.json"
+fi
 out=$(CDPATH= cd -- "$out" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
