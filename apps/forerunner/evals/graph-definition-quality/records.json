@@ -1,0 +1,7 @@
+[
+  { "id": "g-280", "kind": "person", "name": "Mika D. Vale", "aliases": ["Mika Vale"], "email": "mika@vale-lab.example" },
+  { "id": "g-101", "kind": "person", "name": "Mika L. Vale", "aliases": ["Mika Vale"], "email": "mika@vale.example" },
+  { "id": "g-537", "kind": "organization", "name": "Tideglass Collective Research", "aliases": ["Tideglass Collective LLC"], "registration": "TC-891", "domain": "research.tideglass-labs.example" },
+  { "id": "g-227", "kind": "organization", "name": "Tideglass Collective", "aliases": ["Tideglass Collective LLC"], "registration": "TC-801", "domain": "tideglass.example" },
+  { "id": "g-380", "kind": "organization", "name": "Tideglass Foundry", "aliases": ["Tideglass Foundry Limited"], "registration": "TF-712", "domain": "foundry.tideglass.example" }
+]

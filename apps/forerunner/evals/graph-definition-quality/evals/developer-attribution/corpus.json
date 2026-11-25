@@ -1,0 +1,9 @@
+{
+  "evidence": {
+    "E1": "Tideglass Desk account notification at 09:14, addressed to Mika Vale <mika@vale.example>. Event type: SESSION_AUTHENTICATED. Device: macOS Safari. Status: successful.",
+    "E2": "Tideglass Desk service terms, desk.tideglass.example/terms, section 1. This service is operated by Tideglass Collective LLC, registration TC-801.",
+    "E3": "Tideglass Dispatch issue 37. To Mika Vale <mika@vale.example>. Masthead: Published by Tideglass Collective LLC (TC-801), https://tideglass.example.",
+    "E4": "From Updates <mail@tideglass.example>. To Mika Vale <mika@vale.example>. Subject: Your Tideglass Desk workspace is ready. Body: Start organizing this week's tasks in Desk. Footer: Distributed through Cirrus Mail. © Tideglass Collective LLC.",
+    "E5": "Software publisher registry, signed record D-671. Product: Tideglass Desk. Developer: Tideglass Foundry Limited. Developer registration: TF-712. Published by the National Software Registry."
+  }
+}

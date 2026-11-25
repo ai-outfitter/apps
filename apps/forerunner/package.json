@@ -12,7 +12,7 @@
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
-    "test:unit": "node --import tsx --test tests/*.unit.test.ts",
+    "test:unit": "node --import tsx --test tests/*.unit.test.ts && node --test evals/graph-definition-quality/fixture.test.mjs",
     "pretest:integration": "node --import tsx scripts/prepare-tests.ts",
     "test:integration": "node --import tsx --test tests/*.integration.test.ts",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
@@ -40,6 +40,7 @@
   "devDependencies": {
     "@ai-outfitter/app-build": "*",
     "@ai-outfitter/app-test": "*",
+    "@ai-outfitter/box": "*",
     "@ai-outfitter/workflow-core": "*",
     "@ai-sdk/openai": "^4.0.81",
     "@astrojs/check": "^0.9.10",
