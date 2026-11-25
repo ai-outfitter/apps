@@ -664,6 +664,8 @@ for (const draft of [false, true]) {
       ...(draft ? { issueBody: "## Goal\n\nMissing validation." } : { inferenceErrors: [inferenceTimeout()] }),
     });
     const replay = planWorkInput.parse({ ...input, createIssue: draft });
+    const moved = { ...context, origin: "https://renamed-foundry.example:8443" };
+    const delegated = { ...moved, originActor: { ...context.originActor, id: "other" } };
     await assert.rejects(() => planWork(context, replay), (error: Response) => error.status === 503);
     const failed = await findPlan(context, replay);
     const run = runs.get(failed.run.id)!;
@@ -676,15 +678,30 @@ for (const draft of [false, true]) {
       // Rejected drafts from before actor digests can be repaired by the
       // original member acting directly.
       sqlite.prepare("UPDATE foundry_plans SET actorDigest = NULL WHERE runId = ?").run(failed.run.id);
-      await assert.rejects(() => planWork({ ...context, originActor: { ...context.originActor, id: "other" } }, replay),
+      await assert.rejects(() => planWork(delegated, replay),
         (error: Response) => error.status === 403);
     }
 
-    const divergent = { ...saved, value: { ...(saved.value as object), message: "Different receipt" } };
-    run.outputs[outputSlot] = divergent;
-    assert.equal((await planWork(context, replay)).run.id, failed.run.id);
-    assert.equal(run.run.status, "running");
-    assert.equal(run.outputs[outputSlot], divergent);
+    const value = saved.value as Awaited<ReturnType<typeof planWork>>;
+    const mismatches = [
+      { ...value, message: "Different receipt" },
+      { ...value, run: { ...value.run, id: crypto.randomUUID() } },
+      { ...value, run: { ...value.run, url: value.run.url.replace("/workflows?", "/wrong?") } },
+      { ...value, run: { ...value.run, url: value.run.url.replace("/workflows?", "/other/../workflows?") } },
+      { ...value, run: { ...value.run, url: ` ${value.run.url}` } },
+      { ...value, run: { ...value.run, url: value.run.url.replace(failed.run.id, crypto.randomUUID()) } },
+      ...(draft ? [
+        { ...value, artifacts: [{ ...value.artifacts[0], sha256: "0".repeat(64) }] },
+        { ...value, artifacts: [{ ...value.artifacts[0], url: value.artifacts[0].url.replace(replay.requestId, crypto.randomUUID()) }] },
+      ] : [{ ...value, failureCode: "invalid_output" }]),
+    ];
+    for (const mismatch of mismatches) {
+      const divergent = { ...saved, value: mismatch };
+      run.outputs[outputSlot] = divergent;
+      assert.equal((await planWork(moved, replay)).run.id, failed.run.id);
+      assert.equal(run.run.status, "running");
+      assert.equal(run.outputs[outputSlot], divergent);
+    }
     run.outputs[outputSlot] = { ...saved, complete: false };
     assert.equal((await planWork(context, replay)).run.id, failed.run.id);
     run.outputs[outputSlot] = saved;
@@ -697,18 +714,43 @@ for (const draft of [false, true]) {
     // Preserve the immutable value even if a host JSON round trip changes key order.
     const reordered = { ...saved, value: Object.fromEntries(Object.entries(saved.value as object).reverse()) };
     run.outputs[outputSlot] = reordered;
-    const repaired = await planWork(context, replay);
+    const repaired = await planWork(moved, replay);
     assert.equal(run.run.status, "complete");
     assert.equal(run.outputs[outputSlot], reordered);
     const originalCollections = calls.filter(call => call.op === "workflow.collect" && call.input.runId === failed.run.id);
     assert.equal(originalCollections.length, 2);
     assert.deepEqual(Object.keys(originalCollections[1].input.value), Object.keys(reordered.value));
+    assert.deepEqual(originalCollections[1].input.value, reordered.value);
+    assert.equal(new URL(originalCollections[1].input.value.run.url).origin, context.origin);
     assert.equal(repaired.status, draft ? "failed" : "artifacts_only");
     assert.equal(repaired.run.id === failed.run.id, draft);
-    assert.deepEqual(await planWork(context, replay), repaired);
+    assert.deepEqual(await planWork(draft ? delegated : moved, replay), repaired);
     assert.equal(calls.filter(call => call.op === "workflow.collect" && call.input.runId === failed.run.id).length, 2);
     assert.equal(calls.filter(call => call.op === "inference.generate").length, draft ? 1 : 2);
     assert.ok(calls.every(call => call.input.operation !== "issues.create"));
-    if (draft) assert.equal(await readPlanArtifact(context, replay), artifact);
+    if (draft) {
+      assert.equal(await readPlanArtifact(moved, replay), artifact);
+      assert.equal(repaired.artifacts[0].sha256, failed.artifacts[0].sha256);
+      assert.equal(new URL(repaired.artifacts[0].url).origin, moved.origin);
+    }
   });
 }
+
+test("an exact already-terminal typed failure can recover on a new same-installation origin", async t => {
+  const { context, input, calls, runs } = fixture(t, { inferenceErrors: [inferenceTimeout()] });
+  const replay = planWorkInput.parse({ ...input, createIssue: false });
+  const original = await planWork(context, replay);
+  const run = runs.get(original.run.id)!;
+  const saved = run.outputs[outputSlot];
+  assert.equal(original.failureCode, "timeout");
+  assert.equal(run.run.status, "complete");
+
+  const moved = { ...context, origin: "https://renamed-foundry.example:8443" };
+  const recovered = await planWork(moved, replay);
+  assert.equal(recovered.status, "artifacts_only");
+  assert.notEqual(recovered.run.id, original.run.id);
+  assert.equal(recovered.failedAttempts[0].failureCode, "timeout");
+  assert.equal(run.outputs[outputSlot], saved);
+  assert.equal(calls.filter(call => call.op === "workflow.collect" && call.input.runId === original.run.id).length, 1);
+  assert.ok(calls.every(call => call.input.operation !== "issues.create"));
+});

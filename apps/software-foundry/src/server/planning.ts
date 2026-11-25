@@ -222,15 +222,44 @@ async function readMatchingWorkflow(context: IntakeContext, host: ReturnType<Int
       .every(([slot, value]) => JSON.stringify(run.inputs[slot]) === JSON.stringify(value))) return run;
 }
 
-function exactCompletedReceipt(run: PlanningRun, expected: CollectionValue) {
-  const slot = run.outputs[outputSlot];
-  return Object.keys(run.outputs).length === 1 && slot?.complete
-    && canonicalActionValue(slot.value) === canonicalActionValue(expected);
+const canonicalReceiptPath = z.string().transform((value, ctx) => {
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (!url || !/^https?:$/.test(url.protocol) || url.href !== value || url.username || url.password) {
+    ctx.addIssue({ code: "custom", message: "Expected a canonical receipt URL" });
+    return z.NEVER;
+  }
+  return url.href.slice(url.origin.length);
+});
+
+const receiptLinks = z.object({
+  run: z.object({ url: canonicalReceiptPath }),
+  artifacts: z.array(z.object({ url: canonicalReceiptPath })),
+});
+
+function canonicalReceiptValue(value: CollectionValue) {
+  const links = receiptLinks.safeParse(value);
+  if (!links.success) return;
+  // Replace only the link strings in a comparison copy. Keep every other
+  // field from the original receipt, including identity and artifact digests.
+  const receipt = value as typeof links.data;
+  return canonicalActionValue({
+    ...receipt,
+    run: { ...receipt.run, url: links.data.run.url },
+    artifacts: receipt.artifacts.map((artifact, index) => ({ ...artifact, url: links.data.artifacts[index].url })),
+  });
 }
 
-async function repairFailedCollection(host: ReturnType<IntakeContext["host"]>, run: PlanningRun, expected: CollectionValue) {
+function exactCompletedReceipt(run: PlanningRun, expected: CollectionValue) {
+  const slot = run.outputs[outputSlot];
+  if (Object.keys(run.outputs).length !== 1 || !slot?.complete) return false;
+  const stored = canonicalReceiptValue(slot.value);
+  return stored !== undefined && stored === canonicalReceiptValue(expected);
+}
+
+async function repairFailedCollection(context: IntakeContext, row: PlanningRow, host: ReturnType<IntakeContext["host"]>, run: PlanningRun, expected: CollectionValue) {
   if (run.run.status !== "running") return false;
   if (Object.keys(run.outputs).length && !exactCompletedReceipt(run, expected)) return false;
+  requireOriginalActor(context, row);
   // A split write can leave the completed slot immutable while status is
   // still running. Replay the stored value verbatim in that case.
   const value = run.outputs[outputSlot]?.value ?? expected;
@@ -253,14 +282,13 @@ const failedReceipt = z.strictObject({
 async function priorFailure(context: IntakeContext, host: ReturnType<IntakeContext["host"]>, row: PlanningRow, createIssue: boolean) {
   if (row.artifact !== null || row.issue !== null || row.failureCode === "transport"
     || row.message !== (row.failureCode ? failureMessages[row.failureCode] : prepublicationFailure)) return;
-  requireOriginalActor(context, row);
   let previous = await readMatchingWorkflow(context, host, row, createIssue);
   if (!previous) return;
 
   const expected = row.failureCode ? await workflowReceipt(context, row) : null;
   if (previous.run.status === "running") {
     // Only a typed terminal failure can repair interrupted collection.
-    if (!expected || !(await repairFailedCollection(host, previous, expected))) return;
+    if (!expected || !(await repairFailedCollection(context, row, host, previous, expected))) return;
     previous = await readMatchingWorkflow(context, host, row, createIssue);
     if (previous?.run.status !== "complete") return;
   }
@@ -479,9 +507,9 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
   // Replay may repair collection only and returns before recovery.
   if (row.state === "failed" && row.message === rejectedIssueDraft && row.artifact !== null
     && row.issue === null && row.failureCode === null && input.createIssue) {
-    requireOriginalActor(context, row);
     const run = await readMatchingWorkflow(context, host, row, input.createIssue);
-    if (run?.run.status === "running") await repairFailedCollection(host, run, await workflowReceipt(context, row));
+    if (run?.run.status === "running")
+      await repairFailedCollection(context, row, host, run, await workflowReceipt(context, row));
     return receipt(context, row);
   }
 
@@ -494,6 +522,7 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
   // an elapsed deadline alone cannot prove the provider call has stopped.
   if (failure || row.state === "claiming") {
     const evidence = initialEvidence ?? await collectEvidence(host, repositories);
+    if (failure) requireOriginalActor(context, row);
     const claimed = await update(context, row, failure ? {
       runId: crypto.randomUUID(), actorDigest, failedAttempts: [...row.failedAttempts, failure],
       state: "planning", failureCode: null, message: null,
