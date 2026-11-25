@@ -17,9 +17,10 @@ const warning = (code: string, message: string, interfaceId?: string): Warning =
 const refusal = (message: string, status = 400) => new Response(message, { status });
 const missing = warning("evidence_missing", "No owned-part reference photos or interface dimensions have been recorded.");
 type Owner = Required<CotsEvidenceRef> & { name: string; number: string; partRevision: string };
-type Photo = CotsEvidence["photos"][number] & { downloadPath: string; bytes: number };
+type Attachment = { projectId: string; itemId: string; revision: number; fileName: string; observation: string; itemNumber: string; itemName: string };
+type Photo = CotsEvidence["photos"][number] & { downloadPath: string; bytes: number; attachments: Attachment[] };
 type Row = {
-  itemId: string; name: string; number: string; owner?: Owner;
+  itemId: string; name: string; number: string; owner?: Owner; supplierSource?: string;
   photos: Photo[]; interfaces: CotsEvidence["interfaces"]; warnings: Warning[];
 };
 export type CotsEvidenceResult = { projectId: string; revision: number; items: Row[] };
@@ -49,13 +50,19 @@ async function canonicalPart(load: Loader, ref: CotsEvidenceRef) {
 }
 
 async function referencePhoto(c: WorkshopContext, load: Loader, owner: Owner, photo: CotsEvidence["photos"][number]) {
-  const historical = await part(load, { ...owner, revision: photo.attachmentRevision });
-  const file = locatedFile(historical.item, owner.projectId, photo);
-  if (!file) throw refusal("Photo is not attached to the purchased part at the stated revision", 404);
-  const head = await c.storage().head({ space: "builds", key: owner.projectId + "/assembly/" + filePath(file) });
+  const origin = photo.attachmentOwner ?? owner;
+  const historical = await load({ projectId: origin.projectId, revision: photo.attachmentRevision });
+  const item = historical.assembly.items.find(item => item.id === origin.itemId);
+  const file = locatedFile(item, origin.projectId, photo);
+  if (!item || !file) throw refusal("Photo is not attached at the stated owner and revision", 404);
+  const head = await c.storage().head({ space: "builds", key: origin.projectId + "/assembly/" + filePath(file) });
   if (head?.sha256 !== file.sha256 || head.size !== file.bytes || head.contentType !== fileType(file.fileName))
     throw refusal("Reference photo bytes no longer match their receipt", 409);
-  return { ...photo, bytes: file.bytes, downloadPath: fileBase(file) + filePath(file) };
+  return {
+    ...photo, bytes: file.bytes, downloadPath: fileBase(file) + filePath(file),
+    attachments: [{ projectId: origin.projectId, itemId: origin.itemId, revision: photo.attachmentRevision, fileName: file.fileName,
+      observation: photo.observation, itemNumber: item.number, itemName: item.name }],
+  } satisfies Photo;
 }
 
 function interfaceWarnings(evidence: CotsEvidence) {
@@ -76,6 +83,18 @@ export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof
   const { load } = await assemblySnapshot(c.db());
   const root = await load(selection);
   const expanded = await resolveAssembly(root, load, selection, true);
+  const discovered = new Map<string, CotsEvidence["photos"]>();
+  for (const item of expanded.assembly.items) {
+    const origin = expanded.itemOrigins![item.id];
+    for (const file of item.files ?? []) {
+      if (file.projectId !== origin.projectId || !isReferenceImage(file.fileName)) continue;
+      const entries = discovered.get(file.sha256) ?? [];
+      entries.push({ fileName: file.fileName, sha256: file.sha256, attachmentRevision: origin.revision,
+        attachmentOwner: { projectId: origin.projectId, itemId: origin.itemId },
+        observation: "Same photo bytes verified on this assembly item revision." });
+      discovered.set(file.sha256, entries);
+    }
+  }
   const cache = new Map<string, Promise<Pick<Row, "photos" | "interfaces" | "warnings">>>();
   function hydrate(item: Item, owner: Owner) {
     const key = JSON.stringify([owner.projectId, owner.itemId, owner.revision]);
@@ -86,16 +105,29 @@ export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof
           fileName: file.fileName, sha256: file.sha256, attachmentRevision: owner.revision,
           observation: "Reference photo verified on this purchased-part revision.",
         }]));
-      const evidence = item.cotsEvidence ?? { photos: [...legacyPhotos.values()], interfaces: [] };
+      const evidence: CotsEvidence = item.cotsEvidence ?? { photos: [...legacyPhotos.values()], interfaces: [] };
       if (!evidence.photos.length && !evidence.interfaces.length)
         return { photos: [], interfaces: [], warnings: [missing] };
       const warnings = interfaceWarnings(evidence);
-      const photos = [];
-      for (const photo of evidence.photos) {
-        try { photos.push(await referencePhoto(c, load, owner, photo)); }
-        catch { warnings.push(warning("photo_unavailable", "Reference photo unavailable: " + photo.fileName)); }
+      const photos = new Map<string, Photo>();
+      const seen = new Set<string>();
+      for (const record of evidence.photos) {
+        for (const photo of [record, ...(discovered.get(record.sha256) ?? [])]) {
+          const origin = photo.attachmentOwner ?? owner;
+          const key = JSON.stringify([origin.projectId, origin.itemId, photo.attachmentRevision, photo.fileName, photo.sha256]);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          try {
+            const verified = await referencePhoto(c, load, owner, photo);
+            const existing = photos.get(photo.sha256);
+            if (existing) existing.attachments.push(...verified.attachments);
+            else photos.set(photo.sha256, verified);
+          } catch {
+            warnings.push(warning("photo_unavailable", "Reference photo unavailable: " + photo.fileName));
+          }
+        }
       }
-      return { photos, interfaces: evidence.interfaces, warnings };
+      return { photos: [...photos.values()], interfaces: evidence.interfaces, warnings };
     })());
     return cache.get(key)!;
   }
@@ -123,7 +155,7 @@ export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof
         if (fit.status === "untested" || (fit.testedProjectId === root.id && fit.testedRevision === root.revision)) return [];
         return [warning("fit_tested_elsewhere", "Fit observation applies to the recorded project revision.", entry.id)];
       });
-      items.push({ ...row, owner: source.owner, ...evidence, warnings: [...evidence.warnings, ...previousTests] });
+      items.push({ ...row, owner: source.owner, supplierSource: source.item.source || undefined, ...evidence, warnings: [...evidence.warnings, ...previousTests] });
     } catch {
       items.push({ ...row, photos: [], interfaces: [], warnings: [warning("owner_unavailable", "COTS evidence owner could not be resolved.")] });
     }
@@ -143,9 +175,13 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
   const unchanged = JSON.stringify(item.cotsEvidence) === JSON.stringify(evidence);
   if (!unchanged && current.revision !== expectedRevision) throw refusal("Project changed; reread WorkshopAssembly", 409);
   for (const photo of evidence.photos) {
-    if (photo.attachmentRevision > current.revision) throw refusal("Photo revision is newer than the owner");
-    const pinned = await part(load, { ...owner, revision: photo.attachmentRevision });
-    if (pinned.item.revision !== item.revision || pinned.item.mpn !== item.mpn || pinned.item.manufacturer !== item.manufacturer) throw refusal("Photo belongs to a different purchased-part revision");
+    const origin = photo.attachmentOwner ?? owner;
+    if (origin.projectId === projectId && origin.itemId === itemId) {
+      if (photo.attachmentRevision > current.revision) throw refusal("Photo revision is newer than the owner");
+      const pinned = await part(load, { ...owner, revision: photo.attachmentRevision });
+      if (pinned.item.revision !== item.revision || pinned.item.mpn !== item.mpn || pinned.item.manufacturer !== item.manufacturer)
+        throw refusal("Photo belongs to a different purchased-part revision");
+    }
     await referencePhoto(c, load, owner, photo);
   }
   const testedParts = new Map<string, boolean>();

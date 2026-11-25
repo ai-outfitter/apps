@@ -41,13 +41,13 @@ function scopedId(scope: string, id: string) {
 
 /** Expand references for display only. Local item IDs stay usable as deep links.
  * Instances retain usage quantities. Each configured source definition is emitted once. */
-export async function resolveAssembly(root: AssemblySource, load: (ref: AssemblyReference)=>Promise<AssemblySource>, selection?: AssemblyReference, trackCotsOrigins = false): Promise<ResolvedAssembly> {
+export async function resolveAssembly(root: AssemblySource, load: (ref: AssemblyReference)=>Promise<AssemblySource>, selection?: AssemblyReference, trackItemOrigins = false): Promise<ResolvedAssembly> {
   const base = configuredAssembly(root.assembly, selection);
   const items = new Map<string,Item>();
   // Legacy drives scope some usage IDs. Resolve authored paths one installation at a time.
   const usageAliases = new Map<string, (id:string)=>string>();
   const result: Omit<ResolvedAssembly,"buildPrice"> = {projectId:root.id,revision:root.revision,
-    assembly:{...(base.rootId && {rootId:base.rootId}),items:[],...(base.power && {power:base.power})},sources:[],meshes:{}, ...(trackCotsOrigins && {itemOrigins:{}})};
+    assembly:{...(base.rootId && {rootId:base.rootId}),items:[],...(base.power && {power:base.power})},sources:[],meshes:{}, ...(trackItemOrigins && {itemOrigins:{}})};
   function mergePower(power: Assembly["power"]) {
     if (!power) return;
     const current = result.assembly.power;
@@ -101,7 +101,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         }
         usageAliases.set(viewId,usageIdFor);
         items.set(viewId,view);
-        if (result.itemOrigins && item.kind === "cots") result.itemOrigins[viewId] = {projectId:source.id,itemId:id,revision:source.revision};
+        if (result.itemOrigins) result.itemOrigins[viewId] = {projectId:source.id,itemId:id,revision:source.revision};
         if (scope && item.power?.loads.length) mergePower(assembly.power);
         const uploaded = attachedMesh(item);
         if (uploaded) result.meshes[viewId]=uploaded;

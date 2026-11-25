@@ -555,6 +555,26 @@
                                                 "type": "string",
                                                 "minLength": 1,
                                                 "maxLength": 500
+                                              },
+                                              "attachmentOwner": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "projectId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  },
+                                                  "itemId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "projectId",
+                                                  "itemId"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             },
                                             "required": [
@@ -2388,7 +2408,7 @@
       ]
     },
     "mcp": {
-      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the exact tested project revision. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
+      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the exact tested project revision. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
     },
     "outputSchema": {
       "type": "object",

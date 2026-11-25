@@ -28,11 +28,15 @@ const dimension = z.strictObject({
 export const cotsEvidence = z.strictObject({
   photos: z.array(z.strictObject({
     fileName: assemblyFile.shape.fileName, sha256: digest, attachmentRevision: revision, observation: text,
+    attachmentOwner: z.strictObject({ projectId: z.uuid(), itemId: z.uuid() }).optional(),
   })).max(24),
   interfaces: z.array(dimension).max(40),
 }).superRefine(({ photos, interfaces }, ctx) => {
   const known = new Set(photos.map(photo => photo.sha256));
-  if (known.size !== photos.length) ctx.addIssue({ code: "custom", path: ["photos"], message: "Each photo digest appears once" });
+  const attachments = new Set(photos.map(photo => JSON.stringify([
+    photo.sha256, photo.attachmentOwner?.projectId, photo.attachmentOwner?.itemId, photo.attachmentRevision, photo.fileName,
+  ])));
+  if (attachments.size !== photos.length) ctx.addIssue({ code: "custom", path: ["photos"], message: "Each photo attachment appears once" });
   const ids = new Set<string>();
   for (const [index, item] of interfaces.entries()) {
     const fail = (field: string, message: string) => ctx.addIssue({ code: "custom", path: ["interfaces", index, field], message });

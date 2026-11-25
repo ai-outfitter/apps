@@ -325,6 +325,12 @@ input RecordWorkshopCotsEvidenceInputEvidencePhotosItem {
   sha256: String!
   attachmentRevision: Float!
   observation: String!
+  attachmentOwner: RecordWorkshopCotsEvidenceInputEvidencePhotosItemAttachmentOwner
+}
+
+input RecordWorkshopCotsEvidenceInputEvidencePhotosItemAttachmentOwner {
+  projectId: ID!
+  itemId: ID!
 }
 
 input RecordWorkshopCotsEvidenceInputEvidenceInterfacesItem {
@@ -555,6 +561,12 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidencePhotosItem {
   sha256: String!
   attachmentRevision: Float!
   observation: String!
+  attachmentOwner: FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidencePhotosItemAttachmentOwner
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidencePhotosItemAttachmentOwner {
+  projectId: ID!
+  itemId: ID!
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemCotsEvidenceInterfacesItem {
@@ -957,6 +969,12 @@ input WorkshopAssemblyInputItemsItemCotsEvidencePhotosItem {
   sha256: String!
   attachmentRevision: Float!
   observation: String!
+  attachmentOwner: WorkshopAssemblyInputItemsItemCotsEvidencePhotosItemAttachmentOwner
+}
+
+input WorkshopAssemblyInputItemsItemCotsEvidencePhotosItemAttachmentOwner {
+  projectId: ID!
+  itemId: ID!
 }
 
 input WorkshopAssemblyInputItemsItemCotsEvidenceInterfacesItem {
@@ -1261,6 +1279,12 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidencePhotosItem {
   sha256: String!
   attachmentRevision: Float!
   observation: String!
+  attachmentOwner: SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidencePhotosItemAttachmentOwner
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidencePhotosItemAttachmentOwner {
+  projectId: ID!
+  itemId: ID!
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemCotsEvidenceInterfacesItem {
