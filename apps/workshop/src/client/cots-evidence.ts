@@ -13,17 +13,22 @@ function link(label: string, href: string) {
   return anchor;
 }
 
-function revisionUrl(projectId: string, revision: number, itemId?: string, inspection = false) {
+function revisionUrl(
+  projectId: string, revision: number,
+  options: { itemId?: string; inspection?: boolean; configuration?: string; parameters?: Record<string, number> } = {},
+) {
   const query = new URLSearchParams({ revision: String(revision) });
-  if (itemId) query.set("item", itemId);
-  if (inspection) query.set("inspection", "cots");
+  if (options.itemId) query.set("item", options.itemId);
+  if (options.inspection) query.set("inspection", "cots");
+  if (options.configuration) query.set("configuration", options.configuration);
+  if (options.parameters) query.set("parameters", JSON.stringify(options.parameters));
   return appBase(location.pathname) + projectPath(projectId.slice(-12)) + "?" + query;
 }
 
 // These conditions already have a field or status in the interface card.
 const displayedConditions = new Set(["tolerance_unknown", "fit_untested", "fit_interference", "fit_tested_elsewhere"]);
 
-function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId: string) => string, context: CotsEvidenceResult, variant: boolean) {
+function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId: string) => string, context: CotsEvidenceResult) {
   const section = document.createElement("article");
   const heading = text("h4", "");
   heading.append(link(part.name, partUrl(part.itemId)));
@@ -33,7 +38,7 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
     const owner = text("p", "Evidence owner · ");
     owner.append(link(
       `${part.owner.name} · project save ${part.owner.revision}`,
-      revisionUrl(part.owner.projectId, part.owner.revision, part.owner.itemId, true),
+      revisionUrl(part.owner.projectId, part.owner.revision, { itemId: part.owner.itemId, inspection: true }),
     ));
     owner.append(` · ${part.owner.number} · Part rev ${part.owner.partRevision}`);
     section.append(owner);
@@ -70,7 +75,7 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
         const source = text("small", "Also attached to ");
         source.append(link(
           `${attachment.itemName} (${attachment.itemNumber}) · project save ${attachment.revision}`,
-          revisionUrl(attachment.projectId, attachment.revision, attachment.itemId),
+          revisionUrl(attachment.projectId, attachment.revision, { itemId: attachment.itemId }),
         ));
         caption.append(source);
       }
@@ -117,21 +122,27 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
     if (verification.status === "untested") {
       details.append(text("p", "Fit status · Untested"));
     } else {
-      const matches = !variant && context.projectId === verification.testedProjectId && context.revision === verification.testedRevision;
+      const testedElsewhere = part.warnings.some(({ code, interfaceId }) =>
+        code === "fit_tested_elsewhere" && interfaceId === measurement.id,
+      );
       details.append(text("p", `Fit status · ${verification.status === "fits" ? "Fits" : "Interferes"} in recorded trial`));
       const anchor = `fit-trial-${part.owner?.itemId ?? part.itemId}-${measurement.id}-${verification.trialId}`;
       if (part.owner?.projectId === context.projectId && part.owner.itemId === part.itemId) details.id = anchor;
       const tested = text("p", "");
       const label = `Trial ${verification.trialId}`;
       if (part.owner) {
-        tested.append(link(label, revisionUrl(part.owner.projectId, part.owner.revision, part.owner.itemId, true) + "#" + anchor));
+        tested.append(link(label, revisionUrl(part.owner.projectId, part.owner.revision, { itemId: part.owner.itemId, inspection: true }) + "#" + anchor));
       } else {
         tested.append(label);
       }
       tested.append(" · ");
-      tested.append(link(`Tested project save ${verification.testedRevision}`, revisionUrl(verification.testedProjectId, verification.testedRevision)));
+      const configuration = verification.testedConfiguration;
+      const testedLabel = `Tested project save ${verification.testedRevision}${configuration ? " · " + configuration : ""}`;
+      tested.append(link(testedLabel, revisionUrl(verification.testedProjectId, verification.testedRevision, {
+        configuration, parameters: verification.testedParameters,
+      })));
       details.append(tested, text("p", verification.observation));
-      if (!matches) details.append(text("p", "Fit in this assembly selection is unknown."));
+      if (testedElsewhere) details.append(text("p", "Fit in this assembly selection is unknown."));
       if (verification.photoSha256s.length) details.append(evidenceLinks(verification.photoSha256s));
     }
     for (const warning of part.warnings.filter(({ interfaceId, code }) => interfaceId === measurement.id && !displayedConditions.has(code)))
@@ -142,8 +153,8 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
   return section;
 }
 
-export function renderCotsEvidence(host: HTMLElement, result: CotsEvidenceResult, partUrl: (itemId: string) => string, variant: boolean) {
-  const nodes = result.items.map((part) => renderPart(part, partUrl, result, variant));
+export function renderCotsEvidence(host: HTMLElement, result: CotsEvidenceResult, partUrl: (itemId: string) => string) {
+  const nodes = result.items.map((part) => renderPart(part, partUrl, result));
   host.replaceChildren(...(nodes.length ? nodes : [text("p", "No purchased parts in this selection.")]));
   const anchor = document.getElementById(location.hash.slice(1));
   if (anchor && host.contains(anchor)) anchor.scrollIntoView({ block: "nearest" });

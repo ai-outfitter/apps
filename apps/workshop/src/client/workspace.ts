@@ -99,7 +99,7 @@ async function renderCotsTab() {
    host.textContent = "The assembly save changed. Reload to inspect its purchased parts.";
    return;
   }
-  renderCotsEvidence(host, result, item => urlFor("overview", item), selection.has("configuration") || selection.has("parameters"));
+  renderCotsEvidence(host, result, item => urlFor("overview", item));
  } catch {
   if (!signal.aborted && generation === cotsGeneration) host.textContent = "Could not load purchased part evidence. Reopen this tab to retry.";
  }
