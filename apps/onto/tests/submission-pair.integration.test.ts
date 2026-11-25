@@ -91,6 +91,11 @@ for (const mode of ["baseline", "candidate"]) {
       assert.deepEqual(submission.proposals.map((p: { ref: string }) => p.ref), version === 1 ? ["$kept", "$edit", "$drop"] : ["$kept", "$edit"]);
       assert.equal(submission.proposals.find((p: { ref: string }) => p.ref === "$edit").evidence[0].quote, title);
     }
+    if (mode === "candidate") {
+      step = "receiptGuards";
+      await assert.rejects(revise("correct", "Changed key input"), /requestKey/);
+      await assert.rejects(call("MutateBatchSubmission", { input: { requestKey: "terminal-ref", batchId, expectedVersion: 2, remove: ["$kept"] } }), /already decided/);
+    }
     step = "rereview";
     const review = { batchId, expectedVersion: 2, verdict: "approve", refs: ["$edit"] };
     await assert.rejects(grouped("stale-review", "review", { ...review, expectedVersion: 1 }, true), /version changed/);
@@ -102,12 +107,9 @@ for (const mode of ["baseline", "candidate"]) {
     assert.deepEqual(final.changeRequests, nodes[0].changeRequests);
     assert.equal(final.operations[1].record, "Person:corrected");
     assert.equal(final.operations[1].decision.submittedVersion, 2);
-    const journeyCalls = Object.values(counts).reduce((a, b) => a + b, 0);
+    const journeyCalls = Object.entries(counts).reduce((total, [step, count]) => step === "receiptGuards" ? total : total + count, 0);
     let deletedDraft;
     if (mode === "candidate") {
-      step = "receiptGuards";
-      await assert.rejects(revise("correct", "Changed key input"), /requestKey/);
-      await assert.rejects(call("MutateBatchSubmission", { input: { requestKey: "terminal-ref", batchId, expectedVersion: 2, remove: ["$kept"] } }), /already decided/);
       step = "deletion";
       const draft = await grouped("draft", "stage", { title: "Draft for deletion", proposals: [proposal("$draft", "Uncommitted")] });
       const input = { requestKey: "delete", batchId: draft.id, expectedVersion: 0, deleteBatch: true };
