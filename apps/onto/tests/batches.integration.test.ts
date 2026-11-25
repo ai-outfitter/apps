@@ -470,7 +470,7 @@ test("member amendments replace and add proposals without committing; invalid or
   const stale = await run(f, "ReviseBatch", { input: { ...amendment, expectedVersion: 1 } }, connection);
   assert.equal(stale.errors[0].extensions.status, 409);
   assert.equal((await f.review({batchId, expectedVersion: 1, verdict: "approve"})).status, 409);
-  const invalid = await run(f, "ReviseBatch", { input: { batchId, remove: ["$bea"] } }, connection);
+  const invalid = await run(f, "ReviseBatch", { input: { batchId, expectedVersion: 2, remove: ["$bea"] } }, connection);
   assert.equal(invalid.errors[0].extensions.status, 409);
   assert.equal((await json(await f.action("batch.get", { batchId }))).operations.length, 4);
   for (const identity of [{ ...connection, role: "member" }]) {

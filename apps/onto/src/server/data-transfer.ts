@@ -9,6 +9,38 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
     const found = plan.tables.find((t) => t.table === table);
     return found ? found.writes.map((row) => Object.fromEntries(found.columns.map((c, i) => [c, row[i]]))) : [];
   };
+  // A portable copy may carry pending drafts and proposals. Request-change holds
+  // are backed by local review history and cannot be established by an archive.
+  const proposals = plan.tables.find(table => table.table === "graph_batch_operations");
+  const decision = proposals?.columns.indexOf("decision") ?? -1;
+  const decidedBy = proposals?.columns.indexOf("decidedBy") ?? -1;
+  for (const row of proposals?.writes ?? []) {
+    const value = row[decision];
+    if (typeof value !== "string") continue;
+    let parsed: { verdict?: unknown } | null;
+    try { parsed = JSON.parse(value); }
+    catch { throw new Response("Invalid proposal decision in archive", { status: 400 }); }
+    if (parsed?.verdict === "request_changes") {
+      row[decision] = null;
+      if (decidedBy >= 0) row[decidedBy] = null;
+    }
+  }
+  // The archive cannot supply the immutable submission rows. Derive version
+  // pointers only from the destination's own submission history.
+  const batches = plan.tables.find(table => table.table === "graph_batches");
+  const version = batches?.columns.indexOf("submittedVersion") ?? -1;
+  if (batches && version >= 0) {
+    const id = batches.columns.indexOf("id");
+    for (let start = 0; start < batches.writes.length; start += 90) {
+      const rows = batches.writes.slice(start, start + 90);
+      const local = await db.query({
+        sql: `SELECT batchId, MAX(version) AS version FROM graph_batch_submissions WHERE batchId IN (${rows.map(() => "?").join(",")}) GROUP BY batchId`,
+        params: rows.map(row => row[id]),
+      });
+      const versions = new Map(local.map(row => [row.batchId, Number(row.version)]));
+      for (const row of rows) row[version] = versions.get(row[id]) ?? 0;
+    }
+  }
   // Destination rows whose `column` is one of `values`.
   const lookup = async (table: string, column: string, values: unknown[]) => {
     const wanted = [...new Set(values.map(String))];

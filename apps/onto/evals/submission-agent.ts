@@ -1,7 +1,7 @@
 // Run from apps/onto with node --import tsx evals/submission-agent.ts baseline|candidate.
 // The agent has only an HTTP catalog and public documents on a disposable worker.
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,20 +10,18 @@ import type { AddressInfo } from "node:net";
 import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import catalog from "../graph/documents.json";
+import baselineCatalog from "./fixtures/submission-baseline.json";
 import { appWorker } from "../tests/fixtures/initialized-worker";
 
 const mode = process.argv[2];
 assert.ok(mode === "baseline" || mode === "candidate");
 const docNames = ["ChangeBatchChanges", "ChangeBatches", "BatchSubmission", ...(mode === "candidate" ? ["MutateBatchSubmission"] : [])];
-const baselineCommit = "7155ea7521eec321120f10c20a1c0f5b9794e833";
-const armCatalog: typeof catalog = mode === "baseline"
-  ? JSON.parse(execFileSync("git", ["show", `${baselineCommit}:apps/onto/graph/documents.json`], { encoding: "utf8" }))
-  : catalog;
+const armCatalog = mode === "baseline" ? baselineCatalog : catalog;
 const docs = armCatalog.filter(doc => docNames.includes(doc.name));
 assert.equal(docs.length, docNames.length);
 const app = await appWorker("onto", appArtifact(new URL("..", import.meta.url), "operational"), "bounded-eval");
 const identity = { userId: "agent", role: "owner", organizationId: "eval", actor: { kind: "app" as const, id: "forerunner" } };
-async function execute(doc: typeof catalog[number], variables: object) {
+async function execute(doc: Pick<typeof catalog[number], "name" | "kind" | "query">, variables: object) {
   const response = await app.call("/api/internal/actions/v1/call", identity, {
     method: "POST", body: { action: doc.kind === "mutation" ? "graph.mutate" : "graph.graphql",
       input: { query: doc.query, operationName: doc.name, variables } },

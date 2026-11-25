@@ -7,6 +7,7 @@ import type { AppArchive } from "@ai-outfitter/app-sdk/data-transfer";
 const owner = { userId: "owner", organizationId: "org", role: "owner" };
 const digest = "a".repeat(64);
 const fixtures: Record<string, Record<string, string | number | null>> = {
+  graph_batch_change_requests: { id: "forged-request", batchId: "forged-batch", refs: '["$ada"]', decision: '{"verdict":"request_changes"}' },
   graph_batch_submissions: { batchId: "forged-batch", version: 1, at: 1, author: "fake", via: "member:fake", proposals: "[]" },
   onto_review_jobs: {
     id: "forged-review-job",
@@ -34,7 +35,7 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
   // authority must remain excluded even when its historical batch is portable.
   await source.database
     .prepare(
-      "INSERT INTO graph_batches(id,title,policy,state,openedBy,openedVia,createdAt,updatedAt,expiresAt,reviewJobId) VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO graph_batches(id,title,policy,state,openedBy,openedVia,createdAt,updatedAt,expiresAt,reviewJobId,submittedVersion) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(
       "forged-batch",
@@ -47,6 +48,7 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
       1,
       100,
       "forged-review-job",
+      1,
     )
     .run();
   for (const [table, row] of Object.entries(fixtures)) {
@@ -58,6 +60,9 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
       .bind(...Object.values(row))
       .run();
   }
+  await source.database.prepare(
+    "INSERT INTO graph_batch_operations(batchId,ref,position,operation,state,decidedBy,decision) VALUES(?,?,?,?,?,?,?)",
+  ).bind("forged-batch", "$ada", 0, "{}", "awaiting_review", "fake", '{"verdict":"request_changes"}').run();
   const seen = new Set<string>();
   let cursor: string | null = null;
   do {
@@ -94,6 +99,8 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
     Object.keys(fixtures).sort(),
     "owner backup must retain each authority table",
   );
+  assert.equal((await target.database.prepare("SELECT submittedVersion FROM graph_batches WHERE id=?").bind("forged-batch").first())?.submittedVersion, 0);
+  assert.deepEqual(await target.database.prepare("SELECT decision,decidedBy FROM graph_batch_operations WHERE ref=?").bind("$ada").first(), { decision: null, decidedBy: null });
   for (const table of Object.keys(fixtures))
     assert.equal(
       (

@@ -69,11 +69,32 @@ export const batchSubmitInput = z.strictObject({
   summary: z.string().max(2000).optional(),
 });
 export const batchReviewInput = z.strictObject({
-  expectedVersion: z.number().int().nonnegative().optional().describe("Pass the observed submittedVersion to check it before deciding. Omit to review the current submission."),
+  expectedVersion: z.number().int().nonnegative().optional().describe("Pass the observed submittedVersion to check it before deciding. Required for amended submissions; may be omitted on version zero or one."),
   batchId: z.uuid(),
   /** Omit refs to decide every operation still waiting. */
   refs: z.array(ref).min(1).max(batchOperationCap).optional(),
-  verdict: z.enum(["approve", "reject"]),
+  verdict: z.enum(["approve", "reject", "request_changes"]),
   comment: z.string().max(2000).optional(),
 });
 export const recordHistoryInput = z.strictObject({ id: z.uuid() });
+
+export const batchReviseInput = z.strictObject({
+  batchId: z.uuid(),
+  expectedVersion: z.number().int().nonnegative().optional(),
+  proposals: batchAddInput.shape.proposals.optional().default([]),
+  remove: batchRemoveInput.shape.refs.optional().default([]),
+}).refine(input => input.proposals.length + input.remove.length > 0, "Name proposals to change or refs to remove");
+
+export const mutateBatchSubmissionInput = z.strictObject({
+  requestKey: z.string().trim().min(1).max(128).describe("Stable idempotency key. Retry a lost response with identical inputs and the same key."),
+  batchId: z.uuid().optional().describe("Existing batch ID, or a caller-chosen UUID for a new batch. Omit to generate an ID."),
+  expectedVersion: z.number().int().nonnegative().optional().describe("Required for existing batches. Use 0 for an open draft or a legacy batch without a recorded submission."),
+  title: batchOpenInput.shape.title.optional(),
+  purpose: batchOpenInput.shape.purpose.unwrap().optional(),
+  source: batchOpenInput.shape.source,
+  anchors: batchOpenInput.shape.anchors,
+  summary: batchSubmitInput.shape.summary,
+  proposals: batchReviseInput.shape.proposals,
+  remove: batchReviseInput.shape.remove,
+  deleteBatch: z.boolean().optional().describe("Discard an open draft. Pass batchId, expectedVersion and requestKey only."),
+});

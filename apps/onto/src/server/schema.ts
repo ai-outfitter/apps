@@ -202,6 +202,13 @@ export const batchSubmissions = sqliteTable("graph_batch_submissions", {
   proposals: text({ mode: "json" }).$type<unknown[]>().notNull(),
 }, t => [primaryKey({ columns: [t.batchId, t.version] })]);
 
+export const batchChangeRequests = sqliteTable("graph_batch_change_requests", {
+  id: text().primaryKey(),
+  batchId: text().notNull().references(() => graphBatches.id),
+  refs: text({ mode: "json" }).$type<string[]>().notNull(),
+  decision: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+}, t => [index("graph_batch_change_requests_batch").on(t.batchId)]);
+
 export const ontoReviewJobs = sqliteTable("onto_review_jobs", {
   id: text().primaryKey(),
   batchId: text().notNull().references(() => graphBatches.id),

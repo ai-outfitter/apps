@@ -89,7 +89,7 @@
       ]
     },
     "mcp": {
-      "description": "When asked to submit proposals or amend an existing submission, use MutateBatchSubmission. The steward may approve clean proposals automatically under this installation’s settings. Use this operation to stage drafts, configure draft anchors, ask questions or review on a member’s authority. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
+      "description": "When asked to submit proposals or amend an existing submission, use MutateBatchSubmission. The steward may approve clean proposals automatically under this installation’s settings. Use this operation to stage drafts, configure draft anchors, ask questions or review on a member’s authority. To request changes, review with verdict request_changes, expectedVersion and a comment. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
     },
     "inputSchema": {
       "type": "object",
@@ -797,7 +797,7 @@
                         "type": "object",
                         "properties": {
                           "expectedVersion": {
-                            "description": "Pass the observed submittedVersion to check it before deciding. Omit to review the current submission.",
+                            "description": "Pass the observed submittedVersion to check it before deciding. Required for amended submissions; may be omitted on version zero or one.",
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
@@ -820,7 +820,8 @@
                             "type": "string",
                             "enum": [
                               "approve",
-                              "reject"
+                              "reject",
+                              "request_changes"
                             ]
                           },
                           "comment": {
@@ -963,8 +964,8 @@
     "name": "ChangeBatches",
     "kind": "query",
     "story": "As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
-    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      submittedVersion\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n        taskId\n        url\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      reviewRun @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
-    "hash": "2adad752893deeef97bb91e00f41f5e8f4942ae78faf55e1a2a0e75f8bfd3e4d",
+    "query": "query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {\n  changeBatches(\n    ids: $ids\n    search: $search\n    state: $state\n    first: $first\n    after: $after\n  ) {\n    nodes {\n      id\n      submittedVersion\n      title\n      state\n      counts\n      reviewBy\n      reviewUrl\n      questions @include(if: $details)\n      instructions @include(if: $details) {\n        code\n        itemKey\n        actor\n        required\n        message\n        taskId\n        url\n      }\n      advice @include(if: $details)\n      review @include(if: $details)\n      changeRequests @include(if: $details)\n      reviewRun @include(if: $details)\n      operations(refs: $refs) @include(if: $details) {\n        ref\n        state\n        operation\n        evidence\n        confidence\n        reason\n        decision\n        record\n        recordRevision\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}",
+    "hash": "1092c6071b71ded1f909826e33d8e1c261666d01762d777babad99151591ad37",
     "variables": {
       "type": "object",
       "properties": {
@@ -1081,6 +1082,9 @@
                   "review": {
                     "description": "JSON",
                     "nullable": true
+                  },
+                  "changeRequests": {
+                    "description": "JSON"
                   },
                   "reviewRun": {
                     "description": "JSON",
@@ -1395,7 +1399,7 @@
       ]
     },
     "mcp": {
-      "description": "Submit new or revised proposals for review. Create with a title and proposals, plus an optional stable batch ID. Edit with batchId, expectedVersion, proposals keyed by ref, and refs to withdraw in remove. Retry with the same requestKey and inputs. Minimal proposal `{operation:{operation:\"create\",type:\"graph-node\",ref:\"$person\",attributes:{typeId:\"Person\",title:\"Ada\"}}}`."
+      "description": "Create and submit with requestKey, title and proposals. Edit with requestKey, batchId, expectedVersion, replacement or new proposals keyed by ref, and/or refs to withdraw in remove. Delete an open draft with requestKey, batchId, expectedVersion:0 and deleteBatch:true. Retry identical inputs with the original requestKey. Minimal proposal `{operation:{operation:\"create\",type:\"graph-node\",ref:\"$person\",attributes:{typeId:\"Person\",title:\"Ada\"}}}`."
     },
     "outputSchema": {
       "type": "object",

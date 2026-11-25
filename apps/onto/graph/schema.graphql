@@ -132,6 +132,11 @@ type ChangeBatch {
   counts: JSON!
 
   """
+  Member requests for changes, with proposal refs, observed version, reviewer and comment. Retained after edits and final decisions.
+  """
+  changeRequests: JSON!
+
+  """
   Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: "onto", recordId: "batch:<id>#<key>"} when you revise those proposals.
   """
   questions: JSON!
@@ -366,6 +371,7 @@ input MutateBatchSubmissionInput {
   summary: String
   proposals: [MutateBatchSubmissionInputProposalsItem!]
   remove: [String!]
+  deleteBatch: Boolean
 }
 
 input MutateBatchSubmissionInputSource {
@@ -463,6 +469,7 @@ input ReviewBatchInput {
 enum ReviewBatchInputVerdict {
   approve
   reject
+  request_changes
 }
 
 input StageCreativeRecordInput {
@@ -592,7 +599,7 @@ input SubmitBatchInput {
 
 type Mutation {
   """
-  Atomically create and submit a member batch, submit a draft, or edit pending proposals in an existing submitted batch. The saved version queues undecided proposals for steward review under the existing policy. Pass expectedVersion when editing. Retry an identical input with the same requestKey.
+  Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. The saved submission queues undecided proposals for steward review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.
   """
   mutateBatchSubmission(input: MutateBatchSubmissionInput!): BatchSubmissionResult!
 
@@ -622,7 +629,7 @@ type Mutation {
   saveSettings(input: SaveSettingsInput!): OntoSettings!
 
   """
-  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. Omit to review the current submission. Apps and delegated writers cannot review.
+  Approve, reject or request changes on submitted proposals as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. The version is required after amendments and when requesting changes. Include a comment explaining the requested changes. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 

@@ -17,7 +17,7 @@ import {
   inspectGraphChanges,
   graphChangeInput,
 } from "./graph-changes";
-import { graphBatches, graphBatchOperations, graphChanges, graphRevisions, ontoReviewJobs } from "./schema";
+import { batchChangeRequests, graphBatches, graphBatchOperations, graphChanges, graphRevisions, ontoReviewJobs } from "./schema";
 import { guardedBatch, guardedGraphBatch } from "./graph-batch";
 import { isOrganizationCreate, organizationDuplicates } from "./organization-duplicates";
 import { personalRoot } from "./owner-root";
@@ -31,8 +31,8 @@ import { readSettings } from "./settings";
 // history row. Policies decide what commits without a member: a confidence
 // threshold, a review window that seals the rest, or a first discovery run.
 
-import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
-export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
+import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, batchReviseInput, mutateBatchSubmissionInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
+export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, batchReviseInput, mutateBatchSubmissionInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
 const operation = graphChangeInput.shape.operations.element;
 
 export type Database = ReturnType<typeof installationDatabase>;
@@ -385,7 +385,8 @@ function reviewedRowsUnchanged(batch: BatchRow, rows: OperationRow[]) {
       on r.batchId=${batch.id} and r.ref=json_extract(e.value,'$.ref') where r.ref is null
       or r.state is not json_extract(e.value,'$.state') or r.operation is not json_extract(e.value,'$.operation')
       or r.evidence is not json_extract(e.value,'$.evidence') or r.confidence is not json_extract(e.value,'$.confidence')
-      or r.reason is not json_extract(e.value,'$.reason'))`;
+      or r.reason is not json_extract(e.value,'$.reason')
+      or r.decision is not json_extract(e.value,'$.decision'))`;
 }
 
 async function settle(db: Database, batchId: string) {
@@ -519,13 +520,6 @@ async function validateRows(db: Database, who: AppIdentity, batch: Pick<BatchRow
   }
 }
 
-export const batchReviseInput = z.strictObject({
-  batchId: z.uuid(),
-  expectedVersion: z.number().int().nonnegative().optional(),
-  proposals: batchAddInput.shape.proposals.optional().default([]),
-  remove: batchRemoveInput.shape.refs.optional().default([]),
-}).refine(input => input.proposals.length + input.remove.length > 0, "Name proposals to change or refs to remove");
-
 type ProposalEdit = Pick<z.infer<typeof batchReviseInput>, "proposals" | "remove">;
 
 async function proposedRows(db: Database, who: AppIdentity, batchId: string, batch: BatchRow | undefined, input: ProposalEdit, state: string) {
@@ -553,6 +547,13 @@ async function proposedRows(db: Database, who: AppIdentity, batchId: string, bat
     state,
     decidedBy: null, decision: null, recordId: null, recordRevision: null,
   }));
+  for (const row of written) {
+    const prior = byRef.get(row.ref);
+    if (prior && changesRequested(prior) &&
+        canonicalActionValue([row.operation, row.evidence, row.confidence, row.reason]) ===
+        canonicalActionValue([prior.operation, prior.evidence, prior.confidence, prior.reason]))
+      fail(`${row.ref} has requested changes; update its proposal or withdraw it`, 409);
+  }
   const next = new Map(byRef);
   for (const ref of input.remove) next.set(ref, { ...byRef.get(ref)!, state: "removed" });
   for (const row of written) next.set(row.ref, row);
@@ -577,65 +578,46 @@ export function batchRowsUnchanged(batch: BatchRow, existing: OperationRow[]) {
       or r.recordId is not json_extract(e.value,'$.recordId') or r.recordRevision is not json_extract(e.value,'$.recordRevision'))`;
 }
 
+function checkObservedVersion(batch: BatchRow, expected: number | undefined, required = false) {
+  if (expected === undefined && (required || batch.submittedVersion > 1))
+    fail("Pass expectedVersion from the current batch", 409);
+  if (expected !== undefined && expected !== batch.submittedVersion)
+    fail("Proposal version changed; reload the batch", 409);
+}
+
+function changesRequested(row: OperationRow) {
+  return row.state === "awaiting_review" && row.decision !== null &&
+    JSON.parse(row.decision).verdict === "request_changes";
+}
+
 function writeProposals(batchId: string, written: OperationRow[], remove: string[]) {
   const statements: SQL[] = [];
-  if (remove.length) statements.push(sql`UPDATE graph_batch_operations SET state='removed' WHERE batchId=${batchId} AND ref IN (SELECT value FROM json_each(${JSON.stringify(remove)}))`);
+  if (remove.length) statements.push(sql`UPDATE graph_batch_operations SET state='removed',decision=NULL,decidedBy=NULL WHERE batchId=${batchId} AND ref IN (SELECT value FROM json_each(${JSON.stringify(remove)}))`);
   for (const row of written) statements.push(sql`INSERT INTO graph_batch_operations(batchId,ref,position,operation,evidence,confidence,reason,state)
     VALUES(${row.batchId},${row.ref},${row.position},${JSON.stringify(row.operation)},${JSON.stringify(row.evidence)},${row.confidence},${row.reason},${row.state})
-    ON CONFLICT(batchId,ref) DO UPDATE SET position=excluded.position,operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state`);
+    ON CONFLICT(batchId,ref) DO UPDATE SET position=excluded.position,operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state,decision=NULL,decidedBy=NULL`);
   return statements;
 }
 
-/** Amend undecided proposals. The graph snapshot and full batch snapshot
- * are checked in the same transaction as the write; a concurrent review cannot be
- * overwritten. No policy is evaluated and no graph record is committed here. */
+/** The legacy mutation edits drafts in place and submits amendments through the shared writer. */
 export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: z.infer<typeof batchReviseInput>) {
   requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
-  if (!["open", "awaiting_review"].includes(batch.state))
-    fail("Only an open or submitted batch can be edited", 409);
-  if (batch.policy.kind !== "member" && !(actor.kind === "app" && batch.openedVia === actorRef(actor)))
-    requireMemberReview(who, actor, origin);
-  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion)
-    fail("Proposal version changed; read the current batch before editing", 409);
-  if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
-  const { existing, written, rows } = await proposedRows(db, who, batch.id, batch, input, batch.state === "open" ? "pending" : "awaiting_review");
-  const graph = await readGraph(db, who);
+  checkObservedVersion(batch, input.expectedVersion);
   if (batch.state === "awaiting_review") {
-    const validation = await validateRows(db, who, batch, rows);
-    if (!validation.valid) fail(`The amended batch would not apply: ${validation.error}`, 409);
+    await writeBatchSubmission(db, who, actor, origin, {
+      ...input, expectedVersion: batch.submittedVersion,
+    }, batch);
+  } else {
+    if (batch.state !== "open") fail("Only an open or submitted batch can be edited", 409);
+    if (batch.policy.kind !== "member" && !(actor.kind === "app" && batch.openedVia === actorRef(actor)))
+      requireMemberReview(who, actor, origin);
+    if (batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
+    const { existing, written } = await proposedRows(db, who, batch.id, batch, input, "pending");
+    await writeDraft(db, who, batch, existing, writeProposals(batch.id, written, input.remove));
   }
-  const now = Date.now(), guard = `amend:${crypto.randomUUID()}`, jobId = crypto.randomUUID();
-  const statements = [sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
-    VALUES(${who.userId},${guard},'amend',CASE WHEN ${batchRowsUnchanged(batch, existing)} THEN ${guard} ELSE NULL END,'{}')`, ...writeProposals(batch.id, written, input.remove)];
-  if (batch.state === "awaiting_review") {
-    const summary = { ...summarize(rows, new Map(graph.types.map(type => [type.id, type.name]))), text: batch.summary ? JSON.parse(batch.summary).text ?? null : null };
-    const version = batch.submittedVersion + 1;
-    // Legacy installations have no historical submissions. Preserve their observed
-    // baseline as version zero without attributing it to the original submitter.
-    if (!batch.submittedVersion) statements.push(sql`INSERT INTO graph_batch_submissions
-      VALUES(${batch.id},0,${now},'','',${JSON.stringify(proposalSnapshot(existing))})`);
-    statements.push(submissionStatement(batch.id, version, rows, who.userId, actor, now));
-    statements.push(sql`UPDATE graph_batches SET submittedVersion=${version},summary=${JSON.stringify(summary)},review=NULL,reviewJobId=${jobId},updatedAt=${now} WHERE id=${batch.id}`);
-    statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId) VALUES(${jobId},${batch.id},${await batchContentDigest(rows)},'pending',${now},${now},${crypto.randomUUID()})`);
-  } else statements.push(sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`);
-  statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`);
-  await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before amending");
   return getBatch(db, who, { batchId: batch.id });
 }
-
-export const mutateBatchSubmissionInput = z.strictObject({
-  requestKey: z.string().trim().min(1).max(128).describe("Stable idempotency key. Retry a lost response with identical inputs and the same key."),
-  batchId: z.uuid().optional().describe("Existing batch ID, or a caller-chosen UUID for a new batch. Omit to generate an ID."),
-  expectedVersion: z.number().int().nonnegative().optional().describe("Required for existing batches. Use 0 for an open draft or a legacy batch without a recorded submission."),
-  title: batchOpenInput.shape.title.optional(),
-  purpose: batchOpenInput.shape.purpose.unwrap().optional(),
-  source: batchOpenInput.shape.source,
-  anchors: batchOpenInput.shape.anchors,
-  summary: batchSubmitInput.shape.summary,
-  proposals: batchReviseInput.shape.proposals,
-  remove: batchReviseInput.shape.remove,
-});
 
 const submissionReceipt = z.object({
   id: z.uuid(),
@@ -670,7 +652,9 @@ export async function mutateBatchSubmission(db: Database, who: AppIdentity, acto
   const saved = await replay();
   if (saved) return saved;
   try {
-    return await writeBatchSubmission(db, who, actor, origin, input, requestKey, hash);
+    if (input.deleteBatch) return await discardOpenBatch(db, who, actor, origin, input, requestKey, hash);
+    const [batch] = input.batchId ? await db.select().from(graphBatches).where(eq(graphBatches.id, input.batchId)) : [];
+    return await writeBatchSubmission(db, who, actor, origin, input, batch, { requestKey, hash });
   } catch (error) {
     const completed = await replay();
     if (completed) return completed;
@@ -678,11 +662,42 @@ export async function mutateBatchSubmission(db: Database, who: AppIdentity, acto
   }
 }
 
-async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: BatchSubmissionInput, requestKey: string, hash: string): Promise<BatchSubmissionReceipt> {
-  const [batch] = input.batchId ? await db.select().from(graphBatches).where(eq(graphBatches.id, input.batchId)) : [];
+async function discardOpenBatch(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: BatchSubmissionInput, requestKey: string, hash: string): Promise<BatchSubmissionReceipt> {
+  const { batchId, expectedVersion, title, purpose, source, anchors, summary, proposals, remove } = input;
+  if (!batchId || title !== undefined || purpose !== undefined || source !== undefined || anchors !== undefined ||
+      summary !== undefined || proposals.length || remove.length) fail("Deleting a draft takes only batchId, expectedVersion and requestKey");
+  const batch = await loadBatch(db, batchId);
+  if (batch.state !== "open" || batch.commits || batch.submittedVersion) fail("Only an open, never-submitted draft can be deleted", 409);
+  const opener = batch.openedBy === who.userId && batch.openedVia === actorRef(actor) && actorRef(actor) === actorRef(origin);
+  if (!opener) {
+    if (batch.policy.kind !== "member") fail("Only the opening app can delete a policy draft", 403);
+    requireMemberReview(who, actor, origin);
+  }
+  checkObservedVersion(batch, expectedVersion, true);
+  const rows = await loadOperations(db, batchId);
+  const counts: Record<string, number> = {};
+  for (const row of live(rows)) counts[row.state] = (counts[row.state] ?? 0) + 1;
+  const receipt = { id: batchId, title: batch.title, submittedVersion: batch.submittedVersion,
+    state: "discarded", counts, reviewRefs: [], reviewRun: null };
+  const now = Date.now();
+  await guardedBatch(db, [
+    submissionGuard(who, requestKey, hash, batchRowsUnchanged(batch, rows), receipt),
+    sql`UPDATE graph_batches SET state='discarded',closedAt=${now},updatedAt=${now},reviewBy=NULL,reviewJobId=NULL WHERE id=${batchId}`,
+  ], "Batch changed; reload before deleting");
+  return receipt;
+}
+
+function submissionGuard(who: AppIdentity, key: string, hash: string, unchanged: SQL, receipt: BatchSubmissionReceipt) {
+  const attempt = crypto.randomUUID();
+  return sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+    VALUES(${who.userId},${key},${hash},CASE WHEN ${unchanged} THEN ${attempt} ELSE NULL END,${JSON.stringify(receipt)})`;
+}
+
+async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor,
+  input: Omit<BatchSubmissionInput, "requestKey">, batch?: BatchRow,
+  replay?: { requestKey: string; hash: string }): Promise<BatchSubmissionReceipt> {
   if (batch) {
-    if (input.expectedVersion === undefined) fail("Pass expectedVersion when editing an existing submission or submitting a draft", 409);
-    if (input.expectedVersion !== batch.submittedVersion) fail("Proposal version changed; reload before editing", 409);
+    checkObservedVersion(batch, input.expectedVersion, true);
     if (batch.state !== "open" && batch.state !== "awaiting_review") fail("Only an open or submitted batch can be edited", 409);
     if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
     if (batch.policy.kind !== "member") {
@@ -723,12 +738,11 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   const receipt = { id: batchId, title, submittedVersion: version, state, counts, reviewRefs, reviewRun };
   const summary = { ...summarize(nextRows, new Map(graph.types.map(type => [type.id, type.name]))),
     text: input.summary ?? (batch?.summary ? JSON.parse(batch.summary).text : null) };
-  const attempt = crypto.randomUUID();
-  const unchanged = batch ? batchRowsUnchanged(batch, existing) : sql`not exists (select 1 from graph_batches where id=${batchId})`;
-  const statements = [
-    sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
-      VALUES(${who.userId},${requestKey},${hash},CASE WHEN ${unchanged} THEN ${attempt} ELSE NULL END,${JSON.stringify(receipt)})`,
-  ];
+  const unchanged = batch
+    ? sql`${batchRowsUnchanged(batch, existing)} AND (${batch.state} != 'open' OR ${batch.expiresAt} > ${now})`
+    : sql`not exists (select 1 from graph_batches where id=${batchId})`;
+  const key = replay?.requestKey ?? `amend:${crypto.randomUUID()}`;
+  const statements = [submissionGuard(who, key, replay?.hash ?? "amend", unchanged, receipt)];
   if (!batch) {
     statements.push(sql`INSERT INTO graph_batches(id,title,purpose,source,policy,state,openedBy,openedVia,createdAt,updatedAt,expiresAt,anchors)
       VALUES(${batchId},${title},${input.purpose ?? ""},${input.source ? JSON.stringify(input.source) : null},${JSON.stringify(policy)},'open',${who.userId},${actorRef(actor)},${now},${now},${now + batchExpiryMs},${anchors ? JSON.stringify(anchors) : null})`);
@@ -747,6 +761,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   );
   if (jobId && !reused) statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
     VALUES(${jobId},${batchId},${contentDigest},'pending',${now},${now},${runId})`);
+  if (!replay) statements.push(sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${key}`);
   await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before submitting");
   if (reused) await approveCompletedDraftReview(db, who, batchId, reused.id);
   return receipt;
@@ -757,13 +772,27 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   requireMemberReview(who, actor, origin);
   const batch = await loadBatch(db, input.batchId);
   if (batch.state !== "awaiting_review") fail("Only a submitted batch waiting for review can be decided", 409);
-  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion)
-    fail("Proposal version changed; reload before reviewing", 409);
+  checkObservedVersion(batch, input.expectedVersion, input.verdict === "request_changes");
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
   if (!chosen.size) fail("No waiting operations match", 409);
   const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at: Date.now() });
+  if (input.verdict === "request_changes") {
+    if (!input.comment?.trim()) fail("Explain what the submitter should change");
+    const refs = [...chosen];
+    const guard = `feedback:${crypto.randomUUID()}`;
+    await guardedBatch(db, [
+      sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+        VALUES(${who.userId},${guard},'review',CASE WHEN ${reviewedRowsUnchanged(batch, waiting.filter(row => chosen.has(row.ref)))} THEN ${guard} ELSE NULL END,'{}')`,
+      sql`UPDATE graph_batch_operations SET decidedBy=${who.userId},decision=${JSON.stringify(decision)}
+        WHERE batchId=${batch.id} AND ref IN (SELECT value FROM json_each(${JSON.stringify(refs)}))`,
+      sql`INSERT INTO graph_batch_change_requests (id,batchId,refs,decision)
+        VALUES(${guard},${batch.id},${JSON.stringify(refs)},${JSON.stringify(decision)})`,
+      sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
+    ], "Batch changed; reload before requesting changes");
+    return getBatch(db, who, { batchId: batch.id });
+  }
   if (input.verdict === "reject") {
     const rejected = withDependents(rows, waiting, chosen);
     const graph = await readGraph(db, who), guard = `reject:${crypto.randomUUID()}`;
@@ -772,7 +801,12 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
       sql`UPDATE graph_batch_operations SET state='rejected',decidedBy=${who.userId},decision=${JSON.stringify(decision)} WHERE batchId=${batch.id} AND ref IN (SELECT value FROM json_each(${JSON.stringify([...rejected])}))`,
       sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
     ], "Batch changed; reload before reviewing");
-  } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
+  } else {
+    const approved = withDependencies(rows, waiting, chosen);
+    if (waiting.some(row => approved.has(row.ref) && changesRequested(row)))
+      fail("Edit or withdraw proposals with requested changes before approving", 409);
+    await commitOperations(db, who, batch, rows, approved, () => decision);
+  }
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
 }
@@ -802,6 +836,7 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   const reasons = new Map<string, string>();
   const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
   const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
+  for (const row of waiting.filter(changesRequested)) hold(row.ref, "a member requested changes");
   if (!review.complete) holdAll("the review read only part of the batch");
   for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
     const refs = [...(item.ref ? [item.ref] : []), ...(item.refs ?? [])];
@@ -888,7 +923,7 @@ export async function sealDueBatches(db: Database, who: AppIdentity, now = Date.
     const policy = batchPolicy.parse(batch.policy);
     const rows = live(await loadOperations(db, batch.id));
     const waiting = rows.filter((row) => row.state === "awaiting_review");
-    const eligible = new Set(waiting.map(row => row.ref));
+    const eligible = new Set(waiting.filter(row => !changesRequested(row)).map(row => row.ref));
     if (waiting.some(isOrganizationCreate)) {
       for (const duplicate of organizationDuplicates(await readGraph(db, who), waiting)) eligible.delete(duplicate.ref);
     }
@@ -928,6 +963,12 @@ export async function getBatch(db: Database, who: AppIdentity, input: z.infer<ty
     })),
     canReview: who.canEdit && !who.entityWriter && !isResidentPrincipal(who.userId),
   };
+}
+
+export async function changeRequests(db: Database, batchId: string) {
+  return db.select({ refs: batchChangeRequests.refs, decision: batchChangeRequests.decision })
+    .from(batchChangeRequests).where(eq(batchChangeRequests.batchId, batchId))
+    .orderBy(sql`json_extract(${batchChangeRequests.decision}, '$.at')`, asc(batchChangeRequests.id));
 }
 
 export async function listBatches(db: Database, _who: AppIdentity, input: z.infer<typeof batchListInput>) {

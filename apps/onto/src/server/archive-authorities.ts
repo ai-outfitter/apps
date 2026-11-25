@@ -13,5 +13,6 @@ export const archiveImportExclusions = [
   "wiki_map_proposals",
   "onto_review_jobs",
   "graph_batch_submissions",
+  "graph_batch_change_requests",
   "onto_settings",
 ] as const;
