@@ -3,10 +3,10 @@ import test from "node:test";
 import { appArtifact } from "@ai-outfitter/app-test/prepare";
 import { appWorker as rawAppWorker } from "@ai-outfitter/app-test/worker";
 import { initializedAppWorker } from "./fixtures/initialized-worker";
-import baseSeed from "../seeds/entities-v1.json";
-import graphSeed from "../seeds/knowledge-graphs-v1.json";
-import artifacts from "../seeds/artifacts-v1.json";
-import releases from "../seeds/releases-v1.json";
+import baseSeed from "../graph/.compiled/entities-v1.json" with { type: "json" };
+import graphSeed from "../graph/.compiled/knowledge-graphs-v1.json" with { type: "json" };
+import artifacts from "../graph/.compiled/artifacts-v1.json" with { type: "json" };
+import releases from "../graph/.compiled/releases-v1.json" with { type: "json" };
 const seed = {
   ...baseSeed,
   nodes: [

@@ -11,21 +11,39 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sdk: ${{ steps.paths.outputs.sdk }}
+      push-baseline: ${{ steps.baseline.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Last successful CI push
+        id: baseline
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
+            --jq '.workflow_runs[0].head_sha // empty') || base=
+          # A newer run can finish before a rerun of an older commit.
+          if [[ -n "$base" ]] && ! git merge-base --is-ancestor "$base" HEAD; then
+            base=
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
       - id: paths
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || steps.baseline.outputs.sha }}
         run: |
-          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+          if [[ -z "$BASE" ]] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo sdk=true >> "$GITHUB_OUTPUT"
           else
-            git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
-            if grep -Eq '^(packages/|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
+            git diff --no-renames --name-only "$BASE" HEAD > "$RUNNER_TEMP/sdk-paths"
+            if grep -Eq '^(packages/|apps/[^/]+/(graph/|seeds/|fixtures/)|scripts/(check-sdk-packages|publish-sdk-archives|sdk-workspaces)\.mjs$|scripts/(compose-graphs\.ts|lib/sdk-archives\.mjs)$|package(-lock)?\.json$|tsconfig\.json$|\.github/workflows/(ci|sdk-releases)\.yml$)' "$RUNNER_TEMP/sdk-paths"; then
               echo sdk=true >> "$GITHUB_OUTPUT"
+            else
+              echo sdk=false >> "$GITHUB_OUTPUT"
             fi
           fi
   sdk:
@@ -41,6 +59,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Verify committed SDK graph snapshots
+        run: npm run graph:compose -- --check
       - run: npm run check:sdk
       - run: npm run test:sdk
       - run: npm run build:sdk
@@ -59,23 +79,32 @@ jobs:
 
   apps:
     name: Catalog apps
+    needs: changes
+    if: '!cancelled()'
     uses: ./.github/workflows/check.yml
     with:
+      push-baseline: ${{ needs.changes.outputs.push-baseline }}
       config-path: .outfitter/apps.json
       app-set: catalog
       catalog-apps: '["apps/creative-team","apps/forerunner","apps/hr","apps/html-starter","apps/marketing","apps/onto","apps/planning","apps/presentations","apps/software-foundry","apps/wiki","apps/workshop"]'
   source-apps:
     name: Source apps
+    needs: changes
+    if: '!cancelled()'
     uses: ./.github/workflows/check.yml
     with:
+      push-baseline: ${{ needs.changes.outputs.push-baseline }}
       config-path: .outfitter/apps.json
       app-set: source
       catalog-apps: '["apps/creative-team","apps/forerunner","apps/hr","apps/html-starter","apps/marketing","apps/onto","apps/planning","apps/presentations","apps/software-foundry","apps/wiki","apps/workshop"]'
   # Publish the exact checked bytes once; the platform registry reconciles
   # catalog/demo targets and eligible installations without a webapp release.
   deploy:
-    needs: apps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.catalog_apps != '[]'
+    needs: [changes, sdk, apps]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && needs.apps.result == 'success' &&
+      (needs.sdk.result == 'success' || (needs.sdk.result == 'skipped' && needs.changes.outputs.sdk == 'false')) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.apps.outputs.catalog_apps != '[]'
     permissions:
       contents: read
       actions: read
@@ -84,8 +113,11 @@ jobs:
     with:
       apps: ${{ needs.apps.outputs.catalog_apps }}
   deploy-source-apps:
-    needs: source-apps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.source-apps.outputs.non_catalog_apps != '[]'
+    needs: [changes, sdk, source-apps]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && needs.source-apps.result == 'success' &&
+      (needs.sdk.result == 'success' || (needs.sdk.result == 'skipped' && needs.changes.outputs.sdk == 'false')) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.source-apps.outputs.non_catalog_apps != '[]'
     permissions:
       contents: read
       id-token: write

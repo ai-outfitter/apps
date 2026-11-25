@@ -34,15 +34,6 @@
     "archived": false
   },
   {
-    "id": "71000000-0000-4000-8000-000000000003",
-    "category": "node",
-    "name": "Project",
-    "title": "Projects",
-    "body": "## What a project is\n\nA project is a bounded effort toward an outcome. Use its page to explain the problem, desired result, scope, decisions and current evidence.\n\n## What belongs on the page\n\nRecord readable Markdown documentation and connect the project to its business unit, human or agent participants, technology dependencies and goals. Distinguish proposed dependencies from operational integrations.\n\nExternal projects can live directly in this Wiki without a Planning record. Connect them to their organization with `part_of` and document their goals, problems and dependencies through ordinary graph relationships. **Create/link project** offers **Document an external project** for this purpose. For work managed in Planning, create or select its canonical record and keep its verified `{installationId, type, id}` reference on the context page.\n\n## Example\n\nA health-data research project may have a proposed `uses` connection to a health platform. That connection documents intent; it does not prove a working connector.\n\n## For agents\n\nRead this context page and, when present, its linked Planning record before work. Standalone Project nodes can be created through the Wiki entity API or `graph.apply` without an app reference. Update the appropriate record through its app's entity operations, preserve any existing canonical reference and use the latest revision. Add decisions, evidence and progress to the documentation rather than claiming unsupported completion.",
-    "properties": [],
-    "archived": false
-  },
-  {
     "id": "71000000-0000-4000-8000-000000000005",
     "category": "node",
     "name": "Person",
@@ -110,93 +101,6 @@
     "archived": false
   },
   {
-    "id": "71000000-0000-4000-8000-000000000010",
-    "category": "node",
-    "name": "Goal",
-    "title": "Goal",
-    "body": "## Goals\n\nA goal describes a desired outcome. Document the result, accountable owner, target, time period and evidence that will determine progress.\n\nConnect projects or participants using `pursues`. Connect a measurement definition using `measured_by` when the evaluation method is known.\n\n## For agents\n\nUse goals to choose useful work and report evidence. A goal page alone does not schedule a workflow or establish that the result has been achieved.",
-    "properties": [],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "stereotype": "kind",
-      "measures": [
-        {
-          "name": "metrics",
-          "title": "Metric definitions",
-          "expression": {
-            "op": "count",
-            "of": "measured_by",
-            "direction": "outgoing"
-          }
-        },
-        {
-          "name": "pursuers",
-          "title": "Pursuers",
-          "expression": {
-            "op": "count",
-            "of": "pursues",
-            "direction": "incoming"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000011",
-    "category": "node",
-    "name": "MetricDefinition",
-    "title": "Metric Definition",
-    "body": "## Metric definitions\n\nA metric definition explains how progress is measured: meaning, calculation, units, source, reporting interval and limitations.\n\nIt describes a measurement method. Actual observations and computed analytics are separate work; the existence of this page is not a measured result.\n\n## For agents\n\nRead the definition before interpreting a KPI. Report the period, source and evidence with any value. Future SemLang/Malloy integration may turn suitable definitions and observations into analytical queries.",
-    "properties": [
-      {
-        "name": "calculation",
-        "type": "string",
-        "description": "How the value is calculated, including filters and exclusions.",
-        "required": false
-      },
-      {
-        "name": "unit",
-        "type": "string",
-        "description": "Unit of the measured value, for example percent, count or hours.",
-        "required": false
-      },
-      {
-        "name": "source",
-        "type": "string",
-        "description": "System or record set the observations come from.",
-        "required": false
-      },
-      {
-        "name": "interval",
-        "type": "string",
-        "description": "Reporting interval, for example weekly or calendar quarter.",
-        "required": false
-      }
-    ],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "stereotype": "kind",
-      "measures": [
-        {
-          "name": "measurement",
-          "title": "Measurement",
-          "expression": {
-            "op": "formula",
-            "language": "metric-v1",
-            "fields": {
-              "calculation": "calculation",
-              "unit": "unit",
-              "source": "source",
-              "interval": "interval"
-            }
-          }
-        }
-      ]
-    }
-  },
-  {
     "id": "71000000-0000-4000-8000-000000000012",
     "category": "node",
     "name": "Document",
@@ -204,40 +108,6 @@
     "body": "## Documents\n\nA document is written context that needs its own stable identity, such as a decision, technical guide or evidence summary. Entity pages can also contain Markdown directly.\n\nUse `documents` to connect a document to what it describes. A document about a project does not replace the canonical Planning project.\n\n## For agents\n\nPreserve provenance, references and authored conclusions. Separate evidence, assumptions and proposed decisions.",
     "properties": [],
     "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000021",
-    "category": "edge",
-    "name": "belongs_to_unit",
-    "title": "belongs to unit",
-    "body": "Source project or unit belongs to the target business unit. No access grant is implied.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
-    "properties": [
-      {
-        "name": "status",
-        "type": "string",
-        "description": "Evidence status, for example proposed, documented, observed or retired.",
-        "required": false
-      },
-      {
-        "name": "evidence",
-        "type": "string",
-        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
-        "required": false
-      }
-    ],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000002"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000002"
-        ]
-      }
-    }
   },
   {
     "id": "71000000-0000-4000-8000-000000000022",
@@ -264,12 +134,12 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Agent"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000001"
+          "planning:Project",
+          "onto:Organization"
         ]
       }
     }
@@ -300,12 +170,12 @@
       "validity": "interval",
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Agent"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Agent"
         ]
       }
     }
@@ -335,15 +205,15 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000056"
+          "planning:Project",
+          "onto:Product",
+          "onto:Organization",
+          "onto:Technology",
+          "onto:Offering"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000007"
+          "onto:Product",
+          "onto:Technology"
         ]
       }
     }
@@ -373,13 +243,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000007"
+          "onto:Product",
+          "onto:Technology"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Organization",
+          "onto:Person",
+          "onto:Agent"
         ]
       }
     }
@@ -409,15 +279,15 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000009"
+          "planning:Project",
+          "onto:Product",
+          "onto:Technology",
+          "onto:PhysicalComponent"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Organization",
+          "onto:Person",
+          "onto:Agent"
         ]
       }
     }
@@ -447,11 +317,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000009",
-          "71000000-0000-4000-8000-000000000015"
+          "onto:PhysicalComponent",
+          "onto:Product"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Organization"
         ]
       }
     }
@@ -481,80 +351,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000009",
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Technology",
+          "onto:PhysicalComponent",
+          "onto:Product"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Organization"
         ]
-      }
-    }
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000029",
-    "category": "edge",
-    "name": "pursues",
-    "title": "pursues",
-    "body": "The source project, organization, person or agent pursues the target goal.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
-    "properties": [
-      {
-        "name": "status",
-        "type": "string",
-        "description": "Evidence status, for example proposed, documented, observed or retired.",
-        "required": false
-      },
-      {
-        "name": "evidence",
-        "type": "string",
-        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
-        "required": false
-      }
-    ],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": "any",
-        "to": [
-          "71000000-0000-4000-8000-000000000010"
-        ]
-      }
-    }
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000030",
-    "category": "edge",
-    "name": "measured_by",
-    "title": "measured by",
-    "body": "## Measurement relationships\n\nA goal, customer problem, project or organization is evaluated with a metric definition. A metric definition can in turn link to its measurement instrument or data source, such as a sensor platform.\n\n## For agents\n\nRead the metric definition for units, scope, targets and reporting periods. A target is not an observed value. A link to an instrument does not prove a working integration; distinguish intended sources from verified observations.",
-    "properties": [
-      {
-        "name": "status",
-        "type": "string",
-        "description": "Evidence status, for example proposed, documented, observed or retired.",
-        "required": false
-      },
-      {
-        "name": "evidence",
-        "type": "string",
-        "description": "Source URL or explanation supporting this statement; not proof of operational integration.",
-        "required": false
-      }
-    ],
-    "archived": false,
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000010",
-          "71000000-0000-4000-8000-000000000017",
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000011",
-          "71000000-0000-4000-8000-000000000015"
-        ],
-        "to": "any"
       }
     }
   },
@@ -583,7 +386,7 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000012"
+          "onto:Document"
         ],
         "to": "any"
       }
@@ -639,13 +442,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000015",
-          "76000000-0000-4000-8000-000000000002"
+          "planning:Project",
+          "onto:Technology",
+          "onto:Product",
+          "onto:ProductRevision"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000014"
+          "onto:Repository"
         ]
       }
     }
@@ -662,12 +465,12 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000003"
+          "planning:Project"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000015"
+          "planning:Project",
+          "onto:Technology",
+          "onto:Product"
         ]
       }
     }
@@ -706,11 +509,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000003"
+          "planning:Project"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000015",
-          "71000000-0000-4000-8000-000000000007"
+          "onto:Product",
+          "onto:Technology"
         ]
       }
     }
@@ -764,13 +567,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000016"
+          "onto:Person",
+          "onto:Organization",
+          "onto:CustomerSegment"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000003"
+          "onto:Organization",
+          "planning:Project"
         ]
       }
     }
@@ -800,11 +603,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Person",
+          "onto:Organization"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000016"
+          "onto:CustomerSegment"
         ]
       }
     }
@@ -834,12 +637,12 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000016"
+          "onto:Person",
+          "onto:Organization",
+          "onto:CustomerSegment"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000017"
+          "onto:Problem"
         ]
       }
     }
@@ -870,7 +673,7 @@
       "endpoints": {
         "from": "any",
         "to": [
-          "71000000-0000-4000-8000-000000000017"
+          "onto:Problem"
         ]
       }
     }
@@ -900,12 +703,12 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Technology",
+          "onto:Product"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000007",
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Technology",
+          "onto:Product"
         ]
       }
     }
@@ -935,19 +738,19 @@
         "slots": [
           {
             "name": "holder",
-            "edgeTypeId": "71000000-0000-4000-8000-000000000041",
+            "edgeTypeId": "onto:assigned_to",
             "participantTypes": [
-              "71000000-0000-4000-8000-000000000005",
-              "71000000-0000-4000-8000-000000000006"
+              "onto:Person",
+              "onto:Agent"
             ],
             "min": 0,
             "max": 1
           },
           {
             "name": "role",
-            "edgeTypeId": "71000000-0000-4000-8000-000000000042",
+            "edgeTypeId": "onto:assigns_role",
             "participantTypes": [
-              "71000000-0000-4000-8000-000000000018"
+              "onto:Role"
             ],
             "min": 0,
             "max": 1
@@ -968,11 +771,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000019"
+          "onto:RoleAssignment"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Agent"
         ]
       }
     }
@@ -989,10 +792,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000019"
+          "onto:RoleAssignment"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000018"
+          "onto:Role"
         ]
       }
     }
@@ -1009,15 +812,15 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000019",
-          "71000000-0000-4000-8000-000000000061"
+          "onto:RoleAssignment",
+          "onto:DecisionRecord"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000002",
-          "71000000-0000-4000-8000-000000000003",
-          "71000000-0000-4000-8000-000000000015",
-          "76000000-0000-4000-8000-000000000002"
+          "onto:Organization",
+          "onto:BusinessUnit",
+          "planning:Project",
+          "onto:Product",
+          "onto:ProductRevision"
         ]
       }
     }
@@ -1061,10 +864,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000018"
+          "onto:Role"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000052"
+          "onto:AuthorityGrant"
         ]
       }
     }
@@ -1081,10 +884,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000052"
+          "onto:AuthorityGrant"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000051"
+          "onto:AuthorityDefinition"
         ]
       }
     }
@@ -1101,10 +904,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000051"
+          "onto:AuthorityDefinition"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000050"
+          "onto:DecisionType"
         ]
       }
     }
@@ -1167,10 +970,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000056"
+          "onto:Offering"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000015"
+          "onto:Product"
         ]
       }
     }
@@ -1187,10 +990,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000056"
+          "onto:Offering"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Organization"
         ]
       }
     }
@@ -1220,11 +1023,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000005"
+          "onto:Organization",
+          "onto:Person"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000056"
+          "onto:Offering"
         ]
       }
     }
@@ -1260,10 +1063,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000056"
+          "onto:Offering"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000018"
+          "onto:Role"
         ]
       }
     }
@@ -1300,10 +1103,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000061"
+          "onto:DecisionRecord"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000050"
+          "onto:DecisionType"
         ]
       }
     }
@@ -1320,11 +1123,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000061"
+          "onto:DecisionRecord"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Agent"
         ]
       }
     }
@@ -1341,10 +1144,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000061"
+          "onto:DecisionRecord"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000019"
+          "onto:RoleAssignment"
         ]
       }
     }
@@ -1361,10 +1164,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000061"
+          "onto:DecisionRecord"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000010"
+          "planning:Goal"
         ]
       }
     }
@@ -1421,12 +1224,12 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001",
-          "71000000-0000-4000-8000-000000000006"
+          "onto:Person",
+          "onto:Organization",
+          "onto:Agent"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000101"
+          "onto:Activity"
         ]
       }
     }
@@ -1456,11 +1259,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Person",
+          "onto:Organization"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000102"
+          "onto:Asset"
         ]
       }
     }
@@ -1490,11 +1293,11 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Person",
+          "onto:Organization"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000103"
+          "onto:FinancialObligation"
         ]
       }
     }
@@ -1524,10 +1327,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000103"
+          "onto:FinancialObligation"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000102"
+          "onto:Asset"
         ]
       }
     }
@@ -1557,10 +1360,10 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000005"
+          "onto:Person"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005"
+          "onto:Person"
         ]
       }
     }
@@ -1594,191 +1397,13 @@
       "version": 2,
       "endpoints": {
         "from": [
-          "71000000-0000-4000-8000-000000000120",
-          "71000000-0000-4000-8000-000000000121"
+          "onto:OutfitterUser",
+          "onto:OutfitterOrganization"
         ],
         "to": [
-          "71000000-0000-4000-8000-000000000005",
-          "71000000-0000-4000-8000-000000000006",
-          "71000000-0000-4000-8000-000000000001"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000123",
-    "category": "edge",
-    "name": "user_of",
-    "title": "user of",
-    "body": "A Person has actually used a Product. Cite evidence of activity within the product. A successful authentication by itself supports signed_in_to.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000005"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000015"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000124",
-    "category": "edge",
-    "name": "payable_to",
-    "title": "payable to",
-    "body": "A FinancialObligation is payable to the vendor Organization named on the invoice, including an obligation already settled. This relationship does not assert an outstanding balance.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000103"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000001"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000125",
-    "category": "node",
-    "name": "Newsletter",
-    "title": "Newsletters",
-    "body": "An identifiable recurring publication delivered to recipients by a publisher. Individual issues supply evidence for this publication.",
-    "properties": [],
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000126",
-    "category": "node",
-    "name": "HostedEvent",
-    "title": "Hosted events",
-    "body": "An identifiable organized event with evidenced registration. A calendar invitation alone does not establish registration or attendance.",
-    "properties": [],
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000127",
-    "category": "edge",
-    "name": "published_by",
-    "title": "published by",
-    "body": "A Newsletter is published by an Organization identified in its masthead or official publication page. Delivery vendors need their own evidence.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000125"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000001"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000128",
-    "category": "edge",
-    "name": "organized_by",
-    "title": "organized by",
-    "body": "A HostedEvent is organized by the named Organization responsible for the event. A venue or ticket processor alone does not establish the organizer.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000126"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000001"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000129",
-    "category": "edge",
-    "name": "recipient_of",
-    "title": "recipient of",
-    "body": "A Person received an issue of a Newsletter. Receipt alone does not establish paid subscription, readership, use, or a purchase.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000005"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000125"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000130",
-    "category": "edge",
-    "name": "registered_for",
-    "title": "registered for",
-    "body": "A Person has a confirmed registration for a HostedEvent. An invitation is insufficient. Attendance requires separate evidence.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000005"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000126"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000131",
-    "category": "edge",
-    "name": "signed_in_to",
-    "title": "signed in to",
-    "body": "A Person successfully authenticated to a Product. A challenge, invitation or failed attempt is insufficient. Feature use requires separate evidence.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000005"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000015"
-        ]
-      }
-    },
-    "archived": false
-  },
-  {
-    "id": "71000000-0000-4000-8000-000000000132",
-    "category": "edge",
-    "name": "provided_by",
-    "title": "provided by",
-    "body": "A Product is provided or operated by the named Organization. Its operator may differ from its developer.",
-    "properties": [],
-    "ontology": {
-      "version": 2,
-      "endpoints": {
-        "from": [
-          "71000000-0000-4000-8000-000000000015"
-        ],
-        "to": [
-          "71000000-0000-4000-8000-000000000001"
+          "onto:Person",
+          "onto:Agent",
+          "onto:Organization"
         ]
       }
     },

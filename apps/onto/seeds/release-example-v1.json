@@ -3,7 +3,7 @@
   "nodes": [
     {
       "id": "77000000-0000-4000-8000-000000000001",
-      "typeId": "71000000-0000-4000-8000-000000000015",
+      "typeId": "onto:Product",
       "slug": "synthetic-release-product",
       "title": "Synthetic Atlas Console",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -12,7 +12,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000002",
-      "typeId": "71000000-0000-4000-8000-000000000014",
+      "typeId": "onto:Repository",
       "slug": "synthetic-release-repo",
       "title": "Synthetic Atlas monorepo",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -21,7 +21,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000003",
-      "typeId": "4a56e759-9bde-4f0a-857d-82526463b092",
+      "typeId": "onto:AcceptanceCriterion",
       "slug": "synthetic-release-criterion",
       "title": "Administrator can install Governance",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -30,7 +30,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000004",
-      "typeId": "7fe211b7-0176-4cac-9799-886a3ee7936f",
+      "typeId": "onto:Requirement",
       "slug": "synthetic-release-requirement",
       "title": "Install Governance without manual repair",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -39,7 +39,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000005",
-      "typeId": "199e5077-b65f-4c56-a672-06dd6ebe999d",
+      "typeId": "onto:UserStory",
       "slug": "synthetic-release-story",
       "title": "Administrator initializes governance",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -48,7 +48,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000006",
-      "typeId": "76000000-0000-4000-8000-000000000001",
+      "typeId": "onto:ProductSpecification",
       "slug": "synthetic-release-spec",
       "title": "Synthetic Governance installation specification",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -57,7 +57,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000007",
-      "typeId": "2f93a811-9c0a-4848-8193-0ba55e6b1fb5",
+      "typeId": "onto:Issue",
       "slug": "synthetic-release-issue",
       "title": "Synthetic issue: validate installed pages",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -66,7 +66,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000008",
-      "typeId": "76000000-0000-4000-8000-000000000002",
+      "typeId": "onto:ProductRevision",
       "slug": "synthetic-release-candidate",
       "title": "Atlas Console 1.4.0-rc.1 (synthetic)",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -75,7 +75,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000009",
-      "typeId": "76000000-0000-4000-8000-000000000002",
+      "typeId": "onto:ProductRevision",
       "slug": "synthetic-release-next-candidate",
       "title": "Atlas Console 1.4.0-rc.2 — unchecked (synthetic)",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -84,7 +84,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000010",
-      "typeId": "71000000-0000-4000-8000-000000000012",
+      "typeId": "onto:Document",
       "slug": "synthetic-release-receipt",
       "title": "Synthetic installation receipt and check log",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -93,7 +93,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000011",
-      "typeId": "76000000-0000-4000-8000-000000000003",
+      "typeId": "onto:Demonstration",
       "slug": "synthetic-release-demo",
       "title": "Synthetic administrator walkthrough",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -102,7 +102,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000012",
-      "typeId": "76000000-0000-4000-8000-000000000004",
+      "typeId": "onto:EvaluationRecord",
       "slug": "synthetic-release-evaluation",
       "title": "Synthetic preview installation evaluation",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -111,7 +111,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000013",
-      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "typeId": "onto:ArtifactDefinition",
       "slug": "synthetic-release-definition",
       "title": "Release package assembly definition",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -120,7 +120,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000014",
-      "typeId": "76000000-0000-4000-8000-000000000005",
+      "typeId": "onto:ReadinessAssessment",
       "slug": "synthetic-release-assessment",
       "title": "Synthetic rc.1 readiness assessment",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -129,7 +129,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000015",
-      "typeId": "71000000-0000-4000-8000-000000000005",
+      "typeId": "onto:Person",
       "slug": "synthetic-release-reviewer",
       "title": "Morgan Example (synthetic)",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -138,7 +138,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000016",
-      "typeId": "71000000-0000-4000-8000-000000000018",
+      "typeId": "onto:Role",
       "slug": "synthetic-release-role",
       "title": "Synthetic release reviewer",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -147,7 +147,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000017",
-      "typeId": "71000000-0000-4000-8000-000000000019",
+      "typeId": "onto:RoleAssignment",
       "slug": "synthetic-release-assignment",
       "title": "Morgan reviews Atlas releases (synthetic)",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -156,7 +156,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000019",
-      "typeId": "71000000-0000-4000-8000-000000000061",
+      "typeId": "onto:DecisionRecord",
       "slug": "synthetic-release-approval",
       "title": "Approve synthetic rc.1 for internal release",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -167,7 +167,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000020",
-      "typeId": "76000000-0000-4000-8000-000000000006",
+      "typeId": "onto:ReleaseRecord",
       "slug": "synthetic-release-release",
       "title": "Synthetic internal deployment of rc.1",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -176,7 +176,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000021",
-      "typeId": "71000000-0000-4000-8000-000000000012",
+      "typeId": "onto:Document",
       "slug": "synthetic-release-post-evidence",
       "title": "Synthetic deployed installation observation",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -185,7 +185,7 @@
     },
     {
       "id": "77000000-0000-4000-8000-000000000022",
-      "typeId": "76000000-0000-4000-8000-000000000007",
+      "typeId": "onto:PostReleaseVerification",
       "slug": "synthetic-release-verification",
       "title": "Synthetic deployed installation verification",
       "summary": "Synthetic release example. All events and evidence are simulated.",
@@ -196,30 +196,30 @@
   "edges": [
     {
       "id": "78000000-0000-4000-8000-000000000001",
-      "typeId": "76000000-0000-4000-8000-000000000008",
-      "fromId": "77000000-0000-4000-8000-000000000008",
-      "toId": "77000000-0000-4000-8000-000000000001",
+      "typeId": "onto:revision_of",
+      "fromId": "onto:ProductRevision:synthetic-release-candidate",
+      "toId": "onto:Product:synthetic-release-product",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000002",
-      "typeId": "76000000-0000-4000-8000-000000000011",
-      "fromId": "77000000-0000-4000-8000-000000000008",
-      "toId": "77000000-0000-4000-8000-000000000006",
+      "typeId": "onto:governed_by",
+      "fromId": "onto:ProductRevision:synthetic-release-candidate",
+      "toId": "onto:ProductSpecification:synthetic-release-spec",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000003",
-      "typeId": "76000000-0000-4000-8000-000000000010",
-      "fromId": "77000000-0000-4000-8000-000000000008",
-      "toId": "77000000-0000-4000-8000-000000000007",
+      "typeId": "onto:includes_issue",
+      "fromId": "onto:ProductRevision:synthetic-release-candidate",
+      "toId": "onto:Issue:synthetic-release-issue",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000004",
-      "typeId": "71000000-0000-4000-8000-000000000033",
-      "fromId": "77000000-0000-4000-8000-000000000008",
-      "toId": "77000000-0000-4000-8000-000000000002",
+      "typeId": "onto:source_in",
+      "fromId": "onto:ProductRevision:synthetic-release-candidate",
+      "toId": "onto:Repository:synthetic-release-repo",
       "properties": {
         "path": "apps/console",
         "ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -227,30 +227,30 @@
     },
     {
       "id": "78000000-0000-4000-8000-000000000005",
-      "typeId": "76000000-0000-4000-8000-000000000008",
-      "fromId": "77000000-0000-4000-8000-000000000009",
-      "toId": "77000000-0000-4000-8000-000000000001",
+      "typeId": "onto:revision_of",
+      "fromId": "onto:ProductRevision:synthetic-release-next-candidate",
+      "toId": "onto:Product:synthetic-release-product",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000006",
-      "typeId": "76000000-0000-4000-8000-000000000011",
-      "fromId": "77000000-0000-4000-8000-000000000009",
-      "toId": "77000000-0000-4000-8000-000000000006",
+      "typeId": "onto:governed_by",
+      "fromId": "onto:ProductRevision:synthetic-release-next-candidate",
+      "toId": "onto:ProductSpecification:synthetic-release-spec",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000007",
-      "typeId": "76000000-0000-4000-8000-000000000010",
-      "fromId": "77000000-0000-4000-8000-000000000009",
-      "toId": "77000000-0000-4000-8000-000000000007",
+      "typeId": "onto:includes_issue",
+      "fromId": "onto:ProductRevision:synthetic-release-next-candidate",
+      "toId": "onto:Issue:synthetic-release-issue",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000008",
-      "typeId": "71000000-0000-4000-8000-000000000033",
-      "fromId": "77000000-0000-4000-8000-000000000009",
-      "toId": "77000000-0000-4000-8000-000000000002",
+      "typeId": "onto:source_in",
+      "fromId": "onto:ProductRevision:synthetic-release-next-candidate",
+      "toId": "onto:Repository:synthetic-release-repo",
       "properties": {
         "path": "apps/console",
         "ref": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -258,198 +258,198 @@
     },
     {
       "id": "78000000-0000-4000-8000-000000000009",
-      "typeId": "76000000-0000-4000-8000-000000000009",
-      "fromId": "77000000-0000-4000-8000-000000000006",
-      "toId": "77000000-0000-4000-8000-000000000001",
+      "typeId": "onto:specifies",
+      "fromId": "onto:ProductSpecification:synthetic-release-spec",
+      "toId": "onto:Product:synthetic-release-product",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000010",
-      "typeId": "075f93f6-6860-4977-a1b8-b99c4e16c350",
-      "fromId": "77000000-0000-4000-8000-000000000006",
-      "toId": "77000000-0000-4000-8000-000000000004",
+      "typeId": "onto:has_requirement",
+      "fromId": "onto:ProductSpecification:synthetic-release-spec",
+      "toId": "onto:Requirement:synthetic-release-requirement",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000011",
-      "typeId": "075f93f6-6860-4977-a1b8-b99c4e16c350",
-      "fromId": "77000000-0000-4000-8000-000000000005",
-      "toId": "77000000-0000-4000-8000-000000000004",
+      "typeId": "onto:has_requirement",
+      "fromId": "onto:UserStory:synthetic-release-story",
+      "toId": "onto:Requirement:synthetic-release-requirement",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000012",
-      "typeId": "9d47572a-8a5a-41d7-959b-bd6bf7015527",
-      "fromId": "77000000-0000-4000-8000-000000000004",
-      "toId": "77000000-0000-4000-8000-000000000003",
+      "typeId": "onto:has_acceptance_criterion",
+      "fromId": "onto:Requirement:synthetic-release-requirement",
+      "toId": "onto:AcceptanceCriterion:synthetic-release-criterion",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000013",
-      "typeId": "d7744927-5ed5-46d2-89be-5815d6fe923c",
-      "fromId": "77000000-0000-4000-8000-000000000007",
-      "toId": "77000000-0000-4000-8000-000000000004",
+      "typeId": "onto:targets_requirement",
+      "fromId": "onto:Issue:synthetic-release-issue",
+      "toId": "onto:Requirement:synthetic-release-requirement",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000014",
-      "typeId": "76000000-0000-4000-8000-000000000012",
-      "fromId": "77000000-0000-4000-8000-000000000011",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:demonstrates",
+      "fromId": "onto:Demonstration:synthetic-release-demo",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000015",
-      "typeId": "76000000-0000-4000-8000-000000000013",
-      "fromId": "77000000-0000-4000-8000-000000000012",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:evaluates",
+      "fromId": "onto:EvaluationRecord:synthetic-release-evaluation",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000016",
-      "typeId": "76000000-0000-4000-8000-000000000014",
-      "fromId": "77000000-0000-4000-8000-000000000012",
-      "toId": "77000000-0000-4000-8000-000000000003",
+      "typeId": "onto:checks_criterion",
+      "fromId": "onto:EvaluationRecord:synthetic-release-evaluation",
+      "toId": "onto:AcceptanceCriterion:synthetic-release-criterion",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000017",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000012",
-      "toId": "77000000-0000-4000-8000-000000000010",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:EvaluationRecord:synthetic-release-evaluation",
+      "toId": "onto:Document:synthetic-release-receipt",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000018",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000012",
-      "toId": "77000000-0000-4000-8000-000000000011",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:EvaluationRecord:synthetic-release-evaluation",
+      "toId": "onto:Demonstration:synthetic-release-demo",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000019",
-      "typeId": "76000000-0000-4000-8000-000000000016",
-      "fromId": "77000000-0000-4000-8000-000000000014",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:assesses",
+      "fromId": "onto:ReadinessAssessment:synthetic-release-assessment",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000020",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000014",
-      "toId": "77000000-0000-4000-8000-000000000012",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:ReadinessAssessment:synthetic-release-assessment",
+      "toId": "onto:EvaluationRecord:synthetic-release-evaluation",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000021",
-      "typeId": "76000000-0000-4000-8000-000000000017",
-      "fromId": "77000000-0000-4000-8000-000000000014",
-      "toId": "77000000-0000-4000-8000-000000000013",
+      "typeId": "onto:applies_definition",
+      "fromId": "onto:ReadinessAssessment:synthetic-release-assessment",
+      "toId": "onto:ArtifactDefinition:synthetic-release-definition",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000022",
-      "typeId": "7f80f40e-4857-4841-b060-8039ecfaeb38",
-      "fromId": "77000000-0000-4000-8000-000000000013",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:artifact_for",
+      "fromId": "onto:ArtifactDefinition:synthetic-release-definition",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000023",
-      "typeId": "08755272-8498-4671-8f63-ec97acc97f76",
-      "fromId": "77000000-0000-4000-8000-000000000013",
-      "toId": "0601dd79-7419-5a5f-a0b6-10330b3bbcf6",
+      "typeId": "onto:uses_view",
+      "fromId": "onto:ArtifactDefinition:synthetic-release-definition",
+      "toId": "onto:KnowledgeGraph:decision-context",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000024",
-      "typeId": "71000000-0000-4000-8000-000000000062",
-      "fromId": "77000000-0000-4000-8000-000000000019",
-      "toId": "0cdb30f1-1c29-50b2-ac5d-5679e7eeb59d",
+      "typeId": "onto:decision_type",
+      "fromId": "onto:DecisionRecord:synthetic-release-approval",
+      "toId": "onto:DecisionType:approve-release",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000025",
-      "typeId": "71000000-0000-4000-8000-000000000063",
-      "fromId": "77000000-0000-4000-8000-000000000019",
-      "toId": "77000000-0000-4000-8000-000000000015",
+      "typeId": "onto:made_by",
+      "fromId": "onto:DecisionRecord:synthetic-release-approval",
+      "toId": "onto:Person:synthetic-release-reviewer",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000026",
-      "typeId": "71000000-0000-4000-8000-000000000064",
-      "fromId": "77000000-0000-4000-8000-000000000019",
-      "toId": "77000000-0000-4000-8000-000000000017",
+      "typeId": "onto:under_assignment",
+      "fromId": "onto:DecisionRecord:synthetic-release-approval",
+      "toId": "onto:RoleAssignment:synthetic-release-assignment",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000027",
-      "typeId": "71000000-0000-4000-8000-000000000043",
-      "fromId": "77000000-0000-4000-8000-000000000019",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:scoped_to",
+      "fromId": "onto:DecisionRecord:synthetic-release-approval",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000028",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000019",
-      "toId": "77000000-0000-4000-8000-000000000014",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:DecisionRecord:synthetic-release-approval",
+      "toId": "onto:ReadinessAssessment:synthetic-release-assessment",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000029",
-      "typeId": "71000000-0000-4000-8000-000000000041",
-      "fromId": "77000000-0000-4000-8000-000000000017",
-      "toId": "77000000-0000-4000-8000-000000000015",
+      "typeId": "onto:assigned_to",
+      "fromId": "onto:RoleAssignment:synthetic-release-assignment",
+      "toId": "onto:Person:synthetic-release-reviewer",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000030",
-      "typeId": "71000000-0000-4000-8000-000000000042",
-      "fromId": "77000000-0000-4000-8000-000000000017",
-      "toId": "77000000-0000-4000-8000-000000000016",
+      "typeId": "onto:assigns_role",
+      "fromId": "onto:RoleAssignment:synthetic-release-assignment",
+      "toId": "onto:Role:synthetic-release-role",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000031",
-      "typeId": "71000000-0000-4000-8000-000000000043",
-      "fromId": "77000000-0000-4000-8000-000000000017",
-      "toId": "77000000-0000-4000-8000-000000000001",
+      "typeId": "onto:scoped_to",
+      "fromId": "onto:RoleAssignment:synthetic-release-assignment",
+      "toId": "onto:Product:synthetic-release-product",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000032",
-      "typeId": "76000000-0000-4000-8000-000000000018",
-      "fromId": "77000000-0000-4000-8000-000000000020",
-      "toId": "77000000-0000-4000-8000-000000000008",
+      "typeId": "onto:release_of",
+      "fromId": "onto:ReleaseRecord:synthetic-release-release",
+      "toId": "onto:ProductRevision:synthetic-release-candidate",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000033",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000020",
-      "toId": "77000000-0000-4000-8000-000000000019",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:ReleaseRecord:synthetic-release-release",
+      "toId": "onto:DecisionRecord:synthetic-release-approval",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000034",
-      "typeId": "76000000-0000-4000-8000-000000000019",
-      "fromId": "77000000-0000-4000-8000-000000000022",
-      "toId": "77000000-0000-4000-8000-000000000020",
+      "typeId": "onto:verifies_release",
+      "fromId": "onto:PostReleaseVerification:synthetic-release-verification",
+      "toId": "onto:ReleaseRecord:synthetic-release-release",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000035",
-      "typeId": "76000000-0000-4000-8000-000000000014",
-      "fromId": "77000000-0000-4000-8000-000000000022",
-      "toId": "77000000-0000-4000-8000-000000000003",
+      "typeId": "onto:checks_criterion",
+      "fromId": "onto:PostReleaseVerification:synthetic-release-verification",
+      "toId": "onto:AcceptanceCriterion:synthetic-release-criterion",
       "properties": {}
     },
     {
       "id": "78000000-0000-4000-8000-000000000036",
-      "typeId": "76000000-0000-4000-8000-000000000015",
-      "fromId": "77000000-0000-4000-8000-000000000022",
-      "toId": "77000000-0000-4000-8000-000000000021",
+      "typeId": "onto:supported_by",
+      "fromId": "onto:PostReleaseVerification:synthetic-release-verification",
+      "toId": "onto:Document:synthetic-release-post-evidence",
       "properties": {}
     }
   ]

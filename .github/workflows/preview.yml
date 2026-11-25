@@ -90,21 +90,24 @@ jobs:
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           HEAD_SHA: ${{ steps.pr.outputs.sha }}
-      # Previews show an app's own UI change. A shared package or lockfile
-      # change still validates every dependent app, but only apps with files
-      # changed in their own directory get a preview.
+      # Preview direct changes and the apps that consume configured shared inputs.
       - id: direct
         if: steps.pr.outputs.closed != 'true'
         env:
+          CONFIG_PATH: ${{ inputs.config-path }}
           SELECTED_APPS: ${{ steps.plan.outputs.apps }}
           BASE_SHA: ${{ steps.base.outputs.sha }}
           HEAD_SHA: ${{ steps.pr.outputs.sha }}
         run: |
           node --input-type=module <<'NODE'
-          import { appendFileSync } from 'node:fs';
+          import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+          import { matchesGlob } from 'node:path';
           import { execFileSync } from 'node:child_process';
           const paths = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', process.env.BASE_SHA, process.env.HEAD_SHA, '--'], {encoding: 'utf8'}).split('\0').filter(Boolean);
-          const apps = JSON.parse(process.env.SELECTED_APPS).filter(app => paths.some(path => path.startsWith(`${app}/`)));
+          const configPath = process.env.CONFIG_PATH;
+          const {sharedInputs = [], sharedInputApps = []} = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : {};
+          const sharedApps = paths?.some(path => sharedInputs.some(glob => matchesGlob(path, glob))) ? sharedInputApps : [];
+          const apps = JSON.parse(process.env.SELECTED_APPS).filter(app => sharedApps.includes(app) || paths.some(path => path.startsWith(`${app}/`)));
           appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify(apps)}\nhas_apps=${apps.length > 0}\n`);
           NODE
   build-and-publish:

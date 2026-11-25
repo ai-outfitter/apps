@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
+import { defaultTypes } from "../../src/lib/default-types";
 import { core, type Graph, type GraphNode } from "../../src/lib/graph";
 export const chartId = (n: number) => `78000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 export function chartFixture() {
   const stamp = { revision: 1, createdBy: null, updatedBy: null, createdAt: 0, updatedAt: 0, archived: false };
   const organization: GraphNode = { ...stamp, id: chartId(0), typeId: core.organization, title: "Example organization", slug: "example", summary: "", body: "", properties: {}, website: null, source: null };
   const graph: Graph = { canEdit: false, home: { organizationId: organization.id }, nodes: [organization], edges: [],
-    types: JSON.parse(readFileSync(new URL("../../seeds/types-v1.json", import.meta.url), "utf8")).map((type: object) => ({ ...stamp, seedVersion: 1, ...type })) };
+    types: defaultTypes.map((type) => ({ ...stamp, seedVersion: 1, ...type })) };
   if (!graph.types.some(type => type.name === "Board")) graph.types.push({ ...graph.types[0], id: chartId(200), name: "Board", title: "Boards", category: "node", properties: [] });
   const type = (name: string) => graph.types.find(type => type.name === name)!.id;
   const node = (n: number, name: string, title: string): GraphNode => ({ ...organization, id: chartId(n), typeId: type(name), title, slug: `chart-${n}`, body: "", summary: "", properties: {} });
