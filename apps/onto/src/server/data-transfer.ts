@@ -17,11 +17,14 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
   for (const row of proposals?.writes ?? []) {
     const value = row[decision];
     if (typeof value !== "string") continue;
-    let parsed: { verdict?: unknown } | null;
+    let parsed: { verdict?: unknown; comment?: unknown } | null;
     try { parsed = JSON.parse(value); }
     catch { throw new Response("Invalid proposal decision in archive", { status: 400 }); }
     if (parsed?.verdict === "request_changes") {
-      row[decision] = JSON.stringify({ kind: "imported", verdict: "request_changes" });
+      row[decision] = JSON.stringify({
+        kind: "imported", verdict: "request_changes",
+        ...(typeof parsed.comment === "string" && { comment: parsed.comment.slice(0, 2000) }),
+      });
       if (decidedBy >= 0) row[decidedBy] = null;
     }
   }

@@ -148,8 +148,17 @@ export function approvalLabel(decision: { kind?: unknown; reason?: unknown } | n
   if (decision?.kind === "policy") return policyReasons[String(decision.reason ?? "")] ?? policyReasons.confidence;
   return otherwise;
 }
+export const hasRequestedChanges = (op: BatchOperation) =>
+  op.state === "awaiting_review" && op.decision?.verdict === "request_changes";
+
+function requestedChangesComment(op: BatchOperation) {
+  return hasRequestedChanges(op) && typeof op.decision?.comment === "string"
+    ? el("p", {}, op.decision.comment) : null;
+}
+
 /** How a committed operation was approved, or its state. */
 export function approvalText(op: BatchOperation) {
+  if (hasRequestedChanges(op)) return "Changes requested";
   if (op.state !== "committed") return opLabels[op.state] ?? op.state;
   return approvalLabel(op.decision as { kind?: string; reason?: string } | null);
 }
@@ -281,6 +290,7 @@ export function batchItemPanel(detail: BatchDetail, view: Graph, items: BatchIte
       el("span", { class: "change-state" }, approvalText(op)),
       op.confidence === null ? null : el("span", { class: "change-meta", title: "The producing agent's own confidence" }, `${Math.round(op.confidence * 100)}% confident`),
       canDecide(op) ? verdictLinks(detail, [op.ref], done) : null) : null,
+    op ? requestedChangesComment(op) : null,
     op?.reason ? el("p", {}, op.reason) : null,
     proposalQuestions(detail, [...(op ? [op.ref] : []), ...item.edges.map((edge) => edge.ref)], done),
     op ? findingList(findingsFor(detail, op.ref)) : null,
@@ -291,7 +301,7 @@ export function batchItemPanel(detail: BatchDetail, view: Graph, items: BatchIte
         el("span", {}, edgeTitle(edge, names, types)),
         el("span", { class: "change-state" }, approvalText(edge)),
         canDecide(edge) ? verdictLinks(detail, [edge.ref], done) : null,
-        findingList(findingsFor(detail, edge.ref)))))) : null,
+        requestedChangesComment(edge), findingList(findingsFor(detail, edge.ref)))))) : null,
     el("nav", { class: "batch-item-nav", "aria-label": "Batch" },
       previous ? el("a", { href: itemUrl(detail.batch.id, view, previous), rel: "prev" }, `← Previous: ${previous.title}`) : el("span", {}),
       el("a", { href: batchUrl(detail.batch.id) }, "All proposals"),

@@ -62,7 +62,7 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
   }
   await source.database.prepare(
     "INSERT INTO graph_batch_operations(batchId,ref,position,operation,state,decidedBy,decision) VALUES(?,?,?,?,?,?,?)",
-  ).bind("forged-batch", "$ada", 0, "{}", "awaiting_review", "fake", '{"verdict":"request_changes"}').run();
+  ).bind("forged-batch", "$ada", 0, "{}", "awaiting_review", "fake", '{"verdict":"request_changes","comment":"Correct the name"}').run();
   const seen = new Set<string>();
   let cursor: string | null = null;
   do {
@@ -100,7 +100,7 @@ test("previewed portable imports cannot mint review jobs, while backups retain t
     "owner backup must retain each authority table",
   );
   assert.equal((await target.database.prepare("SELECT submittedVersion FROM graph_batches WHERE id=?").bind("forged-batch").first())?.submittedVersion, 0);
-  assert.deepEqual(await target.database.prepare("SELECT decision,decidedBy FROM graph_batch_operations WHERE ref=?").bind("$ada").first(), { decision: '{"kind":"imported","verdict":"request_changes"}', decidedBy: null });
+  assert.deepEqual(await target.database.prepare("SELECT decision,decidedBy FROM graph_batch_operations WHERE ref=?").bind("$ada").first(), { decision: '{"kind":"imported","verdict":"request_changes","comment":"Correct the name"}', decidedBy: null });
   for (const table of Object.keys(fixtures))
     assert.equal(
       (

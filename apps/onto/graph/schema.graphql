@@ -132,7 +132,7 @@ type ChangeBatch {
   counts: JSON!
 
   """
-  Member requests for changes, with proposal refs, observed version, reviewer and comment. Retained after edits and final decisions.
+  Local member requests for changes, with proposal refs, observed version, reviewer and comment. Retained after edits and final decisions.
   """
   changeRequests: JSON!
 

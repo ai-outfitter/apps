@@ -190,10 +190,14 @@ test("requested changes hold a proposal out of both steward approval and the pol
   const held = { operation: person("$held", 71, "Held"), confidence: 0.6 };
   const clear = { operation: person("$clear", 72, "Clear"), confidence: 0.6 };
   const manual = { operation: person("$manual", 73, "Decision by member"), confidence: 0.6 };
-  await json(await f.action("batch.add", { batchId, proposals: [held, clear, manual] }, agent));
+  const linked = { operation: friends("$linked", 74, 71, 72), confidence: 0.6 };
+  await json(await f.action("batch.add", { batchId, proposals: [held, clear, manual, linked] }, agent));
   await json(await f.action("batch.submit", { batchId }, agent));
   const feedback = { batchId, verdict: "request_changes", refs: ["$held", "$manual"], expectedVersion: 1, comment: "Correct the name." };
   await json(await f.review(feedback));
+  const indirect = await f.review({ batchId, verdict: "approve", refs: ["$linked"], expectedVersion: 1 });
+  assert.equal(indirect.status, 409);
+  assert.match(await indirect.text(), /Approve \$held explicitly/);
   const repeated = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "unchanged", proposals: [held] } });
   assert.match(repeated.errors?.[0]?.message, /update its proposal or withdraw it/);
   const db = drizzle(f.app.database);
@@ -204,12 +208,15 @@ test("requested changes hold a proposal out of both steward approval and the pol
   assert.ok(steward);
   assert.deepEqual(steward.held, [
     { ref: "$held", reason: "changes were requested" }, { ref: "$manual", reason: "changes were requested" },
+    { ref: "$linked", reason: "depends on a held proposal" },
   ]);
   assert.equal(steward.approved, 1);
   assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 0);
   assert.equal(await f.exists(uuid(71)), false);
   assert.equal(await f.exists(uuid(72)), true);
   assert.equal(await f.exists(uuid(73)), false);
+  assert.equal((await f.review({ batchId, verdict: "approve", expectedVersion: 1 })).status, 409);
+  assert.equal(await f.exists(uuid(74)), false);
   await json(await f.review({ batchId, verdict: "approve", refs: ["$manual"], expectedVersion: 1 }));
   assert.equal(await f.exists(uuid(73)), true);
   const amended = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "fixed",
@@ -217,7 +224,7 @@ test("requested changes hold a proposal out of both steward approval and the pol
   assert.equal(amended.data.mutateBatchSubmission.submittedVersion, 2);
   const reopened = (await json(await f.action("batch.get", { batchId }))).batch;
   assert.ok(reopened.reviewBy > Date.now());
-  assert.equal((await sealDueBatches(db, who, reopened.reviewBy + 1)).sealed, 1);
+  assert.equal((await sealDueBatches(db, who, reopened.reviewBy + 1)).sealed, 2);
   assert.equal(await f.exists(uuid(71)), true);
 });
 

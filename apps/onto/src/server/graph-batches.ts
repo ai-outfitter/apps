@@ -777,8 +777,13 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   checkObservedVersion(batch, input.expectedVersion, input.verdict === "request_changes");
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
-  const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
-  if (!chosen.size) fail("No waiting operations match", 409);
+  const waitingRefs = new Set(waiting.map(row => row.ref));
+  const chosen = new Set(input.refs ? input.refs.filter(ref => waitingRefs.has(ref)) : waitingRefs);
+  if (input.verdict === "approve" && !input.refs) {
+    for (const row of waiting.filter(changesRequested)) chosen.delete(row.ref);
+    closeSelection(rows, chosen);
+  }
+  if (!chosen.size) fail("No waiting operations match; explicitly name proposals with requested changes to approve them", 409);
   const at = Date.now();
   const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at });
   if (input.verdict === "request_changes") {
@@ -805,7 +810,12 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
       sql`UPDATE graph_batch_operations SET state='rejected',decidedBy=${who.userId},decision=${JSON.stringify(decision)} WHERE batchId=${batch.id} AND ref IN (SELECT value FROM json_each(${JSON.stringify([...rejected])}))`,
       sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
     ], "Batch changed; reload before reviewing");
-  } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
+  } else {
+    const approved = withDependencies(rows, waiting, chosen);
+    const heldDependency = waiting.find(row => approved.has(row.ref) && !chosen.has(row.ref) && changesRequested(row));
+    if (heldDependency) fail(`Approve ${heldDependency.ref} explicitly before approving proposals that depend on it`, 409);
+    await commitOperations(db, who, batch, rows, approved, () => decision);
+  }
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
 }

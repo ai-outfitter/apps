@@ -71,8 +71,7 @@ export const batchSubmitInput = z.strictObject({
 export const batchReviewInput = z.strictObject({
   expectedVersion: z.number().int().nonnegative().optional().describe("Pass the observed submittedVersion to check it before deciding. Required when requesting changes; may be omitted for approval or rejection to review the current submission."),
   batchId: z.uuid(),
-  /** Omit refs to decide every operation still waiting. */
-  refs: z.array(ref).min(1).max(batchOperationCap).optional(),
+  refs: z.array(ref).min(1).max(batchOperationCap).optional().describe("Omit to review all waiting proposals. Bulk approval skips refs with requested changes and their dependents. Explicitly name held refs to approve them."),
   verdict: z.enum(["approve", "reject", "request_changes"]),
   comment: z.string().max(2000).optional(),
 });
