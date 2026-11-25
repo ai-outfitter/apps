@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/workshop-v0.1.4...workshop-v0.1.5) (2026-11-25)
+
+
+### Features
+
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+* **workshop:** add print inspection and sliced plate evidence ([eef637d](https://github.com/ai-outfitter/apps/commit/eef637da88a2f043b9a21bc70534f6d581d4356c))
+* **workshop:** attach and verify CAD and animation files on saved parts ([d65c283](https://github.com/ai-outfitter/apps/commit/d65c283de5986946da706a8ba9e7f5737bfceffb))
+* **workshop:** consolidate assembly viewing on the project overview ([ac69120](https://github.com/ai-outfitter/apps/commit/ac69120351ab600f5ad3cf74b7755f8b37d551f6))
+* **workshop:** distinguish estimated unit costs in referenced build prices ([7415d10](https://github.com/ai-outfitter/apps/commit/7415d1059ccec2826e7476abc479539d42ede2ea))
+* **workshop:** import verified PCB packages through MCP ([#234](https://github.com/ai-outfitter/apps/issues/234)) ([0e38161](https://github.com/ai-outfitter/apps/commit/0e3816153b8add35871dc5ab66b5c4b7ed136714))
+* **workshop:** inspect components directly from a top assembly view ([#236](https://github.com/ai-outfitter/apps/issues/236)) ([bc51915](https://github.com/ai-outfitter/apps/commit/bc519155cf4e857e9af52b43dfae41a48438c7f8))
+* **workshop:** inspect installed covers and model sizing ([d2fbb9e](https://github.com/ai-outfitter/apps/commit/d2fbb9e0fd685c33d72f33ad762bc6a5371c07e0))
+* **workshop:** pick installed assemblies and drill into their members ([#237](https://github.com/ai-outfitter/apps/issues/237)) ([7949171](https://github.com/ai-outfitter/apps/commit/79491711a6846bc9b4947fda2e0ca7b2fb034261))
+* **workshop:** play installed joints and transfer props in named operations ([fe839c3](https://github.com/ai-outfitter/apps/commit/fe839c39afdfdd78f607febefe2b742aa901f5b3))
+* **workshop:** publish revision-checked assembly reads and saves ([c4ae915](https://github.com/ai-outfitter/apps/commit/c4ae9158e2f564e5f8d474b605de7711ca85b79b))
+* **workshop:** resolve CAD opacity and roll up build prices ([0e3f225](https://github.com/ai-outfitter/apps/commit/0e3f225f2a879bc938d65f33d170f3892790fff2))
+* **workshop:** resolve configured assembly references across projects ([c87c53e](https://github.com/ai-outfitter/apps/commit/c87c53e9b5889bd6a6c6c9f876d59ee478a720df))
+* **workshop:** separate products from reusable component models ([#251](https://github.com/ai-outfitter/apps/issues/251)) ([84a672e](https://github.com/ai-outfitter/apps/commit/84a672e8071595d60ed58d9e6c4fdc07794900b7))
+
+
+### Bug Fixes
+
+* **graphql:** preserve complete fields alongside paged results ([027287c](https://github.com/ai-outfitter/apps/commit/027287cd0b04f9039c9e515096a064cb83690f9d))
+* **workshop:** allow saved assemblies with more than 200 items ([ac17fcf](https://github.com/ai-outfitter/apps/commit/ac17fcff9ad0789494a2054a7dd3a602ffa7589d))
+* **workshop:** fit resolved pages within the default graph budget ([baf97e8](https://github.com/ai-outfitter/apps/commit/baf97e8b23ac8b86795407974cdbc5dbd0335e89))
+* **workshop:** keep motion status with the model on narrow screens ([68fcde7](https://github.com/ai-outfitter/apps/commit/68fcde732d3637f3a70fba4f13da556d5c1fcfe8))
+* **workshop:** lead the BOM with the combined one-build price ([ed3c68f](https://github.com/ai-outfitter/apps/commit/ed3c68f7fb685e189e5f20ff4e58d432b8a0bdf7))
+* **workshop:** load project views without WebGL and clarify assembly navigation ([35c49aa](https://github.com/ai-outfitter/apps/commit/35c49aa3b0a2840993aa34ae35c69d72a98259d1))
+* **workshop:** match reviewed personal catalog policy ([#227](https://github.com/ai-outfitter/apps/issues/227)) ([5600f86](https://github.com/ai-outfitter/apps/commit/5600f86ac29d617d8edb389790bae9e9a8b82a4b))
+* **workshop:** page complete resolved assemblies with a snapshot digest ([61ea5e1](https://github.com/ai-outfitter/apps/commit/61ea5e18a30161fba85ce35b30753b2159951e0f))
+* **workshop:** play saved drive motion through installed references ([d87443e](https://github.com/ai-outfitter/apps/commit/d87443e2aa7a4366f06e5426252595dd07269e83))
+* **workshop:** preserve assembly references across builds and nested reads ([405fa05](https://github.com/ai-outfitter/apps/commit/405fa054781ad0752244d793a14634411cf94cfb))
+* **workshop:** preserve unaffected placement IDs when binding saved motion ([8bb08a3](https://github.com/ai-outfitter/apps/commit/8bb08a3fb7517834a9cafaabc19cc5a1e42efe18))
+* **workshop:** preserve verified attachment provenance on assembly edits ([bb0710a](https://github.com/ai-outfitter/apps/commit/bb0710a335ba32fdf1877becc67adff0f3355144))
+* **workshop:** publish component classification operation ([#253](https://github.com/ai-outfitter/apps/issues/253)) ([28cb573](https://github.com/ai-outfitter/apps/commit/28cb573b068b73c7bc700ee2160ea85d0a95ce46))
+* **workshop:** publish the updated assembly input contract ([4c49d51](https://github.com/ai-outfitter/apps/commit/4c49d51b96b1780438c8234e23822a64d78672ef))
+* **workshop:** put assembly motion controls beside the CAD viewport ([d410f7d](https://github.com/ai-outfitter/apps/commit/d410f7d8008a0d1dc16cde432ccf78960e3ffdff))
+* **workshop:** restore the pre-review viewer layout ([#242](https://github.com/ai-outfitter/apps/issues/242)) ([572f956](https://github.com/ai-outfitter/apps/commit/572f956e1db326e9f5707b40ae006600025506fa))
+* **workshop:** use the DOM type for reference figures ([#254](https://github.com/ai-outfitter/apps/issues/254)) ([1d0d4ee](https://github.com/ai-outfitter/apps/commit/1d0d4ee08b3f71d9b4f9e92b47d928379c906e1d))
+* **workshop:** verify sliced geometry and scope print analysis ([0df3ae0](https://github.com/ai-outfitter/apps/commit/0df3ae0d007b05c36e8d6f65c77dcf1d7b99ea8b))
+
+
+### Performance Improvements
+
+* **workshop:** reuse CAD meshes and show a snapshot during rendering ([7505092](https://github.com/ai-outfitter/apps/commit/750509275887c3f3c4775766cfd2fd78c88daeeb))
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/workshop-v0.1.3...workshop-v0.1.4) (2026-11-17)
 
 
