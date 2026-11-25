@@ -1,0 +1,795 @@
+{
+  "revision": "210ac1e1608b9269503f05d74929e8066d7e571b",
+  "sourceHashes": {
+    "../../src/server/daily-brief.ts": "703fcb11d1c859e15b41024dd8c28b90ed25481f14db622e5ceec6563c9dc42a",
+    "../../src/server/daily-brief-synthesis.ts": "e35539c68b8917136bcf6a3fa68a031372130c71c9ee781a054065ca9ae50160",
+    "../../src/server/app-updates.ts": "c7588248b637fab0bff35515977592c53ce9291fc6d8c0e8c8baac46109922c0",
+    "../../../onto/src/server/daily-update.ts": "b2a7158a9437ab9a25f9ce467099a9de0afeeca7c1d3016561189a7df7565fd2",
+    "../../../wiki/src/documents/graphql.ts": "1ca8beddbb002ca95b3def62fc8027d4d9229e1e245a6510d486d21f355c8933",
+    "../../../../packages/app-sdk/src/workflow-host.ts": "293c40960764741fc4a2ac35a599f860850b5348c7a52ca8e63ea2c3cc3eef6a",
+    "./issue-273-fixtures.ts": "5adad6d00ff5e5c303fc799d22b5d80117bcd150957e05b1e9d8d45c8fb26ade"
+  },
+  "mode": "live-spark",
+  "model": "GLM-5.3-Flash-EXL3",
+  "maxCompletionTokens": 3000,
+  "temperature": 0,
+  "thinking": "disabled",
+  "timeoutMs": 150000,
+  "producedAt": "2026-11-25T14:43:00.843Z",
+  "onto": {
+    "activity": {
+      "writes": [
+        {
+          "slug": "app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88",
+          "title": "Onto daily update — 2026-11-24",
+          "generatedBody": "2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.\nCoverage: complete\n{\"kind\":\"graph-node\",\"id\":\"record-1\",\"revision\":1,\"batchId\":\"batch-1\",\"title\":\"Synthetic proposal A\",\"at\":1795500060000,\"activity\":\"committed revision\"}\n{\"kind\":\"graph-node\",\"id\":\"record-2\",\"revision\":1,\"batchId\":\"batch-2\",\"title\":\"Synthetic proposal B\",\"at\":1795500120000,\"activity\":\"committed revision\"}\n{\"id\":\"batch-5\",\"title\":\"Synthetic proposal E\",\"state\":\"open\",\"at\":1795500300000,\"activity\":\"batch updated; current proposal state\"}\n{\"id\":\"batch-6\",\"title\":\"Synthetic proposal F\",\"state\":\"open\",\"at\":1795500360000,\"activity\":\"batch updated; current proposal state\"}\n{\"id\":\"batch-7\",\"title\":\"Synthetic proposal G\",\"state\":\"rejected\",\"at\":1795500420000,\"activity\":\"batch updated; current proposal state\"}\n{\"id\":\"batch-8\",\"title\":\"Synthetic proposal H\",\"state\":\"rejected\",\"at\":1795500480000,\"activity\":\"batch updated; current proposal state\"}\n{\"id\":\"batch-9\",\"title\":\"Synthetic proposal I\",\"state\":\"rejected\",\"at\":1795500540000,\"activity\":\"batch updated; current proposal state\"}\nEvidence digest: 7cde599d-d8ac-5f0f-86ac-bc7021888b1a\n<!--daily-update:{\"summary\":\"2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.\",\"complete\":true}-->",
+          "provenance": {
+            "kind": "app.daily-update",
+            "app": "Onto",
+            "installationId": "fixture-onto",
+            "period": {
+              "date": "2026-11-24",
+              "timezone": "America/Chicago",
+              "start": 1795500000000,
+              "end": 1795586400000
+            },
+            "runId": "00000000-0000-4000-8000-000000000001"
+          }
+        }
+      ],
+      "phaseCalls": [
+        "schedules",
+        "workflow.start",
+        "actions.call",
+        "actions.call",
+        "workflow.collect"
+      ],
+      "update": {
+        "id": "onto-daily-document",
+        "revision": 1,
+        "slug": "app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88",
+        "scope": "personal",
+        "app": "Onto",
+        "timezone": "America/Chicago",
+        "summary": "2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.",
+        "complete": true
+      },
+      "provider": [],
+      "checks": [
+        {
+          "name": "producer-collected-commit-events",
+          "pass": true,
+          "detail": "Expected [\"record-1\",\"record-2\"]. Observed [\"record-1\",\"record-2\"]."
+        },
+        {
+          "name": "producer-collected-current-proposal-states",
+          "pass": true,
+          "detail": "Expected [\"open\",\"open\",\"rejected\",\"rejected\",\"rejected\"]. Observed [\"open\",\"open\",\"rejected\",\"rejected\",\"rejected\"]."
+        },
+        {
+          "name": "producer-summary-keeps-counts-separate",
+          "pass": true,
+          "detail": "Expected true. Observed true."
+        },
+        {
+          "name": "producer-page-receipt",
+          "pass": true,
+          "detail": "Expected [\"onto-daily-document\",1,true]. Observed [\"onto-daily-document\",1,true]."
+        }
+      ]
+    },
+    "empty": {
+      "writes": [
+        {
+          "slug": "app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88",
+          "title": "Onto daily update — 2026-11-24",
+          "generatedBody": "0 committed record revisions by commit time. 0 pending and 0 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.\nCoverage: complete\nEvidence digest: 673532e2-cc7a-5182-86cc-f972fd00d2b9\n<!--daily-update:{\"summary\":\"0 committed record revisions by commit time. 0 pending and 0 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.\",\"complete\":true}-->",
+          "provenance": {
+            "kind": "app.daily-update",
+            "app": "Onto",
+            "installationId": "fixture-onto",
+            "period": {
+              "date": "2026-11-24",
+              "timezone": "America/Chicago",
+              "start": 1795500000000,
+              "end": 1795586400000
+            },
+            "runId": "00000000-0000-4000-8000-000000000001"
+          }
+        }
+      ],
+      "phaseCalls": [
+        "schedules",
+        "workflow.start",
+        "actions.call",
+        "actions.call",
+        "workflow.collect"
+      ],
+      "update": {
+        "id": "onto-daily-document",
+        "revision": 1,
+        "slug": "app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88",
+        "scope": "personal",
+        "app": "Onto",
+        "timezone": "America/Chicago",
+        "summary": "0 committed record revisions by commit time. 0 pending and 0 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.",
+        "complete": true
+      },
+      "provider": [],
+      "checks": [
+        {
+          "name": "producer-collected-commit-events",
+          "pass": true,
+          "detail": "Expected []. Observed []."
+        },
+        {
+          "name": "producer-collected-current-proposal-states",
+          "pass": true,
+          "detail": "Expected []. Observed []."
+        },
+        {
+          "name": "producer-summary-keeps-counts-separate",
+          "pass": true,
+          "detail": "Expected true. Observed true."
+        },
+        {
+          "name": "producer-page-receipt",
+          "pass": true,
+          "detail": "Expected [\"onto-daily-document\",1,true]. Observed [\"onto-daily-document\",1,true]."
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "nov25-authored-late-discovery",
+      "runs": [
+        {
+          "id": "nov25-authored-late-discovery",
+          "stage": "morning",
+          "at": "2026-11-25T11:00:00.000Z",
+          "occurrence": {
+            "runId": "00000000-0000-4000-8000-000000000020",
+            "scheduledFor": 1795604400000,
+            "trigger": "clock",
+            "schedule": {
+              "id": "fixture-brief-schedule",
+              "workflowId": "forerunner-daily-brief",
+              "inputs": {},
+              "connectionId": null,
+              "resource": null
+            }
+          },
+          "protocol": "reserved-run",
+          "discoveryStates": [
+            {
+              "label": "mail-discovery",
+              "leaf": "ready",
+              "lastRunAt": null,
+              "nextRunAt": 1795611600000,
+              "enabled": true,
+              "lastRunId": null
+            },
+            {
+              "label": "calendar-discovery",
+              "leaf": "ready",
+              "lastRunAt": null,
+              "nextRunAt": 1795611600000,
+              "enabled": true,
+              "lastRunId": null
+            },
+            {
+              "label": "planning-discovery",
+              "leaf": "ready",
+              "lastRunAt": null,
+              "nextRunAt": 1795611600000,
+              "enabled": true,
+              "lastRunId": null
+            },
+            {
+              "label": "follow-up-discovery",
+              "leaf": "ready",
+              "lastRunAt": null,
+              "nextRunAt": 1795611600000,
+              "enabled": true,
+              "lastRunId": null
+            }
+          ],
+          "phase": {
+            "outcome": "deferred",
+            "retryAt": 1795604700000,
+            "reason": "Waiting for this morning's discovery and the previous day's Onto activity."
+          },
+          "trace": [
+            {
+              "op": "schedules"
+            },
+            {
+              "op": "platform.document",
+              "document": "DailyAppUpdates",
+              "args": {
+                "date": "2026-11-24",
+                "limit": 50
+              }
+            },
+            {
+              "op": "platform.document",
+              "document": "Viewer"
+            }
+          ],
+          "prompts": [],
+          "results": [],
+          "before": [],
+          "writes": [],
+          "provider": [],
+          "checks": [
+            {
+              "name": "phase-outcome",
+              "pass": true,
+              "detail": "Expected \"deferred\". Observed \"deferred\"."
+            },
+            {
+              "name": "occurrence-workflow-start",
+              "pass": true,
+              "detail": "Expected []. Observed []."
+            },
+            {
+              "name": "inference-count",
+              "pass": true,
+              "detail": "Expected 0. Observed 0."
+            },
+            {
+              "name": "wiki-write-count",
+              "pass": true,
+              "detail": "Expected 0. Observed 0."
+            },
+            {
+              "name": "next-dependency-check-is-before-07:00",
+              "pass": true,
+              "detail": "Expected true. Observed true."
+            },
+            {
+              "name": "nothing-from-07:00-leaks-at-05:00",
+              "pass": true,
+              "detail": "Expected false. Observed false."
+            }
+          ]
+        },
+        {
+          "id": "nov25-authored-late-discovery",
+          "stage": "ready",
+          "at": "2026-11-25T13:00:00.000Z",
+          "occurrence": {
+            "runId": "00000000-0000-4000-8000-000000000020",
+            "scheduledFor": 1795604400000,
+            "trigger": "clock",
+            "schedule": {
+              "id": "fixture-brief-schedule",
+              "workflowId": "forerunner-daily-brief",
+              "inputs": {},
+              "connectionId": null,
+              "resource": null
+            }
+          },
+          "protocol": "reserved-run",
+          "update": {
+            "id": "onto-daily-document",
+            "revision": 1,
+            "slug": "app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88",
+            "scope": "personal",
+            "app": "Onto",
+            "timezone": "America/Chicago",
+            "summary": "2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.",
+            "complete": true
+          },
+          "discoveryStates": [
+            {
+              "label": "mail-discovery",
+              "leaf": "ready",
+              "lastRunAt": 1795611600000,
+              "nextRunAt": 1795698000000,
+              "enabled": true,
+              "lastRunId": "mail-discovery-run"
+            },
+            {
+              "label": "calendar-discovery",
+              "leaf": "ready",
+              "lastRunAt": 1795611600000,
+              "nextRunAt": 1795698000000,
+              "enabled": true,
+              "lastRunId": "calendar-discovery-run"
+            },
+            {
+              "label": "planning-discovery",
+              "leaf": "ready",
+              "lastRunAt": 1795611600000,
+              "nextRunAt": 1795698000000,
+              "enabled": true,
+              "lastRunId": "planning-discovery-run"
+            },
+            {
+              "label": "follow-up-discovery",
+              "leaf": "ready",
+              "lastRunAt": 1795611600000,
+              "nextRunAt": 1795698000000,
+              "enabled": true,
+              "lastRunId": "follow-up-discovery-run"
+            }
+          ],
+          "phase": {
+            "outcome": "started"
+          },
+          "trace": [
+            {
+              "op": "schedules"
+            },
+            {
+              "op": "workflow.read",
+              "args": "mail-discovery-run"
+            },
+            {
+              "op": "workflow.read",
+              "args": "calendar-discovery-run"
+            },
+            {
+              "op": "workflow.read",
+              "args": "planning-discovery-run"
+            },
+            {
+              "op": "workflow.read",
+              "args": "follow-up-discovery-run"
+            },
+            {
+              "op": "platform.document",
+              "document": "DailyAppUpdates",
+              "args": {
+                "date": "2026-11-24",
+                "limit": 50
+              }
+            },
+            {
+              "op": "platform.document",
+              "document": "Viewer"
+            },
+            {
+              "op": "workflow.read",
+              "args": "00000000-0000-4000-8000-000000000020"
+            },
+            {
+              "op": "workflow.start",
+              "args": "00000000-0000-4000-8000-000000000020"
+            },
+            {
+              "op": "actions.call"
+            },
+            {
+              "op": "actions.call"
+            },
+            {
+              "op": "entities.types"
+            },
+            {
+              "op": "platform.document",
+              "document": "Viewer"
+            },
+            {
+              "op": "platform.document",
+              "document": "Viewer"
+            },
+            {
+              "op": "platform.document",
+              "document": "WikiRevisionActivity",
+              "args": {
+                "start": "2026-11-24T06:00:00.000Z",
+                "end": "2026-11-25T06:00:00.000Z",
+                "limit": 20
+              }
+            },
+            {
+              "op": "entities.types"
+            },
+            {
+              "op": "platform.document",
+              "document": "WikiRevisionActivity",
+              "args": {
+                "start": "2026-11-24T06:00:00.000Z",
+                "end": "2026-11-25T06:00:00.000Z",
+                "limit": 20,
+                "cursor": "page-2"
+              }
+            },
+            {
+              "op": "inference.generate"
+            },
+            {
+              "op": "actions.call"
+            },
+            {
+              "op": "workflow.collect"
+            }
+          ],
+          "prompts": [
+            {
+              "step": "collect",
+              "data": {
+                "date": "2026-11-25",
+                "timezone": "America/Chicago",
+                "coversCompletedDay": "2026-11-24",
+                "evidence": [
+                  {
+                    "ref": "p1",
+                    "kind": "priority",
+                    "text": "Send the field handoff (stone, todo, due 2026-11-25)"
+                  },
+                  {
+                    "ref": "app1",
+                    "kind": "app-update",
+                    "text": "Personal · Onto (2026-11-24, America/Chicago): 2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "wiki1",
+                    "kind": "wiki-activity",
+                    "text": "Personal · Wiki: Reviewed field notes, document revision 3, saved 2026-11-24T06:00:00.000Z Author and editor identity: unknown."
+                  },
+                  {
+                    "ref": "wiki2",
+                    "kind": "wiki-activity",
+                    "text": "fixture-team · Wiki: Documented the handoff, legacy graph revision 2, saved 2026-11-25T05:59:59.999Z Author and editor identity: unknown."
+                  },
+                  {
+                    "ref": "wiki3",
+                    "kind": "wiki-activity",
+                    "text": "2 authored Wiki revisions observed across all authorized scopes and both revision stores for 2026-11-24. Author and editor identity: unknown.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "d1",
+                    "kind": "discovery",
+                    "text": "Discovery: mail-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "d2",
+                    "kind": "discovery",
+                    "text": "Discovery: calendar-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "d3",
+                    "kind": "discovery",
+                    "text": "Discovery: planning-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "d4",
+                    "kind": "discovery",
+                    "text": "Discovery: follow-up-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.",
+                    "coverage": "complete"
+                  },
+                  {
+                    "ref": "d5",
+                    "kind": "discovery",
+                    "text": "Future discovery sentinel. Saved at 07:00"
+                  }
+                ],
+                "notKnown": [
+                  "Responsibilities: no saved role was available to this run.",
+                  "Goals: no saved personal report with goal context was available for yesterday; goals were not read.",
+                  "Planning issues: no issue is in progress in your organizations' Planning.",
+                  "Personal planning: the saved overview could not be read for 2026-11-24.",
+                  "Organization report sources could not be loaded. This is not evidence of no activity.",
+                  "Google Analytics: not collected. No measurements are inferred.",
+                  "PostHog: not collected. No measurements are inferred.",
+                  "Stripe: not collected. No measurements are inferred.",
+                  "Databricks: not collected. No measurements are inferred.",
+                  "raw mail and calendar (only the daily discovery run's saved suggestions are read): not collected. No measurements are inferred."
+                ],
+                "limits": "Only the items in evidence, at most 24000 bytes. Do not infer from anything omitted."
+              },
+              "promptSha256": "b467f5cac5b3437afb7f257a7563f2e69aa0f71b4b9c6ed74473ceb06497ae52",
+              "answer": {
+                "opening": {
+                  "text": "Good morning. Here is your brief for today, Tuesday, November 25, 2026, America/Chicago, covering yesterday, November 24.",
+                  "evidence": [
+                    "p1",
+                    "app1",
+                    "wiki1",
+                    "wiki2"
+                  ]
+                },
+                "highlights": [
+                  {
+                    "text": "Your priority to send the field handoff (stone) is due today.",
+                    "kind": "fact",
+                    "evidence": [
+                      "p1"
+                    ]
+                  },
+                  {
+                    "text": "A legacy Wiki revision on the fixture-team scope documents the handoff, saved early today.",
+                    "kind": "fact",
+                    "evidence": [
+                      "wiki2"
+                    ]
+                  },
+                  {
+                    "text": "Onto shows 2 committed record revisions by commit time, with Synthetic proposal A and Synthetic proposal B among batches with commits; 2 pending and 3 rejected batch updates are also observed.",
+                    "kind": "fact",
+                    "evidence": [
+                      "app1"
+                    ]
+                  },
+                  {
+                    "text": "The handoff Wiki revision may relate to your priority to send the field handoff, worth checking before you send it.",
+                    "kind": "inference",
+                    "evidence": [
+                      "p1",
+                      "wiki2"
+                    ]
+                  }
+                ],
+                "attention": [
+                  {
+                    "text": "Send the field handoff (stone) today, as it is due today.",
+                    "why": "It is your own priority with a due date of today.",
+                    "evidence": [
+                      "p1"
+                    ],
+                    "goal": null
+                  },
+                  {
+                    "text": "Check the fixture-team Wiki handoff revision before sending the field handoff.",
+                    "why": "It may contain relevant context for the handoff you need to send.",
+                    "evidence": [
+                      "wiki2",
+                      "p1"
+                    ],
+                    "goal": null
+                  }
+                ],
+                "unsupported": [
+                  "No saved role or goals were available, so this brief could not be tailored to your responsibilities or goals.",
+                  "No issue is in progress in your organizations' Planning, and your personal planning overview for yesterday could not be read.",
+                  "Organization report sources could not be loaded, so any organization activity is unknown.",
+                  "Google Analytics, PostHog, Stripe, Databricks, and raw mail and calendar were not collected, so no measurements or activity from those sources can be reported.",
+                  "Author and editor identities for the Wiki revisions are unknown."
+                ]
+              }
+            }
+          ],
+          "results": [
+            {
+              "documentId": "fixture-daily-brief",
+              "revision": 1,
+              "slug": "forerunner-brief-2026-11-25-e9e4d5d1-6419-5ba8-89ae-3949a5f103be",
+              "date": "2026-11-25",
+              "status": "incomplete",
+              "outcome": "saved"
+            }
+          ],
+          "before": [],
+          "writes": [
+            {
+              "id": "fixture-daily-brief",
+              "installationId": "fixture-wiki",
+              "archived": false,
+              "slug": "forerunner-brief-2026-11-25-e9e4d5d1-6419-5ba8-89ae-3949a5f103be",
+              "revision": 1,
+              "generatedBody": "# Today — 2026-11-25\n\nGood morning. Here is your brief for today, Tuesday, November 25, 2026, America/Chicago, covering yesterday, November 24. (source p1, source app1, source wiki1, source wiki2)\n\nWritten from saved records for the completed day 2026-11-24 (America/Chicago) and your board as of this run.\n\n## What matters\n\n- Your priority to send the field handoff (stone) is due today. (source p1)\n- A legacy Wiki revision on the fixture-team scope documents the handoff, saved early today. (source wiki2)\n- Onto shows 2 committed record revisions by commit time, with Synthetic proposal A and Synthetic proposal B among batches with commits; 2 pending and 3 rejected batch updates are also observed. (source app1)\n- Inference: The handoff Wiki revision may relate to your priority to send the field handoff, worth checking before you send it. (source p1, source wiki2)\n\n## Suggested attention\n\nThese are suggestions, not facts.\n\n- **Send the field handoff (stone) today, as it is due today.** It is your own priority with a due date of today. (source p1)\n- **Check the fixture-team Wiki handoff revision before sending the field handoff.** It may contain relevant context for the handoff you need to send. (source wiki2, source p1)\n\n## Previous day’s activity\n\n- Personal · Onto (2026-11-24, America/Chicago): 2 committed record revisions by commit time. Batches with commits include Synthetic proposal A; Synthetic proposal B. 2 pending and 3 rejected batch updates observed. Proposal counts use current states, separate from committed revisions. (source app1)\n- Personal · Wiki: Reviewed field notes, document revision 3, saved 2026-11-24T06:00:00.000Z (source wiki1)\n- fixture-team · Wiki: Documented the handoff, legacy graph revision 2, saved 2026-11-25T05:59:59.999Z (source wiki2)\n- 2 authored Wiki revisions observed across all authorized scopes and both revision stores for 2026-11-24. (source wiki3)\n\n## Not known\n\n- Responsibilities: no saved role was available to this run.\n- Goals: no saved personal report with goal context was available for yesterday; goals were not read.\n- Planning issues: no issue is in progress in your organizations' Planning.\n- Personal planning: the saved overview could not be read for 2026-11-24.\n- Organization report sources could not be loaded. This is not evidence of no activity.\n- Google Analytics: not collected. No measurements are inferred.\n- PostHog: not collected. No measurements are inferred.\n- Stripe: not collected. No measurements are inferred.\n- Databricks: not collected. No measurements are inferred.\n- raw mail and calendar (only the daily discovery run's saved suggestions are read): not collected. No measurements are inferred.\n- Not supported by the saved evidence: No saved role or goals were available, so this brief could not be tailored to your responsibilities or goals.\n- Not supported by the saved evidence: No issue is in progress in your organizations' Planning, and your personal planning overview for yesterday could not be read.\n- Not supported by the saved evidence: Organization report sources could not be loaded, so any organization activity is unknown.\n- Not supported by the saved evidence: Google Analytics, PostHog, Stripe, Databricks, and raw mail and calendar were not collected, so no measurements or activity from those sources can be reported.\n- Not supported by the saved evidence: Author and editor identities for the Wiki revisions are unknown.\n\n## Sources\n\n- p1: Priority: Send the field handoff\n- app1: [Personal · Onto (2026-11-24, America/Chicago)](/apps/wiki-map/p/app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88?revision=1), revision 1\n- wiki1: [Personal · Wiki: Reviewed field notes](/apps/wiki-map/p/review-notes?revision=3), revision 3\n- wiki2: [fixture-team · Wiki: Documented the handoff](/o/fixture-team/wiki-map/revision/legacy/legacy-authored?revision=2), revision 2\n- wiki3: Authorized Wiki revision activity\n- d1: [Discovery: mail-discovery](/apps/forerunner/runs/mail-discovery-run)\n- d2: [Discovery: calendar-discovery](/apps/forerunner/runs/calendar-discovery-run)\n- d3: [Discovery: planning-discovery](/apps/forerunner/runs/planning-discovery-run)\n- d4: [Discovery: follow-up-discovery](/apps/forerunner/runs/follow-up-discovery-run)\n- d5: Discovery suggestion: Future discovery sentinel\n\nNo previous daily brief is saved; this starts the series.\n\nEvidence digest bcb7bcb41effbba4",
+              "provenance": {
+                "kind": "forerunner.daily-brief",
+                "generation": "model-synthesis",
+                "owner": {
+                  "kind": "user",
+                  "id": "fixture-member"
+                },
+                "installationId": "fixture-forerunner",
+                "date": "2026-11-25",
+                "timezone": "America/Chicago",
+                "runId": "00000000-0000-4000-8000-000000000020",
+                "capturedAt": 1795611600000,
+                "status": "incomplete",
+                "evidenceDigest": "bcb7bcb41effbba4",
+                "sources": [
+                  {
+                    "ref": "p1",
+                    "kind": "priority",
+                    "recordId": "own-priority"
+                  },
+                  {
+                    "ref": "app1",
+                    "kind": "app-update",
+                    "scope": "personal",
+                    "recordId": "onto-daily-document",
+                    "revision": 1,
+                    "href": "/apps/wiki-map/p/app-daily-0e02908c-5400-52a4-8d91-2f52c933aa88?revision=1"
+                  },
+                  {
+                    "ref": "wiki1",
+                    "kind": "wiki-activity",
+                    "scope": "personal",
+                    "recordId": "doc-authored",
+                    "revision": 3,
+                    "href": "/apps/wiki-map/p/review-notes?revision=3"
+                  },
+                  {
+                    "ref": "wiki2",
+                    "kind": "wiki-activity",
+                    "scope": "fixture-team",
+                    "recordId": "legacy-authored",
+                    "revision": 2,
+                    "href": "/o/fixture-team/wiki-map/revision/legacy/legacy-authored?revision=2"
+                  },
+                  {
+                    "ref": "wiki3",
+                    "kind": "wiki-activity"
+                  },
+                  {
+                    "ref": "d1",
+                    "kind": "discovery",
+                    "recordId": "mail-discovery-run",
+                    "href": "/apps/forerunner/runs/mail-discovery-run"
+                  },
+                  {
+                    "ref": "d2",
+                    "kind": "discovery",
+                    "recordId": "calendar-discovery-run",
+                    "href": "/apps/forerunner/runs/calendar-discovery-run"
+                  },
+                  {
+                    "ref": "d3",
+                    "kind": "discovery",
+                    "recordId": "planning-discovery-run",
+                    "href": "/apps/forerunner/runs/planning-discovery-run"
+                  },
+                  {
+                    "ref": "d4",
+                    "kind": "discovery",
+                    "recordId": "follow-up-discovery-run",
+                    "href": "/apps/forerunner/runs/follow-up-discovery-run"
+                  },
+                  {
+                    "ref": "d5",
+                    "kind": "discovery"
+                  }
+                ],
+                "gaps": 10,
+                "previous": null
+              }
+            }
+          ],
+          "provider": [
+            {
+              "step": "collect",
+              "promptSha256": "b467f5cac5b3437afb7f257a7563f2e69aa0f71b4b9c6ed74473ceb06497ae52",
+              "seconds": 15.895,
+              "status": 200,
+              "responseId": "chatcmpl-a2588529a817048e",
+              "model": "GLM-5.3-Flash-EXL3",
+              "finishReason": "stop",
+              "usage": {
+                "prompt_tokens": 1133,
+                "total_tokens": 1592,
+                "completion_tokens": 459,
+                "prompt_tokens_details": null
+              }
+            }
+          ],
+          "checks": [
+            {
+              "name": "phase-outcome",
+              "pass": true,
+              "detail": "Expected \"started\". Observed \"started\"."
+            },
+            {
+              "name": "occurrence-workflow-start",
+              "pass": true,
+              "detail": "Expected [\"00000000-0000-4000-8000-000000000020\"]. Observed [\"00000000-0000-4000-8000-000000000020\"]."
+            },
+            {
+              "name": "inference-count",
+              "pass": true,
+              "detail": "Expected 1. Observed 1."
+            },
+            {
+              "name": "wiki-write-count",
+              "pass": true,
+              "detail": "Expected 1. Observed 1."
+            },
+            {
+              "name": "receipt-date",
+              "pass": true,
+              "detail": "Expected \"2026-11-25\". Observed \"2026-11-25\"."
+            },
+            {
+              "name": "all-four-discoveries-read-before-brief-start",
+              "pass": true,
+              "detail": "Expected [\"mail-discovery-run\",\"calendar-discovery-run\",\"planning-discovery-run\",\"follow-up-discovery-run\"]. Observed [\"mail-discovery-run\",\"calendar-discovery-run\",\"planning-discovery-run\",\"follow-up-discovery-run\"]."
+            },
+            {
+              "name": "reporting-day-in-prompt",
+              "pass": true,
+              "detail": "Expected [\"2026-11-25\",\"2026-11-24\"]. Observed [\"2026-11-25\",\"2026-11-24\"]."
+            },
+            {
+              "name": "same-installation-owner-isolation",
+              "pass": true,
+              "detail": "Expected [false,true]. Observed [false,true]."
+            },
+            {
+              "name": "requested-half-open-chicago-window",
+              "pass": true,
+              "detail": "Expected true. Observed true."
+            },
+            {
+              "name": "only-successful-discovery-receipts-in-prompt",
+              "pass": true,
+              "detail": "Expected [\"Discovery: mail-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: calendar-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: planning-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: follow-up-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\"]. Observed [\"Discovery: mail-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: calendar-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: planning-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\",\"Discovery: follow-up-discovery completed this morning: 2 analyzed entries, 0 saved suggestions.\"]."
+            },
+            {
+              "name": "discovery-citations-match-reserved-result-ids",
+              "pass": true,
+              "detail": "Expected [\"/apps/forerunner/runs/mail-discovery-run\",\"/apps/forerunner/runs/calendar-discovery-run\",\"/apps/forerunner/runs/planning-discovery-run\",\"/apps/forerunner/runs/follow-up-discovery-run\"]. Observed [\"/apps/forerunner/runs/mail-discovery-run\",\"/apps/forerunner/runs/calendar-discovery-run\",\"/apps/forerunner/runs/planning-discovery-run\",\"/apps/forerunner/runs/follow-up-discovery-run\"]."
+            },
+            {
+              "name": "wiki-coverage-count-in-prompt",
+              "pass": true,
+              "detail": "Expected 2. Observed 2."
+            },
+            {
+              "name": "no-generated-foreign-or-out-of-window-wiki-in-prompt",
+              "pass": true,
+              "detail": "Expected []. Observed []."
+            },
+            {
+              "name": "authored-wiki-evidence-order",
+              "pass": true,
+              "detail": "Expected [\"Reviewed field notes\",\"Documented the handoff\"]. Observed [\"Reviewed field notes\",\"Documented the handoff\"]."
+            },
+            {
+              "name": "authored-wiki-revision-links",
+              "pass": true,
+              "detail": "Expected [[\"doc-authored\",3],[\"legacy-authored\",2]]. Observed [[\"doc-authored\",3],[\"legacy-authored\",2]]."
+            },
+            {
+              "name": "onto-counts-present-before-model",
+              "pass": true,
+              "detail": "Expected true. Observed true."
+            },
+            {
+              "name": "onto-revision-citation-matches-producer",
+              "pass": true,
+              "detail": "Expected true. Observed true."
+            },
+            {
+              "name": "live-answer-saves-with-resolvable-citations",
+              "pass": true,
+              "detail": "Expected true. Observed true."
+            },
+            {
+              "name": "model-does-not-claim-four-commits-from-batch-state",
+              "pass": true,
+              "detail": "Expected false. Observed false."
+            },
+            {
+              "name": "model-uses-reporting-year",
+              "pass": true,
+              "detail": "Expected []. Observed []."
+            },
+            {
+              "name": "model-does-not-invent-wiki-author",
+              "pass": true,
+              "detail": "Expected []. Observed []."
+            },
+            {
+              "name": "model-does-not-assign-commit-batch-names-to-pending-or-rejected",
+              "pass": true,
+              "detail": "Expected []. Observed []."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
