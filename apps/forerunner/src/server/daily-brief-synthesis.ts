@@ -130,7 +130,11 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (kept.length < evidence.length) gaps.push(`${evidence.length - kept.length} lower-priority source records were left out to keep this brief bounded.`);
   return { evidence: kept, gaps };
 }
-const modelView = (row: Evidence) => ({ ref: row.ref, kind: row.kind, text: row.text, ...(row.status ? { coverage: row.status } : {}) });
+const modelView = (row: Evidence) => ({
+  ref: row.ref, kind: row.kind,
+  text: row.kind === "wiki-activity" ? `${row.text} Author and editor identity: unknown.` : row.text,
+  ...(row.status ? { coverage: row.status } : {}),
+});
 
 export const briefInstructions = [
   "You write one person's morning brief from their own saved records. Be concise, concrete and useful to someone starting their day.",
@@ -140,7 +144,7 @@ export const briefInstructions = [
   "- `highlights` are what matters today in light of the person's role (kind `responsibility`) and goals (kind `goal`) when those are present. Mark each `fact` (directly stated by the cited evidence) or `inference` (your reading of it).",
   "- The response is for the exact date and timezone in the input. Prefer ‘today’ and ‘yesterday’ over spelling out a calendar date.",
   "- Onto updates distinguish ledger commits from current pending and rejected proposal states. A batch named in the commit list is not evidence it is pending. Do not assign a state to a named batch without direct evidence of that state.",
-  "- Wiki revisions describe what was visible in an authorized scope. Access to a revision never identifies the brief recipient as its author or editor.",
+  "- The app separately lists the exact Wiki revisions. Author and editor names are unavailable in this evidence. Use the Wiki topic or scope in third person, for example, ‘A legacy Wiki revision covers the handoff.’ Never say that you, the recipient, or any named person wrote, reviewed or edited a Wiki revision.",
   "- Kind `wiki-activity` reports authored Wiki revisions and checked coverage. Generated daily briefs and app updates are excluded.",
   "- Kind `priority` is the person's own board. Kind `work` is an issue in progress in one of their organizations; it is not necessarily assigned to them.",
   "- `attention` are at most five things worth their attention today, each with a reason. They are your suggestions, not facts. Set `goal` to the ref of the goal it serves, or null.",
@@ -184,10 +188,16 @@ const localLink = (href: string | null | undefined) => href?.startsWith("/") && 
 export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: string[], answer: BriefAnswer, digest: string) {
   const byRef = new Map(evidence.map(row => [row.ref, row]));
   const cited = (refs: string[]) => `(${[...new Set(refs)].map(ref => `source ${ref}`).join(", ")})`;
-  const lines = [`# Today — ${input.date}`, `${plain(answer.opening.text)} ${cited(answer.opening.evidence)}`,
+  const unsupportedWikiActor = /\b(?:(?:you|the member|the reader)\s+(?:(?:had|have)\s+)?(?:authored|wrote|edited|made|reviewed|documented|updated)|your\s+(?:(?:wiki|document)\s+)?(?:edits|revisions))\b/i;
+  const supported = (text: string, refs: string[]) => !refs.some(ref => byRef.get(ref)?.kind === "wiki-activity") || !unsupportedWikiActor.test(text);
+  const opening = supported(answer.opening.text, answer.opening.evidence)
+    ? plain(answer.opening.text) : "The saved Wiki activity appears below.";
+  const lines = [`# Today — ${input.date}`, `${opening} ${cited(answer.opening.evidence)}`,
     `Written from saved records for the completed day ${input.review.period.date} (${input.timezone}) and your board as of this run.`];
-  if (answer.highlights.length) lines.push("## What matters", answer.highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${plain(item.text)} ${cited(item.evidence)}`).join("\n"));
-  if (answer.attention.length) lines.push("## Suggested attention", "These are suggestions, not facts.", answer.attention.map(item => {
+  const highlights = answer.highlights.filter(item => supported(item.text, item.evidence));
+  if (highlights.length) lines.push("## What matters", highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${plain(item.text)} ${cited(item.evidence)}`).join("\n"));
+  const attention = answer.attention.filter(item => supported(`${item.text} ${item.why}`, item.evidence));
+  if (attention.length) lines.push("## Suggested attention", "These are suggestions, not facts.", attention.map(item => {
     const goal = item.goal ? byRef.get(item.goal) : null;
     return `- **${plain(item.text)}** ${plain(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
   }).join("\n"));

@@ -367,3 +367,24 @@ test("a declined discovery occurrence is a known gap and does not hold the brief
   assert.equal(result.waiting, false);
   assert.deepEqual(result.gaps, ["Discovery (Fixtures): this morning's occurrence failed or was declined."]);
 });
+
+
+test("unsupported Wiki authorship is left out of the saved brief while exact attributed sources remain", async () => {
+  const input = inputs({ wikiActivity: { complete: true, rows: [{
+    id: "revision", slug: "handoff-notes", revision: 3, scope: "personal", store: "document",
+    title: "Handoff notes", createdAt: "2026-11-10T16:00:00.000Z",
+  }] } });
+  const { evidence, gaps } = gatherEvidence(input);
+  const wiki = evidence.find(row => row.kind === "wiki-activity")!;
+  const answer: BriefAnswer = {
+    opening: { text: "You authored the Wiki revision.", evidence: [wiki.ref] },
+    highlights: [{ text: "The member wrote the notes.", kind: "fact", evidence: [wiki.ref] }],
+    attention: [{ text: "Review the handoff", why: "You edited it yesterday.", goal: null, evidence: [wiki.ref] }],
+    unsupported: [],
+  };
+  const saved = renderBrief(input, evidence, gaps, answer, await evidenceDigest(input, evidence, gaps));
+  assert.doesNotMatch(saved, /You authored|The member wrote|You edited/i);
+  assert.match(saved, /The saved Wiki activity appears below/);
+  assert.match(saved, /Handoff notes.*document revision 3/);
+  assert.match(saved, /handoff-notes\?revision=3/);
+});
