@@ -5,12 +5,13 @@
 
 import { type GithubPullRequest, githubPullRequests, type PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import type { AppActor, AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 import {
   changeExploration, explorationState, mutateExplorationInput, type PictureProviders, pullRequestLimit, resolvePicture, type StagedOperation,
 } from "../lib/exploration-picture";
 import type { Database } from "./graph";
+import { passageBatchPrefix } from "./passage-review";
 import { databaseSource } from "./graph-source";
 import { graphBatches, graphBatchOperations, graphExplorations } from "./schema";
 
@@ -26,7 +27,8 @@ const view = async (db: Database, row: Row, providers: PictureProviders) => {
 export const stagedProposals = (db: Database) => (): Promise<StagedOperation[]> =>
   db.select({ batchId: graphBatchOperations.batchId, ref: graphBatchOperations.ref, operation: graphBatchOperations.operation })
     .from(graphBatchOperations).innerJoin(graphBatches, eq(graphBatches.id, graphBatchOperations.batchId))
-    .where(and(inArray(graphBatches.state, ["open", "awaiting_review"]), inArray(graphBatchOperations.state, ["pending", "awaiting_review"])))
+    .where(and(inArray(graphBatches.state, ["open", "awaiting_review"]), inArray(graphBatchOperations.state, ["pending", "awaiting_review"]),
+      sql`coalesce(json_extract(${graphBatches.source},'$.ref'),'') NOT LIKE ${passageBatchPrefix + "%"}`))
     .limit(500);
 
 /** Live reads through the app's workflow host, each repository read once per request, and staged proposals. */

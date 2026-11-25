@@ -54,6 +54,18 @@ export async function validateGraphImport(db: AgentDatabase, plan: ImportPlan) {
     }
     return rows;
   };
+  const editedBatches = [...new Set([
+    ...incoming("graph_batches").map(row => String(row.id)),
+    ...incoming("graph_batch_operations").map(row => String(row.batchId)),
+  ])];
+  if (editedBatches.length) {
+    const [existing] = await db.query({
+      sql: "SELECT 1 FROM onto_passage_suggestions WHERE batchId IN (SELECT value FROM json_each(?)) LIMIT 1",
+      params: [JSON.stringify(editedBatches)],
+    });
+    if (existing) throw new Response("Portable imports cannot amend local Wiki passage reviews", { status: 409 });
+  }
+
   const types = incoming("graph_types"), nodes = incoming("graph_nodes"), edges = incoming("graph_edges");
 
   const typeIds = new Set([...types, ...await lookup("graph_types", "id", [...nodes, ...edges].map((r) => r.typeId))].map((r) => String(r.id)));

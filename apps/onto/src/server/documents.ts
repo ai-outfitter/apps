@@ -12,6 +12,40 @@ import { z } from "zod";
 import { mutateBatchSubmissionInput, wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
+  WikiPassageSearch: {
+    story: "As a member, I want to find indexed Wiki excerpts with precise citations, so that I can verify the source even before a graph link exists.",
+    document: `query WikiPassageSearch($wiki: WikiPassageTarget!, $query: String!, $limit: Int, $after: String) {
+      wikiPassageSearch(wiki: $wiki, query: $query, limit: $limit, after: $after) {
+        passages {
+          id text
+          source { sourceId version pageSlug pageRevision revision fileName sha256 contentHash }
+          locator { kind section page startMs endMs start end }
+        }
+        next
+      }
+    }`,
+  },
+  WikiPassageStatus: {
+    story: "As a member, I want to view passage indexing progress and held items, so that I can see what is pending and why.",
+    document: `query WikiPassageStatus($wiki: WikiPassageTarget!, $limit: Int) {
+      wikiPassageProgress(wiki: $wiki) {
+        cursor sweeps updatedAt lastError indexedSources pendingSources sourceIssues indexedPassages pendingPassages
+        inferenceRetries routed pendingSuggestions unresolved routingRetries
+      }
+      wikiPassageHeldItems(wiki: $wiki, limit: $limit) {
+        sources { sourceId version issue }
+        suggestions { id sourceId version passageId issue }
+      }
+    }`,
+  },
+  EnableWikiPassageIndex: {
+    story: "As an organization editor, I want to explicitly enable recurring indexing for a Wiki I can access, so that members can discover its passages.",
+    document: `mutation EnableWikiPassageIndex($wiki: WikiPassageTarget!) {
+      enableWikiPassageIndex(wiki: $wiki) {
+        id workflowId enabled cron timezone nextRunAt
+      }
+    }`,
+  },
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
@@ -93,6 +127,9 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+  WikiPassageSearch: { description: "Search indexed excerpts in a readable Wiki in this organization. Returns text, revision pins, locators and a continuation cursor." },
+  WikiPassageStatus: { description: "Read Wiki passage indexing progress, extraction issues and held suggestion reasons in this organization." },
+  EnableWikiPassageIndex: { description: "Organization editors can explicitly enable six-hour passage indexing for an accessible Wiki. Returns the schedule receipt." },
  CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},

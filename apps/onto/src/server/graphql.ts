@@ -16,8 +16,6 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, type GraphContext, groupBy, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
-import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import {
   GraphQLBoolean, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
   GraphQLSchema, GraphQLString,
@@ -29,13 +27,13 @@ import { listShares, mutateShareInput, mutateShare, readShare, shareSlug, shares
 import { recordAddress } from "../lib/addresses";
 import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
+import { passageBatchVisibility } from "./passage-review";
+import { enableWikiPassageIndex, passageQueries, type PassageGraphContext } from "./passage-graphql";
 import { readSettings, saveSettings, settingsInput, type StewardApproval } from "./settings";
 import { addToBatch, batchAddInput, live, loadBatch, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, changeRequests, type BatchSubmissionReceipt } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
-export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
-  /** The workflow host, for live reads an exploration opens (pull requests); absent where there is none. */
-  host?: () => PullRequestHost;
+export type ChangeContext = PassageGraphContext & { db: () => ReturnType<typeof installationDatabase>;
   /** Persist the member's draft review before returning a receipt. */
   afterStage?: (batchId: string) => Promise<unknown> };
 type MutationContext = ChangeContext & ActionContext;
@@ -250,6 +248,7 @@ const Ontology = new GraphQLObjectType({ name: "Ontology", fields: {
 } });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
+  ...passageQueries,
   ...creativeQueries,
   ...creativeAddressQueries,
   ontology: {
@@ -261,7 +260,7 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},
     resolve: async (_root, args: PageArgs & { ids?: string[] | null; search?: string | null; state?: string[] | null }, context, info) => {
       const { first, start } = pageStart(args), ids = idList(args.ids), db = context.db();
-      const where = and(ids ? sql`${graphBatches.id} IN ${within(ids)}` : undefined, args.state?.length ? sql`${graphBatches.state} IN ${within(args.state)}` : undefined,
+      const where = and(await passageBatchVisibility(db), ids ? sql`${graphBatches.id} IN ${within(ids)}` : undefined, args.state?.length ? sql`${graphBatches.state} IN ${within(args.state)}` : undefined,
         args.search ? like(graphBatches.title, `%${args.search}%`) : undefined);
       const rows = await db.select().from(graphBatches).where(and(where, start ? gt(graphBatches.id, start) : undefined)).orderBy(asc(graphBatches.id)).limit(first + 1);
       // The page's operation counts by state, in one statement.
@@ -311,6 +310,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. Changing a held proposal's operation or evidence clears its hold and queues it for review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.",
       run: (context: MutationContext, input) => mutateBatchSubmission(context.db(), context.identity, context.actor, context.originActor, input),
     }),
+    enableWikiPassageIndex,
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
       description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Preserves final decisions. Entity writers can edit member batches. The originating app can edit its open policy draft. After submission the originating app or a member reviewer can edit it.",

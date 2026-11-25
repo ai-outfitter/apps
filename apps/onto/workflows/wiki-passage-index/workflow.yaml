@@ -1,0 +1,17 @@
+version: beta
+id: wiki-passage-index
+summary: Index an organization's Wiki sources and prepare evidenced suggestions for Onto member review.
+actors: {}
+triggers:
+  - on: schedule
+    cron: "0 */6 * * *"
+steps:
+  - id: index
+    inference: {maxOutputTokens: 6000, timeoutMs: 60000, reasoningEffort: none}
+    outputs:
+      progress:
+        connector: database
+        record: wiki-passage-index.progress
+        schema: {type: object}
+outputs:
+  progress: index.outputs.progress

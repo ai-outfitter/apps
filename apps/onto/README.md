@@ -118,6 +118,10 @@ call `graph.apply`, `graph.read`, `graph.query`, `graph.graphql`,
 The personal and organization Wikis share this engine
 ([overview](../../../docs/architecture/knowledge-graph.md)).
 
+Organization members and their connected agents can [search indexed Wiki passages
+and inspect indexing progress and held suggestions](docs/wiki-passage-eval.md#operator-reference).
+Enabling the schedule is an explicit editor operation.
+
 ## Verification
 
 Run `check`, `test:unit`, `test:integration` and `test:e2e` for this workspace.

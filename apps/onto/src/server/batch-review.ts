@@ -1,3 +1,4 @@
+import { isPassageBatch, requirePassageBatchAccess } from "./passage-review";
 // The ontology steward's automatic review of a submitted change batch
 // (agent/ontology-steward.md, "Review one batch"). Submitting a batch starts one
 // batch-review workflow run: deterministic checks, then the steward prompt over
@@ -375,6 +376,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   let runId: string | null = null;
   let review: BatchReview;
   try {
+    if (isPassageBatch(batch)) await requirePassageBatchAccess(db, batch, true);
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
     // Allow five minutes for the last inference and at least one minute for settlement.
@@ -501,6 +503,7 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
 export async function reviewBatchOntology(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, batchId: string): Promise<BatchReview> {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
   if (!batch) throw new Response("Batch not found", { status: 404 });
+  await requirePassageBatchAccess(db, batch, true);
   if (batch.state !== "awaiting_review") throw new Response("Only a submitted batch awaiting review can be reviewed again", { status: 409 });
   const id = crypto.randomUUID(), now = Date.now();
   const rows = await loadOperations(db, batchId);
