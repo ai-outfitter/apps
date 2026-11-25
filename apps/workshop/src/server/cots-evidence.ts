@@ -1,11 +1,13 @@
+import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import { z } from "zod";
 import { AssemblyReferenceSchema, type Assembly, type Item } from "../lib/assembly";
 import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-file";
 import { configuredAssembly, resolveAssembly, type AssemblySource } from "../lib/assembly-resolution";
 import { cotsEvidence, type CotsEvidence, type CotsEvidenceRef } from "../lib/cots-evidence";
-import { canonicalCotsPart, cotsPart } from "./cots-owner";
+import { canonicalCotsPart, cotsPart, sameCotsPart } from "./cots-owner";
 import { assemblySnapshot } from "./assembly-references";
 import type { WorkshopContext } from "./graphql";
+import type { Project } from "../lib/project";
 import { getWorkshopProject, patchWorkshopProject } from "./projects";
 
 export const cotsReadInput = AssemblyReferenceSchema.extend({ itemId: z.uuid().optional() });
@@ -77,7 +79,7 @@ function subtree(assembly: Assembly, itemId: string) {
 }
 
 function parametersKey(parameters: Record<string, number> | undefined) {
-  return JSON.stringify(Object.entries(parameters ?? {}).sort(([a], [b]) => a.localeCompare(b)));
+  return canonicalActionValue(parameters ?? {});
 }
 
 export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof cotsReadInput>, verifyPhotos = true): Promise<CotsEvidenceResult> {
@@ -188,7 +190,11 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
   const { load } = await assemblySnapshot(db);
   const { owner } = await cotsPart(load, { projectId, itemId, revision: current.revision });
   function authored(value: CotsEvidence | undefined) {
-    return JSON.stringify(value, (key, field) => key === "testedOwnerRevision" ? undefined : field);
+    return value && canonicalActionValue({
+      ...value, interfaces: value.interfaces.map(({ verification, ...entry }) => ({
+        ...entry, verification: verification.status === "untested" ? verification : { ...verification, testedOwnerRevision: undefined },
+      })),
+    });
   }
   const unchanged = authored(item.cotsEvidence) === authored(evidence);
   if (!unchanged && current.revision !== expectedRevision) throw refusal("Project changed; reread WorkshopAssembly", 409);
@@ -198,7 +204,7 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
     if (origin.projectId === projectId && origin.itemId === itemId) {
       if (photo.attachmentRevision > current.revision) throw refusal("Photo revision is newer than the owner");
       const pinned = await cotsPart(load, { ...owner, revision: photo.attachmentRevision });
-      if (pinned.item.revision !== item.revision || pinned.item.mpn !== item.mpn || pinned.item.manufacturer !== item.manufacturer)
+      if (!sameCotsPart(pinned.item, item))
         throw refusal("Photo belongs to a different purchased-part revision");
     }
     await referencePhoto(c, load, owner, photo);
@@ -228,7 +234,7 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
         const origin = expanded.itemOrigins![testedItem.id];
         try {
           const source = await canonicalCotsPart(load, origin);
-          if (source.owner.projectId === projectId && source.owner.itemId === itemId && source.item.revision === item.revision) {
+          if (source.owner.projectId === projectId && source.owner.itemId === itemId && sameCotsPart(source.item, item)) {
             found = source.owner.revision;
             break;
           }
@@ -249,9 +255,10 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
   return readCotsEvidence(c, { projectId, itemId, revision: saved.revision });
 }
 
-export async function cotsMutationWarnings(c: WorkshopContext, projectId: string, revision: number) {
+export async function cotsMutationWarnings(c: WorkshopContext, project: Pick<Project, "id" | "revision" | "assembly">) {
+  if (!project.assembly.items.some(item => item.kind === "cots" || item.reference)) return [];
   try {
-    const result = await readCotsEvidence(c, { projectId, revision }, false);
+    const result = await readCotsEvidence(c, { projectId: project.id, revision: project.revision }, false);
     const all = result.items.flatMap(({ itemId, owner, warnings }) =>
       warnings.map(warning => ({ itemId, ...(owner && { owner }), ...warning })));
     if (all.length <= 25) return all;

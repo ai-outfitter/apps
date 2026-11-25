@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
+import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
@@ -119,7 +120,7 @@ function checkSavedFiles(next: Assembly, previous?: Assembly) {
   for (const item of next.items) {
     const old = byId.get(item.id);
     if (item.cotsEvidence && (item.revision !== old?.revision || item.mpn !== old.mpn || item.manufacturer !== old.manufacturer ||
-        JSON.stringify(item.cotsEvidence) !== JSON.stringify(old.cotsEvidence)))
+        canonicalActionValue(item.cotsEvidence) !== canonicalActionValue(old.cotsEvidence)))
       throw new Response("Record purchased-part evidence with RecordWorkshopCotsEvidence", {status:400});
     for (const file of item.files ?? []) {
       if (!old?.files?.some(saved => saved.projectId === file.projectId && saved.bytes === file.bytes && filePath(saved) === filePath(file)))

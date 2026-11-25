@@ -169,7 +169,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       args: { projectId, expectedRevision: revision, assembly: { type: new GraphQLNonNull(zodInputType(AssemblySchema, "WorkshopAssemblyInput")) } },
       run: async (context, { projectId, expectedRevision, assembly }) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, { id: projectId, revision: expectedRevision, assembly });
-        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved.id,saved.revision)};
+        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved)};
       },
     }),
     saveWorkshopAssembly: mutationField<typeof assemblyInput, WorkshopContext>({
@@ -178,7 +178,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       input: assemblyInput, output: row,
       run: async (context, input) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, input);
-        return {...await workshopProjectRow(context.db(),saved.id),printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved.id,saved.revision)};
+        return {...await workshopProjectRow(context.db(),saved.id),printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved)};
       },
     }),
     deleteWorkshopProject: mutationField<typeof deleteInput, WorkshopContext>({

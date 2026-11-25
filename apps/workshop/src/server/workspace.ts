@@ -69,5 +69,5 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
      for (const owner of owners) printFindings.push(...machinePrintFindings({...target,itemId:owner.id},report));
    } else printFindings.push(...machinePrintFindings(target,report));
  }
- return includeWarnings ? {...saved,printWarnings:printWarningsByArtifact,printFindings,cotsWarnings:await cotsMutationWarnings(c,saved.id,saved.revision)} : saved;
+ return includeWarnings ? {...saved,printWarnings:printWarningsByArtifact,printFindings,cotsWarnings:await cotsMutationWarnings(c,saved)} : saved;
 }

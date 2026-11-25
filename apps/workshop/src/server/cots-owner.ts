@@ -15,7 +15,7 @@ export async function cotsPart(load: CotsSourceLoader, ref: CotsEvidenceRef) {
   } };
 }
 
-function samePart(left: Item, right: Item) {
+export function sameCotsPart(left: Item, right: Item) {
   const normalize = (value: string) => value.trim().toLowerCase();
   if (left.revision !== right.revision || normalize(left.manufacturer) !== normalize(right.manufacturer)) return false;
   if (left.mpn || right.mpn) return Boolean(left.manufacturer) && normalize(left.mpn) === normalize(right.mpn);
@@ -30,7 +30,7 @@ export async function canonicalCotsPart(load: CotsSourceLoader, ref: CotsEvidenc
     if (visited.has(key) || visited.size >= 16) throw cotsOwnerFailure("COTS evidence reference cycle or depth limit");
     visited.add(key);
     const next = await cotsPart(load, current.item.cotsEvidenceRef);
-    if (!samePart(current.item, next.item)) throw cotsOwnerFailure("Evidence owner identifies a different purchased part or part revision", 409);
+    if (!sameCotsPart(current.item, next.item)) throw cotsOwnerFailure("Evidence owner identifies a different purchased part or part revision", 409);
     current = next;
   }
   return current;
