@@ -21,6 +21,10 @@ on:
         description: Calling workflow file used to find last successful push
         type: string
         default: ci.yml
+      push-baseline:
+        description: Caller-resolved push baseline, empty to check all apps or auto to look it up
+        type: string
+        default: auto
     outputs:
       apps:
         description: Affected app paths
@@ -56,14 +60,18 @@ jobs:
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
+          PUSH_BASELINE: ${{ inputs.push-baseline }}
           BASELINE_WORKFLOW: ${{ inputs.baseline-workflow }}
           BRANCH: ${{ github.ref_name }}
         shell: bash
         run: |
-          [[ "$BASELINE_WORKFLOW" =~ ^[a-zA-Z0-9._-]+\.ya?ml$ ]]
-          base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$BASELINE_WORKFLOW/runs" \
-            -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
-            --jq '.workflow_runs[0].head_sha // empty') || base=
+          base=$PUSH_BASELINE
+          if [[ "$base" == auto ]]; then
+            [[ "$BASELINE_WORKFLOW" =~ ^[a-zA-Z0-9._-]+\.ya?ml$ ]]
+            base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$BASELINE_WORKFLOW/runs" \
+              -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
+              --jq '.workflow_runs[0].head_sha // empty') || base=
+          fi
           echo "sha=$base" >> "$GITHUB_OUTPUT"
       - id: plan
         uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
