@@ -39,14 +39,14 @@ export async function seedRepositories(box, db) {
   for (const name of names) {
     const repository = `${owner}/${name}`;
     if (repository !== box.repository) {
-      await admin(box, "POST", `/orgs/${owner}/repos`, { name, private: true, auto_init: false });
+      await admin(box, "POST", `/orgs/${owner}/repos`, { name, private: true, auto_init: true, default_branch: "main" });
       await setBotPermission(box, repository, "write");
       const source = `/in/planning/${name}`;
-      execFileSync("git", ["-c", `safe.directory=${source}`, "-C", source, "push", "--quiet",
+      execFileSync("git", ["-c", `safe.directory=${source}`, "-C", source, "push", "--quiet", "--force",
         `${forgejo}/${repository}.git`, "refs/heads/main:refs/heads/main"], {
         env: { ...process.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader",
           GIT_CONFIG_VALUE_0: `Authorization: Basic ${credentials}`, GIT_TERMINAL_PROMPT: "0" },
-        stdio: ["ignore", "ignore", "ignore"],
+        stdio: ["ignore", "ignore", "inherit"],
       });
     }
     const metadata = await admin(box, "PATCH", `/repos/${repository}`, { has_issues: true, has_pull_requests: true, default_branch: "main" });
