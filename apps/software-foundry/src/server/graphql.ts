@@ -171,7 +171,7 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
     }),
     runJob: mutationField<typeof jobInput, FoundryContext>({
       name: "RunJob",
-      description: "Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.",
+      description: "Start a repository job now. Community-template-audit saves a read-only coverage report. Dependency-review, architecture-reanalysis and ui-review use workspace agents to file issues. Owners and admins only.",
       input: jobInput, output: nonNull(jobResult),
       run: runJob,
     }),

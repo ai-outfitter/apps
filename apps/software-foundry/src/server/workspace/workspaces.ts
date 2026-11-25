@@ -197,13 +197,15 @@ export const foundryJobs = {
   "architecture-reanalysis": "architect",
   "ui-review": "reviewer",
 } as const;
-export type FoundryJob = keyof typeof foundryJobs;
-export const jobBindingInput = (job: FoundryJob) => `analyze.inputs.${foundryJobs[job]}Binding`;
+export type ScheduledFoundryJob = keyof typeof foundryJobs;
+export const templateAuditJob = "community-template-audit";
+export type FoundryJob = ScheduledFoundryJob | typeof templateAuditJob;
+export const jobBindingInput = (job: ScheduledFoundryJob) => `analyze.inputs.${foundryJobs[job]}Binding`;
 
 /** Approve (or reuse) the job's workspace binding on one repository: the run
  * inputs a manual start or a saved schedule needs. A job's issues are fixed by
  * issue-to-merge, so the repository must have Foundry turned on first. */
-async function jobInputs(host: Editor, job: FoundryJob, repository: string, model = "gpt-6-luna") {
+async function jobInputs(host: Editor, job: ScheduledFoundryJob, repository: string, model = "gpt-6-luna") {
   const snapshot = await host.call("snapshot", {});
   const { metadata } = await approvedRepository(host, snapshot, repository);
   const subscription = snapshot.subscriptions.find((candidate) => candidate.enabled && candidate.workflowId === foundryWorkspaceWorkflow &&
@@ -286,14 +288,22 @@ export async function retryJobFixes(host: Unattended, fix: JobFix, repository: {
 
 /** Start a repository job now. */
 export async function runFoundryJob(host: Editor, job: FoundryJob, repository: string) {
-  const { repository: name, inputs } = await jobInputs(host, job, repository);
   const run = crypto.randomUUID();
+  if (job === templateAuditJob) {
+    const report = await host.call("repository.community-templates", { repository });
+    await host.call("workflow.start", {
+      workflow: job, id: run, inputs: { "check.inputs.repository": report.repository },
+    });
+    await host.call("workflow.collect", { runId: run, slot: "check.outputs.report", value: report });
+    return { job, repository: report.repository, run };
+  }
+  const { repository: name, inputs } = await jobInputs(host, job, repository);
   await host.call("workflow.start", { workflow: job, id: run, inputs });
   return { job, repository: name, run };
 }
 
 /** Save the job's schedule (one per job) on a repository, on its declared cadence. */
-export async function scheduleFoundryJob(host: Editor, job: FoundryJob, repository: string, enabled = true) {
+export async function scheduleFoundryJob(host: Editor, job: ScheduledFoundryJob, repository: string, enabled = true) {
   const { repository: name, inputs } = await jobInputs(host, job, repository);
   const schedule = await host.call("schedule.save", { workflow: job, inputs, enabled, timezone: "UTC" });
   return { job, repository: name, schedule: schedule.id, enabled: schedule.enabled };

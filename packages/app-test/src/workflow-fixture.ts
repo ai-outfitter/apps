@@ -183,6 +183,7 @@ const phases = workflowPhaseHandler({
     return {
       run: await host.call("workflow.read", { id: runId }),
       issue: await host.call("repository.request", { bindingId: text(input, "bindingId"), path: `${repository.path}/issues/1` }),
+      communityTemplates: await outcome(() => host.call("repository.community-templates", { repository: repository.name })),
       approved: await outcome(() => host.call("repository.request", { connectionId: text(input, "connectionId"), path: `${repository.path}/issues/1` })),
       // A run's retained session: append one checkpoint, then read the export back.
       sessionAppended: await outcome(() => host.call("session.append", { runId, entry: { id: "fixture.checkpoint", parentId: null, kind: "checkpoint", step: "work", at: "2026-01-01T00:00:00.000Z", data: { ready: true } } })),

@@ -1,3 +1,4 @@
+import { isPassageBatch, requirePassageBatchAccess } from "./passage-review";
 // The ontology steward's automatic review of a submitted change batch
 // (agent/ontology-steward.md, "Review one batch"). Submitting a batch starts one
 // batch-review workflow run: deterministic checks, then the steward prompt over
@@ -12,8 +13,9 @@ import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
 import { core, type Graph } from "../lib/graph";
 import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
+import { guardedBatch } from "./graph-batch";
 import { readGraph } from "./graph";
-import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
+import { type Database, loadOperations, resolveCommitted, batchContentDigest, batchRowsUnchanged, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
 import { reviewGraphContext } from "./review-graph-context";
 import { rootNode } from "./graph-batches";
@@ -355,21 +357,16 @@ async function pooled<T, R>(items: T[], limit: number, latestStart: number, work
   return results;
 }
 
-const loadRows = async (db: Database, batchId: string): Promise<Row[]> =>
-  live(await loadOperations(db, batchId))
-    .map((row) => ({ ref: row.ref, recordId: row.recordId, operation: row.operation as unknown as Op, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: row.state }));
-
 /** Review a batch, open or submitted, and save the findings on it. Never throws: a review
  * that cannot run is recorded as failed, and the batch is unaffected either way.
  * The steward reads it in parts that each fit the platform's step cap, one model
  * call per part; the built-in checks cover the whole batch. */
-async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batchId: string, jobId: string, leaseId: string, reservedRunId: string, startedAt: number): Promise<BatchReview> {
+async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<"interactive" | "schedule">, batch: typeof graphBatches.$inferSelect, snapshot: Awaited<ReturnType<typeof loadOperations>>, jobId: string, leaseId: string, reservedRunId: string, startedAt: number): Promise<BatchReview> {
   const prompt = { path: promptPath, digest: await sha256Hex(stewardPrompt) };
-  const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
-  if (!batch) throw new Response("Batch not found", { status: 404 });
-  if (batch.state === "discarded") throw new Response("A discarded batch is not reviewed", { status: 409 });
   const stage = batch.state === "open" ? "open" as const : "submitted" as const;
-  const rows = await loadRows(db, batch.id);
+  const committed = new Map(snapshot.flatMap(row => row.state === "committed" && row.recordId ? [[row.ref, row.recordId] as const] : []));
+  const rows: Row[] = snapshot.filter(row => row.state === (stage === "open" ? "pending" : "awaiting_review"))
+    .map(row => ({ ...row, operation: resolveCommitted(row, committed) }));
   const graph = await readGraph(db, who);
   const checks = batchChecks(graph, who, rows, batch.id);
   const root = await rootNode(db, who);
@@ -379,6 +376,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   let runId: string | null = null;
   let review: BatchReview;
   try {
+    if (isPassageBatch(batch)) await requirePassageBatchAccess(db, batch, true);
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
     // Allow five minutes for the last inference and at least one minute for settlement.
@@ -469,9 +467,12 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
     .returning();
   if (!job) return null;
   try {
-    const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, job.batchId));
-    const digest = await batchContentDigest(await loadOperations(db, job.batchId));
-    if (!batch || batch.state === "discarded" || batch.reviewJobId !== job.id || digest !== job.contentDigest) {
+    const [[batch], snapshot] = await db.batch([
+      db.select().from(graphBatches).where(eq(graphBatches.id, job.batchId)),
+      loadOperations(db, job.batchId),
+    ]);
+    const digest = await batchContentDigest(snapshot);
+    if (!batch || !["open", "awaiting_review"].includes(batch.state) || batch.reviewJobId !== job.id || digest !== job.contentDigest) {
       await db.update(ontoReviewJobs).set({ state: "superseded", leaseId: null, leaseUntil: null })
         .where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId), eq(ontoReviewJobs.state, "running"), sql`${ontoReviewJobs.leaseUntil} > ${Date.now()}`));
       return null;
@@ -479,7 +480,7 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
     // Honor the run ID already returned to an agent waiting for this review.
     const runId = job.runId ?? reservedRunId ?? crypto.randomUUID();
     if (runId !== job.runId) await db.update(ontoReviewJobs).set({ runId }).where(and(eq(ontoReviewJobs.id, job.id), eq(ontoReviewJobs.leaseId, leaseId)));
-    const review = await executeReview(db, who, host, job.batchId, job.id, leaseId, runId, dispatchStartedAt);
+    const review = await executeReview(db, who, host, batch, snapshot, job.id, leaseId, runId, dispatchStartedAt);
     const failed = review.state === "failed";
     // A retry gets a new run to name; the failed one stays in the run log.
     const settled = await db.update(ontoReviewJobs).set({ state: failed ? (job.attempts >= maxAttempts ? "failed" : "pending") : "complete", leaseId: null, leaseUntil: null,
@@ -502,13 +503,11 @@ export async function processReviewJob(db: Database, who: AppIdentity, host: Wor
 export async function reviewBatchOntology(db: Database, who: AppIdentity, host: WorkflowHost<"interactive">, batchId: string): Promise<BatchReview> {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
   if (!batch) throw new Response("Batch not found", { status: 404 });
-  if (batch.state === "open" || batch.state === "discarded") throw new Response("Only a submitted batch is reviewed", { status: 409 });
+  await requirePassageBatchAccess(db, batch, true);
+  if (batch.state !== "awaiting_review") throw new Response("Only a submitted batch awaiting review can be reviewed again", { status: 409 });
   const id = crypto.randomUUID(), now = Date.now();
-  const contentDigest = await batchContentDigest(await loadOperations(db, batchId));
-  await db.batch([
-    db.update(graphBatches).set({ reviewJobId: id }).where(eq(graphBatches.id, batchId)),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
-  ]);
+  const rows = await loadOperations(db, batchId);
+  await replaceReviewJob(db, who.userId, batch, rows, id, await batchContentDigest(rows), now);
   const review = await processReviewJob(db, who, host, id);
   if (!review) throw new Response("Review could not be claimed", { status: 409 });
   return review;
@@ -540,16 +539,30 @@ export async function queueDraftReview(db: Database, batchId: string) {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
   if (!batch || batch.state !== "open" || (batch.policy as { kind?: string }).kind !== "member") return null;
   const rows = await loadOperations(db, batchId);
-  if (!live(rows).length) return null;
+  if (!rows.some(row => row.state === "pending")) return null;
   const contentDigest = await batchContentDigest(rows);
   if (batch.reviewJobId) {
     const [current] = await db.select().from(ontoReviewJobs).where(eq(ontoReviewJobs.id, batch.reviewJobId));
     if (current?.contentDigest === contentDigest && current.state !== "superseded" && current.state !== "failed") return current.id;
   }
   const id = crypto.randomUUID(), now = Date.now();
-  await db.batch([
-    db.update(graphBatches).set({ reviewJobId: id, review: null }).where(and(eq(graphBatches.id, batchId), eq(graphBatches.state, "open"))),
-    db.insert(ontoReviewJobs).values({ id, batchId, contentDigest, state: "pending", nextAttemptAt: now, createdAt: now }),
-  ]);
-  return id;
+  try {
+    await replaceReviewJob(db, batch.openedBy, batch, rows, id, contentDigest, now);
+    return id;
+  } catch (error) {
+    if (error instanceof Response && error.status === 409) return null;
+    throw error;
+  }
+}
+
+async function replaceReviewJob(db: Database, userId: string, batch: typeof graphBatches.$inferSelect, rows: Awaited<ReturnType<typeof loadOperations>>, id: string, digest: string, now: number) {
+  const guard = `review-job:${id}`;
+  await guardedBatch(db, [
+    sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+      VALUES(${userId},${guard},'review-job',CASE WHEN ${batchRowsUnchanged(batch, rows)} THEN ${guard} ELSE NULL END,'{}')`,
+    sql`UPDATE graph_batches SET reviewJobId=${id},review=NULL WHERE id=${batch.id}`,
+    sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
+      VALUES(${id},${batch.id},${digest},'pending',${now},${now},${crypto.randomUUID()})`,
+    sql`DELETE FROM graph_changes WHERE userId=${userId} AND requestKey=${guard}`,
+  ], "Batch changed; reload before requesting another review");
 }

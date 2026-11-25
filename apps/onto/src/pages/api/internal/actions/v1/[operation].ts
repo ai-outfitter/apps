@@ -1,6 +1,5 @@
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
-import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import { enableAuditSchedule } from "../../../../../server/ontology-audit";
 import { graphProviderDescriptor } from "@ai-outfitter/app-sdk/graph-provider";
 import { describeOntoGraph } from "../../../../../server/graph-provider";
@@ -21,6 +20,10 @@ import { queueDraftReview } from "../../../../../server/batch-review";
 import { askBatch, batchAskInput } from "../../../../../server/batch-questions";
 import { applyGraphChanges, graphChangeInput, graphChangeReceipt } from "../../../../../server/graph-changes";
 import { graphqlSchema } from "../../../../../server/graphql";
+import { isPassageBatch } from "../../../../../server/passage-review";
+import { readGraph } from "../../../../../server/graph";
+import { recordAddress } from "../../../../../lib/addresses";
+import { passageIndexActions } from "../../../../../server/passage-index";
 import { artifactActions } from "../../../../../server/artifact-preview";
 import {
   addToBatch, batchAddInput, batchIdInput, batchOpenInput, batchSubmitInput, getBatch, openBatch, sealDueBatches, submitBatch,
@@ -68,7 +71,14 @@ export const wikiActions = {
   "batch.get": defineAction({
     description: "Read one batch: its state, policy, summary, review deadline, the ontology steward's latest review (findings by operation ref, its batch-review run, and decision: what it approved and what it held for a member) and every operation with evidence, confidence, reason, decision and committed record.",
     access: "read", input: batchIdInput, output: batchResult,
-    run: ({ identity }, input) => getBatch(installationDatabase(), identity, input),
+    run: async ({ identity }, input) => {
+      const db = installationDatabase();
+      const result = await getBatch(db, identity, input);
+      if (!isPassageBatch(result.batch)) return result;
+      const address = recordAddress(await readGraph(db, identity));
+      return { ...result, batch: { ...result.batch, anchors: (result.batch.anchors ?? [])
+        .flatMap(id => address("graph-node", id) ?? []) } };
+    },
   }),
   "batch.seal-due": defineAction({
     description: "Commit, by policy, the waiting operations of batches whose review window has ended, and discard expired open batches.",
@@ -90,7 +100,8 @@ export const wikiActions = {
     access: "read", input: graphGraphqlInput, output: graphGraphqlResult,
     // Members of other organizations reach only the shares made for them (server/graph-shares.ts).
     external: true,
-    run: (context: ActionContext & { host?: () => PullRequestHost }, input) => graphqlGraphRecords(installationDatabase(), context.identity, input, context),
+    run: (context: ActionContext & { host?: () => ReturnType<typeof workflowHost<"interactive">> }, input) =>
+      graphqlGraphRecords(installationDatabase(), context.identity, input, context),
   }),
   "graph.read": defineAction({
     description: "Read the complete active Wiki snapshot. Returns stored types, nodes, relationships and revisions; no Markdown or prompt generation. Real Wikis exceed the MCP response limit: use graph_search (graph.query) or graph_query for bulk reads.",
@@ -108,8 +119,13 @@ export const wikiActions = {
 export const ALL: APIRoute = ({ request, params, locals }) => {
   if (import.meta.env.OUTFITTER_APP_MODE !== "operational")
     return new Response("Read-only demo", { status: 403 });
-  return actionAPI(request, params.operation ?? "", {
+  return actionAPI<{
+    db: () => ReturnType<typeof installationDatabase>;
+    host: () => ReturnType<typeof workflowHost<"interactive">>;
+    afterStage: (batchId: string) => Promise<unknown>;
+  }>(request, params.operation ?? "", {
     ...wikiActions,
+    ...passageIndexActions,
     "onto.schedule": defineAction({
       description: "Enable Onto’s daily graph audit and durable review processing as the acting editor. The platform checks schedule authority.",
       access: "write", input: z.strictObject({}), output: z.json(),

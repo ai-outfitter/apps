@@ -210,6 +210,7 @@ test("a steward that fails leaves the batch unaffected and keeps the built-in ch
   assert.equal(again.counts.awaiting_review, 4);
   // Only an editor can ask for a review, and an open batch is not reviewed.
   assert.equal((await f.app.call("/api/apps/onto/batches/steward-review", { userId: "member", organizationId: "org", role: "member" } as typeof owner, { method: "POST", body: { batchId } })).status, 403);
+  assert.equal((await f.app.call("/api/apps/onto/batches/steward-review", forerunner, { method: "POST", body: { batchId } })).status, 403);
   const open = await json(await f.action("batch.open", { title: "Still open" }));
   assert.equal((await f.page("steward-review", { method: "POST", body: { batchId: open.batch.id } })).status, 409);
 });
@@ -373,12 +374,16 @@ test("the steward approves only the clean part: flagged and questioned proposals
   // Once a member answers the question, a fresh review approves what it held.
   await json(await f.page("answer", { method: "POST", body: { batchId: batch.id, key: "lamp-vendor", text: "The 400 W lamp." } }));
   const again = await json(await f.page("steward-review", { method: "POST", body: { batchId: batch.id } }));
+  const lastInference = f.calls.findLast(call => call.operation === "inference.generate")!;
+  assert.deepEqual(lastInference.input.data.operations.map((row: Json) => row.ref).sort(),
+    ["$lamp", "$lamp-crop", "$tomato", "$tomato-crop"]);
+  assert.equal(lastInference.input.data.operations.find((row: Json) => row.ref === "$lamp-crop").operation.attributes.toId, uuid(60));
   const after = Object.fromEntries(again.operations.map((op: Json) => [op.ref, op.state]));
   assert.equal(after["$lamp"], "committed");
   assert.equal(after["$lamp-crop"], "committed");
   assert.equal(after["$tomato"], "awaiting_review");
   // A member still decides the rest, as a member.
-  const done = await json(await f.page("review", { method: "POST", body: { batchId: batch.id, verdict: "approve" } }));
+  const done = await json(await f.page("review", { method: "POST", body: { batchId: batch.id, expectedVersion: 1, verdict: "approve" } }));
   assert.equal(done.batch.state, "committed");
   assert.equal(done.operations.find((op: Json) => op.ref === "$tomato").decision.kind, "member");
 });
@@ -567,4 +572,67 @@ test("a shared Person to Organization endpoint does not make notice delivery a d
   assert.equal(item.severity, "note");
   assert.equal(item.fix, null);
   assert.match(item.message, /Compare the meanings/);
+});
+
+test("a stale manual re-review cannot displace the amended version's scheduled job", async t => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const { registerHooks } = await import("node:module");
+  const hooks = registerHooks({
+    load(url, context, nextLoad) {
+      if (url.endsWith("/ontology-steward.md?raw")) return { format: "module", source: "export default 'Test prompt';", shortCircuit: true };
+      return nextLoad(url, context);
+    },
+  });
+  const { reviewBatchOntology } = await import("../src/server/batch-review").finally(() => hooks.deregister());
+  const query = "mutation ($input: MutateBatchSubmissionInput!) { mutateBatchSubmission(input: $input) { id submittedVersion reviewRun } }";
+  const batch = (await json(await f.graphql(query, { input: { requestKey: "create", title: "Review race", anchors: [],
+    proposals: [{ operation: node("$person", 130, core.person, "Before") }] } }))).data.mutateBatchSubmission;
+  const client = f.app.database;
+  let amended: Json | undefined;
+  const proxy = new Proxy(client, { get(target, key) {
+    if (key === "batch") return async (statements: Parameters<typeof client.batch>[0]) => {
+      if (!amended) {
+        const { data } = await json(await f.graphql(query, { input: { batchId: batch.id, expectedVersion: 1, requestKey: "amend",
+          proposals: [{ operation: node("$person", 130, core.person, "After") }] } }));
+        amended = data.mutateBatchSubmission;
+      }
+      return target.batch(statements);
+    };
+    const value = Reflect.get(target, key);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
+  const who = { ...owner, installationId: f.app.installationId, owner: { kind: "organization" as const, id: "org" }, canEdit: true };
+  const host = { call: async () => { throw new Error("A stale manual review must not start"); } };
+  await assert.rejects(reviewBatchOntology(drizzle(proxy), who, host, batch.id),
+    error => error instanceof Response && error.status === 409);
+  assert.equal(amended?.submittedVersion, 2);
+  const jobs = await client.prepare("SELECT runId FROM onto_review_jobs WHERE batchId = ?").bind(batch.id).all();
+  assert.equal(jobs.results.length, 2);
+  const reviewed = await f.reviewed(batch.id);
+  assert.equal(reviewed.batch.review.runId, amended?.reviewRun.runId);
+});
+
+test("unified submission reuses matching queued and completed draft reviews", async t => {
+  const f = await fixture();
+  t.after(() => f.app.dispose());
+  const stage = "mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }";
+  const submit = "mutation ($input: MutateBatchSubmissionInput!) { mutateBatchSubmission(input: $input) { id reviewRun instructions { code taskId } } }";
+  for (const completed of [false, true]) {
+    const title = completed ? "Draft reviewed" : "Draft queued";
+    const staged = await json(await f.graphql(stage, { input: { title, anchors: [],
+      proposals: [{ operation: node("$person", completed ? 142 : 141, core.person, title) }] } }));
+    const batchId = staged.data.stageChanges.id;
+    if (completed) await f.reviewed(batchId);
+    const jobs = () => f.app.database.prepare("SELECT id, state, runId FROM onto_review_jobs WHERE batchId = ?").bind(batchId).all();
+    const before = (await jobs()).results;
+    assert.equal(before.length, 1);
+    assert.equal(before[0].state, completed ? "complete" : "pending");
+    const { data } = await json(await f.graphql(submit, { input: { batchId, expectedVersion: 0, requestKey: title } }));
+    const { reviewRun, instructions } = data.mutateBatchSubmission;
+    assert.equal(reviewRun?.runId ?? null, completed ? null : before[0].runId);
+    assert.equal(instructions.some((item: Json) => item.code === "WAIT_FOR_RUN"), !completed);
+    assert.deepEqual((await jobs()).results, before);
+    assert.equal((await f.reviewed(batchId)).batch.review.runId, before[0].runId);
+  }
 });

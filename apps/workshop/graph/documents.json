@@ -528,6 +528,372 @@
                                         "additionalProperties": false
                                       }
                                     },
+                                    "cotsEvidence": {
+                                      "type": "object",
+                                      "properties": {
+                                        "photos": {
+                                          "maxItems": 24,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "fileName": {
+                                                "type": "string",
+                                                "maxLength": 160,
+                                                "pattern": "^[a-z0-9_][a-z0-9_.-]*\\.(stl|step|stp|mp4|webm|gif|jpg|jpeg|png)$"
+                                              },
+                                              "sha256": {
+                                                "type": "string",
+                                                "pattern": "^[a-f0-9]{64}$"
+                                              },
+                                              "attachmentRevision": {
+                                                "type": "integer",
+                                                "exclusiveMinimum": 0,
+                                                "maximum": 9007199254740991
+                                              },
+                                              "observation": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 500
+                                              },
+                                              "attachmentOwner": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "projectId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  },
+                                                  "itemId": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "projectId",
+                                                  "itemId"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "required": [
+                                              "fileName",
+                                              "sha256",
+                                              "attachmentRevision",
+                                              "observation"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "interfaces": {
+                                          "maxItems": 40,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string",
+                                                "format": "uuid",
+                                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                              },
+                                              "feature": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 500
+                                              },
+                                              "datum": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 500
+                                              },
+                                              "axis": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 500
+                                              },
+                                              "unit": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "mm",
+                                                  "in",
+                                                  "deg"
+                                                ]
+                                              },
+                                              "nominal": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "number"
+                                                  },
+                                                  "basis": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "supplier",
+                                                      "design"
+                                                    ]
+                                                  },
+                                                  "source": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 500
+                                                  }
+                                                },
+                                                "required": [
+                                                  "value",
+                                                  "basis",
+                                                  "source"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "measured": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "number"
+                                                  },
+                                                  "basis": {
+                                                    "type": "string",
+                                                    "const": "owned-part"
+                                                  },
+                                                  "source": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 500
+                                                  }
+                                                },
+                                                "required": [
+                                                  "value",
+                                                  "basis",
+                                                  "source"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "tolerance": {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "const": "unknown"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "const": "specified"
+                                                      },
+                                                      "minus": {
+                                                        "type": "number",
+                                                        "minimum": 0
+                                                      },
+                                                      "plus": {
+                                                        "type": "number",
+                                                        "minimum": 0
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind",
+                                                      "minus",
+                                                      "plus"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              "photoSha256s": {
+                                                "maxItems": 12,
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-f0-9]{64}$"
+                                                }
+                                              },
+                                              "verification": {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "status": {
+                                                        "type": "string",
+                                                        "const": "untested"
+                                                      },
+                                                      "reason": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 500
+                                                      },
+                                                      "trial": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "trialId": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                          },
+                                                          "testedProjectId": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                          },
+                                                          "testedRevision": {
+                                                            "type": "integer",
+                                                            "exclusiveMinimum": 0,
+                                                            "maximum": 9007199254740991
+                                                          },
+                                                          "testedConfiguration": {
+                                                            "type": "string",
+                                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                          },
+                                                          "testedParameters": {
+                                                            "type": "object",
+                                                            "propertyNames": {
+                                                              "type": "string",
+                                                              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                            },
+                                                            "additionalProperties": {
+                                                              "type": "number"
+                                                            }
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "trialId",
+                                                          "testedProjectId",
+                                                          "testedRevision"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "status"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "trialId": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                      },
+                                                      "testedProjectId": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                      },
+                                                      "testedRevision": {
+                                                        "type": "integer",
+                                                        "exclusiveMinimum": 0,
+                                                        "maximum": 9007199254740991
+                                                      },
+                                                      "testedConfiguration": {
+                                                        "type": "string",
+                                                        "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                      },
+                                                      "testedParameters": {
+                                                        "type": "object",
+                                                        "propertyNames": {
+                                                          "type": "string",
+                                                          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                        },
+                                                        "additionalProperties": {
+                                                          "type": "number"
+                                                        }
+                                                      },
+                                                      "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "fits",
+                                                          "interferes"
+                                                        ]
+                                                      },
+                                                      "testedOwnerRevision": {
+                                                        "type": "integer",
+                                                        "exclusiveMinimum": 0,
+                                                        "maximum": 9007199254740991
+                                                      },
+                                                      "observation": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 500
+                                                      },
+                                                      "photoSha256s": {
+                                                        "minItems": 1,
+                                                        "maxItems": 12,
+                                                        "type": "array",
+                                                        "items": {
+                                                          "type": "string",
+                                                          "pattern": "^[a-f0-9]{64}$"
+                                                        }
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "trialId",
+                                                      "testedProjectId",
+                                                      "testedRevision",
+                                                      "status",
+                                                      "observation",
+                                                      "photoSha256s"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "feature",
+                                              "datum",
+                                              "axis",
+                                              "unit",
+                                              "tolerance",
+                                              "photoSha256s",
+                                              "verification"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "photos",
+                                        "interfaces"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "cotsEvidenceRef": {
+                                      "type": "object",
+                                      "properties": {
+                                        "projectId": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        },
+                                        "itemId": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        },
+                                        "revision": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "projectId",
+                                        "itemId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
                                     "priceKnown": {
                                       "default": false,
                                       "type": "boolean"
@@ -2299,6 +2665,36 @@
     "hidden": true
   },
   {
+    "name": "RecordWorkshopCotsEvidence",
+    "kind": "mutation",
+    "story": "As a hardware builder, I want to preserve photos and measured dimensions on their purchased part, so that every consuming assembly can reuse them.",
+    "query": "mutation RecordWorkshopCotsEvidence($input: RecordWorkshopCotsEvidenceInput!) {\n  recordWorkshopCotsEvidence(input: $input)\n}",
+    "hash": "df20661fb3ae5fd40d1b7bf7cc77eff0258603c2b60a4752fdca1f6f1f1f32ee",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL RecordWorkshopCotsEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the tested project revision and configuration. Workshop records which matching owner revision was resolved when the observation was entered. An untested interface may carry a reason and exact historical trial without asserting fit. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "recordWorkshopCotsEvidence": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "RecordWorkshopPrintPlate",
     "kind": "mutation",
     "story": "As a hardware builder, I want to record time and material from the actual grouped print plates, so that I can prepare the correct amount of filament.",
@@ -2898,8 +3294,8 @@
     "name": "UpdateWorkshopAssembly",
     "kind": "mutation",
     "story": "As a prototype builder, I want my agent to save my assembly edit at the observed revision, so that concurrent project changes are preserved.",
-    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n    printFindings\n  }\n}",
-    "hash": "8c1a137cff4ea7ad27c5562bf9681b1e600957338e01a5adef3e1f9be4267f40",
+    "query": "mutation UpdateWorkshopAssembly($projectId: ID!, $expectedRevision: Int!, $assembly: WorkshopAssemblyInput!) {\n  updateWorkshopAssembly(\n    projectId: $projectId\n    expectedRevision: $expectedRevision\n    assembly: $assembly\n  ) {\n    projectId\n    revision\n    printFindings\n    cotsWarnings\n  }\n}",
+    "hash": "182e4045016a44380a9a69b158d207e0efd6717818076f0c894fe2c9704c53ad",
     "variables": {
       "type": "object",
       "properties": {
@@ -2922,7 +3318,7 @@
       ]
     },
     "mcp": {
-      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit. The mutation receipt includes structured printFindings with the current checked item, digest, profile, state and location."
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit. Use cotsEvidenceRef {projectId,itemId,revision?} on a COTS item to reuse its owner's evidence. The receipt includes cotsWarnings for missing evidence and structured printFindings with the current checked item, digest, profile, state and location."
     },
     "outputSchema": {
       "type": "object",
@@ -2937,6 +3333,10 @@
               "type": "integer"
             },
             "printFindings": {
+              "description": "JSON",
+              "nullable": true
+            },
+            "cotsWarnings": {
               "description": "JSON",
               "nullable": true
             }
@@ -3012,7 +3412,7 @@
       ]
     },
     "mcp": {
-      "description": "Supply projectId, itemId and fileName. Rehash the stored original and return its digest, size and downloadPath. To read original bytes through MCP, pass byteOffset:0 and includeIdentifiers:true. Decode each base64 page and follow nextByteOffset with expectedSha256 set to the receipt digest until null."
+      "description": "Supply projectId, itemId and fileName; pass revision to verify a historical attachment. Rehash the stored original and return its digest, size and downloadPath. To read original bytes through MCP, pass byteOffset:0 and includeIdentifiers:true. Decode each base64 page and follow nextByteOffset with expectedSha256 set to the receipt digest until null."
     },
     "outputSchema": {
       "type": "object",
@@ -3061,6 +3461,36 @@
               "description": "JSON"
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "name": "WorkshopCotsEvidence",
+    "kind": "query",
+    "story": "As a hardware builder, I want to read shared purchased-part evidence in my assembly, so that I can check the mating features in CAD.",
+    "query": "query WorkshopCotsEvidence($input: WorkshopCotsEvidenceInput!) {\n  workshopCotsEvidence(input: $input)\n}",
+    "hash": "80fad50cfb8e2262392a50589856c4d8905842ff8e213276c016bc43a95e3b08",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL WorkshopCotsEvidenceInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read resolved evidence for the selected assembly or COTS item. Returns the canonical owner, verified original photo locations, nominal and measured dimensions, tolerance and fit observations. Use includeIdentifiers:true; pass itemId for a focused read. An unpinned evidence reference follows the owner's current revision even when reading a historical consumer."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopCotsEvidence": {
+          "description": "JSON",
+          "nullable": true
         }
       }
     }

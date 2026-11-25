@@ -1,0 +1,25 @@
+workflow: community-template-audit
+origin: synthetic
+inputs:
+  check.inputs.repository: northstar/platform
+records:
+  check.outputs.report:
+    repository: northstar/platform
+    defaultBranch: trunk
+    revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    checkedAt: '2026-11-25T12:00:00.000Z'
+    communityTemplates:
+      checks:
+        pullRequest: {status: covered, sources: []}
+        bug: {status: missing, sources: []}
+        feature: {status: missing, sources: []}
+      ownerDefaults: null
+      issueOverride: []
+      candidates: []
+      plan:
+        id: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        paths: [.github/ISSUE_TEMPLATE/bug_report.md, .github/ISSUE_TEMPLATE/feature_request.md]
+        blocked: []
+expect:
+  check: done
+  run: complete

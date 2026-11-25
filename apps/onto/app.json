@@ -40,7 +40,8 @@
         "workflow.ontology-audit.start",
         "actions.invoke",
         "connector.github.pulls.list",
-        "workflow.onto-daily-update.start"
+        "workflow.onto-daily-update.start",
+        "workflow.wiki-passage-index.start"
       ]
     }
   },

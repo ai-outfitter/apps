@@ -8,15 +8,57 @@ import { batchGroups } from "./batch-groups";
 // delegated writers cannot. scripts/graph-schema.ts writes
 // them to graph/documents.json.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
-import { wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
+import { z } from "zod";
+import { mutateBatchSubmissionInput, wikiChangeDocuments } from "@ai-outfitter/app-sdk/graph-contracts";
 const changeDocuments = defineDocuments({
   ...wikiChangeDocuments,
+  WikiPassageSearch: {
+    story: "As a member, I want to find indexed Wiki excerpts with precise citations, so that I can verify the source even before a graph link exists.",
+    document: `query WikiPassageSearch($wiki: WikiPassageTarget!, $query: String!, $limit: Int, $after: String) {
+      wikiPassageSearch(wiki: $wiki, query: $query, limit: $limit, after: $after) {
+        passages {
+          id text
+          source { sourceId version pageSlug pageRevision revision fileName sha256 contentHash }
+          locator { kind section page startMs endMs start end }
+        }
+        next
+      }
+    }`,
+  },
+  WikiPassageStatus: {
+    story: "As a member, I want to view passage indexing progress and held items, so that I can see what is pending and why.",
+    document: `query WikiPassageStatus($wiki: WikiPassageTarget!, $limit: Int) {
+      wikiPassageProgress(wiki: $wiki) {
+        cursor sweeps updatedAt lastError indexedSources pendingSources sourceIssues indexedPassages pendingPassages
+        inferenceRetries routed pendingSuggestions unresolved routingRetries
+      }
+      wikiPassageHeldItems(wiki: $wiki, limit: $limit) {
+        sources { sourceId version issue }
+        suggestions { id sourceId version passageId issue }
+      }
+    }`,
+  },
+  EnableWikiPassageIndex: {
+    story: "As an organization editor, I want to explicitly enable recurring indexing for a Wiki I can access, so that members can discover its passages.",
+    document: `mutation EnableWikiPassageIndex($wiki: WikiPassageTarget!) {
+      enableWikiPassageIndex(wiki: $wiki) {
+        id workflowId enabled cron timezone nextRunAt
+      }
+    }`,
+  },
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
+  MutateBatchSubmission: {
+    inputSchema: z.toJSONSchema(z.strictObject({ input: mutateBatchSubmissionInput }), { io: "input", unrepresentable: "any" }),
+    story: "As an agent or member, I want to submit new proposals or amend pending ones in one mutation, so that the proposal version and review are recorded together.",
+    document: `mutation MutateBatchSubmission($input: MutateBatchSubmissionInput!) {
+      mutateBatchSubmission(input:$input) { id title submittedVersion state counts reviewRefs reviewUrl reviewRun instructions { code itemKey actor required message taskId url } }
+    }`,
+  },
   ReviseBatch: {
     story: "As a member, I want to amend or add undecided proposals in my submitted batch, so that I can link delivery work without approving the proposed product scope.",
-    document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id title state counts reviewBy reviewUrl } }`,
+    document: `mutation ReviseBatch($input: ReviseBatchInput!) { reviseBatch(input:$input) { id submittedVersion title state counts reviewBy reviewUrl } }`,
   },
   ChangeBatch: {...wikiChangeDocuments.ChangeBatch, hidden:true, document: wikiChangeDocuments.ChangeBatch.document.replace(" counts\n", " counts questions review reviewRun instructions { code itemKey actor required message taskId url }\n")},
   Ontology: {
@@ -27,10 +69,14 @@ const changeDocuments = defineDocuments({
     story:"As an agent, I want to search saved change batches and their review state, so that I can resume work without loading every proposal.",
     document:`query ChangeBatches($ids: [ID!], $search: String, $state: [String!], $first: Int = 20, $after: String, $details: Boolean = false, $refs: [String!]) {
       changeBatches(ids:$ids,search:$search,state:$state,first:$first,after:$after) {
-        nodes { id title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
+        nodes { id submittedVersion title state counts reviewBy reviewUrl questions @include(if:$details) instructions @include(if:$details) { code itemKey actor required message taskId url } advice @include(if:$details) review @include(if:$details) changeRequests @include(if:$details) reviewRun @include(if:$details) operations(refs:$refs) @include(if:$details) {ref state operation evidence confidence reason decision record recordRevision} }
         pageInfo {hasNextPage endCursor}
       }
     }`,
+  },
+  BatchSubmission: {
+    story: "As a reviewer, I want to inspect exactly which proposals were submitted in a particular version, so that I can compare edits before review.",
+    document: `query BatchSubmission($id:ID!, $version:Int!) { changeBatch(id:$id) { id submittedVersion submission(version:$version) } }`,
   },
   OntoSettings: {
     story: "As an admin or agent, I want to read whether the ontology steward approves clean batches here, so that I know if a submitted batch can land without a member.",
@@ -81,10 +127,15 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+  WikiPassageSearch: { description: "Search indexed excerpts in a readable Wiki in this organization. Returns text, revision pins, locators and a continuation cursor." },
+  WikiPassageStatus: { description: "Read Wiki passage indexing progress, extraction issues and held suggestion reasons in this organization." },
+  EnableWikiPassageIndex: { description: "Organization editors can explicitly enable six-hour passage indexing for an accessible Wiki. Returns the schedule receipt." },
  CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
-  ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Only the member's own editor connection may amend." },
+  BatchSubmission: { description: "Read the original proposals, submission time and submitter category for one submitted batch version." },
+  MutateBatchSubmission: { description: 'Create and submit with requestKey, title and proposals. Edit with requestKey, batchId, expectedVersion, replacement or new proposals keyed by ref, and/or refs to withdraw in remove. Changing a held proposal\'s operation or evidence clears its hold for review under the existing policy. Delete an open draft with requestKey, batchId, expectedVersion:0 and deleteBatch:true. Retry identical inputs with the original requestKey. Minimal proposal `{operation:{operation:"create",type:"graph-node",ref:"$person",attributes:{typeId:"Person",title:"Ada"}}}`.' },
+  ReviseBatch: { description: "Amend undecided proposals. Entity writers may edit member batches. Only the originating app can edit an open policy draft. A member reviewer can also edit a submitted policy batch." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
     "collection": true
@@ -111,6 +162,6 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
     "description": "Start here before reading or writing this graph: every type name, which node types each relationship connects, the root node and how to stage a change, in one read."
   },
   "ChangeBatchChanges": {
-    "description": "Stage additions durably, then explicitly submit or review a Wiki change batch. Existing review policy applies. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
+    "description": "When asked to submit proposals or amend an existing submission, use MutateBatchSubmission. The steward may approve clean proposals automatically under this installation’s settings. Use this operation to stage drafts, configure draft anchors, ask questions or review on a member’s authority. To request changes, review with verdict request_changes, expectedVersion and a comment. Questions go on the batch with `ask`, never as records. A follow-up nothing in the batch depends on is a Planning issue. Before staging, read the types. If three or more records share a shape no type names (an order, a duration, a stage, the same parent), propose the type and its relationship types in the same batch, with endpoints. Document is for prose, not records. Propose a type only when several records share a shape someone will query by; prefer one type with a property over several near-identical types. Cards: summary says what it is and why this organization cares; body only for content beyond the summary; no boilerplate repeated across cards; reason says why this record; an evidence quote is the supporting sentence. Read advice in the receipt and review on the batch (ChangeBatches with details) before submitting."
   }
 });

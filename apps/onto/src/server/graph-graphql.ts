@@ -1,16 +1,15 @@
-import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { buildGraphSchema, type GraphContext, type GraphSchemaOptions, type TypeRow } from "@ai-outfitter/app-sdk/graph-graphql";
-import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
 import { executeGraphQuery, type GraphGraphqlInput, graphGraphqlInput } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import type { GraphQLFieldConfigMap, GraphQLSchema } from "graphql";
 import { databaseSource } from "./graph-source";
 import { changeQueries, externalSchema } from "./graphql";
+import { passageGraphTypeNames, type PassageGraphContext } from "./passage-graphql";
 import { graphql } from "graphql";
 
 const schemaOptions: GraphSchemaOptions = { rootExtensions: changeQueries as GraphQLFieldConfigMap<unknown, GraphContext>,
-  typeNames: ["ChangeBatch", "StagedChange", "Exploration", "ExplorationSummary", "ExplorationPicture", "ExplorationNode", "ExplorationEdge", "ExplorationStepResult", "Share", "ShareView", "ShareNode", "ShareEdge"] };
+  typeNames: ["ChangeBatch", "StagedChange", "Exploration", "ExplorationSummary", "ExplorationPicture", "ExplorationNode", "ExplorationEdge", "ExplorationStepResult", "Share", "ShareView", "ShareNode", "ShareEdge", ...passageGraphTypeNames] };
 /** The schemas last built, by the hash of the type rows each was generated from (nothing else decides a schema), most recently used last. */
 const schemas = new Map<string, GraphQLSchema>();
 const maxSchemas = 8;
@@ -28,7 +27,7 @@ export async function graphSchema(types: TypeRow[]) {
  * fields), through indexed reads of this Wiki's tables; the schema is generated from
  * its types (graphSchema), so a type added at runtime is queryable on the next call.
  * Change batches (changeQueries) answer beside them, as the Wiki's printed schema promises the platform. */
-export async function graphqlGraphRecords(db: ReturnType<typeof installationDatabase>, identity: AppIdentity, raw: GraphGraphqlInput, context: Partial<Omit<ActionContext, "identity">> & { host?: () => PullRequestHost } = {}) {
+export async function graphqlGraphRecords(db: ReturnType<typeof installationDatabase>, identity: AppIdentity, raw: GraphGraphqlInput, context: Omit<PassageGraphContext, "identity"> = {}) {
   const input = graphGraphqlInput.parse(raw);
   // A member of another organization reads only the shares made for it (graph-shares.ts).
   if (identity.role === "external") {

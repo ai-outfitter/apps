@@ -4,7 +4,7 @@ import { requireEditor } from "@ai-outfitter/app-sdk/server";
 import { defineAction } from "@ai-outfitter/app-sdk/actions";
 import type { IntakeContext } from "./intake";
 import { repositoryName } from "./projects";
-import { configureFoundryWorkspaces, type FoundryJob, foundryJobs, runFoundryJob, scheduleFoundryJob } from "./workspace/workspaces";
+import { configureFoundryWorkspaces, type ScheduledFoundryJob, foundryJobs, runFoundryJob, scheduleFoundryJob, templateAuditJob } from "./workspace/workspaces";
 
 export const enableRepositoryInput = z.strictObject({
   repository: repositoryName.describe("owner/name, reachable through this organization's GitHub connection."),
@@ -19,15 +19,17 @@ export async function enableRepository(context: IntakeContext, input: z.output<t
   return { repository, subscriptionId, workflow };
 }
 
+const scheduledJobs = Object.keys(foundryJobs) as ScheduledFoundryJob[];
 export const jobInput = z.strictObject({
-  job: z.enum(Object.keys(foundryJobs) as [FoundryJob, ...FoundryJob[]]).describe("dependency-review, architecture-reanalysis or ui-review."),
+  job: z.enum([...scheduledJobs, templateAuditJob]).describe("dependency-review, architecture-reanalysis, ui-review or community-template-audit."),
   repository: repositoryName.describe("owner/name, reachable through this organization's GitHub connection."),
 });
 export const scheduleJobInput = jobInput.extend({
+  job: z.enum(scheduledJobs).describe("dependency-review, architecture-reanalysis or ui-review."),
   enabled: z.boolean().default(true).describe("false pauses the job's schedule."),
 });
 
-/** Start a repository job now: its workspace agent is approved (or reused) on the repository first. */
+/** Start a repository job now: its workspace agent is approved when the job requires one. */
 export async function runJob(context: IntakeContext, input: z.output<typeof jobInput>) {
   requireEditor(context.identity);
   return runFoundryJob(context.host(), input.job, input.repository);
@@ -36,7 +38,7 @@ export async function runJob(context: IntakeContext, input: z.output<typeof jobI
 /** The same job runner exposed as a reviewed sidebar proposal. The host still
  * checks current membership, repository access and binding authority on apply. */
 export const runJobAction = defineAction({
-  description: "Run a repository job: ui-review reviews one app's pages at phone and desktop sizes and files screenshot-backed fixes; dependency-review and architecture-reanalysis file maintenance issues. Foundry must already be enabled on the repository. Filed issues can start work that opens and merges pull requests. Owners and admins only.",
+  description: "Run a repository job: community-template-audit reads contributor template coverage without changing the repository; ui-review reviews one app's pages at phone and desktop sizes and files screenshot-backed fixes; dependency-review and architecture-reanalysis file maintenance issues. Jobs that file issues require Foundry to be enabled on the repository. Filed issues can start work that opens and merges pull requests. Owners and admins only.",
   access: "write",
   canInvoke: (context: IntakeContext) => context.identity.canEdit &&
     context.identity.owner.kind === "organization" &&

@@ -50,7 +50,14 @@ test("see the ontology steward's findings beside a submitted batch's proposals",
       { operation: { operation: "create", type: "graph-edge", ref: "$veg-nasa", attributes: { id: uuid(12), typeId: partOf, fromId: "$veg", toId: "$nasa" } }, evidence: cite, confidence: 0.8 },
     ] }, forerunner);
     await action("batch.submit", { batchId: batch.id, summary: "NASA's space crop experiments" }, forerunner);
-    await expect.poll(async () => (await action("batch.get", { batchId: batch.id })).batch.review?.state).toBe("complete");
+    const scheduled = await app.call("/api/internal/workflow-host/v1", owner, {
+      method: "POST",
+      body: { phase: "schedule", input: { runId: crypto.randomUUID(), scheduledFor: Date.now(),
+        schedule: { id: "queue", workflowId: "batch-review", inputs: {}, connectionId: null, resource: null } } },
+      workflowHost: { ...workflowHost, phase: "schedule", scheduleId: "queue" },
+    });
+    expect(scheduled.status, await scheduled.clone().text()).toBe(200);
+    expect((await action("batch.get", { batchId: batch.id })).batch.review?.state).toBe("complete");
 
     await page.route(`${origin}/**`, async (route) => {
       const request = route.request(), url = new URL(request.url());

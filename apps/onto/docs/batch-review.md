@@ -73,7 +73,7 @@ with `SaveSettings {stewardApproval: "approve" | "review"}`; `OntoSettings` read
 - **Review again** on the Changes page runs the same approval after the new review.
 - **Waiting on it.** Each review job reserves its workflow run ID when it is queued. While
   the review is queued or running, the batch's `reviewRun` is `{runId, state}` and its
-  receipt (`SubmitBatch`, `ChangeBatchChanges` submit) carries the SDK's required
+  receipt (`MutateBatchSubmission`, `SubmitBatch`, `ChangeBatchChanges` submit) carries the SDK's required
   `WAIT_FOR_RUN` instruction with that run as `taskId`. The agent waits on the run
   (WorkflowRuns at scope platform) or reads the batch again; once the review finishes,
   `reviewRun` is null and `review.decision` says what was approved and what waits. A retry
