@@ -1,5 +1,5 @@
 import { assemblyPoster } from "./assembly-poster";
-import { inspectionLink } from "../lib/inspection-links";
+import { inspectionLink, sizingConfigurations } from "../lib/inspection-links";
 import { occurrenceInspection } from "./occurrence-inspection";
 import { inspectionControls } from "./inspection-controls";
 import { modelSizing } from "./model-sizing";
@@ -32,7 +32,7 @@ const $=<T extends HTMLElement=HTMLElement>(id:string)=>root.querySelector<T>(`#
 const element=(tag:string,text:string)=>{const node=document.createElement(tag);node.textContent=text;return node;};
 const notice=(s:string)=>$("workspace-notice").textContent=s;
 let legacy=false, historical=false;
-const query = new URLSearchParams(location.search);
+let query = new URLSearchParams(location.search);
 const selection = new URLSearchParams();
 for(const key of ["revision","configuration","parameters"]) if(query.has(key)) selection.set(key,query.get(key)!);
 const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
@@ -504,7 +504,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
     sources:historical ? undefined : resolved?.sources
       .filter(source=>source.configuration && partInspection!.instances.has(source.itemId))
       .map(source=>({label:source.name+" · "+source.configuration,href:sourceUrl(source),parameters:source.parameters})),
-    configurations:!historical && (!resolved || project.revision===resolved.revision) ? project.assembly.configurations : undefined,
+    configurations:!historical && (!resolved || project.revision===resolved.revision) ? sizingConfigurations(project.assembly) : undefined,
     requestBuild:project.workspace && !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? values=>{
       $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(values,null,2);
       const instruction=$<HTMLInputElement>("instruction");
@@ -730,6 +730,7 @@ const savedBuild=query.get("build") && project.workspace?.requests.some(r=>r.id=
 if (!selection.has("revision") && !savedBuild) {
  const normalized = inspectionLink(project.assembly, query);
  if (normalized) {
+   query = normalized;
    const url = new URL(location.href);
    url.search = normalized.toString();
    history.replaceState(history.state,"",url);

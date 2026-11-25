@@ -33,3 +33,13 @@ export function inspectionLink(assembly: Assembly, query: URLSearchParams) {
   if (!params.has("explode")) params.set("explode",String(Math.round(Number(oldAmount ?? 1)*100)));
   return params;
 }
+
+
+export function sizingConfigurations(assembly: Assembly) {
+  return assembly.configurations?.filter(config => {
+    const alias = inspectionLink(assembly,new URLSearchParams({configuration:config.name}));
+    return !alias || alias.get("configuration") === config.name;
+  }).map(config => ({
+    ...config,parameters:config.parameters?.filter(p => !(p.name === "Explode" && p.min === 0 && p.max === 1))
+  }));
+}
