@@ -119,31 +119,37 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
     if (measurement.photoSha256s.length) details.append(evidenceLinks(measurement.photoSha256s));
 
     const verification = measurement.verification;
+    const trial = verification.status === "untested" ? verification.trial : verification;
     if (verification.status === "untested") {
       details.append(text("p", "Fit status · Untested"));
+      if (verification.reason) details.append(text("p", verification.reason));
     } else {
+      details.append(text("p", `Fit status · ${verification.status === "fits" ? "Fits" : "Interferes"} in recorded trial`));
+      details.append(text("p", verification.observation));
       const testedElsewhere = part.warnings.some(({ code, interfaceId }) =>
         code === "fit_tested_elsewhere" && interfaceId === measurement.id,
       );
-      details.append(text("p", `Fit status · ${verification.status === "fits" ? "Fits" : "Interferes"} in recorded trial`));
-      const anchor = `fit-trial-${part.owner?.itemId ?? part.itemId}-${measurement.id}-${verification.trialId}`;
+      if (testedElsewhere) details.append(text("p", "Fit in this assembly selection is unknown."));
+      if (verification.photoSha256s.length) details.append(evidenceLinks(verification.photoSha256s));
+    }
+    if (trial) {
+      const anchor = `fit-trial-${part.owner?.itemId ?? part.itemId}-${measurement.id}-${trial.trialId}`;
       if (part.owner?.projectId === context.projectId && part.owner.itemId === part.itemId) details.id = anchor;
       const tested = text("p", "");
-      const label = `Trial ${verification.trialId}`;
+      const label = `Trial ${trial.trialId}`;
       if (part.owner) {
         tested.append(link(label, revisionUrl(part.owner.projectId, part.owner.revision, { itemId: part.owner.itemId, inspection: true }) + "#" + anchor));
       } else {
         tested.append(label);
       }
       tested.append(" · ");
-      const configuration = verification.testedConfiguration;
-      const testedLabel = `Tested project save ${verification.testedRevision}${configuration ? " · " + configuration : ""}`;
-      tested.append(link(testedLabel, revisionUrl(verification.testedProjectId, verification.testedRevision, {
-        configuration, parameters: verification.testedParameters,
+      const configuration = trial.testedConfiguration;
+      const labelStart = verification.status === "untested" ? "Trial project save" : "Tested project save";
+      const testedLabel = `${labelStart} ${trial.testedRevision}${configuration ? " · " + configuration : ""}`;
+      tested.append(link(testedLabel, revisionUrl(trial.testedProjectId, trial.testedRevision, {
+        configuration, parameters: trial.testedParameters,
       })));
-      details.append(tested, text("p", verification.observation));
-      if (testedElsewhere) details.append(text("p", "Fit in this assembly selection is unknown."));
-      if (verification.photoSha256s.length) details.append(evidenceLinks(verification.photoSha256s));
+      details.append(tested);
     }
     for (const warning of part.warnings.filter(({ interfaceId, code }) => interfaceId === measurement.id && !displayedConditions.has(code)))
       details.append(text("p", warning.message));
