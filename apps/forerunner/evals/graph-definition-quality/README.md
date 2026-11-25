@@ -30,14 +30,14 @@ The projector checks the generated graph for staleness and matches scoped types 
 
 ## Spark measurements
 
-The authored pair used a clean local snapshot of the in-progress #267 app contributions at `1e73c4913a6b5a4dcbc3837dc5a94445c6328a92`. Its [schema projection](evals/connected-discovery/schema-authored.json) records the generated type artifact hash. The model saw `forerunner:` for the discovery-owned types and `onto:` for the foundation types. The baseline messages match the earlier instruction pair byte for byte.
+The authored pair uses #267's committed app contributions at `c6f740d71743536b28d76911996ec63e5012e227`. Its [schema projection](evals/connected-discovery/schema-authored.json) records the generated type artifact hash. Both the projection and generated type artifact match the earlier [local snapshot run](https://github.com/ai-outfitter/apps/blob/b6990890c2a28eb4c30ca42538ff50497128e268/apps/forerunner/evals/graph-definition-quality/receipts/spark-authored-pair.json). The model saw `forerunner:` for the discovery-owned types and `onto:` for the foundation types. The baseline messages match the earlier instruction pair byte for byte.
 
 Both pairs ran on 2026-11-25 with GLM-5.3-Flash-EXL3, snapshot `25a44fdbf16862a46b7cc9921142c6c81350af2f`, vLLM fingerprint `vllm-0.1.dev20051+g487ecf187-tp2-06793def`, and Agent Eval 2.6.0. Each arm had 75 seconds, up to five model calls, four lookup calls, and 1,000 completion tokens per model call. Temperature was 0 and the requested seed was 266. The service handled both runs on the same advertised model and reported the same fingerprint.
 
 | Arm | Grounding | Canonical reuse | Directed relationships | Decision evidence | Lookup calls | Model calls | Wall time | Input tokens | Output tokens |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Published names, authored pair | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.080 s | 4,048 | 588 |
-| Authored Onto and Forerunner namespaces | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.774 s | 4,348 | 583 |
+| Published names, authored pair | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 17.888 s | 4,048 | 589 |
+| Authored Onto and Forerunner namespaces | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.361 s | 4,348 | 588 |
 | Published names, initial pair | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 16.950 s | 4,048 | 455 |
 | Initial `onto:` instruction projection | 5/6 | 3/3 | 5/5 | 3/3 | 4 | 5 | 18.013 s | 4,268 | 583 |
 

@@ -7,7 +7,7 @@
       ]
     },
     "candidate": {
-      "commit": "1e73c4913a6b5a4dcbc3837dc5a94445c6328a92",
+      "commit": "c6f740d71743536b28d76911996ec63e5012e227",
       "files": [
         "apps/onto/seeds/types-v1.json",
         "apps/forerunner/seeds/discovery-graph-v1.json"

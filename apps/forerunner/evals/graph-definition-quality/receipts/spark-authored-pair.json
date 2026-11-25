@@ -10,7 +10,7 @@
     "baseline": [
       {
         "version": 1,
-        "startedAt": "2026-11-25T12:40:38.584Z",
+        "startedAt": "2026-11-25T12:46:34.250Z",
         "model": "GLM-5.3-Flash-EXL3",
         "modelRevision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
         "limits": {
@@ -31,7 +31,7 @@
               ]
             },
             "candidate": {
-              "commit": "1e73c4913a6b5a4dcbc3837dc5a94445c6328a92",
+              "commit": "c6f740d71743536b28d76911996ec63e5012e227",
               "files": [
                 "apps/onto/seeds/types-v1.json",
                 "apps/forerunner/seeds/discovery-graph-v1.json"
@@ -43,7 +43,7 @@
           "sha256": {
             "corpus": "b08bb8a6552733e49479aec309e9e5c65fb95b9319d17e546e087fb3cb70c7f1",
             "prompt": "f31f4f6c09bfe70371b677f8c34e74f268d5de74f6b6323adb9858643805562b",
-            "schema": "e78126fa274bbffcd6b6f5e4ac0d232d066ee9f8c0e3c848d32b39e1b199efdc",
+            "schema": "3908ff37b41f9a0ca93ae25c9316c619faab7e5bbd881ca0cacd779046d21c37",
             "rubric": "175542ce3e54a6be6f0bedfeaeab35525897bbc10d22d25016ab6fce94956366"
           }
         },
@@ -81,7 +81,7 @@
         ],
         "turns": [
           {
-            "id": "chatcmpl-af4d48bec5174258",
+            "id": "chatcmpl-bfba156eb0492e31",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -100,7 +100,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-92ce7e49b5c80618",
+                  "id": "chatcmpl-tool-8a1df3e15aa9e127",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -114,13 +114,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-92ce7e49b5c80618",
+                "tool_call_id": "chatcmpl-tool-8a1df3e15aa9e127",
                 "content": "[{\"id\":\"g-101\",\"kind\":\"person\",\"name\":\"Mika L. Vale\",\"aliases\":[\"Mika Vale\"],\"email\":\"mika@vale.example\"},{\"id\":\"g-280\",\"kind\":\"person\",\"name\":\"Mika D. Vale\",\"aliases\":[\"Mika Vale\"],\"email\":\"mika@vale-lab.example\"}]"
               }
             ]
           },
           {
-            "id": "chatcmpl-ae516596ab3e7a67",
+            "id": "chatcmpl-a20585029e99ef19",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -139,7 +139,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-af658e79a69d69cc",
+                  "id": "chatcmpl-tool-989364ece7b66691",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -153,13 +153,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-af658e79a69d69cc",
+                "tool_call_id": "chatcmpl-tool-989364ece7b66691",
                 "content": "[]"
               }
             ]
           },
           {
-            "id": "chatcmpl-8187f614ee75557f",
+            "id": "chatcmpl-ae121da2c26c5aef",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -178,7 +178,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-87be420a0798981c",
+                  "id": "chatcmpl-tool-ac0a97665800d7e8",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -192,13 +192,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-87be420a0798981c",
+                "tool_call_id": "chatcmpl-tool-ac0a97665800d7e8",
                 "content": "[{\"id\":\"g-227\",\"kind\":\"organization\",\"name\":\"Tideglass Collective\",\"aliases\":[\"Tideglass Collective LLC\"],\"registration\":\"TC-801\",\"domain\":\"tideglass.example\"}]"
               }
             ]
           },
           {
-            "id": "chatcmpl-8e5e68024c25952a",
+            "id": "chatcmpl-a214d9d1369a5d74",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -217,7 +217,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-a5cb2e622e0c05cc",
+                  "id": "chatcmpl-tool-82a11c8dcd11f67c",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -231,25 +231,25 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-a5cb2e622e0c05cc",
+                "tool_call_id": "chatcmpl-tool-82a11c8dcd11f67c",
                 "content": "[]"
               }
             ]
           },
           {
-            "id": "chatcmpl-970e82df28277289",
+            "id": "chatcmpl-9f9f77d35371e478",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
               "prompt_tokens": 764,
-              "total_tokens": 1215,
-              "completion_tokens": 451,
+              "total_tokens": 1216,
+              "completion_tokens": 452,
               "prompt_tokens_details": null
             },
             "finishReason": "stop",
             "message": {
               "role": "assistant",
-              "content": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents only a successful sign-in with no subsequent activity, and E4 is a marketing email, not evidence of use. Per the graph rules, sign-in is distinct from actual product activity, so user_of is deferred.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 identifies Tideglass Collective LLC (TC-801) only as the operator, and E4 shows only a copyright notice; neither is an independent authoritative source of developer attribution. developed_by is deferred.\"\n    }\n  ]\n}",
+              "content": "{\n  \"nodes\": [\n    {\n      \"id\": \"tideglass-desk\",\n      \"type\": \"Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"tideglass-dispatch\",\n      \"type\": \"Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"provided_by\",\n      \"from\": \"tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"published_by\",\n      \"from\": \"tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in only, with no subsequent activity, so it supports signed_in_to but not user_of. E4 is a marketing email and does not demonstrate actual product use.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the product operator, which supports provided_by, but the terms do not identify a developer. E4 only shows a copyright notice, so no independent authoritative source attributes development, and developed_by should not be recorded.\"\n    }\n  ]\n}",
               "refusal": null,
               "annotations": null,
               "audio": null,
@@ -266,7 +266,7 @@
         ],
         "modelCalls": 5,
         "toolCalls": 4,
-        "output": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents only a successful sign-in with no subsequent activity, and E4 is a marketing email, not evidence of use. Per the graph rules, sign-in is distinct from actual product activity, so user_of is deferred.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 identifies Tideglass Collective LLC (TC-801) only as the operator, and E4 shows only a copyright notice; neither is an independent authoritative source of developer attribution. developed_by is deferred.\"\n    }\n  ]\n}",
+        "output": "{\n  \"nodes\": [\n    {\n      \"id\": \"tideglass-desk\",\n      \"type\": \"Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"tideglass-dispatch\",\n      \"type\": \"Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"provided_by\",\n      \"from\": \"tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"published_by\",\n      \"from\": \"tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in only, with no subsequent activity, so it supports signed_in_to but not user_of. E4 is a marketing email and does not demonstrate actual product use.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the product operator, which supports provided_by, but the terms do not identify a developer. E4 only shows a copyright notice, so no independent authoritative source attributes development, and developed_by should not be recorded.\"\n    }\n  ]\n}",
         "grade": {
           "passed": false,
           "validShape": true,
@@ -316,18 +316,18 @@
             }
           }
         },
-        "wallMs": 18080,
+        "wallMs": 17888,
         "usage": {
           "inputTokens": 4048,
-          "outputTokens": 588,
-          "totalTokens": 4636
+          "outputTokens": 589,
+          "totalTokens": 4637
         }
       }
     ],
     "candidate": [
       {
         "version": 1,
-        "startedAt": "2026-11-25T12:40:56.667Z",
+        "startedAt": "2026-11-25T12:46:52.153Z",
         "model": "GLM-5.3-Flash-EXL3",
         "modelRevision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
         "limits": {
@@ -348,7 +348,7 @@
               ]
             },
             "candidate": {
-              "commit": "1e73c4913a6b5a4dcbc3837dc5a94445c6328a92",
+              "commit": "c6f740d71743536b28d76911996ec63e5012e227",
               "files": [
                 "apps/onto/seeds/types-v1.json",
                 "apps/forerunner/seeds/discovery-graph-v1.json"
@@ -360,7 +360,7 @@
           "sha256": {
             "corpus": "b08bb8a6552733e49479aec309e9e5c65fb95b9319d17e546e087fb3cb70c7f1",
             "prompt": "f31f4f6c09bfe70371b677f8c34e74f268d5de74f6b6323adb9858643805562b",
-            "schema": "e78126fa274bbffcd6b6f5e4ac0d232d066ee9f8c0e3c848d32b39e1b199efdc",
+            "schema": "3908ff37b41f9a0ca93ae25c9316c619faab7e5bbd881ca0cacd779046d21c37",
             "rubric": "175542ce3e54a6be6f0bedfeaeab35525897bbc10d22d25016ab6fce94956366"
           }
         },
@@ -398,7 +398,7 @@
         ],
         "turns": [
           {
-            "id": "chatcmpl-939c5c2f91d86cfe",
+            "id": "chatcmpl-a1f19e05daf515f6",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -417,7 +417,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-b31c45f35501942e",
+                  "id": "chatcmpl-tool-9058eddfa35a9197",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -431,13 +431,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-b31c45f35501942e",
+                "tool_call_id": "chatcmpl-tool-9058eddfa35a9197",
                 "content": "[{\"id\":\"g-101\",\"kind\":\"person\",\"name\":\"Mika L. Vale\",\"aliases\":[\"Mika Vale\"],\"email\":\"mika@vale.example\"},{\"id\":\"g-280\",\"kind\":\"person\",\"name\":\"Mika D. Vale\",\"aliases\":[\"Mika Vale\"],\"email\":\"mika@vale-lab.example\"}]"
               }
             ]
           },
           {
-            "id": "chatcmpl-b256776a82d7dba2",
+            "id": "chatcmpl-8b4382be4022ab26",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -456,7 +456,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-9bc2a69040befda5",
+                  "id": "chatcmpl-tool-92ca07f564943e16",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -470,13 +470,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-9bc2a69040befda5",
+                "tool_call_id": "chatcmpl-tool-92ca07f564943e16",
                 "content": "[]"
               }
             ]
           },
           {
-            "id": "chatcmpl-8cf3b66075a32386",
+            "id": "chatcmpl-b189da3e9054fc4a",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -495,7 +495,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-882c1f9b484a9e21",
+                  "id": "chatcmpl-tool-83a8c1009d28a9cc",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -509,13 +509,13 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-882c1f9b484a9e21",
+                "tool_call_id": "chatcmpl-tool-83a8c1009d28a9cc",
                 "content": "[{\"id\":\"g-227\",\"kind\":\"organization\",\"name\":\"Tideglass Collective\",\"aliases\":[\"Tideglass Collective LLC\"],\"registration\":\"TC-801\",\"domain\":\"tideglass.example\"}]"
               }
             ]
           },
           {
-            "id": "chatcmpl-a0e7e7bf1009d29d",
+            "id": "chatcmpl-890f539e5da8eb06",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
@@ -534,7 +534,7 @@
               "function_call": null,
               "tool_calls": [
                 {
-                  "id": "chatcmpl-tool-8560b3082fd41960",
+                  "id": "chatcmpl-tool-b6614b7209de23fa",
                   "type": "function",
                   "function": {
                     "name": "lookup_graph",
@@ -548,25 +548,25 @@
             "toolResults": [
               {
                 "role": "tool",
-                "tool_call_id": "chatcmpl-tool-8560b3082fd41960",
+                "tool_call_id": "chatcmpl-tool-b6614b7209de23fa",
                 "content": "[]"
               }
             ]
           },
           {
-            "id": "chatcmpl-ac939d325ce7bcbd",
+            "id": "chatcmpl-ad09699c24e36fe9",
             "model": "GLM-5.3-Flash-EXL3",
             "fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
             "usage": {
               "prompt_tokens": 824,
-              "total_tokens": 1311,
-              "completion_tokens": 487,
+              "total_tokens": 1316,
+              "completion_tokens": 492,
               "prompt_tokens_details": null
             },
             "finishReason": "stop",
             "message": {
               "role": "assistant",
-              "content": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"onto:Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"forerunner:Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"forerunner:signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"forerunner:provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"forerunner:recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"forerunner:published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in to Tideglass Desk but contains no subsequent activity, so it supports forerunner:signed_in_to only, not forerunner:user_of. E4 is a marketing email and does not evidence any product activity.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the product operator, supporting forerunner:provided_by, but the terms do not identify a developer. No independent authoritative source attributes development, so onto:developed_by cannot be recorded.\"\n    }\n  ]\n}",
+              "content": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"onto:Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"forerunner:Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"forerunner:signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"forerunner:provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"forerunner:recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"forerunner:published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in to Tideglass Desk but contains no subsequent activity, and E4 is only a marketing email, so forerunner:user_of is not supported. The proposal records forerunner:signed_in_to, which is distinct from actual product use.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the operator of Tideglass Desk, supporting forerunner:provided_by, but no evidence names a developer. onto:developed_by requires an independent authoritative source, which this batch lacks.\"\n    }\n  ]\n}",
               "refusal": null,
               "annotations": null,
               "audio": null,
@@ -583,7 +583,7 @@
         ],
         "modelCalls": 5,
         "toolCalls": 4,
-        "output": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"onto:Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"forerunner:Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"forerunner:signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"forerunner:provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"forerunner:recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"forerunner:published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in to Tideglass Desk but contains no subsequent activity, so it supports forerunner:signed_in_to only, not forerunner:user_of. E4 is a marketing email and does not evidence any product activity.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the product operator, supporting forerunner:provided_by, but the terms do not identify a developer. No independent authoritative source attributes development, so onto:developed_by cannot be recorded.\"\n    }\n  ]\n}",
+        "output": "{\n  \"nodes\": [\n    {\n      \"id\": \"n-tideglass-desk\",\n      \"type\": \"onto:Product\",\n      \"name\": \"Tideglass Desk\",\n      \"evidence\": [\"E1\", \"E2\", \"E4\"]\n    },\n    {\n      \"id\": \"n-tideglass-dispatch\",\n      \"type\": \"forerunner:Newsletter\",\n      \"name\": \"Tideglass Dispatch\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"edges\": [\n    {\n      \"type\": \"forerunner:signed_in_to\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-desk\",\n      \"evidence\": [\"E1\"]\n    },\n    {\n      \"type\": \"forerunner:provided_by\",\n      \"from\": \"n-tideglass-desk\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E2\"]\n    },\n    {\n      \"type\": \"forerunner:recipient_of\",\n      \"from\": \"g-101\",\n      \"to\": \"n-tideglass-dispatch\",\n      \"evidence\": [\"E3\"]\n    },\n    {\n      \"type\": \"forerunner:published_by\",\n      \"from\": \"n-tideglass-dispatch\",\n      \"to\": \"g-227\",\n      \"evidence\": [\"E3\"]\n    }\n  ],\n  \"decisions\": [\n    {\n      \"question\": \"product_use\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E1\", \"E4\"],\n      \"reason\": \"E1 documents a successful sign-in to Tideglass Desk but contains no subsequent activity, and E4 is only a marketing email, so forerunner:user_of is not supported. The proposal records forerunner:signed_in_to, which is distinct from actual product use.\"\n    },\n    {\n      \"question\": \"product_developer\",\n      \"action\": \"defer\",\n      \"evidence\": [\"E2\", \"E4\"],\n      \"reason\": \"E2 verifies Tideglass Collective LLC (TC-801) as the operator of Tideglass Desk, supporting forerunner:provided_by, but no evidence names a developer. onto:developed_by requires an independent authoritative source, which this batch lacks.\"\n    }\n  ]\n}",
         "grade": {
           "passed": false,
           "validShape": true,
@@ -633,11 +633,11 @@
             }
           }
         },
-        "wallMs": 18774,
+        "wallMs": 18361,
         "usage": {
           "inputTokens": 4348,
-          "outputTokens": 583,
-          "totalTokens": 4931
+          "outputTokens": 588,
+          "totalTokens": 4936
         }
       }
     ]
