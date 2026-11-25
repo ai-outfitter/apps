@@ -21,7 +21,7 @@ for (const [file, source, parse] of [
   writeFileSync(path, JSON.stringify(all));
 }
 
-copyFileSync("/eval/webhook-fixture.ts", "/app/src/pages/api/webhooks/foundry-planning-eval.ts");
+copyFileSync("/eval/fixtures/webhook-route.ts.fixture", "/app/src/pages/api/webhooks/foundry-planning-eval.ts");
 
 const relay = await startForgejoRelay({
   repository: "box/native-apple",
