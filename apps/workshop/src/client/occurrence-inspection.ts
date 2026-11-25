@@ -32,12 +32,13 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     get("explode-value").textContent = amount + "%";
     reset.hidden = amount === 0;
     viewer.inspectLevel(level, amount);
-    if (bookmark) {
+    if (bookmark) saveBookmark();
+  }
+  function saveBookmark() {
       const url = new URL(location.href);
       if (amount) url.searchParams.set("explode", String(amount)); else url.searchParams.delete("explode");
       if (stack.length && level) url.searchParams.set("inspect", level.path); else url.searchParams.delete("inspect");
-      history.replaceState(history.state, "", url);
-    }
+      if (url.href !== location.href) history.replaceState(history.state, "", url);
   }
   function enter(child: Occurrence) {
     if (toggle.disabled || !level || !child.children.length) return;
@@ -89,7 +90,8 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
   motion.addEventListener("toggle", () => {
     if (motion.open) { panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); }
   });
-  range.oninput = () => setAmount(range.valueAsNumber);
+  range.oninput = () => setAmount(range.valueAsNumber,false);
+  range.onchange = saveBookmark;
   reset.onclick = () => {setAmount(0); toggle.focus();};
   back.onclick = () => leave(stack.length - 1);
   return {
