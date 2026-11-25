@@ -38,6 +38,8 @@
         "threads.use",
         "threads.provide",
         "workflow.ontology-audit.start",
+        "workflow.graph-enrichment.start",
+        "web.search",
         "actions.invoke",
         "connector.github.pulls.list",
         "workflow.onto-daily-update.start",

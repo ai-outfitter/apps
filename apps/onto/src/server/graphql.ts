@@ -1,3 +1,5 @@
+import { enrichGraph, enrichmentInput } from "./graph-enrichment";
+import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { ontologyGuide } from "./ontology-guide";
 import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
@@ -348,6 +350,15 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     ...creativeMutations,
     ...creativeAddressMutations,
+    enrichGraph: {
+      type: nonNull(JSONScalar), args: { prompt: { type: GraphQLString } },
+      description: "Explore graph gaps using recent threads and submit sourced changes for review. Optionally direct exploration with a prompt.",
+      resolve: (_root, args, context: MutationContext) => {
+        if (!context.host) throw new Response("Workflow host unavailable", { status: 503 });
+        const input = enrichmentInput.parse({ prompt: args.prompt ?? undefined });
+        return enrichGraph(context.db(), context.identity, context.host() as WorkflowHost<"interactive">, input.prompt);
+      },
+    },
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
       description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.",

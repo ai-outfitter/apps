@@ -1,0 +1,27 @@
+version: beta
+id: graph-enrichment
+summary: Expand the installation graph from recent thread activity and cited sources.
+actors: {}
+triggers:
+  - on: manual
+  - on: schedule
+    cron: "0 9 * * *"
+steps:
+  - id: explore
+    inference: {maxOutputTokens: 4000, timeoutMs: 120000}
+    inputs:
+      prompt:
+        schema: {type: string, maxLength: 2000}
+        default: ""
+    outputs:
+      result:
+        connector: database
+        record: graph-enrichment.review
+        schema:
+          type: object
+          properties:
+            state: {type: string}
+            batchId: {type: [string, "null"]}
+          required: [state, batchId]
+outputs:
+  result: explore.outputs.result

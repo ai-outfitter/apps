@@ -3,6 +3,7 @@ import { agentDatabase, installationDatabase } from "@ai-outfitter/app-sdk/cloud
 import { requestIdentity, respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { refreshKnowledgeGraphQueries } from "../../../server/knowledge-graph-refresh";
+import { ensureEnrichmentSchedule } from "../../../server/graph-enrichment";
 import { ensureSealTimer } from "../../../server/seal-timer";
 import { initializeOwnerRoot } from "../../../server/owner-root";
 import { setupStandardData } from "../../../server/standard-data";
@@ -16,7 +17,8 @@ export const POST: APIRoute = ({ request, locals }) =>
     const ownerRoot = await initializeOwnerRoot(installationDatabase(), who);
     // Existing Wikis get their stored documents compiled over the types they have now.
     await refreshKnowledgeGraphQueries(installationDatabase());
-    return { ...result, ownerRoot, sealTimer: await sealTimer(locals) };
+    const enrichmentSchedule = await installEnrichment(locals);
+    return { ...result, ownerRoot, enrichmentSchedule, sealTimer: await sealTimer(locals) };
   });
 
 /** Review windows close on time through an hourly invocation. A host that cannot
@@ -29,5 +31,15 @@ async function sealTimer(locals: App.Locals) {
     if (!(error instanceof Response)) throw error;
     console.warn("onto seal timer unavailable", error.status);
     return "unavailable";
+  }
+}
+
+
+async function installEnrichment(locals: App.Locals) {
+  try {
+    return await ensureEnrichmentSchedule(workflowHost<"interactive">(locals));
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) return "unavailable";
+    throw error;
   }
 }
