@@ -15,6 +15,8 @@ import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
 import { readGraph } from "./graph";
 import { type Database, live, loadOperations, batchContentDigest, approveAfterReview, type StewardDecision } from "./graph-batches";
 import { graphBatches, ontoReviewJobs } from "./schema";
+import { reviewGraphContext } from "./review-graph-context";
+import { rootNode } from "./graph-batches";
 import { organizationDuplicates } from "./organization-duplicates";
 import { wikiHome } from "./wiki-home";
 
@@ -27,9 +29,10 @@ async function failExpiredReviewJobs(db: Database, now = Date.now()) {
     .where(and(eq(ontoReviewJobs.state, "running"),lte(ontoReviewJobs.leaseUntil, now),sql`${ontoReviewJobs.attempts} >= ${maxAttempts}`)).returning();
 }
 /** Each model call's data stays well under the platform's 64 KB step cap. */
-export const partBudget = 48 * 1024;
+export const partBudget = 18 * 1024;
 /** Model calls for one review; a batch past this many parts is reviewed in part. */
-const partLimit = 12;
+const partLimit = 64;
+const operationsPerPart = 12;
 const partConcurrency = 3;
 /** Existing records shown per part, and relationships shown per record. */
 const neighborLimit = 60;
@@ -175,15 +178,16 @@ function compatibleEdgeTypes(graph: Graph, row: Row) {
 
 /** The batch read in parts that each fit `budget`: every part carries the batch, its owner, its
  * new types and the checks about its operations, then as many operations and neighbors as fit. */
-export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget) {
+export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget, rootId?: string | null) {
   const typeNames = new Map(graph.types.filter(type => !type.archived).map((type) => [type.id, type.name]));
   const nodes = new Map(graph.nodes.filter((node) => !node.archived).map((node) => [node.id, node]));
-  const owner = ownerOf(graph, who);
+  const owner = rootId === undefined ? ownerOf(graph, who) : nodes.get(rootId ?? "");
+  const graphFacts = reviewGraphContext(graph, rows, owner?.id ?? null);
   const newTypes = rows.filter((row) => row.operation.type === "graph-type").map((row) => ({
     ref: row.ref, operation: row.operation.operation, name: row.operation.attributes.name ?? row.operation.id, category: row.operation.attributes.category,
     properties: Array.isArray(row.operation.attributes.properties) ? row.operation.attributes.properties.map((property: { name?: unknown; type?: unknown }) => `${property?.name}:${property?.type}`) : undefined,
     endpoints: (row.operation.attributes.ontology as { endpoints?: unknown } | undefined)?.endpoints,
-    compatibleExistingEdges: compatibleEdgeTypes(graph, row).slice(0, 12).map(t => ({ id: t.id, name: t.name, endpoints: t.ontology?.endpoints })),
+    compatibleExistingEdges: compatibleEdgeTypes(graph, row).slice(0, 5).map(t => ({ id: t.id, name: t.name, meaning: cut(t.body, 180), endpoints: t.ontology?.endpoints })),
   }));
   const neighbor = (id: string) => {
     const node = nodes.get(id)!;
@@ -214,13 +218,13 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
     batch: { id: batch.id, title: batch.title, purpose: cut(batch.purpose, 1000), source: batch.source, policy: batch.policy, state: batch.state, operations: rows.length },
     part: { index: index + 1, of: 0, operations: 0 },
     types,
-    newTypes,
+    newTypes: [] as typeof newTypes,
     complete: false,
   });
   let next = 0;
   while (next < ordered.length && parts.length < partLimit) {
     const data = base(parts.length);
-    const operations: ReturnType<typeof compactOperation>[] = [];
+    const operations = [] as (ReturnType<typeof compactOperation> & { graphFacts: ReturnType<typeof graphFacts> })[];
     const refs: string[] = [];
     const seen = new Set<string>();
     const neighbors: ReturnType<typeof neighbor>[] = [];
@@ -228,14 +232,15 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
     const partChecks = checks.filter((item) => item.ref === null && !item.refs).map(shortCheck);
     let used = size({ ...data, operations, neighbors, checks: partChecks }) + 64;
     let neighborsComplete = true;
-    while (next < ordered.length) {
+    while (next < ordered.length && operations.length < operationsPerPart) {
       const row = ordered[next];
-      const op = compactOperation(row, typeNames.get(String(row.operation.attributes.typeId)) ?? null);
+      const op = { ...compactOperation(row, typeNames.get(String(row.operation.attributes.typeId)) ?? null), graphFacts: graphFacts(row) };
       const mine = checks.filter((item) => !given.has(item) && (item.ref === row.ref || item.refs?.includes(row.ref)));
       for (const item of mine) given.add(item);
-      const cost = size(op) + size(mine.map(shortCheck)) + 2;
+      const staged = newTypes.filter(type => type.ref === row.ref || type.ref === row.operation.attributes.typeId).filter(type => !data.newTypes.includes(type));
+      const cost = size(op) + size(mine.map(shortCheck)) + size(staged) + 4;
       if (operations.length && used + cost > budget) { for (const item of mine) given.delete(item); break; }
-      operations.push(op); refs.push(row.ref); partChecks.push(...mine.map(shortCheck)); used += cost; next++;
+      data.newTypes.push(...staged); operations.push(op); refs.push(row.ref); partChecks.push(...mine.map(shortCheck)); used += cost; next++;
       for (const id of touches(row)) {
         if (seen.has(id)) continue;
         seen.add(id);
@@ -244,7 +249,17 @@ export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof g
         neighbors.push(item); used += more;
       }
     }
-    parts.push({ data: { ...data, operations, neighbors, checks: partChecks }, refs, neighborsComplete });
+    const payload = { ...data, operations, neighbors, checks: partChecks };
+    if (size(payload) + 256 > budget) {
+      // Rare large data contracts stay in deterministic checks. The receipt discloses partial coverage.
+      payload.neighbors = [];
+      payload.newTypes = [];
+      payload.checks = [];
+      payload.types = {};
+      neighborsComplete = false;
+    }
+    if (size(payload) + 256 > budget) break;
+    parts.push({ data: payload, refs, neighborsComplete });
   }
   const read = parts.reduce((total, part) => total + part.refs.length, 0);
   const complete = read === rows.length && parts.every((part) => part.neighborsComplete);
@@ -357,7 +372,9 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   const rows = await loadRows(db, batch.id);
   const graph = await readGraph(db, who);
   const checks = batchChecks(graph, who, rows, batch.id);
-  const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks);
+  const root = await rootNode(db, who);
+  const graphFacts = reviewGraphContext(graph, rows, root);
+  const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks, partBudget, root);
   const refs = new Set(rows.map((row) => row.ref));
   let runId: string | null = null;
   let review: BatchReview;
@@ -365,14 +382,36 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
     const run = await host.call("workflow.start", { workflow: reviewWorkflow, id: reservedRunId, inputs: { [`${reviewStep}.inputs.batchId`]: batch.id } });
     runId = run.id;
     // Allow five minutes for the last inference and at least one minute for settlement.
-    const answers = await pooled(parts, partConcurrency, startedAt + 8 * 60_000, async (part) => {
-      const { output } = await host.call("inference.generate", {
-        runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
-        // Plain JSON: this part's records, the checks about them and the prompt digest.
-        data: JSON.parse(JSON.stringify({ ...part.data, prompt })),
-      });
-      return stewardAnswer.parse(output);
-    });
+    type Part = typeof parts[number];
+    const deadline = startedAt + 8 * 60_000;
+    const readPart = async (part: Part, retry = false): Promise<{ answer: z.infer<typeof stewardAnswer>; refs: string[] }[]> => {
+      try {
+        const { output } = await host.call("inference.generate", {
+          runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
+          data: JSON.parse(JSON.stringify({ ...part.data, prompt })),
+        });
+        return [{ answer: stewardAnswer.parse(output), refs: part.refs }];
+      } catch (error) {
+        const reason = error instanceof Response ? await error.clone().text() : String(error);
+        const timeout = error instanceof Response && [408, 504].includes(error.status) || /timed? ?out|deadline|timeout/i.test(reason);
+        if (!timeout) throw error;
+        if (retry || part.refs.length < 2 || Date.now() >= deadline) return [];
+        const halves = [part.refs.slice(0, Math.ceil(part.refs.length / 2)), part.refs.slice(Math.ceil(part.refs.length / 2))];
+        const recovered = [];
+        for (const refs of halves) {
+          if (Date.now() >= deadline) break;
+          const original = part.data.operations as { ref: string }[];
+          const checks = part.data.checks as { ref?: string; refs?: string[] }[];
+          const data = { ...part.data, operations: original.filter(op => refs.includes(op.ref)),
+            checks: checks.filter(check => !check.ref || refs.includes(check.ref) || check.refs?.some(ref => refs.includes(ref))),
+            part: { ...(part.data.part as object), operations: refs.length, retry: true } };
+          recovered.push(...await readPart({ ...part, refs, data }, true));
+        }
+        return recovered;
+      }
+    };
+    const readParts = (await pooled(parts, partConcurrency, deadline, part => readPart(part))).flat();
+    const answers = readParts.map(result => result.answer);
     if (!answers.length && parts.length) throw new Error("No steward inference completed within the review budget");
     for (const answer of answers) {
       for (const item of answer.findings.filter(item => item.rule === "type.duplicate")) {
@@ -381,13 +420,26 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
           throw new Error("The steward did not cite a compatible active relationship type. Re-review this batch.");
       }
     }
-    const findings = merge(checks, answers.flatMap((answer) => answer.findings.map((item) => savedFinding(graph, batch.id, refs, item))));
-    coverage.read = parts.slice(0, answers.length).reduce((sum, part) => sum + part.refs.length, 0);
+    const findings = merge(checks, answers.flatMap(answer => answer.findings.flatMap(item => {
+      const affected = [...new Set([item.ref, ...item.refs].filter((r): r is string => !!r))];
+      const proven = affected.map(ref => rows.find(row => row.ref === ref)).map(row => row && graphFacts(row));
+      if (proven.length && item.rule === "owner.unreachable" && proven.every(f => f?.reachableFromOwner === true)) return [];
+      if (proven.length && ["edge.direction", "edge.endpoints"].includes(item.rule) && proven.every(f => f?.endpointsAllowed === true)) return [];
+      if (item.rule === "type.duplicate") {
+        const staged = rows.find(row => row.ref === item.ref)!;
+        const existing = compatibleEdgeTypes(graph, staged).find(type => item.fix?.includes(type.id))!;
+        if (staged.operation.attributes.name !== existing.name && staged.operation.attributes.body !== existing.body) {
+          return [savedFinding(graph, batch.id, refs, { ...item, severity: "note", message: `Compare the meanings of ${staged.operation.attributes.name} and ${existing.name} (${existing.id}). Their endpoint contracts overlap.`, fix: null })];
+        }
+      }
+      return [savedFinding(graph, batch.id, refs, item)];
+    })));
+    coverage.read = readParts.reduce((sum, part) => sum + part.refs.length, 0);
     coverage.parts = answers.length;
     const read = coverage.read === coverage.operations ? "" : ` Read ${coverage.read} of ${coverage.operations} operations.`;
     const summary = answers.length === 1 ? `${answers[0].summary}${read}`
       : `Read in ${coverage.parts} parts.${read} ${answers.map((answer) => answer.summary).filter(Boolean).join(" ")}`;
-    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete: complete && answers.length === parts.length, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
+    review = { state: "complete", runId, prompt, startedAt, finishedAt: Date.now(), complete: complete && coverage.read === rows.length, coverage, stage, summary: summary.trim().slice(0, 1000), findings, error: null };
   } catch (error) {
     const message = error instanceof Response ? `${error.status} ${await error.text().catch(() => "")}`.trim() : String(error);
     review = { state: "failed", runId, prompt, startedAt, finishedAt: Date.now(), complete: false, coverage: { ...coverage, read: 0 }, stage, summary: "", findings: checks, error: message.slice(0, 500) };
