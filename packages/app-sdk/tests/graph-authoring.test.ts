@@ -42,4 +42,10 @@ test("authored graphs reject collisions, unresolved references and invalid direc
   await assert.rejects(compileAuthoredGraphs([core, { ...sample, edges: [{ ...sample.edges![0], toId: "example:Organization:missing" }] }]), /Unresolved directed endpoint/);
   await assert.rejects(compileAuthoredGraphs([core, { ...sample, edges: [{ ...sample.edges![0], fromId: "example:Organization:group", toId: "example:Person:ada" }] }]), /Invalid directed endpoints/);
   await assert.rejects(compileAuthoredGraphs([sample]), /Unresolved node type/);
+  await assert.rejects(compileAuthoredGraphs([core, {
+    ...sample, edges: [...sample.edges!, { ...sample.edges![0], key: "duplicate" }],
+  }]), /Duplicate directed relationship identity/);
+  await assert.rejects(compileAuthoredGraphs([core, {
+    ...sample, nodes: [...sample.nodes!, { typeId: "onto:Person", slug: "a", title: "Alias collision" }],
+  }]), /Duplicate node address/);
 });

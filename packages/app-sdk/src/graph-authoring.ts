@@ -46,7 +46,8 @@ export async function compileAuthoredGraphs(inputs: readonly AuthoredGraph[]) {
   const nodeAddresses = new Map<string, string>();
   const nodes = new Map<string, Node>();
   const typeRecords = new Map<string, Type>();
-  const edgeAddresses = new Set<string>();
+  const edgeAddresses = new Map<string, string>();
+  const edgeIdentities = new Map<string, string>();
   const types = [];
   const pendingNodes = [];
   const pendingEdges = [];
@@ -127,8 +128,7 @@ export async function compileAuthoredGraphs(inputs: readonly AuthoredGraph[]) {
   for (const { index, namespace, edge: { id: savedId, key, ...edge } } of pendingEdges) {
     if (key !== undefined) {
       if (!edgeKeyPattern.test(key)) throw Error(`Invalid edge key: ${namespace}:${key}`);
-      if (edgeAddresses.has(`${namespace}:${key}`)) throw Error(`Duplicate edge key: ${namespace}:${key}`);
-      edgeAddresses.add(`${namespace}:${key}`);
+      add(edgeAddresses, `${namespace}:${key}`, key, "edge key");
     }
     if (!savedId && !key) throw Error(`Expected an edge key in ${namespace}`);
     const address = `${namespace}:${key ?? savedId}`;
@@ -142,7 +142,10 @@ export async function compileAuthoredGraphs(inputs: readonly AuthoredGraph[]) {
       throw Error(`Invalid directed endpoints for ${type.name} in ${address}`);
     const id = await recordId(savedId, `edge:${address}`);
     add(records, id, address, "record identity");
-    graphs[index].edges.push(edgeSchema.parse({ ...edge, id, typeId, fromId, toId }));
+    const next = edgeSchema.parse({ ...edge, id, typeId, fromId, toId });
+    if (!next.archived)
+      add(edgeIdentities, JSON.stringify([typeId, fromId, toId, next.validity?.from ?? ""]), address, "directed relationship identity");
+    graphs[index].edges.push(next);
   }
   return graphs;
 }
