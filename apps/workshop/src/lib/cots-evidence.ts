@@ -13,13 +13,15 @@ const tolerance = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("unknown") }),
   z.strictObject({ kind: z.literal("specified"), minus: z.number().nonnegative(), plus: z.number().nonnegative() }),
 ]);
+const trial = z.strictObject({
+  trialId: z.uuid(), testedProjectId: z.uuid(), testedRevision: revision,
+  testedConfiguration: configurationName.optional(),
+  testedParameters: z.record(configurationName, z.number()).optional(),
+});
 const verification = z.discriminatedUnion("status", [
-  z.strictObject({ status: z.literal("untested") }),
-  z.strictObject({
-    status: z.enum(["fits", "interferes"]), trialId: z.uuid(), testedProjectId: z.uuid(),
-    testedRevision: revision, testedConfiguration: configurationName.optional(),
-    testedParameters: z.record(configurationName, z.number()).optional(),
-    testedOwnerRevision: revision.optional(),
+  z.strictObject({ status: z.literal("untested"), reason: text.optional(), trial: trial.optional() }),
+  trial.extend({
+    status: z.enum(["fits", "interferes"]), testedOwnerRevision: revision.optional(),
     observation: text, photoSha256s: photoDigests.min(1),
   }),
 ]);

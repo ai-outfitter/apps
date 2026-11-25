@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AssemblyReferenceSchema, type Assembly, type Item } from "../lib/assembly";
 import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-file";
-import { resolveAssembly, type AssemblySource } from "../lib/assembly-resolution";
+import { configuredAssembly, resolveAssembly, type AssemblySource } from "../lib/assembly-resolution";
 import { cotsEvidence, type CotsEvidence, type CotsEvidenceRef } from "../lib/cots-evidence";
 import { canonicalCotsPart, cotsPart } from "./cots-owner";
 import { assemblySnapshot } from "./assembly-references";
@@ -56,7 +56,7 @@ function interfaceWarnings(evidence: CotsEvidence) {
   for (const entry of evidence.interfaces) {
     if (!entry.measured) warnings.push(warning("measurement_missing", "Measure the owned part at the stated datum.", entry.id));
     if (entry.tolerance.kind === "unknown") warnings.push(warning("tolerance_unknown", "Tolerance is unknown.", entry.id));
-    if (entry.verification.status === "untested") warnings.push(warning("fit_untested", "Physical fit is untested.", entry.id));
+    if (entry.verification.status === "untested") warnings.push(warning("fit_untested", entry.verification.reason ?? "Physical fit is untested.", entry.id));
     if (entry.verification.status === "interferes") warnings.push(warning("fit_interference", entry.verification.observation, entry.id));
   }
   return warnings;
@@ -167,7 +167,7 @@ export async function readCotsEvidence(c: WorkshopContext, input: z.infer<typeof
             parametersKey(fit.testedParameters) === parametersKey(selection.parameters))) return [];
         return [warning("fit_tested_elsewhere", "Fit observation applies to the recorded project revision.", entry.id)];
       });
-      items.push({ ...row, owner: source.owner, supplierSource: source.item.source || undefined, ...evidence, warnings: [...evidence.warnings, ...previousTests] });
+      items.push({ ...row, owner: source.owner, ...(source.item.source && { supplierSource: source.item.source }), ...evidence, warnings: [...evidence.warnings, ...previousTests] });
     } catch (error) {
       const failure = error instanceof Response && error.status === 409
         ? warning("owner_part_mismatch", "Evidence owner identifies a different purchased part or part revision.")
@@ -205,7 +205,15 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
   }
   const testedParts = new Map<string, number | null>();
   for (const entry of evidence.interfaces) {
-    if (entry.verification.status === "untested") continue;
+    if (entry.verification.status === "untested") {
+      const trial = entry.verification.trial;
+      if (trial) {
+        const selection = { projectId: trial.testedProjectId, revision: trial.testedRevision,
+          configuration: trial.testedConfiguration, parameters: trial.testedParameters };
+        configuredAssembly((await load(selection)).assembly, selection);
+      }
+      continue;
+    }
     const { testedProjectId, testedRevision, testedConfiguration, testedParameters } = entry.verification;
     const testedSelection = { projectId: testedProjectId, revision: testedRevision,
       configuration: testedConfiguration, parameters: testedParameters };
@@ -245,7 +253,7 @@ export async function cotsMutationWarnings(c: WorkshopContext, projectId: string
   try {
     const result = await readCotsEvidence(c, { projectId, revision }, false);
     const all = result.items.flatMap(({ itemId, owner, warnings }) =>
-      warnings.map(warning => ({ itemId, owner, ...warning })));
+      warnings.map(warning => ({ itemId, ...(owner && { owner }), ...warning })));
     if (all.length <= 25) return all;
     return [...all.slice(0, 25), { ...warning("evidence_warnings_truncated", "Read WorkshopCotsEvidence for all purchased-part warnings."), total: all.length }];
   } catch {

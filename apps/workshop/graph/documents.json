@@ -725,6 +725,51 @@
                                                       "status": {
                                                         "type": "string",
                                                         "const": "untested"
+                                                      },
+                                                      "reason": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 500
+                                                      },
+                                                      "trial": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "trialId": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                          },
+                                                          "testedProjectId": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                                          },
+                                                          "testedRevision": {
+                                                            "type": "integer",
+                                                            "exclusiveMinimum": 0,
+                                                            "maximum": 9007199254740991
+                                                          },
+                                                          "testedConfiguration": {
+                                                            "type": "string",
+                                                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                          },
+                                                          "testedParameters": {
+                                                            "type": "object",
+                                                            "propertyNames": {
+                                                              "type": "string",
+                                                              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                                                            },
+                                                            "additionalProperties": {
+                                                              "type": "number"
+                                                            }
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "trialId",
+                                                          "testedProjectId",
+                                                          "testedRevision"
+                                                        ],
+                                                        "additionalProperties": false
                                                       }
                                                     },
                                                     "required": [
@@ -735,13 +780,6 @@
                                                   {
                                                     "type": "object",
                                                     "properties": {
-                                                      "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                          "fits",
-                                                          "interferes"
-                                                        ]
-                                                      },
                                                       "trialId": {
                                                         "type": "string",
                                                         "format": "uuid",
@@ -771,6 +809,13 @@
                                                           "type": "number"
                                                         }
                                                       },
+                                                      "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "fits",
+                                                          "interferes"
+                                                        ]
+                                                      },
                                                       "testedOwnerRevision": {
                                                         "type": "integer",
                                                         "exclusiveMinimum": 0,
@@ -792,10 +837,10 @@
                                                       }
                                                     },
                                                     "required": [
-                                                      "status",
                                                       "trialId",
                                                       "testedProjectId",
                                                       "testedRevision",
+                                                      "status",
                                                       "observation",
                                                       "photoSha256s"
                                                     ],
@@ -2427,7 +2472,7 @@
       ]
     },
     "mcp": {
-      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the tested project revision and configuration. Workshop records which matching owner revision was resolved when the observation was entered. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
+      "description": "Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the tested project revision and configuration. Workshop records which matching owner revision was resolved when the observation was entered. An untested interface may carry a reason and exact historical trial without asserting fit. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."
     },
     "outputSchema": {
       "type": "object",
