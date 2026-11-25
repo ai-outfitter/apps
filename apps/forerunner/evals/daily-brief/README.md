@@ -63,3 +63,19 @@ What the baseline shows:
 - The checks read citations and patterns. A wrong statement that cites a real source passes them; the judge is the guard for that.
 - The judge is one model's opinion. Compare experiments under the same judge only.
 - `spark` has no baseline yet. It needs the Spark's endpoint.
+
+## Issue 273 replay
+
+Run the same [synthetic fixture module](issue-273-fixtures.ts) in an archive of each implementation commit. Copy the issue-273 eval files into both archives and resolve workspace packages from each archive. Use Node 24 and dependencies from the repository lockfile. The runner records the supplied full commit SHA, source hashes, and actual evidence reaching the inference boundary.
+
+```sh
+node --import tsx apps/forerunner/evals/daily-brief/issue-273-run.ts \
+  --dry --revision "$REVISION" --out /tmp/issue-273-deterministic.json
+BRIEF_EVAL_BASE_URL="$SPARK_OPENAI_COMPATIBLE_URL" \
+  node --import tsx apps/forerunner/evals/daily-brief/issue-273-run.ts \
+  --revision "$REVISION" --out /tmp/issue-273-spark.json
+```
+
+The issue replay extends the daily-brief directory's direct model experiment runner. It starts at the real Forerunner schedule-phase handler, applies app migrations to synthetic databases, executes the Onto producer and Wiki GraphQL resolver, records workflow operations and the exact input delivered to inference, and checks the generated output accepted by Forerunner. The dry transport supplies a shape-valid answer so collection and write behavior can be reproduced without inference. Live mode uses the `spark` experiment's model. The report records per-call latency, IDs, token usage and errors when the provider supplies them. `--timeout-ms` overrides the default 75000 ms client timeout. Repeat `--case <id>` to replay a subset. Pass `--no-thinking` to set Spark’s `enable_thinking` to false. Use the same timeout, model and thinking mode on both revisions. See the [tracked issue evidence](evidence/issue-273.md).
+
+The local host adapter grants fixture installations, supplies scheduled discovery statuses, emulates reserved workflow operations and records revision writes. Host scheduling and the installed Today UI have separate deterministic runs.
