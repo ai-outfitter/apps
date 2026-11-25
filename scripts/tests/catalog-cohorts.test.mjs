@@ -82,7 +82,7 @@ test('a second push still requires SDK validation when the prior push left stale
  const lastSuccess = await commit(configPath, config);
  await mkdir(join(root, 'apps/planning/seeds'), {recursive: true});
  const firstPush = await commit('apps/planning/seeds/work-graph-v1.json', 'Changed contribution');
- assert.equal(await runStep(paths, {BASE: await pushBaseline(lastSuccess)}), 'sdk=true');
+ assert.equal(await runStep(paths, {BASE: await pushBaseline(lastSuccess)}), 'box=false\nsdk=true');
  // The SDK check fails on the first push, so GitHub still returns lastSuccess.
  const secondPush = await commit('README.md', 'Unrelated follow-up');
  const selectedBaseline = await pushBaseline(lastSuccess);
@@ -98,10 +98,13 @@ test('a second push still requires SDK validation when the prior push left stale
   HEAD_SHA: secondPush,
  });
  assert.ok(selection.split('\n').includes(`apps=${apps}`));
- assert.equal(await runStep(paths, {BASE: selectedBaseline}), 'sdk=true');
- assert.equal(await runStep(paths, {BASE: firstPush}), 'sdk=false');
+ assert.equal(await runStep(paths, {BASE: selectedBaseline}), 'box=false\nsdk=true');
+ assert.equal(await runStep(paths, {BASE: firstPush}), 'box=false\nsdk=false');
+ await mkdir(join(root, 'box'));
+ await commit('box/example.mjs', 'Changed Box');
+ assert.equal(await runStep(paths, {BASE: secondPush}), 'box=true\nsdk=false');
  assert.equal(await runStep(appBaseline, {PUSH_BASELINE: ''}), 'sha=');
- assert.equal(await runStep(paths, {BASE: await pushBaseline('')}), 'sdk=true');
+ assert.equal(await runStep(paths, {BASE: await pushBaseline('')}), 'sdk=true\nbox=true');
  git('checkout', '--detach', '-q', firstPush);
  assert.equal(await pushBaseline(secondPush), '');
 });
