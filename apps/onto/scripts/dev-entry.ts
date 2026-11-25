@@ -15,7 +15,7 @@ export async function localWikiWorker(installationId: string, options: AppWorker
     const db = drizzle(worker.database);
     const identity = { userId: "local-seed", installationId, owner: { kind: "user" as const, id: "local-seed" }, role: "owner", canEdit: true };
     // Reconcile missing defaults, but never overwrite authored records.
-    const shared = JSON.parse(await readFile(new URL("../seeds/entities-v1.json", import.meta.url), "utf8"));
+    const shared = JSON.parse(await readFile(new URL("../graph/.compiled/entities-v1.json", import.meta.url), "utf8"));
     await importEntities(db, identity, { format: shared.format, nodes: shared.nodes });
     const dispatch = worker.dispatch.bind(worker);
     let seeded: Promise<void> | undefined;
@@ -23,7 +23,7 @@ export async function localWikiWorker(installationId: string, options: AppWorker
       const host = props?.workflowHost && options.workflowHost?.(props.workflowHost);
       if (host && !new URL(request.url).pathname.startsWith("/api/internal/entities/")) {
         seeded ??= (async () => {
-          await loadPersonalSeed(db, identity, host, new URL("../seeds/entities-v1.json", import.meta.url), new URL("../seeds/public.local.json", import.meta.url));
+          await loadPersonalSeed(db, identity, host, new URL("../graph/.compiled/entities-v1.json", import.meta.url), new URL("../seeds/public.local.json", import.meta.url));
           await loadPersonalSeed(db, identity, host);
         })().catch((error) => { seeded = undefined; throw error; });
         await seeded;

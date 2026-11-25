@@ -20,6 +20,7 @@ export const PrintPackageSchema = PrintPlateInput.omit({projectId:true,expectedR
   sourceRevision:z.number().int().nonnegative(),
   recordedAt:z.string(),
   recordedBy:z.string(),
+  geometryVerified:z.literal(true).optional(),
   printer:name,material:name,profileSha256:printDigest,
   plates:z.array(plate.extend({
     durationSeconds:z.number().positive(),filamentGrams:z.number().nonnegative(),

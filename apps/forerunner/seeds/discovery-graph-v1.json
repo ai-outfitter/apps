@@ -1,0 +1,180 @@
+[
+  {
+    "id": "71000000-0000-4000-8000-000000000123",
+    "category": "edge",
+    "name": "user_of",
+    "title": "user of",
+    "body": "A Person has actually used a Product. Cite evidence of activity within the product. A successful authentication by itself supports signed_in_to.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "onto:Product"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000124",
+    "category": "edge",
+    "name": "payable_to",
+    "title": "payable to",
+    "body": "A FinancialObligation is payable to the vendor Organization named on the invoice, including an obligation already settled. This relationship does not assert an outstanding balance.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:FinancialObligation"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000125",
+    "category": "node",
+    "name": "Newsletter",
+    "title": "Newsletters",
+    "body": "An identifiable recurring publication delivered to recipients by a publisher. Individual issues supply evidence for this publication.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000126",
+    "category": "node",
+    "name": "HostedEvent",
+    "title": "Hosted events",
+    "body": "An identifiable organized event with evidenced registration. A calendar invitation alone does not establish registration or attendance.",
+    "properties": [],
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000127",
+    "category": "edge",
+    "name": "published_by",
+    "title": "published by",
+    "body": "A Newsletter is published by an Organization identified in its masthead or official publication page. Delivery vendors need their own evidence.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "forerunner:Newsletter"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000128",
+    "category": "edge",
+    "name": "organized_by",
+    "title": "organized by",
+    "body": "A HostedEvent is organized by the named Organization responsible for the event. A venue or ticket processor alone does not establish the organizer.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "forerunner:HostedEvent"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000129",
+    "category": "edge",
+    "name": "recipient_of",
+    "title": "recipient of",
+    "body": "A Person received an issue of a Newsletter. Receipt alone does not establish paid subscription, readership, use, or a purchase.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "forerunner:Newsletter"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000130",
+    "category": "edge",
+    "name": "registered_for",
+    "title": "registered for",
+    "body": "A Person has a confirmed registration for a HostedEvent. An invitation is insufficient. Attendance requires separate evidence.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "forerunner:HostedEvent"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000131",
+    "category": "edge",
+    "name": "signed_in_to",
+    "title": "signed in to",
+    "body": "A Person successfully authenticated to a Product. A challenge, invitation or failed attempt is insufficient. Feature use requires separate evidence.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "onto:Product"
+        ]
+      }
+    },
+    "archived": false
+  },
+  {
+    "id": "71000000-0000-4000-8000-000000000132",
+    "category": "edge",
+    "name": "provided_by",
+    "title": "provided by",
+    "body": "A Product is provided or operated by the named Organization. Its operator may differ from its developer.",
+    "properties": [],
+    "ontology": {
+      "version": 2,
+      "endpoints": {
+        "from": [
+          "onto:Product"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    },
+    "archived": false
+  }
+]

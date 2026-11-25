@@ -208,13 +208,13 @@ export async function setPackageReceipt(c: PlanningContext, id: string, receipt:
 // platform runs another app's mutation only when its text is one of these.
 export const workshopDocuments = {
   create: `mutation CreateWorkshopProject($input: CreateWorkshopProjectInput!) {
-      createWorkshopProject(input: $input) { id name revision productRevisionId productRevisionTitle createdBy updatedBy createdAt updatedAt }
+      createWorkshopProject(input: $input) { id name purpose revision productRevisionId productRevisionTitle createdBy updatedBy createdAt updatedAt }
     }`,
   describe: `mutation DescribeWorkshopProject($input: DescribeWorkshopProjectInput!) {
-      describeWorkshopProject(input: $input) { id name revision createdBy updatedBy createdAt updatedAt }
+      describeWorkshopProject(input: $input) { id name purpose revision createdBy updatedBy createdAt updatedAt }
     }`,
   assembly: `mutation SaveWorkshopAssembly($input: SaveWorkshopAssemblyInput!) {
-      saveWorkshopAssembly(input: $input) { id name revision createdBy updatedBy createdAt updatedAt }
+      saveWorkshopAssembly(input: $input) { id name purpose revision createdBy updatedBy createdAt updatedAt printFindings }
     }`,
   handoff: `query WorkshopProjectHandoff($input: WorkshopProjectHandoffInput!) { workshopProjectHandoff(input: $input) }`,
   projects: `query PlanningWorkshopProjects { workshopProjects(first: 100) { nodes { id name } } }`,

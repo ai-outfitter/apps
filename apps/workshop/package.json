@@ -1,6 +1,6 @@
 {
   "name": "@ai-outfitter/app-workshop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "npm --prefix ../.. run graph:compose -- --apps-only",
     "standalone": "OUTFITTER_STANDALONE=1 astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
@@ -18,6 +19,7 @@
     "test:integration": "node --import tsx --test tests/*.integration.test.ts",
     "pretest:e2e": "node --import tsx scripts/prepare-tests.ts",
     "test:e2e": "playwright test --config playwright.config.ts",
+    "prepreview:build": "npm --prefix ../.. run graph:compose -- --apps-only",
     "preview:build": "outfitter-app-build --mode demo --output dist/preview.json"
   },
   "dependencies": {
@@ -36,6 +38,7 @@
     "replicad": "1.1.0",
     "replicad-opencascadejs": "1.1.0",
     "replicad-threejs-helper": "1.0.0",
+    "sax": "1.6.1",
     "three": "0.185.0",
     "zod": "^4.6.5",
     "@ai-outfitter/workflow-workshop-workspace": "0.1.0",
@@ -52,6 +55,7 @@
     "@astrojs/check": "^0.9.10",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
+    "@types/sax": "1.2.7",
     "@types/three": "0.185.0",
     "@types/w3c-web-serial": "^1.0.8",
     "tsx": "^4.23.15",

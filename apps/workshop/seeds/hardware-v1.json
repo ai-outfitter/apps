@@ -11,11 +11,11 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "71000000-0000-4000-8000-000000000009"
+            "onto:PhysicalComponent"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000015",
-            "71000000-0000-4000-8000-000000000009"
+            "onto:Product",
+            "onto:PhysicalComponent"
           ]
         }
       },
@@ -32,10 +32,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000009"
+            "onto:PhysicalComponent"
           ]
         }
       },
@@ -80,10 +80,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7b000000-0000-4000-8000-000000000020"
+            "workshop:DesignArtifact"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000009"
+            "onto:PhysicalComponent"
           ]
         }
       },
@@ -128,10 +128,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7b000000-0000-4000-8000-000000000006"
+            "workshop:TelemetryStream"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000009"
+            "onto:PhysicalComponent"
           ]
         }
       },
@@ -148,10 +148,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7b000000-0000-4000-8000-000000000006"
+            "workshop:TelemetryStream"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000011"
+            "planning:MetricDefinition"
           ]
         }
       },
@@ -161,7 +161,7 @@
   "nodes": [
     {
       "id": "7b000000-0000-4000-8000-000000000011",
-      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "typeId": "onto:ArtifactDefinition",
       "slug": "design-concept",
       "title": "Design concept",
       "summary": "A Document of concept mockup images showing what a product revision is expected to look like, attached to that revision as evidence.",

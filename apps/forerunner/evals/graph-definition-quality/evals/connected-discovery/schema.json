@@ -1,0 +1,14 @@
+{
+  "types": [
+    { "key": "person", "name": "Person" },
+    { "key": "organization", "name": "Organization" },
+    { "key": "product", "name": "Product" },
+    { "key": "newsletter", "name": "Newsletter" },
+    { "key": "sign_in", "name": "signed_in_to" },
+    { "key": "use", "name": "user_of" },
+    { "key": "operator", "name": "provided_by" },
+    { "key": "developer", "name": "developed_by" },
+    { "key": "recipient", "name": "recipient_of" },
+    { "key": "publisher", "name": "published_by" }
+  ]
+}

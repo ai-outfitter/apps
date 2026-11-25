@@ -13,7 +13,7 @@ import { appRecordKey } from "@ai-outfitter/app-sdk/graph-contracts";
 import type { appWorker } from "@ai-outfitter/app-test/worker";
 import { drizzle } from "drizzle-orm/d1";
 import { z } from "zod";
-import releaseExample from "../seeds/release-example-v1.json";
+import releaseExample from "../graph/.compiled/release-example-v1.json" with { type: "json" };
 import { defaultEdges, defaultEntities } from "../src/lib/default-entities";
 import { defaultTypes } from "../src/lib/default-types";
 import { seedDocument } from "../src/lib/entity-import";

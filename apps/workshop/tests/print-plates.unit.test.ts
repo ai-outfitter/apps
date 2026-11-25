@@ -1,41 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { strToU8, zipSync } from "fflate";
+import { strToU8 } from "fflate";
 import { parseSlicedPrintPackage } from "../src/server/print-plates";
 
-const sha256 = "a".repeat(64);
-const itemId = "11111111-1111-4111-8111-111111111111";
-const members = [{itemId,sha256,quantity:2}];
-const parts = [{itemId,sha256,fileName:"bracket.stl",quantity:2}];
-const plates = [{index:1,name:"Plate 1",members}];
-const settings = strToU8(JSON.stringify({printer_model:"Bambu Lab P2S",filament_settings_id:["Generic ASA"]}));
-const report = strToU8(JSON.stringify({return_code:0,sliced_plates:[{
-  id:1,total_predication:131.5,warning_message:"",filaments:[{total_used_g:12.453}],
-  objects:[{name:"bracket.stl"},{name:"bracket.stl"}],
-}]}));
-const nativeSummary = strToU8(`<config><plate>
-  <metadata key="index" value="1"/>
-  <metadata key="prediction" value="131"/>
-  <metadata key="weight" value="12.45"/>
-  <object identify_id="1" name="bracket.stl" skipped="false" />
-  <object identify_id="2" name="bracket.stl" skipped="false" />
-</plate></config>`);
-const archive = (toolpath = true) => zipSync({
-  "Metadata/project_settings.config":settings,
-  "Metadata/slice_info.config":nativeSummary,
-  ...(toolpath && {"Metadata/plate_1.gcode":strToU8("G1 X8 E1")}),
-});
+import { archive, hash, loadSource, members, nativePlateMap, nativeRotation, parts, plates, report, stl } from "./fixtures/print-package";
+
 const badRequest = (error:unknown) => error instanceof Response && error.status === 400;
 
-test("retains grouped mass and time from the native outputs at their full precision", async () => {
-  const result = await parseSlicedPrintPackage(archive(),report,plates,parts);
+test("verifies translated component meshes and rigid placements with repeated instances", async () => {
+  const result = await parseSlicedPrintPackage(archive(),report,plates,parts,loadSource);
   assert.deepEqual(result.plates,[{...plates[0],durationSeconds:131.5,filamentGrams:12.453,warnings:[]}]);
   assert.equal(result.printer,"Bambu Lab P2S");
   assert.equal(result.material,"Generic ASA");
+  assert.equal(result.slicer,"Bambu Studio 02.08.00.50");
 });
 
-test("requires actual toolpaths, matching current digests, and exact native grouping", async () => {
-  await assert.rejects(parseSlicedPrintPackage(archive(false),report,plates,parts),badRequest);
-  await assert.rejects(parseSlicedPrintPackage(archive(),report,plates,[{...parts[0],sha256:"b".repeat(64)}]),badRequest);
-  await assert.rejects(parseSlicedPrintPackage(archive(),report,[{...plates[0],members:[{...members[0],quantity:1}]}],parts),badRequest);
+test("rejects same-name replacement STL with different geometry and identical bounds or triangle counts", async () => {
+  const replacement = stl(1.1);
+  const digest = hash(replacement);
+  await assert.rejects(parseSlicedPrintPackage(archive(),report,[{...plates[0],members:[{...members[0],sha256:digest}]}],
+    [{...parts[0],sha256:digest}],async()=>replacement),
+    badRequest);
+});
+
+test("requires toolpaths, stored source proof, exact quantities and unmodified build scale", async () => {
+  await assert.rejects(parseSlicedPrintPackage(archive(false),report,plates,parts,loadSource),badRequest);
+  await assert.rejects(parseSlicedPrintPackage(archive(),report,plates,parts,async()=>undefined),badRequest);
+  await assert.rejects(parseSlicedPrintPackage(archive(),report,[{...plates[0],members:[{...members[0],quantity:1}]}],parts,loadSource),badRequest);
+  await assert.rejects(parseSlicedPrintPackage(archive(true,"0 -2 0 2 0 0 0 0 2 20 30 0"),report,plates,parts,loadSource),badRequest);
+  const wrongMapping = strToU8(new TextDecoder().decode(nativePlateMap).replace('value="12"','value="11"'));
+  await assert.rejects(parseSlicedPrintPackage(archive(true,nativeRotation,wrongMapping),report,plates,parts,loadSource),badRequest);
 });

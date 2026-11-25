@@ -13,3 +13,5 @@ apps/onto/seeds/*.local.json
 apps/wiki/seeds/*.local.json
 
 **/.dev.vars
+# Composed by npm run graph:compose from app-owned definitions.
+apps/*/graph/.compiled/

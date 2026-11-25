@@ -21,6 +21,10 @@ on:
         description: Calling workflow file used to find last successful push
         type: string
         default: ci.yml
+      push-baseline:
+        description: Caller-resolved push baseline, empty to check all apps or auto to look it up
+        type: string
+        default: auto
     outputs:
       apps:
         description: Affected app paths
@@ -56,14 +60,18 @@ jobs:
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
+          PUSH_BASELINE: ${{ inputs.push-baseline }}
           BASELINE_WORKFLOW: ${{ inputs.baseline-workflow }}
           BRANCH: ${{ github.ref_name }}
         shell: bash
         run: |
-          [[ "$BASELINE_WORKFLOW" =~ ^[a-zA-Z0-9._-]+\.ya?ml$ ]]
-          base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$BASELINE_WORKFLOW/runs" \
-            -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
-            --jq '.workflow_runs[0].head_sha // empty') || base=
+          base=$PUSH_BASELINE
+          if [[ "$base" == auto ]]; then
+            [[ "$BASELINE_WORKFLOW" =~ ^[a-zA-Z0-9._-]+\.ya?ml$ ]]
+            base=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$BASELINE_WORKFLOW/runs" \
+              -f "branch=$BRANCH" -f event=push -f status=success -f per_page=1 \
+              --jq '.workflow_runs[0].head_sha // empty') || base=
+          fi
           echo "sha=$base" >> "$GITHUB_OUTPUT"
       - id: plan
         uses: ai-outfitter/apps@33a6c545a1d2b89780c857d8a1d7c9e6858d09b8
@@ -75,24 +83,27 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
       - id: catalog
         env:
+          CONFIG_PATH: ${{ inputs.config-path }}
           SELECTED_APPS: ${{ steps.plan.outputs.apps }}
           CATALOG_APPS: ${{ inputs.catalog-apps }}
           APP_SET: ${{ inputs.app-set }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || steps.baseline.outputs.sha }}
           HEAD_SHA: ${{ github.sha }}
-        # Only apps with files changed in their own directory are validated.
-        # Shared package, lockfile and CI changes no longer fan out to every
-        # app; apps pick them up and get extended tests at their next release.
+        # Validate direct changes and the apps that consume configured shared inputs.
         run: |
           node --input-type=module <<'NODE'
-          import { appendFileSync } from 'node:fs';
+          import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+          import { matchesGlob } from 'node:path';
           import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
           const {BASE_SHA: base, HEAD_SHA: head} = process.env;
           const git = (...args) => execFileSync('git', args, {encoding: 'utf8'});
           let paths = null;
           try {if (base) paths = git('diff', '--no-renames', '--name-only', '-z', git('merge-base', base, head).trim(), head, '--').split('\0').filter(Boolean);} catch {}
-          const affected = JSON.parse(process.env.SELECTED_APPS).filter(app => !paths || paths.some(path => path.startsWith(`${app}/`)));
+          const configPath = process.env.CONFIG_PATH;
+          const {sharedInputs = [], sharedInputApps = []} = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : {};
+          const sharedApps = paths?.some(path => sharedInputs.some(glob => matchesGlob(path, glob))) ? sharedInputApps : [];
+          const affected = JSON.parse(process.env.SELECTED_APPS).filter(app => !paths || sharedApps.includes(app) || paths.some(path => path.startsWith(`${app}/`)));
           const cohort = process.env.APP_SET;
           assert.ok(['all','catalog','source'].includes(cohort), 'Unknown validation cohort');
           const registered = JSON.parse(process.env.CATALOG_APPS);

@@ -1,0 +1,221 @@
+{
+  "source": {
+    "baseline": {
+      "commit": "6aa42708d7f70feeec1541a35230a487d134f60c",
+      "files": [
+        "apps/onto/seeds/types-v1.json"
+      ]
+    },
+    "candidate": {
+      "commit": "fcb4eb865bf64cdaa17159930d7ba88f0e4531a2",
+      "files": [
+        "apps/onto/seeds/types-v1.json",
+        "apps/onto/seeds/artifacts-v1.json",
+        "apps/forerunner/seeds/discovery-graph-v1.json",
+        "apps/planning/seeds/work-graph-v1.json"
+      ],
+      "generated": "packages/app-sdk/graph/standard-types.json",
+      "generatedSha256": "5bde7cfce385630b05b997db9f70858a3b555000691b384c5c2d81ed55483543"
+    }
+  },
+  "types": [
+    {
+      "key": "person",
+      "stableId": "71000000-0000-4000-8000-000000000005",
+      "baseline": {
+        "name": "Person",
+        "description": "## What a person is\n\nA person is a real human involved in the work. This page explains the People section; each actual person has a separate entity page.\n\n## Identity and privacy\n\nTwo people may have the same name. Keep separate stable IDs and do not merge records using a name alone. Sources publish people through stable record references; Wiki notes remain independent of the source.\n\n## For agents\n\nUse the person's stable ID, documented responsibilities and project connections. A Person page is not proof of an authenticated account or consent to contact them. Confirm identity and permission through the relevant platform or connector before taking action."
+      },
+      "candidate": {
+        "name": "onto:Person",
+        "description": "## What a person is\n\nA person is a real human involved in the work. This page explains the People section; each actual person has a separate entity page.\n\n## Identity and privacy\n\nTwo people may have the same name. Keep separate stable IDs and do not merge records using a name alone. Sources publish people through stable record references; Wiki notes remain independent of the source.\n\n## For agents\n\nUse the person's stable ID, documented responsibilities and project connections. A Person page is not proof of an authenticated account or consent to contact them. Confirm identity and permission through the relevant platform or connector before taking action."
+      }
+    },
+    {
+      "key": "organization",
+      "stableId": "71000000-0000-4000-8000-000000000001",
+      "baseline": {
+        "name": "Organization",
+        "description": "## What an organization is\n\nAn organization is a company, institution or other identifiable group. Document what it does, its public references and its relationship to the work.\n\nBusiness units are recorded separately when a team or department needs its own context. Organization and business-unit pages can connect to projects, people, agents and technologies.\n\n## Example\n\nApple is an organization. Apple Health can have a `developed_by` connection to Apple. This does not imply that Apple owns projects which use Apple Health.\n\n## For agents\n\nRead the organization's documented scope and relevant connections. Graph membership is shared context, not an account permission, financial authorization or legal assertion.\n\n## Canonical organization binding\n\nThe optional organization_id property records the exact authenticated platform organization ID this node represents within the current owner scope. A unique exact match can select its overview automatically. Missing or duplicate bindings require an explicit choice; never infer identity from a display name. This metadata does not grant access or authority. Standard data setup is add-only: existing installations need an explicit editor revision update to add this property to the Organization type and set the intended node; existing types and nodes are never silently rewritten."
+      },
+      "candidate": {
+        "name": "onto:Organization",
+        "description": "## What an organization is\n\nAn organization is a company, institution or other identifiable group. Document what it does, its public references and its relationship to the work.\n\nBusiness units are recorded separately when a team or department needs its own context. Organization and business-unit pages can connect to projects, people, agents and technologies.\n\n## Example\n\nApple is an organization. Apple Health can have a `developed_by` connection to Apple. This does not imply that Apple owns projects which use Apple Health.\n\n## For agents\n\nRead the organization's documented scope and relevant connections. Graph membership is shared context, not an account permission, financial authorization or legal assertion.\n\n## Canonical organization binding\n\nThe optional organization_id property records the exact authenticated platform organization ID this node represents within the current owner scope. A unique exact match can select its overview automatically. Missing or duplicate bindings require an explicit choice; never infer identity from a display name. This metadata does not grant access or authority. Standard data setup is add-only: existing installations need an explicit editor revision update to add this property to the Organization type and set the intended node; existing types and nodes are never silently rewritten."
+      }
+    },
+    {
+      "key": "product",
+      "stableId": "71000000-0000-4000-8000-000000000015",
+      "baseline": {
+        "name": "Product",
+        "description": "## Products\n\nA product is an identifiable output of a project, such as a software application, sensor platform, consumer device or service. Keep its specifications, interfaces and usage documentation here. The project describes the work that creates and maintains it.\n\nConnect the project to its product with `produces`. Connect a consuming project or product to another product with `uses`. For example, a sensor-development project produces a sensor platform, and a consumer product proposes using that platform.\n\n## For agents\n\nKeep project and product identities separate. Follow the producing project for work and ownership context. A produces or uses relationship records intent unless evidence establishes delivery or operational use."
+      },
+      "candidate": {
+        "name": "onto:Product",
+        "description": "## Products\n\nA product is an identifiable output of a project, such as a software application, sensor platform, consumer device or service. Keep its specifications, interfaces and usage documentation here. The project describes the work that creates and maintains it.\n\nConnect the project to its product with `produces`. Connect a consuming project or product to another product with `uses`. For example, a sensor-development project produces a sensor platform, and a consumer product proposes using that platform.\n\n## For agents\n\nKeep project and product identities separate. Follow the producing project for work and ownership context. A produces or uses relationship records intent unless evidence establishes delivery or operational use."
+      }
+    },
+    {
+      "key": "newsletter",
+      "stableId": "71000000-0000-4000-8000-000000000125",
+      "baseline": {
+        "name": "Newsletter",
+        "description": "An identifiable recurring publication delivered to recipients by a publisher. Individual issues supply evidence for this publication."
+      },
+      "candidate": {
+        "name": "forerunner:Newsletter",
+        "description": "An identifiable recurring publication delivered to recipients by a publisher. Individual issues supply evidence for this publication."
+      }
+    },
+    {
+      "key": "sign_in",
+      "stableId": "71000000-0000-4000-8000-000000000131",
+      "baseline": {
+        "name": "signed_in_to",
+        "description": "A Person successfully authenticated to a Product. A challenge, invitation or failed attempt is insufficient. Feature use requires separate evidence.",
+        "from": [
+          "Person"
+        ],
+        "to": [
+          "Product"
+        ]
+      },
+      "candidate": {
+        "name": "forerunner:signed_in_to",
+        "description": "A Person successfully authenticated to a Product. A challenge, invitation or failed attempt is insufficient. Feature use requires separate evidence.",
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "onto:Product"
+        ]
+      }
+    },
+    {
+      "key": "use",
+      "stableId": "71000000-0000-4000-8000-000000000123",
+      "baseline": {
+        "name": "user_of",
+        "description": "A Person has actually used a Product. Cite evidence of activity within the product. A successful authentication by itself supports signed_in_to.",
+        "from": [
+          "Person"
+        ],
+        "to": [
+          "Product"
+        ]
+      },
+      "candidate": {
+        "name": "forerunner:user_of",
+        "description": "A Person has actually used a Product. Cite evidence of activity within the product. A successful authentication by itself supports signed_in_to.",
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "onto:Product"
+        ]
+      }
+    },
+    {
+      "key": "operator",
+      "stableId": "71000000-0000-4000-8000-000000000132",
+      "baseline": {
+        "name": "provided_by",
+        "description": "A Product is provided or operated by the named Organization. Its operator may differ from its developer.",
+        "from": [
+          "Product"
+        ],
+        "to": [
+          "Organization"
+        ]
+      },
+      "candidate": {
+        "name": "forerunner:provided_by",
+        "description": "A Product is provided or operated by the named Organization. Its operator may differ from its developer.",
+        "from": [
+          "onto:Product"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    },
+    {
+      "key": "developer",
+      "stableId": "71000000-0000-4000-8000-000000000025",
+      "baseline": {
+        "name": "developed_by",
+        "description": "Source software product was developed by target organization or participant. This does not transfer ownership to projects that use it.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+        "from": [
+          "Product",
+          "Technology"
+        ],
+        "to": [
+          "Organization",
+          "Person",
+          "Agent"
+        ]
+      },
+      "candidate": {
+        "name": "onto:developed_by",
+        "description": "Source software product was developed by target organization or participant. This does not transfer ownership to projects that use it.\n\n## For agents\n\nRead this statement from its source entity to its target entity. Preserve the stable endpoint IDs and record supporting notes or evidence. Use proposed status when a connection has not been verified. The statement grants no execution permission.",
+        "from": [
+          "onto:Product",
+          "onto:Technology"
+        ],
+        "to": [
+          "onto:Organization",
+          "onto:Person",
+          "onto:Agent"
+        ]
+      }
+    },
+    {
+      "key": "recipient",
+      "stableId": "71000000-0000-4000-8000-000000000129",
+      "baseline": {
+        "name": "recipient_of",
+        "description": "A Person received an issue of a Newsletter. Receipt alone does not establish paid subscription, readership, use, or a purchase.",
+        "from": [
+          "Person"
+        ],
+        "to": [
+          "Newsletter"
+        ]
+      },
+      "candidate": {
+        "name": "forerunner:recipient_of",
+        "description": "A Person received an issue of a Newsletter. Receipt alone does not establish paid subscription, readership, use, or a purchase.",
+        "from": [
+          "onto:Person"
+        ],
+        "to": [
+          "forerunner:Newsletter"
+        ]
+      }
+    },
+    {
+      "key": "publisher",
+      "stableId": "71000000-0000-4000-8000-000000000127",
+      "baseline": {
+        "name": "published_by",
+        "description": "A Newsletter is published by an Organization identified in its masthead or official publication page. Delivery vendors need their own evidence.",
+        "from": [
+          "Newsletter"
+        ],
+        "to": [
+          "Organization"
+        ]
+      },
+      "candidate": {
+        "name": "forerunner:published_by",
+        "description": "A Newsletter is published by an Organization identified in its masthead or official publication page. Delivery vendors need their own evidence.",
+        "from": [
+          "forerunner:Newsletter"
+        ],
+        "to": [
+          "onto:Organization"
+        ]
+      }
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import seed from "../seeds/creative-v1.json";
+import { defaultTypes } from "../src/lib/default-types";
 import { creativeSchemas } from "../src/server/creative";
 test("creative graph body constraints match mutation validation and immutable provenance applies to generic writes", () => {
   for (const [name, schema] of Object.entries(creativeSchemas))
     assert.deepEqual(
-      seed.types.find((t) => t.name === name)?.jsonSchema,
+      defaultTypes.find((t) => t.name === name)?.jsonSchema,
       z.toJSONSchema(schema),
       name,
     );
@@ -14,10 +14,8 @@ test("creative graph body constraints match mutation validation and immutable pr
     "GenerationSnapshot",
     "CreativeCandidate",
     "CreativeFeedback",
-  ])
-    assert.equal(
-      seed.types.find((t) => t.name === name)?.ontology?.immutable,
-      true,
-      name,
-    );
+  ]) {
+    const contract = defaultTypes.find(t => t.name === name)?.ontology;
+    assert.ok(contract?.version === 2 && contract.immutable, name);
+  }
 });

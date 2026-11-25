@@ -22,24 +22,28 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwA
 /** The built Worker behind real workerd RPC dispatch props, with its own D1
  * database and `runs` bucket. The host double answers GitHub through
  * `repository.request` as the platform would and records every call. */
-async function installed(workflowId = "issue-to-merge-actions-ci") {
+async function installed(workflowId = "issue-to-merge-actions-ci", forgejo = false) {
   const pack = JSON.parse(await readFile(appArtifact(new URL("../", import.meta.url), "operational"), "utf8"));
   const source = `
 import { WorkerEntrypoint } from "cloudflare:workers";
 import app from "./${pack.artifact.mainModule}";
 const calls = [];
-const issue = { number: 3, title: "Split cents", html_url: "https://github.com/acme/app/issues/3", state: "open", body: "" };
+const issue = { number: 3, title: "Split cents", html_url: "https://github.com/acme/app/issues/3", state: "open", body: "", user: { id: 42 } };
 const pull = { user: { id: 10 }, number: 7, state: "open", html_url: "https://github.com/acme/app/pull/7",
   head: { sha: "${head}", ref: "outfitter/issue-3-${runId}", repo: { full_name: "acme/app" } },
   base: { ref: "main", repo: { full_name: "acme/app" } } };
 function answer(operation, input) {
-  if (operation === "repository.read") return { name: "acme/app", path: "/repos/acme/app", repositoryId: 1, installationId: 101, appId: 42 };
+  if (operation === "repository.read") return { name: "acme/app", path: "/repos/acme/app", repositoryId: 1, installationId: 101, appId: 42, ...(${forgejo} ? { forge: "forgejo" } : {}) };
   if (operation === "workflow.read") return { run: { id: "${runId}", workflowId: "${workflowId}", status: "running", createdBy: "owner", createdAt: 1, updatedAt: 1 },
     inputs: { "triage.inputs.event": ${JSON.stringify(event)} }, outputs: {}, readiness: { run: "running", steps: {} },
     attempts: [{ id: "${attemptId}", nodeId: "implement", state: "running", createdAt: 1, updatedAt: 1 }] };
   if (operation === "workspace.control") return { ready: true };
+  if (${forgejo} && operation === "workflow.references") return [];
+  if (${forgejo} && operation === "workflow.start") return { id: input.id, workflow: input.workflow, created: true };
   if (operation !== "repository.request") return undefined;
   if (input.path === "/repos/acme/app/issues/3") return issue;
+  if (${forgejo} && input.path === "/repos/acme/app/issues?state=open&type=issues&limit=50")
+    return [issue, ...[4, 5].map(number => ({ ...issue, number, html_url: "https://forge.example/acme/app/issues/" + number }))];
   if (input.path === "/repos/acme/app/issues/3/comments?per_page=100") return [];
   if (input.path === "/repos/acme/app/issues/3/comments" && input.method === "POST") return { id: 9, html_url: "https://github.com/acme/app/issues/3#issuecomment-9" };
   if (input.path === "/repos/acme/app/pulls/7") return pull;
@@ -99,7 +103,7 @@ export default {
     }) as unknown as Promise<Response>;
   const calls = async () => (await (await worker.dispatchFetch("https://software-foundry.example/__calls")).json()) as
     { operation: string; input: Record<string, unknown> }[];
-  return { worker, phase, calls };
+  return { worker, phase, calls, database };
 }
 
 test("screenshots publish from either issue-to-merge workflow, and from no other", async () => {
@@ -213,6 +217,39 @@ test("Foundry's workspace policy runs over the platform's real prepare, finalize
 
     assert.equal((await phase("prepare", prepare, { "x-test-no-host": "1" })).status, 503,
       "forwarded identity alone cannot manufacture a host capability");
+  } finally {
+    await worker.dispose();
+  }
+});
+
+
+test("a scheduled repository result and repair sweep skip durable planning issues", async () => {
+  const { worker, phase, calls, database } = await installed("ui-review", true);
+  try {
+    const grants = JSON.stringify([{ name: "acme/app", repositoryId: 1, connectionId: "forgejo" }]);
+    const insert = database.prepare(
+      "INSERT INTO foundry_plans (key,requestId,runId,digest,repositoryGrants,repositories,anchorRepository,issuePublisherId,state,updatedAt,issue) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+    );
+    for (const number of [3, 5]) {
+      const issue = JSON.stringify({ number, url: `https://forge.example/acme/app/issues/${number}`, created: true });
+      await insert.bind(`plan-${number}`, crypto.randomUUID(), crypto.randomUUID(), head, grants, '["acme/app"]', "acme/app", 42, "published", 1, issue).run();
+    }
+    const result = await phase("finalize", {
+      node, coordinator: false, session: {}, settings: settings("file-issues"),
+      inputs: { fix: { installation: "foundry", resource: "1", inputs: {} } },
+      outputs: { issues: { issues: [{ number: 3 }] } },
+    });
+    assert.equal(result.status, 200, await result.clone().text());
+    const data = await result.json() as { outputs: { issues: { issues: { number: number; fixRun?: string }[]; retried: { number: number }[]; closed: unknown[] } } };
+    assert.deepEqual(data.outputs.issues.issues.map(item => [item.number, item.fixRun]), [[3, undefined]]);
+    assert.deepEqual(data.outputs.issues.retried.map(item => item.number), [4]);
+    assert.deepEqual(data.outputs.issues.closed, []);
+    const operations = await calls();
+    const lookups = operations.filter(call => call.operation === "workflow.references");
+    assert.ok(lookups.every(call => !(call.input.subjects as number[]).includes(5)), "the sweep filtered the separate protected issue before run lookup");
+    const starts = operations.filter(call => call.operation === "workflow.start");
+    assert.equal(starts.length, 1);
+    assert.equal((starts[0].input.inputs as Record<string, { issue: { number: number } }>)["triage.inputs.event"].issue.number, 4);
   } finally {
     await worker.dispose();
   }

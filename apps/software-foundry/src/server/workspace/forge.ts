@@ -6,6 +6,7 @@ export type IssueReceipt = {
   url: string;
   title: string;
   body: string;
+  authorId?: number;
   state: "open" | "closed";
 };
 export type ChangeReceipt = {
