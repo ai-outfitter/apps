@@ -8,7 +8,7 @@ const outcome = z.object({ status: z.string(), entries: z.number().int().nonnega
 export type DiscoveryReceipt = { id: string; label: string; entries?: number; suggestions?: number };
 
 export async function briefDependencies(
-  host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number,
+  host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number, deadline = Infinity,
 ) {
   const discovery = schedules.filter(row => row.workflowId === discoveryWorkflow);
   const current = (at: number) => localDate(at, timezone) === date;
@@ -27,8 +27,11 @@ export async function briefDependencies(
     }
     if (row.lastRunAt !== null && current(row.lastRunAt) && failure)
       return { gap: `Discovery (${source}): this morning's occurrence failed or was declined.` };
-    if (!row.lastRunId || row.lastRunAt === null || !current(row.lastRunAt))
+    if (!row.lastRunId || row.lastRunAt === null || !current(row.lastRunAt)) {
+      if (row.nextRunAt > deadline)
+        return { gap: `Discovery (${source}): the next occurrence is scheduled after the brief’s dependency cutoff.` };
       return { waiting: true, gap: `Discovery (${source}): this morning's occurrence has no result yet.` };
+    }
     const run = await host.call("workflow.read", { id: row.lastRunId }).catch(() => null);
     const analyze = run?.outputs["analyze.outputs.result"];
     const suggestions = run?.outputs["suggestions.outputs.result"];

@@ -166,23 +166,25 @@ export async function scheduledDailyBrief(db: Database, who: AppIdentity, raw: P
   if (occurrence.schedule.workflowId !== dailyBriefWorkflow) return { outcome: "declined", reason: "Not a daily brief schedule" };
   const schedules = await host.call("schedules", {});
   const saved = schedules.find(row => row.id === occurrence.schedule.id);
-  if (!saved?.enabled) return { outcome: "declined", reason: "Daily brief schedule no longer exists" };
-  const slot = occurrence.trigger === "manual" ? occurrence.scheduledFor : saved.pendingFor ?? occurrence.scheduledFor;
+  if (!saved) return { outcome: "declined", reason: "Daily brief schedule no longer exists" };
+  if (!saved.enabled && occurrence.trigger === "clock") return { outcome: "declined", reason: "Daily brief schedule is disabled" };
+  const clock = occurrence.trigger === "clock";
+  const slot = clock ? saved.pendingFor ?? occurrence.scheduledFor : occurrence.scheduledFor;
   const date = localDate(slot, saved.timezone);
   const deadline = slot + 3 * 3_600_000;
   const interactive = host as unknown as WorkflowHost<"interactive">;
-  const dependencies = await readBriefDependencies(interactive, schedules, date, saved.timezone, now);
-  if (occurrence.trigger !== "manual" && dependencies.waiting && now < deadline) {
+  const dependencies = await readBriefDependencies(interactive, schedules, date, saved.timezone, now, deadline);
+  if (clock && dependencies.waiting && now < deadline) {
     return { outcome: "deferred", retryAt: Math.min(deadline, now + 5 * 60_000), reason: "Waiting for this morning's discovery and the previous day's Onto activity." };
   }
   // The occurrence's own date, not the retry's. A failure is recorded on the run; the schedule itself started.
-  await runBrief(db, who, host as unknown as WorkflowHost<"interactive">, { date, timezone: saved.timezone, runId: occurrence.runId, dependencies }, now)
+  await runBrief(db, who, interactive, { date, timezone: saved.timezone, runId: occurrence.runId, dependencies }, now)
     .catch(error => { if (!(error instanceof Response)) throw error; });
   return { outcome: "started" };
 }
-async function readBriefDependencies(host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number) {
+async function readBriefDependencies(host: WorkflowHost<"interactive">, schedules: InstallationSchedule[], date: string, timezone: string, now: number, deadline?: number) {
   const [discovery, updates, memberships] = await Promise.all([
-    briefDependencies(host, schedules, date, timezone, now),
+    briefDependencies(host, schedules, date, timezone, now, deadline),
     readAppUpdates(host, shiftDate(date, -1)),
     currentMemberships(host).catch(() => null),
   ]);

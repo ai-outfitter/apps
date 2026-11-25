@@ -18,8 +18,11 @@ export const POST: APIRoute = ({ request, locals }) =>
     const ownerRoot = await initializeOwnerRoot(installationDatabase(), who);
     // Existing Wikis get their stored documents compiled over the types they have now.
     await refreshKnowledgeGraphQueries(installationDatabase());
-    const dailyUpdate = who.owner.kind === "user" || (who.canEdit && requestActor(request, who).kind === "member")
-      ? await ensureDailyUpdate(locals) : "needs-editor";
+    const actor = requestActor(request, who);
+    const maySchedule = who.canEdit && (who.owner.kind === "user"
+      ? who.owner.id === who.userId || actor.kind === "platform"
+      : actor.kind === "member");
+    const dailyUpdate = maySchedule ? await ensureDailyUpdate(locals) : "needs-editor";
     return { ...result, ownerRoot, sealTimer: await sealTimer(locals), dailyUpdate };
   });
 
@@ -38,7 +41,10 @@ async function sealTimer(locals: App.Locals) {
 
 async function ensureDailyUpdate(locals: App.Locals) {
   try {
-    await workflowHost<"interactive">(locals).call("schedule.save", { workflow: dailyWorkflow, timezone: reportTimezone, ifUnset: true });
+    const host = workflowHost<"interactive">(locals);
+    const schedules = await host.call("schedules", {});
+    if (schedules.some(row => row.workflowId === dailyWorkflow)) return "kept";
+    await host.call("schedule.save", { workflow: dailyWorkflow, timezone: reportTimezone, ifUnset: true });
     return "ready";
   } catch (error) {
     if (!(error instanceof Response)) throw error;

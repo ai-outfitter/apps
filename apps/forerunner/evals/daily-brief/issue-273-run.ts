@@ -214,7 +214,7 @@ async function evaluatedCase(id: CaseId, updates: { activity?: Update; empty?: U
     }
     return { id, runs };
   } finally {
-    wiki.close();
+    await wiki.close();
     client.close();
   }
 }

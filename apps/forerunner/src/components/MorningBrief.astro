@@ -2,6 +2,7 @@
 import { forerunnerContext } from "../server/context";
 import { readDailyHome } from "../server/daily-home";
 import { morningActivity, morningActivityFilters } from "../server/morning-activity";
+import { shiftDate } from "../server/review-period";
 import { wikiRevisionHref } from "../server/app-updates";
 
 interface Props { root: string }
@@ -47,7 +48,7 @@ const displayScope = (value: string) => value === "personal" ? "Personal" : valu
   </button>}
   <p data-brief-result role="status" hidden></p>
   <form method="get" action={`${root}#morning-brief`} class="brief-filters">
-    <label>Date <input type="date" name="briefDate" value={activity?.date ?? (parsed.success ? parsed.data.date : undefined)} max={home?.date && new Date(Date.parse(home.date) - 86_400_000).toISOString().slice(0, 10)} /></label>
+    <label>Date <input type="date" name="briefDate" value={activity?.date ?? (parsed.success ? parsed.data.date : undefined)} max={home?.date && shiftDate(home.date, -1)} /></label>
     <label>Scope <select name="briefScope">
       <option value="all" selected={scope === "all"}>All authorized scopes</option>
       {[...new Set([...scopes, ...(scope === "all" ? [] : [scope])])].map(value => <option value={value} selected={scope === value}>{displayScope(value)}</option>)}

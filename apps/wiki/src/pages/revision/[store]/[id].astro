@@ -12,7 +12,14 @@ const parsed = z.object({ id: z.string().min(1).max(200), store: z.enum(["docume
   });
 if (!parsed.success) return new Response("Revision not found", { status: 404 });
 const { id, store, revision } = parsed.data;
-const { database } = context(Astro.request, Astro.locals);
+let wiki: ReturnType<typeof context>;
+try { wiki = context(Astro.request, Astro.locals); }
+catch (error) {
+  if (error instanceof Response) return error;
+  throw error;
+}
+if (wiki.identity.role === "external") return new Response("Revision not found", { status: 404 });
+const { database } = wiki;
 let snapshot: { title: string; body: string } | undefined;
 if (store === "document") {
   try {
