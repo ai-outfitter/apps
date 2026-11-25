@@ -3,14 +3,20 @@ import { once } from "node:events";
 import { appendFileSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
+import { dotted, repositories } from "./box-fixture.mjs";
+
 const requests = JSON.parse(readFileSync(new URL("./fixtures/requests.json", import.meta.url)));
-const citations = ["box/charts:README.md", "box/native-apple:README.md"];
+const citations = repositories.map(repo => `${repo}:README.md`);
 
 function planFor(prompt) {
   const selected = ["ambiguous", "feature", "bug"].find((id) => prompt.includes(requests[id].title));
   assert.ok(selected, "inference received a named synthetic planning case");
   assert.match(prompt, /KEYSTONE_CHARTS_FIXTURE/);
   assert.match(prompt, /KEYSTONE_NATIVE_APPLE_FIXTURE/);
+  if (dotted) {
+    assert.match(prompt, /KEYSTONE_OS_FIXTURE/);
+    assert.match(prompt, /KEYSTONE_SERVICES_FIXTURE/);
+  }
   const bug = selected === "bug";
   const issueTemplate = bug ? null : ".forgejo/ISSUE_TEMPLATE/feature.md";
   if (issueTemplate) assert.ok(prompt.includes(issueTemplate), "anchor's issue template reaches inference");

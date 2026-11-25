@@ -3,19 +3,22 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
 import { planningIssueMarker } from "./planning-issues";
-import { repositoryName } from "./projects";
 import { foundryPlans } from "./schema";
 import { submissionRepository } from "./workspace/workspaces";
 
 export const planningWorkflow = "foundry-plan-work";
 const outputSlot = "plan.outputs.result";
 const requestId = z.uuid();
+// Match Forgejo's interior owner separators and keep repository segments safe
+// for the host's covered API paths.
+const forgejoRepositoryName = z.string().max(140)
+  .regex(/^(?!.*\.\.)[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*\/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/);
 export const findPlanInput = z.strictObject({ requestId });
 export const planWorkInput = z.strictObject({
   requestId,
   request: z.string().trim().min(1).max(8000),
-  repositories: z.array(repositoryName).min(1).max(8),
-  anchorRepository: repositoryName.optional(),
+  repositories: z.array(forgejoRepositoryName).min(1).max(8),
+  anchorRepository: forgejoRepositoryName.optional(),
   kind: z.enum(["feature", "bug", "query"]).optional(),
   createIssue: z.boolean().default(true),
 });

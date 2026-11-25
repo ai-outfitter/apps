@@ -6,9 +6,12 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-export const anchor = "box/native-apple";
-export const charts = "box/charts";
-export const repositories = [charts, anchor];
+export const dotted = process.env.FOUNDRY_DOTTED_REPOSITORIES === "1";
+const owner = dotted ? "ks.systems" : "box";
+const names = dotted ? ["charts", "native-apple", "os", "services"] : ["charts", "native-apple"];
+export const anchor = `${owner}/native-apple`;
+export const charts = `${owner}/charts`;
+export const repositories = names.map(name => `${owner}/${name}`);
 const forgejo = "http://127.0.0.1:3300";
 
 function adminPassword(box) {
@@ -30,18 +33,24 @@ export async function admin(box, method, path, body) {
 export const setBotPermission = (box, repository, permission) =>
   admin(box, "PUT", `/repos/${repository}/collaborators/outfitter`, { permission });
 
-export async function addChartsRepository(box, db) {
-  await admin(box, "POST", "/orgs/box/repos", { name: "charts", private: true, auto_init: true, default_branch: "main" });
-  await setBotPermission(box, charts, "write");
+export async function seedRepositories(box, db) {
+  if (dotted) await admin(box, "POST", "/orgs", { username: owner, visibility: "private" });
   const credentials = Buffer.from(`box-admin:${adminPassword(box)}`).toString("base64");
-  execFileSync("git", ["-c", "safe.directory=/in/charts", "-C", "/in/charts", "push", "--quiet", "--force",
-    `${forgejo}/${charts}.git`, "refs/heads/main:refs/heads/main"], {
-    env: { ...process.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader",
-      GIT_CONFIG_VALUE_0: `Authorization: Basic ${credentials}`, GIT_TERMINAL_PROMPT: "0" },
-    stdio: ["ignore", "ignore", "ignore"],
-  });
-  for (const repository of repositories) {
+  for (const name of names) {
+    const repository = `${owner}/${name}`;
+    if (repository !== box.repository) {
+      await admin(box, "POST", `/orgs/${owner}/repos`, { name, private: true, auto_init: true, default_branch: "main" });
+      await setBotPermission(box, repository, "write");
+      const source = `/in/planning/${name}`;
+      execFileSync("git", ["-c", `safe.directory=${source}`, "-C", source, "push", "--quiet", "--force",
+        `${forgejo}/${repository}.git`, "refs/heads/main:refs/heads/main"], {
+        env: { ...process.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader",
+          GIT_CONFIG_VALUE_0: `Authorization: Basic ${credentials}`, GIT_TERMINAL_PROMPT: "0" },
+        stdio: ["ignore", "ignore", "inherit"],
+      });
+    }
     const metadata = await admin(box, "PATCH", `/repos/${repository}`, { has_issues: true, has_pull_requests: true, default_branch: "main" });
+    assert.equal(metadata.full_name, repository);
     assert.equal(metadata.has_pull_requests, true);
   }
   setCoverage(db, repositories);
