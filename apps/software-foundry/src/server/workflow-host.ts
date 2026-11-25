@@ -1,3 +1,5 @@
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { generatedPlanningIssue } from "./planning-issues";
 import {requestIdentity} from "@ai-outfitter/app-sdk/server";
 import {dailyUpdate,dailyWorkflow} from "./daily-update";
 import {
@@ -18,7 +20,7 @@ import { inspectFoundryWorkspace } from "./workspace/inspection";
 import { publishFoundryEvidence } from "./workspace/publication";
 import {
   configureFoundryWorkspaces,
-  type FoundryJob,
+  type ScheduledFoundryJob,
   foundryJobs,
   jobBindingInput,
   issueToMergeWorkflows,
@@ -44,6 +46,8 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
   const delivery = eventInput.parse(raw);
   const { subscription, trigger, runId } = delivery;
   const { type, resource, payload } = delivery.event;
+  if (type.endsWith(".issue") && await generatedPlanningIssue(installationDatabase, resource, payload))
+    return { outcome: "declined", reason: "The issue was published by Foundry planning. Select it explicitly to begin implementation." };
   if (!issueToMergeWorkflows.includes(subscription.workflowId)) {
     // Foundry's other event workflows start with the event at their trigger input.
     await host.call("workflow.start", { workflow: subscription.workflowId, id: runId, inputs: { ...subscription.inputs, [trigger.input]: payload } });
@@ -65,7 +69,7 @@ async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z
   const { runId, schedule } = scheduleInput.parse(raw);
   if (!Object.hasOwn(foundryJobs, schedule.workflowId))
     return { outcome: "declined", reason: `Foundry does not schedule ${schedule.workflowId}` };
-  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as FoundryJob)] !== "string" || !schedule.inputs["analyze.inputs.fix"])
+  if (typeof schedule.inputs[jobBindingInput(schedule.workflowId as ScheduledFoundryJob)] !== "string" || !schedule.inputs["analyze.inputs.fix"])
     return { outcome: "declined", reason: "Save this schedule again with Foundry's JobChanges schedule action, so it carries the job's approved agent" };
   await host.call("workflow.start", { workflow: schedule.workflowId, id: runId, inputs: schedule.inputs });
   return { outcome: "started" };
@@ -84,7 +88,7 @@ async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<P
 
 /** Software Foundry's workflow policy, served at the reserved workflow host path. */
 export function foundryPhases(locals: StorageLocals, origin: string,request:Request) {
-  const files = { locals, origin };
+  const files = { locals, origin, db: installationDatabase };
   return workflowPhaseHandler({
     event: (input, host) => event(host, input),
     operator: (input, host) => operator(host, input),

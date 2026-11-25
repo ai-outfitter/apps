@@ -6,7 +6,7 @@ import { recordAddress } from "../lib/addresses";
 import type { Graph } from "../lib/graph";
 import {
   approvalLabel, approvalText, type Batch, label, type BatchDetail, type BatchItem, type BatchOperation, batchItems, batchUrl, type Citation, citation,
-  edgeTitle, findingList, findingsFor, getBatch, itemUrl, lineSummary, nameIndex, proposalAnchor, proposedGraph, proposedView,
+  edgeTitle, findingList, findingsFor, getBatch, hasRequestedChanges, itemUrl, lineSummary, nameIndex, proposalAnchor, proposedGraph, proposedView,
   questionSection, resolveOperations, type Review, review,
 } from "./batch-pages";
 import { appUrl, call, demoMode, el, entityUrl, loadGraph } from "./data";
@@ -35,7 +35,7 @@ export function summaryLine(summary: Batch["summary"]) {
 /** What the person is told happens if they do nothing. */
 export function deadlineText(batch: Pick<Batch, "state" | "reviewBy" | "policy">, now = Date.now()) {
   if (batch.state !== "awaiting_review") return null;
-  if (batch.reviewBy && batch.reviewBy > now) return `Anything still waiting is approved automatically at ${clock(batch.reviewBy)} unless you review it.`;
+  if (batch.reviewBy && batch.reviewBy > now) return `Eligible proposals are approved automatically at ${clock(batch.reviewBy)} unless you review it.`;
   if (batch.reviewBy) return "The review window has ended; reload to see what was approved.";
   return "Nothing here is saved until you approve it.";
 }
@@ -62,7 +62,7 @@ export function stewardLine(review: Review) {
 /** The steward's latest review: its findings, coverage and the run that is its audit trail. */
 function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
   const { review } = detail.batch;
-  const again = detail.canReview && detail.batch.state !== "open" && detail.batch.state !== "discarded"
+  const again = detail.canReview && detail.batch.state === "awaiting_review"
     ? el("button", { type: "button" }, review ? "Review again" : "Review now") : null;
   if (again) again.onclick = async () => {
     again.disabled = true;
@@ -90,12 +90,15 @@ function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
 function bulkActions(detail: BatchDetail, draw: (next: BatchDetail) => void) {
   const waiting = detail.operations.filter((op) => op.state === "awaiting_review");
   if (!detail.canReview || !waiting.length) return null;
+  const held = waiting.some(hasRequestedChanges);
+  const approveLabel = held ? "Approve eligible proposals" : `Approve all ${waiting.length}`;
+  const verdicts = waiting.every(hasRequestedChanges) ? ["reject"] as const : ["approve", "reject"] as const;
   return el("div", { class: "change-actions" },
-    ...(["approve", "reject"] as const).map((verdict) => {
-      const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? `Approve all ${waiting.length}` : "Reject all");
+    ...verdicts.map((verdict) => {
+      const button = el("button", { type: "button", class: verdict === "approve" ? "primary" : "" }, verdict === "approve" ? approveLabel : "Reject all");
       button.onclick = async () => {
         button.disabled = true;
-        try { draw(await review(detail.batch.id, verdict)); }
+        try { draw(await review(detail.batch.id, verdict, undefined, detail.batch.submittedVersion)); }
         catch (error) { button.disabled = false; button.parentElement?.appendChild(el("p", { role: "alert" }, String(error))); }
       };
       return button;
@@ -215,7 +218,7 @@ async function renderBatch(root: HTMLElement, batchId: string, signal: AbortSign
     fill(root,
       el("p", {}, el("a", { href: appUrl("changes") }, "← All changes")),
       el("h2", {}, batch.title),
-      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state} · ${time(batch.createdAt)}`),
+      el("p", { class: "change-meta" }, `${stateLabels[batch.state] ?? batch.state}${batch.submittedVersion ? ` · Submitted v${batch.submittedVersion}` : ""} · ${time(batch.createdAt)}`),
       el("details", { class: "change-description" }, el("summary", {}, "Batch summary"),
         el("p", { class: "change-summary" }, batch.summary?.text ?? summaryLine(batch.summary) ?? ""),
         batch.summary?.text && summaryLine(batch.summary) ? el("p", { class: "change-meta" }, summaryLine(batch.summary)) : null),

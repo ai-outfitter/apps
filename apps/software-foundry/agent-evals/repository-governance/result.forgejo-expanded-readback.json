@@ -1,0 +1,169 @@
+{
+  "source": {
+    "apps": {
+      "head": "fd16729d84660f17a8a70e50e4465e02e3d9a301",
+      "cleanBeforeAndAfter": true
+    },
+    "webapp": {
+      "head": "cb08841a2bdf4d7993a295b7cb24d2e0bb0583cf",
+      "cleanBeforeAndAfter": true
+    }
+  },
+  "command": {
+    "invocations": 1,
+    "exitCode": 1,
+    "emittedFinalReceipt": false,
+    "failure": "Forgejo file API returned changed for two Markdown replacements; bridge expected modified."
+  },
+  "bridgeSha256": "e674542971df085cd78c1879248e7de07fd51bf4d6f010c304f44a00058b9e15",
+  "fixtureSha256": {
+    "run.mjs": "70ebf72f8386ef8f10c692c87803bfb6bff8d5a9833e577dc410ff4569ef09b4",
+    "github-fixture.mjs": "57e523d9cb82cbf96a8a845f869d3e49a9999d57e80bfc3f50752468c88d4b9b",
+    "foundry-job.mjs": "6d65a9c41a709961f90ddf1a0a3f738d947d3f0caaffa49904558d99814dc3c6",
+    "foundry-dispatch.mjs": "d3ce0c304a752a2cd5e664b9f16c22bbb8021b2ebb13b508f9bb1035d595d1df"
+  },
+  "fixtureAssertionsBeforeReadback": {
+    "evidence": "The live command reached the last Forgejo verification step after passing these assertions. The separate offline receipt corroborates the assertions and supplies the fixture digests and commit SHAs.",
+    "offlineReceiptSha256": "df3a907f3c1b7844a6c96753b40ed220b3e121148a7fb6e9972fbfe65ca620a5",
+    "job": {
+      "id": "community-template-audit",
+      "slot": "check.outputs.report",
+      "completedRuns": 6,
+      "route": "/api/apps/software-foundry/jobs"
+    },
+    "auditWrites": {
+      "missing/repo": 0,
+      "custom/repo": 0,
+      "team/inherited": 0,
+      "team/repo": 0,
+      "limited/repo": 0,
+      "blank/repo": 0
+    },
+    "staleRevisionStatus": 409,
+    "staleRevisionWrites": 0,
+    "providerMutations": 12,
+    "replayWrites": 0
+  },
+  "liveReadback": {
+    "forgejoVersion": "11.0.16+gitea-1.22.0",
+    "disposableLoopback": true,
+    "verification": "Read-only API checks after the command exited",
+    "drafts": [
+      {
+        "fixtureRepository": "missing/repo",
+        "createdAt": "2026-11-25T15:17:05Z",
+        "number": 1,
+        "state": "open",
+        "draft": true,
+        "base": {
+          "ref": "main",
+          "sha": "b1f91499819823bca3e2b1339f91a71b1ab7b659"
+        },
+        "head": {
+          "ref": "outfitter/community-templates",
+          "sha": "c5810d1efc3195d44d90001e02b9f2c8c691a7b9"
+        },
+        "files": [
+          {
+            "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+            "status": "added"
+          },
+          {
+            "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+            "status": "added"
+          },
+          {
+            "filename": ".github/pull_request_template.md",
+            "status": "added"
+          }
+        ]
+      },
+      {
+        "fixtureRepository": "custom/repo",
+        "createdAt": "2026-11-25T15:17:07Z",
+        "number": 1,
+        "state": "open",
+        "draft": true,
+        "base": {
+          "ref": "main",
+          "sha": "0e76061b2a3254744563b902e903122759e44580"
+        },
+        "head": {
+          "ref": "outfitter/community-templates",
+          "sha": "47d84922fb4874f66654f1f963040d8581dcba31"
+        },
+        "files": [
+          {
+            "filename": ".github/pull_request_template.md",
+            "status": "added"
+          }
+        ]
+      },
+      {
+        "fixtureRepository": "team/repo",
+        "createdAt": "2026-11-25T15:17:11Z",
+        "number": 1,
+        "state": "open",
+        "draft": true,
+        "base": {
+          "ref": "main",
+          "sha": "57b7eecd6ab39c498c0639066673b15f9f89baa1"
+        },
+        "head": {
+          "ref": "outfitter/community-templates",
+          "sha": "87784585d5e8bb035c87b012ce5b142e0f1200ad"
+        },
+        "files": [
+          {
+            "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+            "status": "added"
+          }
+        ]
+      },
+      {
+        "fixtureRepository": "blank/repo",
+        "createdAt": "2026-11-25T15:17:14Z",
+        "number": 1,
+        "state": "open",
+        "draft": true,
+        "base": {
+          "ref": "main",
+          "sha": "f91ffda8b935778ac68f212cfe72fc9e5b598851"
+        },
+        "head": {
+          "ref": "outfitter/community-templates",
+          "sha": "446ffbda794aa5b0e7f7cecbf7d344f689a179d0"
+        },
+        "files": [
+          {
+            "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+            "status": "changed"
+          },
+          {
+            "filename": ".github/pull_request_template.md",
+            "status": "changed"
+          }
+        ],
+        "blankMarkdownReplacementsVerified": true,
+        "preservedPaths": [
+          {
+            "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+            "blobSha": "af3ee94e2b325511fe86a45c261f67cafb785e09"
+          },
+          {
+            "filename": ".github/ISSUE_TEMPLATE/local_bug.yml",
+            "blobSha": "0e1043a050051dce8a940dc7078b2179b5effe92"
+          },
+          {
+            "filename": ".github/ISSUE_TEMPLATE/bug_alternative.yml",
+            "blobSha": "8d1c8b69c3fce7bea45c73efd06983e3c419a92f"
+          },
+          {
+            "filename": "notes/sentinel.txt",
+            "blobSha": "ff0ec64ceb2aad4add884fc96dbc570387f78db0"
+          }
+        ]
+      }
+    ]
+  }
+}

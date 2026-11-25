@@ -11,6 +11,7 @@ import type { Database } from "./graph";
 import { graphBatches, graphNodes, graphTypes } from "./schema";
 import { sealDueBatches } from "./graph-batches";
 import { type BatchQuestion, openQuestions } from "./batch-questions";
+import { passageBatchVisibility } from "./passage-review";
 
 export const recentDocumentCounts: Record<HomeCardSize, number> = {
   small: 3,
@@ -57,7 +58,8 @@ export async function reviewQueue(db: Database, limit: number, now = Date.now())
   const rows: CardBatch[] = await db
     .select({ id: graphBatches.id, title: graphBatches.title, state: graphBatches.state, summary: graphBatches.summary, reviewBy: graphBatches.reviewBy, policy: graphBatches.policy, closedAt: graphBatches.closedAt, questions: graphBatches.questions })
     .from(graphBatches)
-    .where(or(eq(graphBatches.state, "awaiting_review"), and(eq(graphBatches.state, "committed"), gt(graphBatches.closedAt, now - 24 * 3600 * 1000))))
+    .where(and(await passageBatchVisibility(db),
+      or(eq(graphBatches.state, "awaiting_review"), and(eq(graphBatches.state, "committed"), gt(graphBatches.closedAt, now - 24 * 3600 * 1000)))))
     .orderBy(desc(graphBatches.updatedAt))
     .limit(limit * 3);
   return rows.filter((batch) => batch.state === "awaiting_review" || (batch.policy as { kind?: string })?.kind === "first-run").slice(0, limit);

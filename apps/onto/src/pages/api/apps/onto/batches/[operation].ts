@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import { readJSON, requestActor, requestIdentity, requestOriginActor, requireEditor, respond } from "@ai-outfitter/app-sdk/server";
+import { readJSON, requestActor, requestIdentity, requestOriginActor, respond } from "@ai-outfitter/app-sdk/server";
 import { workflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { reviewBatchOntology } from "../../../../../server/batch-review";
 import { answerBatch, batchAnswerInput } from "../../../../../server/batch-questions";
@@ -52,7 +52,7 @@ export const POST: APIRoute = ({ request, params, locals }) => {
       return { ...detail, validation: await validateBatch(db, who, { batchId: input.batchId }) };
     }
     if (params.operation === "steward-review") {
-      requireEditor(who);
+      requireMemberReview(who, requestActor(request, who), requestOriginActor(request, who));
       const { batchId } = await readJSON(request, batchIdInput, 4000);
       await reviewBatchOntology(db, who, workflowHost<"interactive">(locals as never), batchId);
       return getBatch(db, who, { batchId });

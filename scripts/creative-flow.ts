@@ -134,11 +134,14 @@ try {
   });
   const commit = async (batchId: string) => {
     if (!batchId) return;
-    await action(onto, "batch.submit", { batchId });
-    await call(onto, "/api/apps/onto/batches/review", {
+    const { batch } = await action(onto, "batch.submit", { batchId });
+    assert.ok(Number.isInteger(batch.submittedVersion), "Submission must return its version");
+    const approved = await call(onto, "/api/apps/onto/batches/review", {
       batchId,
+      expectedVersion: batch.submittedVersion,
       verdict: "approve",
     });
+    assert.equal(approved.batch.state, "committed");
   };
   const stage = async (n: number, kind: string, body: any) => {
     const result = await graph(

@@ -1,3 +1,4 @@
+import { cotsMutationWarnings, cotsReadInput, cotsWriteInput, readCotsEvidence, recordCotsEvidence } from "./cots-evidence";
 import { PrintPlateInput } from "../lib/print-plates";
 import { recordWorkshopPrintPlate } from "./print-plates";
 import { assemblyPrintFindings, readWorkshopPrint } from "./print-analysis";
@@ -41,6 +42,7 @@ export type WorkshopServices = {
 /** What the actions route (and a page running a document in process) passes to every resolver. */
 export type WorkshopContext = ActionContext & WorkshopServices;
 
+const cotsWarnings = {type:JSONScalar,description:"Nonblocking purchased-part warnings with the visible item and canonical interface provenance."};
 const printFindings = {type:JSONScalar,description:"Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location."};
 /** The inventory: one row per physical unit, told apart by MAC address or serial. */
 const units = tableType(workshopUnits, {
@@ -59,7 +61,7 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const projectId = { type: new GraphQLNonNull(GraphQLID) };
 const revision = { type: new GraphQLNonNull(GraphQLInt) };
 const assemblyReceipt = new GraphQLObjectType({
-  name: "WorkshopAssemblyReceipt", fields: { projectId, revision, printFindings },
+  name: "WorkshopAssemblyReceipt", fields: { projectId, revision, printFindings, cotsWarnings },
 });
 const assemblyResult = new GraphQLObjectType({
   name: "WorkshopAssemblyResult",
@@ -89,6 +91,10 @@ const workshopPrint = mutationField<typeof workshopPrintInput, WorkshopContext>(
   input:workshopPrintInput,
   run:async(context,{itemId,...input})=>readWorkshopPrint(context,input.projectId,await resolvedProject(context.db(),input),itemId),
 });
+const workshopCotsEvidence = mutationField<typeof cotsReadInput, WorkshopContext>({
+  name:"WorkshopCotsEvidence", description:"Read canonical purchased-part reference photos, dimensions and fit observations for the selected assembly.",
+  input:cotsReadInput, run:readCotsEvidence,
+});
 const resolvedPageInput = AssemblyReferenceSchema.extend({cursor:z.string().regex(pageCursor).optional()});
 const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopContext>({
   name:"ResolvedWorkshopAssemblyPage",
@@ -111,6 +117,10 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
   name: "Mutation",
   fields: {
     recordWorkshopPrintPlate:mutationField<typeof PrintPlateInput,WorkshopContext>({name:"RecordWorkshopPrintPlate",description:"Preserve a native Bambu Studio sliced package and its physical plates for the current print inputs.",input:PrintPlateInput,run:recordWorkshopPrintPlate}),
+    recordWorkshopCotsEvidence: mutationField<typeof cotsWriteInput, WorkshopContext>({
+      name:"RecordWorkshopCotsEvidence",description:"Record owned purchased-part evidence at the owner revision, using verified original photo receipts.",
+      input:cotsWriteInput,run:recordCotsEvidence,
+    }),
     uploadWorkshopAssemblyFile: mutationField<typeof uploadInput,WorkshopContext>({name:"UploadWorkshopAssemblyFile",description:"Reserve or attach a verified CAD or animation file on one saved item.",input:uploadInput,run:uploadAssemblyFile}),
     submitWorkshopPcb: mutationField<typeof PcbSubmission, WorkshopContext>({
       name: "SubmitWorkshopPcb", description: "Upload a KiCad package and attach its verified snapshot.", input: PcbSubmission, run: submitWorkshopPcb,
@@ -150,7 +160,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       args: { projectId, expectedRevision: revision, assembly: { type: new GraphQLNonNull(zodInputType(AssemblySchema, "WorkshopAssemblyInput")) } },
       run: async (context, { projectId, expectedRevision, assembly }) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, { id: projectId, revision: expectedRevision, assembly });
-        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,saved)};
+        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,saved),cotsWarnings:await cotsMutationWarnings(context,saved)};
       },
     }),
     saveWorkshopAssembly: mutationField<typeof assemblyInput, WorkshopContext>({
@@ -228,7 +238,7 @@ const designRunField = mutationField<typeof designRunInput, WorkshopContext>({
   run: (context, input) => designRun(context, input),
 });
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopPrint, workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...projects, ...units, workshopPrint, workshopCotsEvidence, workshopSourceFile:mutationField<typeof sourceFileInput,WorkshopContext>({name:"WorkshopSourceFile",description:"Read a file at a ref from a connected Forgejo repository.",input:sourceFileInput,run:readSourceFile}), verifyWorkshopAssemblyFile:mutationField<typeof verifyInput,WorkshopContext>({name:"VerifyWorkshopAssemblyFile",description:"Hash the attached file bytes and compare with the saved receipt.",input:verifyInput,run:verifyAssemblyFile}), workshopAssembly, resolvedWorkshopAssembly: resolvedAssembly, resolvedWorkshopAssemblyPage: resolvedAssemblyPage, workshopProjectHandoff: handoff, workshopDesignRun: designRunField } }),
   mutation,
 });
 

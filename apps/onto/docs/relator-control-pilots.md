@@ -59,7 +59,7 @@ and version. An evaluation result is not another relationship.
 
 ## Small pilot vocabulary, not a universal standard catalog
 
-The shared definitions now live in `seeds/control-pilot-types-v1.json`.
+The shared definitions now live in Forerunner’s `seeds/control-pilot-types-v1.json`.
 Forerunner owns the scoped seed instances in `scripts/control-pilots.ts`; see its
 [manual discovery guide](../../forerunner/docs/manual-discovery.md#local-control-pilot-seeds).
 

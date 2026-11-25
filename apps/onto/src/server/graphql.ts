@@ -1,7 +1,7 @@
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { ontologyGuide } from "./ontology-guide";
 import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
-import { graphBatches, graphBatchOperations } from "./schema";
+import { graphBatches, graphBatchOperations, batchSubmissions } from "./schema";
 import { connectionType, idList, type PageArgs, page, pageArgs, pageStart } from "@ai-outfitter/app-sdk/app-graphql";
 import { within } from "@ai-outfitter/app-sdk/graph-filter-sql";
 import { instructionType, resultInstructions } from "@ai-outfitter/app-sdk/batch-documents";
@@ -16,8 +16,6 @@ import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, type GraphContext, groupBy, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
-import type { PullRequestHost } from "@ai-outfitter/app-sdk/github-pulls";
-import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import {
   GraphQLBoolean, type GraphQLFieldConfig, GraphQLFloat, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType, GraphQLObjectType,
   GraphQLSchema, GraphQLString,
@@ -29,13 +27,13 @@ import { listShares, mutateShareInput, mutateShare, readShare, shareSlug, shares
 import { recordAddress } from "../lib/addresses";
 import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
+import { passageBatchVisibility } from "./passage-review";
+import { enableWikiPassageIndex, passageQueries, type PassageGraphContext } from "./passage-graphql";
 import { readSettings, saveSettings, settingsInput, type StewardApproval } from "./settings";
-import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview } from "./graph-batches";
+import { addToBatch, batchAddInput, live, loadBatch, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, changeRequests, type BatchSubmissionReceipt } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
-export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
-  /** The workflow host, for live reads an exploration opens (pull requests); absent where there is none. */
-  host?: () => PullRequestHost;
+export type ChangeContext = PassageGraphContext & { db: () => ReturnType<typeof installationDatabase>;
   /** Persist the member's draft review before returning a receipt. */
   afterStage?: (batchId: string) => Promise<unknown> };
 type MutationContext = ChangeContext & ActionContext;
@@ -45,6 +43,9 @@ const text = { type: nonNull(GraphQLString) };
 /** The batch's review page, relative to this installation; the platform resolves it against the install's mount. */
 export const batchReviewUrl = (batchId: string) => `changes/${encodeURIComponent(batchId)}`;
 const json = { type: nonNull(JSONScalar) };
+const submissionActors = new Map([
+  ["member", "Member"], ["oauth-client", "Member connection"], ["app", "App"], ["platform", "Platform"],
+]);
 
 const StagedChange = new GraphQLObjectType({
   name: "StagedChange", description: "One proposed graph.apply operation in a batch.",
@@ -101,10 +102,44 @@ const OntoSettings = new GraphQLObjectType({
   },
 });
 
+const BatchSubmissionResult = new GraphQLObjectType<BatchSubmissionReceipt, ChangeContext>({
+  name: "BatchSubmissionResult", description: "The accepted submission and its reserved steward review run at the time of submission.",
+  fields: {
+    id: { type: nonNull(GraphQLID) },
+    title: text,
+    submittedVersion: { type: nonNull(GraphQLInt) },
+    state: text,
+    counts: json,
+    reviewRefs: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Undecided proposal refs queued for review in this version." },
+    reviewUrl: { type: nonNull(GraphQLString), resolve: result => batchReviewUrl(result.id) },
+    reviewRun: { type: JSONScalar, description: "Run reserved when this submission was accepted. See instructions for the current run to wait on." },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (result, _args, context) => {
+      const batch = await loadBatch(context.db(), result.id);
+      const current = await reviewRun(batch, context);
+      const mode = current ? (await requestSettings(context)).stewardApproval : null;
+      const run = current && mode ? stewardRun(current.runId, current.state, mode) : null;
+      return resultInstructions(result.id, { state: batch.state, ...(run && { run }) }, batchReviewUrl(result.id));
+    } },
+  },
+});
+
 const ChangeBatch = new GraphQLObjectType({
   name: "ChangeBatch", description: "Proposed Wiki changes, invisible to every read until they commit: by policy, by the ontology steward after its review, or by a member on the Changes page.",
   fields: {
     id: { type: nonNull(GraphQLID) }, title: text, purpose: text,
+    submittedVersion: { type: nonNull(GraphQLInt), description: "Latest recorded submission; zero for drafts and batches predating version tracking." },
+    submission: { type: JSONScalar, args: { version: { type: nonNull(GraphQLInt) } },
+      description: "Immutable proposal content, submission time and submitter category for this version. Legacy baseline zero has unknown authorship.",
+      resolve: async (batch, {version}, context: ChangeContext) => {
+        const [saved] = await context.db().select({
+          version: batchSubmissions.version, at: batchSubmissions.at,
+          via: batchSubmissions.via, proposals: batchSubmissions.proposals,
+        }).from(batchSubmissions)
+          .where(and(eq(batchSubmissions.batchId, batch.id), eq(batchSubmissions.version, version)));
+        if (!saved) return null;
+        const { via, ...submission } = saved;
+        return { ...submission, submitter: submissionActors.get(via.split(":", 1)[0]) ?? null };
+      } },
     state: { ...text, description: "open, awaiting_review, committed, rejected or discarded." },
     source: { type: JSONScalar }, createdAt: { type: nonNull(DateTimeScalar) },
     anchors: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Anchor node addresses; every created node must connect to one.", resolve: async (batch, _args, context: ChangeContext) => {
@@ -119,6 +154,7 @@ const ChangeBatch = new GraphQLObjectType({
     review: { type: JSONScalar, description: "The ontology steward's latest review, of the open draft or the submitted batch (stage): state, findings by operation ref, coverage, prompt digest and its batch-review workflow run, whose logs are the audit trail. Null while a new draft is being reviewed. For a submitted batch, decision says what the steward approved after its review and which refs it left for a member, with why." },
     expiresAt: { type: nonNull(DateTimeScalar) }, updatedAt: { type: nonNull(DateTimeScalar) },
     counts: { ...json, description: "Operations by state." },
+    changeRequests: { type: nonNull(JSONScalar), description: "Local member requests for changes, with proposal refs, observed version, reviewer and comment. Retained after edits and final decisions.", resolve: (batch, _args, context: ChangeContext) => changeRequests(context.db(), batch.id) },
     questions: { ...json, description: "Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: \"onto\", recordId: \"batch:<id>#<key>\"} when you revise those proposals.", resolve: (batch) => batch.questions ?? [] },
     advice: { type: nonNull(JSONScalar), description: "Onto's built-in advice on the draft, with no model: records that need a type (type.generic-cluster, edge.generic-cluster, property.in-title), too many types (type.sprawl) and card quality (card.*, evidence.quote-too-long). Each finding names its refs; stage.proposals can be staged as they are and stage.move lists the refs to restage under them. Advisory: nothing is blocked.", resolve: (batch, _args, context: ChangeContext) => draftAdvice(batch, context) },
     reviewRun: { type: JSONScalar, description: "While the ontology steward reviews a submitted batch: {runId, state}, the batch-review workflow run to wait on (WorkflowRuns at scope platform). Null once the review has finished; read review then.", resolve: (batch, _args, context: ChangeContext) => reviewRun(batch, context) },
@@ -212,6 +248,7 @@ const Ontology = new GraphQLObjectType({ name: "Ontology", fields: {
 } });
 
 export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeContext>> = {
+  ...passageQueries,
   ...creativeQueries,
   ...creativeAddressQueries,
   ontology: {
@@ -223,7 +260,7 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
     args: {...pageArgs(), search:{type:GraphQLString}, state:{type:new GraphQLList(nonNull(GraphQLString))}},
     resolve: async (_root, args: PageArgs & { ids?: string[] | null; search?: string | null; state?: string[] | null }, context, info) => {
       const { first, start } = pageStart(args), ids = idList(args.ids), db = context.db();
-      const where = and(ids ? sql`${graphBatches.id} IN ${within(ids)}` : undefined, args.state?.length ? sql`${graphBatches.state} IN ${within(args.state)}` : undefined,
+      const where = and(await passageBatchVisibility(db), ids ? sql`${graphBatches.id} IN ${within(ids)}` : undefined, args.state?.length ? sql`${graphBatches.state} IN ${within(args.state)}` : undefined,
         args.search ? like(graphBatches.title, `%${args.search}%`) : undefined);
       const rows = await db.select().from(graphBatches).where(and(where, start ? gt(graphBatches.id, start) : undefined)).orderBy(asc(graphBatches.id)).limit(first + 1);
       // The page's operation counts by state, in one statement.
@@ -268,9 +305,15 @@ export const changeQueries: Record<string, GraphQLFieldConfig<unknown, ChangeCon
 const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   name: "Mutation",
   fields: {
+    mutateBatchSubmission: mutationField({
+      name: "MutateBatchSubmission", output: nonNull(BatchSubmissionResult), input: mutateBatchSubmissionInput,
+      description: "Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. Changing a held proposal's operation or evidence clears its hold and queues it for review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.",
+      run: (context: MutationContext, input) => mutateBatchSubmission(context.db(), context.identity, context.actor, context.originActor, input),
+    }),
+    enableWikiPassageIndex,
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
-      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.",
+      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Preserves final decisions. Entity writers can edit member batches. The originating app can edit its open policy draft. After submission the originating app or a member reviewer can edit it.",
       run: async (context: MutationContext, input) => {
         const revised = await reviseBatch(context.db(), context.identity, context.actor, context.originActor, input);
         return view(revised);
@@ -301,7 +344,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Admins only: change this Onto's settings. stewardApproval approve lets the ontology steward approve what its review of a submitted batch found clean; review leaves every decision to a member.",
       run: (context: MutationContext, input) => saveSettings(context.db(), context.identity, input),
     }),
-    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
+    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve, reject or request changes on submitted proposals as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. Requesting changes requires the version and a comment. Approve and reject callers can omit the version to decide the current submission. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     ...creativeMutations,
     ...creativeAddressMutations,

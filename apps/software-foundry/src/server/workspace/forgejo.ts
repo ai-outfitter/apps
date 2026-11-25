@@ -47,7 +47,8 @@ export class ForgejoFoundryForge {
       typeof issue.html_url !== "string" || !["open", "closed"].includes(issue.state))
       throw conflict("Current repository issue required");
     return { number, repository: this.repository, url: issue.html_url, title: issue.title,
-      body: typeof issue.body === "string" ? issue.body : "", state: issue.state };
+      body: typeof issue.body === "string" ? issue.body : "", state: issue.state,
+      ...(Number.isSafeInteger(issue.user?.id) ? { authorId: issue.user.id } : {}) };
   }
 
   async ready(candidate: ChangeReceipt) {
@@ -78,7 +79,8 @@ export class ForgejoFoundryForge {
     const issues = await this.api(this.path(`/issues?state=open&type=issues&limit=${page}`));
     return (Array.isArray(issues) ? issues : []).map((issue: any) => ({
       number: issue.number, repository: this.repository, url: issue.html_url, title: issue.title,
-      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const, byFoundry: issue.user?.id === this.botUserId }));
+      body: typeof issue.body === "string" ? issue.body : "", state: "open" as const, byFoundry: issue.user?.id === this.botUserId,
+      ...(Number.isSafeInteger(issue.user?.id) ? { authorId: issue.user.id } : {}) }));
   }
 
   async close(number: number, comment: string) {

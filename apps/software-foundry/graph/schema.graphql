@@ -134,6 +134,25 @@ type Change {
   areas: [String!]!
 }
 
+input FindFoundryPlanInput {
+  requestId: ID!
+}
+
+input PlanWorkInput {
+  requestId: ID!
+  request: String!
+  repositories: [String!]!
+  anchorRepository: String
+  kind: PlanWorkInputKind
+  createIssue: Boolean
+}
+
+enum PlanWorkInputKind {
+  feature
+  bug
+  query
+}
+
 input SubmitReleaseEvidenceInput {
   bundle: String!
   assets: [SubmitReleaseEvidenceInputAssetsItem!]!
@@ -315,6 +334,9 @@ type Query {
   """
   changes(since: DateTime!, until: DateTime, repositories: [String!]): ChangeList!
 
+  """Read your stored plan with its run, exact sources and issue receipt."""
+  foundryPlan(input: FindFoundryPlanInput!): JSON
+
   """Read your feature and bug requests with their GitHub issues."""
   requests(input: RequestsInput!): JSON
 }
@@ -327,6 +349,11 @@ input RequestsInput {
 }
 
 type Mutation {
+  """
+  Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.
+  """
+  planWork(input: PlanWorkInput!): JSON
+
   """
   Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.
   """
@@ -348,7 +375,7 @@ type Mutation {
   enableRepository(input: EnableRepositoryInput!): EnabledRepository!
 
   """
-  Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.
+  Start a repository job now. Community-template-audit saves a read-only coverage report. Dependency-review, architecture-reanalysis and ui-review use workspace agents to file issues. Owners and admins only.
   """
   runJob(input: RunJobInput!): FoundryJobResult!
 

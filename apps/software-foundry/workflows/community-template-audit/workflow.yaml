@@ -1,0 +1,38 @@
+version: beta
+id: community-template-audit
+summary: Check a GitHub repository's effective pull request, bug report and feature request templates.
+actors: {}
+triggers:
+  - on: manual
+steps:
+  - id: check
+    inputs:
+      repository: {schema: {type: string}}
+    outputs:
+      report:
+        connector: git-forge
+        record: repository.community-templates.inspected
+        match: {repository: check.inputs.repository}
+        schema:
+          type: object
+          required: [repository, defaultBranch, revision, checkedAt, communityTemplates]
+          properties:
+            repository: {type: string}
+            defaultBranch: {type: string}
+            revision: {type: string, pattern: '^[a-f0-9]{40}$'}
+            checkedAt: {type: string, format: date-time}
+            communityTemplates:
+              type: object
+              required: [checks, ownerDefaults, issueOverride, candidates, plan]
+              properties:
+                checks:
+                  type: object
+                  required: [pullRequest, bug, feature]
+                ownerDefaults: {}
+                issueOverride: {type: array}
+                candidates: {type: array}
+                plan:
+                  type: object
+                  required: [id, paths, blocked]
+outputs:
+  report: check.outputs.report

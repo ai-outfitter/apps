@@ -36,12 +36,14 @@ The schema is one migration, `migrations/0000_onto.sql`, followed by repeatable 
 
 ## Standard context for every installation
 
-`seeds/types-v1.json` is the authored source for the default definitions. Its pages
+The [app-owned graph registry](../../docs/authored-graphs.md) composes Onto’s
+`seeds/types-v1.json` with the other apps’ standard definitions. Its pages
 explain entities, projects, people, organizations, technologies, agents, goals,
 measurements, documents and connections. Each includes guidance for agents.
 The same definitions are visible as readable pages and through `graph-type`.
 
-`npm run seeds:check` validates JSON definitions, records and structured bodies
+Run `npm run graph:compose` from the repository root after editing definitions.
+`npm run seeds:check` in Onto validates compiled records and structured bodies
 without generating SQL. The app initializer loads the standard JSON graph.
 Setup is idempotent by stable ID: add missing records and leave existing records,
 including edits, revisions, provenance and archived records, unchanged. If a record is physically removed, a later upload can add it again. Historical SQL seeds stay unchanged; new data is loaded by setup.
@@ -115,6 +117,10 @@ call `graph.apply`, `graph.read`, `graph.query`, `graph.graphql`,
 `knowledge-graph.render` and `artifact.preview`; none of these is an MCP tool.
 The personal and organization Wikis share this engine
 ([overview](../../../docs/architecture/knowledge-graph.md)).
+
+Organization members and their connected agents can [search indexed Wiki passages
+and inspect indexing progress and held suggestions](docs/wiki-passage-eval.md#operator-reference).
+Enabling the schedule is an explicit editor operation.
 
 ## Verification
 

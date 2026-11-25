@@ -6,6 +6,7 @@
   "description": "Sealed app boxes: an official app on the real platform with Forgejo and RustFS, JSON in and out, driven by Agent Eval.",
   "exports": {
     "./eval": "./eval/agent.ts",
+    "./eval/paired": "./eval/paired.mjs",
     "./geometry": "./eval/geometry.ts",
     "./box-kube": "./box-kube.mjs"
   },

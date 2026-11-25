@@ -170,3 +170,5 @@ export * from "./changes";
 export * from "./batches";
 export * from "./external-keys";
 export const ontoContract = { id: "outfitter.onto", version: 1 } as const;
+
+export { wikiPassage } from "./wiki-passages";

@@ -1,4 +1,30 @@
 type Query {
+  """
+  Search currently readable indexed Wiki passages by case-insensitive substring.
+  """
+  wikiPassageSearch(
+    wiki: WikiPassageTarget!
+    query: String!
+
+    """Maximum items, from 1 to 50. Defaults to 20."""
+    limit: Int
+    after: String
+  ): WikiPassageSearch!
+
+  """
+  Read durable indexing and routing counters for an accessible Wiki in this organization.
+  """
+  wikiPassageProgress(wiki: WikiPassageTarget!): WikiPassageProgress!
+
+  """
+  Read current Wiki extraction issues and held suggestions with their reasons.
+  """
+  wikiPassageHeldItems(
+    wiki: WikiPassageTarget!
+
+    """Maximum items, from 1 to 50. Defaults to 20."""
+    limit: Int
+  ): WikiPassageHeldItems!
   creativeRecords(kind: String, after: String, limit: Int): JSON
   creativeRecordViews(kind: String, after: String, limit: Int): JSON
 
@@ -39,6 +65,85 @@ type Query {
   One change batch, with every operation and its state; null when there is none.
   """
   changeBatch(id: ID!): ChangeBatch
+}
+
+type WikiPassageSearch {
+  passages: [WikiPassage!]!
+
+  """Opaque continuation cursor, or null when exhausted."""
+  next: String
+}
+
+type WikiPassage {
+  id: String!
+  text: String!
+  source: WikiPassageSource!
+  locator: WikiPassageLocator!
+}
+
+type WikiPassageSource {
+  sourceId: String!
+  version: String!
+  pageSlug: String!
+  pageRevision: Int!
+
+  """Wiki document revision, if present."""
+  revision: Int
+  fileName: String
+  sha256: String
+  contentHash: String!
+}
+
+type WikiPassageLocator {
+  kind: String!
+  start: Int!
+  end: Int!
+  section: String
+  page: Int
+  startMs: Float
+  endMs: Float
+}
+
+input WikiPassageTarget {
+  installationId: String!
+}
+
+type WikiPassageProgress {
+  cursor: String
+
+  """Unix time in milliseconds."""
+  updatedAt: Float
+  lastError: String
+  sweeps: Int!
+  indexedSources: Int!
+  pendingSources: Int!
+  sourceIssues: Int!
+  indexedPassages: Int!
+  pendingPassages: Int!
+  inferenceRetries: Int!
+  routed: Int!
+  pendingSuggestions: Int!
+  unresolved: Int!
+  routingRetries: Int!
+}
+
+type WikiPassageHeldItems {
+  sources: [WikiPassageSourceIssue!]!
+  suggestions: [WikiPassageHeldSuggestion!]!
+}
+
+type WikiPassageSourceIssue {
+  sourceId: String!
+  version: String!
+  issue: String!
+}
+
+type WikiPassageHeldSuggestion {
+  sourceId: String!
+  version: String!
+  issue: String!
+  id: String!
+  passageId: String!
 }
 
 """Any JSON value."""
@@ -90,6 +195,16 @@ type ChangeBatch {
   title: String!
   purpose: String!
 
+  """
+  Latest recorded submission; zero for drafts and batches predating version tracking.
+  """
+  submittedVersion: Int!
+
+  """
+  Immutable proposal content, submission time and submitter category for this version. Legacy baseline zero has unknown authorship.
+  """
+  submission(version: Int!): JSON
+
   """open, awaiting_review, committed, rejected or discarded."""
   state: String!
   source: JSON
@@ -120,6 +235,11 @@ type ChangeBatch {
 
   """Operations by state."""
   counts: JSON!
+
+  """
+  Local member requests for changes, with proposal refs, observed version, reviewer and comment. Retained after edits and final decisions.
+  """
+  changeRequests: JSON!
 
   """
   Questions asked on this batch: [{key, ask, refs, options?, answer?: {option or text, by, at}}]. refs are the proposals that depend on it. Cite an answer as evidence {provider: "onto", recordId: "batch:<id>#<key>"} when you revise those proposals.
@@ -324,8 +444,76 @@ type OntoSettings {
   updatedBy: String
 }
 
+"""
+The accepted submission and its reserved steward review run at the time of submission.
+"""
+type BatchSubmissionResult {
+  id: ID!
+  title: String!
+  submittedVersion: Int!
+  state: String!
+  counts: JSON!
+
+  """Undecided proposal refs queued for review in this version."""
+  reviewRefs: [String!]!
+  reviewUrl: String!
+
+  """
+  Run reserved when this submission was accepted. See instructions for the current run to wait on.
+  """
+  reviewRun: JSON
+  instructions: [ChangeInstruction!]!
+}
+
+input MutateBatchSubmissionInput {
+  requestKey: String!
+  batchId: ID
+  expectedVersion: Float
+  title: String
+  purpose: String
+  source: MutateBatchSubmissionInputSource
+  anchors: [String!]
+  summary: String
+  proposals: [MutateBatchSubmissionInputProposalsItem!]
+  remove: [String!]
+  deleteBatch: Boolean
+}
+
+input MutateBatchSubmissionInputSource {
+  kind: String!
+  ref: String!
+  label: String
+}
+
+input MutateBatchSubmissionInputProposalsItem {
+  operation: JSON!
+  evidence: [MutateBatchSubmissionInputProposalsItemEvidenceItem!]
+  confidence: Float
+  reason: String
+}
+
+input MutateBatchSubmissionInputProposalsItemEvidenceItem {
+  provider: String!
+  recordId: String!
+  version: String
+  uri: String
+  contentHash: String
+  quote: String
+  observedAt: String
+}
+
+type WikiPassageSchedule {
+  id: String!
+  workflowId: String!
+  enabled: Boolean!
+  cron: String!
+  timezone: String!
+  nextRunAt: Float!
+}
+
 input ReviseBatchInput {
   batchId: ID!
+  expectedVersion: Float
   proposals: [ReviseBatchInputProposalsItem!]
   remove: [String!]
 }
@@ -385,6 +573,7 @@ enum SaveSettingsInputStewardApproval {
 }
 
 input ReviewBatchInput {
+  expectedVersion: Float
   batchId: ID!
   refs: [String!]
   verdict: ReviewBatchInputVerdict!
@@ -394,6 +583,7 @@ input ReviewBatchInput {
 enum ReviewBatchInputVerdict {
   approve
   reject
+  request_changes
 }
 
 input StageCreativeRecordInput {
@@ -523,7 +713,17 @@ input SubmitBatchInput {
 
 type Mutation {
   """
-  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted member-review batch. Keeps the batch pending review, preserves decisions and commits no graph records. Requires the member's own editor connection; apps and delegated writers cannot amend.
+  Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. Changing a held proposal's operation or evidence clears its hold and queues it for review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.
+  """
+  mutateBatchSubmission(input: MutateBatchSubmissionInput!): BatchSubmissionResult!
+
+  """
+  As an organization editor, enable the scheduled passage index for an accessible Wiki in this organization.
+  """
+  enableWikiPassageIndex(wiki: WikiPassageTarget!): WikiPassageSchedule!
+
+  """
+  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Preserves final decisions. Entity writers can edit member batches. The originating app can edit its open policy draft. After submission the originating app or a member reviewer can edit it.
   """
   reviseBatch(input: ReviseBatchInput!): ChangeBatch!
 
@@ -548,7 +748,7 @@ type Mutation {
   saveSettings(input: SaveSettingsInput!): OntoSettings!
 
   """
-  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
+  Approve, reject or request changes on submitted proposals as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. Requesting changes requires the version and a comment. Approve and reject callers can omit the version to decide the current submission. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 

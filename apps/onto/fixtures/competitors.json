@@ -2,8 +2,7 @@
   "format": "outfitter-graph-entities-v1",
   "nodes": [
     {
-      "id": "7a000000-0000-4000-8000-000000000001",
-      "typeId": "71000000-0000-4000-8000-000000000001",
+      "typeId": "onto:Organization",
       "slug": "synthetic-northwind-models",
       "title": "Northwind Models (synthetic)",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -11,8 +10,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000002",
-      "typeId": "71000000-0000-4000-8000-000000000056",
+      "typeId": "onto:Offering",
       "slug": "synthetic-northwind-model-gateway",
       "title": "Northwind Model Gateway",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -20,8 +18,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000003",
-      "typeId": "71000000-0000-4000-8000-000000000056",
+      "typeId": "onto:Offering",
       "slug": "synthetic-northwind-fine-tuning",
       "title": "Northwind Fine-tuning",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -29,8 +26,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000004",
-      "typeId": "71000000-0000-4000-8000-000000000015",
+      "typeId": "onto:Product",
       "slug": "synthetic-northwind-gateway",
       "title": "Northwind Gateway",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -38,8 +34,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000005",
-      "typeId": "71000000-0000-4000-8000-000000000015",
+      "typeId": "onto:Product",
       "slug": "synthetic-northwind-eval-studio",
       "title": "Northwind Eval Studio",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -47,8 +42,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000006",
-      "typeId": "71000000-0000-4000-8000-000000000001",
+      "typeId": "onto:Organization",
       "slug": "synthetic-harbor-agents",
       "title": "Harbor Agents (synthetic)",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -57,7 +51,7 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000000007",
-      "typeId": "71000000-0000-4000-8000-000000000056",
+      "typeId": "onto:Offering",
       "slug": "synthetic-harbor-agent-seats",
       "title": "Harbor Agent Seats",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -66,7 +60,7 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000000008",
-      "typeId": "71000000-0000-4000-8000-000000000056",
+      "typeId": "onto:Offering",
       "slug": "synthetic-harbor-workflow-builder",
       "title": "Harbor Workflow Builder",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -75,7 +69,7 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000000009",
-      "typeId": "71000000-0000-4000-8000-000000000056",
+      "typeId": "onto:Offering",
       "slug": "synthetic-harbor-support-desk",
       "title": "Harbor Support Desk",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -83,8 +77,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000010",
-      "typeId": "71000000-0000-4000-8000-000000000015",
+      "typeId": "onto:Product",
       "slug": "synthetic-harbor-agent-runtime",
       "title": "Harbor Agent Runtime",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -92,8 +85,7 @@
       "properties": {}
     },
     {
-      "id": "7a000000-0000-4000-8000-000000000011",
-      "typeId": "71000000-0000-4000-8000-000000000001",
+      "typeId": "onto:Organization",
       "slug": "synthetic-lumen-labs",
       "title": "Lumen Labs (synthetic)",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -102,7 +94,7 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000000012",
-      "typeId": "71000000-0000-4000-8000-000000000015",
+      "typeId": "onto:Product",
       "slug": "synthetic-lumen-tuner",
       "title": "Lumen Tuner",
       "summary": "Synthetic competitor example for the competitive landscape demo.",
@@ -113,86 +105,86 @@
   "edges": [
     {
       "id": "7a000000-0000-4000-8000-000000001001",
-      "typeId": "71000000-0000-4000-8000-000000000058",
-      "fromId": "7a000000-0000-4000-8000-000000000002",
-      "toId": "7a000000-0000-4000-8000-000000000001",
+      "typeId": "onto:offered_by",
+      "fromId": "onto:Offering:synthetic-northwind-model-gateway",
+      "toId": "onto:Organization:synthetic-northwind-models",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001002",
-      "typeId": "71000000-0000-4000-8000-000000000058",
-      "fromId": "7a000000-0000-4000-8000-000000000003",
-      "toId": "7a000000-0000-4000-8000-000000000001",
+      "typeId": "onto:offered_by",
+      "fromId": "onto:Offering:synthetic-northwind-fine-tuning",
+      "toId": "onto:Organization:synthetic-northwind-models",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001003",
-      "typeId": "71000000-0000-4000-8000-000000000057",
-      "fromId": "7a000000-0000-4000-8000-000000000002",
-      "toId": "7a000000-0000-4000-8000-000000000004",
+      "typeId": "onto:packages_product",
+      "fromId": "onto:Offering:synthetic-northwind-model-gateway",
+      "toId": "onto:Product:synthetic-northwind-gateway",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001004",
-      "typeId": "71000000-0000-4000-8000-000000000025",
-      "fromId": "7a000000-0000-4000-8000-000000000004",
-      "toId": "7a000000-0000-4000-8000-000000000001",
+      "typeId": "onto:developed_by",
+      "fromId": "onto:Product:synthetic-northwind-gateway",
+      "toId": "onto:Organization:synthetic-northwind-models",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001005",
-      "typeId": "71000000-0000-4000-8000-000000000025",
-      "fromId": "7a000000-0000-4000-8000-000000000005",
-      "toId": "7a000000-0000-4000-8000-000000000001",
+      "typeId": "onto:developed_by",
+      "fromId": "onto:Product:synthetic-northwind-eval-studio",
+      "toId": "onto:Organization:synthetic-northwind-models",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001006",
-      "typeId": "71000000-0000-4000-8000-000000000058",
-      "fromId": "7a000000-0000-4000-8000-000000000007",
-      "toId": "7a000000-0000-4000-8000-000000000006",
+      "typeId": "onto:offered_by",
+      "fromId": "onto:Offering:synthetic-harbor-agent-seats",
+      "toId": "onto:Organization:synthetic-harbor-agents",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001007",
-      "typeId": "71000000-0000-4000-8000-000000000058",
-      "fromId": "7a000000-0000-4000-8000-000000000008",
-      "toId": "7a000000-0000-4000-8000-000000000006",
+      "typeId": "onto:offered_by",
+      "fromId": "onto:Offering:synthetic-harbor-workflow-builder",
+      "toId": "onto:Organization:synthetic-harbor-agents",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001008",
-      "typeId": "71000000-0000-4000-8000-000000000058",
-      "fromId": "7a000000-0000-4000-8000-000000000009",
-      "toId": "7a000000-0000-4000-8000-000000000006",
+      "typeId": "onto:offered_by",
+      "fromId": "onto:Offering:synthetic-harbor-support-desk",
+      "toId": "onto:Organization:synthetic-harbor-agents",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001009",
-      "typeId": "71000000-0000-4000-8000-000000000057",
-      "fromId": "7a000000-0000-4000-8000-000000000007",
-      "toId": "7a000000-0000-4000-8000-000000000010",
+      "typeId": "onto:packages_product",
+      "fromId": "onto:Offering:synthetic-harbor-agent-seats",
+      "toId": "onto:Product:synthetic-harbor-agent-runtime",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001010",
-      "typeId": "71000000-0000-4000-8000-000000000025",
-      "fromId": "7a000000-0000-4000-8000-000000000010",
-      "toId": "7a000000-0000-4000-8000-000000000006",
+      "typeId": "onto:developed_by",
+      "fromId": "onto:Product:synthetic-harbor-agent-runtime",
+      "toId": "onto:Organization:synthetic-harbor-agents",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001011",
-      "typeId": "71000000-0000-4000-8000-000000000025",
-      "fromId": "7a000000-0000-4000-8000-000000000012",
-      "toId": "7a000000-0000-4000-8000-000000000011",
+      "typeId": "onto:developed_by",
+      "fromId": "onto:Product:synthetic-lumen-tuner",
+      "toId": "onto:Organization:synthetic-lumen-labs",
       "properties": {}
     },
     {
       "id": "7a000000-0000-4000-8000-000000001012",
-      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
-      "fromId": "7a000000-0000-4000-8000-000000000002",
-      "toId": "43f950db-67b4-5b90-a1c8-09e79bbad23e",
+      "typeId": "onto:alternative_for",
+      "fromId": "onto:Offering:synthetic-northwind-model-gateway",
+      "toId": "onto:Offering:outfitter-inference-offering",
       "properties": {
         "status": "proposed",
         "evidence": "Synthetic example.",
@@ -202,9 +194,9 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000001013",
-      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
-      "fromId": "7a000000-0000-4000-8000-000000000007",
-      "toId": "5933137a-324b-5dba-b677-c74dc90ca745",
+      "typeId": "onto:alternative_for",
+      "fromId": "onto:Offering:synthetic-harbor-agent-seats",
+      "toId": "onto:Offering:outfitter-resident-agent-offering",
       "properties": {
         "status": "proposed",
         "evidence": "Synthetic example.",
@@ -214,9 +206,9 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000001014",
-      "typeId": "3fede9ca-bc25-56c7-92cb-91e0ceac1782",
-      "fromId": "7a000000-0000-4000-8000-000000000012",
-      "toId": "7a000000-0000-4000-8000-000000000003",
+      "typeId": "onto:alternative_for",
+      "fromId": "onto:Product:synthetic-lumen-tuner",
+      "toId": "onto:Offering:synthetic-northwind-fine-tuning",
       "properties": {
         "status": "proposed",
         "evidence": "Synthetic example.",

@@ -367,6 +367,8 @@ function validateEdges(
 export type ChangeHistory = {
   /** Internal domain guard and finalization, atomic with the graph commit. */
   precondition?: SQL;
+  /** Check domain constraints against the same graph that the commit fences. */
+  validateGraph?: (graph: Graph) => void;
   finalize?: (receipt: Receipt, gate: SQL) => SQL[];
   batchId?: string;
   proposedBy?: string;
@@ -441,6 +443,7 @@ export async function applyGraphChanges(
   // A concurrent identical request may have committed while the graph was read.
   const concurrent = await savedReceipt();
   if (concurrent) return replay(concurrent);
+  history.validateGraph?.(graph);
   for (const condition of input.preconditions ?? []) {
     const current = records(graph)[condition.type].find(row => row.id === condition.id);
     if (!current || current.revision !== condition.revision)

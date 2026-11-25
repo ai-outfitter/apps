@@ -8,6 +8,9 @@ on:
         description: JSON array of released package paths needing archive recovery
         required: true
         type: string
+      tags:
+        description: Optional JSON map from package paths to older release tags
+        type: string
 permissions:
   contents: write
   issues: write
@@ -33,11 +36,11 @@ jobs:
         if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         with:
           node-version: 24
-      - run: npm ci
-        if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
       - name: Attach public npm package archives to component releases
         if: steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           RELEASE_PATHS: ${{ steps.release.outputs.paths_released || inputs.paths }}
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
+          RECOVERY_TAGS: ${{ inputs.tags }}
         run: node scripts/publish-sdk-archives.mjs

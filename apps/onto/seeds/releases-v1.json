@@ -238,11 +238,11 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7a000000-0000-4000-8000-000000000001"
+            "onto:Release"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000015",
-            "71000000-0000-4000-8000-000000000056"
+            "onto:Product",
+            "onto:Offering"
           ]
         }
       },
@@ -259,11 +259,11 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7a000000-0000-4000-8000-000000000001",
-            "71000000-0000-4000-8000-000000000056"
+            "onto:Release",
+            "onto:Offering"
           ],
           "to": [
-            "71000000-0000-4000-8000-000000000016"
+            "onto:CustomerSegment"
           ]
         }
       },
@@ -281,7 +281,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7a000000-0000-4000-8000-000000000001"
+            "onto:Release"
           ],
           "to": "any"
         }
@@ -306,7 +306,7 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7a000000-0000-4000-8000-000000000001"
+            "onto:Release"
           ],
           "to": "any"
         }
@@ -323,10 +323,10 @@
         "version": 2,
         "endpoints": {
           "from": [
-            "7a000000-0000-4000-8000-000000000001"
+            "onto:Release"
           ],
           "to": [
-            "76000000-0000-4000-8000-000000000002"
+            "onto:ProductRevision"
           ]
         }
       },
@@ -336,7 +336,7 @@
   "nodes": [
     {
       "id": "7a000000-0000-4000-8000-000000000010",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "release-scope",
       "title": "Release scope",
       "summary": "Read one release: its product, customers, problems, measures, in-scope and out-of-scope work, and the acceptance criteria behind that work.",
@@ -345,7 +345,7 @@
     },
     {
       "id": "7a000000-0000-4000-8000-000000000011",
-      "typeId": "16ae7b75-1acb-4db9-9872-860ef61045c9",
+      "typeId": "onto:ArtifactDefinition",
       "slug": "press-release",
       "title": "Press release",
       "summary": "Render one Release as a working-backwards press release with its in-scope and out-of-scope lists.",
@@ -355,7 +355,7 @@
     },
     {
       "id": "7b000000-0000-4000-8000-000000000010",
-      "typeId": "71000000-0000-4000-8000-000000000066",
+      "typeId": "onto:KnowledgeGraph",
       "slug": "product-chain",
       "title": "Product chain",
       "summary": "Follow one release to the revision that delivers it, the product it revises, the offerings that package that product and their customers, with the revision's evidence.",
@@ -366,9 +366,9 @@
   "edges": [
     {
       "id": "7a000000-0000-4000-8000-000000000020",
-      "typeId": "08755272-8498-4671-8f63-ec97acc97f76",
-      "fromId": "7a000000-0000-4000-8000-000000000011",
-      "toId": "7a000000-0000-4000-8000-000000000010"
+      "typeId": "onto:uses_view",
+      "fromId": "onto:ArtifactDefinition:press-release",
+      "toId": "onto:KnowledgeGraph:release-scope"
     }
   ]
 }

@@ -1,0 +1,120 @@
+{
+  "runner": "v24.22.2",
+  "git": "git version 2.56.0",
+  "appsHead": "fd16729d84660f17a8a70e50e4465e02e3d9a301",
+  "appsWorkingTreeClean": true,
+  "webappHead": "cb08841a2bdf4d7993a295b7cb24d2e0bb0583cf",
+  "webappWorkingTreeClean": true,
+  "fixtureSha256": {
+    "run.mjs": "70ebf72f8386ef8f10c692c87803bfb6bff8d5a9833e577dc410ff4569ef09b4",
+    "github-fixture.mjs": "57e523d9cb82cbf96a8a845f869d3e49a9999d57e80bfc3f50752468c88d4b9b",
+    "foundry-job.mjs": "6d65a9c41a709961f90ddf1a0a3f738d947d3f0caaffa49904558d99814dc3c6",
+    "foundry-dispatch.mjs": "d3ce0c304a752a2cd5e664b9f16c22bbb8021b2ebb13b508f9bb1035d595d1df"
+  },
+  "job": {
+    "id": "community-template-audit",
+    "slot": "check.outputs.report",
+    "completedRuns": 6,
+    "route": "/api/apps/software-foundry/jobs"
+  },
+  "providerRequests": 329,
+  "providerMutations": 12,
+  "wallMs": 12811,
+  "forgejoDrafts": [
+    {
+      "fixtureRepository": "missing/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "c5810d1efc3195d44d90001e02b9f2c8c691a7b9"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "b1f91499819823bca3e2b1339f91a71b1ab7b659"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+          "status": "added"
+        },
+        {
+          "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+          "status": "added"
+        },
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "custom/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "47d84922fb4874f66654f1f963040d8581dcba31"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "0e76061b2a3254744563b902e903122759e44580"
+      },
+      "files": [
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "team/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "87784585d5e8bb035c87b012ce5b142e0f1200ad"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "57b7eecd6ab39c498c0639066673b15f9f89baa1"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "blank/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "446ffbda794aa5b0e7f7cecbf7d344f689a179d0"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "f91ffda8b935778ac68f212cfe72fc9e5b598851"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+          "status": "modified"
+        },
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "modified"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    }
+  ],
+  "forgejoVersion": "11.0.16",
+  "forgejoImageId": "sha256:b04f7655e931b23f750e973c18b7ed3c4719a0874b814ec50a69bdd94ae13b41",
+  "forgejoBridgeSha256": "d7f1d17c8a5e7936367d1b587969e83c6c14acc1f75be63d6729667ebe0bf42e"
+}

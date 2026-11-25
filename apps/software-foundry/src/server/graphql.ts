@@ -1,3 +1,4 @@
+import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
@@ -147,6 +148,10 @@ const jobResult = new GraphQLObjectType({ name: "FoundryJobResult", description:
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
+    planWork: mutationField<typeof planWorkInput, FoundryContext>({
+      name: "PlanWork", input: planWorkInput, run: planWork,
+      description: "Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.",
+    }),
     submitReleaseEvidence:mutationField<typeof submitReleaseEvidenceInput,FoundryContext>({name:"SubmitReleaseEvidence",description:"Reserve expiring presigned R2 PUT URLs for immutable release evidence assets. Uploads verify size, digest and file type. Repeat the same keys to read completion receipts. This never approves or deploys a release.",input:submitReleaseEvidenceInput,run:submitReleaseEvidence}),
     submitRequest: mutationField<typeof requestInput, FoundryContext>({
       name: "SubmitRequest", description: requestDescriptionText, input: requestInput, output: nonNull(submittedRequest),
@@ -166,7 +171,7 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
     }),
     runJob: mutationField<typeof jobInput, FoundryContext>({
       name: "RunJob",
-      description: "Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.",
+      description: "Start a repository job now. Community-template-audit saves a read-only coverage report. Dependency-review, architecture-reanalysis and ui-review use workspace agents to file issues. Owners and admins only.",
       input: jobInput, output: nonNull(jobResult),
       run: runJob,
     }),
@@ -190,7 +195,12 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
  * shipped (merged pull requests, read live from GitHub), and
  * the writes its documents (src/server/documents.ts) run. */
 const baseGraphqlSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({ name: "Query", fields: { ...work, ...projects, ...changes } }),
+  query: new GraphQLObjectType({ name: "Query", fields: { ...work, ...projects, ...changes,
+    foundryPlan: mutationField<typeof findPlanInput, FoundryContext>({
+      name: "FindFoundryPlan", input: findPlanInput, run: findPlan,
+      description: "Read your stored plan with its run, exact sources and issue receipt.",
+    }),
+  } }),
   mutation,
 });
 

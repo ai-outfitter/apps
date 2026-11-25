@@ -71,7 +71,7 @@ test("shared graph freezes dependencies, reviews writes, reports stale candidate
     await call("batch.submit", { batchId });
     const response = await app.call("/api/apps/onto/batches/review", owner, {
       method: "POST",
-      body: { batchId, verdict: "approve" },
+      body: { batchId, expectedVersion: 1, verdict: "approve" },
     });
     assert.equal(response.status, 200, await response.text());
   };

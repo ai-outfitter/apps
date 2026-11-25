@@ -12,6 +12,11 @@ This is the existing caller path. A repository includes
 [check workflow](../.github/workflows/check.yml) validates the pin and checks out
 that public source before running the caller's locked install and app scripts.
 Workflow and composite Action pins remain separate from the SDK source pin.
+The pinned checkout already contains the generated standard graph snapshots.
+Consumers can import `@ai-outfitter/app-sdk/graph/standard-types.json` and use
+`import.meta.resolve("@ai-outfitter/app-sdk/graph/standard-schema.graphql")` to
+locate the GraphQL SDL. The typed GraphQL entry point uses the bundled
+introspection declarations.
 
 The current [personal apps caller](https://github.com/ncrmro/outfitter-apps/blob/main/.outfitter/apps.json)
 pins `52adcbeae4dd8ea20ee8e02e84b4a34fbfe410e8`. Its
@@ -49,8 +54,11 @@ adapter to compensate for missing npm versions.
 The [SDK release workflow](../.github/workflows/sdk-releases.yml) runs
 release-please and attaches `npm pack` archives to component releases through
 [publish-sdk-archives.mjs](../scripts/publish-sdk-archives.mjs). It does not run
-`npm publish` or activate apps. Recovery checks the package source against its
-release tag before attaching an archive; an existing asset is left unchanged.
+`npm publish` or activate apps. Archives are built from the release tag using its lockfile and attached only
+when the asset is missing. For recovery, supply the package paths to the
+workflow dispatch. The optional `tags` JSON object maps a package path to its
+older tag when recovering a version other than the one on the dispatch
+branch.
 
 Verified release assets on 2026-11-07 include:
 

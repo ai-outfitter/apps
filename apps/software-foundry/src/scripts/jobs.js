@@ -14,6 +14,9 @@ import {
 // run's one record is the batch of issues it filed.
 const REPOSITORY_INPUT = "analyze.inputs.repository";
 const ISSUES_OUTPUT = "analyze.outputs.issues";
+const TEMPLATE_AUDIT = "community-template-audit";
+const TEMPLATE_REPOSITORY = "check.inputs.repository";
+const TEMPLATE_REPORT = "check.outputs.report";
 const JOBS = "/api/apps/software-foundry/jobs";
 const statuses = {
   running: "In progress",
@@ -40,7 +43,17 @@ function issuesCell(run) {
   return cell;
 }
 
-function runRow(run) {
+function templateResult(run, url) {
+  const cell = document.createElement("td");
+  if (run.rows?.[TEMPLATE_REPORT]?.complete) {
+    const link = text("a", "View report");
+    link.href = url;
+    cell.append(link);
+  } else cell.textContent = run.dispatch?.error || "—";
+  return cell;
+}
+
+function runRow(run, job) {
   const row = document.createElement("tr");
   const started = document.createElement("td");
   const when = new Date(run.createdAt).toLocaleString();
@@ -50,9 +63,9 @@ function runRow(run) {
   started.append(link);
   row.append(
     started,
-    text("td", run.inputs?.[REPOSITORY_INPUT] ?? ""),
+    text("td", run.inputs?.[job === TEMPLATE_AUDIT ? TEMPLATE_REPOSITORY : REPOSITORY_INPUT] ?? ""),
     text("td", statuses[run.status] ?? run.status),
-    issuesCell(run),
+    job === TEMPLATE_AUDIT ? templateResult(run, link.href) : issuesCell(run),
   );
   return row;
 }
@@ -64,7 +77,7 @@ async function loadRuns(job) {
     const { items } = await api(
       `/api/workflow-runs?workflow=${encodeURIComponent(job)}`,
     );
-    table.replaceChildren(...items.map(runRow));
+    table.replaceChildren(...items.map((run) => runRow(run, job)));
     empty.hidden = items.length > 0;
   } catch (error) {
     empty.hidden = false;
@@ -139,7 +152,9 @@ async function run(button) {
   button.textContent = "Starting…";
   await changeJob(
     { action: "run", job, repository: select.value },
-    `Started on ${select.value}. Issues appear here as the agent files them.`,
+    job === TEMPLATE_AUDIT
+      ? `Saved the contributor template audit for ${select.value}.`
+      : `Started on ${select.value}. Issues appear here as the agent files them.`,
   );
   button.textContent = "Run now";
   button.disabled = false;
@@ -181,7 +196,7 @@ async function initialize(signal) {
     return;
   }
   notice.textContent =
-    "Each run files a few issues, and Foundry fixes and merges each one. The next run retries a fix that stopped, and closes an issue after three failed attempts.";
+    "Select a repository to run a job. The template audit saves its findings. Jobs that file issues can start Foundry fixes.";
   select.disabled = false;
   for (const button of buttons) {
     button.disabled = false;

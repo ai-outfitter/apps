@@ -12,6 +12,8 @@ export const BuildManifestSchema = z.object({
  tests:z.array(z.object({name:z.string().max(200),status:z.enum(["pass","fail","unverified"]),detail:z.string().max(2000)}).strict()).max(200),
  notes:z.string().max(5000), startedAt:z.iso.datetime(), finishedAt:z.iso.datetime(),
 }).strict().superRefine((m,c)=>{
+ if(m.assembly.items.some(i=>i.cotsEvidence || i.cotsEvidenceRef))
+  c.addIssue({code:"custom",message:"Record or link purchased-part evidence on the authored assembly, not in a build manifest"});
  if(m.assembly.items.some(i=>i.reference))c.addIssue({code:"custom",message:"Build manifests must capture resolved geometry and loads for immutable playback"});
  const paths=new Set(m.artifacts.map(a=>a.path));
  if(!m.artifacts.some(a=>a.path.endsWith("/source.tar")&&a.sha256===m.sourceHash))c.addIssue({code:"custom",message:"Source archive must match sourceHash"});

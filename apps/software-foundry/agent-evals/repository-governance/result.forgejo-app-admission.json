@@ -1,0 +1,118 @@
+{
+  "runner": "v24.22.2",
+  "git": "git version 2.56.0",
+  "appsHead": "0c34db3d6527266e2e10e9f66ba22f4b35233f14",
+  "webappHead": "8da3e64542f7975a88f4f913294f9dfc9738e84b",
+  "appsWorkingTreeClean": true,
+  "webappWorkingTreeClean": true,
+  "fixtureSha256": {
+    "run.mjs": "e4b821bef5f282acf747bd223c7c2d96036f0d1241678914bcef734f102efff8",
+    "github-fixture.mjs": "f30a3099f937fea6e9a60fdd660b7de3f9733fe0f3a5d78b4440a50733069ccb",
+    "foundry-job.mjs": "36900e7843da09a6629a8bcbf020ce604299ba062677d29d1f4f4e15bb102a4c",
+    "foundry-dispatch.mjs": "d3ce0c304a752a2cd5e664b9f16c22bbb8021b2ebb13b508f9bb1035d595d1df"
+  },
+  "job": {
+    "id": "community-template-audit",
+    "slot": "check.outputs.report",
+    "completedRuns": 6,
+    "route": "/api/apps/software-foundry/jobs"
+  },
+  "providerRequests": 407,
+  "installationTokenMints": 7,
+  "providerMutations": 12,
+  "wallMs": 15904,
+  "forgejoDrafts": [
+    {
+      "fixtureRepository": "missing/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "5808b3ff4d8f1ba48a1522de99411255c6982474"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "b1f91499819823bca3e2b1339f91a71b1ab7b659"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+          "status": "added"
+        },
+        {
+          "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+          "status": "added"
+        },
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "custom/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "992f471e0e8299d4d765c07389e8f3c71b0d2aea"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "0e76061b2a3254744563b902e903122759e44580"
+      },
+      "files": [
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "team/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "5aafa6c6fb7afc96cea7434ed237ff881cf7d93d"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "57b7eecd6ab39c498c0639066673b15f9f89baa1"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/feature_request.md",
+          "status": "added"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    },
+    {
+      "fixtureRepository": "blank/repo",
+      "head": {
+        "ref": "outfitter/community-templates",
+        "sha": "3bde849945990183ee075f3151512d9626d0c38c"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "f91ffda8b935778ac68f212cfe72fc9e5b598851"
+      },
+      "files": [
+        {
+          "filename": ".github/ISSUE_TEMPLATE/bug_report.md",
+          "status": "modified"
+        },
+        {
+          "filename": ".github/pull_request_template.md",
+          "status": "modified"
+        }
+      ],
+      "draft": true,
+      "state": "open",
+      "number": 1
+    }
+  ]
+}

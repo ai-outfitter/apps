@@ -13,8 +13,11 @@ export function graphBatchGuard(graph: Graph, userId: string, guardId: string) {
 
 export async function guardedGraphBatch(db: Database, who: AppIdentity, graph: Graph, statements: SQL[], message: string) {
   const guardId = `snapshot:${crypto.randomUUID()}`;
-  const queries = [graphBatchGuard(graph, who.userId, guardId), ...statements,
-    sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guardId}`];
+  await guardedBatch(db, [graphBatchGuard(graph, who.userId, guardId), ...statements,
+    sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guardId}`], message);
+}
+
+export async function guardedBatch(db: Database, queries: SQL[], message: string) {
   // Wiki's operational and local-development stores both use the D1 adapter.
   const client = (db as ReturnType<typeof installationDatabase>).$client;
   try {

@@ -3,6 +3,24 @@
     "apps/*"
   ],
   "validation": "scripts",
+  "sharedInputs": [
+    "apps/*/graph/**/*.ts",
+    "apps/*/seeds/*.json",
+    "apps/onto/fixtures/competitors.json",
+    "scripts/compose-graphs.ts",
+    "packages/app-sdk/src/graph-authoring.ts",
+    "packages/app-sdk/src/graph-contracts/*.ts",
+    "packages/app-sdk/src/graph-graphql*.ts",
+    "packages/app-sdk/graph/standard-*"
+  ],
+  "sharedInputApps": [
+    "apps/creative-team",
+    "apps/forerunner",
+    "apps/onto",
+    "apps/planning",
+    "apps/video-production",
+    "apps/workshop"
+  ],
   "commands": [
     "check",
     "test",

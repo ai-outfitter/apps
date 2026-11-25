@@ -10,6 +10,14 @@ import { graphqlSchema } from "./graphql";
 import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
+  PlanWork: {
+    story: "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
+    document: `mutation PlanWork($input:PlanWorkInput!){planWork(input:$input)}`,
+  },
+  FoundryPlan: {
+    story: "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
+    document: `query FoundryPlan($input:FindFoundryPlanInput!){foundryPlan(input:$input)}`,
+  },
   SubmitReleaseEvidence:{
     story:"As an authorized editor, I want presigned upload URLs for release evidence assets, so that I can transfer verified files without sending their bytes through MCP or approving a release.",
     document:graphql(`mutation SubmitReleaseEvidence($input:SubmitReleaseEvidenceInput!){submitReleaseEvidence(input:$input)}`),
@@ -38,6 +46,8 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
+  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."},
+  FoundryPlan:{description:"Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."},
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."
@@ -46,7 +56,7 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
     "description": "Turn Foundry execution on for a repository (action enable, input {repository}): approves Foundry's role agents and subscribes to the repository's issues, so RequestChanges there starts work instead of answering that execution is not configured. Repeat to refresh after a Foundry change. Owners and admins only; use a new item key each time."
   },
   "JobChanges": {
-    "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Owners and admins only; use a new item key each time."
+    "description": "Run or schedule Foundry's repository jobs, which read a repository and file issues: dependency-review (weekly), architecture-reanalysis (monthly) and ui-review (weekly). Action run {job, repository} starts one now; action schedule {job, repository, enabled?} saves the job's one schedule on its cadence (enabled false pauses it). Each approves the job's workspace agent on the repository first. Run community-template-audit to save a read-only contributor template report in its workflow run. Owners and admins only; use a new item key each time."
   },
   "RequestChanges": {
     "description": "File feature or bug requests (kind, title, problem, acceptance criteria with ids, and bug details for bugs; strict JSON Schema, the same work request the Foundry box reads). Each opens a GitHub issue in the named repository or Foundry project and starts Foundry's issue-to-merge workflow. Returns the issue and run; if execution is unavailable the issue is still recorded with execution details. Retry with the same requestId; use a new item key. Action resume {requestId, resumeId} starts a request's failed or awaiting-details run again on the same issue."
