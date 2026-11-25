@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
+import {inspectionLink, sizingConfigurations} from "../src/lib/inspection-links";
+import {resolveAssembly} from "../src/lib/assembly-resolution";
 import { AssemblySchema } from "../src/lib/assembly";
 import { immediatePath, inspectionOccurrences, inspectionOffsets } from "../src/lib/assembly-inspection";
 
@@ -30,7 +32,7 @@ test("tier 2 field instrument keeps repeated rotated cartridges separate, with o
   assert.equal(JSON.stringify(view),snapshot);
 });
 
-import {inspectionLink} from "../src/lib/inspection-links";
+
 test("old bookmarks recover the real variant while genuine configurations and unrelated parameters survive",()=>{
   const base = randomUUID();
   const project = AssemblySchema.parse({rootId:base,items:[{id:base,kind:"assembly",name:"Node",number:"Node",revision:"A"}],configurations:[{name:"alpha",rootId:base},{name:"Assembled",rootId:base}]});
@@ -43,4 +45,24 @@ test("old bookmarks recover the real variant while genuine configurations and un
   assert.equal(inspectionLink(project,new URLSearchParams("configuration=unrelated-exploded")),undefined);
   project.configurations!.push({name:"Exploded",rootId:base});
   assert.equal(inspectionLink(project,new URLSearchParams("configuration=Exploded")),undefined);
+});
+
+
+test("an unpinned referenced old inspection name resolves to a current physical variant", async () => {
+  const [product, part, owner, refId] = Array.from({length:4},()=>randomUUID());
+  const record = (id:string,name:string) => ({id,kind:"assembly",name,number:name,revision:"A"});
+  const partSource = {id:owner,name:"Sensor module",revision:4,assembly:AssemblySchema.parse({
+    rootId:part,items:[record(part,"Cartridge")],configurations:[{name:"field",rootId:part}]
+  })};
+  const consumer = {id:product,name:"Instrument",revision:2,assembly:AssemblySchema.parse({
+    rootId:refId,items:[{...record(refId,"Installed sensor"),reference:{projectId:owner,configuration:"field-exploded",parameters:{Explode:1}}}]
+  })};
+  const result = await resolveAssembly(consumer,async () => partSource);
+  assert.equal(result.sources[0].configuration,"field");
+  assert.equal(result.assembly.rootId,refId);
+  const knob = {name:"Explode",min:0,max:1,defaultValue:0,placements:[]};
+  partSource.assembly.configurations![0].parameters=[knob];
+  assert.equal(sizingConfigurations(partSource.assembly)?.[0].parameters?.length,1);
+  partSource.assembly.configurations!.push({name:"field-exploded",rootId:part,parameters:[{...knob,defaultValue:1}]});
+  assert.deepEqual(sizingConfigurations(partSource.assembly)?.map(c=>[c.name,c.parameters?.length]),[["field",0]]);
 });

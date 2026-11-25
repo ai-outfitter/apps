@@ -53,7 +53,7 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
  const isStale=p.revision!==r.baseRevision+2;
  const success=Boolean(i.manifest)&&!i.manifest!.tests.some(t=>t.status==="fail");
  const result={...(i.manifest?{manifest:i.manifest}:{}),...(i.error?{error:i.error}:{}),artifactBase:`/files/main/builds/${p.id}/${r.id}/`,stale:isStale};
- const authored = p.assembly.items.some(item=>item.reference || item.cotsEvidence || item.cotsEvidenceRef || item.operations?.length || item.uses.some(use=>use.joint) || item.driveMotion || item.files?.length) || Boolean(p.assembly.configurations?.length);
+ const authored = p.assembly.items.some(item=>item.reference || item.cotsEvidence || item.cotsEvidenceRef || item.operations?.length || item.uses.some(use=>use.joint || use.explode) || item.driveMotion || item.files?.length) || Boolean(p.assembly.configurations?.length);
  const saved = await updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale&&!authored?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
  // Analysis is advisory and may wait for a runner. Persist the verified build first.
  for (const artifact of i.manifest?.artifacts ?? []) {
