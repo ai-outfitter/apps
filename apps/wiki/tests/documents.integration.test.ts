@@ -206,7 +206,8 @@ test("exact Wiki activity links open only the installed member's authored docume
   const legacy = "/revision/legacy/legacy-draft?revision=1";
   await app.database.batch([
     app.database.prepare("INSERT INTO graph_nodes(id,typeId,slug,title,revision,createdAt,updatedAt) VALUES('legacy-draft',(SELECT id FROM graph_types WHERE name='Document'),'draft','Head',2,1,2)"),
-    app.database.prepare("INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,snapshot,createdAt) VALUES('graph-node','legacy-draft',1,'fixture','{}','{"title":"Legacy revision","body":"Exact legacy body."}',1)"),
+    app.database.prepare("INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,snapshot,createdAt) VALUES('graph-node','legacy-draft',1,'fixture','{}',?,1)")
+      .bind(JSON.stringify({ title: "Legacy revision", body: "Exact legacy body." })),
   ]);
   const prior = await app.call(legacy, member);
   assert.equal(prior.status, 200);
