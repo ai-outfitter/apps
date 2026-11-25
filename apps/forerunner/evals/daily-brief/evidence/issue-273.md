@@ -315,3 +315,19 @@ Candidate `08121bc19a3532aa6888ad9dba76626941023c5d`. live-spark. GLM-5.3-Flash-
 - Baseline, `nov25-auth-isolation / morning`. requested-half-open-chicago-window. Expected true. Observed false. wiki-coverage-count-in-prompt. Expected 0. Observed null. onto-counts-present-before-model. Expected true. Observed false.
 
 - Baseline, `nov01-chicago-dst / morning`. requested-half-open-chicago-window. Expected true. Observed false. wiki-coverage-count-in-prompt. Expected 0. Observed null.
+
+## Final replay through installed apps
+
+The final adapter builds Onto and Wiki on each revision and dispatches their installed schedule and document routes through the app-test host. Forerunner's schedule handler uses synthetic member-authorized inputs in both arms. The fixture federation holds two authorized stores and one unshared store. The separate Forerunner browser run, Wiki revision-link test, and webapp scheduler replay cover the installed UI and host boundaries.
+
+| Replay | Baseline `5b00772` | Candidate `9501337f` |
+| --- | ---: | ---: |
+| Deterministic checks | 86/135 | 135/135 |
+| Spark checks | 118/172 | 172/172 |
+| Parseable Spark responses | 10/10 | 7/7 |
+| Cumulative client time for Spark calls | 162.182 s | 119.930 s |
+
+- Deterministic receipts [baseline](issue-273-installed-baseline-dry.json), [candidate](issue-273-installed-candidate-dry.json).
+- Spark receipts [baseline](issue-273-installed-baseline-spark.json), [candidate](issue-273-installed-candidate-spark.json). Both use GLM-5.3-Flash-EXL3, thinking disabled and a 150-second timeout.
+- The candidate’s authored variant passed 22/22 ready-stage checks. Spark response `chatcmpl-8f6d51a7eab5dd86` completed in 23.802 s, with 1,133 prompt tokens and 649 completion tokens. It no longer attributes both Wiki revisions to the recipient. The app also guards the saved rendering against that unsupported attribution.
+- The mounted Forerunner Today browser fixture produced an actual app failure with no saved document when sources were unavailable. The failed brief slot, reason, Retry button and empty filters were visible. Nine targeted Forerunner integration tests, five Chromium scenarios, and eight Wiki document integration tests passed locally. Ocean was outside these test runs.
