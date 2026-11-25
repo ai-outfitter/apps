@@ -332,7 +332,10 @@ function renderTemplates(result) {
   }
   for (const note of templates.plan.blocked) nodes.push(paragraph(note));
   if (templates.plan.paths.length) {
-    nodes.push(paragraph("Draft changes add ", templates.plan.paths.join(", "), "."));
+    const replacements = templates.plan.replacements ?? [];
+    const additions = templates.plan.paths.filter((path) => !replacements.includes(path));
+    if (additions.length) nodes.push(paragraph("Draft adds ", additions.join(", "), "."));
+    if (replacements.length) nodes.push(paragraph("Draft fills these empty files: ", replacements.join(", "), "."));
     if (templates.canPropose) {
       const button = document.createElement("button");
       button.type = "button";
