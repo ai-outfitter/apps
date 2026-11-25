@@ -30,7 +30,7 @@ import { recordAddress } from "../lib/addresses";
 import { type AdviceRow, adviceInstructions, batchAdvice, type Finding } from "./batch-advice";
 import { askBatch, batchAskInput } from "./batch-questions";
 import { readSettings, saveSettings, settingsInput, type StewardApproval } from "./settings";
-import { addToBatch, batchAddInput, live, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, type BatchSubmissionReceipt } from "./graph-batches";
+import { addToBatch, batchAddInput, live, loadBatch, loadOperations, batchOpenInput, batchRemoveInput, batchSource, batchSubmitInput, getBatch, openBatch, removeFromBatch, submitBatch, reviewBatch, batchReviewInput, batchConfigureInput, configureBatch, validateBatch, batchReviseInput, reviseBatch, pendingReview, mutateBatchSubmission, mutateBatchSubmissionInput, type BatchSubmissionReceipt } from "./graph-batches";
 
 /** What graph.graphql passes to these resolvers; graph.mutate passes the whole action context. */
 export type ChangeContext = { identity: AppIdentity; db: () => ReturnType<typeof installationDatabase>;
@@ -111,14 +111,16 @@ const BatchSubmissionResult = new GraphQLObjectType<BatchSubmissionReceipt, Chan
     counts: json,
     reviewRefs: { type: nonNull(new GraphQLList(nonNull(GraphQLString))), description: "Undecided proposal refs queued for review in this version." },
     reviewUrl: { type: nonNull(GraphQLString), resolve: result => batchReviewUrl(result.id) },
-    reviewRun: { type: JSONScalar },
-    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: result => {
-      const run = result.reviewRun && {
-        id: result.reviewRun.runId,
-        status: result.reviewRun.state,
+    reviewRun: { type: JSONScalar, description: "Run reserved when this submission was accepted. See instructions for the current run to wait on." },
+    instructions: { type: nonNull(new GraphQLList(nonNull(instructionType))), resolve: async (result, _args, context) => {
+      const batch = await loadBatch(context.db(), result.id);
+      const current = await pendingReview(context.db(), result.id);
+      const run = current && {
+        id: current.runId,
+        status: current.state,
         message: "Wait for the steward's workflow run, then read the batch with ChangeBatches to see its review and decisions.",
       };
-      return resultInstructions(result.id, { ...result, ...(run && { run }) }, batchReviewUrl(result.id));
+      return resultInstructions(result.id, { state: batch.state, ...(run && { run }) }, batchReviewUrl(result.id));
     } },
   },
 });
@@ -336,7 +338,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Admins only: change this Onto's settings. stewardApproval approve lets the ontology steward approve what its review of a submitted batch found clean; review leaves every decision to a member.",
       run: (context: MutationContext, input) => saveSettings(context.db(), context.identity, input),
     }),
-    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
+    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion for versioned batches. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     ...creativeMutations,
     ...creativeAddressMutations,

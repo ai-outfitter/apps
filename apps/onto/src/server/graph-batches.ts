@@ -18,7 +18,7 @@ import {
   graphChangeInput,
 } from "./graph-changes";
 import { graphBatches, graphBatchOperations, graphChanges, graphRevisions, ontoReviewJobs } from "./schema";
-import { guardedGraphBatch } from "./graph-batch";
+import { guardedBatch, guardedGraphBatch } from "./graph-batch";
 import { isOrganizationCreate, organizationDuplicates } from "./organization-duplicates";
 import { personalRoot } from "./owner-root";
 import { wikiHome } from "./wiki-home";
@@ -223,6 +223,17 @@ function newRows(batchId: string, existing: OperationRow[], proposals: z.infer<t
   return added;
 }
 
+async function writeDraft(db: Database, who: AppIdentity, batch: BatchRow, existing: OperationRow[], statements: SQL[]) {
+  const guard = `draft:${crypto.randomUUID()}`, now = Date.now();
+  await guardedBatch(db, [
+    sql`INSERT INTO graph_changes(userId,requestKey,hash,attempt,receipt)
+      VALUES(${who.userId},${guard},'draft',CASE WHEN ${batchRowsUnchanged(batch, existing)} AND ${batch.expiresAt} > ${now} THEN ${guard} ELSE NULL END,'{}')`,
+    ...statements,
+    sql`UPDATE graph_batches SET updatedAt=${now} WHERE id=${batch.id}`,
+    sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
+  ], "Batch changed; reload before editing the draft");
+}
+
 export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchAddInput>) {
   requireEntityWriter(who);
   if (input.proposals.some((item) => item.operation.type === "graph-type")) requireEditor(who);
@@ -230,19 +241,15 @@ export async function addToBatch(db: Database, who: AppIdentity, actor: AppActor
   requireOpen(batch, actor);
   await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = await loadOperations(db, batch.id);
+  if (input.replace && existing.some(row => row.operation.type === "graph-type" &&
+      input.proposals.some(item => item.operation.ref === row.ref))) requireEditor(who);
   const added = newRows(batch.id, existing, input.proposals, input.replace);
   const liveRefs = new Set(live(existing).map((row) => row.ref));
   const replaced = added.filter((row) => liveRefs.has(row.ref)).length;
   const operations = liveRefs.size + added.length - replaced;
   if (operations > batchOperationCap)
     fail(`A batch holds at most ${batchOperationCap} operations`, 413);
-  // One round trip; a row per statement stays under D1's bound-parameter limit.
-  const inserts = added.map((row) => db.insert(graphBatchOperations).values(row).onConflictDoUpdate({
-    target: [graphBatchOperations.batchId, graphBatchOperations.ref],
-    set: { position: row.position, operation: row.operation, evidence: row.evidence, confidence: row.confidence, reason: row.reason, state: "pending" },
-  }));
-  if (inserts.length) await db.batch(inserts as [typeof inserts[number], ...typeof inserts]);
-  await touch(db, batch.id, {});
+  if (added.length) await writeDraft(db, who, batch, existing, writeProposals(batch.id, added, []));
   return { batchId: batch.id, added: added.length - replaced, operations };
 }
 
@@ -250,9 +257,9 @@ export async function removeFromBatch(db: Database, who: AppIdentity, actor: App
   requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
   requireOpen(batch, actor);
-  await db.update(graphBatchOperations).set({ state: "removed" })
-    .where(and(eq(graphBatchOperations.batchId, batch.id), inArray(graphBatchOperations.ref, input.refs)));
-  await touch(db, batch.id, {});
+  const existing = await loadOperations(db, batch.id);
+  if (existing.some(row => row.operation.type === "graph-type" && input.refs.includes(row.ref))) requireEditor(who);
+  await writeDraft(db, who, batch, existing, writeProposals(batch.id, [], input.refs));
   return getBatch(db, who, { batchId: batch.id });
 }
 
@@ -302,7 +309,7 @@ function createdIds(rows: OperationRow[]) {
 }
 
 /** Replace refs to already committed operations with their record IDs. */
-function resolveCommitted(row: OperationRow, committed: Map<string, string>): Operation {
+export function resolveCommitted(row: OperationRow, committed: Map<string, string>): Operation {
   const op = structuredClone(asOperation(row));
   for (const field of ["typeId", "fromId", "toId"]) {
     const value = op.attributes[field];
@@ -373,7 +380,7 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
  * decisions against another reviewer or writer without relying on timestamps. */
 function reviewedRowsUnchanged(batch: BatchRow, rows: OperationRow[]) {
   const snapshot = JSON.stringify(rows.map(row => ({ ...row, operation: JSON.stringify(row.operation), evidence: JSON.stringify(row.evidence) })));
-  return sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state} and reviewJobId is ${batch.reviewJobId})
+  return sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state} and submittedVersion=${batch.submittedVersion} and reviewJobId is ${batch.reviewJobId})
     and not exists (select 1 from json_each(${snapshot}) e left join graph_batch_operations r
       on r.batchId=${batch.id} and r.ref=json_extract(e.value,'$.ref') where r.ref is null
       or r.state is not json_extract(e.value,'$.state') or r.operation is not json_extract(e.value,'$.operation')
@@ -431,9 +438,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   }
   const now = Date.now();
   const contentDigest = await batchContentDigest(rows);
-  // The draft's own review carries over when nothing changed since it was queued.
-  const [draft] = batch.reviewJobId ? await db.select().from(ontoReviewJobs).where(eq(ontoReviewJobs.id, batch.reviewJobId)) : [];
-  const reused = draft && draft.contentDigest === contentDigest && ["pending", "running", "complete"].includes(draft.state) ? draft.id : null;
+  const reused = (await reusableDraftReview(db, batch, contentDigest))?.id ?? null;
   const jobId = reused ?? crypto.randomUUID();
   // D1 batch executes these statements atomically: no submitted batch can lose its review work.
   const guard = `submit:${crypto.randomUUID()}`;
@@ -452,7 +457,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
       VALUES(${jobId},${batch.id},${contentDigest},'pending',${now},${now},${crypto.randomUUID()})`]),
     sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
   ], "Batch or graph changed; reload before submitting");
-  const submitted = { ...batch, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
+  const submitted = { ...batch, submittedVersion: 1, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run" || policy.kind === "confidence") {
     const eligible = new Set(waiting.filter(row => policy.kind === "first-run" || (row.confidence ?? 0) >= policy.threshold).map(row => row.ref));
@@ -461,16 +466,23 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
     await commitByPolicy(db, who, submitted, waiting, chosen, policyApproval(policy, policy.kind));
   }
   await settle(db, batch.id);
-  // A draft review that carried over and has finished (read after the submit, so one that
-  // finished meanwhile counts): the steward decides now. One still running decides when it ends.
-  if (reused) {
-    const [[job], [fresh]] = await Promise.all([
-      db.select({ state: ontoReviewJobs.state }).from(ontoReviewJobs).where(eq(ontoReviewJobs.id, jobId)),
-      db.select({ review: graphBatches.review }).from(graphBatches).where(eq(graphBatches.id, batch.id)),
-    ]);
-    if (job?.state === "complete" && fresh?.review?.state === "complete") await approveAfterReview(db, who, batch.id, jobId, fresh.review);
-  }
+  if (reused) await approveCompletedDraftReview(db, who, batch.id, reused);
   return getBatch(db, who, { batchId: batch.id });
+}
+
+async function reusableDraftReview(db: Database, batch: BatchRow, digest: string) {
+  if (batch.state !== "open" || !batch.reviewJobId) return;
+  const [draft] = await db.select().from(ontoReviewJobs).where(eq(ontoReviewJobs.id, batch.reviewJobId));
+  if (draft?.contentDigest === digest && ["pending", "running", "complete"].includes(draft.state)) return draft;
+}
+
+async function approveCompletedDraftReview(db: Database, who: AppIdentity, batchId: string, jobId: string) {
+  const [[job], fresh] = await Promise.all([
+    db.select({ state: ontoReviewJobs.state }).from(ontoReviewJobs).where(eq(ontoReviewJobs.id, jobId)),
+    loadBatch(db, batchId),
+  ]);
+  if (job?.state === "complete" && fresh.review?.state === "complete")
+    await approveAfterReview(db, who, batchId, jobId, fresh.review);
 }
 
 /** A policy subset that fails validation commits nothing and waits for a member. */
@@ -549,7 +561,7 @@ async function proposedRows(db: Database, who: AppIdentity, batchId: string, bat
   return { existing, written, rows };
 }
 
-function batchRowsUnchanged(batch: BatchRow, existing: OperationRow[]) {
+export function batchRowsUnchanged(batch: BatchRow, existing: OperationRow[]) {
   // Compare raw JSON text in SQLite using one bound snapshot, below D1's parameter limit.
   const snapshot = JSON.stringify(existing.map(row => ({ ...row, operation: JSON.stringify(row.operation), evidence: JSON.stringify(row.evidence) })));
   return sql`exists (select 1 from graph_batches where id=${batch.id} and state=${batch.state}
@@ -570,7 +582,7 @@ function writeProposals(batchId: string, written: OperationRow[], remove: string
   if (remove.length) statements.push(sql`UPDATE graph_batch_operations SET state='removed' WHERE batchId=${batchId} AND ref IN (SELECT value FROM json_each(${JSON.stringify(remove)}))`);
   for (const row of written) statements.push(sql`INSERT INTO graph_batch_operations(batchId,ref,position,operation,evidence,confidence,reason,state)
     VALUES(${row.batchId},${row.ref},${row.position},${JSON.stringify(row.operation)},${JSON.stringify(row.evidence)},${row.confidence},${row.reason},${row.state})
-    ON CONFLICT(batchId,ref) DO UPDATE SET operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state`);
+    ON CONFLICT(batchId,ref) DO UPDATE SET position=excluded.position,operation=excluded.operation,evidence=excluded.evidence,confidence=excluded.confidence,reason=excluded.reason,state=excluded.state`);
   return statements;
 }
 
@@ -701,8 +713,11 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   const reviewRefs = nextRows.filter(row => row.state === "awaiting_review").map(row => row.ref);
   if (!reviewRefs.length && batch?.state !== "awaiting_review") fail("A submission needs at least one pending proposal");
   const state = reviewRefs.length ? "awaiting_review" : counts.rejected && !counts.committed ? "rejected" : "committed";
-  const reviewRun = reviewRefs.length ? { runId: crypto.randomUUID(), state: "pending" as const } : null;
-  const jobId = reviewRun ? crypto.randomUUID() : null;
+  const contentDigest = await batchContentDigest(nextRows);
+  const reused = batch ? await reusableDraftReview(db, batch, contentDigest) : undefined;
+  const jobId = reused?.id ?? (reviewRefs.length ? crypto.randomUUID() : null);
+  const runId = reused ? (reused.state === "complete" ? null : reused.runId) : jobId ? crypto.randomUUID() : null;
+  const reviewRun = runId ? { runId, state: "pending" as const } : null;
   const title = batch?.title ?? input.title!;
   const receipt = { id: batchId, title, submittedVersion: version, state, counts, reviewRefs, reviewRun };
   const summary = { ...summarize(nextRows, new Map(graph.types.map(type => [type.id, type.name]))),
@@ -726,11 +741,13 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
     submissionStatement(batchId, version, nextRows, who.userId, actor, now),
     sql`UPDATE graph_batch_operations SET state='awaiting_review' WHERE batchId=${batchId} AND state='pending'`,
     sql`UPDATE graph_batches SET submittedVersion=${version},state=${state},summary=${JSON.stringify(summary)},
-      reviewBy=${reviewRun ? batch?.reviewBy ?? null : null},review=NULL,reviewJobId=${jobId},updatedAt=${now},closedAt=${reviewRun ? null : now} WHERE id=${batchId}`,
+      reviewBy=${jobId ? batch?.reviewBy ?? null : null},review=CASE WHEN ${Boolean(reused)} THEN review ELSE NULL END,
+      reviewJobId=${jobId},updatedAt=${now},closedAt=${jobId ? null : now} WHERE id=${batchId}`,
   );
-  if (reviewRun) statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
-    VALUES(${jobId},${batchId},${await batchContentDigest(nextRows)},'pending',${now},${now},${reviewRun.runId})`);
+  if (jobId && !reused) statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
+    VALUES(${jobId},${batchId},${contentDigest},'pending',${now},${now},${runId})`);
   await guardedGraphBatch(db, who, graph, statements, "Batch or graph changed; reload before submitting");
+  if (reused) await approveCompletedDraftReview(db, who, batchId, reused.id);
   return receipt;
 }
 
@@ -739,7 +756,7 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   requireMemberReview(who, actor, origin);
   const batch = await loadBatch(db, input.batchId);
   if (batch.state !== "awaiting_review") fail("Only a submitted batch waiting for review can be decided", 409);
-  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion) fail("Proposal version changed; reload before reviewing", 409);
+  if ((input.expectedVersion ?? 0) !== batch.submittedVersion) fail("Proposal version changed; reload and pass expectedVersion before reviewing", 409);
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
@@ -946,6 +963,6 @@ export async function recordHistory(db: Database, _who: AppIdentity, input: z.in
  * an agent can wait on, and the job's state. Null once the review has finished. */
 export async function pendingReview(db: Database, batchId: string) {
   const [row] = await db.select({ id: ontoReviewJobs.id, state: ontoReviewJobs.state, runId: ontoReviewJobs.runId })
-    .from(graphBatches).innerJoin(ontoReviewJobs, eq(ontoReviewJobs.id, graphBatches.reviewJobId)).where(eq(graphBatches.id, batchId));
+    .from(graphBatches).innerJoin(ontoReviewJobs, eq(ontoReviewJobs.id, graphBatches.reviewJobId)).where(and(eq(graphBatches.id, batchId), eq(graphBatches.state, "awaiting_review")));
   return row && (row.state === "pending" || row.state === "running") && row.runId ? { runId: row.runId, state: row.state } : null;
 }

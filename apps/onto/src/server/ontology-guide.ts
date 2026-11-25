@@ -16,11 +16,11 @@ const firstSentence = (text: string) => {
 
 export const stagingGuide = [
   "Name records by address: a type by its name (Person), a node as Type:slug (Organization:sunny), a relationship as name(From → To).",
-  "To submit records for review, use MutateBatchSubmission with {requestKey, title, purpose, proposals}. Each proposal contains operation, evidence and an optional reason. Use ChangeBatchChanges stage for an open draft.",
+  "When asked to submit proposals for review, use MutateBatchSubmission with {requestKey, title, purpose, proposals}. Each proposal contains operation, evidence and an optional reason. Use ChangeBatchChanges stage for an open draft.",
   'A new node: {ref:"$ada", type:"graph-node", operation:"create", attributes:{typeId:"Person", title:"Ada Lovelace", slug:"ada-lovelace"}}.',
   'A new relationship: {ref:"$ada-works-on", type:"graph-edge", operation:"create", attributes:{typeId:"works_on", fromId:"$ada", toId:"Project:sunny"}}. Point at a node created in the same batch by its $ref, at a saved node by its address.',
   "Each relationship type accepts only the node types listed under from and to (any means every node type).",
-  "Submission queues a steward review. Retry an identical submission with its original requestKey. Amend an existing batch with its batchId, expectedVersion and the proposals or refs to withdraw.",
+  "Submission queues the steward, which may approve clean proposals automatically under this installation’s settings. Retry an identical submission with its original requestKey. Amend an existing batch with its batchId, expectedVersion and the proposals or refs to withdraw.",
 ].join(" ");
 
 export async function ontologyGuide(db: Database, who: AppIdentity) {

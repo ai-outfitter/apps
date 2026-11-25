@@ -37,7 +37,8 @@ test("the interview and the people, audience and problem it names reach the Wiki
   const nodes = async (typeId: string) => (await wiki.database.prepare("SELECT id, title, body FROM graph_nodes WHERE typeId=?").bind(typeId).all()).results as { id: string; title: string; body: string }[];
   const typeId = async (name: string) => ((await wiki.database.prepare("SELECT id FROM graph_types WHERE name=?").bind(name).first()) as { id: string }).id;
   try {
-    const init = await wiki.call("/api/internal/app-initialize", owner, { method: "POST", body: {} });
+    // This interview fixture exercises an unbound graph with no organization anchor.
+    const init = await wiki.call("/api/internal/app-initialize", { ...owner, organizationId: "synthetic-initializer" }, { method: "POST", body: {} });
     assert.equal(init.status, 200, await init.clone().text());
 
     // Nothing to save before the first answer.
@@ -74,8 +75,14 @@ test("the interview and the people, audience and problem it names reach the Wiki
 
     // The member approves it in the Wiki.
     const review = "mutation ReviewBatch($input: ReviewBatchInput!) { reviewBatch(input: $input) { id state } }";
-    const approved = await graph(wiki, "graph.mutate", review, { input: { batchId: saved.batchId, verdict: "approve" } });
-    assert.equal(approved.data?.reviewBatch.state, "committed", JSON.stringify(approved.errors));
+    const approve = async (batchId: string) => {
+      const observed = await graph(wiki, "graph.graphql", "query ($id: ID!) { changeBatch(id: $id) { submittedVersion } }", { id: batchId });
+      const approved = await graph(wiki, "graph.mutate", review, { input: {
+        batchId, expectedVersion: observed.data?.changeBatch.submittedVersion, verdict: "approve",
+      } });
+      assert.equal(approved.data?.reviewBatch.state, "committed", JSON.stringify(approved.errors));
+    };
+    await approve(saved.batchId);
 
     const [interview] = await nodes(wikiTypeIds.interview);
     const body = interviewDocument.parse(JSON.parse(interview.body));
@@ -104,7 +111,7 @@ test("the interview and the people, audience and problem it names reach the Wiki
     assert.equal(update.data?.stageBrandInterview.proposals, 1, JSON.stringify(update.errors));
     assert.deepEqual(batch.data?.changeBatch.operations.map((row: { ref: string }) => row.ref), ["$interview"]);
     // Approved, the document keeps the records earlier answers named.
-    await graph(wiki, "graph.mutate", review, { input: { batchId: update.data?.stageBrandInterview.batchId, verdict: "approve" } });
+    await approve(update.data?.stageBrandInterview.batchId);
     const updated = interviewDocument.parse(JSON.parse((await nodes(wikiTypeIds.interview))[0].body));
     const answers = updated.sections.flatMap((section) => section.answers);
     assert.deepEqual(answers.find((row) => row.questionId === "influences.never-skip")?.mentions, [naval.id]);

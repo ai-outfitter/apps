@@ -347,6 +347,10 @@ type BatchSubmissionResult {
   """Undecided proposal refs queued for review in this version."""
   reviewRefs: [String!]!
   reviewUrl: String!
+
+  """
+  Run reserved when this submission was accepted. See instructions for the current run to wait on.
+  """
   reviewRun: JSON
   instructions: [ChangeInstruction!]!
 }
@@ -618,7 +622,7 @@ type Mutation {
   saveSettings(input: SaveSettingsInput!): OntoSettings!
 
   """
-  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Apps and delegated writers cannot review.
+  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion for versioned batches. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 

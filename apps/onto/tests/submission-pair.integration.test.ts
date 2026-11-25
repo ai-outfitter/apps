@@ -47,9 +47,9 @@ for (const mode of ["baseline", "candidate"]) {
     assert.deepEqual(await create(), first);
     const batchId = first.id;
     step = "deniedReview";
-    await assert.rejects(grouped("unauthorized", "review", { batchId, verdict: "approve", refs: ["$kept"] }), /member/i);
+    await assert.rejects(grouped("unauthorized", "review", { batchId, expectedVersion: 1, verdict: "approve", refs: ["$kept"] }), /member/i);
     step = "memberReview";
-    await grouped("approve", "review", { batchId, verdict: "approve", refs: ["$kept"] }, true);
+    await grouped("approve", "review", { batchId, expectedVersion: 1, verdict: "approve", refs: ["$kept"] }, true);
     async function revise(key: string, title: string) {
       const input = { batchId, expectedVersion: 1, proposals: [proposal("$edit", title)] };
       return mode === "candidate" ? call("MutateBatchSubmission", { input: { requestKey: key, ...input } }) : grouped(key, "amend", input);

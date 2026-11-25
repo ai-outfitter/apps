@@ -62,7 +62,7 @@ export function stewardLine(review: Review) {
 /** The steward's latest review: its findings, coverage and the run that is its audit trail. */
 function reviewSection(detail: BatchDetail, draw: (next: BatchDetail) => void) {
   const { review } = detail.batch;
-  const again = detail.canReview && detail.batch.state !== "open" && detail.batch.state !== "discarded"
+  const again = detail.canReview && detail.batch.state === "awaiting_review"
     ? el("button", { type: "button" }, review ? "Review again" : "Review now") : null;
   if (again) again.onclick = async () => {
     again.disabled = true;
