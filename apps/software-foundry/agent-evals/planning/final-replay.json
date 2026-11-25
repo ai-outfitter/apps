@@ -1,0 +1,244 @@
+{
+  "scope": "box",
+  "repositories": [
+    "box/charts",
+    "box/native-apple"
+  ],
+  "anchor": "box/native-apple",
+  "cases": {
+    "preflight": {
+      "wrongAnchor": true,
+      "missingAnchor": true,
+      "deniedRead": true,
+      "issuesDisabled": true,
+      "deniedAppWrite": true,
+      "deniedBotWrite": true,
+      "dispatched": 0
+    },
+    "bug": {
+      "run": "cbed28b7-9a5f-49b0-bbff-bc23056e31bb",
+      "sha256": "6f01ef9b76dd4dae79d4300e6e27f2157212ccfc71f38a59fe935fd2acc90913",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "256a780e413b1732e37fc5992393ae20749c99a9",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/256a780e413b1732e37fc5992393ae20749c99a9",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/06306ba70eda19b059c552bcc1d20425e76b39a6/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/256a780e413b1732e37fc5992393ae20749c99a9/README.md"
+        }
+      ],
+      "status": "artifacts_only"
+    },
+    "feature": {
+      "run": "84cacbce-4709-4d0c-93a1-1845cfa1a294",
+      "sha256": "dffe892a129bf1942cb74e4c08caa1b15e88fc90325e23baa29b3d27878e706b",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "256a780e413b1732e37fc5992393ae20749c99a9",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/256a780e413b1732e37fc5992393ae20749c99a9",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/06306ba70eda19b059c552bcc1d20425e76b39a6/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/256a780e413b1732e37fc5992393ae20749c99a9/README.md"
+        }
+      ],
+      "issue": {
+        "number": 1,
+        "url": "http://127.0.0.1:3300/box/native-apple/issues/1",
+        "created": true
+      }
+    },
+    "ambiguous": {
+      "run": "b0d5ca3e-fada-416e-ab98-e0925e63fbe3",
+      "sha256": "e55a8f9ee92a28f7732f262c02843482d0e59e9b4a4b59d87ccb0fbdc2022885",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/06306ba70eda19b059c552bcc1d20425e76b39a6",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "256a780e413b1732e37fc5992393ae20749c99a9",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/256a780e413b1732e37fc5992393ae20749c99a9",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/06306ba70eda19b059c552bcc1d20425e76b39a6/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/256a780e413b1732e37fc5992393ae20749c99a9/README.md"
+        }
+      ],
+      "issue": {
+        "number": 2,
+        "url": "http://127.0.0.1:3300/box/native-apple/issues/2",
+        "created": false
+      }
+    }
+  },
+  "runs": [
+    {
+      "id": "84cacbce-4709-4d0c-93a1-1845cfa1a294",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    },
+    {
+      "id": "b0d5ca3e-fada-416e-ab98-e0925e63fbe3",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    },
+    {
+      "id": "cbed28b7-9a5f-49b0-bbff-bc23056e31bb",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    }
+  ],
+  "webhooks": [
+    {
+      "deliveryId": "ab6013c4-07db-49f7-bd41-3433a4feac30",
+      "runId": "5e5b10d8-537c-4ba3-a2d3-1fcb225e031a",
+      "resource": "1",
+      "issue": 1,
+      "authorId": 2,
+      "signatureVerified": true,
+      "result": {
+        "outcome": "declined",
+        "reason": "The issue was published by Foundry planning. Select it explicitly to begin implementation."
+      }
+    },
+    {
+      "deliveryId": "6d2b7a59-9652-44b9-a469-10aecdbab638",
+      "runId": "2ad49fa4-f4de-4bcf-b6fa-b730968e5c96",
+      "resource": "1",
+      "issue": 2,
+      "authorId": 2,
+      "signatureVerified": true,
+      "result": {
+        "outcome": "declined",
+        "reason": "The issue was published by Foundry planning. Select it explicitly to begin implementation."
+      }
+    }
+  ],
+  "writes": [
+    {
+      "path": "/api/v1/repos/box/native-apple/issues",
+      "title": "Install Grafana dashboards from Keystone Charts on iOS and macOS",
+      "status": 201,
+      "responseLost": false
+    },
+    {
+      "path": "/api/v1/repos/box/native-apple/issues",
+      "title": "Recover Grafana dashboard install planning after a lost Forgejo response",
+      "status": 201,
+      "responseLost": true
+    }
+  ],
+  "inference": [
+    {
+      "case": "bug",
+      "kind": "bug",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    },
+    {
+      "case": "feature",
+      "kind": "feature",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    },
+    {
+      "case": "ambiguous",
+      "kind": "feature",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    }
+  ],
+  "repositoriesAfter": {
+    "box/charts": {
+      "branches": [
+        {
+          "name": "main",
+          "sha": "06306ba70eda19b059c552bcc1d20425e76b39a6"
+        }
+      ],
+      "pulls": 0,
+      "issues": 0
+    },
+    "box/native-apple": {
+      "branches": [
+        {
+          "name": "main",
+          "sha": "256a780e413b1732e37fc5992393ae20749c99a9"
+        }
+      ],
+      "pulls": 0,
+      "issues": 2
+    }
+  },
+  "status": "passed"
+}

@@ -1,3 +1,5 @@
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { generatedPlanningIssue } from "./planning-issues";
 import {requestIdentity} from "@ai-outfitter/app-sdk/server";
 import {dailyUpdate,dailyWorkflow} from "./daily-update";
 import {
@@ -44,6 +46,8 @@ async function event(host: WorkflowHost<"event">, raw: unknown): Promise<z.input
   const delivery = eventInput.parse(raw);
   const { subscription, trigger, runId } = delivery;
   const { type, resource, payload } = delivery.event;
+  if (type.endsWith(".issue") && await generatedPlanningIssue(installationDatabase, resource, payload))
+    return { outcome: "declined", reason: "The issue was published by Foundry planning. Select it explicitly to begin implementation." };
   if (!issueToMergeWorkflows.includes(subscription.workflowId)) {
     // Foundry's other event workflows start with the event at their trigger input.
     await host.call("workflow.start", { workflow: subscription.workflowId, id: runId, inputs: { ...subscription.inputs, [trigger.input]: payload } });
@@ -84,7 +88,7 @@ async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<P
 
 /** Software Foundry's workflow policy, served at the reserved workflow host path. */
 export function foundryPhases(locals: StorageLocals, origin: string,request:Request) {
-  const files = { locals, origin };
+  const files = { locals, origin, db: installationDatabase };
   return workflowPhaseHandler({
     event: (input, host) => event(host, input),
     operator: (input, host) => operator(host, input),

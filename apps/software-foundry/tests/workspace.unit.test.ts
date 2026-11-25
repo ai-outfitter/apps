@@ -265,9 +265,9 @@ test("a job run retries Foundry's failed fixes and closes ones that keep failing
   const closed: number[] = [];
   const issue = (number: number) => ({ number, repository: "acme/app", url: `https://github.com/acme/app/issues/${number}`, title: `#${number}`, body: "",
     state: "open" as const, byFoundry: number !== 20 && number !== 25 });
-  const forge = { openIssues: async () => [19, 20, 21, 22, 23, 24, 25].map(issue), close: async (number: number) => { closed.push(number); } };
+  const forge = { openIssues: async () => [19, 20, 21, 22, 23, 24, 25, 26].map(issue), close: async (number: number) => { closed.push(number); } };
   const fix = { installation: "foundry", resource: "77", inputs: { "triage.inputs.triagerBinding": "b-triage" } };
-  const swept = await retryJobFixes(host as never, fix, { id: 77, name: "acme/app" }, forge, new Set([19]));
+  const swept = await retryJobFixes(host as never, fix, { id: 77, name: "acme/app" }, forge, new Set([19]), async (issue) => issue.number === 26);
   assert.deepEqual(swept.retried.map((item) => item.number), [20, 24]);
   assert.deepEqual(swept.closed.map((item) => item.number), [23]);
   assert.deepEqual(closed, [23]);
@@ -278,4 +278,5 @@ test("a job run retries Foundry's failed fixes and closes ones that keep failing
   const lookups = calls.filter((call) => call.operation === "workflow.references");
   assert.equal(lookups.length, 1, "one run lookup for every issue");
   assert.ok(!lookups[0].input.subjects.includes(19), "the run's own new issues are skipped");
+  assert.ok(!lookups[0].input.subjects.includes(26), "a confirmed planning issue is never restarted");
 });

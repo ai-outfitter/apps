@@ -45,6 +45,36 @@
     "hidden": true
   },
   {
+    "name": "FoundryPlan",
+    "kind": "query",
+    "story": "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
+    "query": "query FoundryPlan($input: FindFoundryPlanInput!) {\n  foundryPlan(input: $input)\n}",
+    "hash": "50d5c674bc9744b41ca751e992ac30e622c4bc50f77aef49c5335c74c14fff63",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL FindFoundryPlanInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "foundryPlan": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "JobChanges",
     "kind": "mutation",
     "story": "As an authorized caller, I want to run or schedule Foundry's repository jobs, so that each change has a durable receipt and explicit next steps.",
@@ -251,6 +281,36 @@
               }
             }
           },
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "PlanWork",
+    "kind": "mutation",
+    "story": "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
+    "query": "mutation PlanWork($input: PlanWorkInput!) {\n  planWork(input: $input)\n}",
+    "hash": "269a861b109138b40da195d0cd8cd07296584637932307871229e4b450dc31d0",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL PlanWorkInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "planWork": {
+          "description": "JSON",
           "nullable": true
         }
       }
