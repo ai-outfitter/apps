@@ -234,11 +234,21 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
       });
       const plan = planOutput.parse(result.output);
       if (input.kind && input.kind !== plan.kind) throw new Error("Plan classification disagrees with the requested kind");
-      const matchTemplate = evidence.find(item => item.repository.name.toLowerCase() === anchor)
-        ?.files.find(file => file.kind === "issue-template" && file.path === plan.issueTemplate);
-      const issue = plan.kind === "query" ? null : {
+      const templates = evidence.find(item => item.repository.name.toLowerCase() === anchor)
+        ?.files.filter(file => file.kind === "issue-template") ?? [];
+      const kindPattern = plan.kind === "bug" ? /bug|defect/ : /feature|enhancement/;
+      const availableTemplates = templates.filter(file => kindPattern.test(file.path.toLowerCase())
+        || kindPattern.test(file.text.match(/^name:\s*(.+)$/mi)?.[1].toLowerCase() ?? ""));
+      const preferred = availableTemplates.length ? availableTemplates : templates.filter(file => /\/issue\.md$/i.test(file.path));
+      const matchTemplate = (preferred.length ? preferred : templates).find(file => file.path === plan.issueTemplate);
+      const renderedBody = plan.issueBody ? sanitizedBody(plan.issueBody) : "";
+      const requiredHeadings = [...(matchTemplate?.text.matchAll(/^## +(.+)$/gm) ?? [])].map(match => match[1].trim());
+      const headings = new Set([...renderedBody.matchAll(/^#+ +(.+)$/gm)].map(match => match[1].trim()));
+      const templateFailed = input.createIssue && plan.kind !== "query" && preferred.length > 0
+        && (!matchTemplate || !renderedBody || requiredHeadings.some(heading => !headings.has(heading)));
+      const issue = plan.kind === "query" || templateFailed ? null : {
         title: plan.title,
-        body: matchTemplate && plan.issueBody ? sanitizedBody(plan.issueBody) : fallbackBody(plan),
+        body: matchTemplate && renderedBody ? renderedBody : fallbackBody(plan),
         template: matchTemplate ? { path: matchTemplate.path, url: matchTemplate.url } : null,
       };
       const { citations: _citations, issueTemplate: _issueTemplate, issueBody: _issueBody, ...planned } = plan;
@@ -248,7 +258,11 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
           commitSha: item.commitSha, commitUrl: item.commitUrl, truncated: item.truncated })),
         citations: citedSources(plan, evidence),
       }, null, 2) + "\n";
-      const saved = await update(context, row, { artifact, state: !input.createIssue || !issue ? "artifacts_only" : "ready" });
+      const saved = await update(context, row, {
+        artifact,
+        state: templateFailed ? "failed" : !input.createIssue || !issue ? "artifacts_only" : "ready",
+        message: templateFailed ? "The plan was saved, but its issue draft did not follow the anchor repository's issue template." : null,
+      });
       if (!saved) return receipt(context, await active());
       row = saved;
     } catch {
