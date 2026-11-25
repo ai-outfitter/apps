@@ -6,7 +6,7 @@ triggers:
   - on: manual
 steps:
   - id: plan
-    inference: {maxOutputTokens: 3600}
+    inference: {maxOutputTokens: 1800, reasoningEffort: low}
     inputs:
       requestId:
         schema: {type: string, format: uuid}

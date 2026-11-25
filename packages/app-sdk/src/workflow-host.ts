@@ -388,7 +388,8 @@ const coreOperations = {
    * validates the answer against `schema`. Calls naming a session checkpoint retain private inference evidence.
    * Naming `step` applies that step's declared `inference` settings, which win
    * over any the app passes; a setting neither gives is the platform default
-   * (1,500 output tokens, a 60 s timeout, the provider's reasoning). */
+   * (1,500 output tokens, a 60 s timeout or 600 s for self-hosted built-in
+   * Spark, and the provider's reasoning). */
   "inference.generate": operation(running, z.strictObject({
     runId: runId,
     step: slug.optional(),

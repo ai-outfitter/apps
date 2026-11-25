@@ -62,7 +62,7 @@
       ]
     },
     "mcp": {
-      "description": "Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."
+      "description": "Read the retained planning artifact, scoped citations, current run and issue receipt, or classified failure and retry history by requestId. Legacy history records member-level attribution; the historical OAuth client was unavailable."
     },
     "outputSchema": {
       "type": "object",
@@ -288,6 +288,7 @@
     }
   },
   {
+    "executionTimeoutMs": 840000,
     "name": "PlanWork",
     "kind": "mutation",
     "story": "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
@@ -305,7 +306,7 @@
       ]
     },
     "mcp": {
-      "description": "Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."
+      "description": "Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Replay the same request ID and inputs as the original requester to recover a verified prepublication failure once. An uncertain publication is reconciled by its original marker. This does not start implementation."
     },
     "outputSchema": {
       "type": "object",
