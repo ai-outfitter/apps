@@ -1,0 +1,352 @@
+{
+  "scope": "box",
+  "repositories": [
+    "box/charts",
+    "box/native-apple"
+  ],
+  "anchor": "box/native-apple",
+  "cases": {
+    "preflight": {
+      "wrongAnchor": true,
+      "missingAnchor": true,
+      "deniedRead": true,
+      "issuesDisabled": true,
+      "deniedAppWrite": true,
+      "deniedBotWrite": true,
+      "dispatched": 0
+    },
+    "bug": {
+      "run": "9933bdd7-2edf-46ed-925b-1c13f76a7c37",
+      "sha256": "99425fdab16f63c74d91373c6fc15cd5eb81e6bdbc1ed2297bb21706c4c9ec5d",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "9746afa900dcf45b803375ec3375aa3545a37331",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/9746afa900dcf45b803375ec3375aa3545a37331",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/9746afa900dcf45b803375ec3375aa3545a37331/README.md"
+        }
+      ],
+      "status": "artifacts_only"
+    },
+    "feature": {
+      "run": "f012a5e5-02eb-4dfd-aa97-f0d55f80b8ae",
+      "sha256": "3f2dceb005daabd0155aa26cf50a99a852e98f74d6c4fd37a82927ed31d633d8",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "9746afa900dcf45b803375ec3375aa3545a37331",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/9746afa900dcf45b803375ec3375aa3545a37331",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/9746afa900dcf45b803375ec3375aa3545a37331/README.md"
+        }
+      ],
+      "issue": {
+        "number": 1,
+        "url": "http://127.0.0.1:3300/box/native-apple/issues/1",
+        "created": true
+      }
+    },
+    "ambiguous": {
+      "run": "04a357e5-b1c0-4dfb-b2bf-07a2f13eaff3",
+      "sha256": "8b9057639e3e56dc985a1835c952d9449baf08c8cfb508fe23d9a7b4c6ce34e6",
+      "sources": [
+        {
+          "id": 2,
+          "name": "box/charts",
+          "url": "http://127.0.0.1:3300/box/charts",
+          "defaultBranch": "main",
+          "commitSha": "07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "commitUrl": "http://127.0.0.1:3300/box/charts/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d",
+          "truncated": false
+        },
+        {
+          "id": 1,
+          "name": "box/native-apple",
+          "url": "http://127.0.0.1:3300/box/native-apple",
+          "defaultBranch": "main",
+          "commitSha": "9746afa900dcf45b803375ec3375aa3545a37331",
+          "commitUrl": "http://127.0.0.1:3300/box/native-apple/commit/9746afa900dcf45b803375ec3375aa3545a37331",
+          "truncated": false
+        }
+      ],
+      "citations": [
+        {
+          "repository": "box/charts",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/charts/src/commit/07407f2cce1ff2f00348d9ba839c3a1556e5ad1d/README.md"
+        },
+        {
+          "repository": "box/native-apple",
+          "path": "README.md",
+          "url": "http://127.0.0.1:3300/box/native-apple/src/commit/9746afa900dcf45b803375ec3375aa3545a37331/README.md"
+        }
+      ],
+      "issue": {
+        "number": 2,
+        "url": "http://127.0.0.1:3300/box/native-apple/issues/2",
+        "created": false
+      }
+    }
+  },
+  "runs": [
+    {
+      "id": "04a357e5-b1c0-4dfb-b2bf-07a2f13eaff3",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    },
+    {
+      "id": "9933bdd7-2edf-46ed-925b-1c13f76a7c37",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    },
+    {
+      "id": "f012a5e5-02eb-4dfd-aa97-f0d55f80b8ae",
+      "workflowId": "foundry-plan-work",
+      "status": "complete"
+    }
+  ],
+  "webhooks": [
+    {
+      "deliveryId": "f39e1650-1ebb-4e6d-94da-eafe013467c7",
+      "runId": "70d4d98e-812c-47d1-ad3b-07052b3e5b2a",
+      "resource": "1",
+      "issue": 1,
+      "authorId": 2,
+      "signatureVerified": true,
+      "result": {
+        "outcome": "declined",
+        "reason": "The issue was published by Foundry planning. Select it explicitly to begin implementation."
+      }
+    },
+    {
+      "deliveryId": "55f8a970-e664-48c4-8748-e456bfe7e8f5",
+      "runId": "94284e5c-633f-4847-b72a-36068fa60cd6",
+      "resource": "1",
+      "issue": 2,
+      "authorId": 2,
+      "signatureVerified": true,
+      "result": {
+        "outcome": "declined",
+        "reason": "The issue was published by Foundry planning. Select it explicitly to begin implementation."
+      }
+    }
+  ],
+  "writes": [
+    {
+      "path": "/api/v1/repos/box/native-apple/issues",
+      "title": "Install Forgejo and Grafana from Keystone on iOS and macOS",
+      "status": 201,
+      "responseLost": false
+    },
+    {
+      "path": "/api/v1/repos/box/native-apple/issues",
+      "title": "Recover Grafana dashboard install planning after a lost Forgejo response",
+      "status": 201,
+      "responseLost": true
+    }
+  ],
+  "inference": [
+    {
+      "case": "bug",
+      "kind": "bug",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    },
+    {
+      "case": "feature",
+      "kind": "feature",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    },
+    {
+      "case": "ambiguous",
+      "kind": "feature",
+      "sources": [
+        "box/charts:README.md",
+        "box/native-apple:README.md"
+      ]
+    }
+  ],
+  "repositoriesAfter": {
+    "box/charts": {
+      "branches": [
+        {
+          "name": "main",
+          "sha": "07407f2cce1ff2f00348d9ba839c3a1556e5ad1d"
+        }
+      ],
+      "pulls": 0,
+      "issues": 0
+    },
+    "box/native-apple": {
+      "branches": [
+        {
+          "name": "main",
+          "sha": "9746afa900dcf45b803375ec3375aa3545a37331"
+        }
+      ],
+      "pulls": 0,
+      "issues": 2
+    }
+  },
+  "keystone": {
+    "installed": [
+      "governance",
+      "onto",
+      "planning",
+      "software-foundry",
+      "wiki-map"
+    ],
+    "calls": [
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "CreateProject"
+      },
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "CreateIntake"
+      },
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "CreateIssue"
+      },
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "CreateIssue"
+      },
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "UpdateIssue"
+      },
+      {
+        "scope": "box",
+        "app": "planning",
+        "document": "GenerateDailyReports"
+      },
+      {
+        "scope": "personal",
+        "app": "forerunner",
+        "document": "DailyHome"
+      },
+      {
+        "scope": "personal",
+        "app": "forerunner",
+        "document": "GenerateDailyBrief"
+      },
+      {
+        "scope": "personal",
+        "app": "forerunner",
+        "document": "DailyHome"
+      }
+    ],
+    "projectId": "7f3f204f-1dd3-484f-92cf-a03ccae3a5df",
+    "intakeId": "351a45f4-a01f-465d-833d-edac071781d3",
+    "sourceIssue": "http://127.0.0.1:3300/box/native-apple/issues/1",
+    "route": "prioritization",
+    "foundryRun": "f012a5e5-02eb-4dfd-aa97-f0d55f80b8ae",
+    "boardId": "32a67f94-7776-48fe-a658-d96213d9c8a5",
+    "pendingId": "5031ce67-36ea-49cc-98fe-54b97bfae3f4",
+    "date": "2026-11-24",
+    "timezone": "America/Chicago",
+    "observedAt": 1795543200000,
+    "task": {
+      "id": "f29260a4-daff-4481-b0a1-3d164436e7eb",
+      "task": "project-digest",
+      "created": true
+    },
+    "source": {
+      "scope": "box",
+      "name": "Synthetic Keystone planning eval",
+      "status": "incomplete",
+      "summary": "Software Foundry: Daily update unavailable. Planning: Keystone native service installation: Observed completed: Install Forgejo and Grafana from Keystone on iOS and macOS. 0 other issue updates; 0 work submissions. Launch metrics remain unverified without analytics evidence. Onto: Daily update unavailable. Keystone native service installation: Observed completed: Install Forgejo and Grafana from Keystone on iOS and macOS. 0 other issue updates; 0 work submissions. Launch metrics remain unverified without analytics evidence.",
+      "href": "/o/box/wiki-map/p/organization-daily-6060d873-ac3e-56e6-822b-d26c798b7486?revision=1",
+      "work": [
+        {
+          "title": "Install Forgejo and Grafana from Keystone on iOS and macOS",
+          "kind": "Completed issue observation",
+          "url": "/o/box/planning/projects/7f3f204f-1dd3-484f-92cf-a03ccae3a5df"
+        }
+      ],
+      "more": false,
+      "projects": [
+        {
+          "projectId": "7f3f204f-1dd3-484f-92cf-a03ccae3a5df",
+          "name": "Keystone native service installation",
+          "update": "Observed completed: Install Forgejo and Grafana from Keystone on iOS and macOS. 0 other issue updates; 0 work submissions. Launch metrics remain unverified without analytics evidence."
+        }
+      ]
+    },
+    "brief": {
+      "documentId": "0105c5ce-c6f9-4c6c-a8bc-a0c4193c6dc6",
+      "revision": 1,
+      "slug": "forerunner-brief-2026-11-25-e0196049-1aeb-52a8-8a83-dff4f0e6d4ca",
+      "date": "2026-11-25",
+      "status": "incomplete",
+      "outcome": "saved",
+      "runId": "dc015c5f-8ec6-4913-a281-4edef7c9ac0f"
+    },
+    "markdown": "# Today — 2026-11-25\n\nPlanning recorded this completed issue yesterday: Install Forgejo and Grafana from Keystone on iOS and macOS. (source r1)\n\nWritten from saved records for the completed day 2026-11-24 (America/Chicago) and your board as of this run.\n\n## Not known\n\n- Responsibilities: no saved role was available to this run.\n- Goals: no saved personal report with goal context was available for yesterday; goals were not read.\n- Priorities: no open priorities are on your board.\n- Planning issues: no issue is in progress in your organizations' Planning.\n- Synthetic Keystone planning eval: the saved report is incomplete.\n- Personal planning: no overview was saved for 2026-11-24.\n- Discovery: no saved daily discovery output exists; mail and calendar were not read for this brief.\n- Google Analytics: not collected. No measurements are inferred.\n- PostHog: not collected. No measurements are inferred.\n- Stripe: not collected. No measurements are inferred.\n- Databricks: not collected. No measurements are inferred.\n- raw mail and calendar (only the daily discovery run's saved suggestions are read): not collected. No measurements are inferred.\n- Not supported by the saved evidence: Deployment and device verification were not observed.\n\n## Sources\n\n- app1: [box · Planning (2026-11-24, America/Chicago)](/o/box/wiki-map/p/app-daily-17b5cd69-a190-57fc-8148-8490c75c762e?revision=1), revision 1\n- r1: [Synthetic Keystone planning eval daily report for 2026-11-24](/o/box/wiki-map/p/organization-daily-6060d873-ac3e-56e6-822b-d26c798b7486?revision=1) (incomplete)\n\nNo previous daily brief is saved; this starts the series.\n\nEvidence digest ef5a0bba73d3c71f",
+    "governanceObservation": {
+      "planningHostCalls": 28,
+      "directed": [],
+      "scope": "Direct calls from the installed org Planning worker; deterministic inference."
+    }
+  },
+  "status": "passed"
+}

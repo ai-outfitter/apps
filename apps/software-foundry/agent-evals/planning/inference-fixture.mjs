@@ -19,10 +19,10 @@ function planFor(prompt) {
     kind: bug ? "bug" : "feature",
     title: scenario.title,
     goal: bug ? "Preserve Grafana datasource placeholders from preview through local install." :
-      "Let operators preview and install a Grafana dashboard into the iOS and macOS Charts catalog.",
+      requests.feature.description,
     changes: bug
       ? ["Carry the datasource placeholder through the shared Charts persistence model.", "Resolve the placeholder against the current installation on both app shells."]
-      : ["Validate dashboard UID, title and panel list in shared Charts code.", "Use a confirmation screen in the iOS and macOS shells, then persist once by UID."],
+      : ["Resolve Forgejo and Grafana charts and standard dashboards for the selected cluster.", "Share preview, confirmation and retry behavior across the iOS and macOS clients."],
     verification: scenario.acceptanceCriteria ?? [
       "Replay the planning request after Forgejo commits the issue and the response is lost.",
     ],
@@ -30,10 +30,32 @@ function planFor(prompt) {
     citations,
     issueTemplate,
     issueBody: issueTemplate
-      ? "## User-visible outcome\n\nPreview and install a Grafana dashboard in Charts.\n\n## Acceptance criteria\n\nA UID is installed once after explicit confirmation.\n\n## Verification\n\nExercise preview, cancel, confirm, and invalid input on iOS and macOS."
+      ? "## User-visible outcome\n\nInstall Forgejo and Grafana from Keystone on iOS and macOS.\n\n## Acceptance criteria\n\nConfirmation installs both services and provisions the standard Grafana dashboards once.\n\n## Verification\n\nExercise preview, cancel, confirm, and invalid input on iOS and macOS."
       : null,
   };
   return { selected, result };
+}
+
+function responseFor(input) {
+  const schema = input.text.format.schema.properties;
+  if (schema.routes) {
+    return { selected: "planning-route", result: { routes: [{ kind: "prioritization", dependsOn: [],
+      rationale: "Compare the native installation workflow against the project goal." }] } };
+  }
+  if (schema.opening) {
+    const user = input.input.find(message => message.role === "user");
+    const text = Array.isArray(user.content) ? user.content.map(part => part.text).join("") : user.content;
+    const match = text.match(/<<<DATA\n([\s\S]+)\nDATA>>>/);
+    assert.ok(match, "brief receives saved evidence");
+    const data = JSON.parse(match[1]);
+    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(requests.feature.title));
+    assert.ok(source, "organization report must already contain the Keystone completion");
+    return { selected: "personal-brief", result: {
+      opening: { text: "Planning recorded this completed issue yesterday: " + requests.feature.title + ".", evidence: [source.ref] },
+      highlights: [], attention: [], unsupported: ["Deployment and device verification were not observed."],
+    } };
+  }
+  return planFor(JSON.stringify(input.input));
 }
 
 export async function startInferenceFixture() {
@@ -44,8 +66,8 @@ export async function startInferenceFixture() {
       assert.equal(request.headers.authorization, "Bearer local-planning-fixture");
       const input = JSON.parse(Buffer.concat(await Array.fromAsync(request)).toString("utf8"));
       assert.equal(input.text?.format?.type, "json_schema", "Foundry uses structured inference");
-      const { selected, result } = planFor(JSON.stringify(input.input));
-      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, kind: result.kind, sources: citations }) + "\n");
+      const { selected, result } = responseFor(input);
+      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, ...(result.kind && { kind: result.kind, sources: citations }) }) + "\n");
       response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({
         id: `fixture-${selected}`, created_at: 1, model: input.model,
         output: [{ type: "message", id: `message-${selected}`, role: "assistant",

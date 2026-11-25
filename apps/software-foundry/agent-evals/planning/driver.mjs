@@ -4,9 +4,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { anchor, charts, repositories, admin, addChartsRepository, openPlatform, registerForgejoHook, removeAppIssueGrant, setCoverage, useReadOnlyBotToken } from "./box-fixture.mjs";
+import { keystoneJourney, observePlanningHost } from "./keystone-journey.mjs";
 import { signIn, oauthToken, mcpClient, callTool } from "./mcp.mjs";
 
 export const app = "software-foundry";
+export const additionalApps = ["planning", "governance"];
 export const title = "Synthetic Keystone planning eval";
 export const platformModel = true;
 
@@ -119,6 +121,7 @@ export async function run(box) {
   const snapshot = () => ({ runs: rows(db), writes: writes(), inference: inference() });
   let failure;
   try {
+    observePlanningHost(box, db);
     await addChartsRepository(box, db);
     const before = Object.fromEntries(await Promise.all(repositories.map(async repo => [repo, await repoState(box, repo)])));
     for (const repo of repositories) {
@@ -287,6 +290,7 @@ export async function run(box) {
     report.repositoriesAfter = Object.fromEntries(repositories.map(repo => [repo, {
       branches: after[repo].branches, pulls: after[repo].pulls.length, issues: after[repo].issues.length,
     }]));
+    report.keystone = await keystoneJourney({ box, mcp, db, feature, initialIssue, title: fixture.feature.title });
     report.status = "passed";
   } catch (error) {
     failure = error;

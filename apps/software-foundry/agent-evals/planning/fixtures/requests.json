@@ -1,13 +1,12 @@
 {
   "feature": {
     "requestId": "d69d0966-d45c-4a75-846e-7eedf310c773",
-    "title": "Install Grafana dashboards from Keystone Charts on iOS and macOS",
-    "description": "Plan dashboard install for the synthetic Keystone native-apple/charts module. An operator previews a Grafana dashboard definition and explicitly installs it into the local Charts catalog from an iPhone or Mac.",
+    "title": "Install Forgejo and Grafana from Keystone on iOS and macOS",
+    "description": "An operator uses either Keystone app to select Forgejo and Grafana, review the install plan for the target cluster, and install both services with the standard Grafana dashboards.",
     "acceptanceCriteria": [
-      "iOS and macOS preview the same dashboard UID, title and panel list before install.",
-      "Cancel preserves the current catalog. Confirm persists exactly one dashboard for that UID.",
-      "Invalid input and storage failures display recoverable errors without a partial install.",
-      "The plan specifies shared Charts code and the platform-specific UI and verification needed on iOS and macOS."
+      "Both clients preview the target, charts and standard dashboards before confirmation.",
+      "Confirm installs both services and provisions the standard dashboards once; cancel leaves the cluster unchanged.",
+      "Surface partial installation failures and allow a safe retry."
     ]
   },
   "bug": {

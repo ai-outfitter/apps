@@ -381,7 +381,7 @@ async function main() {
   start("platform", "node", ["--import", "tsx", join(CHECKOUT, "scripts/local-dev/box-platform.ts")], {
     BOX_CHECKOUT: CHECKOUT, BOX_STATE: STATE, BOX_INSPECT_PORT: String(PORTS.webapp), BOX_REPOSITORY: repo.repository,
     BOX_FORGEJO_URL: FORGEJO, BOX_FORGEJO_BOT_ID: String(bot.botUserId), BOX_FORGEJO_BOT_LOGIN: BOT, BOX_FORGEJO_TOKEN: bot.token,
-    BOX_APPS: APP, BOX_TITLE: driver.title ?? `${APP} box`,
+    BOX_APPS: [APP, ...(driver.additionalApps ?? [])].join(","), BOX_TITLE: driver.title ?? `${APP} box`,
     BOX_PLATFORM_ENV: JSON.stringify({
       WORKSPACE_GATEWAY_URL: `http://127.0.0.1:${PORTS.gateway}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken,
       // The operator approves the box's own Forgejo, on this machine, for organization connections.

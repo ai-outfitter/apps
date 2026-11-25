@@ -12,7 +12,7 @@ This package is the shared harness. Each app that has a box keeps its side in
 
 | File | What it does |
 | --- | --- |
-| `driver.mjs` | Exports `app` (the app slug), an optional `title` and `platformModel`, and `run(box)`, which the supervisor calls once the platform is up to file the requests, watch their runs, write `/out/results` and release. It calls `box.finish()` when everything is written. |
+| `driver.mjs` | Exports `app` (the app slug), an optional `title`, `additionalApps` (other apps to install in the box organization) and `platformModel`, and `run(box)`, which the supervisor calls once the platform is up to file the requests, watch their runs, write `/out/results` and release. It calls `box.finish()` when everything is written. |
 | `schemas/` | The app's request and result JSON contract. |
 | `evals/` | Agent Eval fixtures and the runner, using `@ai-outfitter/box/eval`. |
 
