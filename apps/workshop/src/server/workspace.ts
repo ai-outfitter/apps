@@ -23,7 +23,7 @@ export async function claimBuild(c:WorkshopContext,i:z.output<typeof claimBuildI
  return updateWorkshopProject(c.db(),c.identity,{...p,workspace:{...w,requests:w.requests.map(r=>r.id===i.buildId?{...r,status:"running",...(i.workflowRunId?{workflowRunId:i.workflowRunId}:{})}:r)}},p.id,true);
 }
 export const artifactKey=(project:string,build:string,path:string)=>`${project}/${build}/${path}`;
-export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuildInput>){
+export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuildInput>,includeWarnings=false){
  const p=await getWorkshopProject(c.db(),i.id);if(p.revision!==i.revision)throw stale();
  const w=p.workspace,r=w?.requests.find(r=>r.id===i.buildId);if(!w||!r||r.status!=="running"||r.result)throw new Response("Unknown or completed build",{status:409});
  const printWarningsByArtifact: Record<string,string[]> = {};
@@ -57,5 +57,5 @@ export async function finishBuild(c:WorkshopContext,i:z.output<typeof finishBuil
  const result={...(i.manifest?{manifest:i.manifest}:{}),...(i.error?{error:i.error}:{}),artifactBase:`/files/main/builds/${p.id}/${r.id}/`,stale:isStale};
  const authored = p.assembly.items.some(item=>item.reference || item.operations?.length || item.uses.some(use=>use.joint) || item.driveMotion || item.files?.length) || Boolean(p.assembly.configurations?.length);
  const saved = await updateWorkshopProject(c.db(),c.identity,{...p,...(success&&!isStale&&!authored?{assembly:i.manifest!.assembly}:{}),workspace:{...w,...(success&&!isStale?{currentBuildId:r.id}:{}),requests:w.requests.map(v=>v.id===r.id?{...v,status:success?"succeeded":"failed",result}:v)}},p.id,true);
- return {...saved,printWarnings:printWarningsByArtifact};
+ return includeWarnings ? {...saved,printWarnings:printWarningsByArtifact} : saved;
 }
