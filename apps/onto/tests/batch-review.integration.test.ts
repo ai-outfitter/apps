@@ -489,3 +489,32 @@ test("scoped Calendar evidence holds the duplicate and its dependent even before
   assert.equal(graph.nodes.some((n:Json)=>n.id===uuid(84)),false);
   assert.equal(graph.edges.some((e:Json)=>e.id===uuid(85)),false);
 });
+
+test("the steward must ground a duplicate relationship in a compatible live type ID", async (t) => {
+  const f = await fixture(input => {
+    const proposed = input.data.newTypes.find((type: Json) => type.ref === "$use");
+    assert.ok(proposed);
+    assert.ok(proposed.compatibleExistingEdges.every((type: Json) => !["user_of", "uses"].includes(type.name)));
+    return { summary: "Use the existing relationship.", findings: [{
+      ref: "$use", rule: "type.duplicate", severity: "warning", message: "This repeats user_of.",
+      fix: "Reuse 71000000-0000-4000-8000-000000000123.", refs: [], types: [],
+    }] };
+  });
+  t.after(() => f.app.dispose());
+  const { types } = await json(await f.action("graph.read", {}));
+  const saved = types.find((type: Json) => type.name === "user_of");
+  await json(await f.action("graph.apply", { requestKey: "old-installation", operations: [{
+    operation: "update", type: "graph-type", ref: "$archive", id: saved.id, revision: saved.revision, attributes: { archived: true },
+  }] }));
+  const staged = await json(await f.graphql("mutation ($input: StageChangesInput!) { stageChanges(input: $input) { id } }", { input: {
+    title: "Record verified product users", proposals: [{ operation: create("$use", "graph-type", {
+      id: uuid(810), category: "edge", name: "signed_in_to", title: "Signed in to", body: "A person signed in to this product.",
+      ontology: saved.ontology,
+    }), evidence: cite("login") }],
+  } }));
+  const batchId = staged.data.stageChanges.id;
+  await json(await f.graphql("mutation ($input: SubmitBatchInput!) { submitBatch(input: $input) { state } }", { input: { batchId } }));
+  const { review } = (await f.reviewed(batchId)).batch;
+  assert.equal(review.state, "failed");
+  assert.match(review.error, /compatible active relationship type/);
+});

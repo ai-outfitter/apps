@@ -34,14 +34,15 @@ const sourceRecord = z.strictObject({
 });
 export const sourceSample = z.strictObject({
   format: z.literal("outfitter-forerunner-sample-v1"),
-  provider: z.enum(["gmail", "google-calendar", "github", "slack"]),
+  provider: z.enum(["gmail", "google-calendar", "github", "slack", "web"]),
   account: z.string().min(1).max(254),
   accountId: z.string().min(1).max(300).optional(),
   collectedAt: z.iso.datetime(),
   window: z.string().min(1).max(300),
   collectionMethod: z.literal("agent-import"),
   records: z.array(sourceRecord).max(25),
-});
+}).refine(sample => sample.provider !== "web" || sample.records.every(record => record.url),
+  "Web evidence requires a source URL on each record");
 export const importInput = z.strictObject({
   samples: z.array(sourceSample).min(1).max(8),
 });
@@ -654,7 +655,12 @@ async function prepareDiscovery(
     const failures = sources.flatMap((source) => source.error ? [source.error] : []);
     throw new Response(failures.join(" ") || "No source records found in the selected range. Try a wider range or check the selected connections.", { status: 409 });
   }
-  const { operations, entries, proposals, inputs, systemPrompt, warnings } = await semanticProposal(host, graph, samples, ontology, user, diagnostic, { runId: options.runId, taskId: options.taskId, selection:{request:input,sourceReads:sources} });
+  // Resolve the platform account even when the Person has a different display name in Onto.
+  const accountType = ontology.entities.find(type => type.name === "OutfitterUser");
+  const identity = accountType && graph.nodes.some(node => !node.attributes.archived && node.attributes.typeId === accountType.id)
+    ? await host.call("identity.resolve", { installationId: graph.wiki.installationId }) : null;
+  const personId = identity?.kind === "human" && identity.principalId === user.id ? identity.holderId : undefined;
+  const { operations, entries, proposals, inputs, systemPrompt, warnings } = await semanticProposal(host, graph, samples, ontology, user, diagnostic, { personId, runId: options.runId, taskId: options.taskId, selection:{request:input,sourceReads:sources} });
   const preview: Preview = {
     version: DISCOVERY_PREVIEW_VERSION,
     systemPrompt,

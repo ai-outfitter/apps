@@ -7,7 +7,7 @@ export type OntologyType = { id: string; name: string; definition: string };
 export type OntologyRelation = OntologyType & { from: string[]; to: string[] };
 export type DiscoveryOntology = { entities: OntologyType[]; relationships: OntologyRelation[] };
 // Initial discovery focuses on durable context; calendar participation stays source evidence.
-const excluded = new Set(["Goal", "Activity", "Entity", "participates_in", "participant", "interacts_with", "customer_of"]);
+const excluded = new Set(["Goal", "Activity", "Entity", "participates_in", "participant", "interacts_with"]);
 
 /** Wiki type prose contains an ontological introduction followed by agent guidance.
  * Only the introduction supplies discovery definitions. */
@@ -58,6 +58,7 @@ export function discoveryOntology(graph: Graph): DiscoveryOntology {
     // Structured contracts are authoritative, including when an endpoint is no
     // longer active. Only legacy types without a contract use prose inference.
     const contract = t.ontology?.endpoints;
+    if (t.name === "customer_of" && !contract) return [];
     const byId = new Map(allEntities.map(type => [type.id, type.name]));
     const ids = (side: "any" | string[]) => side === "any" ? allEntities.map(type => type.id) : side;
     if (contract && (!ids(contract.from).length || !ids(contract.to).length ||
@@ -74,5 +75,12 @@ export function discoveryOntology(graph: Graph): DiscoveryOntology {
 }
 export function discoveryPrompt(user: { name: string; email: string }, ontology: DiscoveryOntology) {
   const singleLine = (text: string) => text.replace(/[\r\n]/g," ");
-  return `# Operating user\nName: ${singleLine(user.name)}\nEmail: ${singleLine(user.email)}\n\nBuild a knowledge graph describing this user's personal and professional context from the selected sources.\n\n# Wiki ontology\n## Entity types\n${ontology.entities.map(t => `- ${t.name}: ${t.definition}`).join("\n")}\n\n## Relationship types\n${ontology.relationships.map(t => `- ${t.name}: ${t.definition}\n  Direction: ${t.from.join(" | ") || "unspecified"} → ${t.to.join(" | ") || "unspecified"}`).join("\n")}\n\n# Proposal rules\nThe same rules every agent follows when it proposes Wiki records.\n${wikiProposalRulesText}`;
+  const connections = `Review every product, service, publication, organized event and financial obligation in the batch. For each one, look for its named organization in primary evidence and in the existing graph. Reuse one canonical Organization across its roles and cite the evidence on each link. A sender domain, billing processor, venue or resemblance between names cannot establish the organization. Leave an unresolved provider visible when the sources do not identify it.
+
+A successful personal sign-in supports signed_in_to from the verified Person to the Product. Cite the sign-in. Use user_of for actual product activity. A challenge or invitation alone establishes neither. Use developed_by for a verified developer, provided_by for a product operator, and offered_by for a service Offering. Cite an independent authoritative source for developer attribution.
+
+Model a newsletter with recipient_of and published_by. An event registration confirmation supports registered_for and organized_by. A marketing message alone establishes receipt at most: omit customer, registration, sign-in, actual use and attendance without supporting evidence. Use customer_of only for a documented customer relationship. An invitation alone does not warrant a HostedEvent.
+
+For a matched invoice and payment, fill matchedInvoice with separately cited records, the invoice number, amounts, currency and documented dates. Link the responsible canonical Person with has_obligation and the named creditor with payable_to. Report the payment received and leave cadence and outstanding balance unspecified.`;
+  return `# Operating user\nName: ${singleLine(user.name)}\nEmail: ${singleLine(user.email)}\n\nBuild a knowledge graph describing this user's personal and professional context from the selected sources.\n\n# Wiki ontology\n## Entity types\n${ontology.entities.map(t => `- ${t.name}: ${t.definition}`).join("\n")}\n\n## Relationship types\n${ontology.relationships.map(t => `- ${t.name}: ${t.definition}\n  Direction: ${t.from.join(" | ") || "unspecified"} → ${t.to.join(" | ") || "unspecified"}`).join("\n")}\n\n# Proposal rules\nThe same rules every agent follows when it proposes Wiki records.\n${wikiProposalRulesText}\n\n${connections}`;
 }

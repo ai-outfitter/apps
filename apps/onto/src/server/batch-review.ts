@@ -161,16 +161,29 @@ function readingOrder(rows: Row[]) {
   ];
 }
 
+/** A replacement must accept every directed endpoint allowed by the proposed type. */
+function compatibleEdgeTypes(graph: Graph, row: Row) {
+  if (row.operation.attributes.category !== "edge") return [];
+  const proposed = (row.operation.attributes.ontology as { endpoints?: { from?: unknown; to?: unknown } } | undefined)?.endpoints;
+  if (!proposed) return [];
+  const covers = (available: unknown, wanted: unknown) =>
+    (wanted === "any" || (Array.isArray(wanted) && wanted.length > 0)) &&
+    (available === "any" || (Array.isArray(available) && Array.isArray(wanted) && wanted.every(id => available.includes(id))));
+  return graph.types.filter(type => !type.archived && type.category === "edge" && type.id !== row.operation.id &&
+    covers(type.ontology?.endpoints?.from, proposed.from) && covers(type.ontology?.endpoints?.to, proposed.to));
+}
+
 /** The batch read in parts that each fit `budget`: every part carries the batch, its owner, its
  * new types and the checks about its operations, then as many operations and neighbors as fit. */
 export function reviewParts(graph: Graph, who: AppIdentity, batch: Pick<typeof graphBatches.$inferSelect, "id" | "title" | "purpose" | "source" | "policy" | "state">, rows: Row[], checks: Finding[], budget = partBudget) {
-  const typeNames = new Map(graph.types.map((type) => [type.id, type.name]));
+  const typeNames = new Map(graph.types.filter(type => !type.archived).map((type) => [type.id, type.name]));
   const nodes = new Map(graph.nodes.filter((node) => !node.archived).map((node) => [node.id, node]));
   const owner = ownerOf(graph, who);
   const newTypes = rows.filter((row) => row.operation.type === "graph-type").map((row) => ({
     ref: row.ref, operation: row.operation.operation, name: row.operation.attributes.name ?? row.operation.id, category: row.operation.attributes.category,
     properties: Array.isArray(row.operation.attributes.properties) ? row.operation.attributes.properties.map((property: { name?: unknown; type?: unknown }) => `${property?.name}:${property?.type}`) : undefined,
     endpoints: (row.operation.attributes.ontology as { endpoints?: unknown } | undefined)?.endpoints,
+    compatibleExistingEdges: compatibleEdgeTypes(graph, row).slice(0, 12).map(t => ({ id: t.id, name: t.name, endpoints: t.ontology?.endpoints })),
   }));
   const neighbor = (id: string) => {
     const node = nodes.get(id)!;
@@ -361,6 +374,13 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
       return stewardAnswer.parse(output);
     });
     if (!answers.length && parts.length) throw new Error("No steward inference completed within the review budget");
+    for (const answer of answers) {
+      for (const item of answer.findings.filter(item => item.rule === "type.duplicate")) {
+        const row = rows.find(row => row.ref === item.ref);
+        if (!row || !compatibleEdgeTypes(graph, row).some(type => item.fix?.includes(type.id)))
+          throw new Error("The steward did not cite a compatible active relationship type. Re-review this batch.");
+      }
+    }
     const findings = merge(checks, answers.flatMap((answer) => answer.findings.map((item) => savedFinding(graph, batch.id, refs, item))));
     coverage.read = parts.slice(0, answers.length).reduce((sum, part) => sum + part.refs.length, 0);
     coverage.parts = answers.length;
