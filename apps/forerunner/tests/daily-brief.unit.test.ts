@@ -388,3 +388,14 @@ test("unsupported Wiki authorship is left out of the saved brief while exact att
   assert.match(saved, /Handoff notes.*document revision 3/);
   assert.match(saved, /handoff-notes\?revision=3/);
 });
+
+
+test("the saved prose uses the correct weekday for an explicitly repeated reporting date", async () => {
+  const input = inputs({ date: "2026-11-25" });
+  const { evidence, gaps } = gatherEvidence(input);
+  const answer: BriefAnswer = { opening: { text: "Brief for Tuesday, 2026-11-25.", evidence: [evidence[0].ref] },
+    highlights: [], attention: [], unsupported: [] };
+  const saved = renderBrief(input, evidence, gaps, answer, await evidenceDigest(input, evidence, gaps));
+  assert.ok(saved.includes("Brief for Wednesday, 2026-11-25."));
+  assert.ok(!saved.includes("Brief for Tuesday, 2026-11-25."));
+});

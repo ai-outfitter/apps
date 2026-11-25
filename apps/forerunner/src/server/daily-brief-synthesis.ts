@@ -190,16 +190,27 @@ export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: stri
   const cited = (refs: string[]) => `(${[...new Set(refs)].map(ref => `source ${ref}`).join(", ")})`;
   const unsupportedWikiActor = /\b(?:(?:you|the member|the reader)\s+(?:(?:had|have)\s+)?(?:authored|wrote|edited|made|reviewed|documented|updated)|your\s+(?:(?:wiki|document)\s+)?(?:edits|revisions))\b/i;
   const supported = (text: string, refs: string[]) => !refs.some(ref => byRef.get(ref)?.kind === "wiki-activity") || !unsupportedWikiActor.test(text);
+  // The reporting dates are app-owned. Correct a weekday attached to one of
+  // those dates if the model repeats it with a different weekday.
+  const periods = new Set([input.date, input.review.period.date]);
+  const writeText = (text: string) => plain(text).replace(
+    /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(,?\s+)(\d{4}-\d{2}-\d{2})\b/gi,
+    (match, separator: string, date: string) => {
+      if (!periods.has(date)) return match;
+      const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long" }).format(new Date(`${date}T00:00:00Z`));
+      return `${weekday}${separator}${date}`;
+    },
+  );
   const opening = supported(answer.opening.text, answer.opening.evidence)
-    ? plain(answer.opening.text) : "The saved Wiki activity appears below.";
+    ? writeText(answer.opening.text) : "The saved Wiki activity appears below.";
   const lines = [`# Today — ${input.date}`, `${opening} ${cited(answer.opening.evidence)}`,
     `Written from saved records for the completed day ${input.review.period.date} (${input.timezone}) and your board as of this run.`];
   const highlights = answer.highlights.filter(item => supported(item.text, item.evidence));
-  if (highlights.length) lines.push("## What matters", highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${plain(item.text)} ${cited(item.evidence)}`).join("\n"));
+  if (highlights.length) lines.push("## What matters", highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${writeText(item.text)} ${cited(item.evidence)}`).join("\n"));
   const attention = answer.attention.filter(item => supported(`${item.text} ${item.why}`, item.evidence));
   if (attention.length) lines.push("## Suggested attention", "These are suggestions, not facts.", attention.map(item => {
     const goal = item.goal ? byRef.get(item.goal) : null;
-    return `- **${plain(item.text)}** ${plain(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
+    return `- **${writeText(item.text)}** ${writeText(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
   }).join("\n"));
   const activity = evidence.filter(row => row.kind === "wiki-activity" || (row.kind === "app-update" && input.appUpdates?.rows.some(update => update.id === row.recordId && update.app === "Onto")));
   if (activity.length) lines.push("## Previous day’s activity", activity.map(row => `- ${plain(row.text)} ${cited([row.ref])}`).join("\n"));

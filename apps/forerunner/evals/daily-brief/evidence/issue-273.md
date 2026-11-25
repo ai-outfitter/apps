@@ -331,3 +331,9 @@ The final adapter builds Onto and Wiki on each revision and dispatches their ins
 - Spark receipts [baseline](issue-273-installed-baseline-spark.json), [candidate](issue-273-installed-candidate-spark.json). Both use GLM-5.3-Flash-EXL3, thinking disabled and a 150-second timeout.
 - The candidate’s authored variant passed 22/22 ready-stage checks. Spark response `chatcmpl-8f6d51a7eab5dd86` completed in 23.802 s, with 1,133 prompt tokens and 649 completion tokens. It no longer attributes both Wiki revisions to the recipient. The app also guards the saved rendering against that unsupported attribution.
 - The mounted Forerunner Today browser fixture produced an actual app failure with no saved document when sources were unavailable. The failed brief slot, reason, Retry button and empty filters were visible. Nine targeted Forerunner integration tests, five Chromium scenarios, and eight Wiki document integration tests passed locally. Ocean was outside these test runs.
+
+### Archive and timeout follow-up
+
+Revision `f2109dd3` adds the archived Wiki mapping check and avoids waiting on the default Onto producer when it falls after the reporting-timezone cutoff. It passed [135/135 deterministic checks](issue-273-cutoff-candidate-dry.json), ten Forerunner integration tests, five Chromium scenarios, and 29 Wiki unit and integration tests, including the archived legacy route and the early Tokyo brief.
+
+The [Spark follow-up](issue-273-cutoff-candidate-spark.json) returned 7/7 responses and passed 171/172 checks. The authored case used the same prompt hash as the earlier pass. Spark again attributed two Wiki revisions to the recipient, and the app omitted the unsupported sentence from the saved brief. Its prose also paired the correct numeric reporting date with the wrong weekday. A renderer regression now checks that the published weekday for November 25, 2026 is Wednesday.
