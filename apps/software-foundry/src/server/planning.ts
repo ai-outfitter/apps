@@ -1,7 +1,8 @@
-import { requireOrganization, sha256Hex } from "@ai-outfitter/app-sdk/server";
+import { requireAccess, requireOrganization, sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "./intake";
+import { planningIssueMarker } from "./planning-issues";
 import { repositoryName } from "./projects";
 import { foundryPlans } from "./schema";
 import { submissionRepository } from "./workspace/workspaces";
@@ -47,7 +48,6 @@ type PlanningRow = typeof foundryPlans.$inferSelect;
 type ResolvedRepo = Awaited<ReturnType<typeof submissionRepository>>;
 type Evidence = z.output<typeof evidenceResult>;
 const planningLease = 180_000;
-const issueMarker = (runId: string) => `<!-- outfitter:foundry-plan:${runId} -->`;
 
 function caller(context: IntakeContext) {
   const identity = requireOrganization(context.identity);
@@ -184,6 +184,7 @@ function errorStatus(error: unknown) {
 }
 
 export async function planWork(context: IntakeContext, input: z.output<typeof planWorkInput>) {
+  requireAccess(caller(context), "write");
   const names = [...new Set(input.repositories.map(name => name.toLowerCase()))].sort();
   const anchor = input.anchorRepository?.toLowerCase() ?? null;
   if (anchor ? !names.includes(anchor) : input.createIssue)
@@ -253,7 +254,7 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
         && (!matchTemplate || !renderedBody || requiredHeadings.some(heading => !headings.has(heading)));
       const issue = plan.kind === "query" || templateFailed ? null : {
         title: plan.title,
-        body: matchTemplate && renderedBody ? renderedBody : fallbackBody(plan),
+        body: matchTemplate && renderedBody ? renderedBody : sanitizedBody(fallbackBody(plan)),
         template: matchTemplate ? { path: matchTemplate.path, url: matchTemplate.url } : null,
       };
       const { citations: _citations, issueTemplate: _issueTemplate, issueBody: _issueBody, ...planned } = plan;
@@ -286,7 +287,7 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
     try {
       const { state: _state, ...issue } = issueResult.parse(await host.call("connector.execute", {
         ...forgeInput(repo), operation: "issues.create",
-        input: { title: planned.title, body: `${planned.body}\n\n${issueMarker(row.runId)}`, marker },
+        input: { title: planned.title, body: `${planned.body}\n\n${planningIssueMarker(row.runId)}`, marker },
       }));
       row = await update(context, row, { state: "published", issue }) ?? await active();
     } catch (error) {
@@ -313,21 +314,4 @@ export async function planWork(context: IntakeContext, input: z.output<typeof pl
   }
 
   return finish(row);
-}
-
-/** Use the persisted claim, not a label or caller-supplied issue body alone. */
-export async function generatedPlanningIssue(context: Pick<IntakeContext, "db">, resource: string, event: unknown) {
-  const payload = z.object({
-    repository: z.object({ id: z.number().int(), full_name: z.string() }),
-    issue: z.object({ number: z.number().int(), user: z.object({ id: z.number().int() }), body: z.string().nullable().optional() }),
-  }).safeParse(event);
-  if (!payload.success || String(payload.data.repository.id) !== resource) return false;
-  const tag = payload.data.issue.body?.match(/<!-- outfitter:foundry-plan:([a-f0-9-]+) -->/);
-  if (!tag || !requestId.safeParse(tag[1]).success) return false;
-  const [row] = await context.db().select().from(foundryPlans).where(eq(foundryPlans.runId, tag[1]));
-  return Boolean(row?.anchorRepository === payload.data.repository.full_name.toLowerCase()
-    && row.issuePublisherId === payload.data.issue.user.id
-    && row.repositoryGrants.some(grant => grant.name === row.anchorRepository && String(grant.repositoryId) === resource)
-    && ["sending", "publication_uncertain", "published"].includes(row.state)
-    && (!row.issue || row.issue.number === payload.data.issue.number));
 }

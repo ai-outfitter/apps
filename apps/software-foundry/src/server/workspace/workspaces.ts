@@ -249,10 +249,12 @@ const jobRetriesPerRun = 5;
  * whose fix never started; one that has failed `jobFixAttempts` times is closed with its runs. */
 export async function retryJobFixes(host: Unattended, fix: JobFix, repository: { id: number; name: string },
   forge: { openIssues(): Promise<(IssueReceipt & { byFoundry: boolean })[]>; close(number: number, comment: string, reason: "not_planned"): Promise<void> },
-  skip: ReadonlySet<number>) {
+  skip: ReadonlySet<number>, isPlanningIssue: (issue: IssueReceipt) => Promise<boolean>) {
   const retried = [];
   const closed = [];
-  const issues = (await forge.openIssues()).filter((issue) => !skip.has(issue.number));
+  const candidates = (await forge.openIssues()).filter((issue) => !skip.has(issue.number));
+  const planned = await Promise.all(candidates.map(isPlanningIssue));
+  const issues = candidates.filter((_, index) => !planned[index]);
   const runsOf = new Map<number, Awaited<ReturnType<typeof issueRuns>>>();
   if (issues.length)
     for (const run of await issueRuns(host, fix.resource, issues.map((issue) => issue.number)))

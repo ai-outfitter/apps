@@ -1,3 +1,5 @@
+import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
+import { isPlanningIssue } from "../planning-issues";
 // Software Foundry's role-based workspace node policy, run by the workflow host:
 // `prepare` chooses each node's workspace task, `finalize` verifies what the
 // node produced against GitHub and publishes the coordinator's effects.
@@ -194,15 +196,18 @@ async function finalizeAnalysis(host: Finalize, inputs: Json, outputs: Json): Pr
   const fix = jobFix.optional().parse(inputs.fix);
   const repo = await host.call("repository.read", {});
   const forge = foundryForge(hostAPI((request) => host.call("repository.request", request)), repo);
+  const repoIdentity = { id: repo.repositoryId, name: repo.name };
+  const plannedIssue = (issue: Awaited<ReturnType<typeof forge.issue>>) => repo.forge === "forgejo"
+    ? isPlanningIssue(installationDatabase, repoIdentity, issue) : Promise.resolve(false);
   const issues = [];
   for (const { number } of produced.issues) {
     const issue = await forge.issue(number);
     // Each issue goes straight to issue-to-merge, which opens the PR and merges it once checks pass.
-    const started = fix ? await startJobFix(host, fix, { id: repo.repositoryId, name: repo.name }, issue) : undefined;
+    const started = fix && !await plannedIssue(issue) ? await startJobFix(host, fix, repoIdentity, issue) : undefined;
     issues.push({ number: issue.number, url: issue.url, title: issue.title, ...(started ? { fixRun: started.id } : {}) });
   }
   const sweep = fix ? await retryJobFixes(host, fix, { id: repo.repositoryId, name: repo.name }, forge,
-    new Set(issues.map((issue) => issue.number))) : { retried: [], closed: [] };
+    new Set(issues.map((issue) => issue.number)), plannedIssue) : { retried: [], closed: [] };
   return { issues: { repository: repo.name, issues, ...sweep, ...(produced.summary ? { summary: produced.summary } : {}) } };
 }
 

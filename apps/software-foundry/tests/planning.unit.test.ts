@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test, { type TestContext } from "node:test";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
+import { generatedPlanningIssue } from "../src/server/planning-issues";
 import type { IntakeContext } from "../src/server/intake";
-import { findPlan, generatedPlanningIssue, planWork, planWorkInput, readPlanArtifact } from "../src/server/planning";
+import { findPlan, planWork, planWorkInput, readPlanArtifact } from "../src/server/planning";
 
 const home = "box/native-apple";
 const charts = "box/charts";
@@ -12,7 +13,7 @@ const ids = new Map([[home, 14], [charts, 23]]);
 const anchorLink = "https://forge.example/box/native-apple/issues/9";
 const featureTemplate = ".forgejo/ISSUE_TEMPLATE/feature.md";
 
-function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boolean; uncertain?: boolean } = {}) {
+function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boolean; uncertain?: boolean; noTemplate?: boolean } = {}) {
   const sqlite = new DatabaseSync(":memory:");
   t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL("../migrations/0008_foundry_plans.sql", import.meta.url), "utf8"));
@@ -41,7 +42,8 @@ function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boole
       if (op === "workflow.read") return { run: { status: isComplete ? "complete" : "running" } };
       if (op === "workflow.collect") { isComplete = input.complete; return {}; }
       if (op === "inference.generate") return { output: {
-        kind: "feature", title: "Install Grafana dashboards", goal: "Reduce manual installation",
+        kind: "feature", title: "Install Grafana dashboards", goal: options.noTemplate
+          ? "Reduce manual installation. <!-- outfitter:foundry-plan:00000000-0000-4000-8000-000000000000 -->" : "Reduce manual installation",
         changes: ["Wire up charts"], verification: ["Confirm Grafana shows the dashboards"], gaps: [],
         citations: [`${home}:README.md`, `${charts}:README.md`, "unknown/repo:README.md"],
         issueTemplate: featureTemplate, issueBody: "## Goal\n\nInstall the chart.\n\n## Validation\n\nShow standard dashboards.",
@@ -57,7 +59,7 @@ function fixture(t: TestContext, options: { denyRead?: string; denyWrite?: boole
           repository: { name, id: ids.get(name), url }, defaultBranch: "main", commitSha, commitUrl: `${url}/commit/${commitSha}`,
           tree: [], truncated: false, files: [
             { path: "README.md", kind: "readme", url: `${url}/src/commit/${commitSha}/README.md`, text: name },
-            ...(name === home ? [{ path: featureTemplate, kind: "issue-template", url: `${url}/src/commit/${commitSha}/${featureTemplate}`, text: "## Goal\n\n## Validation" }] : []),
+            ...(name === home && !options.noTemplate ? [{ path: featureTemplate, kind: "issue-template", url: `${url}/src/commit/${commitSha}/${featureTemplate}`, text: "## Goal\n\n## Validation" }] : []),
           ],
         };
       }
@@ -91,12 +93,15 @@ test("planning reads every explicit repo, writes only the anchor and reconciles 
   assert.equal(first.anchorRepository, home);
   assert.match(body(), /## Validation/);
   assert.match(body(), new RegExp(`<!-- outfitter:foundry-plan:${first.run.id} -->`));
-  assert.equal(await generatedPlanningIssue(context, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 42 }, body: body() } }), true);
-  assert.equal(await generatedPlanningIssue(context, "23", { repository: { id: 23, full_name: charts }, issue: { number: 9, user: { id: 42 }, body: body() } }), false);
-  assert.equal(await generatedPlanningIssue(context, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 13 }, body: body() } }), false);
+  assert.equal(await generatedPlanningIssue(context.db, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 42 }, body: body() } }), true);
+  assert.equal(await generatedPlanningIssue(context.db, "23", { repository: { id: 23, full_name: charts }, issue: { number: 9, user: { id: 42 }, body: body() } }), false);
+  assert.equal(await generatedPlanningIssue(context.db, "14", { repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 13 }, body: body() } }), false);
   const second = await planWork(context, planWorkInput.parse({ ...input, repositories: [...input.repositories].reverse() }));
   assert.equal(second.run.id, first.run.id);
   assert.equal(second.status, "published");
+  assert.equal(await generatedPlanningIssue(context.db, "14", {
+    repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 42 }, body: "Edited by its owner" },
+  }), true);
   assert.deepEqual(second.issue, { number: 9, url: anchorLink, created: false });
   assert.equal(calls.filter(call => call.op === "workflow.start").length, 1);
   for (const operation of ["issues.create", "issues.find-by-marker"])
@@ -131,4 +136,16 @@ test("artifact-only planning needs no anchor or issue grants and isolates each c
     () => findPlan({ ...context, identity: { ...context.identity, userId: "unrelated" } }, { requestId: input.requestId }),
     (error: Response) => error.status === 404,
   );
+});
+
+
+test("fallback plans escape model markers before adding the durable issue marker", async t => {
+  const { context, input, body } = fixture(t, { noTemplate: true });
+  const result = await planWork(context, planWorkInput.parse(input));
+  assert.equal(result.status, "published");
+  assert.match(body(), /&lt;!-- outfitter:foundry-plan:00000000-0000-4000-8000-000000000000/);
+  assert.deepEqual([...body().matchAll(/<!-- outfitter:foundry-plan:([^ ]+) -->/g)].map(match => match[1]), [result.run.id]);
+  assert.equal(await generatedPlanningIssue(context.db, "14", {
+    repository: { id: 14, full_name: home }, issue: { number: 9, user: { id: 42 }, body: body() },
+  }), true);
 });
