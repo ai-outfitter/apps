@@ -1,0 +1,47 @@
+import type { Assembly } from "./assembly";
+
+/** Read older inspection presets without changing saved geometry or historic revisions. */
+function historicalName(name: string) {
+  return name.endsWith("-exploded") ? name.slice(0,-9) : name === "Exploded" ? "Assembled" : name;
+}
+export function realConfiguration(assembly: Assembly, name: string) {
+  const configs = assembly.configurations ?? [];
+  const physical = historicalName(name);
+  return physical !== name && !configs.some(c => c.name === name) && configs.some(c => c.name === physical) ? physical : name;
+}
+export function inspectionLink(assembly: Assembly, query: URLSearchParams) {
+  const configs = assembly.configurations ?? [];
+  const name = query.get("configuration") ?? "";
+  const preset = configs.find(c => c.name === name);
+  const baseName = historicalName(name);
+  const base = configs.find(c => c.name === baseName);
+  if (!base) return undefined;
+  const hasPairedPreset = configs.some(c => c.name.endsWith("-exploded") && c.parameters?.some(p => p.name === "Explode" && p.min === 0 && p.max === 1) && configs.some(base => base.name === historicalName(c.name) && base.rootId === c.rootId));
+  const legacyParameter = hasPairedPreset && preset?.parameters?.find(p => p.name === "Explode" && p.min === 0 && p.max === 1);
+  const legacyReference = assembly.items.find(item => item.id === preset?.rootId)?.reference?.configuration?.endsWith("-exploded");
+  const alias = name !== baseName && (!preset || legacyParameter || legacyReference);
+  if (!alias && !legacyParameter) return undefined;
+  const params = new URLSearchParams(query);
+  let values: Record<string,unknown>;
+  try { values = JSON.parse(params.get("parameters") ?? "{}"); } catch { return undefined; }
+  if (!values || typeof values !== "object" || Array.isArray(values)) return undefined;
+  const oldAmount = values.Explode;
+  if (!alias && oldAmount === undefined) return undefined;
+  if (oldAmount !== undefined && (typeof oldAmount !== "number" || oldAmount < 0 || oldAmount > 1)) return undefined;
+  delete values.Explode;
+  if (Object.keys(values).length) params.set("parameters",JSON.stringify(values)); else params.delete("parameters");
+  params.set("configuration",base.name);
+  if (!params.has("explode")) params.set("explode",String(Math.round(Number(oldAmount ?? 1)*100)));
+  return params;
+}
+
+
+export function sizingConfigurations(assembly: Assembly) {
+  return assembly.configurations?.filter(config => {
+    const alias = inspectionLink(assembly,new URLSearchParams({configuration:config.name}));
+    return !alias || alias.get("configuration") === config.name;
+  }).map(config => {
+    const probe = inspectionLink(assembly,new URLSearchParams({configuration:config.name,parameters:JSON.stringify({Explode:0})}));
+    return probe ? {...config,parameters:config.parameters?.filter(p => p.name !== "Explode")} : config;
+  });
+}

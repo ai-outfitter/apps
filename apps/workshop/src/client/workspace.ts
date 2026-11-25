@@ -1,4 +1,6 @@
 import { assemblyPoster } from "./assembly-poster";
+import { inspectionLink, sizingConfigurations } from "../lib/inspection-links";
+import { occurrenceInspection } from "./occurrence-inspection";
 import { inspectionControls } from "./inspection-controls";
 import { modelSizing } from "./model-sizing";
 import { installedOperations } from "../lib/installed-operations";
@@ -30,7 +32,7 @@ const $=<T extends HTMLElement=HTMLElement>(id:string)=>root.querySelector<T>(`#
 const element=(tag:string,text:string)=>{const node=document.createElement(tag);node.textContent=text;return node;};
 const notice=(s:string)=>$("workspace-notice").textContent=s;
 let legacy=false, historical=false;
-const query = new URLSearchParams(location.search);
+let query = new URLSearchParams(location.search);
 const selection = new URLSearchParams();
 for(const key of ["revision","configuration","parameters"]) if(query.has(key)) selection.set(key,query.get(key)!);
 const sourceUrl = (source: ResolvedAssembly["sources"][number]) => {
@@ -179,6 +181,7 @@ function updateBudgetTabs(view: Assembly) {
  $("tab-print").hidden = !printableParts(modelView(assembly, selected?.id ?? query.get("item"))).size;
 }
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
+let occurrenceUI: ReturnType<typeof occurrenceInspection> | undefined;
 if (overview) {
  try {
   const { createAssemblyViewer } = await import("./assembly-viewer");
@@ -186,6 +189,13 @@ if (overview) {
   viewer = createAssemblyViewer($<HTMLCanvasElement>("assembly-viewer"), message => $("assembly-status").textContent = message, (id,path) => {
     const item = assembly?.items.find(candidate => candidate.id === id);
     if (item) select(item,path);
+  }, showAll);
+  occurrenceUI = occurrenceInspection(root, viewer, select, showAll, level => {
+    const scoped = modelView(assembly,level.item.id);
+    $("inspection-tree").replaceChildren(inspectionTree(scoped,historical ? [] : resolved?.sources ?? [],sourceUrl,item => {
+      const child = level.children.filter(c => c.item.id === item.id);
+      select(item,child.length === 1 ? child[0].path : level.path);
+    }));
   });
  } catch {
   if (signal.aborted) return;
@@ -284,12 +294,13 @@ function select(item:Item, path?:string){
  selectionPath=path;
  selected=item;
  partInspection?.select(item,path);
- viewer?.select(descendants(item),path,item.id);
+ viewer?.select(descendants(item),path);
  $("isolate-item").hidden=!viewer;
  $("selected-name").textContent=item.name;
- $("selected-meta").textContent=[item.kind, "Rev "+item.revision].join(" · ");
+ $("selected-meta").textContent=[item.kind === "cots" ? "Purchased part (COTS)" : item.kind, "Rev "+item.revision].join(" · ");
  const details=$("selected-body");
  details.replaceChildren();
+ occurrenceUI?.selected(item,path,details);
  if(item.notes) details.append(element("p",item.notes));
  const facts=element("dl","");
  details.append(facts);
@@ -453,6 +464,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  if(legacy)assembly=AssemblySchema.parse({rootId:"ffffffff-ffff-4fff-8fff-ffffffffffff",items:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",number:"ASSEMBLY",revision:"A",name:project.name,kind:"assembly",uses:[{id:"ffffffff-ffff-4fff-8fff-fffffffffffe",itemId:project.id,quantity:1}]},{id:project.id,number:"MODEL",revision:"A",name:project.name,kind:"fabricated",geometry:project.cadPlan??boxPlan(project.params.width,project.params.depth,project.params.height)}]});
  const focused = assembly.items.find(item => item.id === query.get("item"));
  const view = modelView(assembly, focused?.id);
+ occurrenceUI?.load(view);
  const posterKey=JSON.stringify([project.id,project.revision,view.rootId,run?.id,location.search,resolved?.sources]);
  const captureUrl=!historical && !focused && !selection.size && !query.has("view") && import.meta.env.OUTFITTER_APP_MODE!=="demo"
    ? appBase(location.pathname)+`/api/apps/workshop/projects/${project.id}/preview?revision=${project.revision}&thumbnail=1` : undefined;
@@ -492,7 +504,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
     sources:historical ? undefined : resolved?.sources
       .filter(source=>source.configuration && partInspection!.instances.has(source.itemId))
       .map(source=>({label:source.name+" · "+source.configuration,href:sourceUrl(source),parameters:source.parameters})),
-    configurations:!historical && (!resolved || project.revision===resolved.revision) ? project.assembly.configurations : undefined,
+    configurations:!historical && (!resolved || project.revision===resolved.revision) ? sizingConfigurations(project.assembly) : undefined,
     requestBuild:project.workspace && !historical && !selection.size && import.meta.env.OUTFITTER_APP_MODE!=="demo" ? values=>{
       $<HTMLTextAreaElement>("parameter-values").value=JSON.stringify(values,null,2);
       const instruction=$<HTMLInputElement>("instruction");
@@ -554,8 +566,9 @@ function showBuild(run?:BuildRequest, snapshot=false){
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
  void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal,historical?{}:resolved?.meshes).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
+  occurrenceUI?.ready();
   if(query.get("view")==="top") viewer?.topView();
-  finishPoster?.($("assembly-viewer").hasAttribute("data-empty") || selected ? undefined : ()=>viewer!.snapshot());
+  finishPoster?.($("assembly-viewer").hasAttribute("data-empty") || selected || occurrenceUI?.active ? undefined : ()=>viewer!.snapshot());
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
   motion=motionArtifact?undefined:preview;showMotion(Boolean(motion));
   let inline, inlineFailed=false;
@@ -670,7 +683,8 @@ $("project-purpose").onchange=async()=>{
 };
 $("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick = () => viewer?.reset();
-$("show-all").onclick = () => {
+function showAll() {
+ occurrenceUI?.clear();
  viewer?.isolate();
  viewer?.select();
  selected = undefined;
@@ -682,7 +696,8 @@ $("show-all").onclick = () => {
   updateBudgetTabs(inspectedAssembly());
   inspection.open("components");
  }
-};
+}
+$("show-all").onclick = showAll;
 $("isolate-item").onclick = () => {
  if (selected) {
   viewer?.isolate(descendants(selected), selectionPath);
@@ -712,6 +727,18 @@ try{
  }
  const recordPath=`/api/apps/workshop/projects/${project.id}`;
 const savedBuild=query.get("build") && project.workspace?.requests.some(r=>r.id===query.get("build"));
+if (!selection.has("revision") && !savedBuild) {
+ const normalized = inspectionLink(project.assembly, query);
+ if (normalized) {
+   query = normalized;
+   const url = new URL(location.href);
+   url.search = normalized.toString();
+   history.replaceState(history.state,"",url);
+   for (const key of ["configuration","parameters"]) {
+     if (normalized.has(key)) selection.set(key,normalized.get(key)!); else selection.delete(key);
+   }
+ }
+}
 if ((selection.size || project.assembly?.items.some(i=>i.reference)) && !savedBuild) {
  const readView=():Promise<ResolvedAssembly>=>request(recordPath+"/assembly?"+selection);
  resolved=await readView();
