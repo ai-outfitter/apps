@@ -19,6 +19,7 @@ import { modelCatalog, modelView, assemblyChildren, assemblyPath } from "../lib/
 import { fileBase, filePath, fileType, isReferenceImage } from "../lib/assembly-file";
 import { appBase, projectPath } from "../lib/sections";
 import { inspectionTree, projectInspection } from "./project-inspection";
+import { printableParts, renderPrintAnalysis, type PrintAnalysis } from "./print-analysis";
 async function start(signal:AbortSignal){
 const root=document.querySelector<HTMLElement>(".workspace");
 if(!root)return;
@@ -59,6 +60,39 @@ let resolved: ResolvedAssembly | undefined;
 let project:Project,assembly:Assembly,selected:Item|undefined,build:BuildRequest|undefined;
 const overview = section === "overview";
 let renderedPowerFor: string | undefined;
+let printGeneration = 0;
+function renderPrintTab() {
+ const view = modelView(assembly, selected?.id ?? query.get("item"));
+ const parts = printableParts(view);
+ const host = $("print-analysis");
+ const generation = ++printGeneration;
+ renderPrintAnalysis(host, view);
+ if (!parts.size || import.meta.env.OUTFITTER_APP_MODE === "demo") return;
+ if (historical) {
+  renderPrintAnalysis(host, view, undefined, true);
+  return;
+ }
+ const revision = resolved?.revision ?? project.revision;
+ const parameters = new URLSearchParams(selection);
+ parameters.set("view", "print");
+ const path = appBase(location.pathname) + `/api/apps/workshop/projects/${project.id}/assembly?${parameters}`;
+ const active = () => generation === printGeneration && !signal.aborted && $("tab-print").getAttribute("aria-selected") === "true";
+ async function refresh() {
+  if (!active()) return;
+  try {
+   const latest: PrintAnalysis & { revision: number } = await request(path);
+   if (!active()) return;
+   if (latest.revision !== revision) throw Error("Assembly revision changed");
+   renderPrintAnalysis(host, view, latest);
+   if (latest.parts.some(part => parts.has(part.itemId) && part.sha256 && part.state === "pending")) {
+    setTimeout(() => void refresh(), 3000);
+   }
+  } catch {
+   if (active()) renderPrintAnalysis(host, view, undefined, true);
+  }
+ }
+ void refresh();
+}
 function describeInspection(tab: string) {
  agentPage("workshop").describe({title: project.name, state: {
   tab, projectId: project.id, revision: project.revision,
@@ -68,6 +102,7 @@ function describeInspection(tab: string) {
 const inspection = overview ? projectInspection($("project-inspection"), tab => {
  describeInspection(tab);
  if (tab === "bom") renderBom();
+ if (tab === "print") renderPrintTab();
  if (tab === "power" && renderedPowerFor !== inspectedAssembly().rootId) {
   renderPower();
   renderedPowerFor = inspectedAssembly().rootId;
@@ -88,6 +123,7 @@ function updateBudgetTabs(view: Assembly) {
  const {bom, power} = availableBudgets(view);
  $("tab-bom").hidden = !bom;
  $("tab-power").hidden = !power;
+ $("tab-print").hidden = !printableParts(modelView(assembly, selected?.id ?? query.get("item"))).size;
 }
 let viewer: ReturnType<typeof import("./assembly-viewer").createAssemblyViewer> | undefined;
 if (overview) {
