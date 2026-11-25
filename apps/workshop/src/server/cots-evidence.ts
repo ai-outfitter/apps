@@ -192,7 +192,7 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
   function authored(value: CotsEvidence | undefined) {
     return value && canonicalActionValue({
       ...value, interfaces: value.interfaces.map(({ verification, ...entry }) => ({
-        ...entry, verification: verification.status === "untested" ? verification : { ...verification, testedOwnerRevision: undefined },
+        ...entry, verification: { ...verification, testedOwnerRevision: undefined },
       })),
     });
   }
@@ -223,7 +223,7 @@ export async function recordCotsEvidence(c: WorkshopContext, input: z.infer<type
     const { testedProjectId, testedRevision, testedConfiguration, testedParameters } = entry.verification;
     const testedSelection = { projectId: testedProjectId, revision: testedRevision,
       configuration: testedConfiguration, parameters: testedParameters };
-    const key = JSON.stringify(testedSelection);
+    const key = canonicalActionValue(testedSelection);
     if (!testedParts.has(key)) {
       const tested = await load({ projectId: testedProjectId, revision: testedRevision });
       const expanded = await resolveAssembly(tested, load, testedSelection, true);
