@@ -69,7 +69,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     get("occurrence-status").textContent = "Inspecting " + level.item.name;
     crumbs.replaceChildren();
     for (const [depth, frame] of stack.entries()) crumbs.append(button(frame.level.item.name, () => leave(depth)));
-    
+
     back.hidden = !stack.length;
     list.replaceChildren();
     for (const child of level.children) {
