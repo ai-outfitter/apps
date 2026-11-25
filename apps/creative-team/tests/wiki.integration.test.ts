@@ -77,10 +77,14 @@ test("the interview and the people, audience and problem it names reach the Wiki
     const review = "mutation ReviewBatch($input: ReviewBatchInput!) { reviewBatch(input: $input) { id state } }";
     const approve = async (batchId: string) => {
       const observed = await graph(wiki, "graph.graphql", "query ($id: ID!) { changeBatch(id: $id) { submittedVersion } }", { id: batchId });
+      assert.equal(observed.errors, undefined, JSON.stringify(observed.errors));
+      const expectedVersion = observed.data?.changeBatch.submittedVersion;
+      assert.ok(Number.isInteger(expectedVersion), "Batch must return its observed version");
       const approved = await graph(wiki, "graph.mutate", review, { input: {
-        batchId, expectedVersion: observed.data?.changeBatch.submittedVersion, verdict: "approve",
+        batchId, expectedVersion, verdict: "approve",
       } });
-      assert.equal(approved.data?.reviewBatch.state, "committed", JSON.stringify(approved.errors));
+      assert.equal(approved.errors, undefined, JSON.stringify(approved.errors));
+      assert.equal(approved.data?.reviewBatch.state, "committed");
     };
     await approve(saved.batchId);
 

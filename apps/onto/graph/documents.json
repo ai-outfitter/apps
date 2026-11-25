@@ -797,7 +797,7 @@
                         "type": "object",
                         "properties": {
                           "expectedVersion": {
-                            "description": "The observed submittedVersion. Required for versioned batches.",
+                            "description": "Pass the observed submittedVersion to check it before deciding. Omit to review the current submission.",
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991

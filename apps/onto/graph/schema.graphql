@@ -622,7 +622,7 @@ type Mutation {
   saveSettings(input: SaveSettingsInput!): OntoSettings!
 
   """
-  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion for versioned batches. Apps and delegated writers cannot review.
+  Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. Omit to review the current submission. Apps and delegated writers cannot review.
   """
   reviewBatch(input: ReviewBatchInput!): ChangeBatch!
 

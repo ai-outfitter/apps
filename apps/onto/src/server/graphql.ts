@@ -338,7 +338,7 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       description: "Admins only: change this Onto's settings. stewardApproval approve lets the ontology steward approve what its review of a submitted batch found clean; review leaves every decision to a member.",
       run: (context: MutationContext, input) => saveSettings(context.db(), context.identity, input),
     }),
-    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion for versioned batches. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
+    reviewBatch: mutationField({name:"ReviewBatch",description:"Approve or reject submitted changes as an editor: the member in the Wiki, or the member's own agent connection acting with the member's identity. Pass the observed submittedVersion as expectedVersion to reject a stale review. Omit to review the current submission. Apps and delegated writers cannot review.",input:batchReviewInput,output:nonNull(ChangeBatch),
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     ...creativeMutations,
     ...creativeAddressMutations,

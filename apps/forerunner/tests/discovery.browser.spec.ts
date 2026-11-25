@@ -218,8 +218,14 @@ for (const width of [1440, 390])
       const reviewLink = await page.getByRole("link", {name:"Review 1 change",exact:true}).getAttribute("href");
       const batchId = reviewLink?.split("/").at(-1);
       expect(batchId).toBeTruthy();
+      const observed = await wiki.call("/api/internal/actions/v1/call", owner, {
+        method:"POST", body:{action:"batch.get", input:{batchId}},
+      });
+      expect(observed.status, await observed.clone().text()).toBe(200);
+      const { batch } = await observed.json();
+      expect(Number.isInteger(batch.submittedVersion)).toBe(true);
       const approved = await wiki.call("/api/apps/onto/batches/review", owner, {
-        method:"POST", body:{batchId, verdict:"approve"},
+        method:"POST", body:{batchId, expectedVersion:batch.submittedVersion, verdict:"approve"},
       });
       expect(approved.status, await approved.clone().text()).toBe(200);
       await expect(page.getByRole("group",{name:"Person",exact:true})).toBeVisible();

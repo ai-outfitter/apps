@@ -681,7 +681,8 @@ export async function mutateBatchSubmission(db: Database, who: AppIdentity, acto
 async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: BatchSubmissionInput, requestKey: string, hash: string): Promise<BatchSubmissionReceipt> {
   const [batch] = input.batchId ? await db.select().from(graphBatches).where(eq(graphBatches.id, input.batchId)) : [];
   if (batch) {
-    if (input.expectedVersion !== batch.submittedVersion) fail("Proposal version changed; pass the current expectedVersion before editing", 409);
+    if (input.expectedVersion === undefined) fail("Pass expectedVersion when editing an existing submission or submitting a draft", 409);
+    if (input.expectedVersion !== batch.submittedVersion) fail("Proposal version changed; reload before editing", 409);
     if (batch.state !== "open" && batch.state !== "awaiting_review") fail("Only an open or submitted batch can be edited", 409);
     if (batch.state === "open" && batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
     if (batch.policy.kind !== "member") {
@@ -756,7 +757,8 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   requireMemberReview(who, actor, origin);
   const batch = await loadBatch(db, input.batchId);
   if (batch.state !== "awaiting_review") fail("Only a submitted batch waiting for review can be decided", 409);
-  if ((input.expectedVersion ?? 0) !== batch.submittedVersion) fail("Proposal version changed; reload and pass expectedVersion before reviewing", 409);
+  if (input.expectedVersion !== undefined && input.expectedVersion !== batch.submittedVersion)
+    fail("Proposal version changed; reload before reviewing", 409);
   const rows = live(await loadOperations(db, batch.id));
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const chosen = new Set((input.refs ?? waiting.map((row) => row.ref)).filter((r) => waiting.some((row) => row.ref === r)));
