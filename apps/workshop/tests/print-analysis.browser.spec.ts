@@ -49,6 +49,10 @@ test("3D Print follows the selected model and distinguishes grouped and independ
     };
     expect(pending.revision).toBe(project.revision);
     expect(pending.parts.map(part => part.state)).toEqual(Array(5).fill("pending"));
+    const scoped = await (await app.call(projectPath + "/assembly?view=print&itemId=" + parts[0].id, member)).json() as {
+      parts: { itemId: string }[];
+    };
+    expect(scoped.parts.map(part => part.itemId)).toEqual([parts[0].id]);
     const profile = { printer: "Bambu Lab P2S", material: "ASA", slicer: "Bambu Studio", profileSha256: "a".repeat(64) };
     const evidence = parts.map((part, index) => ({
       itemId: part.id, name: part.name, fileName: `${fileNames[index]}.stl`, sha256: String(index + 1).repeat(64),
@@ -57,10 +61,10 @@ test("3D Print follows the selected model and distinguishes grouped and independ
     }));
     const artifact = { fileName: "Sunny-open-fit-trial-P2S-ASA.3mf", sha256: "b".repeat(64) };
     const plates = [
-      { index: 1, name: "Plate 1", state: "completed", members: evidence.slice(0, 3), durationSeconds: 5040.84, filamentGrams: 36.698, warnings: [], artifact },
-      { index: 2, name: "Plate 2", state: "completed", members: evidence.slice(3), durationSeconds: 981.52, filamentGrams: 6.678, warnings: [], artifact },
+      { index: 1, name: "Plate 1", state: "completed", members: evidence.slice(0, 3), durationSeconds: 5040.84, filamentGrams: 36.698, warnings: [], artifact: {...artifact,downloadPath:"/files/main/builds/fixture-slice.3mf"} },
+      { index: 2, name: "Plate 2", state: "completed", members: evidence.slice(3), durationSeconds: 981.52, filamentGrams: 6.678, warnings: [], artifact: {...artifact,downloadPath:"/files/main/builds/fixture-slice.3mf"} },
     ].map(plate => ({ ...plate, ...profile, members: plate.members.map(({ itemId, sha256, fileName }) => ({ itemId, sha256, fileName, quantity: 1 })) }));
-    let mode: "pending" | "grouped" | "roll-up" | "stale" = "grouped";
+    let mode: "pending" | "grouped" | "roll-up" | "stale" | "package-extra" = "grouped";
     await page.route(origin + "/**", async route => {
       if (await fulfillPlatformIdentity(route)) return;
       const url = new URL(route.request().url());
@@ -69,7 +73,8 @@ test("3D Print follows the selected model and distinguishes grouped and independ
         return route.fulfill({ json: {
           revision: project.revision,
           parts: mode === "roll-up" ? estimates : evidence,
-          plates: mode === "grouped" ? plates : mode === "stale" ? plates.map(plate => ({ ...plate, state: "stale" })) : [],
+          plates: mode === "grouped" ? plates : mode === "stale" ? plates.map(plate => ({ ...plate, state: "stale" }))
+            : mode === "package-extra" ? [...plates,{...plates[0],index:3,name:"Plate 3",members:[{...plates[0].members[0],itemId:crypto.randomUUID()}]}] : [],
         } });
       }
       await fulfillFrom(route, await app.call(url.pathname + url.search, member));
@@ -99,6 +104,13 @@ test("3D Print follows the selected model and distinguishes grouped and independ
     await page.goto(pageUrl + "?item=" + cots);
     await expect(page.locator("#project-name")).toContainText("Purchased devkit");
     await expect(print).toBeHidden();
+
+    mode = "package-extra";
+    await page.goto(pageUrl);
+    await print.click();
+    await expect(panel).toContainText("Partial plate estimate");
+    await expect(panel).not.toContainText("Grouped plate estimate");
+    await expect(panel.getByRole("link",{name:/Download .*3mf/i})).toHaveCount(0);
 
     mode = "roll-up";
     await page.goto(pageUrl);

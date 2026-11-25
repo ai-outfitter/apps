@@ -2106,7 +2106,7 @@
       ]
     },
     "mcp": {
-      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
+      "description": "Register the native Bambu Studio 3MF and CLI result.json by their byte counts and SHA-256 digests. Include every physical plate's index and membership as itemId, sha256 and quantity. Workshop verifies the embedded 3MF instances against the stored STL geometry. PUT raw bytes to each returned uploads URL with its headers, then repeat the operation to preserve the grouped estimates."
     },
     "outputSchema": {
       "type": "object",
@@ -2832,7 +2832,7 @@
       ]
     },
     "mcp": {
-      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration."
+      "description": "Read the current print preflight, independent estimates, assigned plate groups and evidence receipts for a project configuration. Pass itemId to inspect only that part or subassembly."
     },
     "outputSchema": {
       "type": "object",

@@ -69,7 +69,7 @@ type WorkshopProjectConnectionEdge {
 
 type WorkshopProject {
   """
-  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
   id: ID!
@@ -200,6 +200,7 @@ input WorkshopPrintInput {
   revision: Float
   configuration: String
   parameters: JSON
+  itemId: ID
 }
 
 input WorkshopSourceFileInput {
@@ -728,7 +729,7 @@ type WorkshopAssemblyReceipt {
   revision: Int!
 
   """
-  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
 }

@@ -281,6 +281,12 @@ const coreOperations = {
   /** Schedule a sealed native STL check or read its installation-scoped receipt. */
   "fabrication.preflight": operation(["interactive", "finalize"], z.union([
     z.strictObject({id:z.string().regex(/^[a-f0-9]{64}$/)}),
+    z.strictObject({lookup:z.strictObject({
+      kind:z.literal("stl"),
+      supportPolicy:z.enum(["support-free","supports-required"]).optional(),
+      files:z.array(z.strictObject({name:z.string().regex(/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,159}$/),
+        sha256:z.string().regex(/^[a-f0-9]{64}$/)})).length(1),
+    })}),
     z.strictObject({request:z.strictObject({
       kind:z.literal("stl"),
       supportPolicy:z.enum(["support-free","supports-required"]).optional(),

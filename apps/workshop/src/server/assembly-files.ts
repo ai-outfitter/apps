@@ -43,7 +43,7 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
   const result = {status:"attached",projectId:project.id,itemId,revision,file:receipt(file)};
   if (!bounds) return result;
   const bytes = await storedPrintBytes(c,key.key,file);
-  const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy,true);
+  const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy);
   return {...result,preflight,warnings:printWarnings(preflight),printFindings:machinePrintFindings({itemId,fileName:file.fileName,sha256:file.sha256},preflight)};
 }
 

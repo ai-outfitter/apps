@@ -1,14 +1,13 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { sha256Hex } from "@ai-outfitter/app-sdk/server";
-import { bomRows } from "../lib/assembly";
+import { type Assembly, bomRows } from "../lib/assembly";
 import { filePath, fileType } from "../lib/assembly-file";
 import type { ResolvedAssembly } from "../lib/assembly-resolution";
 import type { ArtifactRecord } from "../lib/artifact";
+import { resolvedProject } from "./assembly-references";
 import type { WorkshopContext } from "./graphql";
 import { listPrintPlates } from "./print-plates";
 
-export const preflightProfile = "326a17d070f137bc3d5eb1115d66b4910aa39313f1afb35c839a76be515d2a4c";
 const slicerProfileSha256 = "d104b31ec627cddd90419dd8151edb545c5dee3d3c5beaf54f89024308598dd6";
 export type SupportPolicy = "support-free" | "supports-required";
 type Estimate = { filamentGrams: number; durationSeconds: number; printer: string; material: string; slicer: string };
@@ -17,17 +16,19 @@ type Preflight = {
   state: "pending" | "stale" | "completed" | "error";
   profileSha256: string;
   submitted?: boolean;
+  needsEditor?: boolean;
+  analyzerDigest?: string;
   result?: { status: "pass" | "warning" | "fail"; findings?: Finding[]; support_heights_mm?: number[]; solid_valid?: boolean; message?: string; estimate?: Estimate };
 };
 type Input = { name: string; sha256: string; bytes?: Uint8Array };
 
-export async function analyzePrint(context: WorkshopContext, input: Input, policy?: SupportPolicy, retryFailed = false): Promise<Preflight> {
+export async function analyzePrint(context: WorkshopContext, input: Input, policy?: SupportPolicy): Promise<Preflight> {
   const {name, sha256: digest, bytes} = input;
-  const id = await sha256Hex(JSON.stringify([preflightProfile, "stl", policy ?? null, [{name, sha256:digest}]]));
+  const selector = {kind:"stl" as const,supportPolicy:policy,files:[{name,sha256:digest}]};
   try {
     const host = context.host();
-    let job = await host.call("fabrication.preflight", {id});
-    if (bytes && (!job || (job.state === "error" && retryFailed))) {
+    let job = await host.call("fabrication.preflight", {lookup:selector});
+    if (bytes && !job) {
       if (bytesToHex(sha256(bytes)) !== digest) return {state:"error",profileSha256:slicerProfileSha256};
       const chunks: string[] = [];
       for (let offset = 0; offset < bytes.length; offset += 24 * 1024) {
@@ -36,15 +37,19 @@ export async function analyzePrint(context: WorkshopContext, input: Input, polic
       job = await host.call("fabrication.preflight", {request:{kind:"stl",supportPolicy:policy,files:[{name,sha256:digest,base64:chunks.join("")}]}});
     }
     if (!job) return {state:"pending",profileSha256:slicerProfileSha256};
-    if (job.id !== id || job.profile !== preflightProfile) return {state:"stale",profileSha256:slicerProfileSha256};
+    if (!/^sha256:[a-f0-9]{64}$/.test(job.profile)) return {state:"stale",profileSha256:slicerProfileSha256};
+    const analyzerDigest = job.profile;
     const output = job.result as (NonNullable<Preflight["result"]> & {sha256?:string;profile_sha256?:string}) | undefined;
     if (job.state === "completed") {
       if (output?.sha256 !== digest || output.profile_sha256 !== slicerProfileSha256) return {state:"stale",profileSha256:slicerProfileSha256};
-      return {state:"completed",profileSha256:slicerProfileSha256,result:output};
+      return {state:"completed",profileSha256:slicerProfileSha256,analyzerDigest,result:output};
     }
-    if (job.state === "error") return {state:"error",profileSha256:slicerProfileSha256};
-    return {state:"pending",profileSha256:slicerProfileSha256,submitted:true};
-  } catch {
+    if (job.state === "error") return {state:"error",profileSha256:slicerProfileSha256,analyzerDigest};
+    return {state:"pending",profileSha256:slicerProfileSha256,analyzerDigest,submitted:true};
+  } catch (error) {
+    if (bytes && error instanceof Response && error.status===403)
+      return {state:"pending",profileSha256:slicerProfileSha256,needsEditor:true};
+    if (error instanceof Response && error.status===429) return {state:"pending",profileSha256:slicerProfileSha256};
     return {state:"error",profileSha256:slicerProfileSha256};
   }
 }
@@ -64,7 +69,7 @@ export const printWarnings = (report: Preflight) => {
 
 type PrintTarget = { itemId?:string; artifactPath?:string; fileName:string; sha256:string };
 export function machinePrintFindings(target:PrintTarget, report:Preflight) {
-  const identity = {...target,state:report.state,profileSha256:report.profileSha256};
+  const identity = {...target,state:report.state,profileSha256:report.profileSha256,...(report.analyzerDigest && {analyzerDigest:report.analyzerDigest})};
   if (report.state !== "completed") {
     const code = {pending:"check_pending",stale:"check_stale",error:"check_unavailable"}[report.state];
     return [{...identity,code}];
@@ -86,17 +91,14 @@ export async function storedPrintBytes(context: WorkshopContext, key: string, ar
   if (bytes.length === artifact.bytes && bytesToHex(sha256(bytes)) === artifact.sha256) return bytes;
 }
 
-export function printableUses(resolved: ResolvedAssembly) {
+export function printableUses(resolved: ResolvedAssembly,itemId?:string) {
   const rows = new Map<string,{item:ResolvedAssembly["assembly"]["items"][number];quantity:number;usageIds:string[]}>();
-  for (const row of bomRows(resolved.assembly)) {
+  for (const row of bomRows(itemId ? {...resolved.assembly,rootId:itemId} : resolved.assembly)) {
     if (row.item.kind !== "printed") continue;
     const entry = rows.get(row.item.id) ?? {item:row.item,quantity:0,usageIds:[]};
     entry.quantity += row.quantity;
     entry.usageIds.push(row.path);
     rows.set(row.item.id,entry);
-  }
-  for (const item of resolved.assembly.items) {
-    if (item.kind === "printed" && !rows.has(item.id)) rows.set(item.id,{item,quantity:0,usageIds:[]});
   }
   return [...rows.values()].map(({item,quantity,usageIds}) => {
     const file = item.files?.find(candidate => fileType(candidate.fileName) === "model/stl" && filePath(candidate) === item.mesh?.path);
@@ -108,19 +110,35 @@ export function printableUses(resolved: ResolvedAssembly) {
   });
 }
 
-/** Assembly edits can change the chosen mesh or added usages without uploading bytes. */
-export async function assemblyPrintFindings(context:WorkshopContext,resolved:ResolvedAssembly) {
+/** A transient analysis or source read cannot invalidate an already committed save. */
+export async function assemblyPrintFindings(context:WorkshopContext,saved:{id:string;revision:number;assembly:Assembly}) {
+  if (!saved.assembly.items.some(item=>item.reference || item.kind==="printed" && item.mesh)) return [];
+  let view:ResolvedAssembly;
+  try {
+    view=await resolvedProject(context.db(),{projectId:saved.id,revision:saved.revision});
+  } catch {
+    return saved.assembly.items.flatMap(item=>{
+      const attached=item.files?.find(file=>filePath(file)===item.mesh?.path);
+      return attached ? machinePrintFindings({itemId:item.id,fileName:attached.fileName,sha256:attached.sha256},
+        {state:"error",profileSha256:slicerProfileSha256}) : [];
+    });
+  }
+  const inputs = printableUses(view).filter(part=>part.fileName && part.sha256);
   const findings = [];
-  for (const {itemId,fileName,sha256,policy} of printableUses(resolved)) {
-    if (!fileName || !sha256) continue;
-    const report = await analyzePrint(context,{name:fileName,sha256},policy);
-    findings.push(...machinePrintFindings({itemId,fileName,sha256},report));
+  for (let start=0;start<inputs.length;start+=8) {
+    const batch=await Promise.all(inputs.slice(start,start+8).map(async ({itemId,fileName,sha256,policy})=>{
+      const target={itemId,fileName:fileName!,sha256:sha256!};
+      return machinePrintFindings(target,await analyzePrint(context,{name:target.fileName,sha256:target.sha256},policy));
+    }));
+    findings.push(...batch.flat());
   }
   return findings;
 }
 
-export async function readWorkshopPrint(context: WorkshopContext, projectId: string, resolved: ResolvedAssembly) {
-  const uses = printableUses(resolved);
+export async function readWorkshopPrint(context: WorkshopContext, projectId: string, resolved: ResolvedAssembly,itemId?:string) {
+  const assemblyUses = printableUses(resolved);
+  const uses = itemId ? printableUses(resolved,itemId) : assemblyUses;
+  let jobsRemaining = 4;
   const parts = [];
   for (const {mesh,policy,...part} of uses) {
     let analysis: Preflight = {state:"pending",profileSha256:slicerProfileSha256};
@@ -131,7 +149,8 @@ export async function readWorkshopPrint(context: WorkshopContext, projectId: str
       const head = await context.storage().head({space:"builds",key});
       if (head?.sha256 !== mesh.artifact.sha256 || head.size !== mesh.artifact.bytes) {
         analysis = {state:"stale",profileSha256:slicerProfileSha256};
-      } else if (analysis.state === "pending" && !analysis.submitted) {
+      } else if (analysis.state === "pending" && !analysis.submitted && jobsRemaining>0) {
+        jobsRemaining--;
         const bytes = await storedPrintBytes(context,key,mesh.artifact);
         analysis = bytes ? await analyzePrint(context,{...input,bytes},policy) : {state:"error",profileSha256:slicerProfileSha256};
       }
@@ -139,7 +158,7 @@ export async function readWorkshopPrint(context: WorkshopContext, projectId: str
     const estimate = analysis.result?.estimate;
     const {fileName,sha256,...identity} = part;
     parts.push({...identity,...(fileName && {fileName}),...(sha256 && {sha256}),...analysis,
-      ...(estimate && {estimate:{...estimate,profileSha256:analysis.profileSha256}})});
+      ...(estimate && {estimate:{...estimate,profileSha256:analysis.profileSha256,analyzerDigest:analysis.analyzerDigest!}})});
   }
-  return {parts,plates:await listPrintPlates(context,projectId,parts)};
+  return {parts,plates:await listPrintPlates(context,projectId,assemblyUses)};
 }

@@ -75,7 +75,10 @@ function renderPrintTab() {
  const revision = resolved?.revision ?? project.revision;
  const parameters = new URLSearchParams(selection);
  parameters.set("view", "print");
+ if (view.rootId && view.rootId!==assembly.rootId) parameters.set("itemId",view.rootId);
  const path = appBase(location.pathname) + `/api/apps/workshop/projects/${project.id}/assembly?${parameters}`;
+ const deadline = Date.now() + 10 * 60 * 1000;
+ let delay = 3000;
  const active = () => generation === printGeneration && !signal.aborted && $("tab-print").getAttribute("aria-selected") === "true";
  async function refresh() {
   if (!active()) return;
@@ -84,8 +87,9 @@ function renderPrintTab() {
    if (!active()) return;
    if (latest.revision !== revision) throw Error("Assembly revision changed");
    renderPrintAnalysis(host, view, latest);
-   if (latest.parts.some(part => parts.has(part.itemId) && part.sha256 && part.state === "pending")) {
-    setTimeout(() => void refresh(), 3000);
+   if (Date.now()<deadline && latest.parts.some(part=>parts.has(part.itemId) && part.sha256 && part.state==="pending" && !part.needsEditor)) {
+    setTimeout(()=>void refresh(),delay);
+    delay=Math.min(delay*2,30_000);
    }
   } catch {
    if (active()) renderPrintAnalysis(host, view, undefined, true);

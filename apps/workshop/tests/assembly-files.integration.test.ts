@@ -33,6 +33,10 @@ test("an attachment preserves the saved assembly, checks the file and requires t
   assert.equal(print.parts[0].state,"pending");
   assert.equal(print.parts[0].quantity,2);
   assert.equal(print.parts[0].sha256,undefined);
+  const focused=await graph("WorkshopPrint",{input:{projectId:project.id,itemId:partId}});
+  assert.equal(focused.parts.length,1);
+  assert.equal(focused.parts[0].itemId,partId);
+  assert.equal(focused.parts[0].quantity,1);
   const bytes=Buffer.from("ISO-10303-21;\nEND-ISO-10303-21;");
   const verify={projectId:project.id,itemId,fileName:"fixture.step"};
   const input={...verify,expectedRevision:revision,bytes:bytes.length,sha256:createHash("sha256").update(bytes).digest("hex")};

@@ -161,7 +161,18 @@ after authenticating the container engine to GHCR with write access to
 `ai-outfitter/workspace-runtime`. The script verifies the image, uses a dedicated
 `workshop-preflight-<source hash>` tag, and prints the immutable reference for
 the platform deployment. It reuses and checks a published tag on rerun.
+Serialize publication when running the script from a release workflow.
 The platform deployment starts
 `/opt/cad/bin/python /opt/workshop/preflight_http.py` and sets the private
 listener address. Before changing the deployment, confirm that a registry
 pull using an empty authentication file resolves the printed digest.
+
+Workshop accepts Bambu Studio slice packages with embedded instance geometry.
+Each archived plate instance must match the stored STL's oriented triangles
+within 0.0001 mm after removing translation. Rigid plate placements are
+supported. An STL that the slicer repaired or re-triangulated must be exported
+and attached as the matching source before its slice can be recorded.
+
+Each project retains up to 20 recorded slice packages. Invalid imports stay in
+temporary upload storage and do not consume that quota. Longer-term management
+of saved print history is separate from the slice recording workflow.

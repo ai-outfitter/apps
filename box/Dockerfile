@@ -71,7 +71,7 @@ ENV WORKSPACE_BROWSER_NO_SANDBOX=1 \
 ARG BOX_APP=software-foundry
 # CAD tools belong to the sealed Workshop image, never the developer host.
 RUN if [ "$BOX_APP" = workshop ]; then apt-get update && apt-get install -y --no-install-recommends openscad python3-venv prusa-slicer=2.9.2+dfsg-1 && python3 -m venv /opt/cad && /opt/cad/bin/pip install --no-cache-dir trimesh==4.5.3 numpy==2.2.6 scipy==1.15.3 manifold3d==3.5.5 && rm -rf /var/lib/apt/lists/*; fi
-ENV PATH="/opt/cad/bin:${PATH}" QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM=offscreen
+ENV PATH="/opt/cad/bin:${PATH}" QT_QPA_PLATFORM=offscreen
 COPY --from=forgejo /app/gitea/gitea /usr/local/bin/forgejo
 COPY --from=rustfs /usr/bin/rustfs /usr/local/bin/rustfs
 # The platform runs from its checkout through the local-organizations loader,
@@ -79,7 +79,7 @@ COPY --from=rustfs /usr/bin/rustfs /usr/local/bin/rustfs
 COPY --from=build --chown=node:node /app /app
 # The workspace runtime (pi and its tools), as the workspace image installs it.
 COPY --from=build /app/workspace/runtime /opt/workspace
-RUN if [ "$BOX_APP" = workshop ]; then mkdir -p /opt/workshop && cp /app/.box/apps/workshop/box/workspace/build.py /app/.box/apps/workshop/box/workspace/cantilever.py /app/.box/apps/workshop/box/workspace/fdm-asa.ini /app/.box/apps/workshop/box/workspace/preflight*.py /opt/workshop/; fi
+RUN if [ "$BOX_APP" = workshop ]; then mkdir -p /opt/workshop && cp /app/.box/apps/workshop/box/workspace/build.py /app/.box/apps/workshop/box/workspace/cantilever.py /app/.box/apps/workshop/box/workspace/fdm-asa.ini /app/.box/apps/workshop/box/workspace/preflight*.py /opt/workshop/ && { dpkg-query -W; /opt/cad/bin/pip freeze; } > /opt/workshop/runtime.lock; fi
 WORKDIR /app
 ENV NODE_ENV=development PATH="/opt/workspace/node_modules/.bin:${PATH}" BOX_APP="${BOX_APP}" BOX_IMAGE="outfitter/${BOX_APP}-box:dev"
 RUN mkdir -p /box /in /out && chown -R node:node /box /out

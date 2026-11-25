@@ -344,11 +344,19 @@ async function main() {
     OUTFITTER_FORGE: "forgejo", OUTFITTER_FORGE_ORIGIN: FORGEJO, ...(env.AI_MODEL ? { AI_MODEL: env.AI_MODEL } : {}),
   });
   const gatewayToken = secret("gateway");
-  if (APP === "workshop") start("fabrication-preflight", "/opt/cad/bin/python", ["/opt/workshop/preflight_http.py"], {
-    HOME: "/tmp", PATH: "/opt/cad/bin:/usr/bin:/bin", QT_QPA_PLATFORM: "offscreen",
-  }, {isolated:true});
+  let localPreflightImage;
+  if (APP === "workshop") {
+    const identity = createHash("sha256");
+    for (const path of ["cantilever.py","fdm-asa.ini","preflight.py","preflight_http.py","runtime.lock"]) {
+      identity.update(path).update(readFileSync(join("/opt/workshop",path)));
+    }
+    localPreflightImage = `outfitter-local/workshop-preflight@sha256:${identity.digest("hex")}`;
+    start("fabrication-preflight", "/opt/cad/bin/python", ["/opt/workshop/preflight_http.py"], {
+      HOME:"/tmp", PATH:"/opt/cad/bin:/usr/bin:/bin", QT_QPA_PLATFORM:"offscreen",
+    }, {isolated:true});
+  }
   start("gateway", "node", [join(CHECKOUT, "workspace/gateway.mjs")], {
-    ...(APP === "workshop" && {FABRICATION_PREFLIGHT_URL:"http://127.0.0.1:4041/preflight"}),
+    ...(localPreflightImage && {FABRICATION_PREFLIGHT_URL:"http://127.0.0.1:4041/preflight",FABRICATION_PREFLIGHT_IMAGE:localPreflightImage}),
     WORKSPACE_GATEWAY_PORT: String(PORTS.gateway), WORKSPACE_DATABASE_URL: `file:${join(STATE, "workspaces.db")}`, KUBERNETES_API_URL: `http://127.0.0.1:${PORTS.kube}`, KUBERNETES_TOKEN_FILE: join(STATE, "kube-token"),
     WORKSPACE_RUNTIME_ORIGIN: `http://127.0.0.1:${PORTS.kube}/runtime/{namespace}/{id}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...(env.BOX_DEBUG_HOST ? { WORKSPACE_DEBUG_ERRORS: "1" } : {}),
     // The one forge this gateway serves: the platform names each task's, and the two must agree.
