@@ -14,7 +14,7 @@ const csv = (x: unknown) => {
     '"'
   );
 };
-export function projectPackage(p: Project, bomAssembly = p.assembly) {
+export function projectPackage(p: Project, bomAssembly = p.assembly, fitTrials: readonly unknown[] = []) {
   const parameters =
     p.params.design === "custom"
       ? {
@@ -49,6 +49,7 @@ export function projectPackage(p: Project, bomAssembly = p.assembly) {
     "evidence.json": JSON.stringify(p.evidence, null, 2),
     "README.md": `# ${p.name} — draft package\n\nProject revision: ${p.revision}.\n${p.productRevision ? `Builds product revision: ${p.productRevision.title || p.productRevision.id}${p.productRevision.url ? ` (${p.productRevision.url})` : ""}.\n` : ""}Physical fit for these dimensions: ${fitReady(p) ? "recorded pass" : "not accepted"}.\nBreadboard: ${pcbReady(p) ? "recorded pass" : "not accepted / not applicable"}.\n\nThis archive records the project. Export matching STEP/STL files from the Design tab. It is not a manufacturing approval. Keep the template source revision with these files.\n`,
   };
+  if (fitTrials.length) files["fit-trials.json"] = JSON.stringify(fitTrials, null, 2);
   if(p.workspace)files["workspace.json"]=JSON.stringify(p.workspace,null,2);
   if(p.assembly.rootId)files["assembly.json"]=JSON.stringify(p.assembly,null,2);
   if (p.cadPlan) files["cad-plan.json"] = JSON.stringify(p.cadPlan, null, 2);

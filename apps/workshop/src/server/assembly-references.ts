@@ -5,6 +5,24 @@ import type { WorkshopDatabase } from "./projects";
 import { workshopAssemblyRevisions, workshopProjects } from "./schema";
 
 const refuse = (message: string) => new Response(message,{status:400});
+export async function savedAssemblyRevision(db: WorkshopDatabase, projectId: string, revision: number): Promise<AssemblySource> {
+  const [row]=await db.select({data:workshopProjects.data}).from(workshopProjects)
+    .where(and(eq(workshopProjects.id,projectId),eq(workshopProjects.revision,revision)))
+    .unionAll(db.select({data:workshopAssemblyRevisions.data}).from(workshopAssemblyRevisions)
+      .where(and(eq(workshopAssemblyRevisions.projectId,projectId),eq(workshopAssemblyRevisions.revision,revision)))).limit(1);
+  if (!row) throw refuse("Referenced project revision is unavailable");
+  // Tiny marker rows identify real revisions that had the same assembly as the next save.
+  const snapshotRow = row.data === "null" ? await db.get<{data:string}>(sql`
+    SELECT data FROM (
+      SELECT revision,data FROM workshop_assembly_revisions WHERE projectId=${projectId} AND revision>${revision} AND data<>'null'
+      UNION ALL SELECT revision,data FROM workshop_projects WHERE id=${projectId}
+    ) ORDER BY revision LIMIT 1`) : row;
+  if(!snapshotRow) throw refuse("Referenced project revision is unavailable");
+  const record = JSON.parse(snapshotRow.data);
+  return { id:projectId, revision, name:record.name,
+    workspace:record.workspace, meshBuild:record.meshBuild, assembly:AssemblySchema.parse(record.assembly ?? {items:[]}) };
+}
+
 /** Capture current revision numbers in one read. Older revisions remain available
  * if a source changes while its consumer is being resolved. */
 async function snapshot(db: WorkshopDatabase, proposed?: AssemblySource, deletedId?:string) {
@@ -18,21 +36,7 @@ async function snapshot(db: WorkshopDatabase, proposed?: AssemblySource, deleted
     const key = ref.projectId+"/"+revision;
     const cached=cache.get(key);
     if (cached) return cached;
-    const [row]=await db.select({data:workshopProjects.data}).from(workshopProjects)
-      .where(and(eq(workshopProjects.id,ref.projectId),eq(workshopProjects.revision,revision)))
-      .unionAll(db.select({data:workshopAssemblyRevisions.data}).from(workshopAssemblyRevisions)
-        .where(and(eq(workshopAssemblyRevisions.projectId,ref.projectId),eq(workshopAssemblyRevisions.revision,revision)))).limit(1);
-    if (!row) throw refuse("Referenced project revision is unavailable");
-    // Tiny marker rows identify real revisions that had the same assembly as the next save.
-    const snapshotRow = row.data === "null" ? await db.get<{data:string}>(sql`
-      SELECT data FROM (
-        SELECT revision,data FROM workshop_assembly_revisions WHERE projectId=${ref.projectId} AND revision>${revision} AND data<>'null'
-        UNION ALL SELECT revision,data FROM workshop_projects WHERE id=${ref.projectId}
-      ) ORDER BY revision LIMIT 1`) : row;
-    if(!snapshotRow) throw refuse("Referenced project revision is unavailable");
-    const record = JSON.parse(snapshotRow.data);
-    const source: AssemblySource = { id:ref.projectId, revision, name:record.name,
-      workspace:record.workspace, meshBuild:record.meshBuild, assembly:AssemblySchema.parse(record.assembly ?? {items:[]}) };
+    const source = await savedAssemblyRevision(db, ref.projectId, revision);
     cache.set(key,source);
     return source;
   }

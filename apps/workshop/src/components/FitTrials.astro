@@ -1,0 +1,41 @@
+---
+import { appHref } from "../app-href";
+import { listFitTrials } from "../server/fit-trials";
+import type { WorkshopDatabase } from "../server/projects";
+interface Props { db:WorkshopDatabase; projectId:string }
+const {db,projectId}=Astro.props;
+const trials=await listFitTrials(db,{projectId});
+---
+<section aria-label="Physical fit trials" class="fit-trials">
+  <h2>Physical fit trials</h2>
+  {trials.length===0 && <p>Record a bench trial with RecordWorkshopFitTrial to link original photos to the revision you tested.</p>}
+  {trials.map(trial=><article>
+    <h3>{trial.title}</h3>
+    <p>Tested revision <strong>{trial.testedRevision}</strong> · {trial.photos.length} original photos</p>
+    {trial.source && <p>Evidence index <code>{trial.source.repository}/{trial.source.path}</code> at <code>{trial.source.commit}</code></p>}
+    {trial.pcbSnapshotId && <p>PCB snapshot <code>{trial.pcbSnapshotId}</code></p>}
+    {trial.printedFileSha256 && <p>Printed file SHA-256 <code>{trial.printedFileSha256}</code></p>}
+    {trial.printSetup && <dl>{Object.entries(trial.printSetup).map(([field,value])=><div><dt>{field}</dt><dd>{value}</dd></div>)}</dl>}
+    <h4>Interface observations</h4>
+    <ul>{trial.interfaces.map(i=><li><strong>{i.name}</strong> · {i.observation}
+      <small>{[i.dimensionBasis,i.component && "Component "+i.component,i.engagement && "Engagement "+i.engagement,i.wireExit && "Wire exit "+i.wireExit,i.overhang && "Overhang "+i.overhang,i.finish && "Finish "+i.finish].filter(Boolean).join(" · ")}</small>
+    </li>)}</ul>
+    {trial.advisories.length>0 && <><h4>Advisories</h4><ul>{trial.advisories.map(flag=><li><strong>{flag.subject}</strong> · {flag.message}</li>)}</ul></>}
+    <h4>Rapid fit check</h4><p>{trial.rapidFitGuidance}</p>
+    <div class="trial-photos">{trial.photos.map(photo=><figure>
+      <a href={appHref(Astro.url.pathname,photo.downloadPath)}><img loading="lazy" src={appHref(Astro.url.pathname,photo.downloadPath)} alt={photo.observation} /></a>
+      <figcaption>{photo.observation}<small>Attached at revision {photo.attachmentRevision} · {photo.bytes.toLocaleString("en-US")} bytes</small>
+        <details><summary>Original file receipt</summary>{photo.fileName}<br/><code>{photo.sha256}</code><br/>Item {photo.itemId}</details>
+      </figcaption>
+    </figure>)}</div>
+  </article>)}
+</section>
+<style>
+  .fit-trials { margin: 2rem 0; }
+  .fit-trials article { border-top: 1px solid currentColor; padding-block: 1rem; }
+  .trial-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+  figure { margin: 0; }
+  img { width: 100%; height: 10rem; object-fit: contain; }
+  small { display: block; }
+  code, details { overflow-wrap: anywhere; }
+</style>

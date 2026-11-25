@@ -60,3 +60,9 @@ export const workshopUnits = sqliteTable(
 export const workshopAssemblyRevisions = sqliteTable("workshop_assembly_revisions", {
   projectId: text().notNull(), revision: integer().notNull(), data: text().notNull(),
 }, t => [primaryKey({columns:[t.projectId,t.revision]})]);
+
+export const workshopFitTrials = sqliteTable("workshop_fit_trials", {
+  projectId: text().notNull().references(()=>workshopProjects.id, {onDelete:"cascade"}),
+  trialId: text().notNull(), testedRevision: integer().notNull(),
+  data: text().notNull(), recordedAt: text().notNull(), recordedBy: text().notNull(),
+}, t => [primaryKey({columns:[t.projectId,t.trialId]}), index("workshop_fit_trials_revision_idx").on(t.projectId,t.testedRevision)]);

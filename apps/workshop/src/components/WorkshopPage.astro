@@ -4,6 +4,7 @@ import "../styles/workshop.css";
 import { appHref } from "../app-href";
 import { SECTIONS, projectPath, slugId, type SectionId } from "../lib/sections";
 import Content from "./Workspace.astro";
+import FitTrials from "./FitTrials.astro";
 import PCBReview from "./PCBReview.astro";
 
 import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
@@ -51,4 +52,5 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
   ]}
 >
   {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} projectId={projectId} preview={preview} />}
+  {section === "release" && projectId && <FitTrials db={installationDatabase()} projectId={projectId} />}
 </AppLayout>

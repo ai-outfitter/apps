@@ -3,6 +3,7 @@ import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
+import { listFitTrials } from "./fit-trials";
 import { projectPackage } from "../lib/package";
 import { attachedMesh, filePath } from "../lib/assembly-file";
 import { AssemblySchema, type Assembly } from "../lib/assembly";
@@ -282,7 +283,7 @@ export async function exportWorkshopProject(db: WorkshopDatabase, id: string) {
   const project = await getWorkshopProject(db, id);
   const bom = project.assembly.items.some(item => item.reference)
     ? (await resolvedProject(db, {projectId: id, revision: project.revision})).assembly : project.assembly;
-  return new Response(new Uint8Array(projectPackage(project, bom)).buffer, {
+  return new Response(new Uint8Array(projectPackage(project, bom, await listFitTrials(db, {projectId:id}))).buffer, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="workshop-${project.id}-r${project.revision}.zip"`,

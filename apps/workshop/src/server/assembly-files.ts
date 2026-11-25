@@ -47,14 +47,19 @@ export async function verifyAssemblyFile(c:WorkshopContext,input:z.infer<typeof 
   if (!file) throw new Response("File is not attached to this item",{status:404});
   if(input.expectedSha256 && file.sha256!==input.expectedSha256) throw new Response("Attachment changed; restart the read",{status:409});
   if(input.byteOffset!==undefined && input.byteOffset>=file.bytes) throw new Response("Offset is outside the attachment",{status:400});
-  const object=await c.storage().get(target(file));
-  if (!object) throw new Response("Attached file is missing or expired",{status:410});
-  const bytes=new Uint8Array(await new Response(object.body).arrayBuffer());
-  if (object.contentType!==fileType(file.fileName) || bytes.length!==file.bytes || bytesToHex(sha256(bytes))!==file.sha256)
-    throw new Response("Stored file differs from its saved receipt",{status:409});
+  const bytes=await verifiedFileBytes(c,file);
   const result={status:"verified",revision:project.revision,itemId:input.itemId,file:receipt(file)};
   if(input.byteOffset===undefined) return result;
   const end=Math.min(bytes.length,input.byteOffset+24*1024);
   const base64=btoa(String.fromCharCode(...bytes.subarray(input.byteOffset,end)));
   return {...result,byteOffset:input.byteOffset,base64,nextByteOffset:end<bytes.length?end:null};
+}
+
+export async function verifiedFileBytes(c:WorkshopContext,file:AssemblyFile) {
+  const object=await c.storage().get(target(file));
+  if (!object) throw new Response("Attached file is missing or expired",{status:410});
+  const bytes=new Uint8Array(await new Response(object.body).arrayBuffer());
+  if (object.contentType!==fileType(file.fileName) || bytes.length!==file.bytes || bytesToHex(sha256(bytes))!==file.sha256)
+    throw new Response("Stored file differs from its saved receipt",{status:409});
+  return bytes;
 }
