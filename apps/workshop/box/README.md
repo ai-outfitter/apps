@@ -170,9 +170,18 @@ pull using an empty authentication file resolves the printed digest.
 Workshop accepts Bambu Studio slice packages with embedded instance geometry.
 Each archived plate instance must match the stored STL's oriented triangles
 within 0.0001 mm after removing translation. Rigid plate placements are
-supported. An STL that the slicer repaired or re-triangulated must be exported
+supported. Verification handles up to 100,000 triangles and 12 MB of model XML
+per package. An STL that the slicer repaired or re-triangulated must be exported
 and attached as the matching source before its slice can be recorded.
 
 Each project retains up to 20 recorded slice packages. Invalid imports stay in
 temporary upload storage and do not consume that quota. Longer-term management
 of saved print history is separate from the slice recording workflow.
+
+To check a privately held native export, run
+`node --import tsx --test apps/workshop/tests/print-export.unit.test.ts`
+from the apps checkout with `WORKSHOP_REAL_PRINT_FIXTURE` set to its JSON
+manifest. The manifest names the `archive`, `result`, `stlDirectory`,
+`replacement` (with `fileName` and `path`), and `expectedPlates` (with
+`index`, `durationSeconds` and `filamentGrams`). Paths resolve from the
+manifest directory. Keep native project geometry in private fixture storage.

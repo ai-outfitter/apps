@@ -2702,7 +2702,7 @@
       ]
     },
     "mcp": {
-      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and printFindings with the checked item, digest, profile, state and warning location for STL."
+      "description": "Attach an original JPEG/PNG reference photo, CAD file or animation. Supply projectId, itemId, expectedRevision, fileName, sha256, bytes and STL-only meshBounds {min,max} in mm, and optional STL-only supportPolicy. Use retryPrintCheck:true to request a retry of a failed STL check. PUT the raw file to upload.url using upload.headers; repeat the same input to attach it. Returns revision, file receipt and printFindings with the checked item, digest, profile, state and warning location for STL."
     },
     "outputSchema": {
       "type": "object",

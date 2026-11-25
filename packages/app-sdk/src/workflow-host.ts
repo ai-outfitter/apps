@@ -292,8 +292,8 @@ const coreOperations = {
       supportPolicy:z.enum(["support-free","supports-required"]).optional(),
       files:z.array(z.strictObject({name:z.string().regex(/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,159}$/),
         sha256:z.string().regex(/^[a-f0-9]{64}$/),base64:z.string().max(40_000_000)})).min(1).max(50),
-    }).refine(v=>v.files.reduce((sum,f)=>sum+f.base64.length,0)<=40_000_100)})
-  ]),z.object({id:z.string(),profile:z.string(),state:z.enum(["queued","running","completed","error"]),result:json.optional()}).nullable()),
+    }).refine(v=>v.files.reduce((sum,f)=>sum+f.base64.length,0)<=40_000_100),retry:z.literal(true).optional()})
+  ]),z.object({id:z.string(),profile:z.string().regex(/^sha256:[a-f0-9]{64}$/),state:z.enum(["queued","running","completed","error"]),result:json.optional()}).nullable()),
   /** Approved bindings, subscriptions and usable connections of this installation. Editors only. */
   snapshot: operation(memberReads, z.strictObject({}), z.object({
     installation: z.object({ id, activeHash: z.string().nullable(), hostname: z.string().nullable(), workflows: z.array(id) }),

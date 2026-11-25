@@ -347,9 +347,11 @@ async function main() {
   let localPreflightImage;
   if (APP === "workshop") {
     const identity = createHash("sha256");
-    for (const path of ["cantilever.py","fdm-asa.ini","preflight.py","preflight_http.py","runtime.lock"]) {
+    for (const path of ["cantilever.py","fdm-asa.ini","preflight.py","preflight_http.py"]) {
       identity.update(path).update(readFileSync(join("/opt/workshop",path)));
     }
+    const lock = "/opt/workshop/runtime.lock";
+    identity.update(existsSync(lock) ? readFileSync(lock) : run("dpkg-query",["-W"])+run("/opt/cad/bin/pip",["freeze"]));
     localPreflightImage = `outfitter-local/workshop-preflight@sha256:${identity.digest("hex")}`;
     start("fabrication-preflight", "/opt/cad/bin/python", ["/opt/workshop/preflight_http.py"], {
       HOME:"/tmp", PATH:"/opt/cad/bin:/usr/bin:/bin", QT_QPA_PLATFORM:"offscreen",

@@ -22,19 +22,25 @@ type Preflight = {
 };
 type Input = { name: string; sha256: string; bytes?: Uint8Array };
 
-export async function analyzePrint(context: WorkshopContext, input: Input, policy?: SupportPolicy): Promise<Preflight> {
+export async function analyzePrint(context: WorkshopContext, input: Input, policy?: SupportPolicy,retryFailed=false): Promise<Preflight> {
   const {name, sha256: digest, bytes} = input;
   const selector = {kind:"stl" as const,supportPolicy:policy,files:[{name,sha256:digest}]};
+  let submitting = false;
   try {
     const host = context.host();
     let job = await host.call("fabrication.preflight", {lookup:selector});
-    if (bytes && !job) {
+    const retry = retryFailed && job?.state==="error";
+    if (bytes && (!job || retry)) {
       if (bytesToHex(sha256(bytes)) !== digest) return {state:"error",profileSha256:slicerProfileSha256};
       const chunks: string[] = [];
       for (let offset = 0; offset < bytes.length; offset += 24 * 1024) {
         chunks.push(btoa(String.fromCharCode(...bytes.subarray(offset, offset + 24 * 1024))));
       }
-      job = await host.call("fabrication.preflight", {request:{kind:"stl",supportPolicy:policy,files:[{name,sha256:digest,base64:chunks.join("")}]}});
+      submitting = true;
+      job = await host.call("fabrication.preflight", {
+        request:{kind:"stl",supportPolicy:policy,files:[{name,sha256:digest,base64:chunks.join("")}]},
+        ...(retry && {retry:true as const}),
+      });
     }
     if (!job) return {state:"pending",profileSha256:slicerProfileSha256};
     if (!/^sha256:[a-f0-9]{64}$/.test(job.profile)) return {state:"stale",profileSha256:slicerProfileSha256};
@@ -47,7 +53,7 @@ export async function analyzePrint(context: WorkshopContext, input: Input, polic
     if (job.state === "error") return {state:"error",profileSha256:slicerProfileSha256,analyzerDigest};
     return {state:"pending",profileSha256:slicerProfileSha256,analyzerDigest,submitted:true};
   } catch (error) {
-    if (bytes && error instanceof Response && error.status===403)
+    if (submitting && error instanceof Response && error.status===403)
       return {state:"pending",profileSha256:slicerProfileSha256,needsEditor:true};
     if (error instanceof Response && error.status===429) return {state:"pending",profileSha256:slicerProfileSha256};
     return {state:"error",profileSha256:slicerProfileSha256};
@@ -118,7 +124,8 @@ export async function assemblyPrintFindings(context:WorkshopContext,saved:{id:st
     view=await resolvedProject(context.db(),{projectId:saved.id,revision:saved.revision});
   } catch {
     return saved.assembly.items.flatMap(item=>{
-      const attached=item.files?.find(file=>filePath(file)===item.mesh?.path);
+      if (item.kind!=="printed") return [];
+      const attached=item.files?.find(file=>fileType(file.fileName)==="model/stl" && filePath(file)===item.mesh?.path);
       return attached ? machinePrintFindings({itemId:item.id,fileName:attached.fileName,sha256:attached.sha256},
         {state:"error",profileSha256:slicerProfileSha256}) : [];
     });
@@ -149,6 +156,8 @@ export async function readWorkshopPrint(context: WorkshopContext, projectId: str
       const head = await context.storage().head({space:"builds",key});
       if (head?.sha256 !== mesh.artifact.sha256 || head.size !== mesh.artifact.bytes) {
         analysis = {state:"stale",profileSha256:slicerProfileSha256};
+      } else if (analysis.state === "pending" && !analysis.submitted && !context.identity.canEdit) {
+        analysis = {...analysis,needsEditor:true};
       } else if (analysis.state === "pending" && !analysis.submitted && jobsRemaining>0) {
         jobsRemaining--;
         const bytes = await storedPrintBytes(context,key,mesh.artifact);

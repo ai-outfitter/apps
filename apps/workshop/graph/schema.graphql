@@ -298,6 +298,7 @@ input UploadWorkshopAssemblyFileInput {
   itemId: ID!
   expectedRevision: Float!
   meshBounds: UploadWorkshopAssemblyFileInputMeshBounds
+  retryPrintCheck: Boolean
 }
 
 input UploadWorkshopAssemblyFileInputMeshBounds {
