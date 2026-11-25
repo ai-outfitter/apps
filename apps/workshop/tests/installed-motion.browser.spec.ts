@@ -102,7 +102,8 @@ test('play saved arm motion through a chamber and vehicle',async({page})=>{
   }});
   expect(edit.status).toBe(200);
   await page.reload();
-  await expect(page.locator('#assembly-references')).toContainText('current revision '+(source.revision+1));
+  await page.getByRole('tab',{name:'Source & parameters'}).click();
+  await expect(page.locator('#inspection-source')).toContainText(String(source.revision+1));
   await expect(page.locator('#assembly-poster')).toBeVisible();
   await expect(poster).toHaveCount(0);
  }finally{await page.unrouteAll({behavior:'ignoreErrors'});await app.dispose();}

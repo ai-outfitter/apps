@@ -6,7 +6,6 @@ export function inspectionControls(
   host: HTMLElement,
   restore: HTMLButtonElement,
   render: (hidden: ReadonlySet<string>, open: Hinge[]) => void,
-  pick: (item: Item, path: string) => void,
   resetPose: () => void,
 ) {
   const { instances, hinges, bounds } = inspectionPlacements(view);
@@ -48,6 +47,12 @@ export function inspectionControls(
     for (const frame of frames.values()) cancelAnimationFrame(frame);
     frames.clear();
   }
+  function toggleHidden(path: string) {
+    if (hidden.has(path)) hidden.delete(path);
+    else hidden.add(path);
+    apply();
+    if (current) select(current, currentPath);
+  }
   function apply() {
     draw();
     restore.hidden = !(hidden.size || open.size);
@@ -62,19 +67,6 @@ export function inspectionControls(
     const installed = selected && !exact ? all.filter((i) => i.path.startsWith(selected + "/")) : all;
     if (!installed.length || (installed.length === 1 && installed[0].path === view.rootId)) return;
     const target = exact ?? (installed.length === 1 ? installed[0] : undefined);
-    if (installed.length > 1) {
-      const label = document.createElement("label");
-      label.textContent = "Installed instance";
-      const list = document.createElement("select");
-      list.add(new Option("Choose instance", ""));
-      installed.forEach((entry, i) => list.add(new Option(i + 1 + " · " + entry.label, entry.path)));
-      list.value = target?.path ?? "";
-      list.onchange = () => {
-        if (list.value) pick(item, list.value);
-      };
-      label.append(list);
-      host.append(label);
-    }
     if (!target) return;
     const { path } = target;
     function toggle(state: Set<string>, activate: string, deactivate: string) {
@@ -84,6 +76,11 @@ export function inspectionControls(
       };
       sync();
       button.onclick = () => {
+        if (state === hidden) {
+          toggleHidden(path);
+          Array.from(host.querySelectorAll("button")).find(control => control.textContent === (hidden.has(path) ? deactivate : activate))?.focus();
+          return;
+        }
         if (state.has(path)) state.delete(path);
         else state.add(path);
         if (state === open) swing(path);
@@ -105,5 +102,5 @@ export function inspectionControls(
     if (current) select(current, currentPath);
   };
   apply();
-  return { select, bounds, instances, stop };
+  return { select, bounds, instances, stop, toggleHidden };
 }

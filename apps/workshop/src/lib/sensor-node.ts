@@ -42,8 +42,7 @@ const devkit = plan(
 const breakout = (sensor: [number, number, number]) =>
   plan(box([-12.7, -8.9, 0], [25.4, 17.8, 1.6]), box([-sensor[0] / 2, -sensor[1] / 2, 1.6], sensor));
 
-export function sensorNodeAssembly(): Assembly {
-  const id = () => crypto.randomUUID();
+export function sensorNodeAssembly(id: () => string = () => crypto.randomUUID()): Assembly {
   const item = (fields: Partial<Item> & Pick<Item, "number" | "name" | "kind">): Item => ({
     id: id(),
     priceKnown: false,

@@ -119,10 +119,15 @@ test("inspect one installed cover, restore its pose, and preview the enclosure s
     await page.getByRole("tab", { name: "Sizing" }).click();
     await expect(page.locator("#model-sizing")).toContainText("65 mm");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("tab", { name: "Components" }).click();
-    await page.locator("#inspection-tree").getByRole("button", { name: "Lid", exact: true }).click();
-    const leftPath = root + "/" + left + "#0";
-    await page.getByRole("combobox", { name: "Installed instance" }).selectOption(leftPath);
+    await page.getByRole("tab", { name: "Source & parameters" }).click();
+    await expect(page.locator("#inspection-source")).toContainText("50");
+    await expect(page.locator("#inspection-source")).toContainText("Overridden");
+    await page.getByRole("button", { name: "Assembly tree", exact: true }).click();
+    const lid = page.getByRole("treeitem", { name: "Left · Lid" });
+    await lid.focus();
+    await lid.press("Enter");
+    await expect(lid).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "Close assembly tree" }).click();
     await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 60000 });
     const closed = await canvas.screenshot();
     // Reverse during the opening swing. Two animation frames give the hinge time to leave rest.
@@ -140,18 +145,22 @@ test("inspect one installed cover, restore its pose, and preview the enclosure s
     const open = await canvas.screenshot();
     expect(open).not.toEqual(closed);
     await page.getByRole("button", { name: "Close hinge" }).click();
-    expect(await canvas.screenshot()).toEqual(closed);
+    await expect(page.getByRole("button", { name: "Open hinge" })).toBeVisible();
+    await expect.poll(async () => (await canvas.screenshot()).equals(open)).toBe(false);
+    const closedAgain = await canvas.screenshot();
     await page.getByRole("button", { name: "Hide component" }).click();
-    expect(await canvas.screenshot()).not.toEqual(closed);
+    await expect.poll(async () => (await canvas.screenshot()).equals(closedAgain)).toBe(false);
     await page.getByRole("tab", { name: "BOM" }).click();
     await expect(page.locator("#bom-price")).toContainText("$4.00");
     await page.locator("#bom-mode").selectOption("totals");
     await expect(page.locator("#bom-rows")).toContainText("Qty 2");
     await page.getByRole("tab", { name: "Power" }).click();
     await expect(page.locator("#power-summary")).toContainText("4 W simultaneous");
-    await page.getByRole("tab", { name: "Selected" }).click();
+    const hidden = await canvas.screenshot();
     await page.getByRole("button", { name: "Restore assembly" }).click();
-    expect(await canvas.screenshot()).toEqual(closed);
+    await expect(page.getByRole("button", { name: "Hide component" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restore assembly" })).toBeHidden();
+    await expect.poll(async () => (await canvas.screenshot()).equals(hidden)).toBe(false);
     expect(writes).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally {

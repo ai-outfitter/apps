@@ -1,0 +1,48 @@
+---
+import WorkshopPage from "../../../../components/WorkshopPage.astro";
+import { workshopContext } from "../../../../server/context";
+import { BuildAssemblySchema } from "../../../../lib/assembly";
+import { configuredAssembly } from "../../../../lib/assembly-resolution";
+import { inspectionLink } from "../../../../lib/inspection-links";
+import { occurrenceTrail } from "../../../../lib/occurrence-route";
+import { slugId } from "../../../../lib/sections";
+import { resolvedProject } from "../../../../server/assembly-references";
+import { assemblySelection } from "../../../../server/assembly-selection";
+import { projectBySlugId } from "../../../../server/projects";
+
+const slug = Astro.params.slug ?? "";
+const suffix = slugId(slug);
+const address = Astro.params.occurrence;
+if (!suffix || !address) return new Response("Assembly occurrence not found", { status: 404 });
+const demo = import.meta.env.OUTFITTER_APP_MODE === "demo";
+let db;
+try { if (!demo) db = workshopContext(Astro.request, Astro.locals).db(); }
+catch (error) { if (error instanceof Response) return error; throw error; }
+const project = demo
+  ? (await import("../../../../client/fixtures")).fixtureProjects.find(p => p.id.endsWith(suffix))
+  : await projectBySlugId(db!, suffix);
+if (!project) return new Response("Project not found", { status: 404 });
+
+const requested = Astro.url.searchParams;
+const build = project.workspace?.requests.find(run => run.id === requested.get("build"));
+const query = build || requested.has("revision") ? requested : inspectionLink(project.assembly, requested) ?? requested;
+let trail: ReturnType<typeof occurrenceTrail>;
+let routeError: string | undefined;
+try {
+  const ref = assemblySelection(project.id, query);
+  const saved = build && BuildAssemblySchema.safeParse(build.result?.manifest?.assembly);
+  const assembly = saved
+    ? saved.success ? saved.data : undefined
+    : demo ? configuredAssembly(project.assembly, ref) : (await resolvedProject(db!, ref)).assembly;
+  trail = assembly && occurrenceTrail(assembly, address);
+  if (trail?.at(-1)?.item.kind !== "assembly") {
+    Astro.response.status = 404;
+    routeError = "This assembly occurrence does not exist in the selected project and configuration.";
+  }
+} catch (error) {
+  if (!(error instanceof Response || demo && error instanceof Error)) throw error;
+  Astro.response.status = error instanceof Response ? error.status : 400;
+  routeError = error instanceof Response ? await error.text() : (error as Error).message;
+}
+---
+<WorkshopPage {slug} {project} occurrence={address} occurrenceTrail={routeError ? undefined : trail} {routeError} />

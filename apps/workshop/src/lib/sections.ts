@@ -37,4 +37,7 @@ export function projectPath(slug: string, section: SectionId = "overview") {
 }
 
 /** The app's base path from the current address, wherever the app is mounted. */
-export const appBase = (pathname: string) => pathname.replace(/\/projects(?:\/.*)?$/, "").replace(/\/$/, "");
+export function appBase(pathname: string) {
+  const project = pathname.lastIndexOf("/projects/");
+  return project >= 0 ? pathname.slice(0, project) : pathname.replace(/\/projects$/, "").replace(/\/$/, "");
+}

@@ -62,7 +62,7 @@ function placedNode(placement: Placement, geometry:ReturnType<typeof solidGeomet
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void, clearSelection?: () => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void, clearSelection?: () => void, openAssembly?: (path: string) => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const engine = import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url).href;
   const scope = appBase(location.pathname);
@@ -161,6 +161,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
 
   let press: { x: number; y: number; id: number } | undefined;
   const raycaster = new THREE.Raycaster();
+  let tapped: { path: string; at: number } | undefined;
   const pointerDown = (event: PointerEvent) => {
     press = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined;
   };
@@ -170,7 +171,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     if (!start || event.pointerId !== start.id || Math.hypot(event.clientX-start.x, event.clientY-start.y) > 4) return;
     const rect = canvas.getBoundingClientRect();
     raycaster.setFromCamera(new THREE.Vector2(2*(event.clientX-rect.left)/rect.width-1, 1-2*(event.clientY-rect.top)/rect.height), camera);
-    const hits = raycaster.intersectObjects(group.children.filter(node => node.visible), true);
+    const hits = raycaster.intersectObjects(group.children.filter(node => node.visible && !node.userData.outsideLevel), true);
     for (const { object } of hits) {
       if (!(object instanceof THREE.Mesh)) continue;
       let node: THREE.Object3D | null = object;
@@ -178,7 +179,15 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
         if (node.parent === group && node.userData.itemId) {
           const child = level && immediatePath(level.path, node.userData.path);
           const owner = level?.children.find(entry => entry.path === child);
-          inspect(owner?.item.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
+          const path = owner?.path ?? node.userData.path;
+          const now = performance.now();
+          if (owner?.item.kind === "assembly" && tapped && tapped.path === path && now - tapped.at < 450 && openAssembly) {
+            tapped = undefined;
+            openAssembly(path);
+          } else {
+            tapped = { path, at: now };
+            inspect(owner?.item.id ?? node.userData.itemId, path);
+          }
           return;
         }
         node = node.parent;
@@ -212,7 +221,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   function visibleBounds() {
     group.updateMatrixWorld(true);
     const bounds = new THREE.Box3();
-    for (const node of group.children) if (node.visible) bounds.expandByObject(node);
+    for (const node of group.children) if (node.visible && !node.userData.outsideLevel) bounds.expandByObject(node);
     return bounds;
   }
   function topView() {
@@ -226,7 +235,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     camera.position.set(center.x, center.y-0.0001, visible.max.z+Math.max(distance,1));
     controls.update();
   }
-  function reset() {
+  function fit(direction = camera.position.clone().sub(controls.target)) {
     if (!group.children.length) return;
     const bounds = visibleBounds();
     if (bounds.isEmpty()) return;
@@ -238,9 +247,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     camera.far = Math.max(4000, distance * 10);
     camera.updateProjectionMatrix();
     controls.target.copy(sphere.center);
-    camera.position.set(1,-1,0.8).normalize().multiplyScalar(distance).add(sphere.center);
+    camera.position.copy(direction.normalize().multiplyScalar(distance).add(sphere.center));
     controls.update();
   }
+
+  function reset() { fit(new THREE.Vector3(1, -1, 0.8)); }
 
   function clear() {
     invalidate();
@@ -263,7 +274,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       const id = node.userData.itemId as string;
       const path = node.userData.path as string;
       const inside = (scope?: string) => !scope || path === scope || path.startsWith(scope + "/");
-      node.visible = inside(level?.path) && (!isolated || isolated.has(id)) && inside(isolatedPath) && !hiddenPaths.some(inside) && !(inspectionVisible && inspectionPaths.has(path));
+      const outside = !inside(level?.path);
+      node.userData.outsideLevel = outside;
+      node.visible = (!isolated || isolated.has(id)) && inside(isolatedPath) && !hiddenPaths.some(inside) && !(inspectionVisible && inspectionPaths.has(path));
       const dim = selected !== undefined && (!selected.has(id) || !inside(selectedPath));
       const picked = selected !== undefined && !dim;
       node.traverse((child) => {
@@ -271,7 +284,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
           const material = child.material as THREE.MeshStandardMaterial;
           child.userData.baseColor ??= material.color.getHex();
           material.color.setHex(picked ? 0x1676a3 : child.userData.baseColor);
-          material.opacity = dim ? Math.min(0.32, child.userData.opacity) : picked ? Math.max(0.34, child.userData.opacity) : child.userData.opacity;
+          material.opacity = outside ? Math.min(0.09, child.userData.opacity) : dim ? Math.min(0.32, child.userData.opacity) : picked ? Math.max(0.34, child.userData.opacity) : child.userData.opacity;
           material.transparent = material.opacity < 1;
           material.depthWrite = !material.transparent;
           material.needsUpdate = true;
@@ -279,7 +292,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
           const edge = child.material as THREE.LineBasicMaterial;
           child.userData.baseOpacity ??= edge.opacity;
           edge.color.setHex(picked ? 0x154c68 : 0x2b2b2b);
-          edge.opacity = picked ? 0.75 : dim ? 0.24 : child.userData.baseOpacity;
+          edge.opacity = outside ? 0.08 : picked ? 0.75 : dim ? 0.24 : child.userData.baseOpacity;
         }
       });
     }
@@ -387,11 +400,13 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       applyHinges();
       if (levelChanged) highlight();
     },
-    cameraPose() { return {position:camera.position.clone(), target:controls.target.clone()}; },
-    restoreCamera(pose:{position:THREE.Vector3;target:THREE.Vector3}) {
-      camera.position.copy(pose.position); controls.target.copy(pose.target); controls.update();
+    onCameraChange(listener: () => void) { controls.addEventListener("change", listener); },
+    cameraPose() { return { position: camera.position.toArray(), target: controls.target.toArray() }; },
+    restoreCamera(pose: { position: [number, number, number]; target: [number, number, number] }) {
+      camera.position.fromArray(pose.position); controls.target.fromArray(pose.target); controls.update();
     },
     reset,
+    fit,
     topView,
     snapshot() {
       // Copy immediately after drawing. WebGL need not retain its framebuffer.

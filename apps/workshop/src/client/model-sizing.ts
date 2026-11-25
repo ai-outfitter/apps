@@ -1,3 +1,4 @@
+import { appBase, projectPath } from "../lib/sections";
 import type { Assembly } from "../lib/assembly";
 import type { Params } from "../lib/project";
 import type { BuildRequest } from "../lib/workspace";
@@ -92,6 +93,11 @@ export function modelSizing(
     form.append(submit);
     form.onsubmit = (e) => {
       e.preventDefault();
+      const slug = document.querySelector<HTMLElement>(".workspace")?.dataset.slug;
+      if (slug && picker.value !== (url.searchParams.get("configuration") ?? "")) {
+        url.pathname = appBase(url.pathname) + projectPath(slug);
+        for (const key of ["sel", "inspect"]) url.searchParams.delete(key);
+      }
       url.searchParams.delete("item");
       url.searchParams.delete("parameters");
       if (picker.value) url.searchParams.set("configuration", picker.value);

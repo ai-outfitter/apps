@@ -263,12 +263,12 @@ export function fitReady(p: Project) {
     .at(-1);
   return latest?.outcome === "Pass";
 }
-export function makeProject(example: string): Project {
+export function makeProject(example: string, seed?: { id: string; timestamp: string; nextAssemblyId?: () => string }): Project {
   if (!Object.hasOwn(EXAMPLES, example)) throw new Error("Unknown example");
-  const now = new Date().toISOString();
+  const now = seed?.timestamp ?? new Date().toISOString();
   const base: Project = {
     schemaVersion: 1,
-    id: crypto.randomUUID(),
+    id: seed?.id ?? crypto.randomUUID(),
     revision: 0,
     createdAt: now,
     updatedAt: now,
@@ -332,7 +332,7 @@ export function makeProject(example: string): Project {
       params: { design: "sensor", width: 140, depth: 95, height: 35, wall: 2.5 },
       measurementNotes:
         "COTS parts are dimensioned envelopes. Check each against the manufacturer's drawing before printing the enclosure.",
-      assembly: sensorNodeAssembly(),
+      assembly: sensorNodeAssembly(seed?.nextAssemblyId),
     });
   return ProjectSchema.parse(base);
 }

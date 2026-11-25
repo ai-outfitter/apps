@@ -2,26 +2,48 @@
 import BillOfMaterials from "./BillOfMaterials.astro";
 import SelectedComponent from "./SelectedComponent.astro";
 const tabs = [
-  ["description", "Description"], ["components", "Components"], ["selected", "Selected"],
+  ["description", "Description"], ["source", "Source & parameters"],
   ["sizing", "Sizing"], ["cots", "Purchased parts"], ["bom", "BOM"], ["power", "Power"], ["print", "3D Print"],
 ];
-const initialTab = tabs[0][0];
 ---
-<aside id="project-inspection" aria-label="Project inspection" inert>
+<aside id="project-inspection" aria-label="Assembly details" inert>
+  <div class="inspector-header">
+    <span id="detail-context">Open assembly</span>
+    <h2 id="selected-name" tabindex="-1"></h2>
+    <small id="selected-meta"></small>
+    <div id="part-inspection-actions"></div>
+  </div>
   <div role="tablist" aria-label="Project information">
     {tabs.map(([id, label]) => <button type="button" role="tab" id={`tab-${id}`} aria-controls={`pane-${id}`}
-      aria-selected={id === initialTab ? "true" : "false"} tabindex={id === initialTab ? 0 : -1}
-      hidden={["bom","power","selected","sizing","cots","print"].includes(id)}>{label}</button>)}
+      aria-selected={id === "description" ? "true" : "false"} tabindex={id === "description" ? 0 : -1}
+      hidden={!["description", "source", "sizing"].includes(id)}>{label}</button>)}
   </div>
   {tabs.map(([id]) => <section role="tabpanel" id={`pane-${id}`} aria-labelledby={`tab-${id}`}
-    hidden={id !== initialTab} tabindex="0">
-    {id === "description" && <><p id="project-brief"></p><span id="revision-label"></span><p id="purchased-parts-shortcut" hidden><button type="button">Inspect purchased parts</button></p><section id="reference-images" hidden><h3>Reference images</h3><div></div></section></>}
+    hidden={id !== "description"} tabindex="0">
+    {id === "description" && <>
+      <SelectedComponent />
+      <p id="project-brief"></p>
+      <p id="purchased-parts-shortcut" hidden><button type="button">Inspect purchased parts</button></p>
+      <section id="reference-images" hidden><h3>Reference images</h3><div></div></section>
+      <details class="project-settings"><summary>Project settings</summary><label>Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label></details>
+    </>}
+    {id === "source" && <>
+      <div id="inspection-source"></div>
+      <span id="revision-label"></span>
+      <div id="source-files"></div><pre id="source-preview"></pre>
+      <details id="build-editor" hidden><summary>Edit build overrides</summary>
+        <label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label>
+        <form id="build-request">
+          <label for="instruction">Ask for a workspace change</label>
+          <div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div>
+          <p id="runner-status"></p>
+        </form>
+      </details>
+    </>}
     {id === "bom" && <BillOfMaterials />}
     {id === "power" && <section id="power-panel" aria-label="Assembly power budget"></section>}
-    {id === "components" && <><p>Select a component to inspect or hide an installed instance.</p><div id="inspection-tree"></div></>}
     {id === "sizing" && <div id="model-sizing"></div>}
-    {id === "selected" && <SelectedComponent />}
     {id === "cots" && <section aria-label="Purchased part evidence"><h3>Purchased part evidence</h3><div id="cots-evidence" aria-live="polite"></div></section>}
-    {id === "print" && <div id="print-analysis" /> }
+    {id === "print" && <div id="print-analysis" />}
   </section>)}
 </aside>

@@ -1,64 +1,122 @@
 .ui-content:has(.workspace[data-section="overview"]),
-.workspace[data-section="overview"] {max-width:none}
 .workspace[data-section="overview"] {
- --panel-height: max(420px, calc(100svh - 200px));
+ --panel-height: clamp(390px, calc(100svh - 285px), 750px);
+ --tree-accent: light-dark(#0f715c, #80e3c5);
+ --tree-active: color-mix(in srgb, var(--tree-accent) 12%, var(--surface));
 }
 .workspace[data-section="overview"] .viewer-frame:has(#assembly-viewer[data-ready="true"]:not([data-empty])) ~ #assembly-status { display:none }
 .workspace[data-section="overview"] .model-layout {
- display:grid;grid-template-columns:minmax(0, 1.9fr) minmax(320px,1fr);gap:clamp(14px,2vw,30px);align-items:start;
+ display:grid;grid-template-columns:clamp(224px,21%,280px) minmax(0,1fr) clamp(240px,26%,360px);gap:14px;align-items:start;
 }
+.workspace[data-section="overview"] .inspection-header {
+ margin:0 0 14px;align-items:end;gap:14px;flex-wrap:wrap;
+}
+.workspace #model-panel { margin-top:0 }
+.workspace .inspection-header h1 {font-size:clamp(1.4rem,3vw,2rem);line-height:1.16;margin:4px 0}
+.workspace #inspection-product {font-size:.82rem;font-weight:700;color:var(--muted);margin:0 0 4px}
+.workspace #occurrence-meta {font-size:.81rem;color:var(--muted);margin:5px 0 0;overflow-wrap:anywhere}
+.workspace #occurrence-crumbs {display:flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--muted);font-size:.85rem}
+.workspace #occurrence-crumbs > * + *::before {content:"›";display:inline-block;margin-inline:3px 7px;color:var(--muted)}
+.workspace #occurrence-crumbs a {min-height:44px;align-content:center}
+.workspace .inspection-header-links {display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.85rem}
+.workspace .inspection-header-links a {min-height:44px;align-content:center}
 .workspace[data-section="overview"] .model-stage {position:relative;overflow:visible}
-.workspace[data-section="overview"] .model-stage canvas {height:var(--panel-height);border-radius:10px}
-.workspace[data-section="overview"] .model-stage .stage-bar {
- position:absolute;z-index:2;bottom:12px;right:12px;padding:0;border:0;gap:6px;
-}
+.workspace[data-section="overview"] .model-stage canvas {height:var(--panel-height);min-height:0;border-radius:0 0 9px 9px}
+.workspace[data-section="overview"] .model-stage .stage-bar {position:static;order:0;padding:6px;gap:6px;border-bottom:1px solid var(--border);border-top:0}
 .workspace[data-section="overview"] .stage-bar :is(button,summary) {
- font-size:13px;min-height:36px;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;
- background:var(--surface);color:var(--text);padding:8px 12px;
+ font-size:13px;min-height:44px;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;
+ background:var(--surface);color:var(--text);padding:8px 9px;
 }
-.workspace #motion-menu {margin:0;padding:0;border:0}
-.workspace #motion-popover {position:absolute;right:0;bottom:calc(100% + 6px);width:min(320px,78vw);max-height:36vh;
+.workspace #motion-menu {margin:0;padding:0;border:0;position:relative}
+.workspace #motion-popover {position:absolute;right:0;top:100%;z-index:4;width:min(320px,78vw);max-height:44vh;
  overflow:auto;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
-.workspace #project-inspection {height:var(--panel-height);max-height:none;min-width:0;display:flex;flex-direction:column;overflow:hidden}
-.workspace #project-inspection [role="tablist"] {display:flex;flex:none;gap:2px;overflow:auto;border-bottom:1px solid var(--border)}
-.workspace #project-inspection [role="tab"] {border:0;border-radius:0;border-bottom:2px solid transparent;padding:8px 6px;min-width:max-content;
- background:transparent;color:var(--muted);font-size:14px}
-.workspace #project-inspection [role="tab"][aria-selected="true"] {border-color:var(--text);color:var(--text);font-weight:650}
-.workspace #project-inspection [role="tabpanel"] {overflow:auto;min-height:0;overflow-wrap:anywhere;padding:12px 2px}
+.workspace #project-inspection, .workspace #assembly-navigator {
+ min-width:0;display:flex;flex-direction:column;overflow:hidden;max-height:calc(var(--panel-height) + 60px);
+ border:1px solid var(--border);border-radius:10px;background:var(--surface);box-sizing:border-box;
+}
+.workspace .inspector-header {padding:12px 12px 4px}
+.workspace .inspector-header h2 {font-size:1.2rem;line-height:1.2;margin:4px 0;overflow-wrap:anywhere}
+.workspace #detail-context {font-size:.76rem;font-weight:650;color:var(--tree-accent)}
+.workspace #project-inspection [role="tablist"] {
+ display:flex;flex:none;gap:2px;flex-wrap:wrap;padding-inline:8px;border-bottom:1px solid var(--border)
+}
+.workspace #project-inspection [role="tab"] {border:0;border-radius:0;border-bottom:2px solid transparent;padding:6px 5px;min-height:44px;
+ background:transparent;color:var(--muted);font-size:.8rem}
+.workspace #project-inspection [role="tab"][aria-selected="true"] {border-color:var(--tree-accent);color:var(--text);font-weight:650}
+.workspace #project-inspection [role="tabpanel"] {overflow:auto;min-height:0;overflow-wrap:anywhere;padding:12px}
+.workspace #project-inspection [role="tabpanel"] > :first-child {margin-top:0}
+.workspace .inspection-mobile-actions, .workspace #tree-drawer-close {display:none}
+.workspace .tree-header {display:flex;align-items:center;justify-content:space-between;padding:10px 12px 6px}
+.workspace .tree-header h2 {font-size:1rem;margin:0}
+.workspace .tree-search {padding:0 10px 8px}
+.workspace .tree-search input {box-sizing:border-box;width:100%;font-size:.85rem}
+.workspace #inspection-tree {overflow:auto;min-height:0;padding:0 5px 6px;scrollbar-gutter:stable}
+.workspace #inspection-tree > p {padding-inline:7px;font-size:.85rem;color:var(--muted)}
+.workspace #inspection-tree ul {padding:0;margin:0;list-style:none}
+.workspace #inspection-tree li {outline:none}
+.workspace #inspection-tree li:focus-visible > .assembly-tree-row {outline:2px solid var(--tree-accent);outline-offset:-2px}
+.workspace .assembly-tree-row {
+ display:grid;grid-template-columns:24px minmax(0,1fr) auto auto;align-items:center;min-height:44px;
+ padding-inline-start:calc(3px + var(--depth)*10px);border:1px solid transparent;border-radius:5px;
+}
+.workspace .assembly-tree-row:hover {background:var(--hover)}
+.workspace .assembly-tree-row[data-outside] .tree-pick {color:var(--muted)}
+.workspace .assembly-tree-row[data-ancestor] {border-inline-start-color:var(--tree-accent)}
+.workspace .assembly-tree-row[data-open] {background:var(--tree-active);border-inline-start:3px solid var(--tree-accent)}
+.workspace #inspection-tree [aria-selected="true"] > .assembly-tree-row {
+ border-color:var(--tree-accent);background:var(--tree-active)
+}
+.workspace .tree-pick {
+ grid-column:2;min-width:0;text-decoration:none;color:var(--text);display:flex;flex-direction:column;justify-content:center;min-height:44px;line-height:1.15;padding:4px 2px;box-sizing:border-box
+}
+.workspace .tree-pick strong {font-size:.84rem;font-weight:650;overflow-wrap:anywhere}
+.workspace .tree-pick small {font-size:.69rem;line-height:1.25;overflow-wrap:anywhere}
+.workspace .assembly-tree-row[data-open] .tree-pick small::before {content:"Open · ";color:var(--tree-accent);font-weight:700}
+.workspace .assembly-tree-row[data-hidden] .tree-pick {text-decoration:line-through}
+.workspace .assembly-tree-row :is(button,.tree-open-assembly) {
+ padding:0;border:0;background:transparent;text-decoration:none;display:grid;place-items:center;min-height:44px;color:var(--muted)
+}
+.workspace .assembly-tree-row .tree-chevron {grid-column:1;width:24px}
+.workspace .assembly-tree-row .tree-open-assembly {grid-column:3;width:30px;color:var(--tree-accent)}
+.workspace .assembly-tree-row .tree-hide {grid-column:4;width:25px;opacity:0}
+.workspace .assembly-tree-row:is(:hover,:focus-within,[data-hidden]) .tree-hide {opacity:1}
+.workspace .inspect-selected {display:inline-flex;align-items:center;min-height:44px;font-weight:650;color:var(--tree-accent)}
+.workspace :is(#inspection-source,#selected-body) dl {display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:8px 14px}
+.workspace :is(#inspection-source,#selected-body) dt {color:var(--muted);font-size:.82rem}
+.workspace :is(#inspection-source,#selected-body) dd {margin:0}
+.workspace .parameter-values {width:100%;border-collapse:collapse;text-align:start;font-size:.8rem}
+.workspace .parameter-values :is(th,td) {padding:6px 4px;border-bottom:1px solid var(--border);vertical-align:top;text-align:start}
+.workspace .parameter-values td > span {display:block;font-size:.7rem;color:var(--tree-accent);font-weight:650}
+.workspace .project-settings {font-size:.85rem}
+.workspace .project-settings select {width:100%}
+@media(max-width:920px) {
+ .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column;gap:10px}
+ .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
+ .workspace[data-section="overview"] .model-stage canvas {height:clamp(220px,43svh,440px)}
+ .workspace #project-inspection {max-height:none}
+ .workspace #inspection-tree-dock {display:none}
+ .workspace .inspection-mobile-actions {display:flex;gap:8px;width:100%}
+ .workspace .inspection-mobile-actions button {flex:1}
+ .workspace #tree-drawer {
+  position:fixed;inset:auto 0 0;width:min(100%,540px);max-width:none;max-height:76svh;padding:0;margin:0 auto;
+  border:0;border-radius:14px 14px 0 0;background:var(--surface);color:var(--text)
+ }
+ .workspace #tree-drawer::backdrop {background:#121c19a0}
+ .workspace #assembly-navigator {max-height:76svh;border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom)}
+ .workspace #tree-drawer-close {display:block;min-width:44px}
+ .workspace .assembly-tree-row :is(.tree-open-assembly,.tree-hide,.tree-chevron) {width:44px;opacity:1}
+ .workspace .assembly-tree-row {grid-template-columns:44px minmax(0,1fr) auto auto}
+ .workspace #motion-menu[open] {width:100%}
+ .workspace #motion-popover {position:static;width:auto;max-height:none}
+}
 .workspace #project-inspection #project-brief {margin:0 0 1rem;color:var(--text)}
 .workspace #project-inspection #power-panel {padding:0;margin:0;border:0;background:none}
 .workspace #project-inspection h2 {font-size:18px}
 .workspace #project-inspection #bom-panel .toolbar {align-items:start;flex-direction:column;gap:4px}
 .workspace #project-inspection .bom-row {grid-template-columns:1fr auto;gap:4px;padding:10px}
 .workspace #project-inspection .bom-row > div:last-child {grid-column:1/-1}
-.workspace #inspection-tree ul {padding:0;margin:0;list-style:none}
-.workspace #inspection-tree ul ul {margin-left:14px;padding-left:8px;border-left:1px solid var(--border)}
-.workspace .tree-line {position:relative;padding:8px 0 10px 28px;border-bottom:1px solid var(--border)}
-.workspace .tree-line button {padding:0;min-height:32px;border:0;background:transparent;text-align:left;font-weight:550}
-.workspace .tree-line .tree-toggle {position:absolute;left:0;width:26px;text-align:center;color:var(--muted)}
-.workspace .tree-line a {font-size:13px}
-@media(max-width:900px){
- .workspace[data-section="overview"] .model-layout {display:flex;flex-direction:column}
- .workspace[data-section="overview"] .model-stage,.workspace #project-inspection {width:100%;box-sizing:border-box}
- .workspace[data-section="overview"] .model-stage canvas {height:clamp(230px,43svh,440px);min-height:0}
- .workspace[data-section="overview"] .model-stage .stage-bar {position:static;order:1;max-width:none;padding:8px}
- .workspace #motion-menu[open] {width:100%}
- .workspace #motion-popover {position:static;width:auto;max-height:none}
- .workspace #project-inspection {height:clamp(230px,43svh,480px)}
- .workspace #project-inspection [role="tab"] {padding-inline:8px}
-}
-
-.workspace #item-details h3 {font-size:1.35rem;line-height:1.2;margin:4px 0}
-.workspace #selected-body dl {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 16px;margin:16px 0}
-.workspace #selected-body dt {color:var(--muted)}
-.workspace #selected-body dd {margin:0}
 .workspace #selected-body p {white-space:pre-line}
-.workspace[data-section="overview"] .model-stage .stage-bar {max-width:calc(100% - 24px)}
-
 .workspace #selected-body h4 {margin:16px 0 4px;font-size:.9rem}
-.workspace #selected-body .inspection-children {display:grid;gap:0;margin:0}
-.workspace #selected-body .inspection-children button {display:flex;justify-content:space-between;gap:12px;text-align:left;align-items:center;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:8px 2px;background:transparent}
-.workspace #selected-body .inspection-children button:hover {background:var(--hover)}
 .workspace #selected-body > a {display:block;margin:8px 0}
 .workspace #selected-body img,.workspace #selected-body video {display:block;max-width:100%}
 .workspace #motion-controls > :is(strong,p,small) {flex-basis:100%;margin:0}
@@ -80,8 +138,8 @@
 .workspace .viewer-frame:has(canvas[hidden]) {height:var(--panel-height)}
 @media(max-width:900px){.workspace .viewer-frame:has(canvas[hidden]) {height:clamp(230px,43svh,440px)}}
 
-#reference-images figure { margin: .75rem 0; }
-#reference-images img { display: block; max-width: 100%; max-height: 12rem; object-fit: contain; }
+.workspace #reference-images figure { margin: .75rem 0; }
+.workspace #reference-images img { display: block; max-width: 100%; max-height: 12rem; object-fit: contain; }
 
 .workspace #print-analysis article { padding:12px 0; border-bottom:1px solid var(--border) }
 .workspace #print-analysis h3,.workspace #print-analysis p { margin:0 0 6px }
@@ -98,23 +156,11 @@
 .workspace .cots-interface dl {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:0 0 8px}
 .workspace .cots-interface dt {color:var(--muted)}
 .workspace .cots-interface dd {margin:0}
-.workspace[data-section="overview"] .model-stage:has(#occurrence-inspection:not([hidden])) {overflow:visible;height:auto;}
-.workspace[data-section="overview"] .model-stage:has(#occurrence-inspection:not([hidden])) .stage-bar {position:static;order:0;flex-wrap:wrap;padding:6px;}
-.workspace[data-section="overview"] .stage-bar :is(button,summary) {min-height:44px;}
-.workspace #explode-range-panel,.workspace #occurrence-inspection {padding:8px 12px;}
-.workspace #explode-range-panel>div {display:flex;align-items:center;gap:8px;}
-.workspace #explode-range {min-width:40px;min-height:44px;flex:1;accent-color:var(--text);}
-.workspace #occurrence-inspection h3 {font-size:1rem;margin:4px 0;}
-.workspace #occurrence-inspection details {margin:4px 0;padding:0 8px;}
-.workspace #occurrence-list>div,.workspace #occurrence-crumbs {display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-.workspace #occurrence-list button,.workspace #occurrence-inspection summary {min-height:44px;}
-.workspace #occurrence-inspection summary {align-content:center;}
-.workspace .stage-bar #motion-menu {position:relative;}
-.workspace .stage-bar #motion-popover {top:100%;bottom:auto;z-index:4;}
-.workspace #explode-range {padding:0;}
-.workspace #explode-range::-webkit-slider-thumb {height:24px;width:24px;}
-.workspace[data-section="overview"] {--panel-height:clamp(420px,calc(100svh - 320px),700px);}
-.workspace #occurrence-list [aria-pressed="true"] {box-shadow:inset 0 0 0 2px currentColor;}
+.workspace #explode-range-panel {padding:8px 10px;border-bottom:1px solid var(--border)}
+.workspace #explode-range-panel label {display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.85rem}
+.workspace #explode-range-panel>div {display:flex;align-items:center;gap:8px;font-size:.78rem}
+.workspace #explode-range {min-width:40px;min-height:44px;flex:1;accent-color:var(--tree-accent);padding:0}
+.workspace #explode-range::-webkit-slider-thumb {height:24px;width:24px}
 @media(max-width:600px){
  .workspace #explode-range-panel>div {display:grid;grid-template-columns:1fr 1fr;gap:0;}
  .workspace #explode-range {grid-column:1/-1;grid-row:1;width:100%;}
