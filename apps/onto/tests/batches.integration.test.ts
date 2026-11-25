@@ -189,9 +189,10 @@ test("requested changes hold a proposal out of both steward approval and the pol
   const { batch: { id: batchId } } = await json(await f.action("batch.open", { title: "Held proposals", policy }, agent));
   const held = { operation: person("$held", 71, "Held"), confidence: 0.6 };
   const clear = { operation: person("$clear", 72, "Clear"), confidence: 0.6 };
-  await json(await f.action("batch.add", { batchId, proposals: [held, clear] }, agent));
+  const manual = { operation: person("$manual", 73, "Decision by member"), confidence: 0.6 };
+  await json(await f.action("batch.add", { batchId, proposals: [held, clear, manual] }, agent));
   await json(await f.action("batch.submit", { batchId }, agent));
-  const feedback = { batchId, verdict: "request_changes", refs: ["$held"], expectedVersion: 1, comment: "Correct the name." };
+  const feedback = { batchId, verdict: "request_changes", refs: ["$held", "$manual"], expectedVersion: 1, comment: "Correct the name." };
   await json(await f.review(feedback));
   const repeated = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "unchanged", proposals: [held] } });
   assert.match(repeated.errors?.[0]?.message, /update its proposal or withdraw it/);
@@ -201,11 +202,16 @@ test("requested changes hold a proposal out of both steward approval and the pol
   assert.ok(job);
   const steward = await stewardApprove(db, who, batchId, job.reviewJobId, { complete: true, runId: null, prompt: { digest: "review" }, findings: [] });
   assert.ok(steward);
-  assert.deepEqual(steward.held, [{ ref: "$held", reason: "changes were requested" }]);
+  assert.deepEqual(steward.held, [
+    { ref: "$held", reason: "changes were requested" }, { ref: "$manual", reason: "changes were requested" },
+  ]);
   assert.equal(steward.approved, 1);
   assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 0);
   assert.equal(await f.exists(uuid(71)), false);
   assert.equal(await f.exists(uuid(72)), true);
+  assert.equal(await f.exists(uuid(73)), false);
+  await json(await f.review({ batchId, verdict: "approve", refs: ["$manual"], expectedVersion: 1 }));
+  assert.equal(await f.exists(uuid(73)), true);
   const amended = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "fixed",
     proposals: [{ ...held, operation: person("$held", 71, "Corrected") }] } });
   assert.equal(amended.data.mutateBatchSubmission.submittedVersion, 2);
