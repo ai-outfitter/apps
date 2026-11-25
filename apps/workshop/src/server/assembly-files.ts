@@ -1,17 +1,18 @@
 import { z } from "zod";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { assemblyFile, fileName, filePath, fileBase, fileType, type AssemblyFile } from "../lib/assembly-file";
+import { assemblyFile, fileName, filePath, fileBase, fileType, isReferenceImage, type AssemblyFile } from "../lib/assembly-file";
 import { meshBounds } from "../lib/assembly";
 import type { WorkshopContext } from "./graphql";
 import { analyzePrint, machinePrintFindings, printWarnings, storedPrintBytes } from "./print-analysis";
+import { assemblySnapshot } from "./assembly-references";
 import { getWorkshopProject, patchWorkshopProject } from "./projects";
 
 export const uploadInput = assemblyFile.extend({
   itemId:z.uuid(), expectedRevision:z.number().int().nonnegative(), meshBounds:meshBounds.optional(),retryPrintCheck:z.boolean().optional(),
 }).refine(i=>(fileType(i.fileName)==="model/stl")===Boolean(i.meshBounds),"Supply meshBounds for STL only")
   .refine(i=>!(i.supportPolicy || i.retryPrintCheck) || fileType(i.fileName)==="model/stl","Supply supportPolicy or retryPrintCheck for STL only");
-export const verifyInput = z.object({projectId:z.uuid(), itemId:z.uuid(), fileName, byteOffset:z.number().int().nonnegative().optional(), expectedSha256:assemblyFile.shape.sha256.optional()}).strict();
+export const verifyInput = z.object({projectId:z.uuid(), itemId:z.uuid(), fileName, revision:z.int().positive().optional(), byteOffset:z.number().int().nonnegative().optional(), expectedSha256:assemblyFile.shape.sha256.optional()}).strict();
 const target = (file:AssemblyFile) => ({space:"builds",key:file.projectId+"/assembly/"+filePath(file)});
 const receipt = (file:AssemblyFile) => ({...file,contentType:fileType(file.fileName),downloadPath:fileBase(file)+filePath(file)});
 
@@ -21,6 +22,8 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
   const project=await getWorkshopProject(c.db(),file.projectId);
   const item=project.assembly.items.find(i=>i.id===itemId);
   if (!item || item.reference) throw new Response("Select a saved item in its owning project",{status:400});
+  if (item.cotsEvidenceRef && isReferenceImage(file.fileName))
+    throw new Response("Attach purchased-part reference photos in the owning project",{status:400});
   const storage=c.storage(), key=target(file), contentType=fileType(file.fileName);
   const existing=item.files?.find(f=>f.fileName===file.fileName);
   const path=filePath(file);
@@ -49,7 +52,9 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
 }
 
 export async function verifyAssemblyFile(c:WorkshopContext,input:z.infer<typeof verifyInput>) {
-  const project=await getWorkshopProject(c.db(),input.projectId);
+  const project = input.revision === undefined
+    ? await getWorkshopProject(c.db(), input.projectId)
+    : await (await assemblySnapshot(c.db())).load({projectId:input.projectId, revision:input.revision});
   const file=project.assembly.items.find(i=>i.id===input.itemId)?.files?.find(f=>f.fileName===input.fileName);
   if (!file) throw new Response("File is not attached to this item",{status:404});
   if(input.expectedSha256 && file.sha256!==input.expectedSha256) throw new Response("Attachment changed; restart the read",{status:409});

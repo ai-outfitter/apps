@@ -69,6 +69,7 @@ test("a researcher reopens a purchased part reference on the product page", asyn
             name: "MTDELE soil probe",
             number: "MTDELE",
             revision: "A",
+            source: "https://supplier.example/mtdele-reference.png",
           },
         ],
       },
@@ -108,6 +109,16 @@ test("a researcher reopens a purchased part reference on the product page", asyn
       .toBeGreaterThan(0);
     await expect(page.locator("#reference-images figcaption")).toHaveText(
       "MTDELE soil probe",
+    );
+    await page.getByRole("button", { name: "Inspect purchased parts" }).click();
+    const evidence = page.getByRole("region", { name: "Purchased part evidence" });
+    await expect(evidence.getByRole("link", { name: "MTDELE soil probe", exact: true })).toBeVisible();
+    await expect(evidence.getByText("No interface measurements or fit results recorded.")).toBeVisible();
+    await expect(evidence.getByRole("link", { name: "Open supplier reference" })).toHaveAttribute(
+      "href", "https://supplier.example/mtdele-reference.png",
+    );
+    await expect(evidence.getByRole("link", { name: "Open reference photo purchase.png" })).toHaveAttribute(
+      "href", `/files/main/builds/${project.id}/assembly/${digest}/purchase.png`,
     );
   } finally {
     await page.unrouteAll({ behavior: "ignoreErrors" });

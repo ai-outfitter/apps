@@ -1,7 +1,9 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
+import { canonicalActionValue } from "@ai-outfitter/app-sdk/actions";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
+import { sameCotsPart } from "./cots-owner";
 import { resolvedProject, assemblyGuard, noConsumers } from "./assembly-references";
 import { projectPackage } from "../lib/package";
 import { attachedMesh, filePath } from "../lib/assembly-file";
@@ -118,6 +120,9 @@ function checkSavedFiles(next: Assembly, previous?: Assembly) {
   const byId = new Map(previous?.items.map(item => [item.id, item]));
   for (const item of next.items) {
     const old = byId.get(item.id);
+    if (item.cotsEvidence && (!old || !sameCotsPart(item, old) ||
+        canonicalActionValue(item.cotsEvidence) !== canonicalActionValue(old.cotsEvidence)))
+      throw new Response("Record purchased-part evidence with RecordWorkshopCotsEvidence", {status:400});
     for (const file of item.files ?? []) {
       if (!old?.files?.some(saved => saved.projectId === file.projectId && saved.bytes === file.bytes && filePath(saved) === filePath(file)))
         throw new Response("Attach new files with UploadWorkshopAssemblyFile", {status:400});
@@ -148,7 +153,7 @@ export async function createWorkshopProject(
   if (await exists())
     throw new Response("Project already exists.", { status: 409 });
   const linked = revisionColumns(project);
-  const guard = project.assembly.items.some(i=>i.reference || i.operations?.length) ? await assemblyGuard(db,project) : sql`1`;
+  const guard = project.assembly.items.some(i=>i.reference || i.cotsEvidenceRef || i.operations?.length) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
   await db.run(sql`INSERT INTO workshop_projects (id, name, purpose, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
     SELECT ${project.id}, ${project.name}, ${project.purpose}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}
