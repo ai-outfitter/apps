@@ -192,7 +192,7 @@ if (overview) {
   }, showAll);
   occurrenceUI = occurrenceInspection(root, viewer, select, showAll, level => {
     const scoped = modelView(assembly,level.item.id);
-    $("inspection-tree").replaceChildren(inspectionTree(scoped,resolved?.sources ?? [],sourceUrl,item => {
+    $("inspection-tree").replaceChildren(inspectionTree(scoped,historical ? [] : resolved?.sources ?? [],sourceUrl,item => {
       const child = level.children.filter(c => c.item.id === item.id);
       select(item,child.length === 1 ? child[0].path : level.path);
     }));

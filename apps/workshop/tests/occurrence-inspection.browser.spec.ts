@@ -54,6 +54,21 @@ test("keyboard inspection bookmarks one occurrence and restores its parent", asy
     await page.getByRole("button",{name:"Set to assembled"}).click();
     await expect(page.getByRole("button",{name:"Explode 0%"})).toBeFocused();
     expect(new URL(page.url()).searchParams.has("explode")).toBe(false);
+    const bookmark = new URL(page.url());
+    bookmark.searchParams.set("inspect",root+"/"+right+"#0");
+    bookmark.searchParams.set("explode","50");
+    await page.goto(bookmark.href);
+    await expect(page.locator("#assembly-viewer")).toHaveAttribute("data-ready","true",{timeout:60000});
+    await expect(page.locator("#occurrence-heading")).toContainText("Cartridge");
+    await page.getByRole("tab",{name:"Components",exact:true}).click();
+    await expect(page.locator("#inspection-tree")).toContainText("Sensor");
+    await expect(page.locator("#inspection-tree")).not.toContainText("Cartridge");
+    await page.getByRole("button",{name:"Back",exact:true}).click();
+    await expect(second).toBeFocused();
+    const canvas=page.locator("#assembly-viewer");
+    const fromBookmark=await canvas.screenshot();
+    await page.getByRole("button",{name:"Fit view"}).click();
+    expect(await canvas.screenshot()).toEqual(fromBookmark);
     expect(writes).toEqual([]);
   } finally {
     await page.unrouteAll({behavior:"ignoreErrors"});

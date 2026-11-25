@@ -16,7 +16,8 @@ export function inspectionLink(assembly: Assembly, query: URLSearchParams) {
   const baseName = historicalName(name);
   const base = configs.find(c => c.name === baseName);
   if (!base) return undefined;
-  const legacyParameter = preset?.parameters?.find(p => p.name === "Explode" && p.min === 0 && p.max === 1);
+  const hasPairedPreset = configs.some(c => c.name.endsWith("-exploded") && c.parameters?.some(p => p.name === "Explode" && p.min === 0 && p.max === 1) && configs.some(base => base.name === historicalName(c.name) && base.rootId === c.rootId));
+  const legacyParameter = hasPairedPreset && preset?.parameters?.find(p => p.name === "Explode" && p.min === 0 && p.max === 1);
   const legacyReference = assembly.items.find(item => item.id === preset?.rootId)?.reference?.configuration?.endsWith("-exploded");
   const alias = name !== baseName && (!preset || legacyParameter || legacyReference);
   if (!alias && !legacyParameter) return undefined;
@@ -39,7 +40,8 @@ export function sizingConfigurations(assembly: Assembly) {
   return assembly.configurations?.filter(config => {
     const alias = inspectionLink(assembly,new URLSearchParams({configuration:config.name}));
     return !alias || alias.get("configuration") === config.name;
-  }).map(config => ({
-    ...config,parameters:config.parameters?.filter(p => !(p.name === "Explode" && p.min === 0 && p.max === 1))
-  }));
+  }).map(config => {
+    const probe = inspectionLink(assembly,new URLSearchParams({configuration:config.name,parameters:JSON.stringify({Explode:0})}));
+    return probe ? {...config,parameters:config.parameters?.filter(p => p.name !== "Explode")} : config;
+  });
 }

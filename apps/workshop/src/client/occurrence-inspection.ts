@@ -40,7 +40,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     }
   }
   function enter(child: Occurrence) {
-    if (!level || !child.children.length) return;
+    if (toggle.disabled || !level || !child.children.length) return;
     stack.push({level, amount, camera:viewer.cameraPose(), selected:child});
     level = child;
     clear();
@@ -96,7 +96,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     load(assembly: Assembly) {
       occurrences = inspectionOccurrences(assembly);
       level = occurrences.get(assembly.rootId ?? "");
-      stack.length = 0; selectedPath = undefined; toggle.disabled = true; range.disabled = true;
+      stack.length = 0; selectedPath = undefined; toggle.disabled = true; range.disabled = true; get("occurrence-inspection").inert = true;
       const query = new URLSearchParams(location.search);
       const target = occurrences.get(query.get("inspect") ?? "");
       const path = target?.path;
@@ -108,7 +108,10 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
       }
       render(); setAmount(Number(query.get("explode")), false);
     },
-    ready() { toggle.disabled = false; range.disabled = false; },
+    ready() {
+      toggle.disabled = false; range.disabled = false; get("occurrence-inspection").inert = false;
+      if (level && stack.length) changed(level);
+    },
     clear() {
       selectedPath = undefined;
       get("occurrence-status").textContent = level ? "Inspecting " + level.item.name : "";
