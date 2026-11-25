@@ -14,6 +14,7 @@ type TreeEntry = z.infer<typeof treeEntry>;
 export type CommitProof = {
   nonce: string;
   headSha?: string;
+  summary?: string;
   files: { path: string; beforeSha: string | null; contentHash: string | null }[];
 };
 type Read = (suffix: string) => Promise<unknown>;

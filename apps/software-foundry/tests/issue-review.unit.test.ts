@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test, { type TestContext } from "node:test";
@@ -26,6 +27,11 @@ function fixture(t: TestContext) {
   t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL("../migrations/0010_foundry_forgejo_issue_reviews.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../migrations/0011_foundry_forgejo_commit_proof.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../migrations/0012_foundry_forgejo_review_selection.sql", import.meta.url), "utf8"));
+  const key = createHash("sha256").update(JSON.stringify(["installation", origin, pin.repositoryId])).digest("hex");
+  sqlite.prepare(`INSERT INTO foundry_forgejo_issue_review_bindings
+    (key, revision, connectionId, implementer, reviewer, reviewerName, reviewerId, workerId)
+    VALUES (?, 'initial', 'connection', 'implementer', 'reviewer', 'reviewer', 23, 21)`).run(key);
   const db = () => drizzle(async (sql, params, method) => {
     const statement = sqlite.prepare(sql);
     statement.setReturnArrays(true);
@@ -43,6 +49,8 @@ function fixture(t: TestContext) {
     head: null as string | null, branch: "", message: "", runId: "", inputs: {} as Record<string, any>,
     pull: null as Record<string, any> | null, reviews: [] as Record<string, any>[], reviewAttempt: "",
   };
+  const bindings = new Map<string, string>([["implementer", "implementer"], ["reviewer", "reviewer"]]);
+  let intercept: ((operation: string, input: Record<string, any>) => Promise<void> | void) | undefined;
   const runs = new Map<string, Record<string, unknown>>();
   const author = () => ({ id: state.reviewer, login: "independent" });
   const missing = () => new Response("Missing", { status: 404 });
@@ -50,24 +58,29 @@ function fixture(t: TestContext) {
   const host = {
     async call(operation: string, input: Record<string, any>) {
       calls.push({ operation, path: input.path, method: input.method });
+      await intercept?.(operation, input);
       switch (operation) {
         case "snapshot":
           return { installation: { id: "installation", workflows: [issueReviewWorkflow] },
-            bindings: ["implementer", "reviewer"].map(role => ({
-              id: role, actor: role, enabled: true, kind: "external", workflowId: issueReviewWorkflow, label: role,
+            bindings: Array.from(bindings, ([id, role]) => ({
+              id, actor: role, enabled: true, kind: "external", workflowId: issueReviewWorkflow, label: role,
             })),
             connections: [{ id: state.connectionId, provider: "forgejo", owner: "organization",
               operations: ["issues.read"], repositories: state.granted ? [pin.repository] : [] }] };
-        case "binding.approve":
+        case "binding.approve": {
           assert.equal(input.workspace.checkout, "forgejo-pinned");
-          assert.equal(input.workspace.connectionId, "connection");
+          assert.equal(input.workspace.connectionId, state.connectionId);
           assert.equal(input.workspace.inferenceProvider, "spark");
           assert.deepEqual(input.workspace.agentPermissions, { contents: "read", pull_requests: "read", issues: "read" });
           assert.equal(input.workspace.coordinatorPermissions.issues, "read");
           assert.equal(input.workspace.coordinatorPermissions.pull_requests, input.actor === "implementer" ? "write" : "read");
-          return { id: input.actor };
+          const isDefault = input.actor === "implementer" ? input.context.model === "worker" : input.context.model === "review-model";
+          const id = isDefault ? input.actor : `${input.actor}-${input.context.model}`;
+          bindings.set(id, input.actor);
+          return { id };
+        }
         case "repository.read":
-          assert.ok(["implementer", "reviewer"].includes(input.bindingId));
+          assert.ok(bindings.has(input.bindingId));
           return { ...repo, repositoryId: state.repoId, connectionId: state.connectionId };
         case "workflow.read":
           return runs.has(input.id) ? { run: { workflowId: issueReviewWorkflow, status: "running" }, inputs: runs.get(input.id) } : null;
@@ -122,8 +135,8 @@ function fixture(t: TestContext) {
             return {};
           }
           if (path === "") return { id: state.repoId, full_name: pin.repository, html_url: `${state.provider}/${pin.repository}` };
-          if (path === `/issues/${pin.issueNumber}`) return { state: state.issueOpen ? "open" : "closed",
-            number: pin.issueNumber, title: "Fix an example", html_url: `${state.provider}/${pin.repository}/issues/${pin.issueNumber}` };
+          if (/^\/issues\/\d+$/.test(path)) return { state: state.issueOpen ? "open" : "closed",
+            number: Number(path.split("/").at(-1)), title: "Fix an example", html_url: `${state.provider}/${pin.repository}${path}` };
           if (path === `/branches/${pin.baseRef}`) {
             if (state.baseError) throw new Response("Provider lookup unavailable", { status: state.baseError });
             return { name: pin.baseRef, commit: { id: state.baseSha } };
@@ -171,10 +184,13 @@ function fixture(t: TestContext) {
   }
   return {
     state, calls, context, db, phase,
+    intercept: (callback: typeof intercept) => { intercept = callback; },
+    selection: () => sqlite.prepare("SELECT implementer, reviewer FROM foundry_forgejo_issue_review_bindings WHERE key=?").get(key),
     prepare: (input: ReturnType<typeof phase>) => prepareIssueReview(host as unknown as WorkflowHost<"prepare">, db, input),
     finalize: (input: ReturnType<typeof phase>) => finalizeIssueReview(host as unknown as WorkflowHost<"finalize">, db, input),
-    configure: () => configureIssueReview(host as unknown as WorkflowHost<"operator">, { operation: "configure-issue-review",
-      repository: pin.repository, repositoryId: pin.repositoryId, reviewer: "reviewer", implementerModel: "worker", reviewerModel: "review-model" }),
+    configure: (implementerModel = "worker", reviewerModel = "review-model") =>
+      configureIssueReview(host as unknown as WorkflowHost<"operator">, db, { operation: "configure-issue-review",
+        repository: pin.repository, repositoryId: pin.repositoryId, reviewer: "reviewer", implementerModel, reviewerModel }),
     start: (input = pin) => reviewForgejoIssue(context, input),
     writes: () => calls.filter(call => call.method === "POST").map(call => call.path),
   };
@@ -222,7 +238,7 @@ test("converges concurrent starts and lost provider replies on one preserved bra
     mode: "agent", role: "implement", checkout: { sha: pin.baseSha },
     guidance: [
       `Work in the local repo checkout from ${pin.baseRef} at ${pin.baseSha}. Check that exact revision before editing.`,
-      "Return changed text files with their complete contents, or null to delete a file, plus actual check outcomes. Foundry publishes the branch and opens the draft.",
+      "Propose complete text for added or updated files, with your check summary. This workflow supports no deletions or renames.",
     ],
   });
   await f.finalize(implement);
@@ -273,7 +289,13 @@ test("never retries an unseen commit or reports a draft after the base moves dur
   await afterPull.start();
   afterPull.state.moveAfterPull = true;
   await assert.rejects(afterPull.finalize(afterPull.phase("implement")), refused(422));
-  assert.equal((await afterPull.start()).candidate, null);
+  const receipt = await afterPull.start();
+  assert.equal(receipt.candidate, null);
+  assert.equal(receipt.draftObservation?.status, "blocked");
+  assert.equal(receipt.draftObservation?.url, draftUrl);
+  assert.equal(receipt.draftObservation?.number, 8);
+  assert.equal(receipt.draftObservation?.expectedBaseSha, pin.baseSha);
+  await assert.rejects(afterPull.finalize(afterPull.phase("implement", true)), refused(422));
   assert.equal(afterPull.writes().length, 3);
 });
 
@@ -327,10 +349,109 @@ test("private Forgejo origins with the same numeric IDs produce distinct stable 
   const f = fixture(t);
   const first = await f.start();
   Object.assign(f.state, { provider: "https://another-forge.example", connectionId: "another-connection" });
+  await f.configure();
   const second = await f.start();
   assert.notEqual(second.run.id, first.run.id);
   assert.equal((await f.start()).run.id, second.run.id);
   Object.assign(f.state, { provider: origin, connectionId: "connection" });
   assert.equal((await f.start()).run.id, first.run.id);
   assert.equal(f.calls.filter(call => call.operation === "workflow.start").length, 2);
+});
+
+test("selection changes atomically for new issues while existing runs keep their approved pair", async t => {
+  const f = fixture(t);
+  const first = await f.start();
+  const oldPhase = f.phase("implement");
+  f.state.reviewer = 21;
+  await assert.rejects(f.configure("failed-worker", "failed-review"), refused(403));
+  assert.equal(f.selection()?.implementer, "implementer");
+  f.state.reviewer = 23;
+
+  let entered!: () => void;
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { entered = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  f.intercept(async (operation, input) => {
+    if (operation === "binding.approve" && input.context.model === "slow-worker") {
+      entered();
+      await held;
+    }
+  });
+  const slow = f.configure("slow-worker", "slow-review");
+  await waiting;
+  await f.configure("next-worker", "next-review");
+  release();
+  await assert.rejects(slow, refused(409));
+  assert.equal(f.selection()?.implementer, "implementer-next-worker");
+  assert.equal(f.selection()?.reviewer, "reviewer-next-review");
+  assert.equal((await f.start()).run.id, first.run.id);
+  assert.equal((await f.prepare(oldPhase)).mode, "agent");
+  await f.start({ ...pin, issueNumber: pin.issueNumber + 1 });
+  assert.equal(f.state.inputs["implement.inputs.implementerBinding"], "implementer-next-worker");
+  assert.equal(f.state.inputs["implement.inputs.reviewerBinding"], "reviewer-next-review");
+});
+
+test("draft preflight timeout preserves the write attempt and winning implementation summary", async t => {
+  const f = fixture(t);
+  await f.start();
+  const first = f.phase("implement");
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && input.path === `${repo.path}/branches/${pin.baseRef}` &&
+        f.state.head === commit) throw new Response("Preflight timed out", { status: 503 });
+  });
+  await assert.rejects(f.finalize(first), refused(503));
+  assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`]);
+  f.intercept(undefined);
+  const result = await f.finalize(f.phase("implement", true));
+  assert.match(JSON.stringify(result), /Checked fixture/);
+  assert.equal(f.writes().filter(path => path?.endsWith("/pulls")).length, 1);
+});
+
+test("a lost Create PR response during ref drift retains the exact-run draft as blocked", async t => {
+  const f = fixture(t);
+  await f.start();
+  Object.assign(f.state, { loseWrites: true, moveAfterPull: true });
+  await assert.rejects(f.finalize(f.phase("implement")), refused(422));
+  const receipt = await f.start();
+  assert.equal(receipt.candidate, null);
+  assert.equal(receipt.draftObservation?.status, "blocked");
+  assert.equal(receipt.draftObservation?.number, 8);
+  assert.equal(receipt.draftObservation?.url, draftUrl);
+  assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`, `${repo.path}/pulls`]);
+});
+
+test("preflight failures before contents and review leave both writes available", async t => {
+  const f = fixture(t);
+  await f.start();
+  const implement = f.phase("implement");
+  const basePath = `${repo.path}/branches/${pin.baseRef}`;
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && input.path === basePath &&
+        f.state.head === pin.baseSha && !f.state.message) throw new Response("Preflight timeout", { status: 503 });
+  });
+  await assert.rejects(f.finalize(implement), refused(503));
+  assert.deepEqual(f.writes(), [`${repo.path}/branches`]);
+  f.intercept(undefined);
+  await f.finalize(implement);
+
+  const review = f.phase("review");
+  let reads = 0;
+  f.intercept((operation, input) => {
+    if (operation === "repository.request" && input.path === basePath &&
+        ++reads === 2) throw new Response("Review preflight timeout", { status: 503 });
+  });
+  await assert.rejects(f.finalize(review), refused(503));
+  assert.equal(f.state.reviews.length, 0);
+  f.intercept(undefined);
+  await f.finalize(review);
+  assert.equal(f.state.reviews.length, 1);
+});
+
+test("deletions receive a terminal refusal before a branch or commit is written", async t => {
+  const f = fixture(t);
+  await f.start();
+  const phase = f.phase("implement");
+  phase.outputs.result = { summary: "Deletion would be required", files: [{ path: "example.md", content: null }] };
+  await assert.rejects(f.finalize(phase), refused(422));
+  assert.deepEqual(f.writes(), []);
 });

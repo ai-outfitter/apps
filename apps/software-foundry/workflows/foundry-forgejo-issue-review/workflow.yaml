@@ -50,8 +50,9 @@ steps:
     instructions: >-
       Read the assigned issue and inspect the pinned Forgejo base before editing.
       Implement the issue in the assigned worktree and run targeted checks.
-      Return the complete contents of each changed text file or null for a deletion,
-      and a summary of the checks actually run. Foundry publishes the branch and draft.
+      Propose complete text for every added or updated file and summarize your checks.
+      This workflow supports no deletions or renames. If the issue needs either,
+      return an empty files array and explain what is needed.
     outputs:
       result:
         schema:
@@ -67,7 +68,7 @@ steps:
                 required: [path, content]
                 properties:
                   path: {type: string}
-                  content: {type: [string, "null"]}
+                  content: {type: string}
           required: [summary]
   - id: review
     actor: reviewer

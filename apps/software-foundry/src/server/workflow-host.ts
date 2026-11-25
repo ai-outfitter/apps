@@ -79,7 +79,7 @@ async function schedule(host: WorkflowHost<"schedule">, raw: unknown): Promise<z
 
 async function operator(host: WorkflowHost<"operator">, raw: unknown): Promise<PhaseInput> {
   const input = operatorInput.parse(raw);
-  if (input.operation === "configure-issue-review") return configureIssueReview(host, input);
+  if (input.operation === "configure-issue-review") return configureIssueReview(host, installationDatabase, input);
   const result = input.operation === "inspect"
     ? await inspectFoundryWorkspace(host, input.repository, input.reviewer, input.number)
     : input.operation === "configure"

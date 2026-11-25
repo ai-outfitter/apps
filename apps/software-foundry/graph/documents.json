@@ -977,7 +977,7 @@
       ]
     },
     "mcp": {
-      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. Repeat the same inputs for status and retained receipts. A different base conflicts with the existing run."
+      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeat the same inputs for status, retained receipts, or a blocked draft observation. A different base conflicts with the existing run."
     },
     "outputSchema": {
       "type": "object",
