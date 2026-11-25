@@ -54,7 +54,7 @@ const overview = section === "overview";
           <div><span>0 · Assembled</span><input id="explode-range" type="range" min="0" max="100" value="0" step="1" /><span>100 · Exploded</span></div>
         </div>
         <div class="viewer-frame">
-          <canvas id="assembly-viewer" aria-label="Interactive assembly"></canvas>
+          <canvas id="assembly-viewer" tabindex="0" aria-label="Interactive assembly" aria-description="Arrow keys orbit. Plus and minus zoom."></canvas>
           <div id="assembly-poster" hidden={!preview}>{preview && <img src={preview} alt="Static assembly preview" />}</div>
         </div>
         <section id="occurrence-inspection" hidden>

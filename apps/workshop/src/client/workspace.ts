@@ -291,7 +291,7 @@ function select(item:Item, path?:string){
  viewer?.select(descendants(item),path);
  $("isolate-item").hidden=!viewer;
  $("selected-name").textContent=item.name;
- $("selected-meta").textContent=[item.kind, "Rev "+item.revision].join(" · ");
+ $("selected-meta").textContent=[item.kind === "cots" ? "Purchased part (COTS)" : item.kind, "Rev "+item.revision].join(" · ");
  const details=$("selected-body");
  details.replaceChildren();
  occurrenceUI?.selected(item,path,details);
@@ -560,6 +560,7 @@ function showBuild(run?:BuildRequest, snapshot=false){
  const preview=arteraMotionPreview(assembly,view,run?.result?.manifest?.parameters??{});
  void viewer?.render(view,run?.result?.artifactBase??"",legacy?{params:project.params,plan:project.cadPlan}:undefined,run?.result?.manifest?.artifacts??[],signal,historical?{}:resolved?.meshes).then(async()=>{
   if(motionVersion!==motionGeneration || build!==run || $("assembly-viewer").dataset.ready!=="true")return;
+  occurrenceUI?.ready();
   if(query.get("view")==="top") viewer?.topView();
   finishPoster?.($("assembly-viewer").hasAttribute("data-empty") || selected || occurrenceUI?.active ? undefined : ()=>viewer!.snapshot());
   const motionArtifact=run?.result?.manifest?.artifacts.find(a=>a.path.endsWith("/drive-motion.json"));
@@ -677,6 +678,7 @@ $("project-purpose").onchange=async()=>{
 $("top-view").onclick=()=>viewer?.topView();
 $("reset-view").onclick = () => viewer?.reset();
 $("show-all").onclick = () => {
+ occurrenceUI?.clear();
  viewer?.isolate();
  viewer?.select();
  selected = undefined;

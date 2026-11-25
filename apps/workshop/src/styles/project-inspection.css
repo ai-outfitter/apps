@@ -113,3 +113,10 @@
 .workspace .stage-bar #motion-popover {top:100%;bottom:auto;z-index:4;}
 .workspace #explode-range {padding:0;}
 .workspace #explode-range::-webkit-slider-thumb {height:24px;width:24px;}
+.workspace[data-section="overview"] {--panel-height:clamp(420px,calc(100svh - 320px),700px);}
+.workspace #occurrence-list [aria-pressed="true"] {box-shadow:inset 0 0 0 2px currentColor;}
+@media(max-width:600px){
+ .workspace #explode-range-panel>div {display:grid;grid-template-columns:1fr 1fr;gap:0;}
+ .workspace #explode-range {grid-column:1/-1;grid-row:1;width:100%;}
+ .workspace #explode-range-panel span:last-child {text-align:right;}
+}

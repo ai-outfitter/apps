@@ -183,6 +183,26 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     }
     clearSelection?.();
   };
+  const keyboardView = (event: KeyboardEvent) => {
+    const offset = camera.position.clone().sub(controls.target);
+    const angle = Math.PI / 18;
+    switch (event.key) {
+      case "ArrowLeft": case "ArrowRight":
+        offset.applyAxisAngle(camera.up,event.key === "ArrowLeft" ? -angle : angle); break;
+      case "ArrowUp": case "ArrowDown": {
+        const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+        const next = offset.clone().applyAxisAngle(right,event.key === "ArrowUp" ? angle : -angle);
+        if (Math.abs(next.clone().normalize().dot(camera.up)) < 0.999) offset.copy(next);
+        break;
+      }
+      case "+": case "=": offset.multiplyScalar(0.85); break;
+      case "-": offset.divideScalar(0.85); break;
+      default: return;
+    }
+    event.preventDefault();
+    camera.position.copy(controls.target).add(offset); controls.update();
+  };
+  canvas.addEventListener("keydown",keyboardView);
   canvas.addEventListener("pointerdown", pointerDown);
   canvas.addEventListener("pointerup", pointerUp);
 
@@ -207,14 +227,15 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     if (!frame) return;
     const bounds = visibleBounds();
     if (bounds.isEmpty()) return;
-    const min = bounds.min.toArray(), max = bounds.max.toArray();
-    const center = min.map((v, i) => (v + max[i]) / 2);
-    const n = Math.max(...max.map((v, i) => v - min[i])) * 1.25;
-    camera.near = Math.max(0.01, n / 10000);
-    camera.far = Math.max(4000, n * 10);
+    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
+    const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
+    const distance = Math.max(1,sphere.radius) * 1.08 / Math.sin(Math.min(vertical,horizontal));
+    camera.near = Math.max(0.01, distance / 10000);
+    camera.far = Math.max(4000, distance * 10);
     camera.updateProjectionMatrix();
-    controls.target.set(center[0], center[1], center[2]);
-    camera.position.set(center[0] + n, center[1] - n, center[2] + n * 0.8);
+    controls.target.copy(sphere.center);
+    camera.position.set(1,-1,0.8).normalize().multiplyScalar(distance).add(sphere.center);
     controls.update();
   }
 
@@ -247,7 +268,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
           const material = child.material as THREE.MeshStandardMaterial;
           child.userData.baseColor ??= material.color.getHex();
           material.color.setHex(picked ? 0x1676a3 : child.userData.baseColor);
-          material.opacity = dim ? Math.min(0.12, child.userData.opacity) : picked ? Math.max(0.34, child.userData.opacity) : child.userData.opacity;
+          material.opacity = dim ? Math.min(0.32, child.userData.opacity) : picked ? Math.max(0.34, child.userData.opacity) : child.userData.opacity;
           material.transparent = material.opacity < 1;
           material.depthWrite = !material.transparent;
           material.needsUpdate = true;
@@ -255,7 +276,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
           const edge = child.material as THREE.LineBasicMaterial;
           child.userData.baseOpacity ??= edge.opacity;
           edge.color.setHex(picked ? 0x154c68 : 0x2b2b2b);
-          edge.opacity = picked ? 0.75 : dim ? 0.08 : child.userData.baseOpacity;
+          edge.opacity = picked ? 0.75 : dim ? 0.24 : child.userData.baseOpacity;
         }
       });
     }
@@ -433,6 +454,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       version++;
       resize.disconnect();
       renderer.setAnimationLoop(null);
+      canvas.removeEventListener("keydown",keyboardView);
       canvas.removeEventListener("pointerdown", pointerDown);
       canvas.removeEventListener("pointerup", pointerUp);
       controls.removeEventListener("change",invalidate);

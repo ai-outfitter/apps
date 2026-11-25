@@ -17,6 +17,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
   let occurrences = new Map<string, Occurrence>();
   let level: Occurrence | undefined;
   let amount = 0;
+  let selectedPath: string | undefined;
   const stack: {level: Occurrence; amount: number; camera: ReturnType<Viewer["cameraPose"]>; selected: Occurrence}[] = [];
 
   function button(label: string, action: () => void) {
@@ -63,17 +64,18 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     if (!enabled || !level) { panel.hidden = true; return; }
     heading.hidden = !stack.length;
     crumbs.hidden = !stack.length;
-    heading.textContent = level.item.name;
+    heading.textContent = "Inspecting " + level.item.name;
     get("occurrence-status").textContent = "Inspecting " + level.item.name;
     crumbs.replaceChildren();
     for (const [depth, frame] of stack.entries()) crumbs.append(button(frame.level.item.name, () => leave(depth)));
-    if (stack.length) crumbs.append(document.createTextNode(" / " + level.item.name));
+    
     back.hidden = !stack.length;
     list.replaceChildren();
     for (const child of level.children) {
       const row = document.createElement("div");
       const pick = button(child.label, () => select(child.item, child.path));
       pick.dataset.occurrence = child.path;
+      pick.setAttribute("aria-pressed",String(selectedPath === child.path));
       row.append(pick);
       if (child.children.length) row.append(button("Inspect " + child.label, () => enter(child)));
       list.append(row);
@@ -94,7 +96,7 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
     load(assembly: Assembly) {
       occurrences = inspectionOccurrences(assembly);
       level = occurrences.get(assembly.rootId ?? "");
-      stack.length = 0;
+      stack.length = 0; selectedPath = undefined; toggle.disabled = true; range.disabled = true;
       const query = new URLSearchParams(location.search);
       const target = occurrences.get(query.get("inspect") ?? "");
       const path = target?.path;
@@ -106,9 +108,18 @@ export function occurrenceInspection(root: HTMLElement, viewer: Viewer, select: 
       }
       render(); setAmount(Number(query.get("explode")), false);
     },
+    ready() { toggle.disabled = false; range.disabled = false; },
+    clear() {
+      selectedPath = undefined;
+      get("occurrence-status").textContent = level ? "Inspecting " + level.item.name : "";
+      for (const row of list.querySelectorAll("[data-occurrence]")) row.setAttribute("aria-pressed","false");
+    },
+    get current() { return level; },
     get active() { return amount !== 0 || stack.length > 0; },
     selected(item: Item, path: string | undefined, host: HTMLElement) {
       const child = path ? occurrences.get(path) : undefined;
+      selectedPath = path;
+      for (const row of list.querySelectorAll<HTMLElement>("[data-occurrence]")) row.setAttribute("aria-pressed",String(row.dataset.occurrence === path));
       get("occurrence-status").textContent = item.name + " selected";
       if (child?.children.length && level?.children.includes(child)) host.prepend(button("Inspect " + child.label, () => enter(child)));
     }
