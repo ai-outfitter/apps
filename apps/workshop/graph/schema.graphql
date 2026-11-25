@@ -68,6 +68,10 @@ type WorkshopProjectConnectionEdge {
 }
 
 type WorkshopProject {
+  """
+  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  """
+  printFindings: JSON
   id: ID!
   name: String!
   purpose: String!
@@ -80,6 +84,9 @@ type WorkshopProject {
   createdAt: DateTime!
   updatedAt: DateTime!
 }
+
+"""Any JSON value."""
+scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -187,9 +194,6 @@ input WorkshopUnitFilter {
   or: [WorkshopUnitFilter!]
   not: WorkshopUnitFilter
 }
-
-"""Any JSON value."""
-scalar JSON
 
 input WorkshopPrintInput {
   projectId: ID!
@@ -722,6 +726,11 @@ enum DescribeWorkshopProjectInputPhase {
 type WorkshopAssemblyReceipt {
   projectId: ID!
   revision: Int!
+
+  """
+  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  """
+  printFindings: JSON
 }
 
 input WorkshopAssemblyInput {

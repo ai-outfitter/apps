@@ -17,7 +17,7 @@ type Preflight = {
   state: "pending" | "stale" | "completed" | "error";
   profileSha256: string;
   submitted?: boolean;
-  result?: { status: "pass" | "warning" | "fail"; findings?: Finding[]; support_heights_mm?: number[]; message?: string; estimate?: Estimate };
+  result?: { status: "pass" | "warning" | "fail"; findings?: Finding[]; support_heights_mm?: number[]; solid_valid?: boolean; message?: string; estimate?: Estimate };
 };
 type Input = { name: string; sha256: string; bytes?: Uint8Array };
 
@@ -62,6 +62,23 @@ export const printWarnings = (report: Preflight) => {
   return [];
 };
 
+type PrintTarget = { itemId?:string; artifactPath?:string; fileName:string; sha256:string };
+export function machinePrintFindings(target:PrintTarget, report:Preflight) {
+  const identity = {...target,state:report.state,profileSha256:report.profileSha256};
+  if (report.state !== "completed") {
+    const code = {pending:"check_pending",stale:"check_stale",error:"check_unavailable"}[report.state];
+    return [{...identity,code}];
+  }
+  if (report.result?.status === "pass") return [];
+  const status = report.result?.status ?? "warning";
+  const findings = report.result?.findings;
+  if (findings?.length) return [...findings].sort((a,b)=>b.unsupported_area_mm2-a.unsupported_area_mm2).slice(0,8)
+    .map(finding=>({...identity,status,code:"unsupported_area",value:finding.unsupported_area_mm2,
+    unit:"mm2",location:{zMm:finding.z_mm}}));
+  return [{...identity,status,code:report.result?.solid_valid === false ? "invalid_solid" : "needs_support",
+    ...(report.result?.support_heights_mm?.length && {location:{zMm:report.result.support_heights_mm[0]}})}];
+}
+
 export async function storedPrintBytes(context: WorkshopContext, key: string, artifact: Pick<ArtifactRecord, "sha256" | "bytes">) {
   const object = await context.storage().get({space:"builds",key});
   if (!object) return;
@@ -89,6 +106,17 @@ export function printableUses(resolved: ResolvedAssembly) {
       fileName:file?.fileName ?? mesh?.artifact.path.split("/").at(-1),sha256:file?.sha256 ?? mesh?.artifact.sha256,
       policy:file?.supportPolicy,mesh};
   });
+}
+
+/** Assembly edits can change the chosen mesh or added usages without uploading bytes. */
+export async function assemblyPrintFindings(context:WorkshopContext,resolved:ResolvedAssembly) {
+  const findings = [];
+  for (const {itemId,fileName,sha256,policy} of printableUses(resolved)) {
+    if (!fileName || !sha256) continue;
+    const report = await analyzePrint(context,{name:fileName,sha256},policy);
+    findings.push(...machinePrintFindings({itemId,fileName,sha256},report));
+  }
+  return findings;
 }
 
 export async function readWorkshopPrint(context: WorkshopContext, projectId: string, resolved: ResolvedAssembly) {

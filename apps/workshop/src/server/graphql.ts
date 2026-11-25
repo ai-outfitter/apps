@@ -1,6 +1,6 @@
 import { PrintPlateInput } from "../lib/print-plates";
 import { recordWorkshopPrintPlate } from "./print-plates";
-import { readWorkshopPrint } from "./print-analysis";
+import { assemblyPrintFindings, readWorkshopPrint } from "./print-analysis";
 import {sourceFileInput,readSourceFile} from "./source-file";
 import { pageCursor, resolvedPage } from "../lib/resolved-page";
 import {uploadInput, verifyInput, uploadAssemblyFile, verifyAssemblyFile} from "./assembly-files";
@@ -40,12 +40,14 @@ export type WorkshopServices = {
 /** What the actions route (and a page running a document in process) passes to every resolver. */
 export type WorkshopContext = ActionContext & WorkshopServices;
 
+const printFindings = {type:JSONScalar,description:"Current machine-readable print findings with checked part, digest, profile, state and layer location."};
 const projects = tableType(workshopProjects, {
   field: "workshopProjects", type: "WorkshopProject",
   fields: ["name", "purpose", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
   dates: ["createdAt", "updatedAt"],
   ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
   filters: ["createdBy", "productRevisionId", "purpose"],
+  extraFields:{printFindings},
   // workshop_projects_updated_idx.
   orders: ["updatedAt"],
 });
@@ -66,7 +68,7 @@ const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 const projectId = { type: new GraphQLNonNull(GraphQLID) };
 const revision = { type: new GraphQLNonNull(GraphQLInt) };
 const assemblyReceipt = new GraphQLObjectType({
-  name: "WorkshopAssemblyReceipt", fields: { projectId, revision },
+  name: "WorkshopAssemblyReceipt", fields: { projectId, revision, printFindings },
 });
 const assemblyResult = new GraphQLObjectType({
   name: "WorkshopAssemblyResult",
@@ -156,14 +158,19 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       args: { projectId, expectedRevision: revision, assembly: { type: new GraphQLNonNull(zodInputType(AssemblySchema, "WorkshopAssemblyInput")) } },
       run: async (context, { projectId, expectedRevision, assembly }) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, { id: projectId, revision: expectedRevision, assembly });
-        return { projectId, revision: saved.revision };
+        const view = await resolvedProject(context.db(),{projectId,revision:saved.revision});
+        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,view)};
       },
     }),
     saveWorkshopAssembly: mutationField<typeof assemblyInput, WorkshopContext>({
       name: "SaveWorkshopAssembly",
       description: "Replace a project's product structure at the revision the caller saw: its items (assemblies, printed parts, COTS parts, PCBs and firmware, each with a part number and revision letter) and the usage lines from each assembly to the items it contains, with quantities, reference designators and placements; the BOM, costs and 3D view derive from it. Item geometry is a CAD plan (JSON) and a placement is [x, y, z] in mm. A stale revision is refused. Answers the project at its next revision.",
       input: assemblyInput, output: row,
-      run: async (context, input) => workshopProjectRow(context.db(), (await saveWorkshopAssembly(context.db(), context.identity, input)).id),
+      run: async (context, input) => {
+        const saved = await saveWorkshopAssembly(context.db(), context.identity, input);
+        const view = await resolvedProject(context.db(),{projectId:saved.id,revision:saved.revision});
+        return {...await workshopProjectRow(context.db(),saved.id), printFindings:await assemblyPrintFindings(context,view)};
+      },
     }),
     deleteWorkshopProject: mutationField<typeof deleteInput, WorkshopContext>({
       name: "DeleteWorkshopProject",

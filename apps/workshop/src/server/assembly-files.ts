@@ -4,7 +4,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { assemblyFile, fileName, filePath, fileBase, fileType, type AssemblyFile } from "../lib/assembly-file";
 import { meshBounds } from "../lib/assembly";
 import type { WorkshopContext } from "./graphql";
-import { analyzePrint, printWarnings, storedPrintBytes } from "./print-analysis";
+import { analyzePrint, machinePrintFindings, printWarnings, storedPrintBytes } from "./print-analysis";
 import { getWorkshopProject, patchWorkshopProject } from "./projects";
 
 export const uploadInput = assemblyFile.extend({
@@ -44,7 +44,7 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
   if (!bounds) return result;
   const bytes = await storedPrintBytes(c,key.key,file);
   const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy,true);
-  return {...result,preflight,warnings:printWarnings(preflight)};
+  return {...result,preflight,warnings:printWarnings(preflight),printFindings:machinePrintFindings({itemId,fileName:file.fileName,sha256:file.sha256},preflight)};
 }
 
 export async function verifyAssemblyFile(c:WorkshopContext,input:z.infer<typeof verifyInput>) {
@@ -62,7 +62,7 @@ export async function verifyAssemblyFile(c:WorkshopContext,input:z.infer<typeof 
   if(input.byteOffset===undefined) {
     if (fileType(file.fileName)!=="model/stl") return result;
     const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy);
-    return {...result,preflight,warnings:printWarnings(preflight)};
+    return {...result,preflight,warnings:printWarnings(preflight),printFindings:machinePrintFindings({itemId:input.itemId,fileName:file.fileName,sha256:file.sha256},preflight)};
   }
   const end=Math.min(bytes.length,input.byteOffset+24*1024);
   const base64=btoa(String.fromCharCode(...bytes.subarray(input.byteOffset,end)));

@@ -197,6 +197,8 @@ type Database = BaseSQLiteDatabase<"async", any, any>;
 export type TableContext = GraphContext & { db: () => Database };
 type Key<T extends SQLiteTable> = keyof T["_"]["columns"] & string;
 export type TableTypeOptions<T extends SQLiteTable> = {
+  /** Additional resolved fields, including mutation receipts returned with the same record. */
+  extraFields?: GraphQLFieldConfigMap<unknown, TableContext>;
   /** The root field and the GraphQL type of one row, e.g. `records` and `Record`. */
   field: string; type: string;
   /** The columns served, by their key in the table; the primary key is always served, as ID. */
@@ -242,7 +244,7 @@ type Ordering = { key: string | null; descending: boolean };
 /** The root field `field(first, after, ids, orderBy, filter, search)` over one table, returning
  * `<type>Connection { edges nodes pageInfo totalCount }` as a Wiki's collections do: keyset pages in the
  * order asked, filtered and counted by the database, never the whole table. */
-export function tableType<T extends SQLiteTable>(table: T, { field, type, fields, dates = [], ids = [], filters = [], orders = [], scope }: TableTypeOptions<T>): GraphQLFieldConfigMap<unknown, TableContext> {
+export function tableType<T extends SQLiteTable>(table: T, { field, type, fields, dates = [], ids = [], filters = [], orders = [], scope, extraFields }: TableTypeOptions<T>): GraphQLFieldConfigMap<unknown, TableContext> {
   const columns = getTableColumns(table) as Record<string, SQLiteColumn>;
   const keys = Object.keys(columns).filter(key => columns[key].primary);
   if (keys.length !== 1) throw new Error(`${type} needs a table with one primary key column`);
@@ -252,7 +254,7 @@ export function tableType<T extends SQLiteTable>(table: T, { field, type, fields
   const scalar = (key: string) => isId(key) ? GraphQLID : dates.includes(key) ? DateTimeScalar : scalars[columns[key].dataType] ?? JSONScalar;
   const row = new GraphQLObjectType({
     name: type,
-    fields: Object.fromEntries(served.map(key => [key, { type: columns[key].notNull ? nonNull(scalar(key)) : scalar(key) }])),
+    fields: { ...extraFields, ...Object.fromEntries(served.map(key => [key, { type: columns[key].notNull ? nonNull(scalar(key)) : scalar(key) }])) },
   });
   const kindOf = (key: string): FilterKind => {
     const stored = columns[key].dataType;
